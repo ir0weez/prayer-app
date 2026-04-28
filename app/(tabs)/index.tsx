@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -7,6 +8,7 @@ import {
   getDailyPrayerProgress,
   getNextPrayerPerson,
   getPrayTodayList,
+  getUrgentPrayerItems,
   initialJournal,
   initialPeople,
   markPersonPrayed,
@@ -19,14 +21,14 @@ type Section = "home" | "people" | "journal" | "reminders" | "settings";
 
 const palette = {
   primary: "#0066CC",
-  background: "#FFFFFF",
-  surface: "#F8F9FA",
+  background: "#F5FBFF",
+  surface: "#FFFFFF",
   foreground: "#1F2937",
   muted: "#9CA3AF",
-  border: "#E5E7EB",
-  accent: "#5DADE2",
-  success: "#3DAA78",
-  danger: "#C75265",
+  border: "#E0F2FE",
+  accent: "#06B6D4",
+  success: "#10B981",
+  danger: "#EF4444",
 };
 
 const sections: { key: Section; label: string; icon: string }[] = [
@@ -68,9 +70,10 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: palette.border,
-    backgroundColor: palette.background,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(10px)",
     gap: 4,
-  },
+  } as any,
   tabBarItem: {
     flex: 1,
     alignItems: "center",
@@ -144,6 +147,22 @@ const styles = StyleSheet.create({
     color: palette.background,
     fontWeight: "600",
   },
+  urgentBubble: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: palette.danger,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 2,
+    borderColor: palette.background,
+  },
+  urgentBubbleText: {
+    fontSize: 10,
+    color: palette.background,
+    fontWeight: "600",
+  },
   personCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -211,6 +230,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
     color: palette.foreground,
+    backgroundColor: palette.surface,
   },
   journalEntry: {
     marginBottom: 12,
@@ -266,6 +286,7 @@ const styles = StyleSheet.create({
 });
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [section, setSection] = useState<Section>("home");
   const [people, setPeople] = useState(initialPeople);
   const [journal, setJournal] = useState(initialJournal);
@@ -307,26 +328,36 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.prayTodayScroll}
               scrollEnabled={false}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => {
-                    setSelectedPerson(item);
-                    setSection("journal");
-                  }}
-                  style={({ pressed }) => [
-                    styles.avatarBubble,
-                    {
-                      borderColor: item.accentColor,
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={styles.avatarInitials}>{item.initials}</Text>
-                  <View style={styles.avatarPlus}>
-                    <Text style={styles.avatarPlusText}>+</Text>
-                  </View>
-                </Pressable>
-              )}
+              renderItem={({ item }) => {
+                const urgentItems = getUrgentPrayerItems(item);
+                return (
+                  <Pressable
+                    onPress={() => {
+                      router.push({
+                        pathname: "/(tabs)/person",
+                        params: { personId: item.id },
+                      });
+                    }}
+                    style={({ pressed }) => [
+                      styles.avatarBubble,
+                      {
+                        borderColor: item.accentColor,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.avatarInitials}>{item.initials}</Text>
+                    <View style={styles.avatarPlus}>
+                      <Text style={styles.avatarPlusText}>+</Text>
+                    </View>
+                    {urgentItems.length > 0 && (
+                      <View style={styles.urgentBubble}>
+                        <Text style={styles.urgentBubbleText}>⚡ {urgentItems.length}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              }}
             />
           </View>
         </>
@@ -346,8 +377,10 @@ export default function HomeScreen() {
           return (
             <Pressable
               onPress={() => {
-                setSelectedPerson(item);
-                setSection("journal");
+                router.push({
+                  pathname: "/(tabs)/person",
+                  params: { personId: item.id },
+                });
               }}
               style={({ pressed }) => [styles.personCard, pressed && { opacity: 0.7 }]}
             >
@@ -465,7 +498,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScreenContainer containerClassName="bg-white" className="p-0">
+    <ScreenContainer containerClassName="bg-sky-50" className="p-0">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>

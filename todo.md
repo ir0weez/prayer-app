@@ -26,4 +26,12 @@
 - [x] Filter "Pray Today" section by reminder day of week
 - [x] Add helper to determine if person should be prayed for today
 - [x] Test and validate reminder-based filtering
-- [ ] Save checkpoint for tab bar and reminder filtering fixes
+- [x] Save checkpoint for tab bar and reminder filtering fixes
+- [x] Create person detail screen with prayer items and notes
+- [x] Add prayer item data model with urgent flag
+- [x] Implement urgent lightning bolt toggle for prayer items
+- [x] Show urgent prayer items as speech bubbles on avatars in "Pray Today"
+- [x] Update color scheme to match cyan/turquoise aesthetic
+- [x] Implement liquid glass tab bar with blur effect
+- [x] Test person detail screen navigation and interactions
+- [ ] Save checkpoint for person detail screen and aesthetic updates

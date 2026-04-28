@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addPrayerItem,
   getDailyPrayerProgress,
   getNextPrayerPerson,
   getPrayTodayList,
+  getUrgentPrayerItems,
   initialJournal,
   initialPeople,
   markPersonPrayed,
   prependJournalEntry,
+  removePrayerItem,
   shouldPrayForTodayByReminder,
+  togglePrayerItemDone,
+  togglePrayerItemUrgent,
 } from "./prayercircle-data";
 
 describe("PrayerCircle local data helpers", () => {
@@ -57,6 +62,56 @@ describe("PrayerCircle local data helpers", () => {
     const gary = initialPeople.find((p) => p.id === "gary")!;
     expect(shouldPrayForTodayByReminder(gary, 0)).toBe(true); // Every day
     expect(shouldPrayForTodayByReminder(gary, 6)).toBe(true); // Every day
+  });
+
+  it("toggles prayer item urgent flag", () => {
+    const cody = initialPeople.find((p) => p.id === "cody")!;
+    const workItem = cody.prayerItems.find((item) => item.title === "Work")!;
+
+    const updated = togglePrayerItemUrgent(initialPeople, "cody", workItem.id);
+    const updatedCody = updated.find((p) => p.id === "cody")!;
+    const updatedWorkItem = updatedCody.prayerItems.find((item) => item.id === workItem.id)!;
+
+    expect(updatedWorkItem.isUrgent).toBe(!workItem.isUrgent);
+  });
+
+  it("toggles prayer item done flag", () => {
+    const cody = initialPeople.find((p) => p.id === "cody")!;
+    const kurtItem = cody.prayerItems.find((item) => item.title === "Kurt")!;
+
+    const updated = togglePrayerItemDone(initialPeople, "cody", kurtItem.id);
+    const updatedCody = updated.find((p) => p.id === "cody")!;
+    const updatedKurtItem = updatedCody.prayerItems.find((item) => item.id === kurtItem.id)!;
+
+    expect(updatedKurtItem.isDone).toBe(!kurtItem.isDone);
+  });
+
+  it("adds a prayer item to a person", () => {
+    const updated = addPrayerItem(initialPeople, "damian", "  Health  ");
+    const updatedDamian = updated.find((p) => p.id === "damian")!;
+
+    expect(updatedDamian.prayerItems).toHaveLength(1);
+    expect(updatedDamian.prayerItems[0].title).toBe("Health");
+    expect(updatedDamian.prayerItems[0].isUrgent).toBe(false);
+    expect(updatedDamian.prayerItems[0].isDone).toBe(false);
+  });
+
+  it("removes a prayer item from a person", () => {
+    const cody = initialPeople.find((p) => p.id === "cody")!;
+    const initialCount = cody.prayerItems.length;
+
+    const updated = removePrayerItem(initialPeople, "cody", cody.prayerItems[0].id);
+    const updatedCody = updated.find((p) => p.id === "cody")!;
+
+    expect(updatedCody.prayerItems).toHaveLength(initialCount - 1);
+  });
+
+  it("gets urgent prayer items for a person", () => {
+    const cody = initialPeople.find((p) => p.id === "cody")!;
+    const urgentItems = getUrgentPrayerItems(cody);
+
+    expect(urgentItems).toHaveLength(1);
+    expect(urgentItems[0].title).toBe("Work");
   });
 
   it("prepends trimmed journal entries and ignores empty notes", () => {

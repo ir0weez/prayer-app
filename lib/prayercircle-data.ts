@@ -1,3 +1,10 @@
+export type PrayerItem = {
+  id: string;
+  title: string;
+  isUrgent: boolean;
+  isDone: boolean;
+};
+
 export type Person = {
   id: string;
   name: string;
@@ -11,6 +18,7 @@ export type Person = {
   accentColor: string;
   prayedToday: boolean;
   avatarColor: string;
+  prayerItems: PrayerItem[];
 };
 
 export type JournalEntry = {
@@ -35,6 +43,11 @@ export const initialPeople: Person[] = [
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#D4A574",
+    prayerItems: [
+      { id: "p1", title: "Kurt", isUrgent: false, isDone: false },
+      { id: "p2", title: "Work", isUrgent: true, isDone: false },
+      { id: "p3", title: "Family", isUrgent: false, isDone: false },
+    ],
   },
   {
     id: "damian",
@@ -49,6 +62,7 @@ export const initialPeople: Person[] = [
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
   {
     id: "gary",
@@ -63,6 +77,7 @@ export const initialPeople: Person[] = [
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
   {
     id: "joel",
@@ -77,6 +92,7 @@ export const initialPeople: Person[] = [
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
   {
     id: "juan",
@@ -91,6 +107,7 @@ export const initialPeople: Person[] = [
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
   {
     id: "kim",
@@ -105,6 +122,7 @@ export const initialPeople: Person[] = [
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
   {
     id: "richard",
@@ -119,6 +137,7 @@ export const initialPeople: Person[] = [
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
+    prayerItems: [],
   },
 ];
 
@@ -169,6 +188,85 @@ export function shouldPrayForTodayByReminder(person: Person, dayOfWeek: number):
 
 export function getPrayTodayList(people: Person[], dayOfWeek: number): Person[] {
   return people.filter((person) => shouldPrayForTodayByReminder(person, dayOfWeek));
+}
+
+export function togglePrayerItemUrgent(
+  people: Person[],
+  personId: string,
+  itemId: string,
+): Person[] {
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          prayerItems: person.prayerItems.map((item) =>
+            item.id === itemId ? { ...item, isUrgent: !item.isUrgent } : item,
+          ),
+        }
+      : person,
+  );
+}
+
+export function togglePrayerItemDone(
+  people: Person[],
+  personId: string,
+  itemId: string,
+): Person[] {
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          prayerItems: person.prayerItems.map((item) =>
+            item.id === itemId ? { ...item, isDone: !item.isDone } : item,
+          ),
+        }
+      : person,
+  );
+}
+
+export function addPrayerItem(
+  people: Person[],
+  personId: string,
+  title: string,
+): Person[] {
+  const trimmed = title.trim();
+  if (!trimmed) return people;
+
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          prayerItems: [
+            ...person.prayerItems,
+            {
+              id: `item-${Date.now()}`,
+              title: trimmed,
+              isUrgent: false,
+              isDone: false,
+            },
+          ],
+        }
+      : person,
+  );
+}
+
+export function removePrayerItem(
+  people: Person[],
+  personId: string,
+  itemId: string,
+): Person[] {
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          prayerItems: person.prayerItems.filter((item) => item.id !== itemId),
+        }
+      : person,
+  );
+}
+
+export function getUrgentPrayerItems(person: Person): PrayerItem[] {
+  return person.prayerItems.filter((item) => item.isUrgent);
 }
 
 export function prependJournalEntry(

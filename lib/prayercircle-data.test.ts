@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   getDailyPrayerProgress,
   getNextPrayerPerson,
+  getPrayTodayList,
   initialJournal,
   initialPeople,
   markPersonPrayed,
   prependJournalEntry,
+  shouldPrayForTodayByReminder,
 } from "./prayercircle-data";
 
 describe("PrayerCircle local data helpers", () => {
@@ -30,6 +32,31 @@ describe("PrayerCircle local data helpers", () => {
 
   it("reports daily prayer progress from the people list", () => {
     expect(getDailyPrayerProgress(initialPeople)).toEqual({ prayed: 7, total: 7 });
+  });
+
+  it("filters people by reminder day of week", () => {
+    // Monday = 1
+    const mondayPeople = getPrayTodayList(initialPeople, 1);
+    expect(mondayPeople.map((p) => p.id)).toContain("cody"); // Mondays and Thursdays
+    expect(mondayPeople.map((p) => p.id)).toContain("juan"); // Weekly on Monday
+    expect(mondayPeople.map((p) => p.id)).toContain("kim"); // Mondays
+    expect(mondayPeople.map((p) => p.id)).toContain("gary"); // Daily
+
+    // Saturday = 6
+    const saturdayPeople = getPrayTodayList(initialPeople, 6);
+    expect(saturdayPeople.map((p) => p.id)).toContain("damian"); // Weekly on Saturday
+    expect(saturdayPeople.map((p) => p.id)).toContain("gary"); // Daily
+  });
+
+  it("determines if a person should be prayed for on a given day", () => {
+    const cody = initialPeople.find((p) => p.id === "cody")!;
+    expect(shouldPrayForTodayByReminder(cody, 1)).toBe(true); // Monday
+    expect(shouldPrayForTodayByReminder(cody, 4)).toBe(true); // Thursday
+    expect(shouldPrayForTodayByReminder(cody, 2)).toBe(false); // Wednesday
+
+    const gary = initialPeople.find((p) => p.id === "gary")!;
+    expect(shouldPrayForTodayByReminder(gary, 0)).toBe(true); // Every day
+    expect(shouldPrayForTodayByReminder(gary, 6)).toBe(true); // Every day
   });
 
   it("prepends trimmed journal entries and ignores empty notes", () => {

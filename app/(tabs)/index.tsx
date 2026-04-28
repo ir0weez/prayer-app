@@ -6,6 +6,7 @@ import {
   formatDaysSinceLastPrayer,
   getDailyPrayerProgress,
   getNextPrayerPerson,
+  getPrayTodayList,
   initialJournal,
   initialPeople,
   markPersonPrayed,
@@ -17,7 +18,7 @@ import {
 type Section = "home" | "people" | "journal" | "reminders" | "settings";
 
 const palette = {
-  primary: "#6366F1",
+  primary: "#0066CC",
   background: "#FFFFFF",
   surface: "#F8F9FA",
   foreground: "#1F2937",
@@ -28,12 +29,12 @@ const palette = {
   danger: "#C75265",
 };
 
-const sections: { key: Section; label: string }[] = [
-  { key: "home", label: "Home" },
-  { key: "people", label: "People" },
-  { key: "journal", label: "Journal" },
-  { key: "reminders", label: "Reminders" },
-  { key: "settings", label: "Settings" },
+const sections: { key: Section; label: string; icon: string }[] = [
+  { key: "home", label: "Home", icon: "🏠" },
+  { key: "people", label: "People", icon: "👥" },
+  { key: "journal", label: "Journal", icon: "📝" },
+  { key: "reminders", label: "Reminders", icon: "🔔" },
+  { key: "settings", label: "Settings", icon: "⚙️" },
 ];
 
 const styles = StyleSheet.create({
@@ -61,28 +62,39 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "center",
-    height: 60,
+    alignItems: "flex-end",
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: palette.border,
     backgroundColor: palette.background,
+    gap: 4,
   },
   tabBarItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    height: "100%",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 12,
   } as any,
+  tabBarItemActive: {
+    backgroundColor: palette.primary,
+  },
   tabBarLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 4,
+    fontWeight: "500",
   },
   tabBarLabelActive: {
-    color: palette.primary,
-    fontWeight: "600",
+    color: palette.background,
   },
   tabBarLabelInactive: {
     color: palette.muted,
+  },
+  tabBarIcon: {
+    fontSize: 20,
   },
   sectionTitle: {
     fontSize: 12,
@@ -261,7 +273,9 @@ export default function HomeScreen() {
   const [noteDraft, setNoteDraft] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const progress = getDailyPrayerProgress(people);
+  const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
+  const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
+  const progress = getDailyPrayerProgress(prayTodayList);
 
   const markPrayed = (person: Person) => {
     setPeople((current) => markPersonPrayed(current, person.id));
@@ -282,37 +296,41 @@ export default function HomeScreen() {
   const renderHome = () => (
     <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
       {/* Pray Today Section */}
-      <Text style={styles.sectionTitle}>PRAY TODAY</Text>
-      <View style={styles.prayTodayContainer}>
-        <FlatList
-          data={people}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.prayTodayScroll}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => {
-                setSelectedPerson(item);
-                setSection("journal");
-              }}
-              style={({ pressed }) => [
-                styles.avatarBubble,
-                {
-                  borderColor: item.accentColor,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Text style={styles.avatarInitials}>{item.initials}</Text>
-              <View style={styles.avatarPlus}>
-                <Text style={styles.avatarPlusText}>+</Text>
-              </View>
-            </Pressable>
-          )}
-        />
-      </View>
+      {prayTodayList.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>PRAY TODAY</Text>
+          <View style={styles.prayTodayContainer}>
+            <FlatList
+              data={prayTodayList}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.prayTodayScroll}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    setSelectedPerson(item);
+                    setSection("journal");
+                  }}
+                  style={({ pressed }) => [
+                    styles.avatarBubble,
+                    {
+                      borderColor: item.accentColor,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={styles.avatarInitials}>{item.initials}</Text>
+                  <View style={styles.avatarPlus}>
+                    <Text style={styles.avatarPlusText}>+</Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        </>
+      )}
 
       {/* Friends Section */}
       <Text style={styles.sectionTitle}>FRIENDS</Text>
@@ -464,8 +482,9 @@ export default function HomeScreen() {
             <Pressable
               key={sec.key}
               onPress={() => setSection(sec.key)}
-              style={styles.tabBarItem}
+              style={[styles.tabBarItem, section === sec.key && styles.tabBarItemActive]}
             >
+              <Text style={styles.tabBarIcon}>{sec.icon}</Text>
               <Text
                 style={[
                   styles.tabBarLabel,

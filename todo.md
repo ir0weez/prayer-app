@@ -21,4 +21,9 @@
 - [x] Add bottom tab bar navigation with proper icons and styling
 - [x] Update data model to track days since last prayer
 - [x] Test and validate new layout
-- [ ] Save checkpoint for updated social media feed design
+- [x] Save checkpoint for updated social media feed design
+- [x] Fix tab bar styling to match original design
+- [x] Filter "Pray Today" section by reminder day of week
+- [x] Add helper to determine if person should be prayed for today
+- [x] Test and validate reminder-based filtering
+- [ ] Save checkpoint for tab bar and reminder filtering fixes

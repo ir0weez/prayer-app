@@ -7,6 +7,7 @@ export type Person = {
   intention: string;
   lastPrayedDaysAgo: number;
   reminder: string;
+  reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   accentColor: string;
   prayedToday: boolean;
   avatarColor: string;
@@ -30,6 +31,7 @@ export const initialPeople: Person[] = [
     intention: "Wisdom at work and a steady rhythm of rest.",
     lastPrayedDaysAgo: 1,
     reminder: "Mondays and Thursdays",
+    reminderDaysOfWeek: [1, 4], // Monday (1) and Thursday (4)
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#D4A574",
@@ -43,6 +45,7 @@ export const initialPeople: Person[] = [
     intention: "Healing, practical support, and a hopeful week.",
     lastPrayedDaysAgo: 23,
     reminder: "Weekly on Saturday",
+    reminderDaysOfWeek: [6], // Saturday (6)
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -56,6 +59,7 @@ export const initialPeople: Person[] = [
     intention: "Peace and clarity in decisions.",
     lastPrayedDaysAgo: 0,
     reminder: "Daily",
+    reminderDaysOfWeek: [0, 1, 2, 3, 4, 5, 6], // Every day
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -69,6 +73,7 @@ export const initialPeople: Person[] = [
     intention: "Strength and encouragement.",
     lastPrayedDaysAgo: 23,
     reminder: "Twice a week",
+    reminderDaysOfWeek: [2, 5], // Wednesday (2) and Saturday (5)
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -82,6 +87,7 @@ export const initialPeople: Person[] = [
     intention: "Guidance and wisdom.",
     lastPrayedDaysAgo: 6,
     reminder: "Weekly",
+    reminderDaysOfWeek: [1], // Monday (1)
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -95,6 +101,7 @@ export const initialPeople: Person[] = [
     intention: "Joy and peace.",
     lastPrayedDaysAgo: 23,
     reminder: "Mondays",
+    reminderDaysOfWeek: [1], // Monday (1)
     accentColor: "#F85C5C",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -108,6 +115,7 @@ export const initialPeople: Person[] = [
     intention: "Blessings and protection.",
     lastPrayedDaysAgo: 6,
     reminder: "Thursdays",
+    reminderDaysOfWeek: [4], // Thursday (4)
     accentColor: "#5DADE2",
     prayedToday: true,
     avatarColor: "#7FD8BE",
@@ -153,6 +161,14 @@ export function getDailyPrayerProgress(people: Person[]): { prayed: number; tota
     prayed: people.filter((person) => person.prayedToday).length,
     total: people.length,
   };
+}
+
+export function shouldPrayForTodayByReminder(person: Person, dayOfWeek: number): boolean {
+  return person.reminderDaysOfWeek.includes(dayOfWeek);
+}
+
+export function getPrayTodayList(people: Person[], dayOfWeek: number): Person[] {
+  return people.filter((person) => shouldPrayForTodayByReminder(person, dayOfWeek));
 }
 
 export function prependJournalEntry(

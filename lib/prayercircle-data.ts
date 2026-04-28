@@ -5,10 +5,11 @@ export type Person = {
   relationship: string;
   birthday: string;
   intention: string;
-  lastPrayed: string;
+  lastPrayedDaysAgo: number;
   reminder: string;
-  accent: string;
+  accentColor: string;
   prayedToday: boolean;
+  avatarColor: string;
 };
 
 export type JournalEntry = {
@@ -21,70 +22,125 @@ export type JournalEntry = {
 
 export const initialPeople: Person[] = [
   {
-    id: "mara",
-    name: "Mara Lewis",
-    initials: "ML",
-    relationship: "Sister",
-    birthday: "Today",
-    intention: "Peace during her move and encouragement for the next step.",
-    lastPrayed: "Yesterday",
-    reminder: "Every morning at 8:30",
-    accent: "#8C6DFF",
-    prayedToday: false,
-  },
-  {
-    id: "daniel",
-    name: "Daniel Park",
-    initials: "DP",
-    relationship: "Friend",
+    id: "cody",
+    name: "Cody Pattee",
+    initials: "CP",
+    relationship: "Friends",
     birthday: "May 6",
     intention: "Wisdom at work and a steady rhythm of rest.",
-    lastPrayed: "Today",
+    lastPrayedDaysAgo: 1,
     reminder: "Mondays and Thursdays",
-    accent: "#6E8BFF",
+    accentColor: "#5DADE2",
     prayedToday: true,
+    avatarColor: "#D4A574",
   },
   {
-    id: "elena",
-    name: "Elena Cruz",
-    initials: "EC",
-    relationship: "Neighbor",
+    id: "damian",
+    name: "Damian Lopez",
+    initials: "DL",
+    relationship: "Friends",
     birthday: "June 14",
     intention: "Healing, practical support, and a hopeful week.",
-    lastPrayed: "3 days ago",
+    lastPrayedDaysAgo: 23,
     reminder: "Weekly on Saturday",
-    accent: "#B06BFF",
-    prayedToday: false,
+    accentColor: "#F85C5C",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
+  },
+  {
+    id: "gary",
+    name: "Gary Martin",
+    initials: "GM",
+    relationship: "Friends",
+    birthday: "July 2",
+    intention: "Peace and clarity in decisions.",
+    lastPrayedDaysAgo: 0,
+    reminder: "Daily",
+    accentColor: "#5DADE2",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
+  },
+  {
+    id: "joel",
+    name: "Joel Gonzalez",
+    initials: "JG",
+    relationship: "Friends",
+    birthday: "August 10",
+    intention: "Strength and encouragement.",
+    lastPrayedDaysAgo: 23,
+    reminder: "Twice a week",
+    accentColor: "#F85C5C",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
+  },
+  {
+    id: "juan",
+    name: "Juan Aguirre",
+    initials: "JA",
+    relationship: "Friends",
+    birthday: "September 5",
+    intention: "Guidance and wisdom.",
+    lastPrayedDaysAgo: 6,
+    reminder: "Weekly",
+    accentColor: "#5DADE2",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
+  },
+  {
+    id: "kim",
+    name: "Kim Crouch",
+    initials: "KC",
+    relationship: "Friends",
+    birthday: "October 12",
+    intention: "Joy and peace.",
+    lastPrayedDaysAgo: 23,
+    reminder: "Mondays",
+    accentColor: "#F85C5C",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
+  },
+  {
+    id: "richard",
+    name: "Richard Juarez",
+    initials: "RJ",
+    relationship: "Friends",
+    birthday: "November 20",
+    intention: "Blessings and protection.",
+    lastPrayedDaysAgo: 6,
+    reminder: "Thursdays",
+    accentColor: "#5DADE2",
+    prayedToday: true,
+    avatarColor: "#7FD8BE",
   },
 ];
 
 export const initialJournal: JournalEntry[] = [
   {
     id: "j1",
-    personId: "daniel",
-    personName: "Daniel Park",
+    personId: "cody",
+    personName: "Cody Pattee",
     date: "Today",
     note: "Prayed for clarity before his client meeting and a peaceful conversation afterward.",
   },
   {
     id: "j2",
-    personId: "mara",
-    personName: "Mara Lewis",
+    personId: "damian",
+    personName: "Damian Lopez",
     date: "Yesterday",
-    note: "Asked for patience, safe travel, and the right people around her during the move.",
+    note: "Asked for patience, safe travel, and the right people around him.",
   },
   {
     id: "j3",
-    personId: "elena",
-    personName: "Elena Cruz",
+    personId: "gary",
+    personName: "Gary Martin",
     date: "Monday",
-    note: "Prayed for healing and a reminder that she is not carrying everything alone.",
+    note: "Prayed for healing and a reminder that he is not carrying everything alone.",
   },
 ];
 
 export function markPersonPrayed(people: Person[], personId: string): Person[] {
   return people.map((person) =>
-    person.id === personId ? { ...person, prayedToday: true, lastPrayed: "Today" } : person,
+    person.id === personId ? { ...person, prayedToday: true, lastPrayedDaysAgo: 0 } : person,
   );
 }
 
@@ -120,4 +176,10 @@ export function prependJournalEntry(
     },
     ...journal,
   ];
+}
+
+export function formatDaysSinceLastPrayer(days: number): string {
+  if (days === 0) return "—";
+  if (days === 1) return "1d";
+  return `${days}d`;
 }

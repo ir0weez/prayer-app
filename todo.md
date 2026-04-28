@@ -6,7 +6,7 @@
 - [x] Extract or recreate visual assets from the APK where legally and technically feasible
 - [x] Identify source app screens, navigation structure, colors, typography, and labels
 - [x] Update design.md with APK-specific screen and visual findings
-- [x] Recreate home screen look and feel
+- [x] Recreate home screen look and feel (v1 - purple card style)
 - [x] Recreate prayer schedule or daily prayer view if present in APK
 - [x] Recreate prayer reading/detail view if present in APK
 - [x] Recreate settings or supporting screens if present in APK
@@ -15,4 +15,10 @@
 - [x] Update app.config.ts branding fields
 - [x] Run type checks and deterministic validation
 - [x] Resolve current TypeScript diagnostics if they affect delivery
-- [x] Save final checkpoint for user handoff
+- [x] Save final checkpoint for user handoff (v1)
+- [x] Refactor home screen to social media feed design (circular avatars + person cards)
+- [x] Add days-since-last-prayer badge to person cards
+- [x] Add bottom tab bar navigation with proper icons and styling
+- [x] Update data model to track days since last prayer
+- [x] Test and validate new layout
+- [ ] Save checkpoint for updated social media feed design

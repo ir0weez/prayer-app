@@ -5,6 +5,7 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { ScreenContainer } from "@/components/screen-container";
 import {
   addPerson,
+  calculatePrayerStreak,
   formatDaysSinceLastPrayer,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
@@ -13,8 +14,10 @@ import {
   initialPeople,
   markPersonPrayed,
   prependJournalEntry,
+  relationshipColors,
   type JournalEntry,
   type Person,
+  type RelationshipType,
 } from "@/lib/prayercircle-data";
 
 type Section = "home" | "people" | "journal" | "reminders" | "settings";
@@ -354,23 +357,25 @@ export default function HomeScreen() {
   const [people, setPeople] = useState<Person[]>(initialPeople);
   const [journal, setJournal] = useState<JournalEntry[]>(initialJournal);
   const [newPersonName, setNewPersonName] = useState("");
-  const [newPersonRelationship, setNewPersonRelationship] = useState("");
+  const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Friends");
   const [showAddPerson, setShowAddPerson] = useState(false);
 
   const todayDayOfWeek = new Date().getDay();
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
   const progress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
+  const streak = useMemo(() => calculatePrayerStreak(people), [people]);
+  const prayersLeftToday = progress.total - progress.prayed;
 
   const handleAddPerson = () => {
     if (newPersonName.trim()) {
       const newPeople = addPerson(
         people,
         newPersonName,
-        newPersonRelationship || "Friend"
+        newPersonRelationship
       );
       setPeople(newPeople);
       setNewPersonName("");
-      setNewPersonRelationship("");
+      setNewPersonRelationship("Friends");
       setShowAddPerson(false);
     }
   };
@@ -467,13 +472,35 @@ export default function HomeScreen() {
             value={newPersonName}
             onChangeText={setNewPersonName}
           />
-          <TextInput
-            style={styles.addPersonInput}
-            placeholder="Relationship (e.g., Friend, Family)"
-            placeholderTextColor={palette.muted}
-            value={newPersonRelationship}
-            onChangeText={setNewPersonRelationship}
-          />
+          <Text style={{ fontSize: 12, fontWeight: "700", color: palette.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>RELATIONSHIP</Text>
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {(["Family", "Friends", "Ministry", "Prospect"] as RelationshipType[]).map((rel) => (
+              <Pressable
+                key={rel}
+                onPress={() => setNewPersonRelationship(rel)}
+                style={({ pressed }) => [
+                  {
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: relationshipColors[rel].accent,
+                    backgroundColor: newPersonRelationship === rel ? relationshipColors[rel].accent : "transparent",
+                  },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontWeight: "700",
+                    color: newPersonRelationship === rel ? palette.background : relationshipColors[rel].accent,
+                  }}
+                >
+                  {rel}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <Pressable
             onPress={handleAddPerson}
             style={({ pressed }) => [styles.addPersonButton, pressed && { opacity: 0.8 }]}
@@ -549,9 +576,21 @@ export default function HomeScreen() {
     <ScreenContainer containerClassName="bg-sky-50" className="p-0">
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>PrayerCircle</Text>
-          <Text style={styles.headerStats}>{progress.prayed}/{progress.total} prayed today</Text>
+        <View style={[styles.header, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}>
+          <View>
+            <Text style={styles.headerTitle}>PrayerCircle</Text>
+            <Text style={styles.headerStats}>{progress.prayed}/{progress.total} prayed today</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+            <View style={{ alignItems: "center" }}>
+              <Text style={{ fontSize: 24 }}>🔥</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: palette.foreground }}>{streak}</Text>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              <Text style={{ fontSize: 24 }}>📋</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: palette.foreground }}>{prayersLeftToday}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Content */}

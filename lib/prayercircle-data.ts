@@ -5,11 +5,13 @@ export type PrayerItem = {
   isDone: boolean;
 };
 
+export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";
+
 export type Person = {
   id: string;
   name: string;
   initials: string;
-  relationship: string;
+  relationship: RelationshipType;
   lastPrayedDate: string | null; // ISO date string (YYYY-MM-DD) or null
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   accentColor: string;
@@ -23,6 +25,14 @@ export type JournalEntry = {
   personName: string;
   date: string;
   note: string;
+};
+
+// Relationship type to color mapping
+export const relationshipColors: Record<RelationshipType, { avatar: string; accent: string }> = {
+  Family: { avatar: "#A78BFA", accent: "#7C3AED" }, // Purple
+  Friends: { avatar: "#86EFAC", accent: "#22C55E" }, // Green
+  Ministry: { avatar: "#FED7AA", accent: "#EA580C" }, // Orange
+  Prospect: { avatar: "#D1D5DB", accent: "#6B7280" }, // Grey
 };
 
 // Start with blank data
@@ -77,7 +87,6 @@ export function getUrgentPrayerItems(person: Person): PrayerItem[] {
 export function getDailyPrayerProgress(prayTodayList: Person[]): { prayed: number; total: number } {
   const today = getTodayISOString();
   const prayed = prayTodayList.filter((p) => p.lastPrayedDate === today).length;
-
   return { prayed, total: prayTodayList.length };
 }
 
@@ -87,6 +96,27 @@ export function getNextPrayerPerson(people: Person[]): Person | null {
   const today = getTodayISOString();
   const notPrayedYet = people.find((p) => p.lastPrayedDate !== today);
   return notPrayedYet || null;
+}
+
+// Helper: Calculate prayer streak (consecutive days of praying for all people)
+export function calculatePrayerStreak(people: Person[]): number {
+  if (people.length === 0) return 0;
+
+  let streak = 0;
+  let currentDate = new Date();
+  currentDate.setUTCHours(0, 0, 0, 0);
+
+  while (true) {
+    const dateString = currentDate.toISOString().split("T")[0];
+    const allPrayedOnDate = people.every((p) => p.lastPrayedDate === dateString);
+
+    if (!allPrayedOnDate) break;
+
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  return streak;
 }
 
 // Action: Mark person as prayed today
@@ -207,22 +237,12 @@ export function updatePersonReminder(
 export function addPerson(
   people: Person[],
   name: string,
-  relationship: string,
+  relationship: RelationshipType,
 ): Person[] {
   const trimmedName = name.trim();
   if (!trimmedName) return people;
 
-  const colors = [
-    { avatar: "#D4A574", accent: "#8B7355" },
-    { avatar: "#7DD3C0", accent: "#06B6D4" },
-    { avatar: "#A8D5BA", accent: "#10B981" },
-    { avatar: "#FFB6C1", accent: "#EC4899" },
-    { avatar: "#FFD700", accent: "#F59E0B" },
-    { avatar: "#87CEEB", accent: "#0EA5E9" },
-  ];
-
-  const colorIndex = people.length % colors.length;
-  const color = colors[colorIndex];
+  const colors = relationshipColors[relationship];
 
   const initials = trimmedName
     .split(" ")
@@ -237,9 +257,9 @@ export function addPerson(
       id: `person-${Date.now()}`,
       name: trimmedName,
       initials,
-      relationship: relationship.trim() || "Friend",
-      avatarColor: color.avatar,
-      accentColor: color.accent,
+      relationship,
+      avatarColor: colors.avatar,
+      accentColor: colors.accent,
       lastPrayedDate: null,
       prayerItems: [],
       reminderDaysOfWeek: [],
@@ -262,21 +282,13 @@ export function prependJournalEntry(
   const trimmed = note.trim();
   if (!trimmed) return journal;
 
-  const now = new Date();
-  const dateString = now.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
+  const today = getTodayISOString();
   return [
     {
       id: entryId,
       personId: person.id,
       personName: person.name,
-      date: dateString,
+      date: today,
       note: trimmed,
     },
     ...journal,

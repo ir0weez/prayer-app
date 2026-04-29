@@ -41,3 +41,9 @@
 - [x] Apply Material 3 expressive design language
 - [x] Test all new features end-to-end
 - [ ] Save final checkpoint with all fixes
+- [x] Add relationship type field with color coding (Family, Friends, Ministry, Prospect)
+- [x] Fix person creation to actually save people to state
+- [x] Show color-coded avatars on main page based on relationship type
+- [x] Add streak counter in top right of home screen
+- [x] Add "prayers left today" counter in top right of home screen
+- [ ] Save checkpoint with person creation, color coding, and counters

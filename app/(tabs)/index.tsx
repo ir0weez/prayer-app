@@ -1,32 +1,40 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
   addPerson,
-  calculatePrayerStreak,
   formatDaysSinceLastPrayer,
+  getDailyPrayerProgress,
   getDaysSinceLastPrayed,
   getInitialState,
   getLastReachedAccentColor,
   getPrayTodayList,
   getTodayISOString,
   getUrgentPrayerItems,
+  hasPersonCompletedPrayerToday,
+  markPersonPrayed,
+  resetDailyPrayerCompletionsIfNeeded,
   type Person,
   type RelationshipType,
   relationshipColors,
 } from "@/lib/prayercircle-data";
-import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 
 type RelationshipSection = {
   title: RelationshipType;
   people: Person[];
+};
+
+type PrayerStreakRecord = {
+  streak: number;
+  lastCompletedDate: string | null;
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
@@ -48,10 +56,31 @@ function getAvatarText(person: Person) {
   return person.avatarLabel ?? person.initials ?? person.name.substring(0, 2).toUpperCase();
 }
 
+function getYesterdayISOString(today: string) {
+  const date = new Date(`${today}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().split("T")[0];
+}
+
+function parseStoredStreak(value: string | null): PrayerStreakRecord {
+  if (!value) return { streak: 0, lastCompletedDate: null };
+  try {
+    const parsed = JSON.parse(value) as Partial<PrayerStreakRecord>;
+    return {
+      streak: typeof parsed.streak === "number" && parsed.streak > 0 ? parsed.streak : 0,
+      lastCompletedDate: typeof parsed.lastCompletedDate === "string" ? parsed.lastCompletedDate : null,
+    };
+  } catch {
+    return { streak: 0, lastCompletedDate: null };
+  }
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const today = getTodayISOString();
-  const todayDayOfWeek = new Date().getDay();
+  const todayDate = new Date();
+  const todayDayOfWeek = todayDate.getDay();
+  const todayDayOfMonth = todayDate.getDate();
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);
   const [journal] = useState(initialState.journal);
@@ -63,20 +92,24 @@ export default function HomeScreen() {
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
+  const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
 
   useEffect(() => {
     let isMounted = true;
 
-    AsyncStorage.getItem(PEOPLE_STORAGE_KEY)
-      .then((storedPeople) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY)])
+      .then(([storedPeople, storedStreak]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
-          setPeople(Array.isArray(parsedPeople) ? parsedPeople : []);
+          setPeople(Array.isArray(parsedPeople) ? resetDailyPrayerCompletionsIfNeeded(parsedPeople, today) : []);
+        } else {
+          setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
         }
+        setStreakRecord(parseStoredStreak(storedStreak));
       })
       .catch(() => {
-        if (isMounted) setPeople(initialState.people);
+        if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
       })
       .finally(() => {
         if (isMounted) setHasHydratedPeople(true);
@@ -85,17 +118,39 @@ export default function HomeScreen() {
     return () => {
       isMounted = false;
     };
-  }, [initialState.people]);
+  }, [initialState.people, today]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasHydratedPeople) return undefined;
+      let isActive = true;
+      AsyncStorage.getItem(PEOPLE_STORAGE_KEY)
+        .then((storedPeople) => {
+          if (!isActive || !storedPeople) return;
+          const parsedPeople = JSON.parse(storedPeople) as Person[];
+          if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(parsedPeople, today));
+        })
+        .catch(() => undefined);
+      return () => {
+        isActive = false;
+      };
+    }, [hasHydratedPeople, today]),
+  );
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
   }, [hasHydratedPeople, people]);
 
-  const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
-  const streak = useMemo(() => calculatePrayerStreak(people), [people]);
-  const prayersLeftToday = prayTodayList.filter((person) => person.lastPrayedDate !== today).length;
-  const prayedTodayCount = prayTodayList.length - prayersLeftToday;
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify(streakRecord)).catch(() => undefined);
+  }, [hasHydratedPeople, streakRecord]);
+
+  const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
+  const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
+  const streak = streakRecord.streak;
+  const prayedTodayCount = dailyPrayerProgress.prayed;
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
@@ -133,6 +188,7 @@ export default function HomeScreen() {
     const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
       birthday: newPersonBirthday,
       prayerNote: newPersonNote,
+      reminderFrequency: "none",
       reminderDaysOfWeek: [],
       reminderTag: newPersonNote.split(" ").slice(0, 2).join(" "),
       photoUri: newPersonPhotoUri,
@@ -148,6 +204,24 @@ export default function HomeScreen() {
     resetAddPersonForm();
     setActiveTab("people");
     setShowAddPerson(false);
+  };
+
+  const maybeAdvanceStreak = (updatedPeople: Person[]) => {
+    const updatedPrayTodayList = getPrayTodayList(updatedPeople, todayDayOfWeek, todayDayOfMonth);
+    const isDayComplete = updatedPrayTodayList.length > 0 && updatedPrayTodayList.every((person) => hasPersonCompletedPrayerToday(person, today));
+    if (!isDayComplete) return;
+
+    setStreakRecord((previousRecord) => {
+      if (previousRecord.lastCompletedDate === today) return previousRecord;
+      const nextStreak = previousRecord.lastCompletedDate === getYesterdayISOString(today) ? previousRecord.streak + 1 : 1;
+      return { streak: nextStreak, lastCompletedDate: today };
+    });
+  };
+
+  const handleMarkPrayTodayPerson = (personId: string) => {
+    const updatedPeople = markPersonPrayed(people, personId);
+    setPeople(updatedPeople);
+    maybeAdvanceStreak(updatedPeople);
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -181,38 +255,43 @@ export default function HomeScreen() {
 
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
+    const isPrayedToday = hasPersonCompletedPrayerToday(person, today);
     return (
-      <Pressable key={`story-${person.id}`} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyItem, pressed && styles.pressed]}>
+      <View key={`story-${person.id}`} style={styles.storyItem}>
         {urgentItems.length > 0 ? (
           <View style={styles.storyTag}>
-            <Text numberOfLines={1} style={styles.storyTagText}>⚡ {urgentItems[0].title}</Text>
+            <Text numberOfLines={1} style={styles.storyTagText}>{urgentItems[0].title}</Text>
           </View>
         ) : null}
-        <View style={styles.storyRing}>{renderAvatar(person, 54, true)}</View>
-        <View style={styles.storyPlus}>
-          <MaterialIcons name={iconName("chevron-right")} size={23} color="#FFFFFF" />
-        </View>
-      </Pressable>
+        <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+          <View style={[styles.storyRing, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 54, true)}</View>
+        </Pressable>
+        <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPlus, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName(isPrayedToday ? "check" : "add")} size={24} color="#FFFFFF" />
+        </Pressable>
+      </View>
     );
   };
 
   const renderPersonCard = (person: Person) => {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
-    const progressColor = getLastReachedAccentColor(person);
-    const progressWidth = (daysSince === 999 ? "100%" : `${Math.min(100, Math.max(10, (daysSince / 21) * 100))}%`) as `${number}%`;
+    const reachColor = daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(person);
+    const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     return (
       <Pressable key={person.id} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
         {renderAvatar(person, 52)}
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
           <Text numberOfLines={1} style={styles.personMeta}>
-            {person.relationship} • {daysSince === 999 ? "Not reached yet" : `${formatDaysSinceLastPrayer(daysSince)} since reached`}{getBirthdayText(person)}
+            {person.relationship} • {daysSince === 999 ? "Not reached yet" : `Reached ${formatDaysSinceLastPrayer(daysSince)} ago`}{getBirthdayText(person)}
           </Text>
-          <View style={styles.reachProgressTrack}>
-            <View style={[styles.reachProgressFill, { width: progressWidth, backgroundColor: progressColor }]} />
-          </View>
         </View>
-        <MaterialIcons name={iconName("chevron-right")} size={30} color="#8B8199" />
+        <View style={styles.personActions}>
+          <View style={[styles.reachPill, { backgroundColor: reachColor }]}> 
+            <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>
+          </View>
+          <MaterialIcons name={iconName("edit")} size={22} color="#8B8199" />
+        </View>
       </Pressable>
     );
   };
@@ -222,7 +301,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
-          <Text style={styles.progressText}>{prayedTodayCount}/{prayTodayList.length} prayed today</Text>
+          <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
@@ -458,13 +537,17 @@ const styles = StyleSheet.create({
   },
   storyScroller: {
     paddingHorizontal: 24,
-    paddingTop: 13,
+    paddingTop: 20,
     paddingBottom: 35,
   },
   storyItem: {
-    width: 72,
-    height: 76,
-    marginRight: 13,
+    width: 86,
+    height: 88,
+    marginRight: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyAvatarButton: {
     alignItems: "center",
     justifyContent: "center",
   },
@@ -478,18 +561,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
   },
+  storyRingComplete: {
+    borderColor: "#31C48D",
+  },
   storyTag: {
     position: "absolute",
     top: 0,
-    left: 3,
+    left: 2,
+    right: 2,
     zIndex: 4,
-    maxWidth: 92,
+    minHeight: 24,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#D36B72",
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   storyTagText: {
     color: "#C75D67",
@@ -509,6 +598,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: SCREEN_BG,
+  },
+  storyPlusDone: {
+    backgroundColor: "#31C48D",
   },
   avatar: {
     alignItems: "center",
@@ -567,17 +659,26 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 19,
   },
-  reachProgressTrack: {
-    marginTop: 8,
-    width: "100%",
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#EFEAF4",
-    overflow: "hidden",
+  personActions: {
+    alignItems: "flex-end",
+    gap: 12,
   },
-  reachProgressFill: {
-    height: 6,
-    borderRadius: 3,
+  reachPill: {
+    minWidth: 72,
+    height: 32,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reachPillText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 21,
+  },
+  reachPillTextMuted: {
+    color: MUTED_TEXT,
   },
   emptyInlineText: {
     color: MUTED_TEXT,

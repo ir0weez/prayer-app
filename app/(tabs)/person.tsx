@@ -12,8 +12,8 @@ import {
   formatIsoDateForDisplay,
   getDaysSinceLastPrayed,
   getLastReachedAccentColor,
+  getReminderScheduleText,
   getTodayISOString,
-  getUrgentPrayerItems,
   markPersonPrayed,
   removePrayerItem,
   togglePrayerItemDone,
@@ -22,6 +22,7 @@ import {
   updatePersonPrayerNote,
   updatePersonReminderWithTime,
   type Person,
+  type ReminderFrequency,
 } from "@/lib/prayercircle-data";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
@@ -35,6 +36,12 @@ Notifications.setNotificationHandler({
 });
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const REMINDER_FREQUENCIES: { value: ReminderFrequency; label: string; description: string }[] = [
+  { value: "daily", label: "Daily", description: "Every day" },
+  { value: "weekly", label: "Weekly", description: "Specific weekdays" },
+  { value: "monthly", label: "Monthly", description: "A day each month" },
+  { value: "none", label: "Off", description: "Do not show" },
+];
 const PURPLE = "#8557D9";
 const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
@@ -42,7 +49,6 @@ const SCREEN_BG = "#FAF6FF";
 const SURFACE = "#FFFFFF";
 const BORDER = "#E7E1EF";
 const WARNING = "#F59E0B";
-const DANGER = "#EF4444";
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -112,33 +118,71 @@ async function cancelScheduledRemindersForPerson(personId: string) {
   );
 }
 
-async function schedulePersonReminders(person: Person, daysOfWeek: number[], reminderTime: string) {
+async function schedulePersonReminders(
+  person: Person,
+  frequency: ReminderFrequency,
+  daysOfWeek: number[],
+  reminderDayOfMonth: number | undefined,
+  reminderTime: string,
+) {
   if (Platform.OS === "web") return;
 
   const parsedTime = parseReminderTime(reminderTime);
   if (!parsedTime) return;
 
   await cancelScheduledRemindersForPerson(person.id);
-  if (daysOfWeek.length === 0) return;
+  if (frequency === "none") return;
 
-  await Promise.all(
-    daysOfWeek.map((day) =>
-      Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Pray for ${person.name}`,
-          body: person.prayerNote ? person.prayerNote : "Take a moment to pray and reach out.",
-          data: { personId: person.id },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          channelId: Platform.OS === "android" ? "prayer-reminders" : undefined,
-          weekday: day + 1,
-          hour: parsedTime.hour,
-          minute: parsedTime.minute,
-        },
-      }),
-    ),
-  );
+  const baseContent = {
+    title: `Pray for ${person.name}`,
+    body: person.prayerNote ? person.prayerNote : "Take a moment to pray and reach out.",
+    data: { personId: person.id },
+  };
+  const channelId = Platform.OS === "android" ? "prayer-reminders" : undefined;
+
+  if (frequency === "daily") {
+    await Notifications.scheduleNotificationAsync({
+      content: baseContent,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        channelId,
+        hour: parsedTime.hour,
+        minute: parsedTime.minute,
+      },
+    });
+    return;
+  }
+
+  if (frequency === "monthly" && reminderDayOfMonth) {
+    await Notifications.scheduleNotificationAsync({
+      content: baseContent,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+        channelId,
+        day: reminderDayOfMonth,
+        hour: parsedTime.hour,
+        minute: parsedTime.minute,
+      },
+    });
+    return;
+  }
+
+  if (frequency === "weekly") {
+    await Promise.all(
+      daysOfWeek.map((day) =>
+        Notifications.scheduleNotificationAsync({
+          content: baseContent,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            channelId,
+            weekday: day + 1,
+            hour: parsedTime.hour,
+            minute: parsedTime.minute,
+          },
+        }),
+      ),
+    );
+  }
 }
 
 export default function PersonScreen() {
@@ -150,7 +194,9 @@ export default function PersonScreen() {
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [showReminderModal, setShowReminderModal] = useState(false);
+  const [draftReminderFrequency, setDraftReminderFrequency] = useState<ReminderFrequency>("none");
   const [draftReminderDays, setDraftReminderDays] = useState<number[]>([]);
+  const [draftReminderMonthDay, setDraftReminderMonthDay] = useState("1");
   const [draftReminderTime, setDraftReminderTime] = useState("08:00");
   const [showDateModal, setShowDateModal] = useState(false);
   const [draftLastReachedDate, setDraftLastReachedDate] = useState(getTodayISOString());
@@ -188,7 +234,6 @@ export default function PersonScreen() {
     [people, personId],
   );
 
-  const urgentItems = currentPerson ? getUrgentPrayerItems(currentPerson) : [];
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
   const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : PURPLE;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
@@ -225,12 +270,15 @@ export default function PersonScreen() {
 
   const openReminderModal = () => {
     if (!currentPerson) return;
+    setDraftReminderFrequency(currentPerson.reminderFrequency ?? (currentPerson.reminderDaysOfWeek.length > 0 ? "weekly" : "none"));
     setDraftReminderDays(currentPerson.reminderDaysOfWeek);
+    setDraftReminderMonthDay(String(currentPerson.reminderDayOfMonth ?? new Date().getDate()));
     setDraftReminderTime(currentPerson.reminderTime ?? "08:00");
     setShowReminderModal(true);
   };
 
   const toggleDraftReminderDay = (day: number) => {
+    setDraftReminderFrequency("weekly");
     setDraftReminderDays((previousDays) =>
       previousDays.includes(day)
         ? previousDays.filter((candidate) => candidate !== day)
@@ -246,17 +294,40 @@ export default function PersonScreen() {
       return;
     }
 
-    const permissionGranted = await requestReminderPermissions();
-    if (!permissionGranted && draftReminderDays.length > 0) {
-      Alert.alert("Notifications are off", "Prayer days were saved, but reminders cannot be scheduled until notifications are enabled.");
+    const normalizedMonthDay = Number(draftReminderMonthDay);
+    if (draftReminderFrequency === "weekly" && draftReminderDays.length === 0) {
+      Alert.alert("Choose days", "Select at least one weekday for a weekly prayer reminder.");
+      return;
+    }
+    if (draftReminderFrequency === "monthly" && (!Number.isInteger(normalizedMonthDay) || normalizedMonthDay < 1 || normalizedMonthDay > 31)) {
+      Alert.alert("Check monthly day", "Choose a day from 1 to 31 for monthly reminders.");
+      return;
     }
 
-    const nextPeople = updatePersonReminderWithTime(people, personId, draftReminderDays, parsedTime.normalized);
+    const permissionGranted = await requestReminderPermissions();
+    if (!permissionGranted && draftReminderFrequency !== "none") {
+      Alert.alert("Notifications are off", "Prayer reminders were saved, but notification alerts cannot be scheduled until notifications are enabled.");
+    }
+
+    const nextPeople = updatePersonReminderWithTime(
+      people,
+      personId,
+      draftReminderFrequency === "weekly" ? draftReminderDays : [],
+      parsedTime.normalized,
+      draftReminderFrequency,
+      draftReminderFrequency === "monthly" ? normalizedMonthDay : undefined,
+    );
     setPeople(nextPeople);
     const updatedPerson = nextPeople.find((person) => person.id === personId) ?? currentPerson;
 
     if (permissionGranted) {
-      await schedulePersonReminders(updatedPerson, draftReminderDays, parsedTime.normalized).catch(() => {
+      await schedulePersonReminders(
+        updatedPerson,
+        draftReminderFrequency,
+        draftReminderFrequency === "weekly" ? draftReminderDays : [],
+        draftReminderFrequency === "monthly" ? normalizedMonthDay : undefined,
+        parsedTime.normalized,
+      ).catch(() => {
         Alert.alert("Reminder saved", "The reminder settings were saved, but notification scheduling could not be completed on this device.");
       });
     }
@@ -337,20 +408,13 @@ export default function PersonScreen() {
             ) : (
               <Text style={styles.avatarText}>{getAvatarText(currentPerson)}</Text>
             )}
-            {urgentItems.length > 0 ? (
-              <View style={styles.urgentBubble}>
-                <Text numberOfLines={1} style={styles.urgentBubbleText}>⚡ {urgentItems[0].title}</Text>
-              </View>
-            ) : null}
           </View>
           <Text style={styles.personName}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
           <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("notifications")} size={17} color={PURPLE} />
             <Text style={styles.reminderChipText}>
-              {currentPerson.reminderDaysOfWeek.length > 0
-                ? `${currentPerson.reminderDaysOfWeek.length} day${currentPerson.reminderDaysOfWeek.length === 1 ? "" : "s"} · ${currentPerson.reminderTime ?? "08:00"}`
-                : "Set prayer reminder"}
+              {getReminderScheduleText(currentPerson)}
             </Text>
           </Pressable>
           <Text style={styles.statusText}>{getStatusText(currentPerson)}</Text>
@@ -451,21 +515,55 @@ export default function PersonScreen() {
                 <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
               </Pressable>
             </View>
-            <Text style={styles.modalDescription}>Choose the days and time this person should appear in Pray Today and receive reminders.</Text>
-            <View style={styles.dayPickerRow}>
-              {DAY_LABELS.map((label, index) => {
-                const isSelected = draftReminderDays.includes(index);
+            <Text style={styles.modalDescription}>Choose when this person should appear in Pray Today and receive reminders.</Text>
+            <View style={styles.frequencyGrid}>
+              {REMINDER_FREQUENCIES.map((frequency) => {
+                const isSelected = draftReminderFrequency === frequency.value;
                 return (
                   <Pressable
-                    key={`${label}-${index}`}
-                    onPress={() => toggleDraftReminderDay(index)}
-                    style={({ pressed }) => [styles.dayToggle, isSelected && styles.dayToggleActive, pressed && styles.pressed]}
+                    key={frequency.value}
+                    onPress={() => setDraftReminderFrequency(frequency.value)}
+                    style={({ pressed }) => [styles.frequencyOption, isSelected && styles.frequencyOptionActive, pressed && styles.pressed]}
                   >
-                    <Text style={[styles.dayToggleText, isSelected && styles.dayToggleTextActive]}>{label}</Text>
+                    <Text style={[styles.frequencyOptionTitle, isSelected && styles.frequencyOptionTitleActive]}>{frequency.label}</Text>
+                    <Text style={[styles.frequencyOptionDescription, isSelected && styles.frequencyOptionDescriptionActive]}>{frequency.description}</Text>
                   </Pressable>
                 );
               })}
             </View>
+            {draftReminderFrequency === "weekly" ? (
+              <>
+                <Text style={styles.modalFieldLabel}>Weekdays</Text>
+                <View style={styles.dayPickerRow}>
+                  {DAY_LABELS.map((label, index) => {
+                    const isSelected = draftReminderDays.includes(index);
+                    return (
+                      <Pressable
+                        key={`${label}-${index}`}
+                        onPress={() => toggleDraftReminderDay(index)}
+                        style={({ pressed }) => [styles.dayToggle, isSelected && styles.dayToggleActive, pressed && styles.pressed]}
+                      >
+                        <Text style={[styles.dayToggleText, isSelected && styles.dayToggleTextActive]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+            {draftReminderFrequency === "monthly" ? (
+              <>
+                <Text style={styles.modalFieldLabel}>Day of month</Text>
+                <TextInput
+                  value={draftReminderMonthDay}
+                  onChangeText={setDraftReminderMonthDay}
+                  placeholder="15"
+                  placeholderTextColor={MUTED_TEXT}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  style={styles.modalInput}
+                />
+              </>
+            ) : null}
             <Text style={styles.modalFieldLabel}>Reminder time</Text>
             <TextInput
               value={draftReminderTime}
@@ -572,29 +670,6 @@ const styles = StyleSheet.create({
     fontSize: 35,
     fontWeight: "900",
     letterSpacing: -0.5,
-  },
-  urgentBubble: {
-    position: "absolute",
-    top: -18,
-    right: -22,
-    maxWidth: 140,
-    borderWidth: 2,
-    borderColor: "#D36B72",
-    borderRadius: 16,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: SURFACE,
-    shadowColor: DANGER,
-    shadowOpacity: 0.13,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  urgentBubbleText: {
-    color: "#C75265",
-    fontSize: 11,
-    fontWeight: "900",
-    lineHeight: 14,
   },
   personName: {
     color: DEEP_TEXT,
@@ -874,10 +949,50 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 19,
   },
+  frequencyGrid: {
+    marginTop: 17,
+    marginBottom: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  frequencyOption: {
+    width: "48%",
+    minHeight: 66,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    backgroundColor: "#FBF8FF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: "center",
+  },
+  frequencyOptionActive: {
+    borderColor: PURPLE,
+    backgroundColor: "#EFE8FB",
+  },
+  frequencyOptionTitle: {
+    color: DEEP_TEXT,
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 18,
+  },
+  frequencyOptionTitleActive: {
+    color: PURPLE,
+  },
+  frequencyOptionDescription: {
+    marginTop: 2,
+    color: MUTED_TEXT,
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+  frequencyOptionDescriptionActive: {
+    color: "#6F48BE",
+  },
   dayPickerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 17,
     marginBottom: 18,
   },
   dayToggle: {

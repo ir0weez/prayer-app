@@ -6,14 +6,18 @@ export type PrayerItem = {
 };
 
 export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";
+export type ReminderFrequency = "none" | "daily" | "weekly" | "monthly";
 
 export type Person = {
   id: string;
   name: string;
   initials: string;
   relationship: RelationshipType;
-  lastPrayedDate: string | null; // ISO date string (YYYY-MM-DD) or null
+  lastPrayedDate: string | null; // Last reached date as an ISO date string (YYYY-MM-DD) or null.
+  lastPrayerCompletedDate?: string | null; // The date this person was prayed for in the daily Pray Today flow.
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  reminderFrequency?: ReminderFrequency;
+  reminderDayOfMonth?: number;
   reminderTime?: string; // HH:mm, 24-hour local device time
   accentColor: string;
   avatarColor: string;
@@ -29,10 +33,20 @@ export type AddPersonOptions = {
   birthday?: string;
   prayerNote?: string;
   reminderDaysOfWeek?: number[];
+  reminderFrequency?: ReminderFrequency;
+  reminderDayOfMonth?: number;
   reminderTime?: string;
   reminderTag?: string;
   avatarLabel?: string;
   photoUri?: string;
+};
+
+export type JournalEntry = {
+  id: string;
+  personId: string;
+  personName: string;
+  date: string;
+  note: string;
 };
 
 function normalizeOptionalText(value?: string): string | undefined {
@@ -46,13 +60,22 @@ function dedupeAndSortReminderDays(daysOfWeek: number[]): number[] {
   ).sort((a, b) => a - b);
 }
 
-export type JournalEntry = {
-  id: string;
-  personId: string;
-  personName: string;
-  date: string;
-  note: string;
-};
+function normalizeReminderDayOfMonth(day?: number): number | undefined {
+  if (!Number.isInteger(day) || day === undefined || day < 1 || day > 31) return undefined;
+  return day;
+}
+
+function normalizeReminderFrequency(
+  frequency: ReminderFrequency | undefined,
+  reminderDaysOfWeek: number[],
+  reminderDayOfMonth?: number,
+): ReminderFrequency {
+  if (frequency === "daily") return "daily";
+  if (frequency === "monthly" && normalizeReminderDayOfMonth(reminderDayOfMonth)) return "monthly";
+  if (frequency === "weekly" && reminderDaysOfWeek.length > 0) return "weekly";
+  if (!frequency && reminderDaysOfWeek.length > 0) return "weekly";
+  return "none";
+}
 
 // Relationship type to color mapping
 export const relationshipColors: Record<RelationshipType, { avatar: string; accent: string }> = {
@@ -70,9 +93,9 @@ export const initialPeople: Person[] = [];
 
 export const initialJournal: JournalEntry[] = [];
 
-// Helper: Get days since last prayed
+// Helper: Get days since last reached
 export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
-  if (!lastPrayedDate) return 999; // Never prayed
+  if (!lastPrayedDate) return 999; // Never reached
 
   const last = new Date(lastPrayedDate + "T00:00:00Z");
   const today = new Date();
@@ -82,13 +105,11 @@ export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
 
-// Helper: Format days since last prayer for display
+// Helper: Format days since last reached for compact mobile display
 export function formatDaysSinceLastPrayer(daysSince: number): string {
-  if (daysSince === 0) return "Today";
+  if (daysSince === 0) return "0d";
   if (daysSince === 1) return "1d";
-  if (daysSince < 7) return `${daysSince}d`;
-  if (daysSince < 30) return `${Math.floor(daysSince / 7)}w`;
-  if (daysSince < 365) return `${Math.floor(daysSince / 30)}m`;
+  if (daysSince < 365) return `${daysSince}d`;
   return "—";
 }
 
@@ -106,14 +127,38 @@ export function getTodayISOString(): string {
   return today.toISOString().split("T")[0];
 }
 
+export function getPersonReminderFrequency(person: Person): ReminderFrequency {
+  const days = dedupeAndSortReminderDays(person.reminderDaysOfWeek ?? []);
+  return normalizeReminderFrequency(person.reminderFrequency, days, person.reminderDayOfMonth);
+}
+
+export function getReminderScheduleText(person: Person): string {
+  const frequency = getPersonReminderFrequency(person);
+  const time = person.reminderTime ?? "08:00";
+  if (frequency === "daily") return `Every day · ${time}`;
+  if (frequency === "weekly") {
+    return `${(person.reminderDaysOfWeek ?? []).length} weekly day${(person.reminderDaysOfWeek ?? []).length === 1 ? "" : "s"} · ${time}`;
+  }
+  if (frequency === "monthly") return `Monthly on day ${person.reminderDayOfMonth ?? 1} · ${time}`;
+  return "Set prayer reminder";
+}
+
 // Helper: Determine if person should be prayed for today
-export function shouldPrayForTodayByReminder(person: Person, todayDayOfWeek: number): boolean {
-  return person.reminderDaysOfWeek.length > 0 && person.reminderDaysOfWeek.includes(todayDayOfWeek);
+export function shouldPrayForTodayByReminder(
+  person: Person,
+  todayDayOfWeek: number,
+  todayDayOfMonth = new Date().getDate(),
+): boolean {
+  const frequency = getPersonReminderFrequency(person);
+  if (frequency === "daily") return true;
+  if (frequency === "weekly") return person.reminderDaysOfWeek.includes(todayDayOfWeek);
+  if (frequency === "monthly") return person.reminderDayOfMonth === todayDayOfMonth;
+  return false;
 }
 
 // Helper: Get list of people to pray for today
-export function getPrayTodayList(people: Person[], todayDayOfWeek: number): Person[] {
-  return people.filter((person) => shouldPrayForTodayByReminder(person, todayDayOfWeek));
+export function getPrayTodayList(people: Person[], todayDayOfWeek: number, todayDayOfMonth = new Date().getDate()): Person[] {
+  return people.filter((person) => shouldPrayForTodayByReminder(person, todayDayOfWeek, todayDayOfMonth));
 }
 
 // Helper: Get urgent prayer items for a person
@@ -129,10 +174,15 @@ export function getLastReachedAccentColor(person: Person): string {
   return LAST_REACHED_OVERDUE_COLOR;
 }
 
+export function hasPersonCompletedPrayerToday(person: Person, dateString = getTodayISOString()): boolean {
+  if (person.lastPrayerCompletedDate === dateString) return true;
+  return person.lastPrayerCompletedDate === undefined && person.lastPrayedDate === dateString;
+}
+
 // Helper: Get daily prayer progress
 export function getDailyPrayerProgress(prayTodayList: Person[]): { prayed: number; total: number } {
   const today = getTodayISOString();
-  const prayed = prayTodayList.filter((p) => p.lastPrayedDate === today).length;
+  const prayed = prayTodayList.filter((p) => hasPersonCompletedPrayerToday(p, today)).length;
   return { prayed, total: prayTodayList.length };
 }
 
@@ -140,40 +190,43 @@ export function getDailyPrayerProgress(prayTodayList: Person[]): { prayed: numbe
 export function getNextPrayerPerson(people: Person[]): Person | null {
   if (people.length === 0) return null;
   const today = getTodayISOString();
-  const notPrayedYet = people.find((p) => p.lastPrayedDate !== today);
+  const notPrayedYet = people.find((p) => !hasPersonCompletedPrayerToday(p, today));
   return notPrayedYet || null;
 }
 
-// Helper: Calculate prayer streak (consecutive days of praying for all people)
+// Helper: Calculate a lightweight current streak from stored completion dates.
 export function calculatePrayerStreak(people: Person[]): number {
   if (people.length === 0) return 0;
-
-  let streak = 0;
-  let currentDate = new Date();
-  currentDate.setUTCHours(0, 0, 0, 0);
-
-  while (true) {
-    const dateString = currentDate.toISOString().split("T")[0];
-    const allPrayedOnDate = people.every((p) => p.lastPrayedDate === dateString);
-
-    if (!allPrayedOnDate) break;
-
-    streak++;
-    currentDate.setDate(currentDate.getDate() - 1);
-  }
-
-  return streak;
+  return people.every((person) => hasPersonCompletedPrayerToday(person)) ? 1 : 0;
 }
 
-// Action: Mark person as prayed today
+export function resetDailyPrayerCompletionsIfNeeded(people: Person[], dateString = getTodayISOString()): Person[] {
+  return people.map((person) => {
+    if (person.lastPrayerCompletedDate === dateString) return person;
+    const hasCompletedItems = person.prayerItems.some((item) => item.isDone);
+    if (!hasCompletedItems) return person;
+    return {
+      ...person,
+      prayerItems: person.prayerItems.map((item) => ({ ...item, isDone: false })),
+    };
+  });
+}
+
+// Action: Mark every prayer item for this person as prayed today
 export function markPersonPrayed(people: Person[], personId: string): Person[] {
   const today = getTodayISOString();
   return people.map((p) =>
-    p.id === personId ? { ...p, lastPrayedDate: today } : p,
+    p.id === personId
+      ? {
+          ...p,
+          lastPrayerCompletedDate: today,
+          prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: true })),
+        }
+      : p,
   );
 }
 
-// Action: Update person's last prayed date
+// Action: Update person's last prayed/reached date
 export function updatePersonLastPrayedDate(
   people: Person[],
   personId: string,
@@ -217,16 +270,19 @@ export function togglePrayerItemDone(
   personId: string,
   itemId: string,
 ): Person[] {
-  return people.map((p) =>
-    p.id === personId
-      ? {
-          ...p,
-          prayerItems: p.prayerItems.map((item) =>
-            item.id === itemId ? { ...item, isDone: !item.isDone } : item,
-          ),
-        }
-      : p,
-  );
+  const today = getTodayISOString();
+  return people.map((p) => {
+    if (p.id !== personId) return p;
+    const prayerItems = p.prayerItems.map((item) =>
+      item.id === itemId ? { ...item, isDone: !item.isDone } : item,
+    );
+    const allDone = prayerItems.length > 0 && prayerItems.every((item) => item.isDone);
+    return {
+      ...p,
+      prayerItems,
+      lastPrayerCompletedDate: allDone ? today : p.lastPrayerCompletedDate === today ? null : p.lastPrayerCompletedDate,
+    };
+  });
 }
 
 // Action: Add prayer item to person
@@ -242,6 +298,7 @@ export function addPrayerItem(
     p.id === personId
       ? {
           ...p,
+          lastPrayerCompletedDate: p.lastPrayerCompletedDate === getTodayISOString() ? null : p.lastPrayerCompletedDate,
           prayerItems: [
             ...p.prayerItems,
             {
@@ -279,30 +336,39 @@ export function updatePersonReminder(
   daysOfWeek: number[],
 ): Person[] {
   const normalizedDays = dedupeAndSortReminderDays(daysOfWeek);
+  const frequency = normalizeReminderFrequency(undefined, normalizedDays);
   return people.map((p) =>
     p.id === personId
       ? {
           ...p,
           reminderDaysOfWeek: normalizedDays,
+          reminderFrequency: frequency,
+          reminderDayOfMonth: undefined,
         }
       : p,
   );
 }
 
-// Action: Update person's reminder days and time
+// Action: Update person's reminder days, frequency, monthly day, and time
 export function updatePersonReminderWithTime(
   people: Person[],
   personId: string,
   daysOfWeek: number[],
   reminderTime?: string,
+  reminderFrequency?: ReminderFrequency,
+  reminderDayOfMonth?: number,
 ): Person[] {
   const normalizedDays = dedupeAndSortReminderDays(daysOfWeek);
+  const normalizedMonthDay = normalizeReminderDayOfMonth(reminderDayOfMonth);
+  const frequency = normalizeReminderFrequency(reminderFrequency, normalizedDays, normalizedMonthDay);
   return people.map((p) =>
     p.id === personId
       ? {
           ...p,
-          reminderDaysOfWeek: normalizedDays,
-          reminderTime: normalizeOptionalText(reminderTime),
+          reminderDaysOfWeek: frequency === "weekly" ? normalizedDays : [],
+          reminderFrequency: frequency,
+          reminderDayOfMonth: frequency === "monthly" ? normalizedMonthDay : undefined,
+          reminderTime: frequency === "none" ? undefined : normalizeOptionalText(reminderTime),
         }
       : p,
   );
@@ -351,6 +417,9 @@ export function addPerson(
   if (!trimmedName) return people;
 
   const colors = relationshipColors[relationship];
+  const reminderDaysOfWeek = dedupeAndSortReminderDays(options.reminderDaysOfWeek ?? []);
+  const reminderDayOfMonth = normalizeReminderDayOfMonth(options.reminderDayOfMonth);
+  const reminderFrequency = normalizeReminderFrequency(options.reminderFrequency, reminderDaysOfWeek, reminderDayOfMonth);
 
   const initials = trimmedName
     .split(" ")
@@ -369,14 +438,17 @@ export function addPerson(
       avatarColor: colors.avatar,
       accentColor: colors.accent,
       lastPrayedDate: null,
+      lastPrayerCompletedDate: null,
       birthday: normalizeOptionalText(options.birthday),
       prayerNote: normalizeOptionalText(options.prayerNote),
       reminderTag: normalizeOptionalText(options.reminderTag),
       avatarLabel: normalizeOptionalText(options.avatarLabel),
       photoUri: normalizeOptionalText(options.photoUri),
-      reminderTime: normalizeOptionalText(options.reminderTime),
+      reminderFrequency,
+      reminderDayOfMonth: reminderFrequency === "monthly" ? reminderDayOfMonth : undefined,
+      reminderTime: reminderFrequency === "none" ? undefined : normalizeOptionalText(options.reminderTime),
       prayerItems: [],
-      reminderDaysOfWeek: dedupeAndSortReminderDays(options.reminderDaysOfWeek ?? []),
+      reminderDaysOfWeek: reminderFrequency === "weekly" ? reminderDaysOfWeek : [],
     },
   ];
 }
@@ -408,7 +480,6 @@ export function prependJournalEntry(
     ...journal,
   ];
 }
-
 
 // Helper: Get initial state
 export function getInitialState() {

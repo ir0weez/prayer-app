@@ -8,14 +8,17 @@ import {
   getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
+  getReminderScheduleText,
   getUrgentPrayerItems,
   getTodayISOString,
+  hasPersonCompletedPrayerToday,
   getInitialState,
   initialJournal,
   initialPeople,
   markPersonPrayed,
   prependJournalEntry,
   removePerson,
+  resetDailyPrayerCompletionsIfNeeded,
   removePrayerItem,
   shouldPrayForTodayByReminder,
   togglePrayerItemDone,
@@ -67,18 +70,23 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].birthday).toBe("1990-03-15");
     expect(updated[0].prayerNote).toBe("Pray for peace");
     expect(updated[0].reminderDaysOfWeek).toEqual([1, 3]);
+    expect(updated[0].reminderFrequency).toBe("weekly");
     expect(updated[0].reminderTime).toBe("08:30");
     expect(updated[0].reminderTag).toBe("Peace");
     expect(updated[0].avatarLabel).toBe("AS");
     expect(updated[0].photoUri).toBe("file:///photo.jpg");
   });
 
-  it("marks a person as prayed today", () => {
+  it("marks every prayer item for a person as prayed today", () => {
     const people = addPerson(initialPeople, "Bob", "Friends");
+    const withItems = addPrayerItem(addPrayerItem(people, people[0].id, "Healing"), people[0].id, "Job search");
     const today = getTodayISOString();
-    const updated = markPersonPrayed(people, people[0].id);
+    const updated = markPersonPrayed(withItems, people[0].id);
 
-    expect(updated[0].lastPrayedDate).toBe(today);
+    expect(updated[0].lastPrayerCompletedDate).toBe(today);
+    expect(updated[0].lastPrayedDate).toBeNull();
+    expect(updated[0].prayerItems.every((item) => item.isDone)).toBe(true);
+    expect(hasPersonCompletedPrayerToday(updated[0], today)).toBe(true);
   });
 
   it("calculates days since last prayed correctly", () => {
@@ -132,13 +140,18 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].reminderDaysOfWeek).toEqual([1, 4]);
   });
 
-  it("determines if a person should be prayed for on a given day", () => {
+  it("determines if a person should be prayed for by daily, weekly, monthly, or off frequency", () => {
     const people = addPerson(initialPeople, "Alice", "Friends");
-    const updated = updatePersonReminder(people, people[0].id, [1, 4]);
+    const weekly = updatePersonReminder(people, people[0].id, [1, 4]);
+    const daily = updatePersonReminderWithTime(people, people[0].id, [], "08:00", "daily");
+    const monthly = updatePersonReminderWithTime(people, people[0].id, [], "08:00", "monthly", 15);
 
-    expect(shouldPrayForTodayByReminder(updated[0], 1)).toBe(true);
-    expect(shouldPrayForTodayByReminder(updated[0], 4)).toBe(true);
-    expect(shouldPrayForTodayByReminder(updated[0], 2)).toBe(false);
+    expect(shouldPrayForTodayByReminder(weekly[0], 1)).toBe(true);
+    expect(shouldPrayForTodayByReminder(weekly[0], 4)).toBe(true);
+    expect(shouldPrayForTodayByReminder(weekly[0], 2)).toBe(false);
+    expect(shouldPrayForTodayByReminder(daily[0], 2)).toBe(true);
+    expect(shouldPrayForTodayByReminder(monthly[0], 2, 15)).toBe(true);
+    expect(shouldPrayForTodayByReminder(monthly[0], 2, 16)).toBe(false);
     expect(shouldPrayForTodayByReminder(people[0], 1)).toBe(false);
   });
 
@@ -194,7 +207,35 @@ describe("PrayerCircle local data helpers", () => {
     const updated = updatePersonReminderWithTime(people, people[0].id, [5, 2, 2], "07:45");
 
     expect(updated[0].reminderDaysOfWeek).toEqual([2, 5]);
+    expect(updated[0].reminderFrequency).toBe("weekly");
     expect(updated[0].reminderTime).toBe("07:45");
+    expect(getReminderScheduleText(updated[0])).toBe("2 weekly days · 07:45");
+  });
+
+  it("stores daily and monthly reminder schedules", () => {
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const daily = updatePersonReminderWithTime(people, people[0].id, [], "06:15", "daily");
+    const monthly = updatePersonReminderWithTime(people, people[0].id, [], "19:45", "monthly", 22);
+
+    expect(daily[0].reminderFrequency).toBe("daily");
+    expect(daily[0].reminderDaysOfWeek).toEqual([]);
+    expect(getReminderScheduleText(daily[0])).toBe("Every day · 06:15");
+    expect(monthly[0].reminderFrequency).toBe("monthly");
+    expect(monthly[0].reminderDayOfMonth).toBe(22);
+    expect(getReminderScheduleText(monthly[0])).toBe("Monthly on day 22 · 19:45");
+  });
+
+  it("resets daily prayer item completion on a later day while keeping reminder visibility date-specific", () => {
+    const basePeople = addPerson(initialPeople, "Alice", "Friends");
+    const personId = basePeople[0].id;
+    const people = updatePersonReminderWithTime(basePeople, personId, [], "08:00", "daily");
+    const withItem = addPrayerItem(people, personId, "Healing");
+    const completed = markPersonPrayed(withItem, personId);
+    const reset = resetDailyPrayerCompletionsIfNeeded(completed, "2099-01-01");
+
+    expect(reset[0].prayerItems[0].isDone).toBe(false);
+    expect(hasPersonCompletedPrayerToday(reset[0], "2099-01-01")).toBe(false);
+    expect(shouldPrayForTodayByReminder(reset[0], 2, 10)).toBe(true);
   });
 
   it("updates a person's photo URI", () => {

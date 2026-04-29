@@ -75,3 +75,12 @@
 - [x] Wire Last Reached to home card progress coloring and support tap-to-today plus long-press custom date
 - [x] Validate requested fixes with TypeScript, unit tests, and app health checks
 - [x] Save checkpoint after PrayerCircle behavior-fix update
+- [x] Move urgent prayer speech bubbles to the Pray Today avatar row on the home screen only
+- [x] Replace home contact progress bar with a compact days-since-last-reached bubble matching the screenshot
+- [x] Add reminder frequency options for daily, weekly specific days, and monthly specific day reminders
+- [x] Fix Pray Today avatar rendering after reminders are configured
+- [x] Make the Pray Today plus ring mark that person as prayed for today
+- [x] Count streak progress when every Pray Today person has been prayed for
+- [x] Ensure daily prayer completion resets each day while reminder-based visibility remains date-specific
+- [x] Validate updated reminder and streak behavior with tests and app health checks
+- [x] Save checkpoint after Pray Today refinement update

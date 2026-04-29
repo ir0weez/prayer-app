@@ -1,130 +1,177 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addPerson,
   addPrayerItem,
   getDailyPrayerProgress,
+  getDaysSinceLastPrayed,
   getNextPrayerPerson,
   getPrayTodayList,
   getUrgentPrayerItems,
+  getTodayISOString,
   initialJournal,
   initialPeople,
   markPersonPrayed,
   prependJournalEntry,
+  removePerson,
   removePrayerItem,
   shouldPrayForTodayByReminder,
   togglePrayerItemDone,
   togglePrayerItemUrgent,
+  updatePersonReminder,
 } from "./prayercircle-data";
 
 describe("PrayerCircle local data helpers", () => {
-  it("marks a person as prayed without mutating the original list", () => {
-    const updated = markPersonPrayed(initialPeople, "cody");
-    const originalCody = initialPeople.find((person) => person.id === "cody");
-    const updatedCody = updated.find((person) => person.id === "cody");
-
-    expect(originalCody?.prayedToday).toBe(true);
-    expect(updatedCody?.prayedToday).toBe(true);
-    expect(updatedCody?.lastPrayedDaysAgo).toBe(0);
+  it("starts with blank data", () => {
+    expect(initialPeople).toHaveLength(0);
+    expect(initialJournal).toHaveLength(0);
   });
 
-  it("selects the next person who still needs prayer today", () => {
-    const notPrayedYet = initialPeople.map((person) => ({ ...person, prayedToday: false }));
-    expect(getNextPrayerPerson(notPrayedYet)?.id).toBe("cody");
+  it("adds a person with auto-assigned colors", () => {
+    const updated = addPerson(initialPeople, "Alice Smith", "Friend");
 
-    const allPrayed = initialPeople.map((person) => ({ ...person, prayedToday: true }));
-    expect(getNextPrayerPerson(allPrayed)?.id).toBe(initialPeople[0].id);
+    expect(updated).toHaveLength(1);
+    expect(updated[0].name).toBe("Alice Smith");
+    expect(updated[0].initials).toBe("AS");
+    expect(updated[0].relationship).toBe("Friend");
+    expect(updated[0].lastPrayedDate).toBeNull();
+    expect(updated[0].reminderDaysOfWeek).toEqual([]);
+    expect(updated[0].avatarColor).toBeDefined();
+    expect(updated[0].accentColor).toBeDefined();
   });
 
-  it("reports daily prayer progress from the people list", () => {
-    expect(getDailyPrayerProgress(initialPeople)).toEqual({ prayed: 7, total: 7 });
+  it("marks a person as prayed today", () => {
+    const people = addPerson(initialPeople, "Bob", "Friend");
+    const today = getTodayISOString();
+    const updated = markPersonPrayed(people, people[0].id);
+
+    expect(updated[0].lastPrayedDate).toBe(today);
+  });
+
+  it("calculates days since last prayed correctly", () => {
+    const today = getTodayISOString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayISO = yesterday.toISOString().split("T")[0];
+
+    expect(getDaysSinceLastPrayed(today)).toBe(0);
+    expect(getDaysSinceLastPrayed(yesterdayISO)).toBe(1);
+    expect(getDaysSinceLastPrayed(null)).toBe(999);
+  });
+
+  it("returns first person if no one has been prayed for yet", () => {
+    let people = addPerson(initialPeople, "Alice", "Friend");
+    people = addPerson(people, "Bob", "Friend");
+
+    expect(getNextPrayerPerson(people)?.name).toBe("Alice");
+  });
+
+  it("returns null if everyone has been prayed for today", () => {
+    const today = getTodayISOString();
+    let people = addPerson(initialPeople, "Alice", "Friend");
+    people = addPerson(people, "Bob", "Friend");
+    people = markPersonPrayed(people, people[0].id);
+    people = markPersonPrayed(people, people[1].id);
+
+    expect(getNextPrayerPerson(people)).toBeNull();
+  });
+
+  it("reports daily prayer progress", () => {
+    const today = getTodayISOString();
+    let people = addPerson(initialPeople, "Alice", "Friend");
+    people = markPersonPrayed(people, people[0].id);
+    people = addPerson(people, "Bob", "Friend");
+
+    const progress = getDailyPrayerProgress(people);
+    expect(progress.prayed).toBe(1);
+    expect(progress.total).toBe(2);
   });
 
   it("filters people by reminder day of week", () => {
-    // Monday = 1
-    const mondayPeople = getPrayTodayList(initialPeople, 1);
-    expect(mondayPeople.map((p) => p.id)).toContain("cody"); // Mondays and Thursdays
-    expect(mondayPeople.map((p) => p.id)).toContain("juan"); // Weekly on Monday
-    expect(mondayPeople.map((p) => p.id)).toContain("kim"); // Mondays
-    expect(mondayPeople.map((p) => p.id)).toContain("gary"); // Daily
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const updated = updatePersonReminder(people, people[0].id, [1, 4]); // Monday, Thursday
 
-    // Saturday = 6
-    const saturdayPeople = getPrayTodayList(initialPeople, 6);
-    expect(saturdayPeople.map((p) => p.id)).toContain("damian"); // Weekly on Saturday
-    expect(saturdayPeople.map((p) => p.id)).toContain("gary"); // Daily
+    expect(getPrayTodayList(updated, 1)).toHaveLength(1); // Monday
+    expect(getPrayTodayList(updated, 4)).toHaveLength(1); // Thursday
+    expect(getPrayTodayList(updated, 2)).toHaveLength(0); // Tuesday
   });
 
   it("determines if a person should be prayed for on a given day", () => {
-    const cody = initialPeople.find((p) => p.id === "cody")!;
-    expect(shouldPrayForTodayByReminder(cody, 1)).toBe(true); // Monday
-    expect(shouldPrayForTodayByReminder(cody, 4)).toBe(true); // Thursday
-    expect(shouldPrayForTodayByReminder(cody, 2)).toBe(false); // Wednesday
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const updated = updatePersonReminder(people, people[0].id, [1, 4]);
 
-    const gary = initialPeople.find((p) => p.id === "gary")!;
-    expect(shouldPrayForTodayByReminder(gary, 0)).toBe(true); // Every day
-    expect(shouldPrayForTodayByReminder(gary, 6)).toBe(true); // Every day
+    expect(shouldPrayForTodayByReminder(updated[0], 1)).toBe(true);
+    expect(shouldPrayForTodayByReminder(updated[0], 4)).toBe(true);
+    expect(shouldPrayForTodayByReminder(updated[0], 2)).toBe(false);
   });
 
   it("toggles prayer item urgent flag", () => {
-    const cody = initialPeople.find((p) => p.id === "cody")!;
-    const workItem = cody.prayerItems.find((item) => item.title === "Work")!;
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const withItem = addPrayerItem(people, people[0].id, "Health");
 
-    const updated = togglePrayerItemUrgent(initialPeople, "cody", workItem.id);
-    const updatedCody = updated.find((p) => p.id === "cody")!;
-    const updatedWorkItem = updatedCody.prayerItems.find((item) => item.id === workItem.id)!;
+    const updated = togglePrayerItemUrgent(withItem, people[0].id, withItem[0].prayerItems[0].id);
+    expect(updated[0].prayerItems[0].isUrgent).toBe(true);
 
-    expect(updatedWorkItem.isUrgent).toBe(!workItem.isUrgent);
+    const toggled = togglePrayerItemUrgent(updated, people[0].id, updated[0].prayerItems[0].id);
+    expect(toggled[0].prayerItems[0].isUrgent).toBe(false);
   });
 
   it("toggles prayer item done flag", () => {
-    const cody = initialPeople.find((p) => p.id === "cody")!;
-    const kurtItem = cody.prayerItems.find((item) => item.title === "Kurt")!;
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const withItem = addPrayerItem(people, people[0].id, "Health");
 
-    const updated = togglePrayerItemDone(initialPeople, "cody", kurtItem.id);
-    const updatedCody = updated.find((p) => p.id === "cody")!;
-    const updatedKurtItem = updatedCody.prayerItems.find((item) => item.id === kurtItem.id)!;
-
-    expect(updatedKurtItem.isDone).toBe(!kurtItem.isDone);
+    const updated = togglePrayerItemDone(withItem, people[0].id, withItem[0].prayerItems[0].id);
+    expect(updated[0].prayerItems[0].isDone).toBe(true);
   });
 
   it("adds a prayer item to a person", () => {
-    const updated = addPrayerItem(initialPeople, "damian", "  Health  ");
-    const updatedDamian = updated.find((p) => p.id === "damian")!;
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const updated = addPrayerItem(people, people[0].id, "  Health  ");
 
-    expect(updatedDamian.prayerItems).toHaveLength(1);
-    expect(updatedDamian.prayerItems[0].title).toBe("Health");
-    expect(updatedDamian.prayerItems[0].isUrgent).toBe(false);
-    expect(updatedDamian.prayerItems[0].isDone).toBe(false);
+    expect(updated[0].prayerItems).toHaveLength(1);
+    expect(updated[0].prayerItems[0].title).toBe("Health");
+    expect(updated[0].prayerItems[0].isUrgent).toBe(false);
+    expect(updated[0].prayerItems[0].isDone).toBe(false);
   });
 
   it("removes a prayer item from a person", () => {
-    const cody = initialPeople.find((p) => p.id === "cody")!;
-    const initialCount = cody.prayerItems.length;
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const withItem = addPrayerItem(people, people[0].id, "Health");
 
-    const updated = removePrayerItem(initialPeople, "cody", cody.prayerItems[0].id);
-    const updatedCody = updated.find((p) => p.id === "cody")!;
-
-    expect(updatedCody.prayerItems).toHaveLength(initialCount - 1);
+    const updated = removePrayerItem(withItem, people[0].id, withItem[0].prayerItems[0].id);
+    expect(updated[0].prayerItems).toHaveLength(0);
   });
 
   it("gets urgent prayer items for a person", () => {
-    const cody = initialPeople.find((p) => p.id === "cody")!;
-    const urgentItems = getUrgentPrayerItems(cody);
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const withItem = addPrayerItem(people, people[0].id, "Health");
+    const updated = togglePrayerItemUrgent(withItem, people[0].id, withItem[0].prayerItems[0].id);
 
+    const urgentItems = getUrgentPrayerItems(updated[0]);
     expect(urgentItems).toHaveLength(1);
-    expect(urgentItems[0].title).toBe("Work");
+    expect(urgentItems[0].title).toBe("Health");
+  });
+
+  it("removes a person from the list", () => {
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    expect(people).toHaveLength(1);
+
+    const updated = removePerson(people, people[0].id);
+    expect(updated).toHaveLength(0);
   });
 
   it("prepends trimmed journal entries and ignores empty notes", () => {
-    const entryList = prependJournalEntry(initialJournal, initialPeople[0], "  A peaceful note.  ", "new-id");
+    const people = addPerson(initialPeople, "Alice", "Friend");
+    const entryList = prependJournalEntry(initialJournal, people[0], "  A peaceful note.  ", "new-id");
 
-    expect(entryList).toHaveLength(initialJournal.length + 1);
+    expect(entryList).toHaveLength(1);
     expect(entryList[0]).toMatchObject({
       id: "new-id",
-      personId: "cody",
-      personName: "Cody Pattee",
+      personId: people[0].id,
+      personName: "Alice",
       note: "A peaceful note.",
     });
 
-    expect(prependJournalEntry(initialJournal, initialPeople[0], "   ", "empty-id")).toBe(initialJournal);
+    expect(prependJournalEntry(initialJournal, people[0], "   ", "empty-id")).toBe(initialJournal);
   });
 });

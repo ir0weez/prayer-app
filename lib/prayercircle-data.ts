@@ -10,13 +10,9 @@ export type Person = {
   name: string;
   initials: string;
   relationship: string;
-  birthday: string;
-  intention: string;
-  lastPrayedDaysAgo: number;
-  reminder: string;
+  lastPrayedDate: string | null; // ISO date string (YYYY-MM-DD) or null
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   accentColor: string;
-  prayedToday: boolean;
   avatarColor: string;
   prayerItems: PrayerItem[];
 };
@@ -29,201 +25,126 @@ export type JournalEntry = {
   note: string;
 };
 
-export const initialPeople: Person[] = [
-  {
-    id: "cody",
-    name: "Cody Pattee",
-    initials: "CP",
-    relationship: "Friends",
-    birthday: "May 6",
-    intention: "Wisdom at work and a steady rhythm of rest.",
-    lastPrayedDaysAgo: 1,
-    reminder: "Mondays and Thursdays",
-    reminderDaysOfWeek: [1, 4], // Monday (1) and Thursday (4)
-    accentColor: "#5DADE2",
-    prayedToday: true,
-    avatarColor: "#D4A574",
-    prayerItems: [
-      { id: "p1", title: "Kurt", isUrgent: false, isDone: false },
-      { id: "p2", title: "Work", isUrgent: true, isDone: false },
-      { id: "p3", title: "Family", isUrgent: false, isDone: false },
-    ],
-  },
-  {
-    id: "damian",
-    name: "Damian Lopez",
-    initials: "DL",
-    relationship: "Friends",
-    birthday: "June 14",
-    intention: "Healing, practical support, and a hopeful week.",
-    lastPrayedDaysAgo: 23,
-    reminder: "Weekly on Saturday",
-    reminderDaysOfWeek: [6], // Saturday (6)
-    accentColor: "#F85C5C",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-  {
-    id: "gary",
-    name: "Gary Martin",
-    initials: "GM",
-    relationship: "Friends",
-    birthday: "July 2",
-    intention: "Peace and clarity in decisions.",
-    lastPrayedDaysAgo: 0,
-    reminder: "Daily",
-    reminderDaysOfWeek: [0, 1, 2, 3, 4, 5, 6], // Every day
-    accentColor: "#5DADE2",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-  {
-    id: "joel",
-    name: "Joel Gonzalez",
-    initials: "JG",
-    relationship: "Friends",
-    birthday: "August 10",
-    intention: "Strength and encouragement.",
-    lastPrayedDaysAgo: 23,
-    reminder: "Twice a week",
-    reminderDaysOfWeek: [2, 5], // Wednesday (2) and Saturday (5)
-    accentColor: "#F85C5C",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-  {
-    id: "juan",
-    name: "Juan Aguirre",
-    initials: "JA",
-    relationship: "Friends",
-    birthday: "September 5",
-    intention: "Guidance and wisdom.",
-    lastPrayedDaysAgo: 6,
-    reminder: "Weekly",
-    reminderDaysOfWeek: [1], // Monday (1)
-    accentColor: "#5DADE2",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-  {
-    id: "kim",
-    name: "Kim Crouch",
-    initials: "KC",
-    relationship: "Friends",
-    birthday: "October 12",
-    intention: "Joy and peace.",
-    lastPrayedDaysAgo: 23,
-    reminder: "Mondays",
-    reminderDaysOfWeek: [1], // Monday (1)
-    accentColor: "#F85C5C",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-  {
-    id: "richard",
-    name: "Richard Juarez",
-    initials: "RJ",
-    relationship: "Friends",
-    birthday: "November 20",
-    intention: "Blessings and protection.",
-    lastPrayedDaysAgo: 6,
-    reminder: "Thursdays",
-    reminderDaysOfWeek: [4], // Thursday (4)
-    accentColor: "#5DADE2",
-    prayedToday: true,
-    avatarColor: "#7FD8BE",
-    prayerItems: [],
-  },
-];
+// Start with blank data
+export const initialPeople: Person[] = [];
 
-export const initialJournal: JournalEntry[] = [
-  {
-    id: "j1",
-    personId: "cody",
-    personName: "Cody Pattee",
-    date: "Today",
-    note: "Prayed for clarity before his client meeting and a peaceful conversation afterward.",
-  },
-  {
-    id: "j2",
-    personId: "damian",
-    personName: "Damian Lopez",
-    date: "Yesterday",
-    note: "Asked for patience, safe travel, and the right people around him.",
-  },
-  {
-    id: "j3",
-    personId: "gary",
-    personName: "Gary Martin",
-    date: "Monday",
-    note: "Prayed for healing and a reminder that he is not carrying everything alone.",
-  },
-];
+export const initialJournal: JournalEntry[] = [];
 
+// Helper: Get days since last prayed
+export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
+  if (!lastPrayedDate) return 999; // Never prayed
+
+  const last = new Date(lastPrayedDate + "T00:00:00Z");
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const diff = today.getTime() - last.getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
+// Helper: Format days since last prayer for display
+export function formatDaysSinceLastPrayer(daysSince: number): string {
+  if (daysSince === 0) return "Today";
+  if (daysSince === 1) return "1d";
+  if (daysSince < 7) return `${daysSince}d`;
+  if (daysSince < 30) return `${Math.floor(daysSince / 7)}w`;
+  if (daysSince < 365) return `${Math.floor(daysSince / 30)}m`;
+  return "—";
+}
+
+// Helper: Get today's ISO date string
+export function getTodayISOString(): string {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+}
+
+// Helper: Determine if person should be prayed for today
+export function shouldPrayForTodayByReminder(person: Person, todayDayOfWeek: number): boolean {
+  return person.reminderDaysOfWeek.includes(todayDayOfWeek);
+}
+
+// Helper: Get list of people to pray for today
+export function getPrayTodayList(people: Person[], todayDayOfWeek: number): Person[] {
+  return people.filter((person) => shouldPrayForTodayByReminder(person, todayDayOfWeek));
+}
+
+// Helper: Get urgent prayer items for a person
+export function getUrgentPrayerItems(person: Person): PrayerItem[] {
+  return person.prayerItems.filter((item) => item.isUrgent && !item.isDone);
+}
+
+// Helper: Get daily prayer progress
+export function getDailyPrayerProgress(prayTodayList: Person[]): { prayed: number; total: number } {
+  const today = getTodayISOString();
+  const prayed = prayTodayList.filter((p) => p.lastPrayedDate === today).length;
+
+  return { prayed, total: prayTodayList.length };
+}
+
+// Helper: Get next person who needs prayer
+export function getNextPrayerPerson(people: Person[]): Person | null {
+  if (people.length === 0) return null;
+  const today = getTodayISOString();
+  const notPrayedYet = people.find((p) => p.lastPrayedDate !== today);
+  return notPrayedYet || null;
+}
+
+// Action: Mark person as prayed today
 export function markPersonPrayed(people: Person[], personId: string): Person[] {
-  return people.map((person) =>
-    person.id === personId ? { ...person, prayedToday: true, lastPrayedDaysAgo: 0 } : person,
+  const today = getTodayISOString();
+  return people.map((p) =>
+    p.id === personId ? { ...p, lastPrayedDate: today } : p,
   );
 }
 
-export function getNextPrayerPerson(people: Person[]): Person | undefined {
-  return people.find((person) => !person.prayedToday) ?? people[0];
+// Action: Update person's last prayed date
+export function updatePersonLastPrayedDate(
+  people: Person[],
+  personId: string,
+  dateString: string,
+): Person[] {
+  return people.map((p) =>
+    p.id === personId ? { ...p, lastPrayedDate: dateString } : p,
+  );
 }
 
-export function getDailyPrayerProgress(people: Person[]): { prayed: number; total: number } {
-  return {
-    prayed: people.filter((person) => person.prayedToday).length,
-    total: people.length,
-  };
-}
-
-export function shouldPrayForTodayByReminder(person: Person, dayOfWeek: number): boolean {
-  return person.reminderDaysOfWeek.includes(dayOfWeek);
-}
-
-export function getPrayTodayList(people: Person[], dayOfWeek: number): Person[] {
-  return people.filter((person) => shouldPrayForTodayByReminder(person, dayOfWeek));
-}
-
+// Action: Toggle prayer item urgent flag
 export function togglePrayerItemUrgent(
   people: Person[],
   personId: string,
   itemId: string,
 ): Person[] {
-  return people.map((person) =>
-    person.id === personId
+  return people.map((p) =>
+    p.id === personId
       ? {
-          ...person,
-          prayerItems: person.prayerItems.map((item) =>
+          ...p,
+          prayerItems: p.prayerItems.map((item) =>
             item.id === itemId ? { ...item, isUrgent: !item.isUrgent } : item,
           ),
         }
-      : person,
+      : p,
   );
 }
 
+// Action: Toggle prayer item done flag
 export function togglePrayerItemDone(
   people: Person[],
   personId: string,
   itemId: string,
 ): Person[] {
-  return people.map((person) =>
-    person.id === personId
+  return people.map((p) =>
+    p.id === personId
       ? {
-          ...person,
-          prayerItems: person.prayerItems.map((item) =>
+          ...p,
+          prayerItems: p.prayerItems.map((item) =>
             item.id === itemId ? { ...item, isDone: !item.isDone } : item,
           ),
         }
-      : person,
+      : p,
   );
 }
 
+// Action: Add prayer item to person
 export function addPrayerItem(
   people: Person[],
   personId: string,
@@ -232,12 +153,12 @@ export function addPrayerItem(
   const trimmed = title.trim();
   if (!trimmed) return people;
 
-  return people.map((person) =>
-    person.id === personId
+  return people.map((p) =>
+    p.id === personId
       ? {
-          ...person,
+          ...p,
           prayerItems: [
-            ...person.prayerItems,
+            ...p.prayerItems,
             {
               id: `item-${Date.now()}`,
               title: trimmed,
@@ -246,54 +167,118 @@ export function addPrayerItem(
             },
           ],
         }
-      : person,
+      : p,
   );
 }
 
+// Action: Remove prayer item from person
 export function removePrayerItem(
   people: Person[],
   personId: string,
   itemId: string,
 ): Person[] {
-  return people.map((person) =>
-    person.id === personId
+  return people.map((p) =>
+    p.id === personId
       ? {
-          ...person,
-          prayerItems: person.prayerItems.filter((item) => item.id !== itemId),
+          ...p,
+          prayerItems: p.prayerItems.filter((item) => item.id !== itemId),
         }
-      : person,
+      : p,
   );
 }
 
-export function getUrgentPrayerItems(person: Person): PrayerItem[] {
-  return person.prayerItems.filter((item) => item.isUrgent);
+// Action: Update person's reminder days
+export function updatePersonReminder(
+  people: Person[],
+  personId: string,
+  daysOfWeek: number[],
+): Person[] {
+  return people.map((p) =>
+    p.id === personId
+      ? {
+          ...p,
+          reminderDaysOfWeek: daysOfWeek,
+        }
+      : p,
+  );
 }
 
+// Action: Add new person
+export function addPerson(
+  people: Person[],
+  name: string,
+  relationship: string,
+): Person[] {
+  const trimmedName = name.trim();
+  if (!trimmedName) return people;
+
+  const colors = [
+    { avatar: "#D4A574", accent: "#8B7355" },
+    { avatar: "#7DD3C0", accent: "#06B6D4" },
+    { avatar: "#A8D5BA", accent: "#10B981" },
+    { avatar: "#FFB6C1", accent: "#EC4899" },
+    { avatar: "#FFD700", accent: "#F59E0B" },
+    { avatar: "#87CEEB", accent: "#0EA5E9" },
+  ];
+
+  const colorIndex = people.length % colors.length;
+  const color = colors[colorIndex];
+
+  const initials = trimmedName
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return [
+    ...people,
+    {
+      id: `person-${Date.now()}`,
+      name: trimmedName,
+      initials,
+      relationship: relationship.trim() || "Friend",
+      avatarColor: color.avatar,
+      accentColor: color.accent,
+      lastPrayedDate: null,
+      prayerItems: [],
+      reminderDaysOfWeek: [],
+    },
+  ];
+}
+
+// Action: Remove person
+export function removePerson(people: Person[], personId: string): Person[] {
+  return people.filter((p) => p.id !== personId);
+}
+
+// Action: Prepend journal entry
 export function prependJournalEntry(
   journal: JournalEntry[],
   person: Person,
   note: string,
-  id: string,
+  entryId: string,
 ): JournalEntry[] {
   const trimmed = note.trim();
-  if (!trimmed) {
-    return journal;
-  }
+  if (!trimmed) return journal;
+
+  const now = new Date();
+  const dateString = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return [
     {
-      id,
+      id: entryId,
       personId: person.id,
       personName: person.name,
-      date: "Today",
+      date: dateString,
       note: trimmed,
     },
     ...journal,
   ];
-}
-
-export function formatDaysSinceLastPrayer(days: number): string {
-  if (days === 0) return "—";
-  if (days === 1) return "1d";
-  return `${days}d`;
 }

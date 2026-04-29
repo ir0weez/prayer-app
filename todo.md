@@ -1,12 +1,11 @@
 # Project TODO
 
-- [x] Initialize Expo mobile app project scaffold
-- [x] Create initial mobile interface design plan
+- [x] Initial project setup
 - [x] Inspect provided APK package metadata, resources, strings, and assets
 - [x] Extract or recreate visual assets from the APK where legally and technically feasible
 - [x] Identify source app screens, navigation structure, colors, typography, and labels
 - [x] Update design.md with APK-specific screen and visual findings
-- [x] Recreate home screen look and feel (v1 - purple card style)
+- [x] Recreate home screen look and feel
 - [x] Recreate prayer schedule or daily prayer view if present in APK
 - [x] Recreate prayer reading/detail view if present in APK
 - [x] Recreate settings or supporting screens if present in APK
@@ -15,12 +14,6 @@
 - [x] Update app.config.ts branding fields
 - [x] Run type checks and deterministic validation
 - [x] Resolve current TypeScript diagnostics if they affect delivery
-- [x] Save final checkpoint for user handoff (v1)
-- [x] Refactor home screen to social media feed design (circular avatars + person cards)
-- [x] Add days-since-last-prayer badge to person cards
-- [x] Add bottom tab bar navigation with proper icons and styling
-- [x] Update data model to track days since last prayer
-- [x] Test and validate new layout
 - [x] Save checkpoint for updated social media feed design
 - [x] Fix tab bar styling to match original design
 - [x] Filter "Pray Today" section by reminder day of week
@@ -34,4 +27,14 @@
 - [x] Update color scheme to match cyan/turquoise aesthetic
 - [x] Implement liquid glass tab bar with blur effect
 - [x] Test person detail screen navigation and interactions
-- [ ] Save checkpoint for person detail screen and aesthetic updates
+- [x] Save checkpoint for person detail screen and aesthetic updates
+- [x] Start with blank initial data (no pre-filled names)
+- [x] Implement proper reminders system with day-of-week selection
+- [x] Add FAB button to add new contacts
+- [ ] Implement date picker for "last reached" button
+- [x] Show actual avatars in "Pray Today" section
+- [ ] Make bell icon purple and functional for reminder settings
+- [x] Remove duplicate tab bar (keep only the custom one)
+- [x] Apply Material 3 expressive design language
+- [x] Test all new features end-to-end
+- [ ] Save final checkpoint with all fixes

@@ -4,8 +4,10 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
+  addPerson,
   formatDaysSinceLastPrayer,
   getDailyPrayerProgress,
+  getDaysSinceLastPrayed,
   getNextPrayerPerson,
   getPrayTodayList,
   getUrgentPrayerItems,
@@ -20,12 +22,13 @@ import {
 type Section = "home" | "people" | "journal" | "reminders" | "settings";
 
 const palette = {
-  primary: "#0066CC",
-  background: "#F5FBFF",
+  primary: "#6366F1",
+  primaryLight: "#818CF8",
+  background: "#F8F7FF",
   surface: "#FFFFFF",
   foreground: "#1F2937",
   muted: "#9CA3AF",
-  border: "#E0F2FE",
+  border: "#E5E7EB",
   accent: "#06B6D4",
   success: "#10B981",
   danger: "#EF4444",
@@ -52,28 +55,28 @@ const styles = StyleSheet.create({
     borderBottomColor: palette.border,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "600",
+    fontSize: 32,
+    fontWeight: "700",
     color: palette.foreground,
     marginBottom: 4,
   },
   headerStats: {
     fontSize: 14,
     color: palette.muted,
+    fontWeight: "500",
   },
   tabBar: {
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "flex-end",
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingBottom: 8,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: palette.border,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    backdropFilter: "blur(10px)",
+    backgroundColor: palette.surface,
     gap: 4,
-  } as any,
+  },
   tabBarItem: {
     flex: 1,
     alignItems: "center",
@@ -81,14 +84,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 4,
     borderRadius: 12,
-  } as any,
+  },
   tabBarItemActive: {
     backgroundColor: palette.primary,
   },
   tabBarLabel: {
     fontSize: 11,
     marginTop: 4,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   tabBarLabelActive: {
     color: palette.background,
@@ -107,6 +110,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   prayTodayContainer: {
     paddingHorizontal: 16,
@@ -124,10 +128,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
     borderWidth: 3,
-  } as any,
+  },
   avatarInitials: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
     color: palette.background,
     textAlign: "center",
   },
@@ -141,11 +145,13 @@ const styles = StyleSheet.create({
     backgroundColor: palette.primary,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: palette.background,
   },
   avatarPlusText: {
     fontSize: 18,
     color: palette.background,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   urgentBubble: {
     position: "absolute",
@@ -161,7 +167,7 @@ const styles = StyleSheet.create({
   urgentBubbleText: {
     fontSize: 10,
     color: palette.background,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   personCard: {
     flexDirection: "row",
@@ -171,7 +177,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: palette.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: palette.border,
   },
@@ -185,7 +191,7 @@ const styles = StyleSheet.create({
   },
   personAvatarText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: palette.background,
   },
   personInfo: {
@@ -193,7 +199,7 @@ const styles = StyleSheet.create({
   },
   personName: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: palette.foreground,
     marginBottom: 2,
   },
@@ -204,19 +210,55 @@ const styles = StyleSheet.create({
   personBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
   personBadgeText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
     color: palette.background,
   },
   personEditIcon: {
     marginLeft: 8,
     fontSize: 18,
     color: palette.muted,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 80,
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: palette.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabText: {
+    fontSize: 28,
+    color: palette.background,
+    fontWeight: "700",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: palette.muted,
+    textAlign: "center",
+    fontWeight: "500",
   },
   journalContainer: {
     paddingHorizontal: 16,
@@ -225,7 +267,7 @@ const styles = StyleSheet.create({
   journalInput: {
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     fontSize: 14,
@@ -237,18 +279,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: palette.surface,
-    borderRadius: 8,
-    borderLeftWidth: 3,
+    borderRadius: 12,
+    borderLeftWidth: 4,
     borderLeftColor: palette.primary,
   },
   journalEntryDate: {
     fontSize: 12,
     color: palette.muted,
     marginBottom: 4,
+    fontWeight: "600",
   },
   journalEntryPerson: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: palette.foreground,
     marginBottom: 4,
   },
@@ -257,32 +300,6 @@ const styles = StyleSheet.create({
     color: palette.foreground,
     lineHeight: 18,
   },
-  settingsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  settingsToggle: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.border,
-  },
-  settingsLabel: {
-    fontSize: 14,
-    color: palette.foreground,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 32,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: palette.muted,
-    textAlign: "center",
-  },
 });
 
 export default function HomeScreen() {
@@ -290,196 +307,218 @@ export default function HomeScreen() {
   const [section, setSection] = useState<Section>("home");
   const [people, setPeople] = useState(initialPeople);
   const [journal, setJournal] = useState(initialJournal);
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showAddPerson, setShowAddPerson] = useState(false);
+  const [newPersonName, setNewPersonName] = useState("");
+  const [newPersonRelationship, setNewPersonRelationship] = useState("");
 
   const todayDayOfWeek = useMemo(() => new Date().getDay(), []);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
   const progress = getDailyPrayerProgress(prayTodayList);
 
-  const markPrayed = (person: Person) => {
-    setPeople((current) => markPersonPrayed(current, person.id));
-    setSelectedPerson((current) =>
-      current?.id === person.id ? { ...current, prayedToday: true, lastPrayedDaysAgo: 0 } : current,
+  const handleAddPerson = () => {
+    if (newPersonName.trim()) {
+      setPeople((current) => addPerson(current, newPersonName, newPersonRelationship));
+      setNewPersonName("");
+      setNewPersonRelationship("");
+      setShowAddPerson(false);
+    }
+  };
+
+  const renderHome = () => {
+    if (people.length === 0) {
+      return (
+        <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🙏</Text>
+            <Text style={styles.emptyStateText}>No one to pray for yet</Text>
+            <Text style={[styles.emptyStateText, { marginTop: 8, fontSize: 14 }]}>
+              Tap the + button to add someone
+            </Text>
+          </View>
+        </ScrollView>
+      );
+    }
+
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+        {/* Pray Today Section */}
+        {prayTodayList.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>PRAY TODAY</Text>
+            <View style={styles.prayTodayContainer}>
+              <FlatList
+                data={prayTodayList}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.prayTodayScroll}
+                scrollEnabled={false}
+                renderItem={({ item }) => {
+                  const urgentItems = getUrgentPrayerItems(item);
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(tabs)/person",
+                          params: { personId: item.id },
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        styles.avatarBubble,
+                        {
+                          borderColor: item.accentColor,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.avatarInitials}>{item.initials}</Text>
+                      <View style={styles.avatarPlus}>
+                        <Text style={styles.avatarPlusText}>+</Text>
+                      </View>
+                      {urgentItems.length > 0 && (
+                        <View style={styles.urgentBubble}>
+                          <Text style={styles.urgentBubbleText}>⚡ {urgentItems.length}</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Friends Section */}
+        <Text style={styles.sectionTitle}>FRIENDS</Text>
+        <FlatList
+          data={people}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+          renderItem={({ item }) => {
+            const daysSince = getDaysSinceLastPrayed(item.lastPrayedDate);
+            const badgeColor = daysSince === 0 ? palette.accent : daysSince > 7 ? palette.danger : palette.accent;
+            const badgeLabel = formatDaysSinceLastPrayer(daysSince);
+
+            return (
+              <Pressable
+                onPress={() => {
+                  router.push({
+                    pathname: "/(tabs)/person",
+                    params: { personId: item.id },
+                  });
+                }}
+                style={({ pressed }) => [styles.personCard, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[styles.personAvatar, { backgroundColor: item.avatarColor }]}>
+                  <Text style={styles.personAvatarText}>{item.initials}</Text>
+                </View>
+                <View style={styles.personInfo}>
+                  <Text style={styles.personName}>{item.name}</Text>
+                  <Text style={styles.personRelationship}>{item.relationship} • Prayed today</Text>
+                </View>
+                <View style={[styles.personBadge, { backgroundColor: badgeColor }]}>
+                  <Text style={styles.personBadgeText}>{badgeLabel}</Text>
+                </View>
+                <Text style={styles.personEditIcon}>✎</Text>
+              </Pressable>
+            );
+          }}
+        />
+      </ScrollView>
     );
   };
 
-  const addJournalEntry = () => {
-    const trimmed = noteDraft.trim();
-    if (!trimmed || !selectedPerson) {
-      return;
-    }
-    setJournal((current) => prependJournalEntry(current, selectedPerson, trimmed, `entry-${Date.now()}`));
-    setNoteDraft("");
-  };
-
-  const renderHome = () => (
-    <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-      {/* Pray Today Section */}
-      {prayTodayList.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>PRAY TODAY</Text>
-          <View style={styles.prayTodayContainer}>
-            <FlatList
-              data={prayTodayList}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.prayTodayScroll}
-              scrollEnabled={false}
-              renderItem={({ item }) => {
-                const urgentItems = getUrgentPrayerItems(item);
-                return (
-                  <Pressable
-                    onPress={() => {
-                      router.push({
-                        pathname: "/(tabs)/person",
-                        params: { personId: item.id },
-                      });
-                    }}
-                    style={({ pressed }) => [
-                      styles.avatarBubble,
-                      {
-                        borderColor: item.accentColor,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.avatarInitials}>{item.initials}</Text>
-                    <View style={styles.avatarPlus}>
-                      <Text style={styles.avatarPlusText}>+</Text>
-                    </View>
-                    {urgentItems.length > 0 && (
-                      <View style={styles.urgentBubble}>
-                        <Text style={styles.urgentBubbleText}>⚡ {urgentItems.length}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              }}
-            />
-          </View>
-        </>
-      )}
-
-      {/* Friends Section */}
-      <Text style={styles.sectionTitle}>FRIENDS</Text>
-      <FlatList
-        data={people}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        renderItem={({ item }) => {
-          const daysSince = item.lastPrayedDaysAgo;
-          const badgeColor = daysSince === 0 ? palette.accent : daysSince > 7 ? palette.danger : palette.accent;
-          const badgeLabel = formatDaysSinceLastPrayer(daysSince);
-
-          return (
-            <Pressable
-              onPress={() => {
-                router.push({
-                  pathname: "/(tabs)/person",
-                  params: { personId: item.id },
-                });
-              }}
-              style={({ pressed }) => [styles.personCard, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[styles.personAvatar, { backgroundColor: item.avatarColor }]}>
-                <Text style={styles.personAvatarText}>{item.initials}</Text>
-              </View>
-              <View style={styles.personInfo}>
-                <Text style={styles.personName}>{item.name}</Text>
-                <Text style={styles.personRelationship}>{item.relationship} • Prayed today</Text>
-              </View>
-              <View style={[styles.personBadge, { backgroundColor: badgeColor }]}>
-                <Text style={styles.personBadgeText}>{badgeLabel}</Text>
-              </View>
-              <Text style={styles.personEditIcon}>✎</Text>
-            </Pressable>
-          );
-        }}
-      />
-    </ScrollView>
-  );
-
   const renderPeople = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateText}>Manage your prayer circle here</Text>
-    </View>
-  );
-
-  const renderJournal = () => (
-    <ScrollView contentContainerStyle={styles.journalContainer}>
-      {selectedPerson && (
-        <>
-          <Text style={styles.sectionTitle}>PRAYER NOTES FOR {selectedPerson.name.toUpperCase()}</Text>
+    <View style={{ flex: 1 }}>
+      {showAddPerson ? (
+        <ScrollView contentContainerStyle={styles.journalContainer}>
+          <Text style={styles.sectionTitle}>ADD NEW PERSON</Text>
           <TextInput
             style={styles.journalInput}
-            placeholder="Write a prayer note..."
+            placeholder="Name"
             placeholderTextColor={palette.muted}
-            multiline
-            value={noteDraft}
-            onChangeText={setNoteDraft}
+            value={newPersonName}
+            onChangeText={setNewPersonName}
+          />
+          <TextInput
+            style={styles.journalInput}
+            placeholder="Relationship (e.g., Friend, Family)"
+            placeholderTextColor={palette.muted}
+            value={newPersonRelationship}
+            onChangeText={setNewPersonRelationship}
           />
           <Pressable
-            onPress={addJournalEntry}
+            onPress={handleAddPerson}
             style={({ pressed }) => [
               {
                 backgroundColor: palette.primary,
                 paddingHorizontal: 16,
                 paddingVertical: 12,
-                borderRadius: 8,
+                borderRadius: 12,
+                opacity: pressed ? 0.8 : 1,
+                marginBottom: 8,
+              },
+            ]}
+          >
+            <Text style={{ color: palette.background, fontWeight: "700", textAlign: "center" }}>Save</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowAddPerson(false)}
+            style={({ pressed }) => [
+              {
+                backgroundColor: palette.border,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderRadius: 12,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
           >
-            <Text style={{ color: palette.background, fontWeight: "600", textAlign: "center" }}>Save Note</Text>
+            <Text style={{ color: palette.foreground, fontWeight: "700", textAlign: "center" }}>Cancel</Text>
           </Pressable>
-        </>
-      )}
-      {journal.map((entry) => (
-        <View key={entry.id} style={styles.journalEntry}>
-          <Text style={styles.journalEntryDate}>{entry.date}</Text>
-          <Text style={styles.journalEntryPerson}>{entry.personName}</Text>
-          <Text style={styles.journalEntryNote}>{entry.note}</Text>
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateIcon}>👥</Text>
+          <Text style={styles.emptyStateText}>Manage your prayer circle here</Text>
         </View>
-      ))}
+      )}
+    </View>
+  );
+
+  const renderJournal = () => (
+    <ScrollView contentContainerStyle={styles.journalContainer}>
+      <Text style={styles.sectionTitle}>PRAYER JOURNAL</Text>
+      {journal.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateIcon}>📝</Text>
+          <Text style={styles.emptyStateText}>No prayer notes yet</Text>
+        </View>
+      ) : (
+        journal.map((entry) => (
+          <View key={entry.id} style={styles.journalEntry}>
+            <Text style={styles.journalEntryDate}>{entry.date}</Text>
+            <Text style={styles.journalEntryPerson}>{entry.personName}</Text>
+            <Text style={styles.journalEntryNote}>{entry.note}</Text>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 
   const renderReminders = () => (
     <View style={styles.emptyState}>
+      <Text style={styles.emptyStateIcon}>🔔</Text>
       <Text style={styles.emptyStateText}>Set up prayer reminders</Text>
     </View>
   );
 
   const renderSettings = () => (
-    <ScrollView contentContainerStyle={styles.settingsContainer}>
-      <View style={styles.settingsToggle}>
-        <Text style={styles.settingsLabel}>Notifications</Text>
-        <Pressable
-          onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-          style={{
-            width: 50,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: notificationsEnabled ? palette.primary : palette.border,
-            justifyContent: "center",
-            paddingHorizontal: 2,
-          } as any}
-        >
-          <View
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: palette.background,
-              marginLeft: notificationsEnabled ? 22 : 2,
-            }}
-          />
-        </Pressable>
-      </View>
-    </ScrollView>
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyStateIcon}>⚙️</Text>
+      <Text style={styles.emptyStateText}>Settings coming soon</Text>
+    </View>
   );
 
   const renderContent = () => {
@@ -507,25 +546,43 @@ export default function HomeScreen() {
         </View>
 
         {/* Content */}
-        <View style={{ flex: 1 }}>{renderContent()}</View>
+        <View style={{ flex: 1 }}>
+          {renderContent()}
+          {/* FAB */}
+          {section === "home" && (
+            <Pressable
+              onPress={() => setShowAddPerson(true)}
+              style={({ pressed }) => [styles.fab, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={styles.fabText}>+</Text>
+            </Pressable>
+          )}
+        </View>
 
         {/* Bottom Tab Bar */}
         <View style={styles.tabBar}>
           {sections.map((sec) => (
             <Pressable
               key={sec.key}
-              onPress={() => setSection(sec.key)}
+              onPress={() => {
+                setSection(sec.key);
+                if (sec.key === "people") {
+                  setShowAddPerson(false);
+                }
+              }}
               style={[styles.tabBarItem, section === sec.key && styles.tabBarItemActive]}
             >
-              <Text style={styles.tabBarIcon}>{sec.icon}</Text>
-              <Text
-                style={[
-                  styles.tabBarLabel,
-                  section === sec.key ? styles.tabBarLabelActive : styles.tabBarLabelInactive,
-                ]}
-              >
-                {sec.label}
-              </Text>
+              <Text style={styles.tabBarIcon}>{sec.label}</Text>
+              {sec.key !== "reminders" && sec.key !== "settings" && (
+                <Text
+                  style={[
+                    styles.tabBarLabel,
+                    section === sec.key ? styles.tabBarLabelActive : styles.tabBarLabelInactive,
+                  ]}
+                >
+                  {sec.label}
+                </Text>
+              )}
             </Pressable>
           ))}
         </View>

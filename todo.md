@@ -34,7 +34,10 @@
 - [ ] Implement date picker for "last reached" button
 - [x] Show actual avatars in "Pray Today" section
 - [ ] Make bell icon purple and functional for reminder settings
-- [x] Remove duplicate tab bar (keep only the custom one)
+- [x] Create contact creation page
+- [x] Wire FAB to navigate to contact creation page
+- [x] Remove duplicate tab bar (system tab bar is showing)
+- [x] Implement floating liquid glass tab bar with blur effect
 - [x] Apply Material 3 expressive design language
 - [x] Test all new features end-to-end
 - [ ] Save final checkpoint with all fixes

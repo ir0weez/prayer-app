@@ -31,19 +31,26 @@
 - [x] Start with blank initial data (no pre-filled names)
 - [x] Implement proper reminders system with day-of-week selection
 - [x] Add FAB button to add new contacts
-- [ ] Implement date picker for "last reached" button
+- [x] Implement date picker for "last reached" button
 - [x] Show actual avatars in "Pray Today" section
-- [ ] Make bell icon purple and functional for reminder settings
+- [x] Make bell icon purple and functional for reminder settings
 - [x] Create contact creation page
 - [x] Wire FAB to navigate to contact creation page
 - [x] Remove duplicate tab bar (system tab bar is showing)
 - [x] Implement floating liquid glass tab bar with blur effect
 - [x] Apply Material 3 expressive design language
 - [x] Test all new features end-to-end
-- [ ] Save final checkpoint with all fixes
+- [x] Save final checkpoint with all fixes
 - [x] Add relationship type field with color coding (Family, Friends, Ministry, Prospect)
 - [x] Fix person creation to actually save people to state
 - [x] Show color-coded avatars on main page based on relationship type
 - [x] Add streak counter in top right of home screen
 - [x] Add "prayers left today" counter in top right of home screen
-- [ ] Save checkpoint with person creation, color coding, and counters
+- [x] Save checkpoint with person creation, color coding, and counters
+- [x] DEBUG: Fix contact creation not saving (investigate handleAddPerson logic)
+- [x] Update background to purple gradient
+- [x] Update tab bar to purple with white icons
+- [x] Update FAB button to purple
+- [x] Add birthday emoji and date display to person cards
+- [x] Update header colors to match purple aesthetic
+- [x] Save checkpoint with purple styling and contact save fix

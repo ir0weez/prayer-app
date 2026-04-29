@@ -294,3 +294,12 @@ export function prependJournalEntry(
     ...journal,
   ];
 }
+
+
+// Helper: Get initial state
+export function getInitialState() {
+  return {
+    people: initialPeople,
+    journal: initialJournal,
+  };
+}

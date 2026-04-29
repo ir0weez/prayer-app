@@ -9,6 +9,7 @@ import {
   getPrayTodayList,
   getUrgentPrayerItems,
   getTodayISOString,
+  getInitialState,
   initialJournal,
   initialPeople,
   markPersonPrayed,
@@ -25,6 +26,13 @@ describe("PrayerCircle local data helpers", () => {
   it("starts with blank data", () => {
     expect(initialPeople).toHaveLength(0);
     expect(initialJournal).toHaveLength(0);
+  });
+
+  it("returns a clean first-run state with no starter contacts", () => {
+    const state = getInitialState();
+
+    expect(state.people).toEqual([]);
+    expect(state.journal).toEqual([]);
   });
 
   it("adds a person with auto-assigned colors", () => {

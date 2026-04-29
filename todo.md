@@ -61,3 +61,7 @@
 - [x] Run TypeScript and Vitest validation after screenshot-matching UI updates
 - [x] Save checkpoint after screenshot-matching UI refinement
 
+- [x] Remove screenshot-inspired starter contacts from first-run app state so new downloads start blank
+- [x] Ensure empty People and Pray Today states still look intentional and guide users to add a first person
+- [x] Validate clean-slate first-run behavior with TypeScript and unit tests
+- [x] Save checkpoint after clean-slate first-run update

@@ -1,5 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -27,110 +28,10 @@ const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
 const SCREEN_BG = "#FAF6FF";
 const ADD_SCREEN_BG = "#EEF8FF";
+const PEOPLE_STORAGE_KEY = "prayercircle.people.v1";
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
-}
-
-function makeReferencePeople(today: string, todayDayOfWeek: number): Person[] {
-  const familyColor = relationshipColors.Family;
-
-  return [
-    {
-      id: "reference-evangelina",
-      name: "Evangelina Roberts",
-      initials: "ER",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#B7D6E6",
-      birthday: "Oct 12",
-      prayerNote: "Pregnancy",
-      reminderTag: "Pregnancy",
-      avatarLabel: "ER",
-      prayerItems: [],
-    },
-    {
-      id: "reference-melody",
-      name: "Melody Roberts",
-      initials: "MR",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#D9CFB3",
-      birthday: "Dec 21",
-      avatarLabel: "MR",
-      prayerItems: [],
-    },
-    {
-      id: "reference-joy",
-      name: "Joy Roberts",
-      initials: "JR",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#D9DAD5",
-      birthday: "May 25",
-      avatarLabel: "🌺",
-      prayerItems: [],
-    },
-    {
-      id: "reference-novalee",
-      name: "Novalee Roberts",
-      initials: "NR",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#B4CCC6",
-      birthday: "Nov 5",
-      prayerNote: "Rash",
-      reminderTag: "Rash",
-      avatarLabel: "NR",
-      prayerItems: [],
-    },
-    {
-      id: "reference-aaron",
-      name: "Aaron Roberts",
-      initials: "AR",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#2B151C",
-      reminderTag: "Birth",
-      avatarLabel: "👶",
-      prayerItems: [],
-    },
-    {
-      id: "reference-anna",
-      name: "Anna Gutierrez",
-      initials: "AG",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#C9D7C1",
-      avatarLabel: "AG",
-      prayerItems: [],
-    },
-    {
-      id: "reference-aubry",
-      name: "Aubry Gutierrez",
-      initials: "AG",
-      relationship: "Family",
-      lastPrayedDate: today,
-      reminderDaysOfWeek: [todayDayOfWeek],
-      accentColor: familyColor.accent,
-      avatarColor: "#95B9E7",
-      birthday: "Dec 9",
-      avatarLabel: "AG",
-      prayerItems: [],
-    },
-  ];
 }
 
 function getBirthdayText(person: Person) {
@@ -144,10 +45,8 @@ function getAvatarText(person: Person) {
 export default function HomeScreen() {
   const today = getTodayISOString();
   const todayDayOfWeek = new Date().getDay();
-  const initialState = getInitialState();
-  const [people, setPeople] = useState<Person[]>(() =>
-    initialState.people.length > 0 ? initialState.people : makeReferencePeople(today, todayDayOfWeek),
-  );
+  const initialState = useMemo(() => getInitialState(), []);
+  const [people, setPeople] = useState<Person[]>(() => initialState.people);
   const [journal] = useState(initialState.journal);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
@@ -155,6 +54,35 @@ export default function HomeScreen() {
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonNote, setNewPersonNote] = useState("");
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+  const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    AsyncStorage.getItem(PEOPLE_STORAGE_KEY)
+      .then((storedPeople) => {
+        if (!isMounted) return;
+        if (storedPeople) {
+          const parsedPeople = JSON.parse(storedPeople) as Person[];
+          setPeople(Array.isArray(parsedPeople) ? parsedPeople : []);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setPeople(initialState.people);
+      })
+      .finally(() => {
+        if (isMounted) setHasHydratedPeople(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialState.people]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
+  }, [hasHydratedPeople, people]);
 
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
   const streak = useMemo(() => calculatePrayerStreak(people), [people]);
@@ -268,7 +196,7 @@ export default function HomeScreen() {
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
             <MaterialIcons name={iconName("local-fire-department")} size={30} color={PURPLE} />
-            <Text style={styles.statNumber}>{streak || 3}</Text>
+            <Text style={styles.statNumber}>{streak}</Text>
           </View>
           <View style={styles.statItem}>
             <MaterialIcons name={iconName("chat-bubble")} size={28} color={PURPLE} />
@@ -281,7 +209,7 @@ export default function HomeScreen() {
         <Text style={styles.subheading}>PRAY TODAY</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
           {prayTodayList.length > 0 ? prayTodayList.slice(0, 8).map(renderStoryPerson) : (
-            <Text style={styles.emptyInlineText}>No prayer reminders for today</Text>
+            <Text style={styles.emptyInlineText}>Add a person to build today’s prayer row.</Text>
           )}
         </ScrollView>
 
@@ -294,7 +222,7 @@ export default function HomeScreen() {
           <View style={styles.emptyStateCard}>
             <MaterialIcons name={iconName("groups")} size={46} color={PURPLE} />
             <Text style={styles.emptyTitle}>No people yet</Text>
-            <Text style={styles.emptyDescription}>Tap the purple plus button to add someone to your prayer circle.</Text>
+            <Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text>
           </View>
         )}
       </ScrollView>

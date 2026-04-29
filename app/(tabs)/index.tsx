@@ -1,410 +1,884 @@
-import { ScrollView, Text, View, Pressable, TextInput, StyleSheet } from "react-native";
-import { ScreenContainer } from "@/components/screen-container";
-import { useColors } from "@/hooks/use-colors";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+
+import { ScreenContainer } from "@/components/screen-container";
 import {
-  getInitialState,
   addPerson,
-  getPrayTodayList,
   calculatePrayerStreak,
-  RelationshipType,
+  getInitialState,
+  getPrayTodayList,
+  getTodayISOString,
+  type Person,
+  type RelationshipType,
   relationshipColors,
 } from "@/lib/prayercircle-data";
 
+type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
+
+type RelationshipSection = {
+  title: RelationshipType;
+  people: Person[];
+};
+
+const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
+const PURPLE = "#8557D9";
+const DEEP_TEXT = "#141326";
+const MUTED_TEXT = "#7E7C88";
+const SCREEN_BG = "#FAF6FF";
+const ADD_SCREEN_BG = "#EEF8FF";
+
+function iconName(name: string) {
+  return name as keyof typeof MaterialIcons.glyphMap;
+}
+
+function makeReferencePeople(today: string, todayDayOfWeek: number): Person[] {
+  const familyColor = relationshipColors.Family;
+
+  return [
+    {
+      id: "reference-evangelina",
+      name: "Evangelina Roberts",
+      initials: "ER",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#B7D6E6",
+      birthday: "Oct 12",
+      prayerNote: "Pregnancy",
+      reminderTag: "Pregnancy",
+      avatarLabel: "ER",
+      prayerItems: [],
+    },
+    {
+      id: "reference-melody",
+      name: "Melody Roberts",
+      initials: "MR",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#D9CFB3",
+      birthday: "Dec 21",
+      avatarLabel: "MR",
+      prayerItems: [],
+    },
+    {
+      id: "reference-joy",
+      name: "Joy Roberts",
+      initials: "JR",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#D9DAD5",
+      birthday: "May 25",
+      avatarLabel: "🌺",
+      prayerItems: [],
+    },
+    {
+      id: "reference-novalee",
+      name: "Novalee Roberts",
+      initials: "NR",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#B4CCC6",
+      birthday: "Nov 5",
+      prayerNote: "Rash",
+      reminderTag: "Rash",
+      avatarLabel: "NR",
+      prayerItems: [],
+    },
+    {
+      id: "reference-aaron",
+      name: "Aaron Roberts",
+      initials: "AR",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#2B151C",
+      reminderTag: "Birth",
+      avatarLabel: "👶",
+      prayerItems: [],
+    },
+    {
+      id: "reference-anna",
+      name: "Anna Gutierrez",
+      initials: "AG",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#C9D7C1",
+      avatarLabel: "AG",
+      prayerItems: [],
+    },
+    {
+      id: "reference-aubry",
+      name: "Aubry Gutierrez",
+      initials: "AG",
+      relationship: "Family",
+      lastPrayedDate: today,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      accentColor: familyColor.accent,
+      avatarColor: "#95B9E7",
+      birthday: "Dec 9",
+      avatarLabel: "AG",
+      prayerItems: [],
+    },
+  ];
+}
+
+function getBirthdayText(person: Person) {
+  return person.birthday ? ` • 🎂  ${person.birthday}` : "";
+}
+
+function getAvatarText(person: Person) {
+  return person.avatarLabel ?? person.initials ?? person.name.substring(0, 2).toUpperCase();
+}
+
 export default function HomeScreen() {
-  const palette = useColors();
-  const [people, setPeople] = useState(getInitialState().people);
-  const [journal, setJournal] = useState(getInitialState().journal);
+  const today = getTodayISOString();
+  const todayDayOfWeek = new Date().getDay();
+  const initialState = getInitialState();
+  const [people, setPeople] = useState<Person[]>(() =>
+    initialState.people.length > 0 ? initialState.people : makeReferencePeople(today, todayDayOfWeek),
+  );
+  const [journal] = useState(initialState.journal);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
-  const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Friends");
-  const [activeTab, setActiveTab] = useState<"home" | "people" | "journal" | "reminders" | "settings">("home");
+  const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Family");
+  const [newPersonBirthday, setNewPersonBirthday] = useState("");
+  const [newPersonNote, setNewPersonNote] = useState("");
+  const [activeTab, setActiveTab] = useState<AppTab>("people");
 
-  const todayDayOfWeek = new Date().getDay();
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek), [people, todayDayOfWeek]);
   const streak = useMemo(() => calculatePrayerStreak(people), [people]);
-  const prayersLeftToday = prayTodayList.length;
+  const prayersLeftToday = prayTodayList.filter((person) => person.lastPrayedDate !== today).length;
+  const prayedTodayCount = prayTodayList.length - prayersLeftToday;
 
-  const handleAddPerson = () => {
-    if (newPersonName.trim()) {
-      const newPeople = addPerson(people, newPersonName, newPersonRelationship);
-      setPeople(newPeople);
-      setNewPersonName("");
-      setNewPersonRelationship("Friends");
-      setShowAddPerson(false);
-    }
-  };
-
-  const renderHome = () => (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}>
-      <View style={{ marginBottom: 24 }}>
-        <Text style={{ fontSize: 12, color: palette.muted, marginBottom: 4 }}>PRAY TODAY</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-          {prayTodayList.length === 0 ? (
-            <View style={{ alignItems: "center", justifyContent: "center", paddingHorizontal: 16 }}>
-              <Text style={{ color: palette.muted, fontSize: 14 }}>No one to pray for today</Text>
-            </View>
-          ) : (
-            prayTodayList.map((person: typeof prayTodayList[0]) => (
-              <Pressable key={person.id} style={{ marginRight: 16, alignItems: "center" }}>
-                <View
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    borderWidth: 3,
-                    borderColor: relationshipColors[person.relationship].accent,
-                    backgroundColor: relationshipColors[person.relationship].avatar,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 32, fontWeight: "700" }}>
-                    {person.name.substring(0, 1).toUpperCase()}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 12, fontWeight: "600", color: palette.foreground, marginTop: 8, textAlign: "center", maxWidth: 80 }}>
-                  {person.name.split(" ")[0]}
-                </Text>
-              </Pressable>
-            ))
-          )}
-        </ScrollView>
-      </View>
-
-      <View>
-        <Text style={{ fontSize: 12, color: palette.muted, marginBottom: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
-          FRIENDS
-        </Text>
-        {people.length === 0 ? (
-          <View style={{ alignItems: "center", paddingVertical: 32 }}>
-            <Text style={{ color: palette.muted, fontSize: 14 }}>No contacts yet</Text>
-          </View>
-        ) : (
-          people.map((person) => (
-            <View
-              key={person.id}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: palette.surface,
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 12,
-                borderWidth: 1,
-                borderColor: palette.border,
-              }}
-            >
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: relationshipColors[person.relationship].accent,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>
-                  {person.name.substring(0, 2).toUpperCase()}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: "700", color: palette.foreground }}>{person.name}</Text>
-                <Text style={{ fontSize: 12, color: palette.muted }}>
-                  {person.relationship} • Prayed today
-                </Text>
-              </View>
-              <Pressable style={{ padding: 8 }}>
-                <Text style={{ fontSize: 18 }}>✏️</Text>
-              </Pressable>
-            </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+  const relationshipSections: RelationshipSection[] = useMemo(
+    () =>
+      RELATIONSHIP_ORDER.map((relationship) => ({
+        title: relationship,
+        people: people.filter((person) => person.relationship === relationship),
+      })).filter((section) => section.people.length > 0),
+    [people],
   );
 
-  const renderPeople = () => {
-    if (showAddPerson) {
-      return (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 20, paddingBottom: 100 }}>
-          <Text style={{ fontSize: 18, fontWeight: "700", color: palette.foreground, marginBottom: 20, textAlign: "center" }}>ADD NEW PERSON</Text>
-          <TextInput
-            style={{
-              backgroundColor: palette.surface,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: palette.border,
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              fontSize: 16,
-              color: palette.foreground,
-              marginBottom: 16,
-            }}
-            placeholder="Full name"
-            placeholderTextColor={palette.muted}
-            value={newPersonName}
-            onChangeText={setNewPersonName}
-          />
-          <Text style={{ fontSize: 12, fontWeight: "700", color: palette.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>RELATIONSHIP</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-            {(["Family", "Friends", "Ministry", "Prospect"] as RelationshipType[]).map((rel) => (
-              <Pressable
-                key={rel}
-                onPress={() => setNewPersonRelationship(rel)}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    borderWidth: 2,
-                    borderColor: relationshipColors[rel].accent,
-                    backgroundColor: newPersonRelationship === rel ? relationshipColors[rel].accent : "transparent",
-                  },
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontWeight: "700",
-                    color: newPersonRelationship === rel ? "white" : relationshipColors[rel].accent,
-                  }}
-                >
-                  {rel}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable
-            onPress={handleAddPerson}
-            style={({ pressed }) => [
-              {
-                backgroundColor: "#7C3AED",
-                paddingVertical: 12,
-                borderRadius: 24,
-                alignItems: "center",
-                marginBottom: 12,
-              },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>Save</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowAddPerson(false)}
-            style={({ pressed }) => [
-              {
-                backgroundColor: palette.surface,
-                paddingVertical: 12,
-                borderRadius: 24,
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: palette.border,
-              },
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Text style={{ color: palette.foreground, fontWeight: "700", fontSize: 16 }}>Cancel</Text>
-          </Pressable>
-        </ScrollView>
-      );
-    }
+  const resetAddPersonForm = () => {
+    setNewPersonName("");
+    setNewPersonRelationship("Family");
+    setNewPersonBirthday("");
+    setNewPersonNote("");
+  };
 
-    if (people.length === 0) {
-      return (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text style={{ fontSize: 48, marginBottom: 12 }}>👥</Text>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: palette.foreground, marginBottom: 4 }}>No contacts yet</Text>
-          <Text style={{ fontSize: 14, color: palette.muted }}>Tap the + button to add someone</Text>
-        </View>
-      );
-    }
+  const handleAddPerson = () => {
+    if (!newPersonName.trim()) return;
+
+    const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
+      birthday: newPersonBirthday,
+      prayerNote: newPersonNote,
+      reminderDaysOfWeek: [todayDayOfWeek],
+      reminderTag: newPersonNote.split(" ").slice(0, 2).join(" "),
+      avatarLabel: newPersonName
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2),
+    });
+
+    setPeople(updatedPeople);
+    resetAddPersonForm();
+    setActiveTab("people");
+    setShowAddPerson(false);
+  };
+
+  const renderAvatar = (person: Person, size: number, story = false) => {
+    const label = getAvatarText(person);
+    const isEmoji = /\p{Emoji}/u.test(label);
+    const textSize = isEmoji ? size * 0.46 : size * 0.3;
 
     return (
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 100 }}>
-        {people.map((person: typeof people[0]) => (
-          <View
-            key={person.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: palette.surface,
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: palette.border,
-            }}
-          >
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: relationshipColors[person.relationship as RelationshipType].accent,
-                justifyContent: "center",
-                alignItems: "center",
-                marginRight: 12,
-              }}
-            >
-              <Text style={{ fontSize: 20, fontWeight: "700", color: "white" }}>
-                {person.name.substring(0, 2).toUpperCase()}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: "700", color: palette.foreground }}>{person.name}</Text>
-              <Text style={{ fontSize: 12, color: palette.muted }}>{person.relationship}</Text>
-            </View>
-            <Pressable onPress={() => {}} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 18 }}>✏️</Text>
-            </Pressable>
-          </View>
-        ))}
-      </ScrollView>
+      <View
+        style={[
+          styles.avatar,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: person.avatarColor,
+            borderWidth: story ? 0 : 0,
+          },
+        ]}
+      >
+        <Text style={[styles.avatarText, { fontSize: textSize, color: person.avatarColor === "#2B151C" ? "#FFFFFF" : DEEP_TEXT }]}>
+          {label}
+        </Text>
+      </View>
     );
   };
 
-  const renderJournal = () => (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}>
-      <Text style={{ fontSize: 14, fontWeight: "700", color: palette.foreground, marginBottom: 12 }}>PRAYER JOURNAL</Text>
-      {journal.length === 0 ? (
-        <View style={{ alignItems: "center", paddingVertical: 32 }}>
-          <Text style={{ color: palette.muted }}>No journal entries yet</Text>
+  const renderStoryPerson = (person: Person) => (
+    <View key={`story-${person.id}`} style={styles.storyItem}>
+      {person.reminderTag ? (
+        <View style={styles.storyTag}>
+          <Text numberOfLines={1} style={styles.storyTagText}>{person.reminderTag}</Text>
         </View>
-      ) : (
-        journal.map((entry: typeof journal[0], idx: number) => (
-          <View key={idx} style={{ marginBottom: 12, padding: 12, backgroundColor: palette.surface, borderRadius: 8 }}>
-            <Text style={{ fontSize: 12, color: palette.muted }}>{entry.date}</Text>
-            <Text style={{ fontSize: 14, color: palette.foreground }}>{entry.note}</Text>
-          </View>
-        ))
-      )}
-    </ScrollView>
-  );
-
-  const renderReminders = () => (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ fontSize: 48, marginBottom: 12 }}>🔔</Text>
-      <Text style={{ fontSize: 16, fontWeight: "700", color: palette.foreground }}>Reminders</Text>
-      <Text style={{ fontSize: 14, color: palette.muted, marginTop: 4 }}>Coming soon</Text>
+      ) : null}
+      <View style={styles.storyRing}>{renderAvatar(person, 54, true)}</View>
+      <View style={styles.storyPlus}>
+        <MaterialIcons name={iconName("add")} size={26} color="#FFFFFF" />
+      </View>
     </View>
   );
 
-  const renderSettings = () => (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ fontSize: 48, marginBottom: 12 }}>⚙️</Text>
-      <Text style={{ fontSize: 16, fontWeight: "700", color: palette.foreground }}>Settings</Text>
-      <Text style={{ fontSize: 14, color: palette.muted, marginTop: 4 }}>Coming soon</Text>
+  const renderPersonCard = (person: Person) => (
+    <View key={person.id} style={styles.personCard}>
+      {renderAvatar(person, 52)}
+      <View style={styles.personInfo}>
+        <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
+        <Text numberOfLines={1} style={styles.personMeta}>
+          {person.relationship} • Prayed today{getBirthdayText(person)}
+        </Text>
+      </View>
+      <View style={styles.cardActions}>
+        <Pressable style={({ pressed }) => [styles.minusPill, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName("remove")} size={22} color="#8B8199" />
+        </Pressable>
+        <Pressable style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName("edit")} size={24} color="#77737D" />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const renderPeopleScreen = () => (
+    <>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.appTitle}>PrayerCircle</Text>
+          <Text style={styles.progressText}>{prayedTodayCount}/{prayTodayList.length} prayed today</Text>
+        </View>
+        <View style={styles.headerStats}>
+          <View style={styles.statItem}>
+            <MaterialIcons name={iconName("local-fire-department")} size={30} color={PURPLE} />
+            <Text style={styles.statNumber}>{streak || 3}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <MaterialIcons name={iconName("chat-bubble")} size={28} color={PURPLE} />
+            <Text style={styles.statNumber}>{prayTodayList.length || people.length}</Text>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
+        <Text style={styles.subheading}>PRAY TODAY</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
+          {prayTodayList.length > 0 ? prayTodayList.slice(0, 8).map(renderStoryPerson) : (
+            <Text style={styles.emptyInlineText}>No prayer reminders for today</Text>
+          )}
+        </ScrollView>
+
+        {relationshipSections.length > 0 ? relationshipSections.map((section) => (
+          <View key={section.title} style={styles.sectionBlock}>
+            <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
+            {section.people.map(renderPersonCard)}
+          </View>
+        )) : (
+          <View style={styles.emptyStateCard}>
+            <MaterialIcons name={iconName("groups")} size={46} color={PURPLE} />
+            <Text style={styles.emptyTitle}>No people yet</Text>
+            <Text style={styles.emptyDescription}>Tap the purple plus button to add someone to your prayer circle.</Text>
+          </View>
+        )}
+      </ScrollView>
+    </>
+  );
+
+  const renderSimpleScreen = (title: string, icon: string, description: string) => (
+    <View style={styles.simpleScreen}>
+      <MaterialIcons name={iconName(icon)} size={54} color={PURPLE} />
+      <Text style={styles.simpleTitle}>{title}</Text>
+      <Text style={styles.simpleDescription}>{description}</Text>
     </View>
   );
 
   const renderContent = () => {
-    switch (activeTab) {
-      case "home":
-        return renderHome();
-      case "people":
-        return renderPeople();
-      case "journal":
-        return renderJournal();
-      case "reminders":
-        return renderReminders();
-      case "settings":
-        return renderSettings();
-    }
+    if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
+    if (activeTab === "reminders") return renderSimpleScreen("Reminders", "notifications", "Choose which people appear in Pray Today.");
+    if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your prayer notes appear here." : "Prayer notes will appear here after you add them.");
+    return renderSimpleScreen("Settings", "settings", "Adjust PrayerCircle preferences.");
   };
 
-  return (
-    <ScreenContainer
-      containerClassName="bg-gradient-to-b from-purple-50 to-white"
-      style={{ backgroundColor: "#F3E8FF" }}
-    >
-      {/* Header */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: palette.border }}>
-        <View>
-          <Text style={{ fontSize: 28, fontWeight: "700", color: palette.foreground }}>PrayerCircle</Text>
-          <Text style={{ fontSize: 12, color: palette.muted }}>{prayTodayList.length}/{people.length} prayed today</Text>
-        </View>
-        <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 24 }}>🔥</Text>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: palette.foreground }}>{streak}</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 24 }}>📋</Text>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: palette.foreground }}>{prayersLeftToday}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Content */}
-      <View style={{ flex: 1 }}>{renderContent()}</View>
-
-      {/* FAB */}
+  const renderTab = (tab: AppTab, label: string, icon: string) => {
+    const isActive = activeTab === tab;
+    return (
       <Pressable
-        onPress={() => setShowAddPerson(true)}
-        style={({ pressed }) => [
-          {
-            position: "absolute",
-            bottom: 80,
-            right: 16,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: "#7C3AED",
-            justifyContent: "center",
-            alignItems: "center",
-          },
-          pressed && { transform: [{ scale: 0.95 }] },
-        ]}
+        key={tab}
+        onPress={() => {
+          setActiveTab(tab);
+          setShowAddPerson(false);
+        }}
+        style={({ pressed }) => [styles.tabItem, isActive && styles.tabItemActive, pressed && styles.pressed]}
       >
-        <Text style={{ fontSize: 28, color: "white" }}>+</Text>
+        <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#77737D"} />
+        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
+      </Pressable>
+    );
+  };
+
+  if (showAddPerson) {
+    return (
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.addScreenRoot}>
+        <View style={styles.addTopBar}>
+          <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
+          </Pressable>
+          <Text style={styles.addTitle}>Add Person</Text>
+          <Pressable onPress={handleAddPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
+            <Text style={styles.saveButtonText}>Save</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.addContent}>
+          <View style={styles.photoArea}>
+            <View style={styles.photoCircle}>
+              <MaterialIcons name={iconName("photo-camera")} size={44} color={PURPLE} />
+              <View style={styles.photoBadge}>
+                <MaterialIcons name={iconName("photo-camera")} size={22} color="#FFFFFF" />
+              </View>
+            </View>
+            <Text style={styles.photoPrompt}>Tap to add a photo</Text>
+          </View>
+
+          <Text style={styles.fieldLabel}>NAME</Text>
+          <TextInput
+            value={newPersonName}
+            onChangeText={setNewPersonName}
+            placeholder="Full name"
+            placeholderTextColor="#73808B"
+            returnKeyType="done"
+            style={styles.textInput}
+          />
+
+          <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
+          <View style={styles.relationshipPills}>
+            {RELATIONSHIP_ORDER.map((relationship) => {
+              const isActive = relationship === newPersonRelationship;
+              return (
+                <Pressable
+                  key={relationship}
+                  onPress={() => setNewPersonRelationship(relationship)}
+                  style={({ pressed }) => [styles.relationshipPill, isActive && styles.relationshipPillActive, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.relationshipPillText, isActive && styles.relationshipPillTextActive]}>{relationship}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.fieldLabel}>BIRTHDAY (optional)</Text>
+          <TextInput
+            value={newPersonBirthday}
+            onChangeText={setNewPersonBirthday}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#73808B"
+            returnKeyType="done"
+            style={styles.textInput}
+          />
+          <Text style={styles.fieldHint}>Format: YYYY-MM-DD (e.g., 1990-03-15)</Text>
+
+          <Text style={styles.fieldLabel}>PRAYER NOTES (optional)</Text>
+          <TextInput
+            value={newPersonNote}
+            onChangeText={setNewPersonNote}
+            placeholder="What would you like to pray about for this person?"
+            placeholderTextColor="#73808B"
+            multiline
+            textAlignVertical="top"
+            style={[styles.textInput, styles.notesInput]}
+          />
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  return (
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.root}>
+      {renderContent()}
+
+      <Pressable
+        onPress={() => {
+          setActiveTab("people");
+          setShowAddPerson(true);
+        }}
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+      >
+        <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
       </Pressable>
 
-      {/* Tab Bar */}
-      <View
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          flexDirection: "row",
-          backgroundColor: "#7C3AED",
-          borderTopWidth: 1,
-          borderTopColor: "#6D28D9",
-          paddingBottom: 8,
-          paddingTop: 8,
-        }}
-      >
-        {(["home", "people", "journal", "reminders", "settings"] as const).map((tab) => (
-          <Pressable
-            key={tab}
-            onPress={() => {
-              setActiveTab(tab);
-              setShowAddPerson(false);
-            }}
-            style={{ flex: 1, alignItems: "center", paddingVertical: 8 }}
-          >
-            <Text style={{ fontSize: 20, marginBottom: 4 }}>
-              {tab === "home" && "🏠"}
-              {tab === "people" && "👥"}
-              {tab === "journal" && "📝"}
-              {tab === "reminders" && "🔔"}
-              {tab === "settings" && "⚙️"}
-            </Text>
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: "600",
-                color: activeTab === tab ? "white" : "rgba(255,255,255,0.7)",
-              }}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.bottomNav}>
+        {renderTab("people", "People", "groups")}
+        {renderTab("reminders", "Reminders", "notifications")}
+        {renderTab("journal", "Journal", "article")}
+        {renderTab("settings", "Settings", "settings")}
       </View>
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: SCREEN_BG,
+  },
+  header: {
+    minHeight: 118,
+    paddingHorizontal: 24,
+    paddingTop: 26,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E4DFEA",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    backgroundColor: SCREEN_BG,
+  },
+  appTitle: {
+    color: DEEP_TEXT,
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -1,
+    lineHeight: 34,
+  },
+  progressText: {
+    marginTop: 7,
+    color: MUTED_TEXT,
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 23,
+  },
+  headerStats: {
+    flexDirection: "row",
+    gap: 19,
+    alignItems: "flex-end",
+    paddingBottom: 1,
+  },
+  statItem: {
+    alignItems: "center",
+    minWidth: 31,
+  },
+  statNumber: {
+    marginTop: 4,
+    color: DEEP_TEXT,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 25,
+  },
+  peopleContent: {
+    paddingTop: 22,
+    paddingBottom: 132,
+  },
+  subheading: {
+    marginHorizontal: 24,
+    color: "#7E7A86",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 1,
+    lineHeight: 22,
+  },
+  storyScroller: {
+    paddingHorizontal: 24,
+    paddingTop: 13,
+    paddingBottom: 35,
+  },
+  storyItem: {
+    width: 72,
+    height: 76,
+    marginRight: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 3,
+    borderColor: PURPLE,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  storyTag: {
+    position: "absolute",
+    top: 0,
+    left: 3,
+    zIndex: 4,
+    maxWidth: 92,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D36B72",
+    backgroundColor: "#FFFFFF",
+  },
+  storyTagText: {
+    color: "#C75D67",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 12,
+  },
+  storyPlus: {
+    position: "absolute",
+    right: 3,
+    bottom: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: PURPLE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: SCREEN_BG,
+  },
+  avatar: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarText: {
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  sectionBlock: {
+    marginBottom: 9,
+  },
+  relationshipTitle: {
+    marginHorizontal: 50,
+    marginBottom: 12,
+    fontSize: 21,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    lineHeight: 27,
+  },
+  personCard: {
+    minHeight: 88,
+    marginHorizontal: 24,
+    marginBottom: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#E6E1EA",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#6D617D",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
+  },
+  personInfo: {
+    flex: 1,
+    marginLeft: 14,
+    paddingRight: 8,
+  },
+  personName: {
+    color: DEEP_TEXT,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.25,
+    lineHeight: 25,
+  },
+  personMeta: {
+    marginTop: 4,
+    color: MUTED_TEXT,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 19,
+  },
+  cardActions: {
+    width: 74,
+    minHeight: 62,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  minusPill: {
+    width: 72,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#E9E1F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  emptyInlineText: {
+    color: MUTED_TEXT,
+    fontSize: 16,
+  },
+  emptyStateCard: {
+    marginHorizontal: 25,
+    marginTop: 18,
+    padding: 28,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E6E1EA",
+  },
+  emptyTitle: {
+    marginTop: 12,
+    color: DEEP_TEXT,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  emptyDescription: {
+    marginTop: 6,
+    color: MUTED_TEXT,
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+  simpleScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 34,
+    backgroundColor: SCREEN_BG,
+  },
+  simpleTitle: {
+    marginTop: 14,
+    color: DEEP_TEXT,
+    fontSize: 25,
+    fontWeight: "800",
+  },
+  simpleDescription: {
+    marginTop: 7,
+    color: MUTED_TEXT,
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 23,
+  },
+  fab: {
+    position: "absolute",
+    right: 36,
+    bottom: 88,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: PURPLE,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#3E226B",
+    shadowOpacity: 0.34,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    zIndex: 10,
+  },
+  fabPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.92,
+  },
+  bottomNav: {
+    position: "absolute",
+    left: 53,
+    right: 53,
+    bottom: 26,
+    height: 74,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#E3DCE8",
+    backgroundColor: "rgba(255,255,255,0.96)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 3,
+    shadowColor: "#4D405F",
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+    zIndex: 9,
+  },
+  tabItem: {
+    height: 66,
+    flex: 1,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  tabItemActive: {
+    backgroundColor: PURPLE,
+  },
+  tabLabel: {
+    color: "#77737D",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 14,
+  },
+  tabLabelActive: {
+    color: "#FFFFFF",
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  addScreenRoot: {
+    flex: 1,
+    backgroundColor: ADD_SCREEN_BG,
+  },
+  addTopBar: {
+    height: 99,
+    paddingHorizontal: 37,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#CFE9F0",
+    backgroundColor: ADD_SCREEN_BG,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addTitle: {
+    color: DEEP_TEXT,
+    fontSize: 27,
+    fontWeight: "800",
+    lineHeight: 34,
+  },
+  saveButton: {
+    minWidth: 110,
+    height: 60,
+    paddingHorizontal: 21,
+    borderRadius: 31,
+    backgroundColor: "#0087BF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "800",
+    lineHeight: 31,
+  },
+  addContent: {
+    paddingHorizontal: 37,
+    paddingTop: 39,
+    paddingBottom: 80,
+  },
+  photoArea: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  photoCircle: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 4,
+    borderColor: PURPLE,
+    backgroundColor: "#E8E2FA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: 26,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    backgroundColor: PURPLE,
+    borderWidth: 4,
+    borderColor: ADD_SCREEN_BG,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoPrompt: {
+    marginTop: 20,
+    color: "#687582",
+    fontSize: 24,
+    fontWeight: "500",
+    lineHeight: 30,
+  },
+  fieldLabel: {
+    marginBottom: 14,
+    color: "#56646F",
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    lineHeight: 24,
+  },
+  textInput: {
+    minHeight: 77,
+    marginBottom: 37,
+    paddingHorizontal: 22,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#BCECF2",
+    backgroundColor: "#FFFFFF",
+    color: DEEP_TEXT,
+    fontSize: 27,
+    fontWeight: "500",
+    lineHeight: 34,
+  },
+  relationshipPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 13,
+    marginBottom: 38,
+  },
+  relationshipPill: {
+    minHeight: 62,
+    paddingHorizontal: 23,
+    borderRadius: 31,
+    borderWidth: 1.5,
+    borderColor: "#CBEAF0",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  relationshipPillActive: {
+    borderColor: PURPLE,
+    backgroundColor: PURPLE,
+  },
+  relationshipPillText: {
+    color: DEEP_TEXT,
+    fontSize: 25,
+    fontWeight: "800",
+    lineHeight: 30,
+  },
+  relationshipPillTextActive: {
+    color: "#FFFFFF",
+  },
+  fieldHint: {
+    marginTop: -24,
+    marginBottom: 39,
+    color: "#6B7782",
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+  notesInput: {
+    minHeight: 154,
+    paddingTop: 22,
+    lineHeight: 33,
+  },
+});

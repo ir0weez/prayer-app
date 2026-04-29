@@ -54,3 +54,10 @@
 - [x] Add birthday emoji and date display to person cards
 - [x] Update header colors to match purple aesthetic
 - [x] Save checkpoint with purple styling and contact save fix
+- [x] Match People screen to latest screenshot: pale lavender background, compact header, story-style Pray Today row, grouped Family section, white rounded cards, purple People tab
+- [x] Match Add Person screen to latest screenshot: top close/save bar, photo placeholder, pill relationship selector, birthday input, prayer notes field
+- [x] Add birthday field and prayer note field to person creation state and display birthday text on person cards
+- [x] Add realistic sample people/images-inspired placeholders for visual parity while preserving contact creation functionality
+- [x] Run TypeScript and Vitest validation after screenshot-matching UI updates
+- [x] Save checkpoint after screenshot-matching UI refinement
+

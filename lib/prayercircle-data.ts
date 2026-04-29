@@ -16,8 +16,25 @@ export type Person = {
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   accentColor: string;
   avatarColor: string;
+  birthday?: string;
+  prayerNote?: string;
+  reminderTag?: string;
+  avatarLabel?: string;
   prayerItems: PrayerItem[];
 };
+
+export type AddPersonOptions = {
+  birthday?: string;
+  prayerNote?: string;
+  reminderDaysOfWeek?: number[];
+  reminderTag?: string;
+  avatarLabel?: string;
+};
+
+function normalizeOptionalText(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 export type JournalEntry = {
   id: string;
@@ -238,6 +255,7 @@ export function addPerson(
   people: Person[],
   name: string,
   relationship: RelationshipType,
+  options: AddPersonOptions = {},
 ): Person[] {
   const trimmedName = name.trim();
   if (!trimmedName) return people;
@@ -261,8 +279,12 @@ export function addPerson(
       avatarColor: colors.avatar,
       accentColor: colors.accent,
       lastPrayedDate: null,
+      birthday: normalizeOptionalText(options.birthday),
+      prayerNote: normalizeOptionalText(options.prayerNote),
+      reminderTag: normalizeOptionalText(options.reminderTag),
+      avatarLabel: normalizeOptionalText(options.avatarLabel),
       prayerItems: [],
-      reminderDaysOfWeek: [],
+      reminderDaysOfWeek: options.reminderDaysOfWeek ?? [],
     },
   ];
 }

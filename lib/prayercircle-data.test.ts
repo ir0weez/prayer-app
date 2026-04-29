@@ -40,6 +40,23 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].accentColor).toBeDefined();
   });
 
+  it("adds optional birthday, prayer note, reminder days, and avatar label", () => {
+    const updated = addPerson(initialPeople, "Alice Smith", "Family", {
+      birthday: "1990-03-15",
+      prayerNote: "  Pray for peace  ",
+      reminderDaysOfWeek: [1, 3],
+      reminderTag: "Peace",
+      avatarLabel: "AS",
+    });
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0].birthday).toBe("1990-03-15");
+    expect(updated[0].prayerNote).toBe("Pray for peace");
+    expect(updated[0].reminderDaysOfWeek).toEqual([1, 3]);
+    expect(updated[0].reminderTag).toBe("Peace");
+    expect(updated[0].avatarLabel).toBe("AS");
+  });
+
   it("marks a person as prayed today", () => {
     const people = addPerson(initialPeople, "Bob", "Friends");
     const today = getTodayISOString();

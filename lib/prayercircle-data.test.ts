@@ -5,6 +5,7 @@ import {
   addPrayerItem,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
+  getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
   getUrgentPrayerItems,
@@ -19,7 +20,10 @@ import {
   shouldPrayForTodayByReminder,
   togglePrayerItemDone,
   togglePrayerItemUrgent,
+  updatePersonLastReachedDate,
+  updatePersonPhoto,
   updatePersonReminder,
+  updatePersonReminderWithTime,
 } from "./prayercircle-data";
 
 describe("PrayerCircle local data helpers", () => {
@@ -48,21 +52,25 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].accentColor).toBeDefined();
   });
 
-  it("adds optional birthday, prayer note, reminder days, and avatar label", () => {
+  it("adds optional birthday, prayer note, reminder days, reminder time, avatar label, and photo", () => {
     const updated = addPerson(initialPeople, "Alice Smith", "Family", {
       birthday: "1990-03-15",
       prayerNote: "  Pray for peace  ",
-      reminderDaysOfWeek: [1, 3],
+      reminderDaysOfWeek: [3, 1, 1, 9],
+      reminderTime: "08:30",
       reminderTag: "Peace",
       avatarLabel: "AS",
+      photoUri: "  file:///photo.jpg  ",
     });
 
     expect(updated).toHaveLength(1);
     expect(updated[0].birthday).toBe("1990-03-15");
     expect(updated[0].prayerNote).toBe("Pray for peace");
     expect(updated[0].reminderDaysOfWeek).toEqual([1, 3]);
+    expect(updated[0].reminderTime).toBe("08:30");
     expect(updated[0].reminderTag).toBe("Peace");
     expect(updated[0].avatarLabel).toBe("AS");
+    expect(updated[0].photoUri).toBe("file:///photo.jpg");
   });
 
   it("marks a person as prayed today", () => {
@@ -112,13 +120,16 @@ describe("PrayerCircle local data helpers", () => {
     expect(progress.total).toBe(2);
   });
 
-  it("filters people by reminder day of week", () => {
-    const people = addPerson(initialPeople, "Alice", "Friends");
-    const updated = updatePersonReminder(people, people[0].id, [1, 4]); // Monday, Thursday
+  it("filters people by active reminder day of week", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = addPerson(people, "Bob", "Family");
+    const updated = updatePersonReminder(people, people[0].id, [4, 1, 1]); // Monday, Thursday
 
     expect(getPrayTodayList(updated, 1)).toHaveLength(1); // Monday
     expect(getPrayTodayList(updated, 4)).toHaveLength(1); // Thursday
     expect(getPrayTodayList(updated, 2)).toHaveLength(0); // Tuesday
+    expect(getPrayTodayList(updated, 0)).toHaveLength(0); // Bob has no active reminder days
+    expect(updated[0].reminderDaysOfWeek).toEqual([1, 4]);
   });
 
   it("determines if a person should be prayed for on a given day", () => {
@@ -128,6 +139,7 @@ describe("PrayerCircle local data helpers", () => {
     expect(shouldPrayForTodayByReminder(updated[0], 1)).toBe(true);
     expect(shouldPrayForTodayByReminder(updated[0], 4)).toBe(true);
     expect(shouldPrayForTodayByReminder(updated[0], 2)).toBe(false);
+    expect(shouldPrayForTodayByReminder(people[0], 1)).toBe(false);
   });
 
   it("toggles prayer item urgent flag", () => {
@@ -175,6 +187,39 @@ describe("PrayerCircle local data helpers", () => {
     const urgentItems = getUrgentPrayerItems(updated[0]);
     expect(urgentItems).toHaveLength(1);
     expect(urgentItems[0].title).toBe("Health");
+  });
+
+  it("updates reminder days with a reminder time", () => {
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const updated = updatePersonReminderWithTime(people, people[0].id, [5, 2, 2], "07:45");
+
+    expect(updated[0].reminderDaysOfWeek).toEqual([2, 5]);
+    expect(updated[0].reminderTime).toBe("07:45");
+  });
+
+  it("updates a person's photo URI", () => {
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const updated = updatePersonPhoto(people, people[0].id, "file:///picked-avatar.jpg");
+
+    expect(updated[0].photoUri).toBe("file:///picked-avatar.jpg");
+  });
+
+  it("updates last reached date and reports threshold colors", () => {
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const today = new Date();
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(today.getDate() - 10);
+    const sixteenDaysAgo = new Date();
+    sixteenDaysAgo.setDate(today.getDate() - 16);
+
+    const recent = updatePersonLastReachedDate(people, people[0].id, getTodayISOString());
+    expect(getLastReachedAccentColor(recent[0])).toBe(recent[0].accentColor);
+
+    const warning = updatePersonLastReachedDate(people, people[0].id, tenDaysAgo.toISOString().split("T")[0]);
+    expect(getLastReachedAccentColor(warning[0])).toBe("#F59E0B");
+
+    const overdue = updatePersonLastReachedDate(people, people[0].id, sixteenDaysAgo.toISOString().split("T")[0]);
+    expect(getLastReachedAccentColor(overdue[0])).toBe("#EF4444");
   });
 
   it("removes a person from the list", () => {

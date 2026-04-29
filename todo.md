@@ -65,3 +65,13 @@
 - [x] Ensure empty People and Pray Today states still look intentional and guide users to add a first person
 - [x] Validate clean-slate first-run behavior with TypeScript and unit tests
 - [x] Save checkpoint after clean-slate first-run update
+- [x] Keep Pray Today limited to people with active reminder days only
+- [x] Add tappable contact prayer-detail screen matching the provided Prayer page screenshot
+- [x] Add urgent lightning toggle on prayer items and show urgent requests as speech bubbles above Pray Today avatars
+- [x] Move the floating add button higher so it has more space above the tab bar
+- [x] Compact the Add Person form sizing and spacing while preserving the screenshot style
+- [x] Enable photo selection from the Add Person photo area and use a plus badge on the small overlay icon
+- [x] Make the contact bell open reminder setup with custom days of week and prayer time
+- [x] Wire Last Reached to home card progress coloring and support tap-to-today plus long-press custom date
+- [x] Validate requested fixes with TypeScript, unit tests, and app health checks
+- [x] Save checkpoint after PrayerCircle behavior-fix update

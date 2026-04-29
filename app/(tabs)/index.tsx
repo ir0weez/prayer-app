@@ -1,19 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
   addPerson,
   calculatePrayerStreak,
+  formatDaysSinceLastPrayer,
+  getDaysSinceLastPrayed,
   getInitialState,
+  getLastReachedAccentColor,
   getPrayTodayList,
   getTodayISOString,
+  getUrgentPrayerItems,
   type Person,
   type RelationshipType,
   relationshipColors,
 } from "@/lib/prayercircle-data";
+import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 
@@ -28,7 +35,6 @@ const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
 const SCREEN_BG = "#FAF6FF";
 const ADD_SCREEN_BG = "#EEF8FF";
-const PEOPLE_STORAGE_KEY = "prayercircle.people.v1";
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -43,6 +49,7 @@ function getAvatarText(person: Person) {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const today = getTodayISOString();
   const todayDayOfWeek = new Date().getDay();
   const initialState = useMemo(() => getInitialState(), []);
@@ -53,6 +60,7 @@ export default function HomeScreen() {
   const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Family");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonNote, setNewPersonNote] = useState("");
+  const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
 
@@ -103,6 +111,20 @@ export default function HomeScreen() {
     setNewPersonRelationship("Family");
     setNewPersonBirthday("");
     setNewPersonNote("");
+    setNewPersonPhotoUri(undefined);
+  };
+
+  const handlePickNewPersonPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets[0]?.uri) {
+      setNewPersonPhotoUri(result.assets[0].uri);
+    }
   };
 
   const handleAddPerson = () => {
@@ -111,8 +133,9 @@ export default function HomeScreen() {
     const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
       birthday: newPersonBirthday,
       prayerNote: newPersonNote,
-      reminderDaysOfWeek: [todayDayOfWeek],
+      reminderDaysOfWeek: [],
       reminderTag: newPersonNote.split(" ").slice(0, 2).join(" "),
+      photoUri: newPersonPhotoUri,
       avatarLabel: newPersonName
         .split(" ")
         .map((part) => part[0])
@@ -145,46 +168,54 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <Text style={[styles.avatarText, { fontSize: textSize, color: person.avatarColor === "#2B151C" ? "#FFFFFF" : DEEP_TEXT }]}>
-          {label}
-        </Text>
+        {person.photoUri ? (
+          <Image source={{ uri: person.photoUri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        ) : (
+          <Text style={[styles.avatarText, { fontSize: textSize, color: person.avatarColor === "#2B151C" ? "#FFFFFF" : DEEP_TEXT }]}>
+            {label}
+          </Text>
+        )}
       </View>
     );
   };
 
-  const renderStoryPerson = (person: Person) => (
-    <View key={`story-${person.id}`} style={styles.storyItem}>
-      {person.reminderTag ? (
-        <View style={styles.storyTag}>
-          <Text numberOfLines={1} style={styles.storyTagText}>{person.reminderTag}</Text>
+  const renderStoryPerson = (person: Person) => {
+    const urgentItems = getUrgentPrayerItems(person);
+    return (
+      <Pressable key={`story-${person.id}`} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyItem, pressed && styles.pressed]}>
+        {urgentItems.length > 0 ? (
+          <View style={styles.storyTag}>
+            <Text numberOfLines={1} style={styles.storyTagText}>⚡ {urgentItems[0].title}</Text>
+          </View>
+        ) : null}
+        <View style={styles.storyRing}>{renderAvatar(person, 54, true)}</View>
+        <View style={styles.storyPlus}>
+          <MaterialIcons name={iconName("chevron-right")} size={23} color="#FFFFFF" />
         </View>
-      ) : null}
-      <View style={styles.storyRing}>{renderAvatar(person, 54, true)}</View>
-      <View style={styles.storyPlus}>
-        <MaterialIcons name={iconName("add")} size={26} color="#FFFFFF" />
-      </View>
-    </View>
-  );
+      </Pressable>
+    );
+  };
 
-  const renderPersonCard = (person: Person) => (
-    <View key={person.id} style={styles.personCard}>
-      {renderAvatar(person, 52)}
-      <View style={styles.personInfo}>
-        <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
-        <Text numberOfLines={1} style={styles.personMeta}>
-          {person.relationship} • Prayed today{getBirthdayText(person)}
-        </Text>
-      </View>
-      <View style={styles.cardActions}>
-        <Pressable style={({ pressed }) => [styles.minusPill, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("remove")} size={22} color="#8B8199" />
-        </Pressable>
-        <Pressable style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("edit")} size={24} color="#77737D" />
-        </Pressable>
-      </View>
-    </View>
-  );
+  const renderPersonCard = (person: Person) => {
+    const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
+    const progressColor = getLastReachedAccentColor(person);
+    const progressWidth = (daysSince === 999 ? "100%" : `${Math.min(100, Math.max(10, (daysSince / 21) * 100))}%`) as `${number}%`;
+    return (
+      <Pressable key={person.id} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+        {renderAvatar(person, 52)}
+        <View style={styles.personInfo}>
+          <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
+          <Text numberOfLines={1} style={styles.personMeta}>
+            {person.relationship} • {daysSince === 999 ? "Not reached yet" : `${formatDaysSinceLastPrayer(daysSince)} since reached`}{getBirthdayText(person)}
+          </Text>
+          <View style={styles.reachProgressTrack}>
+            <View style={[styles.reachProgressFill, { width: progressWidth, backgroundColor: progressColor }]} />
+          </View>
+        </View>
+        <MaterialIcons name={iconName("chevron-right")} size={30} color="#8B8199" />
+      </Pressable>
+    );
+  };
 
   const renderPeopleScreen = () => (
     <>
@@ -209,7 +240,7 @@ export default function HomeScreen() {
         <Text style={styles.subheading}>PRAY TODAY</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
           {prayTodayList.length > 0 ? prayTodayList.slice(0, 8).map(renderStoryPerson) : (
-            <Text style={styles.emptyInlineText}>Add a person to build today’s prayer row.</Text>
+            <Text style={styles.emptyInlineText}>Set reminders on a person to build today’s prayer row.</Text>
           )}
         </ScrollView>
 
@@ -275,15 +306,19 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.addContent}>
-          <View style={styles.photoArea}>
+          <Pressable onPress={handlePickNewPersonPhoto} style={({ pressed }) => [styles.photoArea, pressed && styles.pressed]}>
             <View style={styles.photoCircle}>
-              <MaterialIcons name={iconName("photo-camera")} size={44} color={PURPLE} />
+              {newPersonPhotoUri ? (
+                <Image source={{ uri: newPersonPhotoUri }} style={styles.photoPreview} />
+              ) : (
+                <MaterialIcons name={iconName("photo-camera")} size={34} color={PURPLE} />
+              )}
               <View style={styles.photoBadge}>
-                <MaterialIcons name={iconName("photo-camera")} size={22} color="#FFFFFF" />
+                <MaterialIcons name={iconName("add")} size={21} color="#FFFFFF" />
               </View>
             </View>
-            <Text style={styles.photoPrompt}>Tap to add a photo</Text>
-          </View>
+            <Text style={styles.photoPrompt}>{newPersonPhotoUri ? "Change photo" : "Tap to add a photo"}</Text>
+          </Pressable>
 
           <Text style={styles.fieldLabel}>NAME</Text>
           <TextInput
@@ -532,27 +567,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 19,
   },
-  cardActions: {
-    width: 74,
-    minHeight: 62,
-    alignItems: "center",
-    justifyContent: "space-between",
+  reachProgressTrack: {
+    marginTop: 8,
+    width: "100%",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EFEAF4",
+    overflow: "hidden",
   },
-  minusPill: {
-    width: 72,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#E9E1F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  editButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
+  reachProgressFill: {
+    height: 6,
+    borderRadius: 3,
   },
   emptyInlineText: {
     color: MUTED_TEXT,
@@ -604,7 +629,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 36,
-    bottom: 88,
+    bottom: 122,
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -671,8 +696,8 @@ const styles = StyleSheet.create({
     backgroundColor: ADD_SCREEN_BG,
   },
   addTopBar: {
-    height: 99,
-    paddingHorizontal: 37,
+    height: 76,
+    paddingHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -688,39 +713,39 @@ const styles = StyleSheet.create({
   },
   addTitle: {
     color: DEEP_TEXT,
-    fontSize: 27,
+    fontSize: 22,
     fontWeight: "800",
-    lineHeight: 34,
+    lineHeight: 28,
   },
   saveButton: {
-    minWidth: 110,
-    height: 60,
-    paddingHorizontal: 21,
-    borderRadius: 31,
+    minWidth: 82,
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 22,
     backgroundColor: "#0087BF",
     alignItems: "center",
     justifyContent: "center",
   },
   saveButtonText: {
     color: "#FFFFFF",
-    fontSize: 25,
+    fontSize: 17,
     fontWeight: "800",
-    lineHeight: 31,
+    lineHeight: 22,
   },
   addContent: {
-    paddingHorizontal: 37,
-    paddingTop: 39,
-    paddingBottom: 80,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 54,
   },
   photoArea: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 22,
   },
   photoCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 4,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 3,
     borderColor: PURPLE,
     backgroundColor: "#E8E2FA",
     alignItems: "center",
@@ -729,54 +754,59 @@ const styles = StyleSheet.create({
   photoBadge: {
     position: "absolute",
     right: -2,
-    bottom: 26,
-    width: 43,
-    height: 43,
-    borderRadius: 22,
+    bottom: 11,
+    width: 35,
+    height: 35,
+    borderRadius: 18,
     backgroundColor: PURPLE,
     borderWidth: 4,
     borderColor: ADD_SCREEN_BG,
     alignItems: "center",
     justifyContent: "center",
   },
+  photoPreview: {
+    width: 98,
+    height: 98,
+    borderRadius: 49,
+  },
   photoPrompt: {
-    marginTop: 20,
+    marginTop: 10,
     color: "#687582",
-    fontSize: 24,
-    fontWeight: "500",
-    lineHeight: 30,
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
   },
   fieldLabel: {
-    marginBottom: 14,
+    marginBottom: 8,
     color: "#56646F",
-    fontSize: 19,
+    fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1.2,
     lineHeight: 24,
   },
   textInput: {
-    minHeight: 77,
-    marginBottom: 37,
-    paddingHorizontal: 22,
+    minHeight: 50,
+    marginBottom: 20,
+    paddingHorizontal: 15,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#BCECF2",
     backgroundColor: "#FFFFFF",
     color: DEEP_TEXT,
-    fontSize: 27,
-    fontWeight: "500",
-    lineHeight: 34,
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 21,
   },
   relationshipPills: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 13,
-    marginBottom: 38,
+    gap: 8,
+    marginBottom: 20,
   },
   relationshipPill: {
-    minHeight: 62,
-    paddingHorizontal: 23,
-    borderRadius: 31,
+    minHeight: 42,
+    paddingHorizontal: 15,
+    borderRadius: 21,
     borderWidth: 1.5,
     borderColor: "#CBEAF0",
     backgroundColor: "#FFFFFF",
@@ -789,24 +819,24 @@ const styles = StyleSheet.create({
   },
   relationshipPillText: {
     color: DEEP_TEXT,
-    fontSize: 25,
+    fontSize: 15,
     fontWeight: "800",
-    lineHeight: 30,
+    lineHeight: 20,
   },
   relationshipPillTextActive: {
     color: "#FFFFFF",
   },
   fieldHint: {
-    marginTop: -24,
-    marginBottom: 39,
+    marginTop: -12,
+    marginBottom: 20,
     color: "#6B7782",
-    fontSize: 18,
-    fontWeight: "500",
-    lineHeight: 24,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17,
   },
   notesInput: {
-    minHeight: 154,
-    paddingTop: 22,
-    lineHeight: 33,
+    minHeight: 96,
+    paddingTop: 13,
+    lineHeight: 21,
   },
 });

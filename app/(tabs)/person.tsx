@@ -16,12 +16,15 @@ import {
   getTodayISOString,
   markPersonPrayed,
   normalizePeopleForStorage,
+  relationshipColors,
+  removePerson,
   removePrayerItem,
   togglePrayerItemDone,
   togglePrayerItemUrgent,
   updatePersonLastReachedDate,
   updatePersonReminderWithTime,
   type Person,
+  type RelationshipType,
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -42,6 +45,7 @@ const REMINDER_FREQUENCIES: { value: ReminderFrequency; label: string; descripti
   { value: "monthly", label: "Monthly", description: "A day each month" },
   { value: "none", label: "Off", description: "Do not show" },
 ];
+const RELATIONSHIP_OPTIONS: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
 const PURPLE = "#8557D9";
 const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
@@ -63,6 +67,21 @@ function getStatusText(person: Person) {
   if (daysSince === 999) return "Not reached yet";
   if (daysSince === 0) return "Reached today";
   return `Last reached ${formatDaysSinceLastPrayer(daysSince)} ago`;
+}
+
+function getInitialsFromName(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "?";
+}
+
+function normalizeOptionalDraft(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function isValidIsoDate(value: string) {
@@ -200,6 +219,11 @@ export default function PersonScreen() {
   const [draftReminderTime, setDraftReminderTime] = useState("08:00");
   const [showDateModal, setShowDateModal] = useState(false);
   const [draftLastReachedDate, setDraftLastReachedDate] = useState(getTodayISOString());
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
+  const [draftBirthday, setDraftBirthday] = useState("");
+  const [draftAvatarLabel, setDraftAvatarLabel] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -272,6 +296,65 @@ export default function PersonScreen() {
   const handleMarkReachedToday = () => {
     if (!personId) return;
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
+  };
+
+  const openEditModal = () => {
+    if (!currentPerson) return;
+    setDraftName(currentPerson.name);
+    setDraftRelationship(currentPerson.relationship);
+    setDraftBirthday(currentPerson.birthday ?? "");
+    setDraftAvatarLabel(currentPerson.avatarLabel ?? "");
+    setShowEditModal(true);
+  };
+
+  const handleSavePerson = () => {
+    if (!personId || !currentPerson) return;
+    const trimmedName = draftName.trim();
+    if (!trimmedName) {
+      Alert.alert("Add a name", "Enter a name before saving this person.");
+      return;
+    }
+
+    const colors = relationshipColors[draftRelationship];
+    updatePeople((previousPeople) =>
+      previousPeople.map((person) =>
+        person.id === personId
+          ? {
+              ...person,
+              name: trimmedName,
+              initials: getInitialsFromName(trimmedName),
+              relationship: draftRelationship,
+              birthday: normalizeOptionalDraft(draftBirthday),
+              avatarLabel: normalizeOptionalDraft(draftAvatarLabel),
+              avatarColor: colors.avatar,
+              accentColor: colors.accent,
+            }
+          : person,
+      ),
+    );
+    setShowEditModal(false);
+  };
+
+  const handleDeletePerson = async () => {
+    if (!personId) return;
+    await cancelScheduledRemindersForPerson(personId).catch(() => undefined);
+    const nextPeople = removePerson(people, personId);
+    setPeople(nextPeople);
+    await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(nextPeople)).catch(() => undefined);
+    setShowEditModal(false);
+    router.back();
+  };
+
+  const confirmDeletePerson = () => {
+    if (!currentPerson) return;
+    Alert.alert(
+      `Delete ${currentPerson.name}?`,
+      "This removes the person, their prayer requests, and their scheduled reminders from this device.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => { void handleDeletePerson(); } },
+      ],
+    );
   };
 
   const openReminderModal = () => {
@@ -396,7 +479,7 @@ export default function PersonScreen() {
           <MaterialIcons name={iconName("chevron-left")} size={34} color={PURPLE} />
         </Pressable>
         <Text style={styles.headerTitle}>Prayer List</Text>
-        <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
+        <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
           <Text style={styles.headerEditButtonText}>Edit</Text>
         </Pressable>
       </View>
@@ -494,6 +577,77 @@ export default function PersonScreen() {
         </View>
 
       </ScrollView>
+
+      <Modal transparent visible={showEditModal} animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Person</Text>
+              <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalDescription}>Update this person’s details or delete them from your prayer list.</Text>
+            <Text style={styles.modalFieldLabel}>Name</Text>
+            <TextInput
+              value={draftName}
+              onChangeText={setDraftName}
+              placeholder="Name"
+              placeholderTextColor={MUTED_TEXT}
+              returnKeyType="done"
+              style={styles.modalInput}
+            />
+            <Text style={styles.modalFieldLabel}>Relationship</Text>
+            <View style={styles.editRelationshipRow}>
+              {RELATIONSHIP_OPTIONS.map((relationship) => {
+                const colors = relationshipColors[relationship];
+                const isSelected = draftRelationship === relationship;
+                return (
+                  <Pressable
+                    key={relationship}
+                    onPress={() => setDraftRelationship(relationship)}
+                    style={({ pressed }) => [
+                      styles.editRelationshipPill,
+                      { borderColor: isSelected ? colors.accent : BORDER, backgroundColor: isSelected ? colors.avatar : "#FBF8FF" },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.editRelationshipPillText, { color: isSelected ? colors.accent : MUTED_TEXT }]}>{relationship}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.modalFieldLabel}>Birthday</Text>
+            <TextInput
+              value={draftBirthday}
+              onChangeText={setDraftBirthday}
+              placeholder="MM-DD-YYYY or optional note"
+              placeholderTextColor={MUTED_TEXT}
+              returnKeyType="done"
+              style={styles.modalInput}
+            />
+            <Text style={styles.modalFieldLabel}>Avatar Label</Text>
+            <TextInput
+              value={draftAvatarLabel}
+              onChangeText={setDraftAvatarLabel}
+              placeholder="Optional initials"
+              placeholderTextColor={MUTED_TEXT}
+              maxLength={3}
+              autoCapitalize="characters"
+              returnKeyType="done"
+              style={styles.modalInput}
+            />
+            <View style={styles.modalActionRow}>
+              <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
+              </Pressable>
+              <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.modalPrimaryButton, styles.modalSaveButton, pressed && styles.pressed]}>
+                <Text style={styles.modalPrimaryButtonText}>Save Person</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal transparent visible={showReminderModal} animationType="slide" onRequestClose={() => setShowReminderModal(false)}>
         <View style={styles.modalOverlay}>
@@ -999,6 +1153,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 18,
   },
+  editRelationshipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    marginBottom: 16,
+  },
+  editRelationshipPill: {
+    minHeight: 39,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editRelationshipPillText: {
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 17,
+  },
   dayToggle: {
     width: 38,
     height: 38,
@@ -1042,12 +1215,30 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 16,
   },
+  modalActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  modalDeleteButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FFF0F3",
+    borderWidth: 1,
+    borderColor: "#F4C6D0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modalPrimaryButton: {
     minHeight: 50,
     borderRadius: 25,
     backgroundColor: PURPLE,
     alignItems: "center",
     justifyContent: "center",
+  },
+  modalSaveButton: {
+    flex: 1,
   },
   modalPrimaryButtonText: {
     color: "#FFFFFF",

@@ -319,6 +319,19 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated).toHaveLength(0);
   });
 
+  it("removes only the selected person while preserving other contacts", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = addPerson(people, "Bob", "Family");
+    people = addPrayerItem(people, people[1].id, "Wisdom");
+
+    const updated = removePerson(people, people[0].id);
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0].name).toBe("Bob");
+    expect(updated[0].prayerItems).toHaveLength(1);
+    expect(updated[0].prayerItems[0].title).toBe("Wisdom");
+  });
+
   it("prepends trimmed journal entries and ignores empty notes", () => {
     const people = addPerson(initialPeople, "Alice", "Friends");
     const entryList = prependJournalEntry(initialJournal, people[0], "  A peaceful note.  ", "new-id");

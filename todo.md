@@ -126,3 +126,26 @@
 - [x] Add fasting streak display to the Settings profile card
 - [x] Validate PrayerCircle progress, undo countdown, settings theme, and profile fasting refinements
 - [x] Save checkpoint after PrayerCircle progress, settings, and profile refinement pass
+- [ ] Redesign Pray Today undo countdown to feel more unique and fluent with the app design
+- [ ] Make relationship selector pills highlight with relationship-specific colors when selected
+- [ ] Reposition the add-contact profile-photo plus button to the bottom-right corner of the picture
+- [ ] Make main contact progress pill turn yellow at 7 days and red at 14 days
+- [x] Make contact-card Edit open true contact editing rather than reminder editing
+- [x] Preserve reminder editing separately through the existing reminder control
+- [x] Add a trash/delete button next to Save when editing a contact
+- [x] Add a trash button next to the save action when editing a person so the person can be deleted safely.
+- [x] Add delete-contact confirmation and remove deleted contacts from persisted people state
+- [ ] Add an edit button to the Settings Your Profile card
+- [ ] Allow profile name editing and profile photo selection
+- [ ] Make tapping the Settings profile card open a profile detail/contact-style screen
+- [ ] Remove the separate Profile and Fasting section from Settings
+- [ ] Add fasting summary fields under the Settings stats area
+- [ ] Add quick successful-day button and long-press status chooser for fasting tracking
+- [ ] Add personalized fast setup flow inspired by the provided Start a New Fast screenshots
+- [ ] Add fasting type, duration, focus list, and create-fast behavior using icons instead of emoji where practical
+- [ ] Add profile detail view with active fasts, personal prayers, and fasting calendar
+- [ ] Allow individual fasting days to be marked completed, skipped, or missed
+- [ ] Calculate fasting streak so completed adds, skipped preserves, and missed resets to 0
+- [ ] Hide the FAB on non-People tabs if feasible in the current tab structure
+- [ ] Validate undo, contact editing/deletion, progress thresholds, profile, and fasting changes
+- [ ] Save checkpoint after PrayerCircle polish, contact editing, and fasting profile update

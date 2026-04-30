@@ -112,4 +112,4 @@
 - [x] Move the floating add button next to the tab bar rather than above it
 - [x] Make reached-out progress bars start empty at 0 days and fill over the following days
 - [x] Validate contact actions, Pray Today counter, tab bar layout, and progress behavior
-- [ ] Save checkpoint after contact and home refinements
+- [x] Save checkpoint after contact and home refinements

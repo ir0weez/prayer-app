@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import {
   getUrgentPrayerItems,
   hasPersonCompletedPrayerToday,
   markPersonPrayed,
+  normalizePeopleForStorage,
   resetDailyPrayerCompletionsIfNeeded,
   type Person,
   type RelationshipType,
@@ -43,6 +45,7 @@ const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
 const SCREEN_BG = "#FAF6FF";
 const ADD_SCREEN_BG = "#EEF8FF";
+const AVATAR_PALETTE = ["#F4EAFE", "#E6F3FF", "#EAF9F0", "#FFF2DC", "#FFE9EF", "#EEF0FF"];
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -54,6 +57,17 @@ function getBirthdayText(person: Person) {
 
 function getAvatarText(person: Person) {
   return person.avatarLabel ?? person.initials ?? person.name.substring(0, 2).toUpperCase();
+}
+
+function getAvatarPaletteColor(person: Person) {
+  const seed = person.id || person.name;
+  const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return AVATAR_PALETTE[total % AVATAR_PALETTE.length];
+}
+
+function getReachProgressRatio(daysSince: number) {
+  if (daysSince === 999 || daysSince <= 0) return 0;
+  return Math.min(daysSince, 14) / 14;
 }
 
 function getYesterdayISOString(today: string) {
@@ -102,7 +116,7 @@ export default function HomeScreen() {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
-          setPeople(Array.isArray(parsedPeople) ? resetDailyPrayerCompletionsIfNeeded(parsedPeople, today) : []);
+          setPeople(Array.isArray(parsedPeople) ? resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today) : []);
         } else {
           setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
         }
@@ -128,7 +142,7 @@ export default function HomeScreen() {
         .then((storedPeople) => {
           if (!isActive || !storedPeople) return;
           const parsedPeople = JSON.parse(storedPeople) as Person[];
-          if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(parsedPeople, today));
+          if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today));
         })
         .catch(() => undefined);
       return () => {
@@ -151,6 +165,7 @@ export default function HomeScreen() {
   const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
   const streak = streakRecord.streak;
   const prayedTodayCount = dailyPrayerProgress.prayed;
+  const remainingPrayTodayCount = dailyPrayerProgress.total - dailyPrayerProgress.prayed;
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
@@ -237,15 +252,16 @@ export default function HomeScreen() {
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: person.avatarColor,
-            borderWidth: story ? 0 : 0,
+            backgroundColor: person.photoUri ? person.avatarColor : getAvatarPaletteColor(person),
+            borderColor: person.photoUri ? "transparent" : "rgba(255,255,255,0.88)",
+            borderWidth: person.photoUri ? 0 : Math.max(1, size * 0.04),
           },
         ]}
       >
         {person.photoUri ? (
           <Image source={{ uri: person.photoUri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
         ) : (
-          <Text style={[styles.avatarText, { fontSize: textSize, color: person.avatarColor === "#2B151C" ? "#FFFFFF" : DEEP_TEXT }]}>
+          <Text style={[styles.avatarText, { fontSize: textSize, color: person.accentColor }]}>
             {label}
           </Text>
         )}
@@ -264,7 +280,7 @@ export default function HomeScreen() {
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.storyRing, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 54, true)}</View>
+          <View style={[styles.storyRing, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
         <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPlus, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
           <MaterialIcons name={iconName(isPrayedToday ? "check" : "add")} size={24} color="#FFFFFF" />
@@ -277,6 +293,7 @@ export default function HomeScreen() {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
     const reachColor = daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(person);
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
+    const reachProgress = getReachProgressRatio(daysSince);
     return (
       <Pressable key={person.id} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
         {renderAvatar(person, 44)}
@@ -287,8 +304,9 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.personActions}>
-          <View style={[styles.reachPill, { backgroundColor: reachColor }]}> 
-            <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>
+          <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}> 
+            <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: `${Math.round(reachProgress * 100)}%` }]} />
+            <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
           </View>
           <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
         </View>
@@ -310,18 +328,20 @@ export default function HomeScreen() {
           </View>
           <View style={styles.statItem}>
             <MaterialIcons name={iconName("chat-bubble")} size={28} color={PURPLE} />
-            <Text style={styles.statNumber}>{prayTodayList.length || people.length}</Text>
+            <Text style={styles.statNumber}>{remainingPrayTodayCount}</Text>
           </View>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
-        <Text style={styles.subheading}>PRAY TODAY</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
-          {prayTodayList.length > 0 ? prayTodayList.slice(0, 8).map(renderStoryPerson) : (
-            <Text style={styles.emptyInlineText}>Set reminders on a person to build today’s prayer row.</Text>
-          )}
-        </ScrollView>
+        {prayTodayList.length > 0 && (
+          <>
+            <Text style={styles.subheading}>PRAY TODAY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
+              {prayTodayList.slice(0, 8).map(renderStoryPerson)}
+            </ScrollView>
+          </>
+        )}
 
         {relationshipSections.length > 0 ? relationshipSections.map((section) => (
           <View key={section.title} style={styles.sectionBlock}>
@@ -465,12 +485,12 @@ export default function HomeScreen() {
         <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
       </Pressable>
 
-      <View style={styles.bottomNav}>
+      <BlurView intensity={76} tint="light" experimentalBlurMethod="dimezisBlurView" style={styles.bottomNav}>
         {renderTab("people", "People", "groups")}
         {renderTab("reminders", "Reminders", "notifications")}
         {renderTab("journal", "Journal", "article")}
         {renderTab("settings", "Settings", "settings")}
-      </View>
+      </BlurView>
     </ScreenContainer>
   );
 }
@@ -552,9 +572,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   storyRing: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     borderWidth: 3,
     borderColor: PURPLE,
     alignItems: "center",
@@ -566,14 +586,13 @@ const styles = StyleSheet.create({
   },
   storyTag: {
     position: "absolute",
-    top: 0,
-    left: 2,
-    right: 2,
+    top: -8,
+    right: -8,
     zIndex: 4,
-    minHeight: 24,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    minHeight: 26,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 13,
     borderWidth: 2,
     borderColor: "#D36B72",
     backgroundColor: "#FFFFFF",
@@ -582,9 +601,9 @@ const styles = StyleSheet.create({
   },
   storyTagText: {
     color: "#C75D67",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
-    lineHeight: 12,
+    lineHeight: 13,
   },
   storyPlus: {
     position: "absolute",
@@ -593,7 +612,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: PURPLE,
+    backgroundColor: "rgba(133,87,217,0.92)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -606,6 +625,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    shadowColor: "#3E226B",
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   avatarText: {
     fontWeight: "800",
@@ -664,15 +688,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   reachPill: {
-    minWidth: 52,
+    minWidth: 58,
     height: 26,
     paddingHorizontal: 10,
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E0D8EA",
+    backgroundColor: "#F7F2FB",
+  },
+  reachPillEmpty: {
+    backgroundColor: "#FBF8FE",
+    borderStyle: "dashed",
+  },
+  reachPillFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 13,
   },
   reachPillText: {
     color: "#FFFFFF",
+    zIndex: 1,
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 15,
@@ -729,20 +769,20 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 36,
-    bottom: 122,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    right: 15,
+    bottom: 34,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: PURPLE,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#3E226B",
-    shadowOpacity: 0.34,
+    shadowOpacity: 0.26,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
-    zIndex: 10,
+    zIndex: 12,
   },
   fabPressed: {
     transform: [{ scale: 0.96 }],
@@ -750,20 +790,21 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: "absolute",
-    left: 53,
-    right: 53,
+    left: 18,
+    right: 83,
     bottom: 26,
     height: 74,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#E3DCE8",
-    backgroundColor: "rgba(255,255,255,0.96)",
+    borderColor: "rgba(255,255,255,0.62)",
+    backgroundColor: "rgba(255,255,255,0.56)",
+    overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
     paddingHorizontal: 3,
     shadowColor: "#4D405F",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,

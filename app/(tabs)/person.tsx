@@ -15,6 +15,7 @@ import {
   getReminderScheduleText,
   getTodayISOString,
   markPersonPrayed,
+  normalizePeopleForStorage,
   removePrayerItem,
   togglePrayerItemDone,
   togglePrayerItemUrgent,
@@ -209,7 +210,7 @@ export default function PersonScreen() {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
-          setPeople(Array.isArray(parsedPeople) ? parsedPeople : []);
+          setPeople(Array.isArray(parsedPeople) ? normalizePeopleForStorage(parsedPeople) : []);
         }
       })
       .catch(() => {
@@ -237,6 +238,7 @@ export default function PersonScreen() {
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
   const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : PURPLE;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
+  const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() || currentPerson.lastPrayedDate === getTodayISOString() : false;
 
   const updatePeople = (updater: (previousPeople: Person[]) => Person[]) => {
     setPeople((previousPeople) => updater(previousPeople));
@@ -263,9 +265,14 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => removePrayerItem(previousPeople, personId, itemId));
   };
 
-  const handleMarkReachedToday = () => {
+  const handleMarkAsPrayed = () => {
     if (!personId) return;
     updatePeople((previousPeople) => markPersonPrayed(previousPeople, personId));
+  };
+
+  const handleMarkReachedToday = () => {
+    if (!personId) return;
+    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
   };
 
   const openReminderModal = () => {
@@ -395,8 +402,8 @@ export default function PersonScreen() {
           <MaterialIcons name={iconName("chevron-left")} size={34} color={PURPLE} />
         </Pressable>
         <Text style={styles.headerTitle}>Prayer List</Text>
-        <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("notifications")} size={25} color={PURPLE} />
+        <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
+          <Text style={styles.headerEditButtonText}>Edit</Text>
         </Pressable>
       </View>
 
@@ -421,11 +428,11 @@ export default function PersonScreen() {
         </View>
 
         <Pressable
-          onPress={handleMarkReachedToday}
-          style={({ pressed }) => [styles.actionButton, { backgroundColor: currentPerson.accentColor }, pressed && styles.pressed]}
+          onPress={handleMarkAsPrayed}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: hasPrayedToday ? "#31C48D" : currentPerson.accentColor }, pressed && styles.pressed]}
         >
-          <MaterialIcons name={iconName("waving-hand")} size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Mark Reached Today</Text>
+          <MaterialIcons name={iconName(hasPrayedToday ? "check-circle" : "volunteer-activism")} size={22} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>{hasPrayedToday ? "Prayed Today" : "Mark as Prayed"}</Text>
         </Pressable>
 
         <Pressable
@@ -634,6 +641,21 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerEditButton: {
+    minWidth: 64,
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: 19,
+    backgroundColor: "#EFE8FB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerEditButtonText: {
+    color: PURPLE,
+    fontSize: 15,
+    fontWeight: "900",
+    lineHeight: 19,
   },
   headerTitle: {
     color: DEEP_TEXT,

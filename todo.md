@@ -85,13 +85,31 @@
 - [x] Validate updated reminder and streak behavior with tests and app health checks
 - [x] Save checkpoint after Pray Today refinement update
 - [ ] Remove a person from Pray Today after their plus ring completion feedback finishes
-- [ ] Update the top prayed-today counter immediately as Pray Today people are completed
+- [x] Update the top prayed-today counter immediately as Pray Today people are completed
 - [ ] Enlarge Pray Today avatar pictures to match the screenshot scale
 - [ ] Shift urgent speech bubbles to the right side of Pray Today avatars
-- [ ] Make home contact days-since bubbles fill from 1 to 14 days, with 0 days empty
-- [ ] Make tapping Last Reached on the contact page set today's date
-- [ ] Standardize visible dates across PrayerCircle as MM-DD-YYYY
-- [ ] Validate final Pray Today completion, date, and progress-bubble refinements
+- [x] Make home contact days-since bubbles fill from 1 to 14 days, with 0 days empty
+- [x] Make tapping Last Reached on the contact page set today's date
+- [x] Standardize visible dates across PrayerCircle as MM-DD-YYYY
+- [x] Validate final Pray Today completion, date, and progress-bubble refinements
 - [ ] Save checkpoint after final PrayerCircle polish update
 - [x] Compact home-screen layout sizing to match the provided screenshots
 - [x] Fix contact page navigation for all relationship categories (Family, Friends, Ministry, Prospect)
+- [ ] Enlarge Pray Today avatars to make them more prominent
+- [ ] Reposition urgent speech bubbles to the upper-right of avatars instead of center
+- [ ] Hide the entire Pray Today section when there are no prayers scheduled for the day
+- [ ] Remove avatars from Pray Today after check animation completes (keep the animation)
+- [x] Update prayer count at top-right in real-time as prayers are marked off
+- [x] DEBUG: Fix Friends category contacts not opening the contact page (Family works, Friends doesn't)
+- [x] Validate Pray Today refinements and Friends routing fix
+- [ ] Save checkpoint after Pray Today polish and Friends routing fix
+- [x] Change contact-page bell action to an Edit button
+- [x] Rename contact-page Mark Reached Today to Mark as Prayed
+- [x] Make Mark as Prayed mark all prayer requests prayed for today and turn green as Prayed Today
+- [x] Make top-right prayer counter start at today’s scheduled people count and count down as Pray Today people are checked off
+- [x] Improve blank avatar styling to match the provided screenshots more closely
+- [x] Redesign the bottom tab bar with a more transparent frosted style
+- [x] Move the floating add button next to the tab bar rather than above it
+- [x] Make reached-out progress bars start empty at 0 days and fill over the following days
+- [x] Validate contact actions, Pray Today counter, tab bar layout, and progress behavior
+- [ ] Save checkpoint after contact and home refinements

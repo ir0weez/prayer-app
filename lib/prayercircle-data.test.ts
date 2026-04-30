@@ -5,6 +5,7 @@ import {
   addPrayerItem,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
+  formatIsoDateForDisplay,
   getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
@@ -16,6 +17,7 @@ import {
   initialJournal,
   initialPeople,
   markPersonPrayed,
+  normalizePeopleForStorage,
   prependJournalEntry,
   removePerson,
   resetDailyPrayerCompletionsIfNeeded,
@@ -84,9 +86,14 @@ describe("PrayerCircle local data helpers", () => {
     const updated = markPersonPrayed(withItems, people[0].id);
 
     expect(updated[0].lastPrayerCompletedDate).toBe(today);
-    expect(updated[0].lastPrayedDate).toBeNull();
+    expect(updated[0].lastPrayedDate).toBe(today);
     expect(updated[0].prayerItems.every((item) => item.isDone)).toBe(true);
     expect(hasPersonCompletedPrayerToday(updated[0], today)).toBe(true);
+  });
+
+  it("formats ISO dates as MM-DD-YYYY for display", () => {
+    expect(formatIsoDateForDisplay("2026-04-30")).toBe("04-30-2026");
+    expect(formatIsoDateForDisplay(null)).toBe("Never");
   });
 
   it("calculates days since last prayed correctly", () => {
@@ -118,7 +125,6 @@ describe("PrayerCircle local data helpers", () => {
   });
 
   it("reports daily prayer progress", () => {
-    const today = getTodayISOString();
     let people = addPerson(initialPeople, "Alice", "Friends");
     people = markPersonPrayed(people, people[0].id);
     people = addPerson(people, "Bob", "Friends");
@@ -126,6 +132,22 @@ describe("PrayerCircle local data helpers", () => {
     const progress = getDailyPrayerProgress(people);
     expect(progress.prayed).toBe(1);
     expect(progress.total).toBe(2);
+  });
+
+  it("counts remaining Pray Today people from today's scheduled list", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = addPerson(people, "Bob", "Family");
+    people = addPerson(people, "Carla", "Ministry");
+    people = updatePersonReminderWithTime(people, people[0].id, [], "08:00", "daily");
+    people = updatePersonReminderWithTime(people, people[1].id, [], "08:00", "daily");
+    people = updatePersonReminderWithTime(people, people[2].id, [], "08:00", "none");
+
+    const scheduledToday = getPrayTodayList(people, 2, 10);
+    const completed = markPersonPrayed(people, people[0].id);
+    const remainingToday = getPrayTodayList(completed, 2, 10).filter((person) => !hasPersonCompletedPrayerToday(person)).length;
+
+    expect(scheduledToday).toHaveLength(2);
+    expect(remainingToday).toBe(1);
   });
 
   it("filters people by active reminder day of week", () => {
@@ -243,6 +265,22 @@ describe("PrayerCircle local data helpers", () => {
     const updated = updatePersonPhoto(people, people[0].id, "file:///picked-avatar.jpg");
 
     expect(updated[0].photoUri).toBe("file:///picked-avatar.jpg");
+  });
+
+  it("normalizes stored people so routed contacts keep unique ids and usable metadata", () => {
+    const people = addPerson(initialPeople, "Alice Friend", "Friends");
+    const storedPeople = [
+      { ...people[0], id: "duplicate", relationship: "Friends", prayerItems: undefined, reminderDaysOfWeek: undefined },
+      { ...people[0], id: "duplicate", name: "Bob Friend", relationship: "Friends" },
+    ] as unknown as Parameters<typeof normalizePeopleForStorage>[0];
+
+    const normalized = normalizePeopleForStorage(storedPeople);
+
+    expect(normalized).toHaveLength(2);
+    expect(new Set(normalized.map((person) => person.id)).size).toBe(2);
+    expect(normalized[0].relationship).toBe("Friends");
+    expect(normalized[0].prayerItems).toEqual([]);
+    expect(normalized[0].reminderDaysOfWeek).toEqual([]);
   });
 
   it("updates last reached date and reports threshold colors", () => {

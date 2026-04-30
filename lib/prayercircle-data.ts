@@ -118,7 +118,7 @@ export function formatIsoDateForDisplay(dateString: string | null): string {
   if (!dateString) return "Never";
   const [year, month, day] = dateString.split("-");
   if (!year || !month || !day) return dateString;
-  return `${day}/${month}/${year}`;
+  return `${month}-${day}-${year}`;
 }
 
 // Helper: Get today's ISO date string
@@ -220,6 +220,7 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
       ? {
           ...p,
           lastPrayerCompletedDate: today,
+          lastPrayedDate: today,
           prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: true })),
         }
       : p,
@@ -406,6 +407,42 @@ export function updatePersonPrayerNote(
   );
 }
 
+export function normalizePeopleForStorage(people: Person[]): Person[] {
+  const seenIds = new Set<string>();
+
+  return people.map((person, index) => {
+    const relationship = relationshipColors[person.relationship] ? person.relationship : "Friends";
+    const colors = relationshipColors[relationship];
+    const trimmedName = person.name?.trim() || "Unnamed Person";
+    const initials =
+      person.initials?.trim() ||
+      trimmedName
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) ||
+      "?";
+    let id = typeof person.id === "string" && person.id.trim() ? person.id.trim() : `person-migrated-${Date.now()}-${index}`;
+    if (seenIds.has(id)) id = `${id}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+    seenIds.add(id);
+
+    return {
+      ...person,
+      id,
+      name: trimmedName,
+      initials,
+      relationship,
+      avatarColor: person.avatarColor || colors.avatar,
+      accentColor: person.accentColor || colors.accent,
+      reminderDaysOfWeek: Array.isArray(person.reminderDaysOfWeek) ? person.reminderDaysOfWeek : [],
+      prayerItems: Array.isArray(person.prayerItems) ? person.prayerItems : [],
+      lastPrayedDate: person.lastPrayedDate ?? null,
+      lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
+    };
+  });
+}
+
 // Action: Add new person
 export function addPerson(
   people: Person[],
@@ -431,7 +468,7 @@ export function addPerson(
   return [
     ...people,
     {
-      id: `person-${Date.now()}-${people.length}`,
+      id: `person-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${people.length}`,
       name: trimmedName,
       initials,
       relationship,

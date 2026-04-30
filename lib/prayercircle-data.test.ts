@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  calculateFastStreak,
+  createPersonalFast,
+  formatIsoToMmDdYyyy,
+  getFastProgress,
+  normalizeFastDateInput,
+  upsertFastDayStatus,
+} from "./prayercircle-fasting";
+
+import {
   addPerson,
   addPrayerItem,
   getDailyPrayerProgress,
@@ -330,6 +339,46 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].name).toBe("Bob");
     expect(updated[0].prayerItems).toHaveLength(1);
     expect(updated[0].prayerItems[0].title).toBe("Wisdom");
+  });
+
+  it("creates a personal fast from MM-DD-YYYY input and formats ISO dates for display", () => {
+    const fast = createPersonalFast({
+      name: "  40-Day Prayer Fast  ",
+      startDate: "04-30-2026",
+      durationDays: 40,
+      type: "Health",
+      focusItems: [" Social Media ", ""],
+      existingCount: 2,
+    });
+
+    expect(fast).not.toBeNull();
+    expect(fast?.name).toBe("40-Day Prayer Fast");
+    expect(fast?.startDate).toBe("2026-04-30");
+    expect(fast?.focusItems).toEqual(["Social Media"]);
+    expect(formatIsoToMmDdYyyy(fast?.startDate)).toBe("04-30-2026");
+    expect(normalizeFastDateInput("13-40-2026")).toBeNull();
+  });
+
+  it("tracks fasting progress so skipped days preserve streak and missed days reset it", () => {
+    const fast = createPersonalFast({
+      name: "Seven Day Hope Fast",
+      startDate: "04-01-2026",
+      durationDays: 7,
+      type: "Hope",
+      focusItems: ["Worry"],
+    });
+    expect(fast).not.toBeNull();
+
+    let fasts = [fast!];
+    fasts = upsertFastDayStatus(fasts, fast!.id, "2026-04-01", "completed");
+    fasts = upsertFastDayStatus(fasts, fast!.id, "2026-04-02", "skipped");
+    fasts = upsertFastDayStatus(fasts, fast!.id, "2026-04-03", "completed");
+
+    expect(calculateFastStreak(fasts[0], "2026-04-03")).toBe(2);
+    expect(getFastProgress(fasts[0])).toMatchObject({ completed: 2, skipped: 1, missed: 0, total: 7 });
+
+    fasts = upsertFastDayStatus(fasts, fast!.id, "2026-04-04", "missed");
+    expect(calculateFastStreak(fasts[0], "2026-04-04")).toBe(0);
   });
 
   it("prepends trimmed journal entries and ignores empty notes", () => {

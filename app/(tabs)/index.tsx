@@ -4,7 +4,7 @@ import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
@@ -25,7 +25,23 @@ import {
   type RelationshipType,
   relationshipColors,
 } from "@/lib/prayercircle-data";
-import { APP_SETTINGS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import {
+  calculateFastStreak,
+  createPersonalFast,
+  FAST_DURATIONS,
+  FAST_TYPES,
+  formatIsoToMmDdYyyy,
+  getActiveFast,
+  getFastCalendarDays,
+  getFastProgress,
+  normalizeFastDateInput,
+  normalizeFastsForStorage,
+  type FastDayStatus,
+  type FastType,
+  type PersonalFast,
+  upsertFastDayStatus,
+} from "@/lib/prayercircle-fasting";
+import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
@@ -48,6 +64,7 @@ type AppSettings = {
 
 type PersonalProfile = {
   name: string;
+  photoUri?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -73,14 +90,33 @@ const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primar
 };
 
 const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: false, demoMode: false };
-const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
 
+function normalizeBirthdayInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const mmddyyyy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  if (mmddyyyy) {
+    const [, month, day, year] = mmddyyyy;
+    const iso = `${year}-${month}-${day}`;
+    const date = new Date(`${iso}T00:00:00Z`);
+    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(iso)) return trimmed;
+  }
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (iso) {
+    const [, year, month, day] = iso;
+    const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
+    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(`${year}-${month}-${day}`)) return `${month}-${day}-${year}`;
+  }
+  return null;
+}
+
 function getBirthdayText(person: Person) {
-  return person.birthday ? ` • 🎂  ${person.birthday}` : "";
+  return person.birthday ? ` • Birthday ${person.birthday}` : "";
 }
 
 function getAvatarText(person: Person) {
@@ -135,6 +171,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
     const fastingStatus = parsed.fastingStatus === "completed" || parsed.fastingStatus === "skipped" || parsed.fastingStatus === "missed" ? parsed.fastingStatus : "not-set";
     return {
       name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
+      photoUri: typeof parsed.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : undefined,
       fastingStreak: typeof parsed.fastingStreak === "number" && parsed.fastingStreak > 0 ? Math.floor(parsed.fastingStreak) : 0,
       personalPrayerStreak: typeof parsed.personalPrayerStreak === "number" && parsed.personalPrayerStreak > 0 ? Math.floor(parsed.personalPrayerStreak) : 0,
       fastingStatus,
@@ -194,15 +231,26 @@ export default function HomeScreen() {
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
+  const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [draftProfileName, setDraftProfileName] = useState(DEFAULT_PROFILE.name);
+  const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
+  const [showFastCreator, setShowFastCreator] = useState(false);
+  const [draftFastName, setDraftFastName] = useState("");
+  const [draftFastStartDate, setDraftFastStartDate] = useState(formatIsoToMmDdYyyy(today));
+  const [draftFastDuration, setDraftFastDuration] = useState<number>(40);
+  const [draftFastType, setDraftFastType] = useState<FastType>("Health");
+  const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
+  const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY)])
-      .then(([storedPeople, storedStreak, storedSettings, storedProfile]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -213,6 +261,7 @@ export default function HomeScreen() {
         setStreakRecord(parseStoredStreak(storedStreak));
         setSettings(parseStoredSettings(storedSettings));
         setProfile(parseStoredProfile(storedProfile));
+        if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -264,6 +313,11 @@ export default function HomeScreen() {
   }, [hasHydratedPeople, profile]);
 
   useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(fasts)).catch(() => undefined);
+  }, [fasts, hasHydratedPeople]);
+
+  useEffect(() => {
     const timers = undoTimers.current;
     return () => {
       Object.values(timers).forEach(clearTimeout);
@@ -282,6 +336,11 @@ export default function HomeScreen() {
   const prayedTodayCount = Math.min(dailyPrayerProgress.total, dailyPrayerProgress.prayed + pendingPrayerCount);
   const remainingPrayTodayCount = Math.max(0, dailyPrayerProgress.total - prayedTodayCount);
   const reminderCount = people.filter((person) => (person.reminderFrequency ?? "none") !== "none").length;
+  const activeFast = useMemo(() => getActiveFast(fasts, today), [fasts, today]);
+  const activeFastProgress = activeFast ? getFastProgress(activeFast) : null;
+  const activeFastStreak = activeFast ? calculateFastStreak(activeFast, today) : 0;
+  const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
+  const activeFastTodayStatus = activeFast?.dayStatuses[today];
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
@@ -314,9 +373,14 @@ export default function HomeScreen() {
 
   const handleAddPerson = () => {
     if (!newPersonName.trim()) return;
+    const normalizedBirthday = normalizeBirthdayInput(newPersonBirthday);
+    if (normalizedBirthday === null) {
+      Alert.alert("Check birthday", "Use MM-DD-YYYY, such as 03-15-1990.");
+      return;
+    }
 
     const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
-      birthday: newPersonBirthday,
+      birthday: normalizedBirthday,
       reminderFrequency: "none",
       reminderDaysOfWeek: [],
       photoUri: newPersonPhotoUri,
@@ -329,6 +393,7 @@ export default function HomeScreen() {
     });
 
     setPeople(updatedPeople);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedPeople)).catch(() => undefined);
     resetAddPersonForm();
     setActiveTab("people");
     setShowAddPerson(false);
@@ -519,19 +584,79 @@ export default function HomeScreen() {
     </View>
   );
 
-  const handleSetFastingStatus = (status: "completed" | "skipped" | "missed") => {
-    setProfile((previous) => {
-      const alreadyRecordedToday = previous.lastFastingDate === today && previous.fastingStatus === status;
-      if (alreadyRecordedToday) return previous;
-      const nextStreak = status === "completed"
-        ? previous.lastFastingDate === getYesterdayISOString(today) || previous.lastFastingDate === today
-          ? previous.fastingStreak + 1
-          : 1
-        : status === "missed"
-          ? 0
-          : previous.fastingStreak;
-      return { ...previous, fastingStatus: status, fastingStreak: nextStreak, lastFastingDate: today };
+  const handleSetFastingStatus = (status: FastDayStatus) => {
+    if (!activeFast) {
+      setShowFastCreator(true);
+      return;
+    }
+    setFasts((previousFasts) => upsertFastDayStatus(previousFasts, activeFast.id, today, status));
+    setProfile((previous) => ({
+      ...previous,
+      fastingStatus: status,
+      fastingStreak: status === "missed" ? 0 : status === "completed" ? Math.max(previous.fastingStreak, activeFastStreak + 1) : previous.fastingStreak,
+      lastFastingDate: today,
+    }));
+  };
+
+  const openProfileEditor = () => {
+    setDraftProfileName(profile.name);
+    setDraftProfilePhotoUri(profile.photoUri);
+    setShowProfileEditor(true);
+  };
+
+  const handlePickProfilePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
     });
+    if (!result.canceled && result.assets[0]?.uri) setDraftProfilePhotoUri(result.assets[0].uri);
+  };
+
+  const handleSaveProfile = () => {
+    const name = draftProfileName.trim();
+    if (!name) {
+      Alert.alert("Add your name", "Enter a name before saving your profile.");
+      return;
+    }
+    setProfile((previous) => ({ ...previous, name, photoUri: draftProfilePhotoUri }));
+    setShowProfileEditor(false);
+  };
+
+  const resetFastCreator = () => {
+    setDraftFastName("");
+    setDraftFastStartDate(formatIsoToMmDdYyyy(today));
+    setDraftFastDuration(40);
+    setDraftFastType("Health");
+    setDraftFastFocusInput("");
+    setDraftFastFocusItems([]);
+  };
+
+  const addDraftFastFocusItem = () => {
+    const item = draftFastFocusInput.trim();
+    if (!item) return;
+    setDraftFastFocusItems((previousItems) => previousItems.includes(item) ? previousItems : [...previousItems, item]);
+    setDraftFastFocusInput("");
+  };
+
+  const handleCreateFast = () => {
+    const focusItems = draftFastFocusInput.trim() ? [...draftFastFocusItems, draftFastFocusInput.trim()] : draftFastFocusItems;
+    const fast = createPersonalFast({
+      name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
+      startDate: draftFastStartDate,
+      durationDays: draftFastDuration,
+      type: draftFastType,
+      focusItems,
+      existingCount: fasts.length,
+    });
+    if (!fast || !normalizeFastDateInput(draftFastStartDate)) {
+      Alert.alert("Check fast details", "Use MM-DD-YYYY for the start date and choose a duration.");
+      return;
+    }
+    setFasts((previousFasts) => [fast, ...previousFasts]);
+    setShowFastCreator(false);
+    resetFastCreator();
   };
 
   const handleCompletePersonalPrayer = () => {
@@ -545,26 +670,18 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
+      <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }, pressed && styles.pressed]}>
         <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
-          <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />
+          {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
         </View>
         <View style={styles.profileSummaryText}>
-          <TextInput
-            value={profile.name}
-            onChangeText={(name) => setProfile((previous) => ({ ...previous, name }))}
-            placeholder="Your name"
-            placeholderTextColor="#73808B"
-            returnKeyType="done"
-            style={styles.profileNameInput}
-          />
-          <Text style={styles.profileSubtitle}>Personal prayer and fasting tracker</Text>
+          <Text style={styles.profileNameText}>{profile.name}</Text>
+          <Text style={styles.profileSubtitle}>Tap for your prayer and fasting profile</Text>
         </View>
-        <View style={styles.profileStreakBadge}>
-          <MaterialIcons name={iconName("local-fire-department")} size={20} color={currentTheme.primary} />
-          <Text style={[styles.profileStreakText, { color: currentTheme.primary }]}>{profile.fastingStreak}</Text>
-        </View>
-      </View>
+        <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileEditButton, pressed && styles.pressed]}>
+          <Text style={[styles.profileEditButtonText, { color: currentTheme.primary }]}>Edit</Text>
+        </Pressable>
+      </Pressable>
       <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
         <View style={styles.settingsStatDivider} />
@@ -572,6 +689,19 @@ export default function HomeScreen() {
         <View style={styles.settingsStatDivider} />
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{reminderCount}</Text><Text style={styles.settingsStatLabel}>Reminders</Text></View>
       </View>
+
+      <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryCard, { borderColor: currentTheme.border }, pressed && styles.pressed]}>
+        <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
+          <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
+        </View>
+        <View style={styles.fastSummaryText}>
+          <Text style={styles.fastSummaryTitle}>{activeFast ? activeFast.type : "No active fast"}</Text>
+          <Text style={styles.fastSummarySubtitle}>{activeFast ? `${activeFast.durationDays} days • ${activeFastProgress?.completed ?? 0}/${activeFastProgress?.total ?? activeFast.durationDays} completed • streak ${activeFastStreak}` : "Create a fast from your profile"}</Text>
+        </View>
+        <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
+        </Pressable>
+      </Pressable>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -582,18 +712,6 @@ export default function HomeScreen() {
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
       </View>
 
-      <Text style={styles.settingsSectionLabel}>PROFILE & FASTING</Text>
-      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
-        {renderSettingsRow("local-fire-department", "Fasting Streak", `${profile.fastingStreak} completed day${profile.fastingStreak === 1 ? "" : "s"}`)}
-        <View style={styles.fastStatusRow}>
-          {(["completed", "skipped", "missed"] as const).map((status) => (
-            <Pressable key={status} onPress={() => handleSetFastingStatus(status)} style={({ pressed }) => [styles.fastStatusPill, profile.fastingStatus === status && { backgroundColor: currentTheme.primary, borderColor: currentTheme.primary }, pressed && styles.pressed]}>
-              <Text style={[styles.fastStatusText, profile.fastingStatus === status && styles.fastStatusTextActive]}>{status[0].toUpperCase() + status.slice(1)}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {renderSettingsRow("favorite", "Personal Prayer", `${profile.personalPrayerStreak} day streak`, "normal", <Pressable onPress={handleCompletePersonalPrayer} style={({ pressed }) => [styles.smallActionButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}><Text style={styles.smallActionButtonText}>{profile.lastPersonalPrayerDate === today ? "Done" : "Complete"}</Text></Pressable>)}
-      </View>
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -678,9 +796,9 @@ export default function HomeScreen() {
                 <Pressable
                   key={relationship}
                   onPress={() => setNewPersonRelationship(relationship)}
-                  style={({ pressed }) => [styles.relationshipPill, isActive && styles.relationshipPillActive, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.relationshipPill, { borderColor: relationshipColors[relationship].accent }, isActive && { backgroundColor: relationshipColors[relationship].accent, borderColor: relationshipColors[relationship].accent }, pressed && styles.pressed]}
                 >
-                  <Text style={[styles.relationshipPillText, isActive && styles.relationshipPillTextActive]}>{relationship}</Text>
+                  <Text style={[styles.relationshipPillText, { color: relationshipColors[relationship].accent }, isActive && styles.relationshipPillTextActive]}>{relationship}</Text>
                 </Pressable>
               );
             })}
@@ -690,12 +808,12 @@ export default function HomeScreen() {
           <TextInput
             value={newPersonBirthday}
             onChangeText={setNewPersonBirthday}
-            placeholder="YYYY-MM-DD"
+            placeholder="MM-DD-YYYY"
             placeholderTextColor="#73808B"
             returnKeyType="done"
             style={styles.textInput}
           />
-          <Text style={styles.fieldHint}>Format: YYYY-MM-DD (e.g., 1990-03-15)</Text>
+          <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
 
         </ScrollView>
       </ScreenContainer>
@@ -706,15 +824,17 @@ export default function HomeScreen() {
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: currentTheme.background }]}>
       {renderContent()}
 
-      <Pressable
-        onPress={() => {
-          setActiveTab("people");
-          setShowAddPerson(true);
-        }}
-        style={({ pressed }) => [styles.fab, { backgroundColor: currentTheme.primary }, pressed && styles.fabPressed]}
-      >
-        <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
-      </Pressable>
+      {activeTab === "people" || activeTab === "home" ? (
+        <Pressable
+          onPress={() => {
+            setActiveTab("people");
+            setShowAddPerson(true);
+          }}
+          style={({ pressed }) => [styles.fab, { backgroundColor: currentTheme.primary }, pressed && styles.fabPressed]}
+        >
+          <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
 
       <BlurView intensity={82} tint="light" experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: currentTheme.border }]}>
         {renderTab("people", "People", "groups")}
@@ -722,6 +842,77 @@ export default function HomeScreen() {
         {renderTab("journal", "Journal", "article")}
         {renderTab("settings", "Settings", "settings")}
       </BlurView>
+
+      <Modal transparent visible={showProfileEditor} animationType="slide" onRequestClose={() => setShowProfileEditor(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowProfileEditor(false)} />
+          <View style={styles.themeSheet}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowProfileEditor(false)}><Text style={styles.sheetDone}>Cancel</Text></Pressable>
+              <Text style={styles.sheetTitle}>Edit Profile</Text>
+              <Pressable onPress={handleSaveProfile}><Text style={styles.sheetDone}>Save</Text></Pressable>
+            </View>
+            <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [styles.profilePhotoEditor, pressed && styles.pressed]}>
+              {draftProfilePhotoUri ? <Image source={{ uri: draftProfilePhotoUri }} style={styles.profilePhotoEditorImage} /> : <MaterialIcons name={iconName("add-a-photo")} size={34} color={currentTheme.primary} />}
+              <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Change profile picture" : "Add profile picture"}</Text>
+            </Pressable>
+            <Text style={styles.fieldLabel}>NAME</Text>
+            <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => setShowFastCreator(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowFastCreator(false)} />
+          <View style={[styles.themeSheet, styles.fastCreatorSheet]}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowFastCreator(false)}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
+              <Text style={styles.sheetTitle}>Start a New Fast</Text>
+              <View style={{ width: 42 }} />
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.fieldLabel}>FAST NAME</Text>
+              <TextInput value={draftFastName} onChangeText={setDraftFastName} placeholder="e.g., 40-Day Prayer Fast" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
+              <Text style={styles.fieldLabel}>START DATE</Text>
+              <TextInput value={draftFastStartDate} onChangeText={setDraftFastStartDate} placeholder="MM-DD-YYYY" placeholderTextColor="#73808B" keyboardType="numbers-and-punctuation" returnKeyType="done" style={styles.textInput} />
+              <Text style={styles.fieldLabel}>DURATION</Text>
+              <View style={styles.fastDurationGrid}>
+                {FAST_DURATIONS.map((duration) => (
+                  <Pressable key={duration} onPress={() => setDraftFastDuration(duration)} style={({ pressed }) => [styles.fastDurationButton, draftFastDuration === duration && styles.fastDurationButtonActive, pressed && styles.pressed]}>
+                    <Text style={[styles.fastDurationText, draftFastDuration === duration && styles.fastDurationTextActive]}>{duration}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>FAST TYPE</Text>
+              <View style={styles.fastTypeGrid}>
+                {FAST_TYPES.map((entry) => {
+                  const isSelected = draftFastType === entry.type;
+                  return (
+                    <Pressable key={entry.type} onPress={() => setDraftFastType(entry.type)} style={({ pressed }) => [styles.fastTypeOption, isSelected && { backgroundColor: entry.color, borderColor: entry.color }, pressed && styles.pressed]}>
+                      <MaterialIcons name={iconName(entry.icon)} size={28} color={isSelected ? "#FFFFFF" : entry.color} />
+                      <Text style={[styles.fastTypeText, isSelected && styles.fastTypeTextActive]}>{entry.type}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.fieldLabel}>WHAT ARE YOU GIVING UP, CUTTING BACK ON, OR FOCUSING ON?</Text>
+              <View style={styles.fastFocusRow}>
+                <TextInput value={draftFastFocusInput} onChangeText={setDraftFastFocusInput} placeholder="e.g., Social Media" placeholderTextColor="#73808B" returnKeyType="done" style={[styles.textInput, styles.fastFocusInput]} />
+                <Pressable onPress={addDraftFastFocusItem} style={({ pressed }) => [styles.fastFocusAdd, pressed && styles.pressed]}>
+                  <MaterialIcons name={iconName("add")} size={30} color="#FFFFFF" />
+                </Pressable>
+              </View>
+              <View style={styles.focusChipRow}>
+                {draftFastFocusItems.map((item) => <Text key={item} style={styles.focusChip}>{item}</Text>)}
+              </View>
+              <Pressable onPress={handleCreateFast} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
+                <Text style={styles.createFastButtonText}>Create Fast</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal transparent visible={showThemeSheet} animationType="slide" onRequestClose={() => setShowThemeSheet(false)}>
         <View style={styles.sheetOverlay}>
@@ -1079,9 +1270,15 @@ const styles = StyleSheet.create({
   profileAvatar: {
     width: 54,
     height: 54,
-    borderRadius: 18,
+    borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  profileAvatarImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   profileSummaryText: {
     flex: 1,
@@ -1093,13 +1290,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 26,
   },
-  profileNameInput: {
+  profileNameText: {
     color: DEEP_TEXT,
-    fontSize: 21,
-    fontWeight: "800",
-    lineHeight: 26,
-    padding: 0,
-    margin: 0,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 23,
   },
   profileSubtitle: {
     marginTop: 2,
@@ -1107,6 +1302,173 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 17,
+  },
+  profileEditButton: {
+    minWidth: 58,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileEditButtonText: {
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 18,
+  },
+  profilePhotoEditor: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+  },
+  profilePhotoEditorImage: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    marginBottom: 9,
+  },
+  fastSummaryCard: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  fastSummaryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fastSummaryText: {
+    flex: 1,
+  },
+  fastSummaryTitle: {
+    color: DEEP_TEXT,
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 20,
+  },
+  fastSummarySubtitle: {
+    color: MUTED_TEXT,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  fastQuickButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fastCreatorSheet: {
+    maxHeight: "92%",
+  },
+  fastDurationGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 10,
+    marginBottom: 18,
+  },
+  fastDurationButton: {
+    width: "30%",
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#D6D2DC",
+    backgroundColor: "#F7F7F8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fastDurationButtonActive: {
+    backgroundColor: "#050505",
+    borderColor: "#050505",
+  },
+  fastDurationText: {
+    color: DEEP_TEXT,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  fastDurationTextActive: {
+    color: "#FFFFFF",
+  },
+  fastTypeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 10,
+    marginBottom: 18,
+  },
+  fastTypeOption: {
+    width: "47%",
+    minHeight: 88,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#D6D2DC",
+    backgroundColor: "#F7F7F8",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  fastTypeText: {
+    color: DEEP_TEXT,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  fastTypeTextActive: {
+    color: "#FFFFFF",
+  },
+  fastFocusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  fastFocusInput: {
+    flex: 1,
+  },
+  fastFocusAdd: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: "#050505",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  focusChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  focusChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: "#EFE8FB",
+    color: PURPLE,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  createFastButton: {
+    minHeight: 58,
+    marginTop: 18,
+    marginBottom: 18,
+    borderRadius: 18,
+    backgroundColor: "#050505",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createFastButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
   },
   profileStreakBadge: {
     minWidth: 52,

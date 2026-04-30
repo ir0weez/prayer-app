@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Notifications from "expo-notifications";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -82,6 +83,18 @@ function getInitialsFromName(name: string) {
 function normalizeOptionalDraft(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeBirthdayInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const mmddyyyy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  if (!mmddyyyy) return null;
+  const [, month, day, year] = mmddyyyy;
+  const iso = `${year}-${month}-${day}`;
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(iso)) return null;
+  return `${month}-${day}-${year}`;
 }
 
 function isValidIsoDate(value: string) {
@@ -223,7 +236,7 @@ export default function PersonScreen() {
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
   const [draftBirthday, setDraftBirthday] = useState("");
-  const [draftAvatarLabel, setDraftAvatarLabel] = useState("");
+  const [draftPhotoUri, setDraftPhotoUri] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let isMounted = true;
@@ -303,8 +316,21 @@ export default function PersonScreen() {
     setDraftName(currentPerson.name);
     setDraftRelationship(currentPerson.relationship);
     setDraftBirthday(currentPerson.birthday ?? "");
-    setDraftAvatarLabel(currentPerson.avatarLabel ?? "");
+    setDraftPhotoUri(currentPerson.photoUri);
     setShowEditModal(true);
+  };
+
+  const handlePickPersonPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets[0]?.uri) {
+      setDraftPhotoUri(result.assets[0].uri);
+    }
   };
 
   const handleSavePerson = () => {
@@ -312,6 +338,12 @@ export default function PersonScreen() {
     const trimmedName = draftName.trim();
     if (!trimmedName) {
       Alert.alert("Add a name", "Enter a name before saving this person.");
+      return;
+    }
+
+    const normalizedBirthday = normalizeBirthdayInput(draftBirthday);
+    if (normalizedBirthday === null) {
+      Alert.alert("Check birthday", "Use MM-DD-YYYY, such as 03-15-1990.");
       return;
     }
 
@@ -324,8 +356,9 @@ export default function PersonScreen() {
               name: trimmedName,
               initials: getInitialsFromName(trimmedName),
               relationship: draftRelationship,
-              birthday: normalizeOptionalDraft(draftBirthday),
-              avatarLabel: normalizeOptionalDraft(draftAvatarLabel),
+              birthday: normalizedBirthday,
+              avatarLabel: getInitialsFromName(trimmedName),
+              photoUri: draftPhotoUri,
               avatarColor: colors.avatar,
               accentColor: colors.accent,
             }
@@ -621,22 +654,23 @@ export default function PersonScreen() {
             <TextInput
               value={draftBirthday}
               onChangeText={setDraftBirthday}
-              placeholder="MM-DD-YYYY or optional note"
+              placeholder="MM-DD-YYYY"
               placeholderTextColor={MUTED_TEXT}
+              keyboardType="numbers-and-punctuation"
               returnKeyType="done"
               style={styles.modalInput}
             />
-            <Text style={styles.modalFieldLabel}>Avatar Label</Text>
-            <TextInput
-              value={draftAvatarLabel}
-              onChangeText={setDraftAvatarLabel}
-              placeholder="Optional initials"
-              placeholderTextColor={MUTED_TEXT}
-              maxLength={3}
-              autoCapitalize="characters"
-              returnKeyType="done"
-              style={styles.modalInput}
-            />
+            <Text style={styles.modalFieldLabel}>Picture</Text>
+            <Pressable onPress={handlePickPersonPhoto} style={({ pressed }) => [styles.editPhotoPicker, pressed && styles.pressed]}>
+              <View style={styles.editPhotoCircle}>
+                {draftPhotoUri ? (
+                  <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
+                ) : (
+                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
+                )}
+              </View>
+              <Text style={styles.editPhotoText}>{draftPhotoUri ? "Change picture" : "Add picture"}</Text>
+            </Pressable>
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
@@ -1214,6 +1248,36 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
     marginBottom: 16,
+  },
+  editPhotoPicker: {
+    alignItems: "center",
+    backgroundColor: "#FBF8FF",
+    borderColor: BORDER,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 16,
+    padding: 12,
+  },
+  editPhotoCircle: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 30,
+    height: 60,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 60,
+  },
+  editPhotoImage: {
+    height: 60,
+    width: 60,
+  },
+  editPhotoText: {
+    color: DEEP_TEXT,
+    fontSize: 15,
+    fontWeight: "900",
+    lineHeight: 19,
   },
   modalActionRow: {
     flexDirection: "row",

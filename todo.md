@@ -84,3 +84,14 @@
 - [x] Ensure daily prayer completion resets each day while reminder-based visibility remains date-specific
 - [x] Validate updated reminder and streak behavior with tests and app health checks
 - [x] Save checkpoint after Pray Today refinement update
+- [ ] Remove a person from Pray Today after their plus ring completion feedback finishes
+- [ ] Update the top prayed-today counter immediately as Pray Today people are completed
+- [ ] Enlarge Pray Today avatar pictures to match the screenshot scale
+- [ ] Shift urgent speech bubbles to the right side of Pray Today avatars
+- [ ] Make home contact days-since bubbles fill from 1 to 14 days, with 0 days empty
+- [ ] Make tapping Last Reached on the contact page set today's date
+- [ ] Standardize visible dates across PrayerCircle as MM-DD-YYYY
+- [ ] Validate final Pray Today completion, date, and progress-bubble refinements
+- [ ] Save checkpoint after final PrayerCircle polish update
+- [x] Compact home-screen layout sizing to match the provided screenshots
+- [x] Fix contact page navigation for all relationship categories (Family, Friends, Ministry, Prospect)

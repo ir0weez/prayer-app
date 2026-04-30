@@ -279,7 +279,7 @@ export default function HomeScreen() {
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     return (
       <Pressable key={person.id} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        {renderAvatar(person, 52)}
+        {renderAvatar(person, 44)}
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
           <Text numberOfLines={1} style={styles.personMeta}>
@@ -290,7 +290,7 @@ export default function HomeScreen() {
           <View style={[styles.reachPill, { backgroundColor: reachColor }]}> 
             <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>
           </View>
-          <MaterialIcons name={iconName("edit")} size={22} color="#8B8199" />
+          <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
         </View>
       </Pressable>
     );
@@ -481,10 +481,10 @@ const styles = StyleSheet.create({
     backgroundColor: SCREEN_BG,
   },
   header: {
-    minHeight: 118,
+    minHeight: 95,
     paddingHorizontal: 24,
-    paddingTop: 26,
-    paddingBottom: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E4DFEA",
     flexDirection: "row",
@@ -494,51 +494,51 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     color: DEEP_TEXT,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
-    letterSpacing: -1,
-    lineHeight: 34,
+    letterSpacing: -0.8,
+    lineHeight: 30,
   },
   progressText: {
-    marginTop: 7,
+    marginTop: 3,
     color: MUTED_TEXT,
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: "500",
-    lineHeight: 23,
+    lineHeight: 17,
   },
   headerStats: {
     flexDirection: "row",
-    gap: 19,
+    gap: 10,
     alignItems: "flex-end",
     paddingBottom: 1,
   },
   statItem: {
     alignItems: "center",
-    minWidth: 31,
+    minWidth: 26,
   },
   statNumber: {
-    marginTop: 4,
+    marginTop: 2,
     color: DEEP_TEXT,
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "700",
-    lineHeight: 25,
+    lineHeight: 19,
   },
   peopleContent: {
-    paddingTop: 22,
+    paddingTop: 12,
     paddingBottom: 132,
   },
   subheading: {
     marginHorizontal: 24,
     color: "#7E7A86",
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 1,
-    lineHeight: 22,
+    letterSpacing: 0.7,
+    lineHeight: 16,
   },
   storyScroller: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 35,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   storyItem: {
     width: 86,
@@ -612,23 +612,23 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   sectionBlock: {
-    marginBottom: 9,
+    marginBottom: 5,
   },
   relationshipTitle: {
-    marginHorizontal: 50,
-    marginBottom: 12,
-    fontSize: 21,
+    marginHorizontal: 24,
+    marginBottom: 8,
+    fontSize: 14,
     fontWeight: "900",
-    letterSpacing: 0.2,
-    lineHeight: 27,
+    letterSpacing: 0.15,
+    lineHeight: 18,
   },
   personCard: {
-    minHeight: 88,
+    minHeight: 70,
     marginHorizontal: 24,
-    marginBottom: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    borderRadius: 15,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E6E1EA",
     backgroundColor: "#FFFFFF",
@@ -642,70 +642,70 @@ const styles = StyleSheet.create({
   },
   personInfo: {
     flex: 1,
-    marginLeft: 14,
-    paddingRight: 8,
+    marginLeft: 10,
+    paddingRight: 6,
   },
   personName: {
     color: DEEP_TEXT,
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: "800",
-    letterSpacing: -0.25,
-    lineHeight: 25,
+    letterSpacing: -0.2,
+    lineHeight: 19,
   },
   personMeta: {
-    marginTop: 4,
+    marginTop: 2,
     color: MUTED_TEXT,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "500",
-    lineHeight: 19,
+    lineHeight: 15,
   },
   personActions: {
     alignItems: "flex-end",
-    gap: 12,
+    gap: 8,
   },
   reachPill: {
-    minWidth: 72,
-    height: 32,
-    paddingHorizontal: 16,
-    borderRadius: 16,
+    minWidth: 52,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
   reachPillText: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 12,
     fontWeight: "900",
-    lineHeight: 21,
+    lineHeight: 15,
   },
   reachPillTextMuted: {
     color: MUTED_TEXT,
   },
   emptyInlineText: {
     color: MUTED_TEXT,
-    fontSize: 16,
+    fontSize: 13,
   },
   emptyStateCard: {
     marginHorizontal: 25,
-    marginTop: 18,
-    padding: 28,
-    borderRadius: 22,
+    marginTop: 12,
+    padding: 20,
+    borderRadius: 18,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#E6E1EA",
   },
   emptyTitle: {
-    marginTop: 12,
+    marginTop: 10,
     color: DEEP_TEXT,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
   },
   emptyDescription: {
     marginTop: 6,
     color: MUTED_TEXT,
-    fontSize: 15,
+    fontSize: 13,
     textAlign: "center",
-    lineHeight: 21,
+    lineHeight: 18,
   },
   simpleScreen: {
     flex: 1,

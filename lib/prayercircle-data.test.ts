@@ -86,9 +86,19 @@ describe("PrayerCircle local data helpers", () => {
     const updated = markPersonPrayed(withItems, people[0].id);
 
     expect(updated[0].lastPrayerCompletedDate).toBe(today);
-    expect(updated[0].lastPrayedDate).toBe(today);
+    expect(updated[0].lastPrayedDate).toBeNull();
     expect(updated[0].prayerItems.every((item) => item.isDone)).toBe(true);
     expect(hasPersonCompletedPrayerToday(updated[0], today)).toBe(true);
+  });
+
+  it("keeps reached-out progress independent from prayer completion", () => {
+    const people = addPerson(initialPeople, "Grace", "Family");
+    const prayed = markPersonPrayed(people, people[0].id);
+    const reached = updatePersonLastReachedDate(people, people[0].id, getTodayISOString());
+
+    expect(prayed[0].lastPrayedDate).toBeNull();
+    expect(hasPersonCompletedPrayerToday(reached[0])).toBe(false);
+    expect(getDaysSinceLastPrayed(reached[0].lastPrayedDate)).toBe(0);
   });
 
   it("formats ISO dates as MM-DD-YYYY for display", () => {

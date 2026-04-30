@@ -3,8 +3,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
@@ -25,9 +25,10 @@ import {
   type RelationshipType,
   relationshipColors,
 } from "@/lib/prayercircle-data";
-import { PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { APP_SETTINGS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
+type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
 
 type RelationshipSection = {
   title: RelationshipType;
@@ -39,6 +40,21 @@ type PrayerStreakRecord = {
   lastCompletedDate: string | null;
 };
 
+type AppSettings = {
+  themeKey: ThemeKey;
+  darkMode: boolean;
+  demoMode: boolean;
+};
+
+type PersonalProfile = {
+  name: string;
+  fastingStreak: number;
+  personalPrayerStreak: number;
+  fastingStatus: "completed" | "skipped" | "missed" | "not-set";
+  lastFastingDate?: string | null;
+  lastPersonalPrayerDate?: string | null;
+};
+
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
 const PURPLE = "#8557D9";
 const DEEP_TEXT = "#141326";
@@ -46,6 +62,18 @@ const MUTED_TEXT = "#7E7C88";
 const SCREEN_BG = "#FAF6FF";
 const ADD_SCREEN_BG = "#EEF8FF";
 const AVATAR_PALETTE = ["#F4EAFE", "#E6F3FF", "#EAF9F0", "#FFF2DC", "#FFE9EF", "#EEF0FF"];
+const UNDO_COUNTDOWN_MS = 5000;
+
+const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primary: string; accent: string; background: string; soft: string; border: string }> = {
+  default: { name: "Default", description: "Original PrayerCircle purple theme", primary: "#8557D9", accent: "#6B46C1", background: "#FAF6FF", soft: "#F0E8FF", border: "#D8C7F3" },
+  ocean: { name: "Ocean", description: "Calming blue and teal theme", primary: "#0A86B8", accent: "#12A6A6", background: "#EEF8FF", soft: "#DDF2FA", border: "#BEE7F1" },
+  forest: { name: "Forest", description: "Natural green and earth tones", primary: "#2E8B3C", accent: "#6C7A32", background: "#F1F8EF", soft: "#E3F3DF", border: "#C9E7C4" },
+  sunset: { name: "Sunset", description: "Warm orange and coral theme", primary: "#F25700", accent: "#E56B6F", background: "#FFF6EF", soft: "#FFE6D6", border: "#F8CBB4" },
+  rose: { name: "Rose", description: "Elegant pink and rose theme", primary: "#C91463", accent: "#E75A7C", background: "#FFF3F8", soft: "#FCE2ED", border: "#F3C3D5" },
+};
+
+const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: false, demoMode: false };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -89,6 +117,64 @@ function parseStoredStreak(value: string | null): PrayerStreakRecord {
   }
 }
 
+function parseStoredSettings(value: string | null): AppSettings {
+  if (!value) return DEFAULT_SETTINGS;
+  try {
+    const parsed = JSON.parse(value) as Partial<AppSettings>;
+    const themeKey = parsed.themeKey && COLOR_THEMES[parsed.themeKey] ? parsed.themeKey : "default";
+    return { themeKey, darkMode: Boolean(parsed.darkMode), demoMode: Boolean(parsed.demoMode) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function parseStoredProfile(value: string | null): PersonalProfile {
+  if (!value) return DEFAULT_PROFILE;
+  try {
+    const parsed = JSON.parse(value) as Partial<PersonalProfile>;
+    const fastingStatus = parsed.fastingStatus === "completed" || parsed.fastingStatus === "skipped" || parsed.fastingStatus === "missed" ? parsed.fastingStatus : "not-set";
+    return {
+      name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
+      fastingStreak: typeof parsed.fastingStreak === "number" && parsed.fastingStreak > 0 ? Math.floor(parsed.fastingStreak) : 0,
+      personalPrayerStreak: typeof parsed.personalPrayerStreak === "number" && parsed.personalPrayerStreak > 0 ? Math.floor(parsed.personalPrayerStreak) : 0,
+      fastingStatus,
+      lastFastingDate: typeof parsed.lastFastingDate === "string" ? parsed.lastFastingDate : null,
+      lastPersonalPrayerDate: typeof parsed.lastPersonalPrayerDate === "string" ? parsed.lastPersonalPrayerDate : null,
+    };
+  } catch {
+    return DEFAULT_PROFILE;
+  }
+}
+
+function UndoCountdownBar({ color }: { color: string }) {
+  const progress = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    progress.setValue(1);
+    const animation = Animated.timing(progress, {
+      toValue: 0,
+      duration: UNDO_COUNTDOWN_MS,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progress]);
+
+  return (
+    <View style={styles.undoCountdownTrack}>
+      <Animated.View
+        style={[
+          styles.undoCountdownFill,
+          {
+            backgroundColor: color,
+            transform: [{ scaleX: progress }],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const today = getTodayISOString();
@@ -102,17 +188,21 @@ export default function HomeScreen() {
   const [newPersonName, setNewPersonName] = useState("");
   const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Family");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
-  const [newPersonNote, setNewPersonNote] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
+  const [showThemeSheet, setShowThemeSheet] = useState(false);
+  const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
+  const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY)])
-      .then(([storedPeople, storedStreak]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -121,6 +211,8 @@ export default function HomeScreen() {
           setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
         }
         setStreakRecord(parseStoredStreak(storedStreak));
+        setSettings(parseStoredSettings(storedSettings));
+        setProfile(parseStoredProfile(storedProfile));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -161,11 +253,35 @@ export default function HomeScreen() {
     AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify(streakRecord)).catch(() => undefined);
   }, [hasHydratedPeople, streakRecord]);
 
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings)).catch(() => undefined);
+  }, [hasHydratedPeople, settings]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile)).catch(() => undefined);
+  }, [hasHydratedPeople, profile]);
+
+  useEffect(() => {
+    const timers = undoTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
+
+  const currentTheme = COLOR_THEMES[settings.themeKey];
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
+  const visiblePrayTodayList = useMemo(
+    () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
+    [pendingPrayerIds, prayTodayList, today],
+  );
   const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
+  const pendingPrayerCount = pendingPrayerIds.filter((personId) => prayTodayList.some((person) => person.id === personId)).length;
   const streak = streakRecord.streak;
-  const prayedTodayCount = dailyPrayerProgress.prayed;
-  const remainingPrayTodayCount = dailyPrayerProgress.total - dailyPrayerProgress.prayed;
+  const prayedTodayCount = Math.min(dailyPrayerProgress.total, dailyPrayerProgress.prayed + pendingPrayerCount);
+  const remainingPrayTodayCount = Math.max(0, dailyPrayerProgress.total - prayedTodayCount);
+  const reminderCount = people.filter((person) => (person.reminderFrequency ?? "none") !== "none").length;
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
@@ -180,7 +296,6 @@ export default function HomeScreen() {
     setNewPersonName("");
     setNewPersonRelationship("Family");
     setNewPersonBirthday("");
-    setNewPersonNote("");
     setNewPersonPhotoUri(undefined);
   };
 
@@ -202,10 +317,8 @@ export default function HomeScreen() {
 
     const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
       birthday: newPersonBirthday,
-      prayerNote: newPersonNote,
       reminderFrequency: "none",
       reminderDaysOfWeek: [],
-      reminderTag: newPersonNote.split(" ").slice(0, 2).join(" "),
       photoUri: newPersonPhotoUri,
       avatarLabel: newPersonName
         .split(" ")
@@ -221,7 +334,7 @@ export default function HomeScreen() {
     setShowAddPerson(false);
   };
 
-  const maybeAdvanceStreak = (updatedPeople: Person[]) => {
+  const maybeAdvanceStreak = useCallback((updatedPeople: Person[]) => {
     const updatedPrayTodayList = getPrayTodayList(updatedPeople, todayDayOfWeek, todayDayOfMonth);
     const isDayComplete = updatedPrayTodayList.length > 0 && updatedPrayTodayList.every((person) => hasPersonCompletedPrayerToday(person, today));
     if (!isDayComplete) return;
@@ -231,12 +344,31 @@ export default function HomeScreen() {
       const nextStreak = previousRecord.lastCompletedDate === getYesterdayISOString(today) ? previousRecord.streak + 1 : 1;
       return { streak: nextStreak, lastCompletedDate: today };
     });
-  };
+  }, [today, todayDayOfMonth, todayDayOfWeek]);
+
+  const commitPrayTodayPerson = useCallback((personId: string) => {
+    setPeople((previousPeople) => {
+      const updatedPeople = markPersonPrayed(previousPeople, personId);
+      maybeAdvanceStreak(updatedPeople);
+      return updatedPeople;
+    });
+    setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
+    delete undoTimers.current[personId];
+  }, [maybeAdvanceStreak]);
 
   const handleMarkPrayTodayPerson = (personId: string) => {
-    const updatedPeople = markPersonPrayed(people, personId);
-    setPeople(updatedPeople);
-    maybeAdvanceStreak(updatedPeople);
+    const targetPerson = people.find((person) => person.id === personId);
+    if (!targetPerson || pendingPrayerIds.includes(personId) || hasPersonCompletedPrayerToday(targetPerson, today)) return;
+    setPendingPrayerIds((previousIds) => [...previousIds, personId]);
+    undoTimers.current[personId] = setTimeout(() => commitPrayTodayPerson(personId), UNDO_COUNTDOWN_MS);
+  };
+
+  const handleUndoPrayTodayPerson = (personId: string) => {
+    if (undoTimers.current[personId]) {
+      clearTimeout(undoTimers.current[personId]);
+      delete undoTimers.current[personId];
+    }
+    setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -271,7 +403,8 @@ export default function HomeScreen() {
 
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
-    const isPrayedToday = hasPersonCompletedPrayerToday(person, today);
+    const isPending = pendingPrayerIds.includes(person.id);
+    const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
         {urgentItems.length > 0 ? (
@@ -280,11 +413,17 @@ export default function HomeScreen() {
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.storyRing, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
+          <View style={[styles.storyRing, { borderColor: currentTheme.primary }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPlus, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(isPrayedToday ? "check" : "add")} size={24} color="#FFFFFF" />
+        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
         </Pressable>
+        {isPending ? (
+          <View style={styles.undoCountdownPill}>
+              <UndoCountdownBar color={currentTheme.primary} />
+            <Text style={styles.undoCountdownText}>Tap undo</Text>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -316,29 +455,29 @@ export default function HomeScreen() {
 
   const renderPeopleScreen = () => (
     <>
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: currentTheme.background, borderBottomColor: currentTheme.border }]}>
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
           <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
-            <MaterialIcons name={iconName("local-fire-department")} size={30} color={PURPLE} />
+            <MaterialIcons name={iconName("local-fire-department")} size={30} color={currentTheme.primary} />
             <Text style={styles.statNumber}>{streak}</Text>
           </View>
           <View style={styles.statItem}>
-            <MaterialIcons name={iconName("chat-bubble")} size={28} color={PURPLE} />
+            <MaterialIcons name={iconName("chat-bubble")} size={28} color={currentTheme.primary} />
             <Text style={styles.statNumber}>{remainingPrayTodayCount}</Text>
           </View>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
-        {prayTodayList.length > 0 && (
+        {visiblePrayTodayList.length > 0 && (
           <>
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
-              {prayTodayList.slice(0, 8).map(renderStoryPerson)}
+              {visiblePrayTodayList.slice(0, 8).map(renderStoryPerson)}
             </ScrollView>
           </>
         )}
@@ -350,7 +489,7 @@ export default function HomeScreen() {
           </View>
         )) : (
           <View style={styles.emptyStateCard}>
-            <MaterialIcons name={iconName("groups")} size={46} color={PURPLE} />
+            <MaterialIcons name={iconName("groups")} size={46} color={currentTheme.primary} />
             <Text style={styles.emptyTitle}>No people yet</Text>
             <Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text>
           </View>
@@ -360,18 +499,120 @@ export default function HomeScreen() {
   );
 
   const renderSimpleScreen = (title: string, icon: string, description: string) => (
-    <View style={styles.simpleScreen}>
-      <MaterialIcons name={iconName(icon)} size={54} color={PURPLE} />
+    <View style={[styles.simpleScreen, { backgroundColor: currentTheme.background }]}>
+      <MaterialIcons name={iconName(icon)} size={54} color={currentTheme.primary} />
       <Text style={styles.simpleTitle}>{title}</Text>
       <Text style={styles.simpleDescription}>{description}</Text>
     </View>
   );
 
+  const renderSettingsRow = (icon: string, title: string, subtitle: string, tone: "normal" | "danger" = "normal", right?: React.ReactNode) => (
+    <View style={styles.settingsRow}>
+      <View style={[styles.settingsIconTile, { backgroundColor: tone === "danger" ? "#FFF0F2" : currentTheme.soft }]}>
+        <MaterialIcons name={iconName(icon)} size={23} color={tone === "danger" ? "#D3384A" : currentTheme.primary} />
+      </View>
+      <View style={styles.settingsRowText}>
+        <Text style={[styles.settingsRowTitle, tone === "danger" && styles.settingsRowTitleDanger]}>{title}</Text>
+        <Text style={styles.settingsRowSubtitle}>{subtitle}</Text>
+      </View>
+      {right ?? <MaterialIcons name={iconName("chevron-right")} size={24} color="#73808B" />}
+    </View>
+  );
+
+  const handleSetFastingStatus = (status: "completed" | "skipped" | "missed") => {
+    setProfile((previous) => {
+      const alreadyRecordedToday = previous.lastFastingDate === today && previous.fastingStatus === status;
+      if (alreadyRecordedToday) return previous;
+      const nextStreak = status === "completed"
+        ? previous.lastFastingDate === getYesterdayISOString(today) || previous.lastFastingDate === today
+          ? previous.fastingStreak + 1
+          : 1
+        : status === "missed"
+          ? 0
+          : previous.fastingStreak;
+      return { ...previous, fastingStatus: status, fastingStreak: nextStreak, lastFastingDate: today };
+    });
+  };
+
+  const handleCompletePersonalPrayer = () => {
+    setProfile((previous) => {
+      if (previous.lastPersonalPrayerDate === today) return previous;
+      const nextStreak = previous.lastPersonalPrayerDate === getYesterdayISOString(today) ? previous.personalPrayerStreak + 1 : 1;
+      return { ...previous, personalPrayerStreak: nextStreak, lastPersonalPrayerDate: today };
+    });
+  };
+
+  const renderSettingsScreen = () => (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
+      <Text style={styles.settingsTitle}>Settings</Text>
+      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
+        <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+          <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />
+        </View>
+        <View style={styles.profileSummaryText}>
+          <TextInput
+            value={profile.name}
+            onChangeText={(name) => setProfile((previous) => ({ ...previous, name }))}
+            placeholder="Your name"
+            placeholderTextColor="#73808B"
+            returnKeyType="done"
+            style={styles.profileNameInput}
+          />
+          <Text style={styles.profileSubtitle}>Personal prayer and fasting tracker</Text>
+        </View>
+        <View style={styles.profileStreakBadge}>
+          <MaterialIcons name={iconName("local-fire-department")} size={20} color={currentTheme.primary} />
+          <Text style={[styles.profileStreakText, { color: currentTheme.primary }]}>{profile.fastingStreak}</Text>
+        </View>
+      </View>
+      <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
+        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
+        <View style={styles.settingsStatDivider} />
+        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{prayedTodayCount}</Text><Text style={styles.settingsStatLabel}>Prayed Today</Text></View>
+        <View style={styles.settingsStatDivider} />
+        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{reminderCount}</Text><Text style={styles.settingsStatLabel}>Reminders</Text></View>
+      </View>
+
+      <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
+      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+        {renderSettingsRow("wb-sunny", "Dark Mode", "Use a calmer low-light interface", "normal", <Switch value={settings.darkMode} onValueChange={(darkMode) => setSettings((previous) => ({ ...previous, darkMode }))} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.darkMode ? "#FFFFFF" : "#4F6470"} />)}
+        <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && styles.pressed]}>
+          {renderSettingsRow("palette", "Color Theme", currentTheme.name, "normal", <View style={[styles.colorSwatch, { backgroundColor: currentTheme.primary }]} />)}
+        </Pressable>
+        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
+      </View>
+
+      <Text style={styles.settingsSectionLabel}>PROFILE & FASTING</Text>
+      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+        {renderSettingsRow("local-fire-department", "Fasting Streak", `${profile.fastingStreak} completed day${profile.fastingStreak === 1 ? "" : "s"}`)}
+        <View style={styles.fastStatusRow}>
+          {(["completed", "skipped", "missed"] as const).map((status) => (
+            <Pressable key={status} onPress={() => handleSetFastingStatus(status)} style={({ pressed }) => [styles.fastStatusPill, profile.fastingStatus === status && { backgroundColor: currentTheme.primary, borderColor: currentTheme.primary }, pressed && styles.pressed]}>
+              <Text style={[styles.fastStatusText, profile.fastingStatus === status && styles.fastStatusTextActive]}>{status[0].toUpperCase() + status.slice(1)}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {renderSettingsRow("favorite", "Personal Prayer", `${profile.personalPrayerStreak} day streak`, "normal", <Pressable onPress={handleCompletePersonalPrayer} style={({ pressed }) => [styles.smallActionButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}><Text style={styles.smallActionButtonText}>{profile.lastPersonalPrayerDate === today ? "Done" : "Complete"}</Text></Pressable>)}
+      </View>
+
+      <Text style={styles.settingsSectionLabel}>DATA</Text>
+      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+        {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
+        {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
+      </View>
+
+      <Text style={styles.settingsSectionLabel}>ABOUT</Text>
+      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+        {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
+      </View>
+    </ScrollView>
+  );
+
   const renderContent = () => {
     if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
     if (activeTab === "reminders") return renderSimpleScreen("Reminders", "notifications", "Choose which people appear in Pray Today.");
-    if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your prayer notes appear here." : "Prayer notes will appear here after you add them.");
-    return renderSimpleScreen("Settings", "settings", "Adjust PrayerCircle preferences.");
+    if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your journal entries appear here." : "Personal prayer journal entries will appear here later.");
+    return renderSettingsScreen();
   };
 
   const renderTab = (tab: AppTab, label: string, icon: string) => {
@@ -383,9 +624,9 @@ export default function HomeScreen() {
           setActiveTab(tab);
           setShowAddPerson(false);
         }}
-        style={({ pressed }) => [styles.tabItem, isActive && styles.tabItemActive, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.tabItem, isActive && { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}
       >
-        <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#77737D"} />
+        <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#5F6670"} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
       </Pressable>
     );
@@ -393,7 +634,7 @@ export default function HomeScreen() {
 
   if (showAddPerson) {
     return (
-      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.addScreenRoot}>
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: currentTheme.background }]}>
         <View style={styles.addTopBar}>
           <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
@@ -410,7 +651,7 @@ export default function HomeScreen() {
               {newPersonPhotoUri ? (
                 <Image source={{ uri: newPersonPhotoUri }} style={styles.photoPreview} />
               ) : (
-                <MaterialIcons name={iconName("photo-camera")} size={34} color={PURPLE} />
+                <MaterialIcons name={iconName("photo-camera")} size={34} color={currentTheme.primary} />
               )}
               <View style={styles.photoBadge}>
                 <MaterialIcons name={iconName("add")} size={21} color="#FFFFFF" />
@@ -456,23 +697,13 @@ export default function HomeScreen() {
           />
           <Text style={styles.fieldHint}>Format: YYYY-MM-DD (e.g., 1990-03-15)</Text>
 
-          <Text style={styles.fieldLabel}>PRAYER NOTES (optional)</Text>
-          <TextInput
-            value={newPersonNote}
-            onChangeText={setNewPersonNote}
-            placeholder="What would you like to pray about for this person?"
-            placeholderTextColor="#73808B"
-            multiline
-            textAlignVertical="top"
-            style={[styles.textInput, styles.notesInput]}
-          />
         </ScrollView>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.root}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: currentTheme.background }]}>
       {renderContent()}
 
       <Pressable
@@ -480,17 +711,44 @@ export default function HomeScreen() {
           setActiveTab("people");
           setShowAddPerson(true);
         }}
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        style={({ pressed }) => [styles.fab, { backgroundColor: currentTheme.primary }, pressed && styles.fabPressed]}
       >
         <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
       </Pressable>
 
-      <BlurView intensity={76} tint="light" experimentalBlurMethod="dimezisBlurView" style={styles.bottomNav}>
+      <BlurView intensity={82} tint="light" experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: currentTheme.border }]}>
         {renderTab("people", "People", "groups")}
         {renderTab("reminders", "Reminders", "notifications")}
         {renderTab("journal", "Journal", "article")}
         {renderTab("settings", "Settings", "settings")}
       </BlurView>
+
+      <Modal transparent visible={showThemeSheet} animationType="slide" onRequestClose={() => setShowThemeSheet(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
+          <View style={styles.themeSheet}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
+              <Text style={styles.sheetTitle}>Color Theme</Text>
+              <View style={{ width: 48 }} />
+            </View>
+            {(Object.keys(COLOR_THEMES) as ThemeKey[]).map((themeKey) => {
+              const theme = COLOR_THEMES[themeKey];
+              const selected = settings.themeKey === themeKey;
+              return (
+                <Pressable key={themeKey} onPress={() => setSettings((previous) => ({ ...previous, themeKey }))} style={({ pressed }) => [styles.themeOption, selected && { borderColor: theme.primary, borderWidth: 2 }, pressed && styles.pressed]}>
+                  <View style={[styles.themeOptionSwatch, { backgroundColor: theme.primary }]} />
+                  <View style={styles.themeOptionText}>
+                    <Text style={styles.themeOptionTitle}>{theme.name}</Text>
+                    <Text style={styles.themeOptionDescription}>{theme.description}</Text>
+                  </View>
+                  {selected ? <MaterialIcons name={iconName("check-circle")} size={30} color={theme.primary} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -620,6 +878,32 @@ const styles = StyleSheet.create({
   },
   storyPlusDone: {
     backgroundColor: "#31C48D",
+  },
+  undoCountdownPill: {
+    position: "absolute",
+    left: 2,
+    right: 2,
+    bottom: -17,
+    alignItems: "center",
+    gap: 2,
+  },
+  undoCountdownTrack: {
+    width: 58,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(20,19,38,0.12)",
+    overflow: "hidden",
+  },
+  undoCountdownFill: {
+    width: "100%",
+    height: 4,
+    borderRadius: 2,
+  },
+  undoCountdownText: {
+    color: MUTED_TEXT,
+    fontSize: 9,
+    fontWeight: "800",
+    lineHeight: 10,
   },
   avatar: {
     alignItems: "center",
@@ -766,6 +1050,268 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     lineHeight: 23,
+  },
+  settingsContent: {
+    paddingHorizontal: 24,
+    paddingTop: 26,
+    paddingBottom: 132,
+  },
+  settingsTitle: {
+    color: DEEP_TEXT,
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: -1.1,
+    lineHeight: 42,
+    marginBottom: 18,
+  },
+  profileSettingsCard: {
+    minHeight: 92,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  profileAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileSummaryText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  profileName: {
+    color: DEEP_TEXT,
+    fontSize: 21,
+    fontWeight: "800",
+    lineHeight: 26,
+  },
+  profileNameInput: {
+    color: DEEP_TEXT,
+    fontSize: 21,
+    fontWeight: "800",
+    lineHeight: 26,
+    padding: 0,
+    margin: 0,
+  },
+  profileSubtitle: {
+    marginTop: 2,
+    color: MUTED_TEXT,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 17,
+  },
+  profileStreakBadge: {
+    minWidth: 52,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  profileStreakText: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  settingsStatsCard: {
+    minHeight: 90,
+    marginTop: -1,
+    marginBottom: 32,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  settingsStatColumn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  settingsStatNumber: {
+    fontSize: 31,
+    fontWeight: "900",
+    lineHeight: 38,
+  },
+  settingsStatLabel: {
+    color: MUTED_TEXT,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 17,
+  },
+  settingsStatDivider: {
+    width: 1,
+    height: 42,
+    backgroundColor: "rgba(128,145,160,0.24)",
+  },
+  settingsSectionLabel: {
+    marginLeft: 6,
+    marginBottom: 12,
+    color: "#5E6570",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 1.7,
+    lineHeight: 19,
+  },
+  settingsCard: {
+    marginBottom: 30,
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  settingsRow: {
+    minHeight: 82,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(204,220,226,0.55)",
+  },
+  settingsIconTile: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settingsRowText: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  settingsRowTitle: {
+    color: DEEP_TEXT,
+    fontSize: 20,
+    fontWeight: "900",
+    lineHeight: 25,
+  },
+  settingsRowTitleDanger: {
+    color: "#D3384A",
+  },
+  settingsRowSubtitle: {
+    marginTop: 2,
+    color: MUTED_TEXT,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  colorSwatch: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+  },
+  fastStatusRow: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    flexDirection: "row",
+    gap: 8,
+  },
+  fastStatusPill: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: "#D9E4EA",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  fastStatusText: {
+    color: MUTED_TEXT,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  fastStatusTextActive: {
+    color: "#FFFFFF",
+  },
+  smallActionButton: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  smallActionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 15,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.46)",
+  },
+  themeSheet: {
+    maxHeight: "72%",
+    paddingBottom: 28,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: "#FFFBFF",
+  },
+  sheetHeader: {
+    minHeight: 64,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetDone: {
+    color: "#77737D",
+    fontSize: 19,
+    fontWeight: "600",
+  },
+  sheetTitle: {
+    color: DEEP_TEXT,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  themeOption: {
+    minHeight: 92,
+    marginHorizontal: 24,
+    marginBottom: 12,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E4E1E8",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  themeOptionSwatch: {
+    width: 58,
+    height: 58,
+    borderRadius: 10,
+  },
+  themeOptionText: {
+    flex: 1,
+    marginLeft: 18,
+  },
+  themeOptionTitle: {
+    color: DEEP_TEXT,
+    fontSize: 21,
+    fontWeight: "900",
+    lineHeight: 27,
+  },
+  themeOptionDescription: {
+    marginTop: 2,
+    color: MUTED_TEXT,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
   },
   fab: {
     position: "absolute",

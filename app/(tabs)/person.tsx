@@ -20,7 +20,6 @@ import {
   togglePrayerItemDone,
   togglePrayerItemUrgent,
   updatePersonLastReachedDate,
-  updatePersonPrayerNote,
   updatePersonReminderWithTime,
   type Person,
   type ReminderFrequency,
@@ -238,7 +237,7 @@ export default function PersonScreen() {
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
   const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : PURPLE;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
-  const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() || currentPerson.lastPrayedDate === getTodayISOString() : false;
+  const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() : false;
 
   const updatePeople = (updater: (previousPeople: Person[]) => Person[]) => {
     setPeople((previousPeople) => updater(previousPeople));
@@ -361,11 +360,6 @@ export default function PersonScreen() {
 
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate));
     setShowDateModal(false);
-  };
-
-  const handleUpdatePrayerNote = (note: string) => {
-    if (!personId) return;
-    updatePeople((previousPeople) => updatePersonPrayerNote(previousPeople, personId, note));
   };
 
   if (!hasHydratedPeople) {
@@ -499,18 +493,6 @@ export default function PersonScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.notesSection}>
-          <Text style={styles.sectionTitle}>Prayer Notes</Text>
-          <TextInput
-            style={styles.notesInput}
-            placeholder="Write a prayer thought..."
-            placeholderTextColor={MUTED_TEXT}
-            multiline
-            textAlignVertical="top"
-            value={currentPerson.prayerNote ?? ""}
-            onChangeText={handleUpdatePrayerNote}
-          />
-        </View>
       </ScrollView>
 
       <Modal transparent visible={showReminderModal} animationType="slide" onRequestClose={() => setShowReminderModal(false)}>

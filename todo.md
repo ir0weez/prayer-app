@@ -113,3 +113,16 @@
 - [x] Make reached-out progress bars start empty at 0 days and fill over the following days
 - [x] Validate contact actions, Pray Today counter, tab bar layout, and progress behavior
 - [x] Save checkpoint after contact and home refinements
+- [x] Decouple reached-out progress bars from Mark as Prayed / Pray Today completion
+- [x] Ensure reached-out progress updates only when an individual contact's reached date changes
+- [x] Add an undo countdown after tapping the Pray Today avatar plus button
+- [x] Remove Pray Today avatars only after the undo countdown completes
+- [x] Add to the flame streak only after the entire Pray Today area is completed
+- [x] Remove Prayer Notes from contact creation and contact detail surfaces
+- [x] Refine bottom tab bar to better match the provided frosted pill screenshot
+- [x] Redesign Settings to match the provided card-based screenshot
+- [x] Add app-wide color theme selection with multiple theme choices
+- [x] Add a personal profile card above the Settings stats card
+- [x] Add fasting streak display to the Settings profile card
+- [x] Validate PrayerCircle progress, undo countdown, settings theme, and profile fasting refinements
+- [x] Save checkpoint after PrayerCircle progress, settings, and profile refinement pass

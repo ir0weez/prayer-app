@@ -175,8 +175,7 @@ export function getLastReachedAccentColor(person: Person): string {
 }
 
 export function hasPersonCompletedPrayerToday(person: Person, dateString = getTodayISOString()): boolean {
-  if (person.lastPrayerCompletedDate === dateString) return true;
-  return person.lastPrayerCompletedDate === undefined && person.lastPrayedDate === dateString;
+  return person.lastPrayerCompletedDate === dateString;
 }
 
 // Helper: Get daily prayer progress
@@ -220,7 +219,6 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
       ? {
           ...p,
           lastPrayerCompletedDate: today,
-          lastPrayedDate: today,
           prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: true })),
         }
       : p,

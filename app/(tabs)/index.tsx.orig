@@ -35,7 +35,6 @@ import {
   getFastCalendarDays,
   getFastProgress,
   normalizeFastDateInput,
-  parseIsoDateFromMmDdYyyy,
   normalizeFastsForStorage,
   type FastDayStatus,
   type FastType,
@@ -245,8 +244,6 @@ export default function HomeScreen() {
   const [draftFastType, setDraftFastType] = useState<FastType>("Health");
   const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
-  const [showFastEditor, setShowFastEditor] = useState(false);
-  const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -628,69 +625,6 @@ export default function HomeScreen() {
     setShowProfileEditor(false);
   };
 
-  const openFastEditor = (fastId: string) => {
-    const fast = fasts.find((f) => f.id === fastId);
-    if (!fast) return;
-    setEditingFastId(fastId);
-    setDraftFastName(fast.name);
-    setDraftFastStartDate(formatIsoToMmDdYyyy(fast.startDate));
-    setDraftFastDuration(fast.durationDays);
-    setDraftFastType(fast.type);
-    setDraftFastFocusItems([...fast.focusItems]);
-    setShowFastEditor(true);
-  };
-
-  const handleSaveFastEdit = () => {
-    if (!editingFastId) return;
-    const trimmedName = draftFastName.trim();
-    if (!trimmedName) {
-      Alert.alert("Add a name", "Enter a fast name before saving.");
-      return;
-    }
-    const parsedStartDate = parseIsoDateFromMmDdYyyy(draftFastStartDate);
-    if (!parsedStartDate) {
-      Alert.alert("Check start date", "Use MM/DD/YYYY format, such as 05/01/2026.");
-      return;
-    }
-    setFasts((previousFasts) =>
-      previousFasts.map((fast) =>
-        fast.id === editingFastId
-          ? {
-              ...fast,
-              name: trimmedName,
-              startDate: parsedStartDate,
-              durationDays: draftFastDuration,
-              type: draftFastType,
-              focusItems: draftFastFocusItems.filter((item) => item.trim()),
-            }
-          : fast,
-      ),
-    );
-    setShowFastEditor(false);
-    setEditingFastId(null);
-  };
-
-  const confirmDeleteFast = (fastId: string) => {
-    const fast = fasts.find((f) => f.id === fastId);
-    if (!fast) return;
-    Alert.alert(
-      `Delete "${fast.name}"?`,
-      "This removes the fast and all its daily tracking data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            setFasts((previousFasts) => previousFasts.filter((f) => f.id !== fastId));
-            setShowFastEditor(false);
-            setEditingFastId(null);
-          },
-        },
-      ],
-    );
-  };
-
   const resetFastCreator = () => {
     setDraftFastName("");
     setDraftFastStartDate(formatIsoToMmDdYyyy(today));
@@ -737,20 +671,21 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
-        <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+      <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }, pressed && styles.pressed]}>
+        <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
           {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
-          </View>
-        </Pressable>
-        <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profileSummaryTextButton, pressed && styles.pressed]}>
+        </View>
+        <View style={styles.profileSummaryText}>
           <Text style={styles.profileNameText}>{profile.name}</Text>
           <View style={styles.profileSubtitleRow}>
             <Text style={styles.profileSubtitle}>Tap for your prayer and fasting profile</Text>
             {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
           </View>
+        </View>
+        <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileEditButton, pressed && styles.pressed]}>
+          <Text style={[styles.profileEditButtonText, { color: currentTheme.primary }]}>Edit</Text>
         </Pressable>
-      </View>
+      </Pressable>
       <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
         <View style={styles.settingsStatDivider} />
@@ -760,25 +695,18 @@ export default function HomeScreen() {
       </View>
 
       {activeFast && (
-        <View style={[styles.fastSummaryCard, { borderColor: currentTheme.border }]}>
-          <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryContent, pressed && styles.pressed]}>
-            <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
-              <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
-            </View>
-            <View style={styles.fastSummaryText}>
-              <Text style={styles.fastSummaryTitle}>{activeFast.type}</Text>
-              <Text style={styles.fastSummarySubtitle}>{activeFast.durationDays} days • {activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays} completed • streak {activeFastStreak}</Text>
-            </View>
-          </Pressable>
-          <View style={styles.fastSummaryActions}>
-            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.fastActionButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("edit")} size={20} color={currentTheme.primary} />
-            </Pressable>
-            <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
-            </Pressable>
+        <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryCard, { borderColor: currentTheme.border }, pressed && styles.pressed]}>
+          <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
+            <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
           </View>
-        </View>
+          <View style={styles.fastSummaryText}>
+            <Text style={styles.fastSummaryTitle}>{activeFast.type}</Text>
+            <Text style={styles.fastSummarySubtitle}>{activeFast.durationDays} days • {activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays} completed • streak {activeFastStreak}</Text>
+          </View>
+          <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
+          </Pressable>
+        </Pressable>
       )}
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
@@ -1398,12 +1326,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 16,
   },
-  profileAvatarButton: {
-    padding: 4,
+  profileEditButton: {
+    minWidth: 58,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  profileSummaryTextButton: {
-    flex: 1,
-    marginLeft: 12,
+  profileEditButtonText: {
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 18,
   },
   profilePhotoEditor: {
     alignItems: "center",
@@ -1425,22 +1359,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 12,
-  },
-  fastSummaryContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  fastSummaryActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  fastActionButton: {
-    padding: 8,
   },
   fastSummaryIcon: {
     width: 48,

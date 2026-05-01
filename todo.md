@@ -174,3 +174,8 @@
 
 - [x] Fix avatar ring colors in Pray Today section to match relationship-type colors (not just avatar fill).
 - [x] Fix date timezone issue: "Last Reached" button marks next day instead of today (device date mismatch).
+
+- [x] Add fast editing modal to allow users to modify fast details (name, start date, duration, type, focus items).
+- [x] Allow custom start date input for fasts (not just today).
+- [x] Fix streak pill visibility by removing Edit button and making profile picture/name directly editable inline.
+- [x] Add delete fast function with confirmation dialog.

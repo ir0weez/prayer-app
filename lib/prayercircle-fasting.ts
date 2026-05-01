@@ -46,6 +46,10 @@ export function formatIsoToMmDdYyyy(dateString: string | null | undefined): stri
   return `${month}-${day}-${year}`;
 }
 
+export function parseIsoDateFromMmDdYyyy(dateString: string): string | null {
+  return normalizeFastDateInput(dateString);
+}
+
 export function isValidMmDdYyyy(value: string): boolean {
   return normalizeFastDateInput(value) !== null;
 }

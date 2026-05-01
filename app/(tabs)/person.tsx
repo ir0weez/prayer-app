@@ -88,13 +88,15 @@ function normalizeOptionalDraft(value: string) {
 function normalizeBirthdayInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  const mmddyyyy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  // Accept both MM/DD/YYYY (slashes) and MM-DD-YYYY (dashes) formats
+  const mmddyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/.exec(trimmed);
   if (!mmddyyyy) return null;
   const [, month, day, year] = mmddyyyy;
   const iso = `${year}-${month}-${day}`;
   const date = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(iso)) return null;
-  return `${month}-${day}-${year}`;
+  // Return in MM/DD/YYYY format with slashes
+  return `${month}/${day}/${year}`;
 }
 
 function isValidIsoDate(value: string) {
@@ -343,7 +345,7 @@ export default function PersonScreen() {
 
     const normalizedBirthday = normalizeBirthdayInput(draftBirthday);
     if (normalizedBirthday === null) {
-      Alert.alert("Check birthday", "Use MM-DD-YYYY, such as 03-15-1990.");
+      Alert.alert("Check birthday", "Use MM/DD/YYYY, such as 03/15/1990.");
       return;
     }
 
@@ -620,7 +622,18 @@ export default function PersonScreen() {
                 <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
               </Pressable>
             </View>
-            <Text style={styles.modalDescription}>Update this person’s details or delete them from your prayer list.</Text>
+            <Text style={styles.modalDescription}>Update this person's details or delete them from your prayer list.</Text>
+            <Text style={styles.modalFieldLabel}>Picture</Text>
+            <Pressable onPress={handlePickPersonPhoto} style={({ pressed }) => [styles.editPhotoPicker, pressed && styles.pressed]}>
+              <View style={styles.editPhotoCircle}>
+                {draftPhotoUri ? (
+                  <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
+                ) : (
+                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
+                )}
+              </View>
+              <Text style={styles.editPhotoText}>{draftPhotoUri ? "Change picture" : "Add picture"}</Text>
+            </Pressable>
             <Text style={styles.modalFieldLabel}>Name</Text>
             <TextInput
               value={draftName}
@@ -654,23 +667,12 @@ export default function PersonScreen() {
             <TextInput
               value={draftBirthday}
               onChangeText={setDraftBirthday}
-              placeholder="MM-DD-YYYY"
+              placeholder="MM/DD/YYYY"
               placeholderTextColor={MUTED_TEXT}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
               style={styles.modalInput}
             />
-            <Text style={styles.modalFieldLabel}>Picture</Text>
-            <Pressable onPress={handlePickPersonPhoto} style={({ pressed }) => [styles.editPhotoPicker, pressed && styles.pressed]}>
-              <View style={styles.editPhotoCircle}>
-                {draftPhotoUri ? (
-                  <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
-                ) : (
-                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
-                )}
-              </View>
-              <Text style={styles.editPhotoText}>{draftPhotoUri ? "Change picture" : "Add picture"}</Text>
-            </Pressable>
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />

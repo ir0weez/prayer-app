@@ -99,18 +99,19 @@ function iconName(name: string) {
 function normalizeBirthdayInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  const mmddyyyy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  // Accept both MM/DD/YYYY (slashes) and MM-DD-YYYY (dashes) formats
+  const mmddyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/.exec(trimmed);
   if (mmddyyyy) {
     const [, month, day, year] = mmddyyyy;
     const iso = `${year}-${month}-${day}`;
     const date = new Date(`${iso}T00:00:00Z`);
-    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(iso)) return trimmed;
+    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(iso)) return `${month}/${day}/${year}`;
   }
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (iso) {
     const [, year, month, day] = iso;
     const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(`${year}-${month}-${day}`)) return `${month}-${day}-${year}`;
+    if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(`${year}-${month}-${day}`)) return `${month}/${day}/${year}`;
   }
   return null;
 }
@@ -478,7 +479,7 @@ export default function HomeScreen() {
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.storyRing, { borderColor: currentTheme.primary }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
+          <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
         <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
           <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
@@ -676,7 +677,10 @@ export default function HomeScreen() {
         </View>
         <View style={styles.profileSummaryText}>
           <Text style={styles.profileNameText}>{profile.name}</Text>
-          <Text style={styles.profileSubtitle}>Tap for your prayer and fasting profile</Text>
+          <View style={styles.profileSubtitleRow}>
+            <Text style={styles.profileSubtitle}>Tap for your prayer and fasting profile</Text>
+            {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
+          </View>
         </View>
         <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileEditButton, pressed && styles.pressed]}>
           <Text style={[styles.profileEditButtonText, { color: currentTheme.primary }]}>Edit</Text>
@@ -690,18 +694,20 @@ export default function HomeScreen() {
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{reminderCount}</Text><Text style={styles.settingsStatLabel}>Reminders</Text></View>
       </View>
 
-      <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryCard, { borderColor: currentTheme.border }, pressed && styles.pressed]}>
-        <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
-          <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
-        </View>
-        <View style={styles.fastSummaryText}>
-          <Text style={styles.fastSummaryTitle}>{activeFast ? activeFast.type : "No active fast"}</Text>
-          <Text style={styles.fastSummarySubtitle}>{activeFast ? `${activeFast.durationDays} days • ${activeFastProgress?.completed ?? 0}/${activeFastProgress?.total ?? activeFast.durationDays} completed • streak ${activeFastStreak}` : "Create a fast from your profile"}</Text>
-        </View>
-        <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
+      {activeFast && (
+        <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryCard, { borderColor: currentTheme.border }, pressed && styles.pressed]}>
+          <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
+            <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
+          </View>
+          <View style={styles.fastSummaryText}>
+            <Text style={styles.fastSummaryTitle}>{activeFast.type}</Text>
+            <Text style={styles.fastSummarySubtitle}>{activeFast.durationDays} days • {activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays} completed • streak {activeFastStreak}</Text>
+          </View>
+          <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
+          </Pressable>
         </Pressable>
-      </Pressable>
+      )}
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -1302,6 +1308,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 17,
+  },
+  profileSubtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 8,
+  },
+  fastingStreakPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  fastingStreakText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   profileEditButton: {
     minWidth: 58,

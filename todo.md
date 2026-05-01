@@ -166,3 +166,11 @@
 - [x] Add fasting type, fasting length, and quick successful-day or long-press status control under Settings stats.
 - [x] Show fasting calendar and current fasting focus list from the personal profile/streak area.
 - [x] Hide the floating add button on tabs other than People if feasible.
+- [x] Change contact edit birthday input guidance and validation from MM-DD-YYYY to MM/DD/YYYY.
+- [x] Move the contact edit profile-picture editor to the top of the edit page.
+- [x] Move Settings fasting information into the profile card and prayer-information area.
+- [x] Restore a fasting streak pill in the Settings profile card.
+- [ ] Change fasting focus into an editable fasting list with to-do-list style behavior.
+
+- [x] Fix avatar ring colors in Pray Today section to match relationship-type colors (not just avatar fill).
+- [x] Fix date timezone issue: "Last Reached" button marks next day instead of today (device date mismatch).

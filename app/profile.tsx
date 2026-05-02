@@ -188,9 +188,33 @@ export default function ProfileScreen() {
             <MaterialIcons name={iconName("arrow-back")} size={26} color={DEEP_TEXT} />
           </Pressable>
           <Text style={styles.headerTitle}>My Profile</Text>
-          <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
-          </Pressable>
+          <View style={styles.headerRightButtons}>
+            {selectedFast && (
+              <Pressable onPress={() => {
+                Alert.alert(
+                  `Delete "${selectedFast.name}"?`,
+                  "This removes the fast and all its daily tracking data.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: () => {
+                        const nextFasts = fasts.filter((f) => f.id !== selectedFast.id);
+                        persistFasts(nextFasts);
+                        setSelectedFastId(null);
+                      },
+                    },
+                  ],
+                );
+              }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("trash")} size={24} color="#C75265" />
+              </Pressable>
+            )}
+            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.profileCard}>
@@ -355,6 +379,11 @@ const styles = StyleSheet.create({
     backgroundColor: PURPLE,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerRightButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerTitle: {
     color: DEEP_TEXT,

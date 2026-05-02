@@ -189,3 +189,5 @@
 - [x] Implement fasting focus as interactive to-do list (add/remove/check items)
 - [x] Fix calendar date alignment to match actual calendar dates (already fixed with timezone fix)
 - [x] Implement system dark mode detection and proper theme switching
+
+- [x] Add delete icon (trash) to top right of fast profile screen

@@ -761,6 +761,13 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+        <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastStreak}</Text><Text style={styles.settingsStatLabel}>Streak</Text></View>
+          <View style={styles.settingsStatDivider} />
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
+          <View style={styles.settingsStatDivider} />
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{activeFastProgress?.total ?? 0}</Text><Text style={styles.settingsStatLabel}>Days</Text></View>
+        </View>
       </View>
       <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
@@ -1380,6 +1387,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     marginTop: 4,
+  },
+  fastingStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
   },
   profileAvatar: {
     width: 54,

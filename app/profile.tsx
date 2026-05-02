@@ -208,7 +208,7 @@ export default function ProfileScreen() {
                   ],
                 );
               }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("trash")} size={24} color="#C75265" />
+                <MaterialIcons name="delete" size={24} color="#C75265" />
               </Pressable>
             )}
             <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>

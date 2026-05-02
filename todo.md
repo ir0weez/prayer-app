@@ -199,3 +199,10 @@
 - [x] Remove "Tap for your prayer and fasting Profile" subtitle text
 - [x] Add birthday display under the name
 - [x] Add "Fast" pill button to access fast profile
+
+## Urgent Fixes
+
+- [x] Reconnect profile card to stats bar (should be one unified card)
+- [x] Change stats bar to show "Fasting" stats instead of People/Prayed Today/Reminders
+- [x] Fix trash icon on fast profile screen (should be red trashcan, not question mark)
+- [x] Fix alignment/spacing issues in profile card and stats bar

@@ -66,6 +66,7 @@ type AppSettings = {
 type PersonalProfile = {
   name: string;
   photoUri?: string;
+  birthday?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -737,19 +738,29 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
-        <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
-          {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
-          </View>
-        </Pressable>
-        <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profileSummaryTextButton, pressed && styles.pressed]}>
-          <Text style={styles.profileNameText}>{profile.name}</Text>
-          <View style={styles.profileSubtitleRow}>
-            <Text style={styles.profileSubtitle}>Tap for your prayer and fasting profile</Text>
+      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: "#FFFFFF" }]}>
+        <View style={styles.profileCardTop}>
+          <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
+            <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+              {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
+            </View>
+          </Pressable>
+          <View style={styles.profileCardTopRight}>
             {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
           </View>
-        </Pressable>
+        </View>
+        <View style={styles.profileCardContent}>
+          <Text style={styles.profileNameText}>{profile.name}</Text>
+          {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
+          <View style={styles.profileCardButtons}>
+            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+              <Text style={styles.profilePillButtonText}>Profile</Text>
+            </Pressable>
+            <Pressable onPress={() => { if (activeFast) openFastEditor(activeFast.id); else setShowFastCreator(true); }} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+              <Text style={styles.profilePillButtonText}>Fast</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
       <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
@@ -1322,16 +1333,53 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   profileSettingsCard: {
-    minHeight: 92,
+    minHeight: 140,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 18,
+    flexDirection: "column",
+    marginHorizontal: 24,
+    marginBottom: 16,
+  },
+  profileCardTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  profileCardTopRight: {
+    alignItems: "flex-end",
+  },
+  profileCardContent: {
+    flex: 1,
+  },
+  profileCardButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  profilePillButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: "#F0E8FF",
+    borderWidth: 1,
+    borderColor: "#E0D8EA",
+  },
+  profilePillButtonText: {
+    color: "#8557D9",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  profileBirthdayText: {
+    color: "#7E7C88",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
   },
   profileAvatar: {
     width: 54,

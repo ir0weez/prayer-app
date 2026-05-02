@@ -191,3 +191,11 @@
 - [x] Implement system dark mode detection and proper theme switching
 
 - [x] Add delete icon (trash) to top right of fast profile screen
+
+## Profile Card Redesign (Settings)
+
+- [x] Make profile card white background and increase vertical height
+- [x] Move streak pill to the right side of the card
+- [x] Remove "Tap for your prayer and fasting Profile" subtitle text
+- [x] Add birthday display under the name
+- [x] Add "Fast" pill button to access fast profile

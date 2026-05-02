@@ -757,29 +757,16 @@ export default function HomeScreen() {
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{prayedTodayCount}</Text><Text style={styles.settingsStatLabel}>Prayed Today</Text></View>
         <View style={styles.settingsStatDivider} />
         <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{reminderCount}</Text><Text style={styles.settingsStatLabel}>Reminders</Text></View>
+        {activeFast && (
+          <>
+            <View style={styles.settingsStatDivider} />
+            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.settingsStatColumn, pressed && styles.pressed]}>
+              <Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays}</Text>
+              <Text style={styles.settingsStatLabel}>{activeFast.name}</Text>
+            </Pressable>
+          </>
+        )}
       </View>
-
-      {activeFast && (
-        <View style={[styles.fastSummaryCard, { borderColor: currentTheme.border }]}>
-          <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastSummaryContent, pressed && styles.pressed]}>
-            <View style={[styles.fastSummaryIcon, { backgroundColor: activeFastTypeInfo?.color ?? currentTheme.primary }]}>
-              <MaterialIcons name={iconName(activeFastTypeInfo?.icon ?? "local-fire-department")} size={25} color="#FFFFFF" />
-            </View>
-            <View style={styles.fastSummaryText}>
-              <Text style={styles.fastSummaryTitle}>{activeFast.type}</Text>
-              <Text style={styles.fastSummarySubtitle}>{activeFast.durationDays} days • {activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays} completed • streak {activeFastStreak}</Text>
-            </View>
-          </Pressable>
-          <View style={styles.fastSummaryActions}>
-            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.fastActionButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("edit")} size={20} color={currentTheme.primary} />
-            </Pressable>
-            <Pressable onPress={() => handleSetFastingStatus("completed")} onLongPress={() => handleSetFastingStatus(activeFastTodayStatus === "completed" ? "skipped" : "missed")} delayLongPress={420} style={({ pressed }) => [styles.fastQuickButton, { backgroundColor: activeFastTodayStatus === "completed" ? "#31C48D" : currentTheme.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName(activeFastTodayStatus === "completed" ? "check" : "add")} size={21} color="#FFFFFF" />
-            </Pressable>
-          </View>
-        </View>
-      )}
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -940,14 +927,15 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => setShowFastCreator(false)}>
+      <Modal transparent visible={showFastCreator || showFastEditor} animationType="slide" onRequestClose={() => { setShowFastCreator(false); setShowFastEditor(false); }}>
         <View style={styles.sheetOverlay}>
-          <Pressable style={styles.sheetBackdrop} onPress={() => setShowFastCreator(false)} />
+          <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <View style={[styles.themeSheet, styles.fastCreatorSheet]}>
             <View style={styles.sheetHeader}>
-              <Pressable onPress={() => setShowFastCreator(false)}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
-              <Text style={styles.sheetTitle}>Start a New Fast</Text>
-              <View style={{ width: 42 }} />
+              <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
+              <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
+              {editingFastId && <Pressable onPress={() => confirmDeleteFast(editingFastId)} style={({ pressed }) => [pressed && styles.pressed]}><MaterialIcons name={iconName("trash")} size={24} color="#C75265" /></Pressable>}
+              {!editingFastId && <View style={{ width: 42 }} />}
             </View>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>FAST NAME</Text>
@@ -984,8 +972,8 @@ export default function HomeScreen() {
               <View style={styles.focusChipRow}>
                 {draftFastFocusItems.map((item) => <Text key={item} style={styles.focusChip}>{item}</Text>)}
               </View>
-              <Pressable onPress={handleCreateFast} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
-                <Text style={styles.createFastButtonText}>Create Fast</Text>
+              <Pressable onPress={editingFastId ? handleSaveFastEdit : handleCreateFast} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
+                <Text style={styles.createFastButtonText}>{editingFastId ? "Save Changes" : "Create Fast"}</Text>
               </Pressable>
             </ScrollView>
           </View>
@@ -1386,11 +1374,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
     gap: 8,
+    flexWrap: "wrap",
   },
   fastingStreakPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    marginTop: 4,
   },
   fastingStreakText: {
     color: "#FFFFFF",
@@ -1559,6 +1549,17 @@ const styles = StyleSheet.create({
     color: PURPLE,
     fontSize: 12,
     fontWeight: "800",
+  },
+  focusChipContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFE8FB",
+    borderRadius: 14,
+    paddingRight: 6,
+  },
+  focusChipDelete: {
+    padding: 4,
+    marginLeft: 4,
   },
   createFastButton: {
     minHeight: 58,

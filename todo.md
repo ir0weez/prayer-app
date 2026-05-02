@@ -179,3 +179,13 @@
 - [x] Allow custom start date input for fasts (not just today).
 - [x] Fix streak pill visibility by removing Edit button and making profile picture/name directly editable inline.
 - [x] Add delete fast function with confirmation dialog.
+
+## Settings Refactor & Fast Features (Priority)
+
+- [x] Fix streak pill overflow from profile card (layout/spacing issue)
+- [x] Add edit and delete buttons to fast editor modal
+- [x] Move fast summary card info into the stats row (People/Prayed Today/Reminders)
+- [x] Remove separate fast summary card from Settings
+- [x] Implement fasting focus as interactive to-do list (add/remove/check items)
+- [x] Fix calendar date alignment to match actual calendar dates (already fixed with timezone fix)
+- [x] Implement system dark mode detection and proper theme switching

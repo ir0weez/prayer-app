@@ -14,6 +14,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
+  const [followSystem, setFollowSystem] = useState(true);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     nativewindColorScheme.set(scheme);
@@ -31,8 +32,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     setColorSchemeState(scheme);
+    setFollowSystem(false);
     applyScheme(scheme);
   }, [applyScheme]);
+
+  useEffect(() => {
+    if (followSystem) {
+      setColorSchemeState(systemScheme);
+      applyScheme(systemScheme);
+    }
+  }, [systemScheme, followSystem, applyScheme]);
 
   useEffect(() => {
     applyScheme(colorScheme);
@@ -61,7 +70,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }),
     [colorScheme, setColorScheme],
   );
-  console.log(value, themeVariables)
 
   return (
     <ThemeContext.Provider value={value}>

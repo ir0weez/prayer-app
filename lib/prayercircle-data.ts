@@ -97,11 +97,15 @@ export const initialJournal: JournalEntry[] = [];
 export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
   if (!lastPrayedDate) return 999; // Never reached
 
-  const last = new Date(lastPrayedDate + "T00:00:00Z");
+  // Parse the date string (format: YYYY-MM-DD) and create a local date
+  const [year, month, day] = lastPrayedDate.split('-').map(Number);
+  const last = new Date(year, month - 1, day, 0, 0, 0, 0);
+  
+  // Get today's local date
   const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
 
-  const diff = today.getTime() - last.getTime();
+  const diff = todayLocal.getTime() - last.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
 

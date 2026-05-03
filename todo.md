@@ -206,3 +206,9 @@
 - [x] Change stats bar to show "Fasting" stats instead of People/Prayed Today/Reminders
 - [x] Fix trash icon on fast profile screen (should be red trashcan, not question mark)
 - [x] Fix alignment/spacing issues in profile card and stats bar
+
+## Timezone Issues
+
+- [x] Audit all date calculations to use local timezone consistently
+- [ ] Add timezone setting to Settings page (manual offset adjustment)
+- [x] Ensure "Last Reached" dates match device date, not UTC

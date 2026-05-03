@@ -769,22 +769,7 @@ export default function HomeScreen() {
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{activeFastProgress?.total ?? 0}</Text><Text style={styles.settingsStatLabel}>Days</Text></View>
         </View>
       </View>
-      <View style={[styles.settingsStatsCard, { borderColor: currentTheme.border, backgroundColor: currentTheme.soft }]}>
-        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{people.length}</Text><Text style={styles.settingsStatLabel}>People</Text></View>
-        <View style={styles.settingsStatDivider} />
-        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{prayedTodayCount}</Text><Text style={styles.settingsStatLabel}>Prayed Today</Text></View>
-        <View style={styles.settingsStatDivider} />
-        <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{reminderCount}</Text><Text style={styles.settingsStatLabel}>Reminders</Text></View>
-        {activeFast && (
-          <>
-            <View style={styles.settingsStatDivider} />
-            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.settingsStatColumn, pressed && styles.pressed]}>
-              <Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastProgress?.completed ?? 0}/{activeFastProgress?.total ?? activeFast.durationDays}</Text>
-              <Text style={styles.settingsStatLabel}>{activeFast.name}</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
+
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -1346,11 +1331,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 18,
+    paddingHorizontal: 24,
     paddingVertical: 18,
     flexDirection: "column",
     marginHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   profileCardTop: {
     flexDirection: "row",

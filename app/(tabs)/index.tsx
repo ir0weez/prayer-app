@@ -993,7 +993,7 @@ export default function HomeScreen() {
               <View style={styles.fastFocusRow}>
                 <TextInput value={draftFastFocusInput} onChangeText={setDraftFastFocusInput} placeholder="e.g., Social Media" placeholderTextColor="#73808B" returnKeyType="done" style={[styles.textInput, styles.fastFocusInput]} />
                 <Pressable onPress={addDraftFastFocusItem} style={({ pressed }) => [styles.fastFocusAdd, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("add")} size={30} color="#FFFFFF" />
+                  <MaterialIcons name={iconName(editingFastId ? "edit" : "add")} size={30} color="#FFFFFF" />
                 </Pressable>
               </View>
               <View style={styles.focusChipRow}>

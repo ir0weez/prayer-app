@@ -91,7 +91,7 @@ const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primar
   rose: { name: "Rose", description: "Elegant pink and rose theme", primary: "#C91463", accent: "#E75A7C", background: "#FFF3F8", soft: "#FCE2ED", border: "#F3C3D5" },
 };
 
-const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: false, demoMode: false };
+const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: true, demoMode: false };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null };
 
 function iconName(name: string) {
@@ -311,6 +311,22 @@ export default function HomeScreen() {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings)).catch(() => undefined);
   }, [hasHydratedPeople, settings]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    // Apply dark mode setting to the app
+    if (settings.darkMode) {
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.add("dark");
+        document.documentElement.dataset.theme = "dark";
+      }
+    } else {
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.dataset.theme = "light";
+      }
+    }
+  }, [hasHydratedPeople, settings.darkMode]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -1326,16 +1342,17 @@ const styles = StyleSheet.create({
   },
   profileSettingsCard: {
     minHeight: 140,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    borderWidth: 1,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderWidth: 0,
     paddingHorizontal: 24,
     paddingVertical: 18,
     flexDirection: "column",
-    marginHorizontal: 24,
+    marginHorizontal: 0,
     marginBottom: 24,
+    backgroundColor: "transparent",
   },
   profileCardTop: {
     flexDirection: "row",

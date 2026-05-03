@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 18,
     flexDirection: "column",
-    marginHorizontal: 24,
+    marginHorizontal: 0,
     marginBottom: 24,
     backgroundColor: "#FFFFFF",
   },

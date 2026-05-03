@@ -756,26 +756,28 @@ export default function HomeScreen() {
       <Text style={styles.settingsTitle}>Settings</Text>
       <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: "#FFFFFF" }]}>
         <View style={styles.profileCardTop}>
-          <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-            <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
-              {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
+          <View style={styles.profileCardTopLeft}>
+            <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
+              <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+                {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
+              </View>
+            </Pressable>
+            <View style={styles.profileNameAndBirthdayContainer}>
+              <Text style={styles.profileNameText}>{profile.name}</Text>
+              {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
             </View>
-          </Pressable>
+          </View>
           <View style={styles.profileCardTopRight}>
             {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
           </View>
         </View>
-        <View style={styles.profileCardContent}>
-          <Text style={styles.profileNameText}>{profile.name}</Text>
-          {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-          <View style={styles.profileCardButtons}>
-            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-              <Text style={styles.profilePillButtonText}>Profile</Text>
-            </Pressable>
-            <Pressable onPress={() => { if (activeFast) openFastEditor(activeFast.id); else setShowFastCreator(true); }} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-              <Text style={styles.profilePillButtonText}>Fast</Text>
-            </Pressable>
-          </View>
+        <View style={styles.profileCardButtons}>
+          <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+            <Text style={styles.profilePillButtonText}>Profile</Text>
+          </Pressable>
+          <Pressable onPress={() => { if (activeFast) openFastEditor(activeFast.id); else setShowFastCreator(true); }} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+            <Text style={styles.profilePillButtonText}>Fast</Text>
+          </Pressable>
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastStreak}</Text><Text style={styles.settingsStatLabel}>Streak</Text></View>
@@ -1342,28 +1344,37 @@ const styles = StyleSheet.create({
   },
   profileSettingsCard: {
     minHeight: 140,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderWidth: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    borderWidth: 1,
     paddingHorizontal: 24,
     paddingVertical: 18,
     flexDirection: "column",
-    marginHorizontal: 0,
+    marginHorizontal: 24,
     marginBottom: 24,
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
   },
   profileCardTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
+  },
+  profileCardTopLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 12,
   },
   profileCardTopRight: {
     alignItems: "flex-end",
   },
   profileCardContent: {
+    flex: 1,
+  },
+  profileNameAndBirthdayContainer: {
     flex: 1,
   },
   profileCardButtons: {
@@ -1413,12 +1424,6 @@ const styles = StyleSheet.create({
   profileSummaryText: {
     flex: 1,
     marginLeft: 12,
-  },
-  profileName: {
-    color: DEEP_TEXT,
-    fontSize: 21,
-    fontWeight: "800",
-    lineHeight: 26,
   },
   profileNameText: {
     color: DEEP_TEXT,

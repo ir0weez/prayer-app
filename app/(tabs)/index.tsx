@@ -775,9 +775,15 @@ export default function HomeScreen() {
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
             <Text style={styles.profilePillButtonText}>Profile</Text>
           </Pressable>
-          <Pressable onPress={() => { if (activeFast) openFastEditor(activeFast.id); else setShowFastCreator(true); }} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Fast</Text>
-          </Pressable>
+          {activeFast ? (
+            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("edit")} size={16} color={currentTheme.primary} />
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("add")} size={16} color={currentTheme.primary} />
+            </Pressable>
+          )}
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastStreak}</Text><Text style={styles.settingsStatLabel}>Streak</Text></View>

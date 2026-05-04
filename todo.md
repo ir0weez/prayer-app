@@ -214,3 +214,5 @@
 - [x] Ensure "Last Reached" dates match device date, not UTC
 
 - [x] Update Settings fasting stats to show Completed (Green)/Skipped (Yellow)/Missed (Red) instead of Streak/Completed/Days
+
+- [x] Fix fasting streak pill in Settings profile card to show fasting streak instead of prayer streak

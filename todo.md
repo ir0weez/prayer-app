@@ -220,3 +220,5 @@
 - [x] Fix "Pray Today" section to show all scheduled prayers (currently stops at 8 contacts)
 
 - [x] Change Settings profile card buttons: "Profile" → "Fast", edit icon → "Prayer" text button
+
+- [x] Change fasting profile top-right button: edit icon when fast exists, plus icon when no fast

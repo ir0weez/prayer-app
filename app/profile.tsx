@@ -212,7 +212,7 @@ export default function ProfileScreen() {
               </Pressable>
             )}
             <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+              <MaterialIcons name={selectedFast ? "edit" : iconName("add")} size={24} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>

@@ -773,17 +773,11 @@ export default function HomeScreen() {
         </View>
         <View style={styles.profileCardButtons}>
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Profile</Text>
+            <Text style={styles.profilePillButtonText}>Fast</Text>
           </Pressable>
-          {activeFast ? (
-            <Pressable onPress={() => openFastEditor(activeFast.id)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("edit")} size={16} color={currentTheme.primary} />
-            </Pressable>
-          ) : (
-            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("add")} size={16} color={currentTheme.primary} />
-            </Pressable>
-          )}
+          <Pressable onPress={() => router.push("/person")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+            <Text style={styles.profilePillButtonText}>Prayer</Text>
+          </Pressable>
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>

@@ -212,3 +212,5 @@
 - [x] Audit all date calculations to use local timezone consistently
 - [ ] Add timezone setting to Settings page (manual offset adjustment)
 - [x] Ensure "Last Reached" dates match device date, not UTC
+
+- [x] Update Settings fasting stats to show Completed (Green)/Skipped (Yellow)/Missed (Red) instead of Streak/Completed/Days

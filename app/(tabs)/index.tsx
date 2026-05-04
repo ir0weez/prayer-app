@@ -786,11 +786,11 @@ export default function HomeScreen() {
           )}
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: activeFastTypeInfo?.color ?? currentTheme.primary }]}>{activeFastStreak}</Text><Text style={styles.settingsStatLabel}>Streak</Text></View>
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
           <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#F59E0B" }]}>{activeFastProgress?.skipped ?? 0}</Text><Text style={styles.settingsStatLabel}>Skipped</Text></View>
           <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: currentTheme.primary }]}>{activeFastProgress?.total ?? 0}</Text><Text style={styles.settingsStatLabel}>Days</Text></View>
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
       </View>
 

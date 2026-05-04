@@ -222,3 +222,6 @@
 - [x] Change Settings profile card buttons: "Profile" → "Fast", edit icon → "Prayer" text button
 
 - [x] Change fasting profile top-right button: edit icon when fast exists, plus icon when no fast
+
+- [x] Create personal prayer page (for user's own prayers, like contact prayer pages)
+- [x] Update "Prayer" button to navigate to personal prayer page

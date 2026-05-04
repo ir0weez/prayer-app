@@ -775,7 +775,7 @@ export default function HomeScreen() {
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
             <Text style={styles.profilePillButtonText}>Fast</Text>
           </Pressable>
-          <Pressable onPress={() => router.push("/person")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push("/personal-prayer")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
             <Text style={styles.profilePillButtonText}>Prayer</Text>
           </Pressable>
         </View>

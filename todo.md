@@ -216,3 +216,5 @@
 - [x] Update Settings fasting stats to show Completed (Green)/Skipped (Yellow)/Missed (Red) instead of Streak/Completed/Days
 
 - [x] Fix fasting streak pill in Settings profile card to show fasting streak instead of prayer streak
+
+- [x] Fix "Pray Today" section to show all scheduled prayers (currently stops at 8 contacts)

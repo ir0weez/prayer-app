@@ -563,7 +563,7 @@ export default function HomeScreen() {
           <>
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
-              {visiblePrayTodayList.slice(0, 8).map(renderStoryPerson)}
+              {visiblePrayTodayList.map(renderStoryPerson)}
             </ScrollView>
           </>
         )}

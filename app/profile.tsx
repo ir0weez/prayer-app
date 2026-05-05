@@ -108,7 +108,11 @@ export default function ProfileScreen() {
       Promise.all([AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY)])
         .then(([storedProfile, storedFasts]) => {
           if (!isActive) return;
-          const nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
+          let nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
+          nextFasts = nextFasts.map((fast) => ({
+            ...fast,
+            focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses),
+          }));
           setProfile(parseStoredProfile(storedProfile));
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);

@@ -266,3 +266,9 @@
 ## Bug Fixes
 
 - [x] Fix edit fast functionality - made fast card pressable to open edit modal with proper state management
+
+## Pray Today Celebration Enhancement (Complete)
+
+- [x] Updated celebration to use user's profile picture from fasting profile (or person icon if no photo)
+- [x] Connected streak counter to actual fasting streak from profile.fastingStreak
+- [x] All 61 tests passing, TypeScript checks clean

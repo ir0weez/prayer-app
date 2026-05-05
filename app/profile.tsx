@@ -90,6 +90,7 @@ export default function ProfileScreen() {
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
+  const [isEditingFast, setIsEditingFast] = useState(false);
   const [draftFastName, setDraftFastName] = useState("");
   const [draftFastStartDate, setDraftFastStartDate] = useState(formatIsoToMmDdYyyy(today));
   const [draftFastDuration, setDraftFastDuration] = useState<number>(40);
@@ -151,32 +152,64 @@ export default function ProfileScreen() {
   };
 
   const resetFastCreator = () => {
-    setDraftFastName("");
-    setDraftFastStartDate(formatIsoToMmDdYyyy(today));
-    setDraftFastDuration(40);
-    setDraftFastType("Health");
-    setDraftFastFocusInput("");
-    setDraftFastFocusItems([]);
+    if (isEditingFast && selectedFast) {
+      setDraftFastName(selectedFast.name);
+      setDraftFastStartDate(formatIsoToMmDdYyyy(selectedFast.startDate));
+      setDraftFastDuration(selectedFast.durationDays);
+      setDraftFastType(selectedFast.type);
+      setDraftFastFocusInput("");
+      setDraftFastFocusItems(selectedFast.focusItems || []);
+    } else {
+      setDraftFastName("");
+      setDraftFastStartDate(formatIsoToMmDdYyyy(today));
+      setDraftFastDuration(40);
+      setDraftFastType("Health");
+      setDraftFastFocusInput("");
+      setDraftFastFocusItems([]);
+    }
   };
 
   const createFast = () => {
     const focusItems = draftFastFocusInput.trim() ? [...draftFastFocusItems, draftFastFocusInput.trim()] : draftFastFocusItems;
-    const fast = createPersonalFast({
-      name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
-      startDate: draftFastStartDate,
-      durationDays: draftFastDuration,
-      type: draftFastType,
-      focusItems,
-      existingCount: fasts.length,
-    });
-    if (!fast || !normalizeFastDateInput(draftFastStartDate)) {
+    
+    if (!normalizeFastDateInput(draftFastStartDate)) {
       Alert.alert("Check fast details", "Use MM-DD-YYYY for the start date and choose a duration.");
       return;
     }
-    const nextFasts = [fast, ...fasts];
-    persistFasts(nextFasts);
-    setSelectedFastId(fast.id);
+
+    if (isEditingFast && selectedFast) {
+      // Update existing fast
+      const updatedFast: PersonalFast = {
+        ...selectedFast,
+        name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
+        startDate: draftFastStartDate,
+        durationDays: draftFastDuration,
+        type: draftFastType,
+        focusItems,
+      };
+      const nextFasts = fasts.map((f) => (f.id === selectedFast.id ? updatedFast : f));
+      persistFasts(nextFasts);
+    } else {
+      // Create new fast
+      const fast = createPersonalFast({
+        name: draftFastName || `${draftFastDuration}-Day ${draftFastType} Fast`,
+        startDate: draftFastStartDate,
+        durationDays: draftFastDuration,
+        type: draftFastType,
+        focusItems,
+        existingCount: fasts.length,
+      });
+      if (!fast) {
+        Alert.alert("Check fast details", "Use MM-DD-YYYY for the start date and choose a duration.");
+        return;
+      }
+      const nextFasts = [fast, ...fasts];
+      persistFasts(nextFasts);
+      setSelectedFastId(fast.id);
+    }
+    
     setShowFastCreator(false);
+    setIsEditingFast(false);
     resetFastCreator();
   };
 
@@ -211,7 +244,12 @@ export default function ProfileScreen() {
                 <MaterialIcons name="delete" size={24} color="#C75265" />
               </Pressable>
             )}
-            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
+            <Pressable onPress={() => {
+              if (selectedFast) {
+                setIsEditingFast(true);
+              }
+              setShowFastCreator(true);
+            }} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
               <MaterialIcons name={selectedFast ? "edit" : iconName("add")} size={24} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -299,13 +337,25 @@ export default function ProfileScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => setShowFastCreator(false)}>
+      <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => {
+        setShowFastCreator(false);
+        setIsEditingFast(false);
+        resetFastCreator();
+      }}>
         <View style={styles.sheetOverlay}>
-          <Pressable style={styles.sheetBackdrop} onPress={() => setShowFastCreator(false)} />
+          <Pressable style={styles.sheetBackdrop} onPress={() => {
+            setShowFastCreator(false);
+            setIsEditingFast(false);
+            resetFastCreator();
+          }} />
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
-              <Pressable onPress={() => setShowFastCreator(false)}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
-              <Text style={styles.sheetTitle}>Start a New Fast</Text>
+              <Pressable onPress={() => {
+                setShowFastCreator(false);
+                setIsEditingFast(false);
+                resetFastCreator();
+              }}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
+              <Text style={styles.sheetTitle}>{isEditingFast ? "Edit Fast" : "Start a New Fast"}</Text>
               <View style={{ width: 34 }} />
             </View>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -342,7 +392,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.focusWrap}>{draftFastFocusItems.map((item) => <Text key={item} style={styles.focusChip}>{item}</Text>)}</View>
               <Pressable onPress={createFast} style={({ pressed }) => [styles.sheetCreateButton, pressed && styles.pressed]}>
-                <Text style={styles.sheetCreateButtonText}>Create Fast</Text>
+                <Text style={styles.sheetCreateButtonText}>{isEditingFast ? "Save Fast" : "Create Fast"}</Text>
               </Pressable>
             </ScrollView>
           </View>

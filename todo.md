@@ -225,3 +225,15 @@
 
 - [x] Create personal prayer page (for user's own prayers, like contact prayer pages)
 - [x] Update "Prayer" button to navigate to personal prayer page
+
+## Fast Editor Modal Completion (Current)
+
+- [x] Update modal close handlers (onRequestClose, backdrop, close button) to reset isEditingFast
+- [x] Update createFast function to handle edit mode (update existing fast instead of creating new)
+- [x] Update modal title to show "Edit Fast" or "Start a New Fast" based on edit mode
+- [x] Update save button text to show "Save Fast" or "Create Fast" based on edit mode
+- [x] Write unit tests for fast creation and editing logic
+- [x] Verify all tests pass (41 passed, 1 skipped)
+- [ ] Test fast editing end-to-end (open existing fast, edit details, save changes)
+- [ ] Test fast creation still works (no existing fast, create new one)
+- [ ] Verify modal closes properly and resets state after save or cancel

@@ -15,11 +15,15 @@ import {
   getActiveFast,
   getFastCalendarDays,
   getFastProgress,
+  getTodayFocusItemStatus,
   normalizeFastDateInput,
   normalizeFastsForStorage,
+  resetFocusItemsForNewDay,
   type FastDayStatus,
   type FastType,
+  type FocusItemStatus,
   type PersonalFast,
+  updateFocusItemStatus,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -133,6 +137,22 @@ export default function ProfileScreen() {
       return;
     }
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
+  };
+
+  const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
+    if (!selectedFast) return;
+    const updatedStatuses = updateFocusItemStatus(
+      selectedFast.focusItemDailyStatuses,
+      focusItem,
+      today,
+      status,
+    );
+    const updatedFast: PersonalFast = {
+      ...selectedFast,
+      focusItemDailyStatuses: updatedStatuses,
+    };
+    const nextFasts = fasts.map((f) => (f.id === selectedFast.id ? updatedFast : f));
+    persistFasts(nextFasts);
   };
 
   const chooseStatusForDate = (dateString: string) => {
@@ -286,7 +306,21 @@ export default function ProfileScreen() {
 
             <Text style={styles.sectionLabel}>FASTING FOCUS</Text>
             <View style={styles.focusWrap}>
-              {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => <Text key={item} style={styles.focusChip}>{item}</Text>)}
+              {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => {
+                const focusStatus = getTodayFocusItemStatus(selectedFast.focusItemDailyStatuses, item, today);
+                const focusColor = focusStatus === "completed" ? "#31C48D" : focusStatus === "missed" ? "#D3384A" : "#8557D9";
+                return (
+                  <Pressable
+                    key={item}
+                    onPress={() => updateFocusItemStatusForFast(item, "completed")}
+                    onLongPress={() => updateFocusItemStatusForFast(item, "missed")}
+                    delayLongPress={420}
+                    style={({ pressed }) => [styles.focusChip, { backgroundColor: focusColor }, pressed && { opacity: 0.7 }]}
+                  >
+                    <Text style={[{ color: "#FFFFFF", fontSize: 13, fontWeight: "900" }]}>{item}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <Text style={styles.sectionLabel}>TODAY</Text>

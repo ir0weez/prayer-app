@@ -559,14 +559,27 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
-        {visiblePrayTodayList.length > 0 && (
+        {visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0 ? (
           <>
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && (
+                <View key="completion-celebration" style={styles.storyItem}>
+                  <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
+                    <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
+                      <Text style={[styles.avatarText, { fontSize: 32, color: "#FFFFFF" }]}>✨</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
+                    <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
+                    <Text style={styles.streakBadgeText}>{streak}</Text>
+                  </View>
+                </View>
+              )}
             </ScrollView>
           </>
-        )}
+        ) : null}
 
         {relationshipSections.length > 0 ? relationshipSections.map((section) => (
           <View key={section.title} style={styles.sectionBlock}>
@@ -1182,6 +1195,25 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     lineHeight: 10,
+  },
+  streakBadge: {
+    position: "absolute",
+    right: 3,
+    bottom: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: SCREEN_BG,
+    flexDirection: "row",
+    gap: 2,
+  },
+  streakBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
   },
   avatar: {
     alignItems: "center",

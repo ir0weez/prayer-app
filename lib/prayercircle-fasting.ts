@@ -11,7 +11,16 @@ export type PersonalFast = {
   type: FastType;
   focusItems: string[];
   dayStatuses: Record<string, FastDayStatus>;
+  focusItemDailyStatuses?: Record<string, FocusItemDailyStatus[]>; // Track daily completion/missed status per focus item
   createdAt: string;
+};
+
+// Focus item daily tracking (separate from main fasting streak)
+export type FocusItemStatus = "pending" | "completed" | "missed";
+
+export type FocusItemDailyStatus = {
+  date: string; // ISO YYYY-MM-DD
+  status: FocusItemStatus;
 };
 
 export const FAST_DURATIONS = [1, 7, 30, 40, 90, 365] as const;
@@ -167,4 +176,61 @@ function isValidIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+
+
+/**
+ * Get today's focus item status for a specific focus item.
+ * Returns "pending", "completed", or "missed".
+ * If no status exists for today, returns "pending".
+ */
+export function getTodayFocusItemStatus(
+  focusItemDailyStatuses: Record<string, FocusItemDailyStatus[]> | undefined,
+  focusItem: string,
+  today: string, // ISO YYYY-MM-DD
+): FocusItemStatus {
+  if (!focusItemDailyStatuses || !focusItemDailyStatuses[focusItem]) {
+    return "pending";
+  }
+  const todayStatus = focusItemDailyStatuses[focusItem].find((s) => s.date === today);
+  return todayStatus?.status ?? "pending";
+}
+
+/**
+ * Update a focus item's status for today.
+ * If the status already exists for today, it's replaced.
+ * Otherwise, a new entry is added.
+ */
+export function updateFocusItemStatus(
+  focusItemDailyStatuses: Record<string, FocusItemDailyStatus[]> | undefined,
+  focusItem: string,
+  today: string, // ISO YYYY-MM-DD
+  status: FocusItemStatus,
+): Record<string, FocusItemDailyStatus[]> {
+  const current = focusItemDailyStatuses ?? {};
+  const itemStatuses = current[focusItem] ?? [];
+  
+  // Remove today's entry if it exists
+  const filtered = itemStatuses.filter((s) => s.date !== today);
+  
+  // Add the new status
+  const updated = [...filtered, { date: today, status }];
+  
+  return {
+    ...current,
+    [focusItem]: updated,
+  };
+}
+
+/**
+ * Reset all focus items to "pending" for a new day.
+ * Call this when the date changes.
+ */
+export function resetFocusItemsForNewDay(
+  focusItemDailyStatuses: Record<string, FocusItemDailyStatus[]> | undefined,
+): Record<string, FocusItemDailyStatus[]> {
+  // Simply return an empty object to reset all statuses
+  // The UI will treat missing entries as "pending"
+  return {};
 }

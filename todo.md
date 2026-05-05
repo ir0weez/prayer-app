@@ -237,3 +237,21 @@
 - [ ] Test fast editing end-to-end (open existing fast, edit details, save changes)
 - [ ] Test fast creation still works (no existing fast, create new one)
 - [ ] Verify modal closes properly and resets state after save or cancel
+
+## Focus Items Daily Tracking (In Progress)
+
+- [x] Design focus item tracking data structure (pending/completed/missed)
+- [x] Update PersonalFast type to include focusItemDailyStatuses
+- [x] Implement focus item status persistence in AsyncStorage
+- [x] Create focus item UI with tap (green) and long-press (red) handlers
+- [ ] Complete focus item daily reset logic in profile.tsx useFocusEffect
+- [ ] Write unit tests for focus item tracking functions
+- [ ] Test focus item tap (green) and hold (red) interactions
+
+## Completion Celebration Feature (New)
+
+- [x] Design completion celebration UI with user avatar and fasting streak
+- [x] Implement celebration display in Pray Today section
+- [x] Add logic to show celebration only when all prayers are completed
+- [x] Ensure celebration persists until next day (resets with daily prayer completion)
+- [ ] Test end-to-end completion flow

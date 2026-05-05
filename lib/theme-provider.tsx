@@ -14,7 +14,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
-  const [followSystem, setFollowSystem] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     nativewindColorScheme.set(scheme);
@@ -32,20 +32,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     setColorSchemeState(scheme);
-    setFollowSystem(false);
     applyScheme(scheme);
   }, [applyScheme]);
 
+  // Initialize with system color scheme on mount
   useEffect(() => {
-    if (followSystem) {
+    if (!isInitialized) {
+      setColorSchemeState(systemScheme);
+      applyScheme(systemScheme);
+      setIsInitialized(true);
+    }
+  }, [isInitialized, applyScheme, systemScheme]);
+
+  // Always sync with system color scheme changes
+  useEffect(() => {
+    if (isInitialized) {
       setColorSchemeState(systemScheme);
       applyScheme(systemScheme);
     }
-  }, [systemScheme, followSystem, applyScheme]);
-
-  useEffect(() => {
-    applyScheme(colorScheme);
-  }, [applyScheme, colorScheme]);
+  }, [systemScheme, isInitialized, applyScheme]);
 
   const themeVariables = useMemo(
     () =>

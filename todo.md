@@ -255,3 +255,10 @@
 - [x] Add logic to show celebration only when all prayers are completed
 - [x] Ensure celebration persists until next day (resets with daily prayer completion)
 - [ ] Test end-to-end completion flow
+
+## Dark Mode System Settings Fix (Complete)
+
+- [x] Investigated current dark mode implementation - found theme provider had followSystem logic but wasn't properly initializing
+- [x] Fixed theme provider to properly initialize with system color scheme on app load
+- [x] Implemented system settings listener for theme changes - now syncs whenever system color scheme changes
+- [x] TypeScript checks clean, ready for testing

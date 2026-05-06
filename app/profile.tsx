@@ -271,7 +271,6 @@ export default function ProfileScreen() {
             <Pressable onPress={() => {
               if (selectedFast) {
                 setIsEditingFast(true);
-                resetFastCreator();
               }
               setShowFastCreator(true);
             }} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
@@ -311,6 +310,7 @@ export default function ProfileScreen() {
                 <Text style={styles.fastTitle}>{selectedFast.name}</Text>
                 <Text style={styles.fastMeta}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
               </View>
+              <MaterialIcons name={iconName("edit")} size={20} color={MUTED_TEXT} />
             </Pressable>
 
             <Text style={styles.sectionLabel}>FASTING FOCUS</Text>

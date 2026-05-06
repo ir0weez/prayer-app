@@ -292,3 +292,10 @@ Recommended for future work with CSS-in-JS solution or dynamic style generation.
 - [ ] Reposition urgent speech bubbles to upper-right of avatars (currently center)
 - [ ] Add timezone setting to Settings page (manual offset adjustment)
 - [ ] Change fasting focus into editable to-do list with check-off behavior
+
+## Bug Fixes (Complete)
+
+- [x] Fixed streak badge in Pray Today completion celebration to show actual fasting streak
+  - Added useEffect to sync profile.fastingStreak with activeFastStreak whenever active fast changes
+  - Sets streak to 0 when no active fast exists
+  - All 61 tests passing, TypeScript clean

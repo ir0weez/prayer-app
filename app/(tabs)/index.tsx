@@ -398,6 +398,17 @@ export default function HomeScreen() {
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
 
+  // Sync profile.fastingStreak with activeFastStreak
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    if (!activeFast) {
+      setProfile((prev) => ({ ...prev, fastingStreak: 0 }));
+      return;
+    }
+    const currentActiveFastStreak = calculateFastStreak(activeFast, today);
+    setProfile((prev) => ({ ...prev, fastingStreak: currentActiveFastStreak }));
+  }, [hasHydratedPeople, activeFast, today]);
+
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
       RELATIONSHIP_ORDER.map((relationship) => ({

@@ -271,6 +271,7 @@ export default function ProfileScreen() {
             <Pressable onPress={() => {
               if (selectedFast) {
                 setIsEditingFast(true);
+                resetFastCreator();
               }
               setShowFastCreator(true);
             }} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>

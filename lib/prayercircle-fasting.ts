@@ -229,8 +229,20 @@ export function updateFocusItemStatus(
  */
 export function resetFocusItemsForNewDay(
   focusItemDailyStatuses: Record<string, FocusItemDailyStatus[]> | undefined,
+  today: string,
 ): Record<string, FocusItemDailyStatus[]> {
-  // Simply return an empty object to reset all statuses
-  // The UI will treat missing entries as "pending"
+  if (!focusItemDailyStatuses || Object.keys(focusItemDailyStatuses).length === 0) {
+    return {};
+  }
+
+  // Check if any status exists for today
+  for (const statuses of Object.values(focusItemDailyStatuses)) {
+    if (statuses.length > 0 && statuses[statuses.length - 1].date === today) {
+      // Today's statuses exist, don't reset
+      return focusItemDailyStatuses;
+    }
+  }
+
+  // No statuses for today exist, reset for new day
   return {};
 }

@@ -126,8 +126,16 @@ describe("Focus Item Daily Tracking", () => {
 
   describe("resetFocusItemsForNewDay", () => {
     it("returns empty object when statuses is undefined", () => {
-      const result = resetFocusItemsForNewDay(undefined);
+      const result = resetFocusItemsForNewDay(undefined, "2026-05-06");
       expect(result).toEqual({});
+    });
+
+    it("preserves statuses if they exist for today", () => {
+      const statuses = {
+        "Peace": [{ date: "2026-05-06", status: "completed" as const }],
+      };
+      const result = resetFocusItemsForNewDay(statuses, "2026-05-06");
+      expect(result).toEqual(statuses);
     });
 
     it("returns empty object to reset all statuses", () => {
@@ -135,7 +143,7 @@ describe("Focus Item Daily Tracking", () => {
         "Peace": [{ date: "2026-05-05", status: "completed" as const }],
         "Health": [{ date: "2026-05-05", status: "missed" as const }],
       };
-      const result = resetFocusItemsForNewDay(statuses);
+      const result = resetFocusItemsForNewDay(statuses, "2026-05-06");
       expect(result).toEqual({});
     });
 
@@ -150,7 +158,7 @@ describe("Focus Item Daily Tracking", () => {
           { date: "2026-05-05", status: "missed" as const },
         ],
       };
-      const result = resetFocusItemsForNewDay(statuses);
+      const result = resetFocusItemsForNewDay(statuses, "2026-05-06");
       expect(result).toEqual({});
     });
   });
@@ -169,7 +177,7 @@ describe("Focus Item Daily Tracking", () => {
       expect(status).toBe("completed");
 
       // Next day: reset
-      statuses = resetFocusItemsForNewDay(statuses);
+      statuses = resetFocusItemsForNewDay(statuses, "2026-05-06");
       status = getTodayFocusItemStatus(statuses, "Peace", "2026-05-06");
       expect(status).toBe("pending");
     });
@@ -187,7 +195,7 @@ describe("Focus Item Daily Tracking", () => {
       expect(status).toBe("missed");
 
       // Next day: reset
-      statuses = resetFocusItemsForNewDay(statuses);
+      statuses = resetFocusItemsForNewDay(statuses, "2026-05-06");
       status = getTodayFocusItemStatus(statuses, "Peace", "2026-05-06");
       expect(status).toBe("pending");
     });

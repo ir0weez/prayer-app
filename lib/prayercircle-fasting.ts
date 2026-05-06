@@ -159,6 +159,7 @@ export function normalizeFastsForStorage(value: unknown): PersonalFast[] {
     const dayStatuses = Object.fromEntries(
       Object.entries(rawStatuses).filter(([, status]) => status === "completed" || status === "skipped" || status === "missed"),
     ) as Record<string, FastDayStatus>;
+    const focusItemDailyStatuses = fast.focusItemDailyStatuses && typeof fast.focusItemDailyStatuses === "object" ? fast.focusItemDailyStatuses : {};
     return [{
       id: typeof fast.id === "string" && fast.id.trim() ? fast.id.trim() : `fast-migrated-${index}`,
       name,
@@ -167,6 +168,7 @@ export function normalizeFastsForStorage(value: unknown): PersonalFast[] {
       type,
       focusItems: Array.isArray(fast.focusItems) ? fast.focusItems.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()) : [],
       dayStatuses,
+      focusItemDailyStatuses,
       createdAt: typeof fast.createdAt === "string" ? fast.createdAt : new Date().toISOString(),
     }];
   });

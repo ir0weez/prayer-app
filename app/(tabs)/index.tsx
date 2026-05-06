@@ -564,16 +564,20 @@ export default function HomeScreen() {
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && (
+               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
                     <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
-                      <Text style={[styles.avatarText, { fontSize: 32, color: "#FFFFFF" }]}>✨</Text>
+                      {profile.photoUri ? (
+                        <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
+                      ) : (
+                        <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
+                      )}
                     </View>
                   </View>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
-                    <Text style={styles.streakBadgeText}>{streak}</Text>
+                    <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
                 </View>
               )}

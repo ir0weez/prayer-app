@@ -109,10 +109,10 @@ export default function ProfileScreen() {
         .then(([storedProfile, storedFasts]) => {
           if (!isActive) return;
           let nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
-          nextFasts = nextFasts.map((fast) => ({
-            ...fast,
-            focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses),
-          }));
+           nextFasts = nextFasts.map((fast) => ({
+             ...fast,
+             focusItemDailyStatuses: resetFocusItemsForNewDay(fast.focusItemDailyStatuses, today),
+           }));
           setProfile(parseStoredProfile(storedProfile));
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);

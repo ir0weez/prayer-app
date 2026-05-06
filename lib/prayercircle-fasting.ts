@@ -224,13 +224,34 @@ export function updateFocusItemStatus(
 }
 
 /**
- * Reset all focus items to "pending" for a new day.
- * Call this when the date changes.
+ * Reset focus items for a new day.
+ * Only resets if the day has changed (checks the most recent date in statuses).
+ * Call this when loading data to check if a new day has started.
  */
 export function resetFocusItemsForNewDay(
   focusItemDailyStatuses: Record<string, FocusItemDailyStatus[]> | undefined,
+  today: string = getTodayISOString(),
 ): Record<string, FocusItemDailyStatus[]> {
-  // Simply return an empty object to reset all statuses
-  // The UI will treat missing entries as "pending"
+  if (!focusItemDailyStatuses || Object.keys(focusItemDailyStatuses).length === 0) {
+    return {};
+  }
+
+  // Find the most recent date in the statuses
+  let mostRecentDate: string | null = null;
+  for (const statuses of Object.values(focusItemDailyStatuses)) {
+    if (statuses.length > 0) {
+      const lastStatus = statuses[statuses.length - 1];
+      if (!mostRecentDate || lastStatus.date > mostRecentDate) {
+        mostRecentDate = lastStatus.date;
+      }
+    }
+  }
+
+  // If the most recent date is today, keep the statuses; otherwise reset
+  if (mostRecentDate === today) {
+    return focusItemDailyStatuses;
+  }
+
+  // Day has changed, reset all statuses
   return {};
 }

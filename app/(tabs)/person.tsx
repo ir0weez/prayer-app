@@ -625,12 +625,17 @@ export default function PersonScreen() {
             <Text style={styles.modalDescription}>Update this person's details or delete them from your prayer list.</Text>
             <Text style={styles.modalFieldLabel}>Picture</Text>
             <Pressable onPress={handlePickPersonPhoto} style={({ pressed }) => [styles.editPhotoPicker, pressed && styles.pressed]}>
-              <View style={styles.editPhotoCircle}>
-                {draftPhotoUri ? (
-                  <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
-                ) : (
-                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
-                )}
+              <View style={styles.editPhotoCircleContainer}>
+                <View style={styles.editPhotoCircle}>
+                  {draftPhotoUri ? (
+                    <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
+                  ) : (
+                    <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
+                  )}
+                </View>
+                <View style={styles.editPhotoPlusBadge}>
+                  <MaterialIcons name={iconName("add")} size={16} color="#FFFFFF" />
+                </View>
               </View>
               <Text style={styles.editPhotoText}>{draftPhotoUri ? "Change picture" : "Add picture"}</Text>
             </Pressable>
@@ -1262,6 +1267,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 12,
   },
+  editPhotoCircleContainer: {
+    position: "relative",
+    width: 60,
+    height: 60,
+  },
   editPhotoCircle: {
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -1270,6 +1280,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     width: 60,
+  },
+  editPhotoPlusBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: PURPLE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   editPhotoImage: {
     height: 60,

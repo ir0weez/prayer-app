@@ -272,3 +272,23 @@
 - [x] Updated celebration to use user's profile picture from fasting profile (or person icon if no photo)
 - [x] Connected streak counter to actual fasting streak from profile.fastingStreak
 - [x] All 61 tests passing, TypeScript checks clean
+
+## Dark Mode Fix (Deprioritized - Architectural Refactoring Required)
+
+Note: Dark mode requires significant refactoring due to 63+ hardcoded colors in StyleSheets.
+Recommended for future work with CSS-in-JS solution or dynamic style generation.
+
+## Remaining Polish Features (Complete)
+
+- [x] Enlarge Pray Today avatars to make them more prominent (90x90 with 45px radius)
+- [x] Hide Pray Today section when no prayers scheduled for the day
+- [x] Redesign undo countdown animation to feel more unique (added opacity and scale effects)
+- [x] Reposition add-contact profile photo plus button to bottom-right corner (24x24 badge)
+- [x] Make contact progress pill turn yellow at 7 days and red at 14 days (#FBBF24 and #F87171)
+- [x] All 61 tests passing, TypeScript checks clean
+
+## Future Enhancement Ideas
+
+- [ ] Reposition urgent speech bubbles to upper-right of avatars (currently center)
+- [ ] Add timezone setting to Settings page (manual offset adjustment)
+- [ ] Change fasting focus into editable to-do list with check-off behavior

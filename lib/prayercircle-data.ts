@@ -85,8 +85,8 @@ export const relationshipColors: Record<RelationshipType, { avatar: string; acce
   Prospect: { avatar: "#D1D5DB", accent: "#6B7280" }, // Grey
 };
 
-export const LAST_REACHED_WARNING_COLOR = "#F59E0B";
-export const LAST_REACHED_OVERDUE_COLOR = "#EF4444";
+export const LAST_REACHED_WARNING_COLOR = "#FBBF24"; // Yellow at 7 days
+export const LAST_REACHED_OVERDUE_COLOR = "#F87171"; // Red at 14 days
 
 // Start with blank data
 export const initialPeople: Person[] = [];

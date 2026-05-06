@@ -43,8 +43,6 @@ import {
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
-import { useColors } from "@/hooks/use-colors";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
@@ -85,14 +83,12 @@ const ADD_SCREEN_BG = "#EEF8FF";
 const AVATAR_PALETTE = ["#F4EAFE", "#E6F3FF", "#EAF9F0", "#FFF2DC", "#FFE9EF", "#EEF0FF"];
 const UNDO_COUNTDOWN_MS = 5000;
 
-type ThemeVariant = { name: string; description: string; primary: string; accent: string; background: string; soft: string; border: string; darkBackground?: string; darkText?: string; darkSoft?: string; darkBorder?: string };
-
-const COLOR_THEMES: Record<ThemeKey, ThemeVariant> = {
-  default: { name: "Default", description: "Original PrayerCircle purple theme", primary: "#8557D9", accent: "#6B46C1", background: "#FAF6FF", soft: "#F0E8FF", border: "#D8C7F3", darkBackground: "#1A1425", darkText: "#F5F0FF", darkSoft: "#2D2340", darkBorder: "#3D3250" },
-  ocean: { name: "Ocean", description: "Calming blue and teal theme", primary: "#0A86B8", accent: "#12A6A6", background: "#EEF8FF", soft: "#DDF2FA", border: "#BEE7F1", darkBackground: "#0D1B2A", darkText: "#E0F2FE", darkSoft: "#164E63", darkBorder: "#0E7490" },
-  forest: { name: "Forest", description: "Natural green and earth tones", primary: "#2E8B3C", accent: "#6C7A32", background: "#F1F8EF", soft: "#E3F3DF", border: "#C9E7C4", darkBackground: "#0F2818", darkText: "#E8F5E0", darkSoft: "#1B4D2E", darkBorder: "#2D6A4F" },
-  sunset: { name: "Sunset", description: "Warm orange and coral theme", primary: "#F25700", accent: "#E56B6F", background: "#FFF6EF", soft: "#FFE6D6", border: "#F8CBB4", darkBackground: "#2B1810", darkText: "#FFE8D6", darkSoft: "#5C3D2E", darkBorder: "#8B5A3C" },
-  rose: { name: "Rose", description: "Elegant pink and rose theme", primary: "#C91463", accent: "#E75A7C", background: "#FFF3F8", soft: "#FCE2ED", border: "#F3C3D5", darkBackground: "#2D1B28", darkText: "#FFE8F0", darkSoft: "#5C3D52", darkBorder: "#8B5A7C" },
+const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primary: string; accent: string; background: string; soft: string; border: string }> = {
+  default: { name: "Default", description: "Original PrayerCircle purple theme", primary: "#8557D9", accent: "#6B46C1", background: "#FAF6FF", soft: "#F0E8FF", border: "#D8C7F3" },
+  ocean: { name: "Ocean", description: "Calming blue and teal theme", primary: "#0A86B8", accent: "#12A6A6", background: "#EEF8FF", soft: "#DDF2FA", border: "#BEE7F1" },
+  forest: { name: "Forest", description: "Natural green and earth tones", primary: "#2E8B3C", accent: "#6C7A32", background: "#F1F8EF", soft: "#E3F3DF", border: "#C9E7C4" },
+  sunset: { name: "Sunset", description: "Warm orange and coral theme", primary: "#F25700", accent: "#E56B6F", background: "#FFF6EF", soft: "#FFE6D6", border: "#F8CBB4" },
+  rose: { name: "Rose", description: "Elegant pink and rose theme", primary: "#C91463", accent: "#E75A7C", background: "#FFF3F8", soft: "#FCE2ED", border: "#F3C3D5" },
 };
 
 const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: true, demoMode: false };
@@ -190,53 +186,37 @@ function parseStoredProfile(value: string | null): PersonalProfile {
   }
 }
 
+function UndoCountdownBar({ color }: { color: string }) {
+  const progress = useRef(new Animated.Value(1)).current;
 
+  useEffect(() => {
+    progress.setValue(1);
+    const animation = Animated.timing(progress, {
+      toValue: 0,
+      duration: UNDO_COUNTDOWN_MS,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progress]);
+
+  return (
+    <View style={styles.undoCountdownTrack}>
+      <Animated.View
+        style={[
+          styles.undoCountdownFill,
+          {
+            backgroundColor: color,
+            transform: [{ scaleX: progress }],
+          },
+        ]}
+      />
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const colors = useColors();
-  const colorScheme = useColorScheme();
-  const styles = getStyles(colors);
-
-  const UndoCountdownBar = ({ color }: { color: string }) => {
-    const progress = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-      progress.setValue(1);
-      const animation = Animated.timing(progress, {
-        toValue: 0,
-        duration: UNDO_COUNTDOWN_MS,
-        useNativeDriver: true,
-      });
-      animation.start();
-      return () => animation.stop();
-    }, [progress]);
-
-    return (
-      <Animated.View
-        style={[
-          styles.undoCountdownTrack,
-          {
-            opacity: progress.interpolate({
-              inputRange: [0, 0.2, 1],
-              outputRange: [0.3, 0.7, 1],
-            }),
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.undoCountdownFill,
-            {
-              backgroundColor: color,
-              transform: [{ scaleX: progress }, { scaleY: progress.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
-            },
-          ]}
-        />
-      </Animated.View>
-    );
-  };
-
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -366,21 +346,6 @@ export default function HomeScreen() {
   }, []);
 
   const currentTheme = COLOR_THEMES[settings.themeKey];
-  
-  const getThemeColor = (lightKey: keyof ThemeVariant, darkKey: keyof ThemeVariant) => {
-    const theme = currentTheme;
-    if (settings.darkMode && theme[darkKey]) {
-      return theme[darkKey] as string;
-    }
-    return theme[lightKey] as string;
-  };
-  
-  const themeColors = {
-    background: getThemeColor('background', 'darkBackground'),
-    text: getThemeColor('background', 'darkText'),
-    soft: getThemeColor('soft', 'darkSoft'),
-    border: getThemeColor('border', 'darkBorder'),
-  };
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const visiblePrayTodayList = useMemo(
     () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
@@ -594,7 +559,7 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
-        {prayTodayList.length > 0 && (visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) ? (
+        {visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0 ? (
           <>
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
@@ -603,16 +568,12 @@ export default function HomeScreen() {
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
                     <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
-                      {profile.photoUri ? (
-                        <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
-                      ) : (
-                        <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
-                      )}
+                      <Text style={[styles.avatarText, { fontSize: 32, color: "#FFFFFF" }]}>✨</Text>
                     </View>
                   </View>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
-                    <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
+                    <Text style={styles.streakBadgeText}>{streak}</Text>
                   </View>
                 </View>
               )}
@@ -1005,7 +966,7 @@ export default function HomeScreen() {
           <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <View style={[styles.themeSheet, styles.fastCreatorSheet]}>
             <View style={styles.sheetHeader}>
-              <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={themeColors.text} /></Pressable>
+              <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
               <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
               {editingFastId && <Pressable onPress={() => confirmDeleteFast(editingFastId)} style={({ pressed }) => [pressed && styles.pressed]}><MaterialIcons name={iconName("trash")} size={24} color="#C75265" /></Pressable>}
               {!editingFastId && <View style={{ width: 42 }} />}
@@ -1083,11 +1044,10 @@ export default function HomeScreen() {
   );
 }
 
-function getStyles(colors: ReturnType<typeof useColors>) {
-  return StyleSheet.create({
+const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: SCREEN_BG,
   },
   header: {
     minHeight: 95,
@@ -1095,14 +1055,14 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     paddingTop: 18,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: "#E4DFEA",
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    backgroundColor: colors.background,
+    backgroundColor: SCREEN_BG,
   },
   appTitle: {
-    color: colors.foreground,
+    color: DEEP_TEXT,
     fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.8,
@@ -1110,7 +1070,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
   },
   progressText: {
     marginTop: 3,
-    color: colors.muted,
+    color: MUTED_TEXT,
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 17,
@@ -1127,7 +1087,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
   },
   statNumber: {
     marginTop: 2,
-    color: colors.foreground,
+    color: DEEP_TEXT,
     fontSize: 16,
     fontWeight: "700",
     lineHeight: 19,
@@ -1150,9 +1110,9 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     paddingBottom: 20,
   },
   storyItem: {
-    width: 110,
-    height: 110,
-    marginRight: 12,
+    width: 86,
+    height: 88,
+    marginRight: 7,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1161,9 +1121,9 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     justifyContent: "center",
   },
   storyRing: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     borderWidth: 3,
     borderColor: PURPLE,
     alignItems: "center",
@@ -1196,8 +1156,8 @@ function getStyles(colors: ReturnType<typeof useColors>) {
   },
   storyPlus: {
     position: "absolute",
-    right: 12,
-    bottom: 0,
+    right: 3,
+    bottom: 2,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -1205,10 +1165,10 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#FAF6FF",
+    borderColor: SCREEN_BG,
   },
   storyPlusDone: {
-    backgroundColor: "#22C55E",
+    backgroundColor: "#31C48D",
   },
   undoCountdownPill: {
     position: "absolute",
@@ -1231,7 +1191,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     borderRadius: 2,
   },
   undoCountdownText: {
-    color: "#141326",
+    color: MUTED_TEXT,
     fontSize: 9,
     fontWeight: "800",
     lineHeight: 10,
@@ -1363,20 +1323,20 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     marginTop: 12,
     padding: 20,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#E6E1EA",
   },
   emptyTitle: {
     marginTop: 10,
-    color: colors.foreground,
+    color: DEEP_TEXT,
     fontSize: 16,
     fontWeight: "800",
   },
   emptyDescription: {
     marginTop: 6,
-    color: colors.muted,
+    color: MUTED_TEXT,
     fontSize: 13,
     textAlign: "center",
     lineHeight: 18,
@@ -1407,7 +1367,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     paddingBottom: 132,
   },
   settingsTitle: {
-    color: colors.foreground,
+    color: DEEP_TEXT,
     fontSize: 34,
     fontWeight: "900",
     letterSpacing: -1.1,
@@ -2135,5 +2095,4 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     paddingTop: 13,
     lineHeight: 21,
   },
-  });
-}
+});

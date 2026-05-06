@@ -298,11 +298,7 @@ export default function ProfileScreen() {
         {selectedFast ? (
           <>
             <Text style={styles.sectionLabel}>CURRENT FAST</Text>
-            <Pressable onPress={() => {
-              setIsEditingFast(true);
-              resetFastCreator();
-              setShowFastCreator(true);
-            }} style={({ pressed }) => [styles.fastCard, pressed && styles.pressed]}>
+            <View style={styles.fastCard}>
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? PURPLE }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
@@ -310,8 +306,7 @@ export default function ProfileScreen() {
                 <Text style={styles.fastTitle}>{selectedFast.name}</Text>
                 <Text style={styles.fastMeta}>{selectedFast.type} • {selectedFast.durationDays} days • starts {formatIsoToMmDdYyyy(selectedFast.startDate)}</Text>
               </View>
-              <MaterialIcons name={iconName("edit")} size={20} color={MUTED_TEXT} />
-            </Pressable>
+            </View>
 
             <Text style={styles.sectionLabel}>FASTING FOCUS</Text>
             <View style={styles.focusWrap}>

@@ -314,10 +314,10 @@ describe("PrayerCircle local data helpers", () => {
     expect(getLastReachedAccentColor(recent[0])).toBe(recent[0].accentColor);
 
     const warning = updatePersonLastReachedDate(people, people[0].id, tenDaysAgo.toISOString().split("T")[0]);
-    expect(getLastReachedAccentColor(warning[0])).toBe("#FBBF24");
+    expect(getLastReachedAccentColor(warning[0])).toBe("#F59E0B");
 
     const overdue = updatePersonLastReachedDate(people, people[0].id, sixteenDaysAgo.toISOString().split("T")[0]);
-    expect(getLastReachedAccentColor(overdue[0])).toBe("#F87171");
+    expect(getLastReachedAccentColor(overdue[0])).toBe("#EF4444");
   });
 
   it("removes a person from the list", () => {

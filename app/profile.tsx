@@ -358,8 +358,9 @@ export default function ProfileScreen() {
             <View style={styles.calendarGrid}>
               {selectedFastDays.map((dateString, index) => {
                 const status = selectedFast.dayStatuses[dateString];
+                const isToday = dateString === today;
                 return (
-                  <Pressable key={dateString} onPress={() => setFastStatus(dateString, "completed")} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF" }, pressed && styles.pressed]}>
+                  <Pressable key={dateString} onPress={() => setFastStatus(dateString, "completed")} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? PURPLE : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
                     <Text style={[styles.calendarDayNumber, status && styles.calendarDayNumberActive]}>{index + 1}</Text>
                     <Text style={[styles.calendarDayDate, status && styles.calendarDayDateActive]}>{formatIsoToMmDdYyyy(dateString).slice(0, 5)}</Text>
                   </Pressable>

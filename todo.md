@@ -275,3 +275,4 @@
 - [x] Change "View Fasts" button text back to "Fast"
 - [x] Move Fast button directly under profile name to reduce empty space
 - [x] Fix fasting streak not showing on Pray Today personal avatar (still shows 0)
+- [x] Add border around today's date in the fasting calendar

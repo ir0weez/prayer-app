@@ -429,7 +429,19 @@ export default function ProfileScreen() {
                   <MaterialIcons name={iconName("add")} size={30} color="#FFFFFF" />
                 </Pressable>
               </View>
-              <View style={styles.focusWrap}>{draftFastFocusItems.map((item) => <Text key={item} style={styles.focusChip}>{item}</Text>)}</View>
+              <View style={styles.focusWrap}>
+                {draftFastFocusItems.map((item) => (
+                  <View key={item} style={styles.focusChipContainer}>
+                    <Text style={styles.focusChip}>{item}</Text>
+                    <Pressable
+                      onPress={() => setDraftFastFocusItems((items) => items.filter((i) => i !== item))}
+                      style={({ pressed }) => [styles.focusChipDelete, pressed && styles.pressed]}
+                    >
+                      <MaterialIcons name={iconName("close")} size={16} color={PURPLE} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
               <Pressable onPress={createFast} style={({ pressed }) => [styles.sheetCreateButton, pressed && styles.pressed]}>
                 <Text style={styles.sheetCreateButtonText}>{isEditingFast ? "Save Fast" : "Create Fast"}</Text>
               </Pressable>
@@ -602,6 +614,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
     overflow: "hidden",
+  },
+  focusChipContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SOFT_PURPLE,
+    borderRadius: 16,
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  focusChipDelete: {
+    padding: 4,
+    borderRadius: 12,
   },
   todayActions: {
     gap: 10,

@@ -274,3 +274,4 @@
 - [x] Remove Prayer button from Settings profile card
 - [x] Change "View Fasts" button text back to "Fast"
 - [x] Move Fast button directly under profile name to reduce empty space
+- [x] Fix fasting streak not showing on Pray Today personal avatar (still shows 0)

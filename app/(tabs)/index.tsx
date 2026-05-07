@@ -340,6 +340,14 @@ export default function HomeScreen() {
   }, [fasts, hasHydratedPeople]);
 
   useEffect(() => {
+    if (!hasHydratedPeople || !activeFast) return;
+    const newStreak = calculateFastStreak(activeFast, today);
+    if (newStreak !== profile.fastingStreak) {
+      setProfile((previous) => ({ ...previous, fastingStreak: newStreak }));
+    }
+  }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
+
+  useEffect(() => {
     const timers = undoTimers.current;
     return () => {
       Object.values(timers).forEach(clearTimeout);
@@ -365,7 +373,8 @@ export default function HomeScreen() {
     return Math.max(0, UNDO_COUNTDOWN_MS - elapsed);
   }, [pendingFastAction]);
   const activeFastProgress = activeFast ? getFastProgress(activeFast) : null;
-  const activeFastStreak = activeFast ? calculateFastStreak(activeFast, today) : 0;
+  // Note: activeFastStreak is now kept in sync with profile.fastingStreak via useEffect
+  const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
 

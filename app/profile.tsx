@@ -271,6 +271,14 @@ export default function ProfileScreen() {
             <Pressable onPress={() => {
               if (selectedFast) {
                 setIsEditingFast(true);
+                setDraftFastName(selectedFast.name);
+                setDraftFastStartDate(formatIsoToMmDdYyyy(selectedFast.startDate));
+                setDraftFastDuration(selectedFast.durationDays);
+                setDraftFastType(selectedFast.type);
+                setDraftFastFocusInput("");
+                setDraftFastFocusItems(selectedFast.focusItems || []);
+              } else {
+                setIsEditingFast(false);
                 resetFastCreator();
               }
               setShowFastCreator(true);

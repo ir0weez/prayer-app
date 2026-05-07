@@ -249,6 +249,7 @@ export default function HomeScreen() {
   const [showFastEditor, setShowFastEditor] = useState(false);
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
+  const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
@@ -358,6 +359,11 @@ export default function HomeScreen() {
   const remainingPrayTodayCount = Math.max(0, dailyPrayerProgress.total - prayedTodayCount);
   const reminderCount = people.filter((person) => (person.reminderFrequency ?? "none") !== "none").length;
   const activeFast = useMemo(() => getActiveFast(fasts, today), [fasts, today]);
+  const fastUndoTimeRemaining = useMemo(() => {
+    if (!pendingFastAction) return 0;
+    const elapsed = Date.now() - pendingFastAction.timestamp;
+    return Math.max(0, UNDO_COUNTDOWN_MS - elapsed);
+  }, [pendingFastAction]);
   const activeFastProgress = activeFast ? getFastProgress(activeFast) : null;
   const activeFastStreak = activeFast ? calculateFastStreak(activeFast, today) : 0;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
@@ -455,6 +461,35 @@ export default function HomeScreen() {
       delete undoTimers.current[personId];
     }
     setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
+  };
+
+  const commitFastAction = useCallback((action: 'completed' | 'missed') => {
+    if (!activeFast) return;
+    const status: FastDayStatus = action === 'completed' ? 'completed' : 'missed';
+    const updatedFasts = upsertFastDayStatus(fasts, activeFast.id, today, status);
+    setFasts(updatedFasts);
+    setPendingFastAction(null);
+    delete undoTimers.current['fast'];
+  }, [activeFast, fasts, today]);
+
+  const handleCompleteFast = () => {
+    if (!activeFast || pendingFastAction) return;
+    setPendingFastAction({ action: 'completed', timestamp: Date.now() });
+    undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
+  };
+
+  const handleMissFast = () => {
+    if (!activeFast || pendingFastAction) return;
+    setPendingFastAction({ action: 'missed', timestamp: Date.now() });
+    undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
+  };
+
+  const handleUndoFastAction = () => {
+    if (undoTimers.current['fast']) {
+      clearTimeout(undoTimers.current['fast']);
+      delete undoTimers.current['fast'];
+    }
+    setPendingFastAction(null);
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -564,9 +599,14 @@ export default function HomeScreen() {
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
-               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && (
+               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
+                  <Pressable
+                    onPress={handleCompleteFast}
+                    onLongPress={handleMissFast}
+                    delayLongPress={500}
+                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                  >
                     <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
                       {profile.photoUri ? (
                         <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
@@ -574,11 +614,19 @@ export default function HomeScreen() {
                         <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                       )}
                     </View>
-                  </View>
+                  </Pressable>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
+                  {pendingFastAction && (
+                    <View style={styles.undoCountdownPill}>
+                      <UndoCountdownBar color={currentTheme.primary} />
+                      <Pressable onPress={handleUndoFastAction}>
+                        <Text style={styles.undoCountdownText}>Tap undo</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               )}
             </ScrollView>

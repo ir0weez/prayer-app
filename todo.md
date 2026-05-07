@@ -263,3 +263,5 @@
 - [x] Implemented system settings listener for theme changes - now syncs whenever system color scheme changes
 - [x] TypeScript checks clean, ready for testing
 - [x] Add delete button to focus items in the fasting editor modal
+- [x] Add tap-to-complete fast and hold-to-miss fast on personal profile pic in Pray Today section
+- [x] Add undo timer for fast completion/miss actions

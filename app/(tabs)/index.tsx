@@ -841,9 +841,6 @@ export default function HomeScreen() {
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
             <Text style={styles.profilePillButtonText}>Fast</Text>
           </Pressable>
-          <Pressable onPress={() => router.push("/personal-prayer")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Prayer</Text>
-          </Pressable>
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>

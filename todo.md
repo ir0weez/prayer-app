@@ -271,3 +271,4 @@
 - [x] Make streak count in Settings page more badge-style
 - [x] Add fasting streak pill badge to Current Fast area in fasting profile
 - [x] Update progress pill on main page contacts to fill at 31 days and turn black when full
+- [x] Remove Prayer button from Settings profile card

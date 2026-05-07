@@ -831,17 +831,16 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
+              <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+                <Text style={styles.profilePillButtonText}>Fast</Text>
+              </Pressable>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
             {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
           </View>
         </View>
-        <View style={styles.profileCardButtons}>
-          <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Fast</Text>
-          </Pressable>
-        </View>
+
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
           <View style={styles.settingsStatDivider} />
@@ -1458,6 +1457,7 @@ const styles = StyleSheet.create({
   },
   profileNameAndBirthdayContainer: {
     flex: 1,
+    gap: 6,
   },
   profileCardButtons: {
     flexDirection: "row",
@@ -1471,6 +1471,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0E8FF",
     borderWidth: 1,
     borderColor: "#E0D8EA",
+    alignSelf: "flex-start",
   },
   profilePillButtonText: {
     color: "#8557D9",

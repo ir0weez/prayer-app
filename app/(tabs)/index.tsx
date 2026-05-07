@@ -834,7 +834,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
+            {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
           </View>
         </View>
         <View style={styles.profileCardButtons}>

@@ -273,3 +273,4 @@
 - [x] Update progress pill on main page contacts to fill at 31 days and turn black when full
 - [x] Remove Prayer button from Settings profile card
 - [x] Redesign Settings profile card layout (move Fast button under name, improve visual hierarchy)
+- [x] Fix fasting streak showing 0 in Pray Today section when it should show 1

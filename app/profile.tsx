@@ -306,7 +306,14 @@ export default function ProfileScreen() {
 
         {selectedFast ? (
           <>
-            <Text style={styles.sectionLabel}>CURRENT FAST</Text>
+            <View style={styles.currentFastHeader}>
+              <Text style={styles.sectionLabel}>CURRENT FAST</Text>
+              {selectedFastStreak > 0 && (
+                <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? PURPLE }]}>
+                  <Text style={styles.currentFastBadgeText}>🔥 {selectedFastStreak}</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.fastCard}>
               <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? PURPLE }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
@@ -575,6 +582,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     letterSpacing: 1.2,
+  },
+  currentFastHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  currentFastBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  currentFastBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 16,
   },
   fastCard: {
     padding: 16,

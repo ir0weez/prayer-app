@@ -268,3 +268,5 @@
 - [x] Raise tab bar and FAB up from the bottom of the screen
 - [x] Increase tab bar transparency to match the original design
 - [x] Make settings cards smaller and more compact to match original design
+- [x] Make streak count in Settings page more badge-style
+- [x] Add fasting streak pill badge to Current Fast area in fasting profile

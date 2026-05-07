@@ -839,10 +839,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.profileCardButtons}>
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Fast</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push("/personal-prayer")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>Prayer</Text>
+            <Text style={styles.profilePillButtonText}>View Fasts</Text>
           </Pressable>
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
@@ -1443,15 +1440,15 @@ const styles = StyleSheet.create({
   },
   profileCardTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 0,
   },
   profileCardTopLeft: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     flex: 1,
-    gap: 12,
+    gap: 14,
   },
   profileCardTopRight: {
     alignItems: "flex-end",
@@ -1466,19 +1463,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
+    marginLeft: 68,
   },
   profilePillButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 14,
     backgroundColor: "#F0E8FF",
     borderWidth: 1,
     borderColor: "#E0D8EA",
   },
   profilePillButtonText: {
     color: "#8557D9",
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
   },
   profileBirthdayText: {
     color: "#7E7C88",
@@ -1512,9 +1510,10 @@ const styles = StyleSheet.create({
   },
   profileNameText: {
     color: DEEP_TEXT,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
-    lineHeight: 23,
+    lineHeight: 22,
+    marginBottom: 8,
   },
   profileSubtitle: {
     marginTop: 2,

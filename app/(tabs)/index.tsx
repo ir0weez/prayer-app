@@ -834,12 +834,15 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            {profile.fastingStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {profile.fastingStreak}</Text></View>}
+            {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
           </View>
         </View>
         <View style={styles.profileCardButtons}>
           <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-            <Text style={styles.profilePillButtonText}>View Fasts</Text>
+            <Text style={styles.profilePillButtonText}>Fast</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/personal-prayer")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+            <Text style={styles.profilePillButtonText}>Prayer</Text>
           </Pressable>
         </View>
         <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
@@ -1440,15 +1443,15 @@ const styles = StyleSheet.create({
   },
   profileCardTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 0,
+    marginBottom: 14,
   },
   profileCardTopLeft: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     flex: 1,
-    gap: 14,
+    gap: 12,
   },
   profileCardTopRight: {
     alignItems: "flex-end",
@@ -1463,20 +1466,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 12,
-    marginLeft: 68,
   },
   profilePillButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: "#F0E8FF",
     borderWidth: 1,
     borderColor: "#E0D8EA",
   },
   profilePillButtonText: {
     color: "#8557D9",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "600",
   },
   profileBirthdayText: {
     color: "#7E7C88",
@@ -1510,10 +1512,9 @@ const styles = StyleSheet.create({
   },
   profileNameText: {
     color: DEEP_TEXT,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "900",
-    lineHeight: 22,
-    marginBottom: 8,
+    lineHeight: 23,
   },
   profileSubtitle: {
     marginTop: 2,

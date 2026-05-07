@@ -267,3 +267,4 @@
 - [x] Add undo timer for fast completion/miss actions
 - [x] Raise tab bar and FAB up from the bottom of the screen
 - [x] Increase tab bar transparency to match the original design
+- [x] Make settings cards smaller and more compact to match original design

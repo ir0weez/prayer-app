@@ -134,7 +134,7 @@ function getAvatarPaletteColor(person: Person) {
 
 function getReachProgressRatio(daysSince: number) {
   if (daysSince === 999 || daysSince <= 0) return 0;
-  return Math.min(daysSince, 14) / 14;
+  return Math.min(daysSince, 31) / 31;
 }
 
 function getYesterdayISOString(today: string) {
@@ -551,7 +551,8 @@ export default function HomeScreen() {
 
   const renderPersonCard = (person: Person) => {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
-    const reachColor = daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(person);
+    const isFull = daysSince >= 31;
+    const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const reachProgress = getReachProgressRatio(daysSince);
     return (

@@ -265,3 +265,5 @@
 - [x] Add delete button to focus items in the fasting editor modal
 - [x] Add tap-to-complete fast and hold-to-miss fast on personal profile pic in Pray Today section
 - [x] Add undo timer for fast completion/miss actions
+- [x] Raise tab bar and FAB up from the bottom of the screen
+- [x] Increase tab bar transparency to match the original design

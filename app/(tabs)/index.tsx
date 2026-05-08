@@ -574,8 +574,8 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.personActions}>
-          <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}> 
-            <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: `${Math.round(reachProgress * 100)}%` }]} />
+            <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}> 
+            <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
             <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
           </View>
           <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
@@ -1360,6 +1360,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
+    right: 0,
     borderRadius: 13,
   },
   reachPillText: {

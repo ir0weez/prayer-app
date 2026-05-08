@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import { Alert, Animated as RNAnimated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import {
@@ -43,6 +45,7 @@ import {
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { Platform } from "react-native";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
@@ -187,11 +190,11 @@ function parseStoredProfile(value: string | null): PersonalProfile {
 }
 
 function UndoCountdownBar({ color }: { color: string }) {
-  const progress = useRef(new Animated.Value(1)).current;
+  const progress = useRef(new RNAnimated.Value(1)).current;
 
   useEffect(() => {
     progress.setValue(1);
-    const animation = Animated.timing(progress, {
+    const animation = RNAnimated.timing(progress, {
       toValue: 0,
       duration: UNDO_COUNTDOWN_MS,
       useNativeDriver: true,
@@ -251,6 +254,25 @@ export default function HomeScreen() {
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pulseAnimation = useSharedValue(1);
+  const [showFastPulse, setShowFastPulse] = useState(false);
+
+  // Pulse animation effect
+  useEffect(() => {
+    if (!showFastPulse) {
+      pulseAnimation.value = 1;
+      return;
+    }
+    pulseAnimation.value = withRepeat(
+      withTiming(0.85, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [showFastPulse, pulseAnimation]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnimation.value }],
+  }));
 
   useEffect(() => {
     let isMounted = true;
@@ -483,12 +505,20 @@ export default function HomeScreen() {
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowFastPulse(true);
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
   };
 
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setShowFastPulse(true);
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
   };
@@ -499,6 +529,7 @@ export default function HomeScreen() {
       delete undoTimers.current['fast'];
     }
     setPendingFastAction(null);
+    setShowFastPulse(false);
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -611,20 +642,22 @@ export default function HomeScreen() {
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <Pressable
-                    onPress={handleCompleteFast}
-                    onLongPress={handleMissFast}
-                    delayLongPress={500}
-                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
-                  >
-                    <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
-                      {profile.photoUri ? (
-                        <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
-                      ) : (
-                        <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
-                      )}
-                    </View>
-                  </Pressable>
+                  <Animated.View style={showFastPulse ? pulseStyle : undefined}>
+                    <Pressable
+                      onPress={handleCompleteFast}
+                      onLongPress={handleMissFast}
+                      delayLongPress={500}
+                      style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                    >
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
+                        {profile.photoUri ? (
+                          <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
+                        ) : (
+                          <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
+                        )}
+                      </View>
+                    </Pressable>
+                  </Animated.View>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>

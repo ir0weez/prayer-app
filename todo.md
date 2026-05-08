@@ -277,3 +277,4 @@
 - [x] Fix fasting streak not showing on Pray Today personal avatar (still shows 0)
 - [x] Add border around today's date in the fasting calendar
 - [x] Fix progress pill not filling completely at 31+ days (shows half full instead of full)
+- [x] Add visual feedback and animations to personal avatar in Pray Today (tap/long press feedback, pulse animation when marked)

@@ -340,14 +340,6 @@ export default function HomeScreen() {
   }, [fasts, hasHydratedPeople]);
 
   useEffect(() => {
-    if (!hasHydratedPeople || !activeFast) return;
-    const newStreak = calculateFastStreak(activeFast, today);
-    if (newStreak !== profile.fastingStreak) {
-      setProfile((previous) => ({ ...previous, fastingStreak: newStreak }));
-    }
-  }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
-
-  useEffect(() => {
     const timers = undoTimers.current;
     return () => {
       Object.values(timers).forEach(clearTimeout);
@@ -377,6 +369,14 @@ export default function HomeScreen() {
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
+
+  useEffect(() => {
+    if (!hasHydratedPeople || !activeFast) return;
+    const newStreak = calculateFastStreak(activeFast, today);
+    if (newStreak !== profile.fastingStreak) {
+      setProfile((previous) => ({ ...previous, fastingStreak: newStreak }));
+    }
+  }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>

@@ -280,3 +280,4 @@
 - [x] Add visual feedback and animations to personal avatar in Pray Today (tap/long press feedback, pulse animation when marked)
 - [x] Change "Choose status" button to "Cancel" in fasting profile Today section to undo day's marking
 - [x] Add social media-style status update section to fasting profile (text input, GIF support, now playing song)
+- [x] Fix app crash when marking a prayer in Pray Today section

@@ -226,7 +226,7 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
       ? {
           ...p,
           lastPrayerCompletedDate: today,
-          prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: true })),
+          prayerItems: (p.prayerItems || []).map((item) => ({ ...item, isDone: true })),
         }
       : p,
   );

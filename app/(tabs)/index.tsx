@@ -642,13 +642,13 @@ export default function HomeScreen() {
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <Animated.View style={showFastPulse ? pulseStyle : undefined}>
-                    <Pressable
-                      onPress={handleCompleteFast}
-                      onLongPress={handleMissFast}
-                      delayLongPress={500}
-                      style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
-                    >
+                  <Pressable
+                    onPress={handleCompleteFast}
+                    onLongPress={handleMissFast}
+                    delayLongPress={500}
+                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                  >
+                    <Animated.View style={showFastPulse ? pulseStyle : undefined}>
                       <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
                         {profile.photoUri ? (
                           <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
@@ -656,8 +656,8 @@ export default function HomeScreen() {
                           <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                         )}
                       </View>
-                    </Pressable>
-                  </Animated.View>
+                    </Animated.View>
+                  </Pressable>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>

@@ -143,6 +143,21 @@ export default function ProfileScreen() {
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
   };
 
+  const clearFastStatus = (dateString: string) => {
+    if (!selectedFast) return;
+    const updatedFasts = fasts.map((fast) =>
+      fast.id === selectedFast.id
+        ? {
+            ...fast,
+            dayStatuses: Object.fromEntries(
+              Object.entries(fast.dayStatuses).filter(([date]) => date !== dateString)
+            ),
+          }
+        : fast
+    );
+    persistFasts(updatedFasts);
+  };
+
   const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
     if (!selectedFast) return;
     const updatedStatuses = updateFocusItemStatus(
@@ -349,8 +364,8 @@ export default function ProfileScreen() {
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
                 <Text style={styles.todayButtonText}>Successful Day</Text>
               </Pressable>
-              <Pressable onPress={() => chooseStatusForDate(today)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                <Text style={styles.secondaryButtonText}>Choose status</Text>
+              <Pressable onPress={() => clearFastStatus(today)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
             </View>
 

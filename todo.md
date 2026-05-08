@@ -278,3 +278,4 @@
 - [x] Add border around today's date in the fasting calendar
 - [x] Fix progress pill not filling completely at 31+ days (shows half full instead of full)
 - [x] Add visual feedback and animations to personal avatar in Pray Today (tap/long press feedback, pulse animation when marked)
+- [x] Change "Choose status" button to "Cancel" in fasting profile Today section to undo day's marking

@@ -280,3 +280,11 @@
 - [x] Add visual feedback and animations to personal avatar in Pray Today (tap/long press feedback, pulse animation when marked)
 - [x] Change "Choose status" button to "Cancel" in fasting profile Today section to undo day's marking
 - [x] Add social media-style status update section to fasting profile (text input, GIF support, now playing song)
+
+## Status Bubble Refactor (New)
+
+- [x] Remove status update section from fasting profile page (app/profile.tsx)
+- [x] Create dedicated status editor modal/page with Instagram-style UI
+- [x] Add small status bubble to fasting card in Settings (index.tsx)
+- [x] Display status bubble overlay on personal avatar in Pray Today
+- [x] Test status bubble interactions and persistence

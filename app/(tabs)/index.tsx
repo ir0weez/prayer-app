@@ -662,12 +662,7 @@ export default function HomeScreen() {
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <Pressable
-                    onPress={handleCompleteFast}
-                    onLongPress={handleMissFast}
-                    delayLongPress={500}
-                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
-                  >
+                  <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
                     <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
                       {profile.photoUri ? (
                         <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
@@ -675,29 +670,19 @@ export default function HomeScreen() {
                         <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                       )}
                     </View>
-                  </Pressable>
+                  </View>
                   {/* Status Bubble Overlay */}
-                  {(statusData.text || statusData.gifUrl || statusData.song) && (
-                    <Pressable onPress={() => setShowStatusEditor(true)} style={styles.statusBubbleOverlay}>
-                      {statusData.text || statusData.gifUrl || statusData.song ? (
-                        <View style={styles.statusBubbleOverlayActive}>
-                          <Text style={styles.statusBubbleOverlayEmoji}>✨</Text>
-                        </View>
-                      ) : null}
-                    </Pressable>
+                  {statusData.text && (
+                    <View style={styles.statusBubbleOverlay}>
+                      <View style={styles.statusBubbleOverlayActive}>
+                        <Text style={styles.statusBubbleOverlayEmoji}>✨</Text>
+                      </View>
+                    </View>
                   )}
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
-                  {pendingFastAction && (
-                    <View style={styles.undoCountdownPill}>
-                      <UndoCountdownBar color={currentTheme.primary} />
-                      <Pressable onPress={handleUndoFastAction}>
-                        <Text style={styles.undoCountdownText}>Tap undo</Text>
-                      </Pressable>
-                    </View>
-                  )}
                 </View>
               )}
             </ScrollView>

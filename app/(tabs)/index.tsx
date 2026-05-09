@@ -9,6 +9,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 import { Alert, Animated as RNAnimated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { StatusEditorModal, type StatusData } from "@/components/status-editor-modal";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -241,10 +242,14 @@ export default function HomeScreen() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
 
-  // Load status text from profile on mount
+  // Load status data from profile on mount
   useEffect(() => {
-    if (profile.statusUpdate) {
-      setStatusText(profile.statusUpdate);
+    if (profile.statusUpdate || profile.statusGifUrl || profile.nowPlayingSong) {
+      setStatusData({
+        text: profile.statusUpdate || "",
+        gifUrl: profile.statusGifUrl,
+        song: profile.nowPlayingSong,
+      });
     }
   }, []);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
@@ -263,8 +268,8 @@ export default function HomeScreen() {
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
-  const [statusText, setStatusText] = useState("");
-  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [showStatusEditor, setShowStatusEditor] = useState(false);
+  const [statusData, setStatusData] = useState<StatusData>({ text: "", gifUrl: undefined, song: undefined });
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
@@ -283,9 +288,13 @@ export default function HomeScreen() {
         setSettings(parseStoredSettings(storedSettings));
         const parsedProfile = parseStoredProfile(storedProfile);
         setProfile(parsedProfile);
-        // Load status text from profile
-        if (parsedProfile.statusUpdate) {
-          setStatusText(parsedProfile.statusUpdate);
+        // Load status data from profile
+        if (parsedProfile.statusUpdate || parsedProfile.statusGifUrl || parsedProfile.nowPlayingSong) {
+          setStatusData({
+            text: parsedProfile.statusUpdate || "",
+            gifUrl: parsedProfile.statusGifUrl,
+            song: parsedProfile.nowPlayingSong,
+          });
         }
         if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
       })
@@ -351,9 +360,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    const profileWithStatus = { ...profile, statusUpdate: statusText };
+    const profileWithStatus = { ...profile, statusUpdate: statusData.text, statusGifUrl: statusData.gifUrl, nowPlayingSong: statusData.song };
     AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profileWithStatus)).catch(() => undefined);
-  }, [hasHydratedPeople, profile, statusText]);
+  }, [hasHydratedPeople, profile, statusData]);
+
+  const handleSaveStatus = useCallback((newStatus: StatusData) => {
+    setStatusData(newStatus);
+    setShowStatusEditor(false);
+  }, []);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -655,12 +669,14 @@ export default function HomeScreen() {
                     </View>
                   </Pressable>
                   {/* Status Bubble Overlay */}
-                  {statusText && (
-                    <View style={styles.statusBubbleOverlay}>
-                      <View style={styles.statusBubbleOverlayActive}>
-                        <Text style={styles.statusBubbleOverlayEmoji}>✨</Text>
-                      </View>
-                    </View>
+                  {(statusData.text || statusData.gifUrl || statusData.song) && (
+                    <Pressable onPress={() => setShowStatusEditor(true)} style={styles.statusBubbleOverlay}>
+                      {statusData.text || statusData.gifUrl || statusData.song ? (
+                        <View style={styles.statusBubbleOverlayActive}>
+                          <Text style={styles.statusBubbleOverlayEmoji}>✨</Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
                   )}
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
@@ -877,40 +893,20 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              
-              {/* Status Pill */}
-              {isEditingStatus ? (
-                <View style={[styles.statusPillEdit, { borderColor: currentTheme.primary }]}>
-                  <TextInput
-                    style={styles.statusPillInput}
-                    placeholder="What's on your mind?"
-                    placeholderTextColor="#999"
-                    value={statusText}
-                    onChangeText={setStatusText}
-                    maxLength={60}
-                    autoFocus
-                  />
-                  <Pressable
-                    onPress={() => setIsEditingStatus(false)}
-                    style={({ pressed }) => [styles.statusPillDone, pressed && styles.pressed]}
-                  >
-                    <MaterialIcons name={iconName("check")} size={16} color={currentTheme.primary} />
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => setIsEditingStatus(true)}
-                  style={({ pressed }) => [styles.statusPillView, pressed && styles.pressed]}
-                >
-                  <Text style={styles.statusPillText}>
-                    {statusText || "✨ Add a status"}
-                  </Text>
-                </Pressable>
-              )}
-              
               <View style={styles.profileButtonsContainer}>
                 <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
                   <Text style={styles.profilePillButtonText}>Fast</Text>
+                </Pressable>
+                <Pressable onPress={() => setShowStatusEditor(true)} style={({ pressed }) => [styles.statusBubbleButton, pressed && styles.pressed]}>
+                  {statusData.text || statusData.gifUrl || statusData.song ? (
+                    <View style={styles.statusBubbleActive}>
+                      <Text style={styles.statusBubbleEmoji}>✨</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.statusBubbleEmpty}>
+                      <MaterialIcons name="add" size={16} color="#8557D9" />
+                    </View>
+                  )}
                 </Pressable>
               </View>
             </View>
@@ -1169,7 +1165,12 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-
+      <StatusEditorModal
+        visible={showStatusEditor}
+        onClose={() => setShowStatusEditor(false)}
+        onSave={handleSaveStatus}
+        initialStatus={statusData}
+      />
     </ScreenContainer>
   );
 }
@@ -1559,45 +1560,6 @@ const styles = StyleSheet.create({
     color: "#8557D9",
     fontSize: 13,
     fontWeight: "600",
-  },
-  statusPillView: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: "#F0E8FF",
-    borderWidth: 1,
-    borderColor: "#E0D8EA",
-    alignSelf: "flex-start",
-    marginTop: 6,
-  },
-  statusPillText: {
-    color: "#8557D9",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  statusPillEdit: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    marginTop: 6,
-    gap: 8,
-  },
-  statusPillInput: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#141326",
-    paddingVertical: 0,
-  },
-  statusPillDone: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
   },
   profileButtonsContainer: {
     flexDirection: "row",

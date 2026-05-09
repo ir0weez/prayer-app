@@ -294,3 +294,12 @@
 - [x] Fix crash when marking people in Pray Today section (replaced Alert.prompt with cross-platform modals)
 - [x] Verify status bubble changes didn't break fasting avatar animation
 - [x] Test marking flow end-to-end without crashes (all 61 tests passing)
+
+## Status Pill Redesign
+
+- [x] Remove StatusEditorModal component
+- [x] Create inline status pill under profile name in Settings
+- [x] Add direct text input for status updates
+- [x] Remove GIF and song features from status (simplify to text only)
+- [x] Update status bubble to show text preview
+- [x] Test inline editing and persistence (all 61 tests passing)

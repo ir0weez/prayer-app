@@ -519,7 +519,11 @@ export default function HomeScreen() {
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      } catch (e) {
+        // Silently ignore haptics errors
+      }
     }
 
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
@@ -529,7 +533,11 @@ export default function HomeScreen() {
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch (e) {
+        // Silently ignore haptics errors
+      }
     }
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);

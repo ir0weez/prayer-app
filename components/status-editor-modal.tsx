@@ -42,6 +42,10 @@ export function StatusEditorModal({
   const [statusText, setStatusText] = useState(initialStatus?.text || "");
   const [gifUrl, setGifUrl] = useState(initialStatus?.gifUrl);
   const [song, setSong] = useState(initialStatus?.song);
+  const [showGifInput, setShowGifInput] = useState(false);
+  const [showSongInput, setShowSongInput] = useState(false);
+  const [tempGifUrl, setTempGifUrl] = useState("");
+  const [tempSongInput, setTempSongInput] = useState("");
 
   const handleSave = useCallback(() => {
     onSave({
@@ -68,67 +72,56 @@ export function StatusEditorModal({
   }, []);
 
   const handleAddSong = useCallback(() => {
-    Alert.prompt(
-      "Add Song",
-      "Enter song title and artist (format: Title - Artist)",
-      [
-        { text: "Cancel", onPress: () => {} },
-        {
-          text: "Add",
-          onPress: (input: string | undefined) => {
-            if (input) {
-              const [title, artist] = input.split(" - ").map((s: string) => s.trim());
-              if (title && artist) {
-                setSong({ title, artist });
-              } else {
-                Alert.alert("Invalid Format", "Please use format: Title - Artist");
-              }
-            }
-          },
-        },
-      ]
-    );
+    setTempSongInput("");
+    setShowSongInput(true);
   }, []);
+
+  const handleSaveSong = useCallback(() => {
+    if (tempSongInput) {
+      const [title, artist] = tempSongInput.split(" - ").map((s: string) => s.trim());
+      if (title && artist) {
+        setSong({ title, artist });
+        setShowSongInput(false);
+      } else {
+        Alert.alert("Invalid Format", "Please use format: Title - Artist");
+      }
+    }
+  }, [tempSongInput]);
 
   const handleAddGif = useCallback(() => {
-    Alert.prompt(
-      "Add GIF",
-      "Enter GIF URL",
-      [
-        { text: "Cancel", onPress: () => {} },
-        {
-          text: "Add",
-          onPress: (url: string | undefined) => {
-            if (url) {
-              setGifUrl(url);
-            }
-          },
-        },
-      ]
-    );
+    setTempGifUrl("");
+    setShowGifInput(true);
   }, []);
 
+  const handleSaveGif = useCallback(() => {
+    if (tempGifUrl) {
+      setGifUrl(tempGifUrl);
+      setShowGifInput(false);
+    }
+  }, [tempGifUrl]);
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleClose}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={handleClose} style={({ pressed }) => pressed && styles.pressed}>
-            <Text style={styles.headerButton}>✕</Text>
-          </Pressable>
-          <Text style={styles.headerTitle}>Your Status</Text>
-          <Pressable onPress={handleSave} style={({ pressed }) => pressed && styles.pressed}>
-            <Text style={styles.headerButtonPrimary}>Share</Text>
-          </Pressable>
-        </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.container}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable onPress={handleClose} style={({ pressed }) => pressed && styles.pressed}>
+              <Text style={styles.headerButton}>✕</Text>
+            </Pressable>
+            <Text style={styles.headerTitle}>Your Status</Text>
+            <Pressable onPress={handleSave} style={({ pressed }) => pressed && styles.pressed}>
+              <Text style={styles.headerButtonPrimary}>Share</Text>
+            </Pressable>
+          </View>
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -218,6 +211,77 @@ export function StatusEditorModal({
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
+
+    {/* GIF URL Input Modal */}
+    <Modal
+      visible={showGifInput}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowGifInput(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.inputModal}>
+          <Text style={styles.inputModalTitle}>Add GIF</Text>
+          <TextInput
+            style={styles.inputModalInput}
+            placeholder="Enter GIF URL"
+            placeholderTextColor={MUTED_TEXT}
+            value={tempGifUrl}
+            onChangeText={setTempGifUrl}
+          />
+          <View style={styles.inputModalButtons}>
+            <Pressable
+              onPress={() => setShowGifInput(false)}
+              style={({ pressed }) => [styles.inputModalButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.inputModalButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSaveGif}
+              style={({ pressed }) => [styles.inputModalButton, styles.inputModalButtonPrimary, pressed && styles.pressed]}
+            >
+              <Text style={styles.inputModalButtonTextPrimary}>Add</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Song Input Modal */}
+    <Modal
+      visible={showSongInput}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowSongInput(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.inputModal}>
+          <Text style={styles.inputModalTitle}>Add Song</Text>
+          <TextInput
+            style={styles.inputModalInput}
+            placeholder="Title - Artist"
+            placeholderTextColor={MUTED_TEXT}
+            value={tempSongInput}
+            onChangeText={setTempSongInput}
+          />
+          <View style={styles.inputModalButtons}>
+            <Pressable
+              onPress={() => setShowSongInput(false)}
+              style={({ pressed }) => [styles.inputModalButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.inputModalButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSaveSong}
+              style={({ pressed }) => [styles.inputModalButton, styles.inputModalButtonPrimary, pressed && styles.pressed]}
+            >
+              <Text style={styles.inputModalButtonTextPrimary}>Add</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -375,5 +439,62 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: DEEP_TEXT,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputModal: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    width: "80%",
+    maxWidth: 320,
+  },
+  inputModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: DEEP_TEXT,
+    marginBottom: 16,
+  },
+  inputModalInput: {
+    fontSize: 16,
+    color: DEEP_TEXT,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  inputModalButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  inputModalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+  },
+  inputModalButtonPrimary: {
+    backgroundColor: PURPLE,
+    borderColor: PURPLE,
+  },
+  inputModalButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: MUTED_TEXT,
+  },
+  inputModalButtonTextPrimary: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

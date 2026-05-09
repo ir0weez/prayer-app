@@ -288,3 +288,9 @@
 - [x] Add small status bubble to fasting card in Settings (index.tsx)
 - [x] Display status bubble overlay on personal avatar in Pray Today
 - [x] Test status bubble interactions and persistence
+
+## Critical Bug Fix
+
+- [x] Fix crash when marking people in Pray Today section (replaced Alert.prompt with cross-platform modals)
+- [x] Verify status bubble changes didn't break fasting avatar animation
+- [x] Test marking flow end-to-end without crashes (all 61 tests passing)

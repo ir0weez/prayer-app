@@ -309,3 +309,9 @@
 - [x] Debug crash when tapping plus button on fasting avatar in Pray Today (root cause: missing Reanimated Babel plugin)
 - [x] Fix animation or state management issue in handleCompleteFast/handleMissFast (added react-native-reanimated/plugin to babel.config.js)
 - [x] Test tap and long-press interactions without crashes (all 61 tests passing)
+
+## Date Format Update
+
+- [x] Change "last reached" date picker format to MM-DD-YYYY
+- [x] Test date input with new format (all 61 tests passing)
+- [x] Verify date persistence

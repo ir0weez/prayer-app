@@ -29,6 +29,7 @@ import {
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { parseIsoDateFromMmDdYyyy, formatIsoToMmDdYyyy } from "@/lib/prayercircle-fasting";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -461,24 +462,36 @@ export default function PersonScreen() {
 
   const openLastReachedDateModal = () => {
     if (!currentPerson) return;
-    setDraftLastReachedDate(currentPerson.lastPrayedDate ?? getTodayISOString());
+    const dateToShow = currentPerson.lastPrayedDate ?? getTodayISOString();
+    setDraftLastReachedDate(formatIsoToMmDdYyyy(dateToShow));
     setShowDateModal(true);
   };
 
   const handleSaveLastReachedDate = () => {
     if (!personId) return;
-    if (!isValidIsoDate(draftLastReachedDate)) {
-      Alert.alert("Check date", "Use the YYYY-MM-DD format, such as 2026-04-29.");
+    // Convert MM-DD-YYYY to ISO format for validation
+    const isoDate = parseIsoDateFromMmDdYyyy(draftLastReachedDate);
+    if (!isoDate) {
+      Alert.alert("Check date", "Use the MM-DD-YYYY format, such as 04-29-2026.");
       return;
     }
-    if (isFutureIsoDate(draftLastReachedDate)) {
+    // Check if date is in the future
+    const today = getTodayISOString();
+    if (isoDate > today) {
       Alert.alert("Choose a past date", "Last Reached should be today or an earlier date.");
       return;
     }
 
-    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate));
+    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, isoDate));
     setShowDateModal(false);
   };
+
+  // Initialize draftLastReachedDate with MM-DD-YYYY format
+  useEffect(() => {
+    if (currentPerson?.lastPrayedDate) {
+      setDraftLastReachedDate(formatIsoToMmDdYyyy(currentPerson.lastPrayedDate));
+    }
+  }, [currentPerson?.lastPrayedDate]);
 
   if (!hasHydratedPeople) {
     return (
@@ -774,7 +787,7 @@ export default function PersonScreen() {
             <TextInput
               value={draftLastReachedDate}
               onChangeText={setDraftLastReachedDate}
-              placeholder="YYYY-MM-DD"
+              placeholder="MM-DD-YYYY"
               placeholderTextColor={MUTED_TEXT}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"

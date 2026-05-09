@@ -303,3 +303,9 @@
 - [x] Remove GIF and song features from status (simplify to text only)
 - [x] Update status bubble to show text preview
 - [x] Test inline editing and persistence (all 61 tests passing)
+
+## Fasting Avatar Animation Crash
+
+- [x] Debug crash when tapping plus button on fasting avatar in Pray Today (root cause: missing Reanimated Babel plugin)
+- [x] Fix animation or state management issue in handleCompleteFast/handleMissFast (added react-native-reanimated/plugin to babel.config.js)
+- [x] Test tap and long-press interactions without crashes (all 61 tests passing)

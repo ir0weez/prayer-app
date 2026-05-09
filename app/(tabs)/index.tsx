@@ -1,15 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
-import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import { Alert, Animated as RNAnimated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { StatusEditorModal, type StatusData } from "@/components/status-editor-modal";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -46,7 +43,6 @@ import {
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
-import { Platform } from "react-native";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
 type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
@@ -76,9 +72,6 @@ type PersonalProfile = {
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
   lastFastingDate?: string | null;
   lastPersonalPrayerDate?: string | null;
-  statusUpdate?: string;
-  statusGifUrl?: string;
-  nowPlayingSong?: { title: string; artist: string };
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
@@ -194,11 +187,11 @@ function parseStoredProfile(value: string | null): PersonalProfile {
 }
 
 function UndoCountdownBar({ color }: { color: string }) {
-  const progress = useRef(new RNAnimated.Value(1)).current;
+  const progress = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     progress.setValue(1);
-    const animation = RNAnimated.timing(progress, {
+    const animation = Animated.timing(progress, {
       toValue: 0,
       duration: UNDO_COUNTDOWN_MS,
       useNativeDriver: true,
@@ -241,17 +234,6 @@ export default function HomeScreen() {
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
-
-  // Load status data from profile on mount
-  useEffect(() => {
-    if (profile.statusUpdate || profile.statusGifUrl || profile.nowPlayingSong) {
-      setStatusData({
-        text: profile.statusUpdate || "",
-        gifUrl: profile.statusGifUrl,
-        song: profile.nowPlayingSong,
-      });
-    }
-  }, []);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -268,8 +250,6 @@ export default function HomeScreen() {
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
-  const [showStatusEditor, setShowStatusEditor] = useState(false);
-  const [statusData, setStatusData] = useState<StatusData>({ text: "", gifUrl: undefined, song: undefined });
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
@@ -286,16 +266,7 @@ export default function HomeScreen() {
         }
         setStreakRecord(parseStoredStreak(storedStreak));
         setSettings(parseStoredSettings(storedSettings));
-        const parsedProfile = parseStoredProfile(storedProfile);
-        setProfile(parsedProfile);
-        // Load status data from profile
-        if (parsedProfile.statusUpdate || parsedProfile.statusGifUrl || parsedProfile.nowPlayingSong) {
-          setStatusData({
-            text: parsedProfile.statusUpdate || "",
-            gifUrl: parsedProfile.statusGifUrl,
-            song: parsedProfile.nowPlayingSong,
-          });
-        }
+        setProfile(parseStoredProfile(storedProfile));
         if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
       })
       .catch(() => {
@@ -360,14 +331,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    const profileWithStatus = { ...profile, statusUpdate: statusData.text, statusGifUrl: statusData.gifUrl, nowPlayingSong: statusData.song };
-    AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profileWithStatus)).catch(() => undefined);
-  }, [hasHydratedPeople, profile, statusData]);
-
-  const handleSaveStatus = useCallback((newStatus: StatusData) => {
-    setStatusData(newStatus);
-    setShowStatusEditor(false);
-  }, []);
+    AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile)).catch(() => undefined);
+  }, [hasHydratedPeople, profile]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -518,27 +483,12 @@ export default function HomeScreen() {
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      } catch (e) {
-        // Silently ignore haptics errors
-      }
-    }
-
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
   };
 
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch (e) {
-        // Silently ignore haptics errors
-      }
-    }
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
   };
@@ -549,7 +499,6 @@ export default function HomeScreen() {
       delete undoTimers.current['fast'];
     }
     setPendingFastAction(null);
-
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -662,7 +611,12 @@ export default function HomeScreen() {
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <View style={[styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }]}>
+                  <Pressable
+                    onPress={handleCompleteFast}
+                    onLongPress={handleMissFast}
+                    delayLongPress={500}
+                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                  >
                     <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
                       {profile.photoUri ? (
                         <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
@@ -670,19 +624,19 @@ export default function HomeScreen() {
                         <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                       )}
                     </View>
-                  </View>
-                  {/* Status Bubble Overlay */}
-                  {statusData.text && (
-                    <View style={styles.statusBubbleOverlay}>
-                      <View style={styles.statusBubbleOverlayActive}>
-                        <Text style={styles.statusBubbleOverlayEmoji}>✨</Text>
-                      </View>
-                    </View>
-                  )}
+                  </Pressable>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
+                  {pendingFastAction && (
+                    <View style={styles.undoCountdownPill}>
+                      <UndoCountdownBar color={currentTheme.primary} />
+                      <Pressable onPress={handleUndoFastAction}>
+                        <Text style={styles.undoCountdownText}>Tap undo</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               )}
             </ScrollView>
@@ -886,22 +840,9 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              <View style={styles.profileButtonsContainer}>
-                <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-                  <Text style={styles.profilePillButtonText}>Fast</Text>
-                </Pressable>
-                <Pressable onPress={() => setShowStatusEditor(true)} style={({ pressed }) => [styles.statusBubbleButton, pressed && styles.pressed]}>
-                  {statusData.text || statusData.gifUrl || statusData.song ? (
-                    <View style={styles.statusBubbleActive}>
-                      <Text style={styles.statusBubbleEmoji}>✨</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.statusBubbleEmpty}>
-                      <MaterialIcons name="add" size={16} color="#8557D9" />
-                    </View>
-                  )}
-                </Pressable>
-              </View>
+              <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+                <Text style={styles.profilePillButtonText}>Fast</Text>
+              </Pressable>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1157,13 +1098,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
-      <StatusEditorModal
-        visible={showStatusEditor}
-        onClose={() => setShowStatusEditor(false)}
-        onSave={handleSaveStatus}
-        initialStatus={statusData}
-      />
     </ScreenContainer>
   );
 }
@@ -1553,62 +1487,6 @@ const styles = StyleSheet.create({
     color: "#8557D9",
     fontSize: 13,
     fontWeight: "600",
-  },
-  profileButtonsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 6,
-  },
-  statusBubbleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0E8FF",
-    borderWidth: 1,
-    borderColor: "#E0D8EA",
-  },
-  statusBubbleActive: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#8557D9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statusBubbleEmoji: {
-    fontSize: 18,
-  },
-  statusBubbleEmpty: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#DAC8F6",
-  },
-  statusBubbleOverlay: {
-    position: "absolute",
-    bottom: -4,
-    right: -4,
-    zIndex: 10,
-  },
-  statusBubbleOverlayActive: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#8557D9",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  statusBubbleOverlayEmoji: {
-    fontSize: 16,
   },
   profileBirthdayText: {
     color: "#7E7C88",

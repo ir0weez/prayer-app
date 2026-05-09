@@ -36,9 +36,6 @@ type PersonalProfile = {
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
   lastFastingDate?: string | null;
   lastPersonalPrayerDate?: string | null;
-  statusUpdate?: string;
-  statusGifUrl?: string;
-  nowPlayingSong?: { title: string; artist: string };
 };
 
 const DEFAULT_PROFILE: PersonalProfile = {
@@ -49,9 +46,6 @@ const DEFAULT_PROFILE: PersonalProfile = {
   fastingStatus: "not-set",
   lastFastingDate: null,
   lastPersonalPrayerDate: null,
-  statusUpdate: "",
-  statusGifUrl: undefined,
-  nowPlayingSong: undefined,
 };
 
 const DEEP_TEXT = "#141326";
@@ -147,21 +141,6 @@ export default function ProfileScreen() {
       return;
     }
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
-  };
-
-  const clearFastStatus = (dateString: string) => {
-    if (!selectedFast) return;
-    const updatedFasts = fasts.map((fast) =>
-      fast.id === selectedFast.id
-        ? {
-            ...fast,
-            dayStatuses: Object.fromEntries(
-              Object.entries(fast.dayStatuses).filter(([date]) => date !== dateString)
-            ),
-          }
-        : fast
-    );
-    persistFasts(updatedFasts);
   };
 
   const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
@@ -319,8 +298,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-
-
         <View style={styles.statsGrid}>
           <View style={styles.statCard}><Text style={styles.statNumber}>{selectedFastStreak}</Text><Text style={styles.statLabel}>Fast Streak</Text></View>
           <View style={styles.statCard}><Text style={styles.statNumber}>{selectedFastProgress?.completed ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
@@ -372,8 +349,8 @@ export default function ProfileScreen() {
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
                 <Text style={styles.todayButtonText}>Successful Day</Text>
               </Pressable>
-              <Pressable onPress={() => clearFastStatus(today)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              <Pressable onPress={() => chooseStatusForDate(today)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+                <Text style={styles.secondaryButtonText}>Choose status</Text>
               </Pressable>
             </View>
 
@@ -938,5 +915,4 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.74,
   },
-
 });

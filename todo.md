@@ -307,3 +307,4 @@
 - [x] Display active fast icon or "Fast" text based on selection
 - [x] Style as circular overlay in bottom right corner (50x50 circle with border)
 - [x] Test navigation to fast profile when tapped (all 61 tests passing)
+- [x] Fix Settings tab crash by using activeFastTypeInfo instead of undefined selectedFast

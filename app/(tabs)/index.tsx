@@ -868,8 +868,8 @@ export default function HomeScreen() {
           <View style={styles.profileCardTopRight}>
             {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
             <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
-              {selectedFast ? (
-                <MaterialIcons name={iconName(selectedFast.icon)} size={28} color="#FFFFFF" />
+              {activeFastTypeInfo ? (
+                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={28} color="#FFFFFF" />
               ) : (
                 <Text style={styles.fastIconButtonText}>Fast</Text>
               )}

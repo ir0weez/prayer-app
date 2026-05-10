@@ -292,3 +292,10 @@
 - [x] Replace "Choose status" button with red "Cancel Fast" button in profile page
 - [x] Add handler to mark today's fast as missed when button is tapped
 - [x] Test cancel fast functionality (all 61 tests passing)
+
+## Status Bubble Crash & Redesign
+
+- [x] Fix crash when saving status update in StatusModal (fixed MaterialIcons import and parseStoredProfile)
+- [x] Move status bubble from Settings card to top-right overlay on profile picture
+- [x] Redesign as thought bubble style overlay with sparkle emoji
+- [x] Test status save and display without crashes (all 61 tests passing)

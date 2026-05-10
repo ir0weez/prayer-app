@@ -183,6 +183,8 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       fastingStatus,
       lastFastingDate: typeof parsed.lastFastingDate === "string" ? parsed.lastFastingDate : null,
       lastPersonalPrayerDate: typeof parsed.lastPersonalPrayerDate === "string" ? parsed.lastPersonalPrayerDate : null,
+      statusText: typeof parsed.statusText === "string" ? parsed.statusText : undefined,
+      statusPhotoUri: typeof parsed.statusPhotoUri === "string" ? parsed.statusPhotoUri : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -844,6 +846,13 @@ export default function HomeScreen() {
             <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
               <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
                 {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
+                {profile.statusText && (
+                  <Pressable onPress={() => setShowStatusModal(true)} style={styles.statusBubbleOverlay}>
+                    <View style={[styles.statusBubble, { backgroundColor: currentTheme.primary }]}>
+                      <Text style={styles.statusBubbleText}>✨</Text>
+                    </View>
+                  </Pressable>
+                )}
               </View>
             </Pressable>
             <View style={styles.profileNameAndBirthdayContainer}>
@@ -1544,6 +1553,25 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
+  },
+  statusBubbleOverlay: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    zIndex: 10,
+  },
+  statusBubble: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  statusBubbleText: {
+    fontSize: 12,
+    fontWeight: "bold",
   },
   profileSummaryText: {
     flex: 1,

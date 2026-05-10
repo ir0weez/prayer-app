@@ -25,6 +25,7 @@ import {
   type PersonalFast,
   updateFocusItemStatus,
   upsertFastDayStatus,
+  removeFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
@@ -170,11 +171,18 @@ export default function ProfileScreen() {
 
   const handleCancelFastForToday = () => {
     Alert.alert(
-      "Cancel Fast",
-      "Mark today's fast as missed?",
+      "Cancel",
+      "Remove today's fast mark?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Yes, Cancel Fast", style: "destructive", onPress: () => setFastStatus(today, "missed") },
+        {
+          text: "Yes, Remove",
+          style: "destructive",
+          onPress: () => {
+            if (!selectedFast) return;
+            persistFasts(removeFastDayStatus(fasts, selectedFast.id, today));
+          },
+        },
       ]
     );
   };
@@ -361,7 +369,7 @@ export default function ProfileScreen() {
                 <Text style={styles.todayButtonText}>Successful Day</Text>
               </Pressable>
               <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
-                <Text style={styles.cancelButtonText}>Cancel Fast</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
             </View>
 

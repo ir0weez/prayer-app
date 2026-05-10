@@ -122,6 +122,19 @@ export function upsertFastDayStatus(fasts: PersonalFast[], fastId: string, dateS
   );
 }
 
+export function removeFastDayStatus(fasts: PersonalFast[], fastId: string, dateString: string): PersonalFast[] {
+  return fasts.map((fast) =>
+    fast.id === fastId
+      ? {
+          ...fast,
+          dayStatuses: Object.fromEntries(
+            Object.entries(fast.dayStatuses).filter(([date]) => date !== dateString)
+          ),
+        }
+      : fast,
+  );
+}
+
 export function createPersonalFast(input: {
   name: string;
   startDate: string;

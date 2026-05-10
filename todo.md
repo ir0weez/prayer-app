@@ -308,3 +308,9 @@
 - [x] Style as circular overlay in bottom right corner (50x50 circle with border)
 - [x] Test navigation to fast profile when tapped (all 61 tests passing)
 - [x] Fix Settings tab crash by using activeFastTypeInfo instead of undefined selectedFast
+
+## Cancel Button Fix
+
+- [x] Change "Cancel Fast" button text to just "Cancel"
+- [x] Update handler to remove day's mark instead of marking as missed
+- [x] Test Cancel functionality

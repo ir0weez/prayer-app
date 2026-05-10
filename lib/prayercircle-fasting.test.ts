@@ -6,6 +6,7 @@ import {
   getFastProgress,
   normalizeFastDateInput,
   upsertFastDayStatus,
+  removeFastDayStatus,
   type PersonalFast,
 } from "./prayercircle-fasting";
 
@@ -238,5 +239,35 @@ describe("Fast Editor Modal - Create and Edit", () => {
     expect(fast).toBeDefined();
     expect(fast?.focusItems).toContain("Prayer for 'Peace'");
     expect(fast?.focusItems).toContain("Health & Wellness");
+  });
+
+  it("removes a fast day status correctly", () => {
+    const fast = createPersonalFast({
+      name: "Test Fast",
+      startDate: "04-28-2026",
+      durationDays: 40,
+      type: "Hope",
+      focusItems: [],
+      existingCount: 0,
+    })!;
+
+    expect(fast).toBeDefined();
+
+    // Add some day statuses
+    let updatedFast = upsertFastDayStatus([fast], fast.id, "2026-04-28", "completed")[0];
+    updatedFast = upsertFastDayStatus([updatedFast], fast.id, "2026-04-29", "skipped")[0];
+    updatedFast = upsertFastDayStatus([updatedFast], fast.id, "2026-04-30", "missed")[0];
+
+    expect(updatedFast.dayStatuses["2026-04-28"]).toBe("completed");
+    expect(updatedFast.dayStatuses["2026-04-29"]).toBe("skipped");
+    expect(updatedFast.dayStatuses["2026-04-30"]).toBe("missed");
+
+    // Remove one day's status
+    const fastAfterRemoval = removeFastDayStatus([updatedFast], fast.id, "2026-04-29")[0];
+
+    // Verify the status was removed
+    expect(fastAfterRemoval.dayStatuses["2026-04-28"]).toBe("completed");
+    expect(fastAfterRemoval.dayStatuses["2026-04-29"]).toBeUndefined();
+    expect(fastAfterRemoval.dayStatuses["2026-04-30"]).toBe("missed");
   });
 });

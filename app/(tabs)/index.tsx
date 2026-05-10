@@ -846,23 +846,22 @@ export default function HomeScreen() {
             <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
               <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
                 {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
-                {profile.statusText && (
-                  <Pressable onPress={() => setShowStatusModal(true)} style={styles.statusBubbleOverlay}>
-                    <View style={[styles.statusBubble, { backgroundColor: currentTheme.primary }]}>
-                      <Text style={styles.statusBubbleText}>✨</Text>
+                <Pressable onPress={() => setShowStatusModal(true)} style={styles.statusBubbleOverlay}>
+                  {profile.statusText ? (
+                    <View style={[styles.statusPill, { backgroundColor: currentTheme.primary }]}>
+                      <Text style={styles.statusPillText}>✨ {profile.statusText.substring(0, 15)}{profile.statusText.length > 15 ? '...' : ''}</Text>
                     </View>
-                  </Pressable>
-                )}
+                  ) : (
+                    <View style={[styles.statusBubble, { backgroundColor: currentTheme.primary }]}>
+                      <Text style={styles.statusBubbleText}>+</Text>
+                    </View>
+                  )}
+                </Pressable>
               </View>
             </Pressable>
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              <View style={styles.profileButtonsRow}>
-                <Pressable onPress={() => setShowStatusModal(true)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-                  <Text style={styles.profilePillButtonText}>{profile.statusText ? '✨ ' + profile.statusText.substring(0, 20) + (profile.statusText.length > 20 ? '...' : '') : '✨ Add Status'}</Text>
-                </Pressable>
-              </View>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1132,7 +1131,6 @@ export default function HomeScreen() {
         onClose={() => setShowStatusModal(false)}
         onSave={(text, photoUri) => {
           setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri }));
-          saveProfile({ ...profile, statusText: text, statusPhotoUri: photoUri });
         }}
         primaryColor={currentTheme.primary}
       />
@@ -1576,6 +1574,20 @@ const styles = StyleSheet.create({
   statusBubbleText: {
     fontSize: 12,
     fontWeight: "bold",
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   profileSummaryText: {
     flex: 1,

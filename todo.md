@@ -314,3 +314,10 @@
 - [x] Change "Cancel Fast" button text to just "Cancel"
 - [x] Update handler to remove day's mark instead of marking as missed
 - [x] Test Cancel functionality
+
+## Status Pill Fix
+
+- [x] Review current status bubble implementation in Settings profile card
+- [x] Fix status pill to be positioned as overlay on profile picture
+- [x] Simplify status editor to just text input (no photo)
+- [x] Test status update functionality

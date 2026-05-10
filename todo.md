@@ -321,3 +321,12 @@
 - [x] Fix status pill to be positioned as overlay on profile picture
 - [x] Simplify status editor to just text input (no photo)
 - [x] Test status update functionality
+
+## Status Bubble Redesign (Current)
+
+- [x] Make profile picture bigger (increase avatar size)
+- [x] Move profile name down to accommodate larger avatar
+- [x] Reposition status bubble as thought bubble sticking OUT from profile pic
+- [x] Replace StatusModal with inline text input on Settings page
+- [x] Make status editable directly from Settings without opening another screen
+- [x] Test status update inline editing

@@ -240,6 +240,8 @@ export default function HomeScreen() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [isEditingStatusInline, setIsEditingStatusInline] = useState(false);
+  const [draftStatusText, setDraftStatusText] = useState("");
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -843,22 +845,22 @@ export default function HomeScreen() {
       <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: "#FFFFFF" }]}>
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
-            <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-              <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
-                {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={30} color="#FFFFFF" />}
-                <Pressable onPress={() => setShowStatusModal(true)} style={styles.statusBubbleOverlay}>
-                  {profile.statusText ? (
-                    <View style={[styles.statusPill, { backgroundColor: currentTheme.primary }]}>
-                      <Text style={styles.statusPillText}>✨ {profile.statusText.substring(0, 15)}{profile.statusText.length > 15 ? '...' : ''}</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.statusBubble, { backgroundColor: currentTheme.primary }]}>
-                      <Text style={styles.statusBubbleText}>+</Text>
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-            </Pressable>
+            <View style={styles.profileAvatarContainer}>
+              <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
+                <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+                  {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={40} color="#FFFFFF" />}
+                </View>
+              </Pressable>
+              <Pressable onPress={() => {
+                setDraftStatusText(profile.statusText || "");
+                setIsEditingStatusInline(true);
+              }} style={styles.statusThoughtBubble}>
+                <View style={[styles.statusThoughtBubbleContent, { backgroundColor: currentTheme.primary }]}>
+                  <Text style={styles.statusThoughtBubbleText}>{profile.statusText ? profile.statusText.substring(0, 20) : '✨'}</Text>
+                </View>
+                <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
+              </Pressable>
+            </View>
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
@@ -883,6 +885,35 @@ export default function HomeScreen() {
           <View style={styles.settingsStatDivider} />
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
+
+        {isEditingStatusInline && (
+          <View style={styles.inlineStatusEditor}>
+            <TextInput
+              style={[styles.inlineStatusInput, { borderColor: currentTheme.primary }]}
+              placeholder="What's on your mind?"
+              placeholderTextColor="#999999"
+              value={draftStatusText}
+              onChangeText={setDraftStatusText}
+              maxLength={280}
+              multiline
+            />
+            <View style={styles.inlineStatusActions}>
+              <Pressable onPress={() => {
+                setIsEditingStatusInline(false);
+                setDraftStatusText("");
+              }} style={({ pressed }) => [styles.inlineStatusButton, pressed && styles.pressed]}>
+                <Text style={styles.inlineStatusButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={() => {
+                setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
+                setIsEditingStatusInline(false);
+                setDraftStatusText("");
+              }} style={({ pressed }) => [styles.inlineStatusButtonSave, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
+                <Text style={styles.inlineStatusButtonSaveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
 
 
@@ -1543,49 +1574,95 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
   },
+  profileAvatarContainer: {
+    position: "relative",
+    marginBottom: 8,
+  },
   profileAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   profileAvatarImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  statusBubbleOverlay: {
+  statusThoughtBubble: {
     position: "absolute",
-    top: -4,
-    right: -4,
-    zIndex: 10,
+    top: 0,
+    right: -8,
+    zIndex: 20,
   },
-  statusBubble: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+  statusThoughtBubbleContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    minWidth: 50,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statusBubbleText: {
+  statusThoughtBubbleText: {
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+  statusThoughtBubbleTail: {
+    position: "absolute",
+    bottom: -6,
+    left: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  statusPillText: {
-    fontSize: 11,
+  inlineStatusEditor: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#F5F5F5",
+    borderRadius: 12,
+    gap: 8,
+  },
+  inlineStatusInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#11181C",
+    maxHeight: 100,
+  },
+  inlineStatusActions: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  inlineStatusButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  inlineStatusButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#687076",
+  },
+  inlineStatusButtonSave: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  inlineStatusButtonSaveText: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
   },

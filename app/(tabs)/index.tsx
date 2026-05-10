@@ -851,15 +851,39 @@ export default function HomeScreen() {
                   {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={40} color="#FFFFFF" />}
                 </View>
               </Pressable>
-              <Pressable onPress={() => {
-                setDraftStatusText(profile.statusText || "");
-                setIsEditingStatusInline(true);
-              }} style={styles.statusThoughtBubble}>
-                <View style={[styles.statusThoughtBubbleContent, { backgroundColor: currentTheme.primary }]}>
-                  <Text style={styles.statusThoughtBubbleText}>{profile.statusText ? profile.statusText.substring(0, 20) : '✨'}</Text>
+              {isEditingStatusInline ? (
+                <View style={styles.statusThoughtBubble}>
+                  <View style={[styles.statusThoughtBubbleEditContent, { backgroundColor: currentTheme.primary }]}>
+                    <TextInput
+                      style={styles.statusThoughtBubbleEditInput}
+                      placeholder="Status..."
+                      placeholderTextColor="rgba(255,255,255,0.6)"
+                      value={draftStatusText}
+                      onChangeText={setDraftStatusText}
+                      maxLength={50}
+                      autoFocus
+                    />
+                    <Pressable onPress={() => {
+                      setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
+                      setIsEditingStatusInline(false);
+                      setDraftStatusText("");
+                    }} style={({ pressed }) => [styles.statusThoughtBubbleSaveButton, pressed && styles.pressed]}>
+                      <Text style={styles.statusThoughtBubbleSaveIcon}>✓</Text>
+                    </Pressable>
+                  </View>
+                  <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
                 </View>
-                <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
-              </Pressable>
+              ) : (
+                <Pressable onPress={() => {
+                  setDraftStatusText(profile.statusText || "");
+                  setIsEditingStatusInline(true);
+                }} style={styles.statusThoughtBubble}>
+                  <View style={[styles.statusThoughtBubbleContent, { backgroundColor: currentTheme.primary }]}>
+                    <Text style={styles.statusThoughtBubbleText}>{profile.statusText ? profile.statusText.substring(0, 20) : '✨'}</Text>
+                  </View>
+                  <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
+                </Pressable>
+              )}
             </View>
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
@@ -886,34 +910,7 @@ export default function HomeScreen() {
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
 
-        {isEditingStatusInline && (
-          <View style={styles.inlineStatusEditor}>
-            <TextInput
-              style={[styles.inlineStatusInput, { borderColor: currentTheme.primary }]}
-              placeholder="What's on your mind?"
-              placeholderTextColor="#999999"
-              value={draftStatusText}
-              onChangeText={setDraftStatusText}
-              maxLength={280}
-              multiline
-            />
-            <View style={styles.inlineStatusActions}>
-              <Pressable onPress={() => {
-                setIsEditingStatusInline(false);
-                setDraftStatusText("");
-              }} style={({ pressed }) => [styles.inlineStatusButton, pressed && styles.pressed]}>
-                <Text style={styles.inlineStatusButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={() => {
-                setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
-                setIsEditingStatusInline(false);
-                setDraftStatusText("");
-              }} style={({ pressed }) => [styles.inlineStatusButtonSave, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
-                <Text style={styles.inlineStatusButtonSaveText}>Save</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
+
       </View>
 
 
@@ -1593,8 +1590,8 @@ const styles = StyleSheet.create({
   },
   statusThoughtBubble: {
     position: "absolute",
-    top: 0,
-    right: -8,
+    top: -4,
+    right: -60,
     zIndex: 20,
   },
   statusThoughtBubbleContent: {
@@ -1621,6 +1618,36 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  statusThoughtBubbleEditContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statusThoughtBubbleEditInput: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+    padding: 0,
+  },
+  statusThoughtBubbleSaveButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusThoughtBubbleSaveIcon: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "bold",
   },
   inlineStatusEditor: {
     marginTop: 12,

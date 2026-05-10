@@ -330,3 +330,10 @@
 - [x] Replace StatusModal with inline text input on Settings page
 - [x] Make status editable directly from Settings without opening another screen
 - [x] Test status update inline editing
+
+## Status Bubble Positioning & Inline Editing Refinement
+
+- [x] Move thought bubble further to the right (completely outside profile picture)
+- [x] Make text input appear INSIDE the thought bubble when tapped
+- [x] Add save/checkmark button inside the bubble for inline editing
+- [x] Remove the separate inline editor section below the profile card

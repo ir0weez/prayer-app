@@ -250,6 +250,7 @@ export default function HomeScreen() {
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
+  const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
@@ -478,17 +479,20 @@ export default function HomeScreen() {
     const updatedFasts = upsertFastDayStatus(fasts, activeFast.id, today, status);
     setFasts(updatedFasts);
     setPendingFastAction(null);
+    setFastAvatarColor(null);
     delete undoTimers.current['fast'];
   }, [activeFast, fasts, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
+    setFastAvatarColor('#22C55E'); // Green
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
   };
 
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
+    setFastAvatarColor('#EF4444'); // Red
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
   };
@@ -499,6 +503,7 @@ export default function HomeScreen() {
       delete undoTimers.current['fast'];
     }
     setPendingFastAction(null);
+    setFastAvatarColor(null);
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -615,9 +620,9 @@ export default function HomeScreen() {
                     onPress={handleCompleteFast}
                     onLongPress={handleMissFast}
                     delayLongPress={500}
-                    style={({ pressed }) => [styles.storyRing, { borderColor: currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColor || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
                   >
-                    <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: currentTheme.primary }]}>
+                    <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }]}>
                       {profile.photoUri ? (
                         <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
                       ) : (

@@ -168,6 +168,17 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleCancelFastForToday = () => {
+    Alert.alert(
+      "Cancel Fast",
+      "Mark today's fast as missed?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Yes, Cancel Fast", style: "destructive", onPress: () => setFastStatus(today, "missed") },
+      ]
+    );
+  };
+
   const addDraftFocus = () => {
     const trimmed = draftFastFocusInput.trim();
     if (!trimmed || draftFastFocusItems.includes(trimmed)) return;
@@ -349,8 +360,8 @@ export default function ProfileScreen() {
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
                 <Text style={styles.todayButtonText}>Successful Day</Text>
               </Pressable>
-              <Pressable onPress={() => chooseStatusForDate(today)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-                <Text style={styles.secondaryButtonText}>Choose status</Text>
+              <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+                <Text style={styles.cancelButtonText}>Cancel Fast</Text>
               </Pressable>
             </View>
 
@@ -692,6 +703,20 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: PURPLE,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 18,
+    backgroundColor: "#EF4444",
+    borderWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButtonText: {
+    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
   },

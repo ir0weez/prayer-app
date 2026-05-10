@@ -286,3 +286,9 @@
 - [x] Implement photo picker for status image
 - [x] Display status with text and optional photo in pill
 - [x] Test status creation, editing, and deletion (all 61 tests passing)
+
+## Cancel Fast Button
+
+- [x] Replace "Choose status" button with red "Cancel Fast" button in profile page
+- [x] Add handler to mark today's fast as missed when button is tapped
+- [x] Test cancel fast functionality (all 61 tests passing)

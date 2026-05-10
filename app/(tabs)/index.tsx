@@ -860,16 +860,20 @@ export default function HomeScreen() {
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
               <View style={styles.profileButtonsRow}>
                 <Pressable onPress={() => setShowStatusModal(true)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-                  <Text style={styles.profilePillButtonText}>{profile.statusText ? '✨ ' + profile.statusText.substring(0, 15) + (profile.statusText.length > 15 ? '...' : '') : '✨ Add Status'}</Text>
-                </Pressable>
-                <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-                  <Text style={styles.profilePillButtonText}>Fast</Text>
+                  <Text style={styles.profilePillButtonText}>{profile.statusText ? '✨ ' + profile.statusText.substring(0, 20) + (profile.statusText.length > 20 ? '...' : '') : '✨ Add Status'}</Text>
                 </Pressable>
               </View>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
             {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
+            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
+              {selectedFast ? (
+                <MaterialIcons name={iconName(selectedFast.icon)} size={28} color="#FFFFFF" />
+              ) : (
+                <Text style={styles.fastIconButtonText}>Fast</Text>
+              )}
+            </Pressable>
           </View>
         </View>
 
@@ -1613,6 +1617,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 16,
+  },
+  fastIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  fastIconButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   profileAvatarButton: {
     padding: 4,

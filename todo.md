@@ -299,3 +299,11 @@
 - [x] Move status bubble from Settings card to top-right overlay on profile picture
 - [x] Redesign as thought bubble style overlay with sparkle emoji
 - [x] Test status save and display without crashes (all 61 tests passing)
+
+## Fast Button Redesign
+
+- [x] Remove Fast button from profileButtonsRow in Settings card
+- [x] Add circular fast icon button to bottom right corner of profile card
+- [x] Display active fast icon or "Fast" text based on selection
+- [x] Style as circular overlay in bottom right corner (50x50 circle with border)
+- [x] Test navigation to fast profile when tapped (all 61 tests passing)

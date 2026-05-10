@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { StatusModal } from "@/components/status-modal";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -72,6 +73,8 @@ type PersonalProfile = {
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
   lastFastingDate?: string | null;
   lastPersonalPrayerDate?: string | null;
+  statusText?: string;
+  statusPhotoUri?: string;
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
@@ -92,7 +95,7 @@ const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primar
 };
 
 const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: true, demoMode: false };
-const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -234,6 +237,7 @@ export default function HomeScreen() {
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -845,9 +849,14 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
-                <Text style={styles.profilePillButtonText}>Fast</Text>
-              </Pressable>
+              <View style={styles.profileButtonsRow}>
+                <Pressable onPress={() => setShowStatusModal(true)} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+                  <Text style={styles.profilePillButtonText}>{profile.statusText ? '✨ ' + profile.statusText.substring(0, 15) + (profile.statusText.length > 15 ? '...' : '') : '✨ Add Status'}</Text>
+                </Pressable>
+                <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.profilePillButton, pressed && styles.pressed]}>
+                  <Text style={styles.profilePillButtonText}>Fast</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1103,6 +1112,17 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      <StatusModal
+        visible={showStatusModal}
+        statusText={profile.statusText || ""}
+        statusPhotoUri={profile.statusPhotoUri}
+        onClose={() => setShowStatusModal(false)}
+        onSave={(text, photoUri) => {
+          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri }));
+          saveProfile({ ...profile, statusText: text, statusPhotoUri: photoUri });
+        }}
+        primaryColor={currentTheme.primary}
+      />
     </ScreenContainer>
   );
 }
@@ -1492,6 +1512,12 @@ const styles = StyleSheet.create({
     color: "#8557D9",
     fontSize: 13,
     fontWeight: "600",
+  },
+  profileButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    flexWrap: "wrap",
   },
   profileBirthdayText: {
     color: "#7E7C88",

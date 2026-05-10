@@ -277,3 +277,12 @@
 - [x] Fix fasting streak not showing on Pray Today personal avatar (still shows 0)
 - [x] Add border around today's date in the fasting calendar
 - [x] Fix progress pill not filling completely at 31+ days (shows half full instead of full)
+
+## Instagram-Style Status Feature
+
+- [x] Add status state management to profile (text + photo)
+- [x] Create status editor modal component with photo picker
+- [x] Add status display pill to Settings card under profile name
+- [x] Implement photo picker for status image
+- [x] Display status with text and optional photo in pill
+- [x] Test status creation, editing, and deletion (all 61 tests passing)

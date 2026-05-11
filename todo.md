@@ -341,3 +341,9 @@
 ## Status Bubble Text Visibility Fix
 
 - [x] Make text visible in the status bubble text input (added proper height and padding)
+
+## Status Bubble Expansion for Editing
+
+- [x] Make bubble expand to larger size when in edit mode
+- [x] Show expanded text input area with better visibility
+- [x] Add Cancel and Save buttons in expanded bubble

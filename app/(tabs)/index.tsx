@@ -852,26 +852,32 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
               {isEditingStatusInline ? (
-                <View style={styles.statusThoughtBubble}>
-                  <View style={[styles.statusThoughtBubbleEditContent, { backgroundColor: currentTheme.primary }]}>
-                    <TextInput
-                      style={styles.statusThoughtBubbleEditInput}
-                      placeholder="Status..."
-                      placeholderTextColor="rgba(255,255,255,0.6)"
-                      value={draftStatusText}
-                      onChangeText={setDraftStatusText}
-                      maxLength={50}
-                      autoFocus
-                    />
+                <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: currentTheme.primary }]}>
+                  <TextInput
+                    style={styles.statusThoughtBubbleExpandedInput}
+                    placeholder="What's on your mind?"
+                    placeholderTextColor="rgba(255,255,255,0.6)"
+                    value={draftStatusText}
+                    onChangeText={setDraftStatusText}
+                    maxLength={100}
+                    multiline
+                    autoFocus
+                  />
+                  <View style={styles.statusThoughtBubbleExpandedActions}>
+                    <Pressable onPress={() => {
+                      setIsEditingStatusInline(false);
+                      setDraftStatusText("");
+                    }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
+                      <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
+                    </Pressable>
                     <Pressable onPress={() => {
                       setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
                       setIsEditingStatusInline(false);
                       setDraftStatusText("");
-                    }} style={({ pressed }) => [styles.statusThoughtBubbleSaveButton, pressed && styles.pressed]}>
-                      <Text style={styles.statusThoughtBubbleSaveIcon}>✓</Text>
+                    }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
+                      <Text style={styles.statusThoughtBubbleExpandedSaveText}>Save</Text>
                     </Pressable>
                   </View>
-                  <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
                 </View>
               ) : (
                 <Pressable onPress={() => {
@@ -1650,6 +1656,56 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "bold",
+  },
+  statusThoughtBubbleExpanded: {
+    position: "absolute",
+    top: -80,
+    right: -20,
+    zIndex: 20,
+    width: 240,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    padding: 12,
+    gap: 10,
+  },
+  statusThoughtBubbleExpandedInput: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "500",
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 8,
+    minHeight: 60,
+    maxHeight: 80,
+    textAlignVertical: "top",
+  },
+  statusThoughtBubbleExpandedActions: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  statusThoughtBubbleExpandedCancel: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  statusThoughtBubbleExpandedCancelText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  statusThoughtBubbleExpandedSave: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.3)",
+  },
+  statusThoughtBubbleExpandedSaveText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   inlineStatusEditor: {
     marginTop: 12,

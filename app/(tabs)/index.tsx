@@ -851,6 +851,10 @@ export default function HomeScreen() {
                   {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={40} color="#FFFFFF" />}
                 </View>
               </Pressable>
+            </View>
+            <View style={styles.profileNameAndBirthdayContainer}>
+              <Text style={styles.profileNameText}>{profile.name}</Text>
+              {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
               {isEditingStatusInline ? (
                 <View style={styles.statusModalOverlay}>
                   <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: currentTheme.primary }]}>
@@ -885,17 +889,12 @@ export default function HomeScreen() {
                 <Pressable onPress={() => {
                   setDraftStatusText(profile.statusText || "");
                   setIsEditingStatusInline(true);
-                }} style={styles.statusThoughtBubble}>
-                  <View style={[styles.statusThoughtBubbleContent, { backgroundColor: currentTheme.primary }]}>
-                    <Text style={styles.statusThoughtBubbleText}>{profile.statusText ? profile.statusText.substring(0, 20) : '✨'}</Text>
+                }} style={styles.statusPillContainer}>
+                  <View style={[styles.statusPill, { backgroundColor: currentTheme.primary }]}>
+                    <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
-                  <View style={[styles.statusThoughtBubbleTail, { backgroundColor: currentTheme.primary }]} />
                 </Pressable>
               )}
-            </View>
-            <View style={styles.profileNameAndBirthdayContainer}>
-              <Text style={styles.profileNameText}>{profile.name}</Text>
-              {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1540,6 +1539,23 @@ const styles = StyleSheet.create({
   profileNameAndBirthdayContainer: {
     flex: 1,
     gap: 6,
+    justifyContent: "flex-start",
+  },
+  statusPillContainer: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  statusPillText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   profileCardButtons: {
     flexDirection: "row",

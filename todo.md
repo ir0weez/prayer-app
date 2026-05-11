@@ -359,3 +359,10 @@
 - [x] Center the expanded bubble on screen (like a modal)
 - [x] Add dark overlay behind the bubble
 - [x] Remove absolute positioning from profile area
+
+## Status Pill Repositioning
+
+- [x] Move status pill underneath the name instead of next to avatar
+- [x] Align name with top of photo
+- [x] Make status pill expand horizontally for longer text
+- [x] Keep status pill as a tappable element for editing

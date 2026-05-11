@@ -384,3 +384,9 @@
 - [x] Hide color palette by default, show behind a palette button (🎨 button toggles it)
 - [x] Fix bubble height so it's not cut off at the bottom (minHeight: 200)
 - [x] Arrange buttons: Color button | Cancel | Save (in that order)
+
+## Status Editor Button Refinements
+
+- [x] Reduce bubble height (removed minHeight constraint)
+- [x] Change buttons from rectangular to circular with icons (40x40 circles)
+- [x] Use 🎨 for color, ✕ for cancel, ✓ for save

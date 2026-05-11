@@ -891,7 +891,7 @@ export default function HomeScreen() {
                         setDraftStatusText("");
                         setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
-                        <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
+                        <Text style={styles.statusThoughtBubbleExpandedCancelText}>✕</Text>
                       </Pressable>
                       <Pressable onPress={() => {
                         const expiresAt = new Date();
@@ -901,7 +901,7 @@ export default function HomeScreen() {
                         setDraftStatusText("");
                         setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
-                        <Text style={styles.statusThoughtBubbleExpandedSaveText}>Save</Text>
+                        <Text style={styles.statusThoughtBubbleExpandedSaveText}>✓</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -1716,7 +1716,6 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
     padding: 12,
     gap: 10,
-    minHeight: 200,
   },
   statusThoughtBubbleExpandedInput: {
     fontSize: 14,
@@ -1729,39 +1728,46 @@ const styles = StyleSheet.create({
   },
   statusThoughtBubbleExpandedActions: {
     flexDirection: "row",
-    gap: 8,
-    justifyContent: "flex-end",
+    gap: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusThoughtBubbleExpandedCancel: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusThoughtBubbleExpandedCancelText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: "600",
   },
   statusThoughtBubbleExpandedSave: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusThoughtBubbleExpandedSaveText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: "600",
   },
   statusThoughtBubbleExpandedColor: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusThoughtBubbleExpandedColorText: {
-    fontSize: 16,
+    fontSize: 18,
   },
   statusColorPalette: {
     flexDirection: "row",

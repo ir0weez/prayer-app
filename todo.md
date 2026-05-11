@@ -353,3 +353,9 @@
 - [x] Adjust expanded bubble position so it doesn't overlap profile picture
 - [x] Move bubble more to the right and up
 - [x] Ensure Cancel and Save buttons are fully visible
+
+## Status Bubble Center Positioning
+
+- [x] Center the expanded bubble on screen (like a modal)
+- [x] Add dark overlay behind the bubble
+- [x] Remove absolute positioning from profile area

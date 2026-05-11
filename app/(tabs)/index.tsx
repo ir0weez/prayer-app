@@ -852,31 +852,33 @@ export default function HomeScreen() {
                 </View>
               </Pressable>
               {isEditingStatusInline ? (
-                <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: currentTheme.primary }]}>
-                  <TextInput
-                    style={styles.statusThoughtBubbleExpandedInput}
-                    placeholder="What's on your mind?"
-                    placeholderTextColor="rgba(255,255,255,0.6)"
-                    value={draftStatusText}
-                    onChangeText={setDraftStatusText}
-                    maxLength={100}
-                    multiline
-                    autoFocus
-                  />
-                  <View style={styles.statusThoughtBubbleExpandedActions}>
-                    <Pressable onPress={() => {
-                      setIsEditingStatusInline(false);
-                      setDraftStatusText("");
-                    }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
-                      <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
-                    </Pressable>
-                    <Pressable onPress={() => {
-                      setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
-                      setIsEditingStatusInline(false);
-                      setDraftStatusText("");
-                    }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
-                      <Text style={styles.statusThoughtBubbleExpandedSaveText}>Save</Text>
-                    </Pressable>
+                <View style={styles.statusModalOverlay}>
+                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: currentTheme.primary }]}>
+                    <TextInput
+                      style={styles.statusThoughtBubbleExpandedInput}
+                      placeholder="What's on your mind?"
+                      placeholderTextColor="rgba(255,255,255,0.6)"
+                      value={draftStatusText}
+                      onChangeText={setDraftStatusText}
+                      maxLength={100}
+                      multiline
+                      autoFocus
+                    />
+                    <View style={styles.statusThoughtBubbleExpandedActions}>
+                      <Pressable onPress={() => {
+                        setIsEditingStatusInline(false);
+                        setDraftStatusText("");
+                      }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
+                        <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable onPress={() => {
+                        setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
+                        setIsEditingStatusInline(false);
+                        setDraftStatusText("");
+                      }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
+                        <Text style={styles.statusThoughtBubbleExpandedSaveText}>Save</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
               ) : (
@@ -1657,12 +1659,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
   },
-  statusThoughtBubbleExpanded: {
+  statusModalOverlay: {
     position: "absolute",
-    top: -100,
-    right: -120,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 20,
-    width: 260,
+  },
+  statusThoughtBubbleExpanded: {
+    width: 280,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF",

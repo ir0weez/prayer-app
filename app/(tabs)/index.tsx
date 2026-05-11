@@ -1570,7 +1570,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
-    flexWrap: "wrap",
+    numberOfLines: 1,
   },
   profileCardButtons: {
     flexDirection: "row",

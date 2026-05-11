@@ -373,3 +373,7 @@
 - [x] Add status expiration feature (auto-clear after 24 hours when saving)
 - [x] Add color picker/palette button to customize bubble color (6 color options)
 - [x] Make text input background match bubble color (uses statusColor from profile)
+
+## Status Pill Single Line Display
+
+- [x] Make status pill display only one line with ellipsis for long text

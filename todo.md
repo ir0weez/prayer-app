@@ -390,3 +390,9 @@
 - [x] Reduce bubble height (removed minHeight constraint)
 - [x] Change buttons from rectangular to circular with icons (40x40 circles)
 - [x] Use 🎨 for color, ✕ for cancel, ✓ for save
+
+## Status Expiration Display
+
+- [x] Add clock icon with expiration time next to status pill (🕐 format)
+- [x] Format expiration time (e.g., "20h")
+- [x] Display only when status is active and not expired

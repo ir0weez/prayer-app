@@ -228,6 +228,16 @@ export default function HomeScreen() {
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
   const todayDayOfMonth = todayDate.getDate();
+  const getExpirationTime = (expiresAt: string | undefined) => {
+    if (!expiresAt) return null;
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diffMs = expiry.getTime() - now.getTime();
+    if (diffMs <= 0) return null;
+    const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+    return `${hours}h`;
+  };
+
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);
   const [journal] = useState(initialState.journal);
@@ -914,6 +924,9 @@ export default function HomeScreen() {
                   <View style={[styles.statusPill, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
+                  {getExpirationTime(profile.statusExpiresAt) && (
+                    <Text style={styles.statusExpirationTime}>🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
+                  )}
                 </Pressable>
               )}
             </View>
@@ -1579,6 +1592,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     numberOfLines: 1,
+  },
+  statusExpirationTime: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 4,
   },
   profileCardButtons: {
     flexDirection: "row",

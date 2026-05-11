@@ -347,3 +347,9 @@
 - [x] Make bubble expand to larger size when in edit mode
 - [x] Show expanded text input area with better visibility
 - [x] Add Cancel and Save buttons in expanded bubble
+
+## Status Bubble Positioning Fix
+
+- [x] Adjust expanded bubble position so it doesn't overlap profile picture
+- [x] Move bubble more to the right and up
+- [x] Ensure Cancel and Save buttons are fully visible

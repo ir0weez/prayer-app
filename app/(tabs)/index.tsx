@@ -1659,10 +1659,10 @@ const styles = StyleSheet.create({
   },
   statusThoughtBubbleExpanded: {
     position: "absolute",
-    top: -80,
-    right: -20,
+    top: -100,
+    right: -120,
     zIndex: 20,
-    width: 240,
+    width: 260,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF",

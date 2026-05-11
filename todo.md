@@ -337,3 +337,7 @@
 - [x] Make text input appear INSIDE the thought bubble when tapped
 - [x] Add save/checkmark button inside the bubble for inline editing
 - [x] Remove the separate inline editor section below the profile card
+
+## Status Bubble Text Visibility Fix
+
+- [x] Make text visible in the status bubble text input (changed to black text)

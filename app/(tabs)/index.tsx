@@ -1631,7 +1631,7 @@ const styles = StyleSheet.create({
   },
   statusThoughtBubbleEditInput: {
     flex: 1,
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 12,
     fontWeight: "600",
     padding: 0,

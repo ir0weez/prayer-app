@@ -75,6 +75,8 @@ type PersonalProfile = {
   lastPersonalPrayerDate?: string | null;
   statusText?: string;
   statusPhotoUri?: string;
+  statusColor?: string;
+  statusExpiresAt?: string | null;
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
@@ -95,7 +97,7 @@ const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primar
 };
 
 const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: true, demoMode: false };
-const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -857,7 +859,7 @@ export default function HomeScreen() {
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
               {isEditingStatusInline ? (
                 <View style={styles.statusModalOverlay}>
-                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: currentTheme.primary }]}>
+                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                     <TextInput
                       style={styles.statusThoughtBubbleExpandedInput}
                       placeholder="What's on your mind?"
@@ -868,6 +870,15 @@ export default function HomeScreen() {
                       multiline
                       autoFocus
                     />
+                    <View style={styles.statusColorPalette}>
+                      {['#0A86B8', '#8557D9', '#2E8B3C', '#F25700', '#C91463', '#E75A7C'].map((color) => (
+                        <Pressable
+                          key={color}
+                          onPress={() => setProfile((prev) => ({ ...prev, statusColor: color }))}
+                          style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
+                        />
+                      ))}
+                    </View>
                     <View style={styles.statusThoughtBubbleExpandedActions}>
                       <Pressable onPress={() => {
                         setIsEditingStatusInline(false);
@@ -876,7 +887,9 @@ export default function HomeScreen() {
                         <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
                       </Pressable>
                       <Pressable onPress={() => {
-                        setProfile((prev) => ({ ...prev, statusText: draftStatusText }));
+                        const expiresAt = new Date();
+                        expiresAt.setHours(expiresAt.getHours() + 24);
+                        setProfile((prev) => ({ ...prev, statusText: draftStatusText, statusExpiresAt: expiresAt.toISOString() }));
                         setIsEditingStatusInline(false);
                         setDraftStatusText("");
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
@@ -890,7 +903,7 @@ export default function HomeScreen() {
                   setDraftStatusText(profile.statusText || "");
                   setIsEditingStatusInline(true);
                 }} style={styles.statusPillContainer}>
-                  <View style={[styles.statusPill, { backgroundColor: currentTheme.primary }]}>
+                  <View style={[styles.statusPill, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                 </Pressable>
@@ -1544,6 +1557,7 @@ const styles = StyleSheet.create({
   statusPillContainer: {
     marginTop: 6,
     alignSelf: "flex-start",
+    maxWidth: "100%",
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -1556,6 +1570,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+    flexWrap: "wrap",
   },
   profileCardButtons: {
     flexDirection: "row",
@@ -1731,6 +1746,23 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+  },
+  statusColorPalette: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    marginVertical: 8,
+  },
+  colorOption: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  colorOptionSelected: {
+    borderColor: "#FFFFFF",
+    borderWidth: 3,
   },
   inlineStatusEditor: {
     marginTop: 12,

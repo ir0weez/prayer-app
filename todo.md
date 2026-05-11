@@ -366,3 +366,10 @@
 - [x] Align name with top of photo
 - [x] Make status pill expand horizontally for longer text
 - [x] Keep status pill as a tappable element for editing
+
+## Status Pill Cutoff Fix & Color Customization
+
+- [x] Fix status pill being cut off on the right side (added maxWidth constraint)
+- [x] Add status expiration feature (auto-clear after 24 hours when saving)
+- [x] Add color picker/palette button to customize bubble color (6 color options)
+- [x] Make text input background match bubble color (uses statusColor from profile)

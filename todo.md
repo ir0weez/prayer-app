@@ -377,3 +377,10 @@
 ## Status Pill Single Line Display
 
 - [x] Make status pill display only one line with ellipsis for long text
+
+## Status Editor UI Fixes
+
+- [x] Make text input background match the bubble color (now rgba(255,255,255,0.15) with white text)
+- [x] Hide color palette by default, show behind a palette button (🎨 button toggles it)
+- [x] Fix bubble height so it's not cut off at the bottom (minHeight: 200)
+- [x] Arrange buttons: Color button | Cancel | Save (in that order)

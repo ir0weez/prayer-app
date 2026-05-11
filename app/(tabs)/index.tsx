@@ -244,6 +244,7 @@ export default function HomeScreen() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [isEditingStatusInline, setIsEditingStatusInline] = useState(false);
   const [draftStatusText, setDraftStatusText] = useState("");
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
@@ -861,7 +862,7 @@ export default function HomeScreen() {
                 <View style={styles.statusModalOverlay}>
                   <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                     <TextInput
-                      style={styles.statusThoughtBubbleExpandedInput}
+                      style={[styles.statusThoughtBubbleExpandedInput, { color: "#FFFFFF", backgroundColor: "rgba(255,255,255,0.15)" }]}
                       placeholder="What's on your mind?"
                       placeholderTextColor="rgba(255,255,255,0.6)"
                       value={draftStatusText}
@@ -870,19 +871,25 @@ export default function HomeScreen() {
                       multiline
                       autoFocus
                     />
-                    <View style={styles.statusColorPalette}>
-                      {['#0A86B8', '#8557D9', '#2E8B3C', '#F25700', '#C91463', '#E75A7C'].map((color) => (
-                        <Pressable
-                          key={color}
-                          onPress={() => setProfile((prev) => ({ ...prev, statusColor: color }))}
-                          style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
-                        />
-                      ))}
-                    </View>
+                    {showColorPicker && (
+                      <View style={styles.statusColorPalette}>
+                        {['#0A86B8', '#8557D9', '#2E8B3C', '#F25700', '#C91463', '#E75A7C'].map((color) => (
+                          <Pressable
+                            key={color}
+                            onPress={() => setProfile((prev) => ({ ...prev, statusColor: color }))}
+                            style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
+                          />
+                        ))}
+                      </View>
+                    )}
                     <View style={styles.statusThoughtBubbleExpandedActions}>
+                      <Pressable onPress={() => setShowColorPicker(!showColorPicker)} style={({ pressed }) => [styles.statusThoughtBubbleExpandedColor, pressed && styles.pressed]}>
+                        <Text style={styles.statusThoughtBubbleExpandedColorText}>🎨</Text>
+                      </Pressable>
                       <Pressable onPress={() => {
                         setIsEditingStatusInline(false);
                         setDraftStatusText("");
+                        setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
                         <Text style={styles.statusThoughtBubbleExpandedCancelText}>Cancel</Text>
                       </Pressable>
@@ -892,6 +899,7 @@ export default function HomeScreen() {
                         setProfile((prev) => ({ ...prev, statusText: draftStatusText, statusExpiresAt: expiresAt.toISOString() }));
                         setIsEditingStatusInline(false);
                         setDraftStatusText("");
+                        setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
                         <Text style={styles.statusThoughtBubbleExpandedSaveText}>Save</Text>
                       </Pressable>
@@ -1708,16 +1716,15 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
     padding: 12,
     gap: 10,
+    minHeight: 200,
   },
   statusThoughtBubbleExpandedInput: {
-    color: "#000000",
     fontSize: 14,
     fontWeight: "500",
     padding: 8,
-    backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 8,
-    minHeight: 60,
-    maxHeight: 80,
+    minHeight: 80,
+    maxHeight: 100,
     textAlignVertical: "top",
   },
   statusThoughtBubbleExpandedActions: {
@@ -1746,6 +1753,15 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+  },
+  statusThoughtBubbleExpandedColor: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  statusThoughtBubbleExpandedColorText: {
+    fontSize: 16,
   },
   statusColorPalette: {
     flexDirection: "row",

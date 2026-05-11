@@ -340,4 +340,4 @@
 
 ## Status Bubble Text Visibility Fix
 
-- [x] Make text visible in the status bubble text input (changed to black text)
+- [x] Make text visible in the status bubble text input (added proper height and padding)

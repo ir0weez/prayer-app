@@ -1634,7 +1634,9 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontSize: 12,
     fontWeight: "600",
-    padding: 0,
+    padding: 4,
+    minHeight: 20,
+    maxHeight: 20,
   },
   statusThoughtBubbleSaveButton: {
     width: 24,

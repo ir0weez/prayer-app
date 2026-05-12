@@ -943,7 +943,7 @@ export default function HomeScreen() {
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={styles.statusExpirationTime}>🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
+                    <Text style={styles.statusExpirationTime}>🕐 {String(getExpirationTime(profile.statusExpiresAt))}</Text>
                   )}
                 </Pressable>
               )}
@@ -960,17 +960,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
-          <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#F59E0B" }]}>{activeFastProgress?.skipped ?? 0}</Text><Text style={styles.settingsStatLabel}>Skipped</Text></View>
-          <View style={styles.settingsStatDivider} />
-          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
-        </View>
-
-
         {activeFast && (
-          <View style={styles.fastProgressInCard}>
+          <View style={[styles.fastProgressInCard, { backgroundColor: currentTheme.primary }]}>
             <View style={styles.fastProgressHeader}>
               <Text style={styles.fastProgressLabel}>Day {activeFastProgress?.completed ?? 0} of {activeFast.durationDays}</Text>
               <Text style={styles.fastProgressType}>{activeFast.type}</Text>
@@ -988,6 +979,14 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
+
+        <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
+          <View style={styles.settingsStatDivider} />
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#F59E0B" }]}>{activeFastProgress?.skipped ?? 0}</Text><Text style={styles.settingsStatLabel}>Skipped</Text></View>
+          <View style={styles.settingsStatDivider} />
+          <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
+        </View>
       </View>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
@@ -1671,9 +1670,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.08)",
+    borderTopColor: "rgba(255,255,255,0.2)",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.08)",
+    borderBottomColor: "rgba(255,255,255,0.2)",
     gap: 8,
   },
   fastProgressHeader: {
@@ -1693,7 +1692,7 @@ const styles = StyleSheet.create({
   },
   fastProgressBarContainer: {
     height: 8,
-    backgroundColor: "rgba(0,0,0,0.08)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 4,
     overflow: "hidden",
     position: "relative",

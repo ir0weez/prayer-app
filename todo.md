@@ -420,4 +420,12 @@
 - [x] Update getExpirationTime to show hours and minutes (e.g., "20h 30m")
 - [x] Add auto-refresh every minute so timer updates in real-time
 - [x] Show minutes only if less than 1 hour remaining (e.g., "45m")
+- [x] Fix timer display to trigger re-renders on refresh
 - [x] Test timer display and updates
+
+## Progress Bar Fixes (Current)
+
+- [x] Move progress bar above stats row (between profile section and stats)
+- [x] Add purple background to progress bar section
+- [x] Update border colors for purple background
+- [x] Update progress bar container background for better contrast

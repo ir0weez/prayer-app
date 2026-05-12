@@ -886,7 +886,9 @@ export default function HomeScreen() {
                         {['#0A86B8', '#8557D9', '#2E8B3C', '#F25700', '#C91463', '#E75A7C'].map((color) => (
                           <Pressable
                             key={color}
-                            onPress={() => setProfile((prev) => ({ ...prev, statusColor: color }))}
+                            onPress={() => {
+                              setProfile((prev) => ({ ...prev, statusColor: color }));
+                            }}
                             style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
                           />
                         ))}
@@ -894,14 +896,14 @@ export default function HomeScreen() {
                     )}
                     <View style={styles.statusThoughtBubbleExpandedActions}>
                       <Pressable onPress={() => setShowColorPicker(!showColorPicker)} style={({ pressed }) => [styles.statusThoughtBubbleExpandedColor, pressed && styles.pressed]}>
-                        <Text style={styles.statusThoughtBubbleExpandedColorText}>🎨</Text>
+                        <MaterialIcons name={iconName(showColorPicker ? "close" : "palette")} size={20} color="#FFFFFF" />
                       </Pressable>
                       <Pressable onPress={() => {
                         setIsEditingStatusInline(false);
                         setDraftStatusText("");
                         setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
-                        <Text style={styles.statusThoughtBubbleExpandedCancelText}>✕</Text>
+                        <MaterialIcons name={iconName("close")} size={20} color="#FFFFFF" />
                       </Pressable>
                       <Pressable onPress={() => {
                         const expiresAt = new Date();
@@ -911,7 +913,7 @@ export default function HomeScreen() {
                         setDraftStatusText("");
                         setShowColorPicker(false);
                       }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
-                        <Text style={styles.statusThoughtBubbleExpandedSaveText}>✓</Text>
+                        <MaterialIcons name={iconName("check")} size={20} color="#FFFFFF" />
                       </Pressable>
                     </View>
                   </View>
@@ -924,7 +926,7 @@ export default function HomeScreen() {
                   <View style={[styles.statusPill, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
-                  {getExpirationTime(profile.statusExpiresAt) && (
+                  {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
                     <Text style={styles.statusExpirationTime}>🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
@@ -1591,8 +1593,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
-    numberOfLines: 1,
-  },
+  } as any,
   statusExpirationTime: {
     color: "rgba(255,255,255,0.7)",
     fontSize: 11,
@@ -1733,17 +1734,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     borderColor: "#FFFFFF",
-    padding: 12,
-    gap: 10,
+    padding: 16,
+    gap: 12,
+    alignItems: "center",
   },
   statusThoughtBubbleExpandedInput: {
     fontSize: 14,
     fontWeight: "500",
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
-    minHeight: 80,
-    maxHeight: 100,
+    minHeight: 70,
+    maxHeight: 90,
     textAlignVertical: "top",
+    width: "100%",
   },
   statusThoughtBubbleExpandedActions: {
     flexDirection: "row",
@@ -1790,14 +1793,15 @@ const styles = StyleSheet.create({
   },
   statusColorPalette: {
     flexDirection: "row",
-    gap: 8,
+    gap: 10,
     justifyContent: "center",
-    marginVertical: 8,
+    marginVertical: 10,
+    flexWrap: "wrap",
   },
   colorOption: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: "transparent",
   },

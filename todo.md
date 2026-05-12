@@ -396,3 +396,11 @@
 - [x] Add clock icon with expiration time next to status pill (🕐 format)
 - [x] Format expiration time (e.g., "20h")
 - [x] Display only when status is active and not expired
+
+## Status Editor UI Refinement (Current)
+
+- [x] Reduce status bubble height to prevent excessive overflow
+- [x] Replace emoji color palette (🎨 button) with proper icon/swatch-based color picker
+- [x] Display color swatches as circular colored circles instead of emoji
+- [x] Use Material icons for palette button instead of emoji
+- [x] Test refined status editor UI with TypeScript checks

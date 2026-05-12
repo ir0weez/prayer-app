@@ -934,12 +934,11 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            {activeFastStreak > 0 && <View style={[styles.fastingStreakPill, { backgroundColor: currentTheme.primary }]}><Text style={styles.fastingStreakText}>🔥 {activeFastStreak}</Text></View>}
             <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
               {activeFastTypeInfo ? (
                 <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={28} color="#FFFFFF" />
               ) : (
-                <Text style={styles.fastIconButtonText}>Fast</Text>
+                <MaterialIcons name={iconName("add")} size={28} color="#FFFFFF" />
               )}
             </Pressable>
           </View>
@@ -956,6 +955,17 @@ export default function HomeScreen() {
 
       </View>
 
+      {activeFast && (
+        <View style={[styles.fastProgressSection, { backgroundColor: currentTheme.primary }]}>
+          <View style={styles.fastProgressHeader}>
+            <Text style={styles.fastProgressLabel}>Day {activeFastProgress?.completed ?? 0} of {activeFast.durationDays}</Text>
+            <Text style={styles.fastProgressType}>{activeFast.type}</Text>
+          </View>
+          <View style={styles.fastProgressBarContainer}>
+            <View style={[styles.fastProgressBar, { width: `${Math.min(((activeFastProgress?.completed ?? 0) / activeFast.durationDays) * 100, 100)}%` }]} />
+          </View>
+        </View>
+      )}
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -1630,6 +1640,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     marginTop: 4,
+  },
+  fastProgressSection: {
+    marginHorizontal: 24,
+    marginTop: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  fastProgressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  fastProgressLabel: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  fastProgressType: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  fastProgressBarContainer: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  fastProgressBar: {
+    height: "100%" as any,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 2,
   },
   fastingStatsRow: {
     flexDirection: "row",

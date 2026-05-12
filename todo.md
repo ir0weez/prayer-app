@@ -404,3 +404,12 @@
 - [x] Display color swatches as circular colored circles instead of emoji
 - [x] Use Material icons for palette button instead of emoji
 - [x] Test refined status editor UI with TypeScript checks
+
+## Profile Card Cleanup & Redesign (Current)
+
+- [x] Remove streak pill from profile card top-right
+- [x] Move fast button to top-right corner (keep as simple icon circle)
+- [x] Simplify profile card to show: avatar, name, status pill (left side only)
+- [x] Add Material Design progress bar between profile card and stats row
+- [x] Progress bar shows fasting streak (e.g., "Day 3 of 40" with wavy line)
+- [x] Test profile card layout and progress bar rendering

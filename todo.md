@@ -410,6 +410,7 @@
 - [x] Remove streak pill from profile card top-right
 - [x] Move fast button to top-right corner (keep as simple icon circle)
 - [x] Simplify profile card to show: avatar, name, status pill (left side only)
-- [x] Add Material Design progress bar between profile card and stats row
-- [x] Progress bar shows fasting streak (e.g., "Day 3 of 40" with wavy line)
+- [x] Add Material Design progress bar INSIDE profile card (between profile section and stats)
+- [x] Progress bar shows fasting streak (e.g., "Day 3 of 40") with wavy SVG line
+- [x] Increase card height to accommodate progress bar
 - [x] Test profile card layout and progress bar rendering

@@ -5,6 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { StatusModal } from "@/components/status-modal";
@@ -953,19 +954,26 @@ export default function HomeScreen() {
         </View>
 
 
+        {activeFast && (
+          <View style={styles.fastProgressInCard}>
+            <View style={styles.fastProgressHeader}>
+              <Text style={styles.fastProgressLabel}>Day {activeFastProgress?.completed ?? 0} of {activeFast.durationDays}</Text>
+              <Text style={styles.fastProgressType}>{activeFast.type}</Text>
+            </View>
+            <View style={styles.fastProgressBarContainer}>
+              <Svg width="100%" height="8" viewBox="0 0 300 8" preserveAspectRatio="none">
+                <Path
+                  d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
+                  stroke="#FFFFFF"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </View>
+          </View>
+        )}
       </View>
-
-      {activeFast && (
-        <View style={[styles.fastProgressSection, { backgroundColor: currentTheme.primary }]}>
-          <View style={styles.fastProgressHeader}>
-            <Text style={styles.fastProgressLabel}>Day {activeFastProgress?.completed ?? 0} of {activeFast.durationDays}</Text>
-            <Text style={styles.fastProgressType}>{activeFast.type}</Text>
-          </View>
-          <View style={styles.fastProgressBarContainer}>
-            <View style={[styles.fastProgressBar, { width: `${Math.min(((activeFastProgress?.completed ?? 0) / activeFast.durationDays) * 100, 100)}%` }]} />
-          </View>
-        </View>
-      )}
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
@@ -1641,13 +1649,16 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 4,
   },
-  fastProgressSection: {
-    marginHorizontal: 24,
-    marginTop: 16,
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  fastProgressInCard: {
+    marginHorizontal: 0,
+    marginTop: 14,
+    marginBottom: 14,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.08)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
     gap: 8,
   },
   fastProgressHeader: {
@@ -1666,15 +1677,16 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   fastProgressBarContainer: {
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 2,
+    height: 8,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    borderRadius: 4,
     overflow: "hidden",
+    position: "relative",
   },
   fastProgressBar: {
     height: "100%" as any,
     backgroundColor: "#FFFFFF",
-    borderRadius: 2,
+    borderRadius: 4,
   },
   fastingStatsRow: {
     flexDirection: "row",

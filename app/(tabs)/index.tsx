@@ -200,9 +200,9 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
   useEffect(() => {
     const animation = Animated.loop(
       Animated.timing(waveOffset, {
-        toValue: 60,
+        toValue: -60,
         duration: 2000,
-        useNativeDriver: false,
+        useNativeDriver: true,
       })
     );
     animation.start();
@@ -210,23 +210,29 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
   }, [waveOffset]);
 
   return (
-    <Animated.View
+    <View
       style={{
         width: `${progress}%`,
         height: "100%",
         overflow: "hidden",
       }}
     >
-      <Svg width="300" height="8" viewBox="0 0 300 8" style={{ marginLeft: waveOffset.interpolate({ inputRange: [0, 60], outputRange: [0, -60] }) } as any}>
-        <Path
-          d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
-          stroke={color}
-          strokeWidth="2"
-          fill="none"
-          strokeLinecap="round"
-        />
-      </Svg>
-    </Animated.View>
+      <Animated.View
+        style={{
+          transform: [{ translateX: waveOffset }],
+        }}
+      >
+        <Svg width="300" height="8" viewBox="0 0 300 8">
+          <Path
+            d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
+            stroke={color}
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+          />
+        </Svg>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -275,7 +281,6 @@ export default function HomeScreen() {
   }, []);
 
   const getExpirationTime = (expiresAt: string | undefined) => {
-    expirationRefresh;
     if (!expiresAt) return null;
     const now = new Date();
     const expiry = new Date(expiresAt);
@@ -289,7 +294,8 @@ export default function HomeScreen() {
     }
     return `${minutes}m`;
   };
-  expirationRefresh;
+  // Use expirationRefresh to trigger re-renders every 60 seconds
+  const _ = expirationRefresh;
 
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);

@@ -433,5 +433,7 @@
 - [x] Fix status timer display to show countdown properly
 - [x] Create animated wavy progress bar component
 - [x] Add fill animation based on fast progress percentage
-- [x] Add continuous wave animation (2s loop)
+- [x] Add continuous wave animation (2s loop) with proper transform
+- [x] Fix animation to use translateX with useNativeDriver
 - [x] Test animated progress bar rendering
+- [x] Fix status timer display by ensuring expirationRefresh triggers re-renders

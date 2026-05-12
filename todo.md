@@ -429,3 +429,5 @@
 - [x] Add purple background to progress bar section
 - [x] Update border colors for purple background
 - [x] Update progress bar container background for better contrast
+- [x] Add rounded corners (borderRadius: 12) to progress bar section
+- [x] Fix status timer display to show countdown properly

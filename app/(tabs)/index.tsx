@@ -239,6 +239,7 @@ export default function HomeScreen() {
   }, []);
 
   const getExpirationTime = (expiresAt: string | undefined) => {
+    expirationRefresh;
     if (!expiresAt) return null;
     const now = new Date();
     const expiry = new Date(expiresAt);
@@ -1669,10 +1670,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.2)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.2)",
+    borderRadius: 12,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
     gap: 8,
   },
   fastProgressHeader: {

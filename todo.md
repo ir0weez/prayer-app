@@ -414,3 +414,10 @@
 - [x] Progress bar shows fasting streak (e.g., "Day 3 of 40") with wavy SVG line
 - [x] Increase card height to accommodate progress bar
 - [x] Test profile card layout and progress bar rendering
+
+## Status Expiration Timer Display (Current)
+
+- [x] Update getExpirationTime to show hours and minutes (e.g., "20h 30m")
+- [x] Add auto-refresh every minute so timer updates in real-time
+- [x] Show minutes only if less than 1 hour remaining (e.g., "45m")
+- [x] Test timer display and updates

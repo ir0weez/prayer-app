@@ -229,15 +229,30 @@ export default function HomeScreen() {
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
   const todayDayOfMonth = todayDate.getDate();
+  const [expirationRefresh, setExpirationRefresh] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setExpirationRefresh((prev) => prev + 1);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getExpirationTime = (expiresAt: string | undefined) => {
     if (!expiresAt) return null;
     const now = new Date();
     const expiry = new Date(expiresAt);
     const diffMs = expiry.getTime() - now.getTime();
     if (diffMs <= 0) return null;
-    const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-    return `${hours}h`;
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) {
+      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+    return `${minutes}m`;
   };
+  expirationRefresh;
 
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);

@@ -194,6 +194,42 @@ function parseStoredProfile(value: string | null): PersonalProfile {
   }
 }
 
+function AnimatedWavyProgressBar({ progress, color }: { progress: number; color: string }) {
+  const waveOffset = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(waveOffset, {
+        toValue: 60,
+        duration: 2000,
+        useNativeDriver: false,
+      })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [waveOffset]);
+
+  return (
+    <Animated.View
+      style={{
+        width: `${progress}%`,
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+      <Svg width="300" height="8" viewBox="0 0 300 8" style={{ marginLeft: waveOffset.interpolate({ inputRange: [0, 60], outputRange: [0, -60] }) } as any}>
+        <Path
+          d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
+          stroke={color}
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 function UndoCountdownBar({ color }: { color: string }) {
   const progress = useRef(new Animated.Value(1)).current;
 
@@ -968,15 +1004,10 @@ export default function HomeScreen() {
               <Text style={styles.fastProgressType}>{activeFast.type}</Text>
             </View>
             <View style={styles.fastProgressBarContainer}>
-              <Svg width="100%" height="8" viewBox="0 0 300 8" preserveAspectRatio="none">
-                <Path
-                  d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
-                  stroke="#FFFFFF"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              </Svg>
+              <AnimatedWavyProgressBar
+                progress={Math.min(((activeFastProgress?.completed ?? 0) / activeFast.durationDays) * 100, 100)}
+                color="#FFFFFF"
+              />
             </View>
           </View>
         )}

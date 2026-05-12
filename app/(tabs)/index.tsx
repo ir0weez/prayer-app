@@ -188,6 +188,8 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       lastPersonalPrayerDate: typeof parsed.lastPersonalPrayerDate === "string" ? parsed.lastPersonalPrayerDate : null,
       statusText: typeof parsed.statusText === "string" ? parsed.statusText : undefined,
       statusPhotoUri: typeof parsed.statusPhotoUri === "string" ? parsed.statusPhotoUri : undefined,
+      statusExpiresAt: typeof parsed.statusExpiresAt === "string" ? parsed.statusExpiresAt : undefined,
+      statusColor: typeof parsed.statusColor === "string" ? parsed.statusColor : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -226,12 +228,22 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
           <Path
             d="M 0 4 Q 15 0, 30 4 T 60 4 T 90 4 T 120 4 T 150 4 T 180 4 T 210 4 T 240 4 T 270 4 T 300 4"
             stroke={color}
-            strokeWidth="2"
+            strokeWidth="3"
             fill="none"
             strokeLinecap="round"
           />
         </Svg>
       </Animated.View>
+      <View
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          width: 2,
+          height: "100%",
+          backgroundColor: color,
+        }}
+      />
     </View>
   );
 }

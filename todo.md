@@ -437,3 +437,6 @@
 - [x] Fix animation to use translateX with useNativeDriver
 - [x] Test animated progress bar rendering
 - [x] Fix status timer display by ensuring expirationRefresh triggers re-renders
+- [x] Increase squiggle stroke width from 2 to 3
+- [x] Add vertical progress marker line at end of filled bar
+- [x] Add statusExpiresAt and statusColor to profile parsing

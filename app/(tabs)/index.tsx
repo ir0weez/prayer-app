@@ -9,6 +9,7 @@ import Svg, { Path } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { StatusModal } from "@/components/status-modal";
+import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -251,32 +252,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
 }
 
 function UndoCountdownBar({ color }: { color: string }) {
-  const progress = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    progress.setValue(1);
-    const animation = Animated.timing(progress, {
-      toValue: 0,
-      duration: UNDO_COUNTDOWN_MS,
-      useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [progress]);
-
-  return (
-    <View style={styles.undoCountdownTrack}>
-      <Animated.View
-        style={[
-          styles.undoCountdownFill,
-          {
-            backgroundColor: color,
-            transform: [{ scaleX: progress }],
-          },
-        ]}
-      />
-    </View>
-  );
+  return <UndoCountdownTimer color={color} />;
 }
 
 export default function HomeScreen() {
@@ -677,8 +653,7 @@ export default function HomeScreen() {
         </Pressable>
         {isPending ? (
           <View style={styles.undoCountdownPill}>
-              <UndoCountdownBar color={currentTheme.primary} />
-            <Text style={styles.undoCountdownText}>Tap undo</Text>
+            <UndoCountdownBar color={currentTheme.primary} />
           </View>
         ) : null}
       </View>
@@ -763,12 +738,9 @@ export default function HomeScreen() {
                     </View>
                   )}
                   {pendingFastAction && (
-                    <View style={styles.undoCountdownPill}>
+                    <Pressable onPress={handleUndoFastAction} style={styles.undoCountdownPill}>
                       <UndoCountdownBar color={currentTheme.primary} />
-                      <Pressable onPress={handleUndoFastAction}>
-                        <Text style={styles.undoCountdownText}>Tap undo</Text>
-                      </Pressable>
-                    </View>
+                    </Pressable>
                   )}
                 </View>
               )}
@@ -1394,10 +1366,11 @@ const styles = StyleSheet.create({
   },
   storyItem: {
     width: 86,
-    height: 88,
+    height: 110,
     marginRight: 7,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   storyAvatarButton: {
     alignItems: "center",
@@ -1455,10 +1428,11 @@ const styles = StyleSheet.create({
   },
   undoCountdownPill: {
     position: "absolute",
-    left: 2,
-    right: 2,
-    bottom: -17,
+    left: -8,
+    right: -8,
+    top: -8,
     alignItems: "center",
+    justifyContent: "center",
     gap: 2,
   },
   undoCountdownTrack: {

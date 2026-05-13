@@ -474,3 +474,15 @@
 - [x] Change timer display from emoji to simple hourly countdown (24H, 23H, 22H, etc.)
 - [x] Update timer every hour instead of every minute
 - [x] Test auto-clear and timer display functionality
+
+## Undo Timer Animation Enhancement (Current)
+
+- [x] Create new UndoCountdownTimer component with circular progress ring
+- [x] Implement countdown number display (5, 4, 3, 2, 1) that updates every second
+- [x] Add pulse animation that intensifies in the final 3 seconds
+- [x] Position circular timer above the avatar (top-center)
+- [x] Update storyItem height to accommodate the timer overlay
+- [x] Remove "Tap undo" text label (timer is now self-explanatory)
+- [x] Make timer tappable for fast action undo
+- [x] Test undo timer animations on all platforms
+- [ ] Add haptic feedback at key moments (start, final 3 seconds, completion)

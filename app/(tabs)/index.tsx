@@ -36,6 +36,7 @@ import {
   getActiveFast,
   getFastCalendarDays,
   getFastProgress,
+  getCurrentFastDay,
   normalizeFastDateInput,
   parseIsoDateFromMmDdYyyy,
   normalizeFastsForStorage,
@@ -344,6 +345,30 @@ export default function HomeScreen() {
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const fastAvatarPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (fastAvatarColor) {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(fastAvatarPulse, {
+            toValue: 1.1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fastAvatarPulse, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    } else {
+      fastAvatarPulse.setValue(1);
+    }
+  }, [fastAvatarColor, fastAvatarPulse]);
 
   useEffect(() => {
     let isMounted = true;
@@ -714,13 +739,13 @@ export default function HomeScreen() {
                     delayLongPress={500}
                     style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColor || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
                   >
-                    <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }]}>
+                    <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }, fastAvatarColor && { transform: [{ scale: fastAvatarPulse }] }]}>
                       {profile.photoUri ? (
                         <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
                       ) : (
                         <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                       )}
-                    </View>
+                    </Animated.View>
                   </Pressable>
                   <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
@@ -1018,7 +1043,7 @@ export default function HomeScreen() {
         {activeFast && (
           <View style={[styles.fastProgressInCard, { backgroundColor: currentTheme.primary }]}>
             <View style={styles.fastProgressHeader}>
-              <Text style={styles.fastProgressLabel}>Day {activeFastProgress?.completed ?? 0} of {activeFast.durationDays}</Text>
+              <Text style={styles.fastProgressLabel}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
               <Text style={styles.fastProgressType}>{activeFast.type}</Text>
             </View>
             <View style={styles.fastProgressBarContainer}>

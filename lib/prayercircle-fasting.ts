@@ -108,6 +108,12 @@ export function getFastProgress(fast: PersonalFast): { completed: number; skippe
   };
 }
 
+export function getCurrentFastDay(fast: PersonalFast, dateString = getTodayISOString()): number {
+  const days = getFastCalendarDays(fast);
+  const currentIndex = days.indexOf(dateString);
+  return currentIndex >= 0 ? currentIndex + 1 : 1;
+}
+
 export function upsertFastDayStatus(fasts: PersonalFast[], fastId: string, dateString: string, status: FastDayStatus): PersonalFast[] {
   return fasts.map((fast) =>
     fast.id === fastId

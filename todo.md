@@ -440,3 +440,13 @@
 - [x] Increase squiggle stroke width from 2 to 3
 - [x] Add vertical progress marker line at end of filled bar
 - [x] Add statusExpiresAt and statusColor to profile parsing
+
+## Animations & Progress Bar Fix (Current)
+
+- [x] Fix progress bar to show current day number (e.g., "Day 132 of 365") not completed days count
+- [x] Add pulsing animation to fasting avatar when fast completed for the day
+- [ ] Add scale animation to status pill when saved
+- [ ] Add fade-in animation to timer text
+- [ ] Add subtle pulse to stats numbers when they update
+- [ ] Add wave animation enhancement to progress bar line
+- [x] Test all animations on iOS, Android, and Web

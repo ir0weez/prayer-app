@@ -7,8 +7,9 @@ interface StatusModalProps {
   visible: boolean;
   statusText: string;
   statusPhotoUri?: string;
+  statusHighlight?: string;
   onClose: () => void;
-  onSave: (text: string, photoUri?: string) => void;
+  onSave: (text: string, photoUri?: string, highlight?: string) => void;
   primaryColor: string;
 }
 
@@ -16,12 +17,14 @@ export function StatusModal({
   visible,
   statusText,
   statusPhotoUri,
+  statusHighlight,
   onClose,
   onSave,
   primaryColor,
 }: StatusModalProps) {
   const [draftText, setDraftText] = useState(statusText || '');
   const [draftPhotoUri, setDraftPhotoUri] = useState(statusPhotoUri);
+  const [isHighlighted, setIsHighlighted] = useState(!!statusHighlight);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -37,9 +40,10 @@ export function StatusModal({
   };
 
   const handleSave = () => {
-    onSave(draftText, draftPhotoUri);
+    onSave(draftText, draftPhotoUri, isHighlighted ? draftText : undefined);
     setDraftText('');
     setDraftPhotoUri(undefined);
+    setIsHighlighted(false);
     onClose();
   };
 
@@ -87,6 +91,20 @@ export function StatusModal({
               maxLength={280}
             />
             <Text style={styles.charCount}>{draftText.length}/280</Text>
+          </View>
+
+          {/* Highlight Toggle */}
+          <View style={[styles.highlightSection, { borderColor: primaryColor }]}>
+            <View style={styles.highlightContent}>
+              <MaterialIcons name="star" size={20} color={isHighlighted ? primaryColor : '#ccc'} />
+              <Text style={[styles.highlightLabel, { color: isHighlighted ? primaryColor : '#666' }]}>Show as speech bubble</Text>
+            </View>
+            <Pressable
+              onPress={() => setIsHighlighted(!isHighlighted)}
+              style={[styles.highlightToggle, { backgroundColor: isHighlighted ? primaryColor : '#eee' }]}
+            >
+              <View style={[styles.highlightToggleDot, { transform: [{ translateX: isHighlighted ? 20 : 0 }] }]} />
+            </Pressable>
           </View>
 
           {/* Quick Actions */}
@@ -191,5 +209,37 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: '#666',
+  },
+  highlightSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  highlightContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  highlightLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  highlightToggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  highlightToggleDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
   },
 });

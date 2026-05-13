@@ -79,6 +79,7 @@ type PersonalProfile = {
   statusPhotoUri?: string;
   statusColor?: string;
   statusExpiresAt?: string | null;
+  statusHighlight?: string;
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
@@ -751,6 +752,12 @@ export default function HomeScreen() {
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
+                  {profile.statusHighlight && (
+                    <View style={[styles.speechBubble, { backgroundColor: currentTheme.primary }]}>
+                      <Text style={styles.speechBubbleText} numberOfLines={2}>{profile.statusHighlight}</Text>
+                      <View style={[styles.speechBubblePointer, { borderTopColor: currentTheme.primary }]} />
+                    </View>
+                  )}
                   {pendingFastAction && (
                     <View style={styles.undoCountdownPill}>
                       <UndoCountdownBar color={currentTheme.primary} />
@@ -1306,9 +1313,10 @@ export default function HomeScreen() {
         visible={showStatusModal}
         statusText={profile.statusText || ""}
         statusPhotoUri={profile.statusPhotoUri}
+        statusHighlight={profile.statusHighlight}
         onClose={() => setShowStatusModal(false)}
-        onSave={(text, photoUri) => {
-          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri }));
+        onSave={(text, photoUri, highlight) => {
+          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: highlight }));
         }}
         primaryColor={currentTheme.primary}
       />
@@ -2659,5 +2667,33 @@ const styles = StyleSheet.create({
     minHeight: 96,
     paddingTop: 13,
     lineHeight: 21,
+  },
+  speechBubble: {
+    position: 'absolute',
+    top: -50,
+    left: -20,
+    maxWidth: 160,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  speechBubbleText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  speechBubblePointer: {
+    position: 'absolute',
+    bottom: -8,
+    left: 16,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
 });

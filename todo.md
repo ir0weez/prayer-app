@@ -450,3 +450,12 @@
 - [ ] Add subtle pulse to stats numbers when they update
 - [ ] Add wave animation enhancement to progress bar line
 - [x] Test all animations on iOS, Android, and Web
+
+## Highlight Status Feature (Current)
+
+- [x] Add highlight toggle button in status modal
+- [x] Store highlighted status text in profile (statusHighlight field)
+- [x] Create speech bubble component for fasting avatar
+- [x] Display speech bubble above fasting avatar with highlighted text
+- [ ] Add auto-hide animation for speech bubble after 5 seconds
+- [x] Test highlight feature with various text lengths

@@ -991,6 +991,7 @@ export default function HomeScreen() {
                             key={color}
                             onPress={() => {
                               setProfile((prev) => ({ ...prev, statusColor: color }));
+                              setShowColorPicker(false);
                             }}
                             style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
                           />
@@ -999,14 +1000,7 @@ export default function HomeScreen() {
                     )}
                     <View style={styles.statusThoughtBubbleExpandedActions}>
                       <Pressable onPress={() => setShowColorPicker(!showColorPicker)} style={({ pressed }) => [styles.statusThoughtBubbleExpandedColor, pressed && styles.pressed]}>
-                        <MaterialIcons name={iconName(showColorPicker ? "close" : "palette")} size={20} color="#FFFFFF" />
-                      </Pressable>
-                      <Pressable onPress={() => {
-                        setIsEditingStatusInline(false);
-                        setDraftStatusText("");
-                        setShowColorPicker(false);
-                      }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedCancel, pressed && styles.pressed]}>
-                        <MaterialIcons name={iconName("close")} size={20} color="#FFFFFF" />
+                        <MaterialIcons name={iconName("palette")} size={20} color="#FFFFFF" />
                       </Pressable>
                       <Pressable onPress={() => {
                         const expiresAt = new Date();
@@ -1030,7 +1024,7 @@ export default function HomeScreen() {
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={styles.statusExpirationTime}>🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
+                    <Text style={styles.statusExpirationTime}>{expirationRefresh || null}🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
               )}

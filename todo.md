@@ -467,3 +467,10 @@
 - [x] Use flame emoji with custom badge styling
 - [x] Position badge absolutely in bottom-right corner
 - [x] Test badge display on different streak counts
+
+## Status Expiration Fixes (Current)
+
+- [x] Auto-clear expired status when timer reaches zero
+- [x] Change timer display from emoji to simple hourly countdown (24H, 23H, 22H, etc.)
+- [x] Update timer every hour instead of every minute
+- [x] Test auto-clear and timer display functionality

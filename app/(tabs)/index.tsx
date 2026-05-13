@@ -300,16 +300,9 @@ export default function HomeScreen() {
     const expiry = new Date(expiresAt);
     const diffMs = expiry.getTime() - now.getTime();
     if (diffMs <= 0) return null;
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    if (hours > 0) {
-      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-    }
-    return `${minutes}m`;
+    const totalHours = Math.ceil(diffMs / (1000 * 60 * 60));
+    return `${totalHours}H`;
   };
-  // Use expirationRefresh to trigger re-renders every 60 seconds
-  const _ = expirationRefresh;
 
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);
@@ -399,6 +392,17 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, [initialState.people, today]);
+
+  // Auto-clear expired status
+  useEffect(() => {
+    if (profile.statusExpiresAt) {
+      const expiry = new Date(profile.statusExpiresAt);
+      const now = new Date();
+      if (expiry <= now) {
+        setProfile((prev) => ({ ...prev, statusText: "", statusExpiresAt: undefined, statusColor: undefined, statusHighlight: undefined }));
+      }
+    }
+  }, [expirationRefresh, profile.statusExpiresAt]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1024,7 +1028,7 @@ export default function HomeScreen() {
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={styles.statusExpirationTime}>{expirationRefresh || null}🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
+                    <Text style={styles.statusExpirationTime}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
               )}
@@ -1037,9 +1041,9 @@ export default function HomeScreen() {
               ) : (
                 <MaterialIcons name={iconName("add")} size={28} color="#FFFFFF" />
               )}
-              {activeFast && activeFast.completedDays > 0 && (
+              {activeFast && getFastProgress(activeFast).completed > 0 && (
                 <View style={styles.streakBadge}>
-                  <Text style={styles.streakBadgeText}>🔥{activeFast.completedDays}</Text>
+                  <Text style={styles.streakBadgeText}>🔥{getFastProgress(activeFast).completed}</Text>
                 </View>
               )}
             </Pressable>
@@ -2057,25 +2061,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.4)",
     position: "relative",
   },
-  streakBadge: {
-    position: "absolute",
-    bottom: -4,
-    right: -4,
-    backgroundColor: "#FF6B35",
-    borderRadius: 14,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  streakBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
+
   fastIconButtonText: {
     color: "#FFFFFF",
     fontSize: 12,

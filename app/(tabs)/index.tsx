@@ -1037,6 +1037,11 @@ export default function HomeScreen() {
               ) : (
                 <MaterialIcons name={iconName("add")} size={28} color="#FFFFFF" />
               )}
+              {activeFast && activeFast.completedDays > 0 && (
+                <View style={styles.streakBadge}>
+                  <Text style={styles.streakBadgeText}>🔥{activeFast.completedDays}</Text>
+                </View>
+              )}
             </Pressable>
           </View>
         </View>
@@ -2050,6 +2055,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.4)",
+    position: "relative",
+  },
+  streakBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    backgroundColor: "#FF6B35",
+    borderRadius: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  streakBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   fastIconButtonText: {
     color: "#FFFFFF",

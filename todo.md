@@ -459,3 +459,11 @@
 - [x] Display speech bubble above fasting avatar with highlighted text
 - [ ] Add auto-hide animation for speech bubble after 5 seconds
 - [x] Test highlight feature with various text lengths
+
+## Streak Badge on Fast Icon (Current)
+
+- [x] Add streak badge to bottom-right corner of fast icon circle
+- [x] Display current streak number in badge
+- [x] Use flame emoji with custom badge styling
+- [x] Position badge absolutely in bottom-right corner
+- [x] Test badge display on different streak counts

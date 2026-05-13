@@ -998,7 +998,7 @@ export default function HomeScreen() {
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={styles.statusExpirationTime}>🕐 {String(getExpirationTime(profile.statusExpiresAt))}</Text>
+                    <Text style={styles.statusExpirationTime}>🕐 {getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
               )}

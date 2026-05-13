@@ -1000,7 +1000,7 @@ export default function HomeScreen() {
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={styles.statusExpirationTime}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
+                    <Text style={[styles.statusExpirationTime, { backgroundColor: profile.statusColor || currentTheme.primary }]}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
               )}
@@ -1455,23 +1455,24 @@ const styles = StyleSheet.create({
   },
   streakBadge: {
     position: "absolute",
-    right: -8,
+    right: -10,
     bottom: -12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: SCREEN_BG,
     backgroundColor: "#FF6B35",
     flexDirection: "row",
-    gap: 1,
+    gap: 2,
   },
   streakBadgeText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
+    lineHeight: 13,
   },
   avatar: {
     alignItems: "center",
@@ -1694,10 +1695,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: "rgba(0,0,0,0.25)",
     borderRadius: 4,
     position: "absolute",
-    top: -8,
+    bottom: -20,
     left: 0,
   },
   profileCardButtons: {

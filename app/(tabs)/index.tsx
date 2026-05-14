@@ -375,7 +375,7 @@ export default function HomeScreen() {
       const expiry = new Date(profile.statusExpiresAt);
       const now = new Date();
       if (expiry <= now) {
-        setProfile((prev) => ({ ...prev, statusText: "", statusExpiresAt: undefined, statusColor: undefined, statusHighlight: undefined }));
+        setProfile((prev) => ({ ...prev, statusText: "", statusHighlight: "", statusExpiresAt: undefined, statusColor: undefined }));
       }
     }
   }, [expirationRefresh, profile.statusExpiresAt]);
@@ -981,7 +981,7 @@ export default function HomeScreen() {
                       <Pressable onPress={() => {
                         const expiresAt = new Date();
                         expiresAt.setHours(expiresAt.getHours() + 24);
-                        setProfile((prev) => ({ ...prev, statusText: draftStatusText, statusExpiresAt: expiresAt.toISOString() }));
+                        setProfile((prev) => ({ ...prev, statusText: draftStatusText, statusHighlight: draftStatusText, statusExpiresAt: expiresAt.toISOString() }));
                         setIsEditingStatusInline(false);
                         setDraftStatusText("");
                         setShowColorPicker(false);
@@ -1291,7 +1291,7 @@ export default function HomeScreen() {
         statusHighlight={profile.statusHighlight}
         onClose={() => setShowStatusModal(false)}
         onSave={(text, photoUri, highlight) => {
-          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: highlight }));
+          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: text }));
         }}
         primaryColor={currentTheme.primary}
       />

@@ -2659,8 +2659,8 @@ const styles = StyleSheet.create({
   },
   fastingStreakBadge: {
     position: 'absolute',
-    right: -18,
-    bottom: 12,
+    right: -8,
+    bottom: 8,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 12,

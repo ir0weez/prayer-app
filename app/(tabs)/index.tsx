@@ -1391,7 +1391,7 @@ const styles = StyleSheet.create({
   },
   storyTag: {
     position: "absolute",
-    top: -8,
+    top: 8,
     right: -8,
     zIndex: 4,
     minHeight: 26,
@@ -1428,9 +1428,9 @@ const styles = StyleSheet.create({
   },
   undoCountdownPill: {
     position: "absolute",
-    left: -8,
-    right: -8,
-    top: -8,
+    left: 5,
+    right: 5,
+    top: 17,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
@@ -1455,8 +1455,8 @@ const styles = StyleSheet.create({
   },
   streakBadge: {
     position: "absolute",
-    right: -10,
-    bottom: -12,
+    right: -6,
+    bottom: -6,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 12,

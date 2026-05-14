@@ -267,8 +267,9 @@ export default function ProfileScreen() {
           <View style={styles.headerRightButtons}>
             {selectedFast && (
               <Pressable onPress={() => {
+                const fastToDelete = selectedFast;
                 Alert.alert(
-                  `Delete "${selectedFast.name}"?`,
+                  `Delete "${fastToDelete.name}"?`,
                   "This removes the fast and all its daily tracking data.",
                   [
                     { text: "Cancel", style: "cancel" },
@@ -276,7 +277,7 @@ export default function ProfileScreen() {
                       text: "Delete",
                       style: "destructive",
                       onPress: () => {
-                        const nextFasts = fasts.filter((f) => f.id !== selectedFast.id);
+                        const nextFasts = fasts.filter((f) => f.id !== fastToDelete.id);
                         persistFasts(nextFasts);
                         setSelectedFastId(null);
                       },

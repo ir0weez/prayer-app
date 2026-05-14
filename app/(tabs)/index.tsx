@@ -1009,9 +1009,9 @@ export default function HomeScreen() {
           <View style={styles.profileCardTopRight}>
             <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
               {activeFastTypeInfo ? (
-                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={28} color="#FFFFFF" />
+                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
               ) : (
-                <MaterialIcons name={iconName("add")} size={28} color="#FFFFFF" />
+                <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
               )}
               {activeFast && getFastProgress(activeFast).completed > 0 && (
                 <View style={styles.streakBadge}>
@@ -1457,9 +1457,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: -12,
     bottom: -8,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -2035,9 +2035,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   fastIconButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,

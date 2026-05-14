@@ -1697,7 +1697,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     position: "absolute",
-    top: -18,
+    bottom: -18,
     left: 0,
   },
   profileCardButtons: {

@@ -1014,7 +1014,7 @@ export default function HomeScreen() {
                 <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
               )}
               {profile.fastingStreak > 0 && (
-                <View style={styles.streakBadge}>
+                <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
                   <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
                 </View>
               )}
@@ -1464,7 +1464,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: SCREEN_BG,
-    backgroundColor: "#FF6B35",
     flexDirection: "row",
     gap: 2,
   },

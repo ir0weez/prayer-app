@@ -727,14 +727,14 @@ export default function HomeScreen() {
                       )}
                     </Animated.View>
                   </Pressable>
-                  <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
+                  <View style={[styles.fastingStreakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
                   {profile.statusHighlight && (
-                    <View style={[styles.speechBubble, { backgroundColor: currentTheme.primary }]}>
+                    <View style={[styles.fastingStatusBubble, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
                       <Text style={styles.speechBubbleText} numberOfLines={2}>{profile.statusHighlight}</Text>
-                      <View style={[styles.speechBubblePointer, { borderTopColor: currentTheme.primary }]} />
+                      <View style={[styles.speechBubblePointer, { borderTopColor: profile.statusColor || currentTheme.primary }]} />
                     </View>
                   )}
                   {pendingFastAction && (
@@ -2654,6 +2654,31 @@ const styles = StyleSheet.create({
     minHeight: 96,
     paddingTop: 13,
     lineHeight: 21,
+  },
+  fastingStreakBadge: {
+    position: 'absolute',
+    right: -8,
+    top: -8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: SCREEN_BG,
+    backgroundColor: '#FF6B35',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  fastingStatusBubble: {
+    position: 'absolute',
+    top: -50,
+    left: -20,
+    maxWidth: 160,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    zIndex: 10,
   },
   speechBubble: {
     position: 'absolute',

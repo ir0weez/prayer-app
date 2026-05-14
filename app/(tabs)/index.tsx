@@ -1013,9 +1013,9 @@ export default function HomeScreen() {
               ) : (
                 <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
               )}
-              {activeFast && getFastProgress(activeFast).completed > 0 && (
+              {profile.fastingStreak > 0 && (
                 <View style={styles.streakBadge}>
-                  <Text style={styles.streakBadgeText}>🔥{getFastProgress(activeFast).completed}</Text>
+                  <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
                 </View>
               )}
             </Pressable>
@@ -1455,8 +1455,8 @@ const styles = StyleSheet.create({
   },
   streakBadge: {
     position: "absolute",
-    right: -12,
-    bottom: -8,
+    right: -8,
+    bottom: 4,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 20,

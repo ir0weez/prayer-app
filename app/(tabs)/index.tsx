@@ -1697,8 +1697,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     position: "absolute",
-    bottom: -12,
+    bottom: -10,
     left: 0,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
   },
   profileCardButtons: {
     flexDirection: "row",

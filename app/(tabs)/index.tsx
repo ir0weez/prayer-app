@@ -1455,8 +1455,8 @@ const styles = StyleSheet.create({
   },
   streakBadge: {
     position: "absolute",
-    right: -8,
-    bottom: 4,
+    right: -10,
+    bottom: -12,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 20,

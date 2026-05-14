@@ -1456,7 +1456,7 @@ const styles = StyleSheet.create({
   streakBadge: {
     position: "absolute",
     right: -6,
-    bottom: -6,
+    bottom: -10,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1697,7 +1697,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     position: "absolute",
-    bottom: -20,
+    top: -18,
     left: 0,
   },
   profileCardButtons: {

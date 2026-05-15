@@ -3,8 +3,9 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useThemeContext } from "@/lib/theme-provider";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -284,9 +285,10 @@ export default function HomeScreen() {
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);
   const [journal] = useState(initialState.journal);
+  const { setColorScheme } = useThemeContext();
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
-  const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("Family");
+  const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("family" as RelationshipType);
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
@@ -415,19 +417,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    // Apply dark mode setting to the app
-    if (settings.darkMode) {
-      if (typeof document !== "undefined") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.dataset.theme = "dark";
-      }
-    } else {
-      if (typeof document !== "undefined") {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.dataset.theme = "light";
-      }
-    }
-  }, [hasHydratedPeople, settings.darkMode]);
+    // Apply dark mode setting to the app via ThemeProvider
+    const scheme = settings.darkMode ? "dark" : "light";
+    setColorScheme(scheme);
+  }, [hasHydratedPeople, settings.darkMode, setColorScheme]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -1058,6 +1051,7 @@ export default function HomeScreen() {
         {renderSettingsRow("wb-sunny", "Dark Mode", "Use a calmer low-light interface", "normal", <Switch value={settings.darkMode} onValueChange={(darkMode) => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setSettings((previous) => ({ ...previous, darkMode }));
+          setColorScheme(darkMode ? "dark" : "light");
         }} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.darkMode ? "#FFFFFF" : "#4F6470"} />)}
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && styles.pressed]}>
           {renderSettingsRow("palette", "Color Theme", currentTheme.name, "normal", <View style={[styles.colorSwatch, { backgroundColor: currentTheme.primary }]} />)}

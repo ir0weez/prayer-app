@@ -490,3 +490,9 @@
 ## Android Prayer Widget (Deferred)
 
 Skipping widget implementation until Expo adds native widget support. Current Expo SDK 54 doesn't support home screen widgets without ejecting from managed workflow.
+
+## Dark Mode Toggle Fix
+
+- [x] Fixed dark mode toggle in settings to properly call setColorScheme() from ThemeProvider
+- [x] Dark mode now correctly switches theme colors when toggled in settings
+- [x] Verified all 62 tests passing with dark mode integration

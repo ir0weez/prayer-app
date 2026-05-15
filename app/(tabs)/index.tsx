@@ -1439,7 +1439,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 5,
     right: 5,
-    top: 24,
+    top: 8,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,

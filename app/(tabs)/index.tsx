@@ -672,7 +672,7 @@ export default function HomeScreen() {
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
           <Text numberOfLines={1} style={styles.personMeta}>
-            {person.relationship} • {daysSince === 999 ? "Not reached yet" : `Reached ${formatDaysSinceLastPrayer(daysSince)} ago`}{getBirthdayText(person)}
+            {getBirthdayText(person)}
           </Text>
         </View>
         <View style={styles.personActions}>

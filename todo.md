@@ -496,3 +496,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fixed dark mode toggle in settings to properly call setColorScheme() from ThemeProvider
 - [x] Dark mode now correctly switches theme colors when toggled in settings
 - [x] Verified all 62 tests passing with dark mode integration
+
+## Contact Card Cleanup
+
+- [x] Remove "Family • Not reached yet" text from contact cards on homepage
+- [x] Keep only birthday information in the subtitle

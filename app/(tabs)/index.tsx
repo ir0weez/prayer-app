@@ -1291,7 +1291,9 @@ export default function HomeScreen() {
         statusHighlight={profile.statusHighlight}
         onClose={() => setShowStatusModal(false)}
         onSave={(text, photoUri, highlight) => {
-          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: text }));
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24);
+          setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: text, statusExpiresAt: expiresAt.toISOString() }));
         }}
         primaryColor={currentTheme.primary}
       />

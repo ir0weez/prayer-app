@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -90,6 +91,7 @@ function getStatusIcon(status?: FastDayStatus) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const colors = useColors();
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
@@ -256,6 +258,35 @@ export default function ProfileScreen() {
     resetFastCreator();
   };
 
+  // Dynamic styles that depend on the current theme
+  const dynamicStyles = {
+    headerFastButton: {
+      ...styles.headerFastButton,
+      backgroundColor: colors.primary,
+    },
+    profileCard: {
+      ...styles.profileCard,
+      backgroundColor: `${colors.primary}15`,
+      borderColor: `${colors.primary}30`,
+    },
+    profileAvatar: {
+      ...styles.profileAvatar,
+      backgroundColor: colors.primary,
+    },
+    statNumber: {
+      ...styles.statNumber,
+      color: colors.primary,
+    },
+    secondaryButtonText: {
+      ...styles.secondaryButtonText,
+      color: colors.primary,
+    },
+    createFastButton: {
+      ...styles.createFastButton,
+      backgroundColor: colors.primary,
+    },
+  };
+
   return (
     <ScreenContainer containerClassName="bg-[#FAF6FF]" className="flex-1">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -302,14 +333,14 @@ export default function ProfileScreen() {
                 resetFastCreator();
               }
               setShowFastCreator(true);
-            }} style={({ pressed }) => [styles.headerFastButton, pressed && styles.pressed]}>
+            }} style={({ pressed }) => [dynamicStyles.headerFastButton, pressed && styles.pressed]}>
               <MaterialIcons name={selectedFast ? "edit" : iconName("add")} size={24} color="#FFFFFF" />
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.profileCard}>
-          <View style={styles.profileAvatar}>
+        <View style={dynamicStyles.profileCard}>
+          <View style={dynamicStyles.profileAvatar}>
             {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileImage} /> : <MaterialIcons name={iconName("person")} size={42} color="#FFFFFF" />}
           </View>
           <View style={styles.profileCopy}>
@@ -319,9 +350,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}><Text style={styles.statNumber}>{selectedFastStreak}</Text><Text style={styles.statLabel}>Fast Streak</Text></View>
-          <View style={styles.statCard}><Text style={styles.statNumber}>{selectedFastProgress?.completed ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
-          <View style={styles.statCard}><Text style={styles.statNumber}>{fasts.length}</Text><Text style={styles.statLabel}>Fasts</Text></View>
+          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{selectedFastStreak}</Text><Text style={styles.statLabel}>Fast Streak</Text></View>
+          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{selectedFastProgress?.completed ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
+          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{fasts.length}</Text><Text style={styles.statLabel}>Fasts</Text></View>
         </View>
 
         {selectedFast ? (
@@ -329,13 +360,13 @@ export default function ProfileScreen() {
             <View style={styles.currentFastHeader}>
               <Text style={styles.sectionLabel}>CURRENT FAST</Text>
               {selectedFastStreak > 0 && (
-                <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? PURPLE }]}>
+                <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                   <Text style={styles.currentFastBadgeText}>🔥 {selectedFastStreak}</Text>
                 </View>
               )}
             </View>
             <View style={styles.fastCard}>
-              <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? PURPLE }]}>
+              <View style={[styles.fastIcon, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                 <MaterialIcons name={iconName(selectedFastType?.icon ?? "local-fire-department")} size={28} color="#FFFFFF" />
               </View>
               <View style={styles.fastCardText}>
@@ -348,7 +379,7 @@ export default function ProfileScreen() {
             <View style={styles.focusWrap}>
               {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => {
                 const focusStatus = getTodayFocusItemStatus(selectedFast.focusItemDailyStatuses, item, today);
-                const focusColor = focusStatus === "completed" ? "#31C48D" : focusStatus === "missed" ? "#D3384A" : "#8557D9";
+                const focusColor = focusStatus === "completed" ? "#31C48D" : focusStatus === "missed" ? "#D3384A" : colors.primary;
                 return (
                   <Pressable
                     key={item}
@@ -380,7 +411,7 @@ export default function ProfileScreen() {
                 const status = selectedFast.dayStatuses[dateString];
                 const isToday = dateString === today;
                 return (
-                  <Pressable key={dateString} onPress={() => setFastStatus(dateString, "completed")} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? PURPLE : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
+                  <Pressable key={dateString} onPress={() => setFastStatus(dateString, "completed")} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? colors.primary : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
                     <Text style={[styles.calendarDayNumber, status && styles.calendarDayNumberActive]}>{index + 1}</Text>
                     <Text style={[styles.calendarDayDate, status && styles.calendarDayDateActive]}>{formatIsoToMmDdYyyy(dateString).slice(0, 5)}</Text>
                   </Pressable>
@@ -390,10 +421,10 @@ export default function ProfileScreen() {
           </>
         ) : (
           <View style={styles.emptyState}>
-            <MaterialIcons name={iconName("local-fire-department")} size={40} color={PURPLE} />
+            <MaterialIcons name={iconName("local-fire-department")} size={40} color={colors.primary} />
             <Text style={styles.emptyTitle}>Start your first fast</Text>
             <Text style={styles.emptyCopy}>Create a personal fast, choose what you are focusing on, then track each calendar day.</Text>
-            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
+            <Pressable onPress={() => setShowFastCreator(true)} style={({ pressed }) => [dynamicStyles.createFastButton, pressed && styles.pressed]}>
               <Text style={styles.createFastButtonText}>Start a New Fast</Text>
             </Pressable>
           </View>
@@ -473,7 +504,7 @@ export default function ProfileScreen() {
                       onPress={() => setDraftFastFocusItems((items) => items.filter((i) => i !== item))}
                       style={({ pressed }) => [styles.focusChipDelete, pressed && styles.pressed]}
                     >
-                      <MaterialIcons name={iconName("close")} size={16} color={PURPLE} />
+                      <MaterialIcons name={iconName("close")} size={16} color={colors.primary} />
                     </Pressable>
                   </View>
                 ))}

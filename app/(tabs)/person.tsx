@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -290,11 +291,13 @@ export default function PersonScreen() {
 
   const handleToggleUrgent = (itemId: string) => {
     if (!personId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => togglePrayerItemUrgent(previousPeople, personId, itemId));
   };
 
   const handleToggleDone = (itemId: string) => {
     if (!personId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => togglePrayerItemDone(previousPeople, personId, itemId));
   };
 
@@ -305,11 +308,13 @@ export default function PersonScreen() {
 
   const handleMarkAsPrayed = () => {
     if (!personId) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updatePeople((previousPeople) => markPersonPrayed(previousPeople, personId));
   };
 
   const handleMarkReachedToday = () => {
     if (!personId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
   };
 

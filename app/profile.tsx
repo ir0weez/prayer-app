@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -143,11 +144,13 @@ export default function ProfileScreen() {
       setShowFastCreator(true);
       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
   };
 
   const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
     if (!selectedFast) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedStatuses = updateFocusItemStatus(
       selectedFast.focusItemDailyStatuses,
       focusItem,

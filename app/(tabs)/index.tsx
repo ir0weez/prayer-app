@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -526,7 +527,7 @@ export default function HomeScreen() {
         .toUpperCase()
         .slice(0, 2),
     });
-
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople(updatedPeople);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedPeople)).catch(() => undefined);
     resetAddPersonForm();
@@ -547,6 +548,7 @@ export default function HomeScreen() {
   }, [today, todayDayOfMonth, todayDayOfWeek]);
 
   const commitPrayTodayPerson = useCallback((personId: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
       const updatedPeople = markPersonPrayed(previousPeople, personId);
       maybeAdvanceStreak(updatedPeople);
@@ -559,6 +561,7 @@ export default function HomeScreen() {
   const handleMarkPrayTodayPerson = (personId: string) => {
     const targetPerson = people.find((person) => person.id === personId);
     if (!targetPerson || pendingPrayerIds.includes(personId) || hasPersonCompletedPrayerToday(targetPerson, today)) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPendingPrayerIds((previousIds) => [...previousIds, personId]);
     undoTimers.current[personId] = setTimeout(() => commitPrayTodayPerson(personId), UNDO_COUNTDOWN_MS);
   };
@@ -568,6 +571,7 @@ export default function HomeScreen() {
       clearTimeout(undoTimers.current[personId]);
       delete undoTimers.current[personId];
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
   };
 
@@ -583,6 +587,7 @@ export default function HomeScreen() {
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setFastAvatarColor('#22C55E'); // Green
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
@@ -590,6 +595,7 @@ export default function HomeScreen() {
 
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setFastAvatarColor('#EF4444'); // Red
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
@@ -600,6 +606,7 @@ export default function HomeScreen() {
       clearTimeout(undoTimers.current['fast']);
       delete undoTimers.current['fast'];
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPendingFastAction(null);
     setFastAvatarColor(null);
   };
@@ -1048,7 +1055,10 @@ export default function HomeScreen() {
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
-        {renderSettingsRow("wb-sunny", "Dark Mode", "Use a calmer low-light interface", "normal", <Switch value={settings.darkMode} onValueChange={(darkMode) => setSettings((previous) => ({ ...previous, darkMode }))} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.darkMode ? "#FFFFFF" : "#4F6470"} />)}
+        {renderSettingsRow("wb-sunny", "Dark Mode", "Use a calmer low-light interface", "normal", <Switch value={settings.darkMode} onValueChange={(darkMode) => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setSettings((previous) => ({ ...previous, darkMode }));
+        }} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.darkMode ? "#FFFFFF" : "#4F6470"} />)}
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && styles.pressed]}>
           {renderSettingsRow("palette", "Color Theme", currentTheme.name, "normal", <View style={[styles.colorSwatch, { backgroundColor: currentTheme.primary }]} />)}
         </Pressable>
@@ -1271,7 +1281,10 @@ export default function HomeScreen() {
               const theme = COLOR_THEMES[themeKey];
               const selected = settings.themeKey === themeKey;
               return (
-                <Pressable key={themeKey} onPress={() => setSettings((previous) => ({ ...previous, themeKey }))} style={({ pressed }) => [styles.themeOption, selected && { borderColor: theme.primary, borderWidth: 2 }, pressed && styles.pressed]}>
+                <Pressable key={themeKey} onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSettings((previous) => ({ ...previous, themeKey }));
+                }} style={({ pressed }) => [styles.themeOption, selected && { borderColor: theme.primary, borderWidth: 2 }, pressed && styles.pressed]}>
                   <View style={[styles.themeOptionSwatch, { backgroundColor: theme.primary }]} />
                   <View style={styles.themeOptionText}>
                     <Text style={styles.themeOptionTitle}>{theme.name}</Text>

@@ -485,4 +485,8 @@
 - [x] Remove "Tap undo" text label (timer is now self-explanatory)
 - [x] Make timer tappable for fast action undo
 - [x] Test undo timer animations on all platforms
-- [ ] Add haptic feedback at key moments (start, final 3 seconds, completion)
+- [x] Add haptic feedback at key moments (start, final 3 seconds, completion)
+
+## Android Prayer Widget (Deferred)
+
+Skipping widget implementation until Expo adds native widget support. Current Expo SDK 54 doesn't support home screen widgets without ejecting from managed workflow.

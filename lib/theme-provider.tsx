@@ -15,6 +15,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? "light";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isManuallySet, setIsManuallySet] = useState(false);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
     nativewindColorScheme.set(scheme);
@@ -32,6 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     setColorSchemeState(scheme);
+    setIsManuallySet(true);
     applyScheme(scheme);
   }, [applyScheme]);
 
@@ -44,13 +46,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isInitialized, applyScheme, systemScheme]);
 
-  // Always sync with system color scheme changes
+  // Only sync with system color scheme if user hasn't manually set it
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && !isManuallySet) {
       setColorSchemeState(systemScheme);
       applyScheme(systemScheme);
     }
-  }, [systemScheme, isInitialized, applyScheme]);
+  }, [systemScheme, isInitialized, isManuallySet, applyScheme]);
 
   const themeVariables = useMemo(
     () =>

@@ -54,8 +54,8 @@ export function UndoCountdownTimer({ color }: { color: string }) {
     };
   }, [progress, pulseAnim]);
 
-  // Calculate circumference for SVG circle (radius = 28)
-  const radius = 28;
+  // Calculate circumference for SVG circle (radius = 32)
+  const radius = 32;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = progress.interpolate({
     inputRange: [0, 1],
@@ -66,8 +66,8 @@ export function UndoCountdownTimer({ color }: { color: string }) {
     <Animated.View
       style={[
         {
-          width: 64,
-          height: 64,
+          width: 72,
+          height: 72,
           alignItems: "center",
           justifyContent: "center",
           transform: [{ scale: pulseAnim }],
@@ -75,8 +75,8 @@ export function UndoCountdownTimer({ color }: { color: string }) {
       ]}
     >
       <Svg
-        width={64}
-        height={64}
+        width={72}
+        height={72}
         viewBox="0 0 64 64"
         style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}
       >
@@ -86,7 +86,7 @@ export function UndoCountdownTimer({ color }: { color: string }) {
           cy="32"
           r={radius}
           stroke="rgba(0,0,0,0.1)"
-          strokeWidth="3"
+          strokeWidth="2.5"
           fill="none"
         />
         {/* Animated progress circle */}
@@ -95,7 +95,7 @@ export function UndoCountdownTimer({ color }: { color: string }) {
           cy="32"
           r={radius}
           stroke={color}
-          strokeWidth="3"
+          strokeWidth="2.5"
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset as any}
@@ -106,7 +106,7 @@ export function UndoCountdownTimer({ color }: { color: string }) {
       <Text
         style={{
           color,
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: "700",
           zIndex: 10,
         }}

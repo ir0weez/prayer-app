@@ -517,3 +517,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Move family groups into their relationship sections instead of separate FAMILIES section
 - [x] Keep family groups and individual members together under their assigned relationship type
+
+## Family Overview and Management
+
+- [x] Create family overview screen showing all family members
+- [x] Make family members tappable to view their individual prayer cards
+- [x] Add "Add more to family" button for existing families to add additional members
+- [x] Allow removing individual members from a family (already implemented)

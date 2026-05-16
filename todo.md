@@ -536,3 +536,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix family.tsx using wrong storage key (prayercircle_people instead of prayercircle.people.v1)
 - [x] Fix groupIntoFamily to reuse existing familyId when adding to existing families instead of creating new ones
 - [x] Ensure family cards don't duplicate when members have different relationships
+
+## Delete Button Fix
+
+- [x] Fix delete button in edit person modal not responding to touches (added pointerEvents="auto")

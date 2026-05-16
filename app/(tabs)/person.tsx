@@ -729,7 +729,7 @@ export default function PersonScreen() {
               <Text style={styles.modalSecondaryButtonText}>Add to Family</Text>
             </Pressable>
             <View style={styles.modalActionRow}>
-              <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
+              <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
               </Pressable>
               <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.modalPrimaryButton, styles.modalSaveButton, pressed && styles.pressed]}>

@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { type Person } from "@/lib/prayercircle-data";
@@ -65,9 +65,10 @@ export default function FamilyScreen() {
                 style={({ pressed }) => [styles.memberCard, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}
               >
                 {member.photoUri ? (
-                  <View style={[styles.avatar, { borderColor: colors.primary }]}>
-                    <Text style={[styles.avatarText, { color: colors.primary }]}>{member.avatarLabel || "?"}</Text>
-                  </View>
+                  <Image
+                    source={{ uri: member.photoUri }}
+                    style={[styles.avatar, { borderColor: colors.primary }]}
+                  />
                 ) : (
                   <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
                     <Text style={[styles.avatarText, { color: colors.background }]}>{member.avatarLabel || "?"}</Text>

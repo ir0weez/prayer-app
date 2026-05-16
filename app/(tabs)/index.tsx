@@ -490,23 +490,30 @@ export default function HomeScreen() {
 
   const ungroupedPeople = useMemo(() => people.filter((p) => !p.familyId), [people]);
 
-  const relationshipSections: RelationshipSection[] = useMemo(
-    () =>
-      RELATIONSHIP_ORDER.map((relationship) => {
-        const ungroupedInRelationship = ungroupedPeople.filter((person) => person.relationship === relationship);
-        const familyGroupsInRelationship = familyGroups.filter((group) => {
-          const firstMember = group[0];
-          return firstMember && firstMember.relationship === relationship;
-        });
-        
-        return {
-          title: relationship,
-          people: ungroupedInRelationship,
-          familyGroups: familyGroupsInRelationship,
-        };
-      }).filter((section) => section.people.length > 0 || (section.familyGroups && section.familyGroups.length > 0)),
-    [ungroupedPeople, familyGroups],
-  );
+  const relationshipSections: RelationshipSection[] = useMemo(() => {
+    const renderedFamilyIds = new Set<string>();
+    return RELATIONSHIP_ORDER.map((relationship) => {
+      const ungroupedInRelationship = ungroupedPeople.filter((person) => person.relationship === relationship);
+      const familyGroupsInRelationship = familyGroups.filter((group) => {
+        if (group.length === 0) return false;
+        const firstMember = group[0];
+        const familyId = firstMember?.familyId;
+        // Only render family in the first member's relationship section, and only once
+        if (familyId && !renderedFamilyIds.has(familyId) && firstMember?.relationship === relationship) {
+          renderedFamilyIds.add(familyId);
+          return true;
+        }
+        return false;
+      });
+      
+      return {
+        title: relationship,
+        people: ungroupedInRelationship,
+        familyGroups: familyGroupsInRelationship,
+      };
+    }).filter((section) => section.people.length > 0 || (section.familyGroups && section.familyGroups.length > 0));
+  }, [ungroupedPeople, familyGroups]);
+
 
   const resetAddPersonForm = () => {
     setNewPersonName("");

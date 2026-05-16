@@ -524,3 +524,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make family members tappable to view their individual prayer cards
 - [x] Add "Add more to family" button for existing families to add additional members
 - [x] Allow removing individual members from a family (already implemented)
+
+## Family Grouping Bug Fixes
+
+- [x] Fix multiple family cards showing instead of combining into single card (deduplicate by familyId)
+- [x] Add profile photo display to family overview screen
+- [x] Fix family member navigation to show prayer requests

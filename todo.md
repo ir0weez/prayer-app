@@ -512,3 +512,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Update homepage to display family groups with stacked avatars
 - [x] Ensure "Pray Today" still shows all individuals from grouped families
 - [x] Test family grouping end-to-end
+
+## Family Grouping UI Refinement
+
+- [x] Move family groups into their relationship sections instead of separate FAMILIES section
+- [x] Keep family groups and individual members together under their assigned relationship type

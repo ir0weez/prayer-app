@@ -59,6 +59,7 @@ type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
 type RelationshipSection = {
   title: RelationshipType;
   people: Person[];
+  familyGroups?: Person[][];
 };
 
 type PrayerStreakRecord = {
@@ -491,11 +492,20 @@ export default function HomeScreen() {
 
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
-      RELATIONSHIP_ORDER.map((relationship) => ({
-        title: relationship,
-        people: ungroupedPeople.filter((person) => person.relationship === relationship),
-      })).filter((section) => section.people.length > 0),
-    [ungroupedPeople],
+      RELATIONSHIP_ORDER.map((relationship) => {
+        const ungroupedInRelationship = ungroupedPeople.filter((person) => person.relationship === relationship);
+        const familyGroupsInRelationship = familyGroups.filter((group) => {
+          const firstMember = group[0];
+          return firstMember && firstMember.relationship === relationship;
+        });
+        
+        return {
+          title: relationship,
+          people: ungroupedInRelationship,
+          familyGroups: familyGroupsInRelationship,
+        };
+      }).filter((section) => section.people.length > 0 || (section.familyGroups && section.familyGroups.length > 0)),
+    [ungroupedPeople, familyGroups],
   );
 
   const resetAddPersonForm = () => {
@@ -803,15 +813,10 @@ export default function HomeScreen() {
 
         {relationshipSections.length > 0 || familyGroups.length > 0 ? (
           <>
-            {familyGroups.length > 0 && (
-              <View style={styles.sectionBlock}>
-                <Text style={[styles.relationshipTitle, { color: currentTheme.primary }]}>FAMILIES</Text>
-                {familyGroups.map(renderFamilyCard)}
-              </View>
-            )}
             {relationshipSections.map((section) => (
               <View key={section.title} style={styles.sectionBlock}>
                 <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
+                {section.familyGroups && section.familyGroups.map(renderFamilyCard)}
                 {section.people.map(renderPersonCard)}
               </View>
             ))}

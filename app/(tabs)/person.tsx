@@ -725,7 +725,7 @@ export default function PersonScreen() {
               </>
             )}
             {familyMembers.length === 0 && (
-              <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+              <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, styles.addToFamilyButton, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("link")} size={18} color={PURPLE} />
                 <Text style={styles.modalSecondaryButtonText}>Add to Family</Text>
               </Pressable>
@@ -755,20 +755,22 @@ export default function PersonScreen() {
             {otherPeople.length === 0 ? (
               <Text style={styles.modalDescription}>No other people available to group with.</Text>
             ) : (
-              <FlatList
-                data={otherPeople}
-                keyExtractor={(item) => item.id}
-                scrollEnabled={false}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => handleGroupWithPerson(item.id)}
-                    style={({ pressed }) => [styles.familySelectItem, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.familySelectItemName}>{item.name}</Text>
-                    <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
-                  </Pressable>
-                )}
-              />
+              <View style={styles.familySelectListContainer}>
+                <FlatList
+                  data={otherPeople}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={true}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => handleGroupWithPerson(item.id)}
+                      style={({ pressed }) => [styles.familySelectItem, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.familySelectItemName}>{item.name}</Text>
+                      <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
+                    </Pressable>
+                  )}
+                />
+              </View>
             )}
           </View>
         </View>
@@ -1449,6 +1451,13 @@ const styles = StyleSheet.create({
     color: MUTED_TEXT,
     fontSize: 13,
     marginTop: 2,
+  },
+  familySelectListContainer: {
+    maxHeight: 300,
+    marginVertical: 12,
+  },
+  addToFamilyButton: {
+    marginBottom: 16,
   },
   pressed: {
     opacity: 0.75,

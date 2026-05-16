@@ -726,7 +726,7 @@ export default function PersonScreen() {
             )}
             <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, styles.addToFamilyButton, pressed && styles.pressed]}>
               <MaterialIcons name={iconName("link")} size={18} color={PURPLE} />
-              <Text style={styles.modalSecondaryButtonText}>{familyMembers.length > 0 ? "Add more to family" : "Add to Family"}</Text>
+              <Text style={styles.modalSecondaryButtonText}>Add to Family</Text>
             </Pressable>
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>

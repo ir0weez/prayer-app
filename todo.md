@@ -501,3 +501,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Remove "Family • Not reached yet" text from contact cards on homepage
 - [x] Keep only birthday information in the subtitle
+
+## Family Grouping Feature
+
+- [x] Add familyId and familyName fields to Person data model
+- [x] Create family grouping logic (auto-generate family name from last name)
+- [x] Implement groupIntoFamily and ungroupFromFamily helper functions
+- [x] Create stacked avatar component for family cards with overlapping avatars
+- [x] Add group/ungroup buttons in contact detail screens with modals
+- [x] Update homepage to display family groups with stacked avatars
+- [x] Ensure "Pray Today" still shows all individuals from grouped families
+- [x] Test family grouping end-to-end

@@ -12,6 +12,7 @@ import Svg, { Path } from "react-native-svg";
 import { ScreenContainer } from "@/components/screen-container";
 import { StatusModal } from "@/components/status-modal";
 import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
+import { StackedAvatar } from "@/components/stacked-avatar";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -29,6 +30,8 @@ import {
   type Person,
   type RelationshipType,
   relationshipColors,
+  groupIntoFamily,
+  ungroupFromFamily,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -471,13 +474,28 @@ export default function HomeScreen() {
     }
   }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
 
+  // Separate family groups from individual people
+  const familyGroups = useMemo(() => {
+    const grouped = new Map<string, Person[]>();
+    people.forEach((person) => {
+      if (person.familyId) {
+        const members = grouped.get(person.familyId) || [];
+        members.push(person);
+        grouped.set(person.familyId, members);
+      }
+    });
+    return Array.from(grouped.values());
+  }, [people]);
+
+  const ungroupedPeople = useMemo(() => people.filter((p) => !p.familyId), [people]);
+
   const relationshipSections: RelationshipSection[] = useMemo(
     () =>
       RELATIONSHIP_ORDER.map((relationship) => ({
         title: relationship,
-        people: people.filter((person) => person.relationship === relationship),
+        people: ungroupedPeople.filter((person) => person.relationship === relationship),
       })).filter((section) => section.people.length > 0),
-    [people],
+    [ungroupedPeople],
   );
 
   const resetAddPersonForm = () => {
@@ -660,6 +678,41 @@ export default function HomeScreen() {
     );
   };
 
+  const renderFamilyCard = (familyMembers: Person[]) => {
+    if (familyMembers.length === 0) return null;
+    const familyName = familyMembers[0]?.familyName || "Family";
+    const familyId = familyMembers[0]?.familyId || "";
+    const mostRecentPerson = familyMembers.reduce((prev, current) => {
+      const prevDays = getDaysSinceLastPrayed(prev.lastPrayedDate);
+      const currentDays = getDaysSinceLastPrayed(current.lastPrayedDate);
+      return currentDays < prevDays ? current : prev;
+    });
+    const daysSince = getDaysSinceLastPrayed(mostRecentPerson.lastPrayedDate);
+    const isFull = daysSince >= 0 && daysSince <= 3;
+    const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(mostRecentPerson);
+    const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
+    const reachProgress = getReachProgressRatio(daysSince);
+
+    return (
+      <Pressable key={familyId} onPress={() => router.push({ pathname: "/person", params: { personId: familyMembers[0]?.id, familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+        <StackedAvatar people={familyMembers} size={44} maxDisplay={3} />
+        <View style={styles.personInfo}>
+          <Text numberOfLines={1} style={styles.personName}>{familyName}</Text>
+          <Text numberOfLines={1} style={styles.personMeta}>
+            {familyMembers.length} {familyMembers.length === 1 ? "person" : "people"}
+          </Text>
+        </View>
+        <View style={styles.personActions}>
+          <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+            <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
+            <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+          </View>
+          <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+        </View>
+      </Pressable>
+    );
+  };
+
   const renderPersonCard = (person: Person) => {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
     const isFull = daysSince >= 31;
@@ -748,12 +801,22 @@ export default function HomeScreen() {
           </>
         ) : null}
 
-        {relationshipSections.length > 0 ? relationshipSections.map((section) => (
-          <View key={section.title} style={styles.sectionBlock}>
-            <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
-            {section.people.map(renderPersonCard)}
-          </View>
-        )) : (
+        {relationshipSections.length > 0 || familyGroups.length > 0 ? (
+          <>
+            {familyGroups.length > 0 && (
+              <View style={styles.sectionBlock}>
+                <Text style={[styles.relationshipTitle, { color: currentTheme.primary }]}>FAMILIES</Text>
+                {familyGroups.map(renderFamilyCard)}
+              </View>
+            )}
+            {relationshipSections.map((section) => (
+              <View key={section.title} style={styles.sectionBlock}>
+                <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
+                {section.people.map(renderPersonCard)}
+              </View>
+            ))}
+          </>
+        ) : (
           <View style={styles.emptyStateCard}>
             <MaterialIcons name={iconName("groups")} size={46} color={currentTheme.primary} />
             <Text style={styles.emptyTitle}>No people yet</Text>

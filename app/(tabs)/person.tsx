@@ -25,6 +25,8 @@ import {
   togglePrayerItemUrgent,
   updatePersonLastReachedDate,
   updatePersonReminderWithTime,
+  groupIntoFamily,
+  ungroupFromFamily,
   type Person,
   type RelationshipType,
   type ReminderFrequency,
@@ -240,6 +242,8 @@ export default function PersonScreen() {
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
   const [draftBirthday, setDraftBirthday] = useState("");
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | undefined>(undefined);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -264,6 +268,22 @@ export default function PersonScreen() {
     };
   }, []);
 
+  const handleGroupWithPerson = (targetPersonId: string) => {
+    if (!personId || !currentPerson) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const updatedPeople = groupIntoFamily(people, [personId, targetPersonId]);
+    setPeople(updatedPeople);
+    setShowFamilyModal(false);
+    setSelectedFamilyMember(null);
+  };
+
+  const handleUngroupFromFamily = () => {
+    if (!personId) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const updatedPeople = ungroupFromFamily(people, personId);
+    setPeople(updatedPeople);
+  };
+
   useEffect(() => {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
@@ -272,6 +292,16 @@ export default function PersonScreen() {
   const currentPerson = useMemo(
     () => people.find((person) => person.id === personId),
     [people, personId],
+  );
+
+  const otherPeople = useMemo(
+    () => people.filter((p) => p.id !== personId),
+    [people, personId],
+  );
+
+  const familyMembers = useMemo(
+    () => currentPerson?.familyId ? people.filter((p) => p.familyId === currentPerson.familyId) : [],
+    [people, currentPerson],
   );
 
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
@@ -678,6 +708,28 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={styles.modalInput}
             />
+            {familyMembers.length > 0 && (
+              <>
+                <Text style={styles.modalFieldLabel}>Family Members</Text>
+                <View style={styles.familyMembersList}>
+                  {familyMembers.map((member) => (
+                    <View key={member.id} style={styles.familyMemberItem}>
+                      <Text style={styles.familyMemberName}>{member.name}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Pressable onPress={handleUngroupFromFamily} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+                  <MaterialIcons name={iconName("link-off")} size={18} color={PURPLE} />
+                  <Text style={styles.modalSecondaryButtonText}>Remove from Family</Text>
+                </Pressable>
+              </>
+            )}
+            {familyMembers.length === 0 && (
+              <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("link")} size={18} color={PURPLE} />
+                <Text style={styles.modalSecondaryButtonText}>Add to Family</Text>
+              </Pressable>
+            )}
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
@@ -686,6 +738,38 @@ export default function PersonScreen() {
                 <Text style={styles.modalPrimaryButtonText}>Save Person</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showFamilyModal} animationType="slide" onRequestClose={() => setShowFamilyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add to Family</Text>
+              <Pressable onPress={() => setShowFamilyModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalDescription}>Select a person to group with {currentPerson?.name}.</Text>
+            {otherPeople.length === 0 ? (
+              <Text style={styles.modalDescription}>No other people available to group with.</Text>
+            ) : (
+              <FlatList
+                data={otherPeople}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => handleGroupWithPerson(item.id)}
+                    style={({ pressed }) => [styles.familySelectItem, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.familySelectItemName}>{item.name}</Text>
+                    <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
+                  </Pressable>
+                )}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -1316,6 +1400,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     lineHeight: 21,
+  },
+  modalSecondaryButton: {
+    minHeight: 50,
+    borderRadius: 25,
+    backgroundColor: "#EFE8FB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  modalSecondaryButtonText: {
+    color: PURPLE,
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 21,
+  },
+  familyMembersList: {
+    backgroundColor: "#FBF8FF",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  familyMemberItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  familyMemberName: {
+    color: DEEP_TEXT,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  familySelectItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  familySelectItemName: {
+    color: DEEP_TEXT,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  familySelectItemRelationship: {
+    color: MUTED_TEXT,
+    fontSize: 13,
+    marginTop: 2,
   },
   pressed: {
     opacity: 0.75,

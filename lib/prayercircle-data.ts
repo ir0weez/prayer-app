@@ -27,6 +27,8 @@ export type Person = {
   avatarLabel?: string;
   photoUri?: string;
   prayerItems: PrayerItem[];
+  familyId?: string; // ID of the family group this person belongs to (if any)
+  familyName?: string; // Display name for the family group (e.g., "Gutierrez Family")
 };
 
 export type AddPersonOptions = {
@@ -521,6 +523,67 @@ export function prependJournalEntry(
     },
     ...journal,
   ];
+}
+
+// Helper: Extract last name from full name
+function getLastName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+}
+
+// Helper: Get family members (people with the same familyId)
+export function getFamilyMembers(people: Person[], familyId: string): Person[] {
+  return people.filter((p) => p.familyId === familyId);
+}
+
+// Helper: Get all family groups
+export function getFamilyGroups(people: Person[]): Array<{ familyId: string; familyName: string; members: Person[] }> {
+  const grouped = new Map<string, Person[]>();
+  people.forEach((person) => {
+    if (person.familyId) {
+      const members = grouped.get(person.familyId) || [];
+      members.push(person);
+      grouped.set(person.familyId, members);
+    }
+  });
+  return Array.from(grouped.entries()).map(([familyId, members]) => ({
+    familyId,
+    familyName: members[0]?.familyName || "Family",
+    members,
+  }));
+}
+
+// Action: Group people into a family
+export function groupIntoFamily(people: Person[], personIds: string[]): Person[] {
+  if (personIds.length < 2) return people; // Need at least 2 people to form a family
+
+  const familyId = `family-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const familyPeople = people.filter((p) => personIds.includes(p.id));
+  const lastName = getLastName(familyPeople[0]?.name || "Family");
+  const familyName = `${lastName} Family`;
+
+  return people.map((person) =>
+    personIds.includes(person.id)
+      ? {
+          ...person,
+          familyId,
+          familyName,
+        }
+      : person,
+  );
+}
+
+// Action: Remove person from family (ungroup)
+export function ungroupFromFamily(people: Person[], personId: string): Person[] {
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          familyId: undefined,
+          familyName: undefined,
+        }
+      : person,
+  );
 }
 
 // Helper: Get initial state

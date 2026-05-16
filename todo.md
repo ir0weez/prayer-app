@@ -548,3 +548,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Animate selected avatar to move to the side while prayer requests appear
 - [x] Allow editing prayer requests directly from the expanded view
 - [x] Add ability to close expanded view by tapping elsewhere or back button
+- [x] Add checkboxes to mark prayer requests as done inline
+- [x] Fix background colors to match theme (surface color for expanded view)

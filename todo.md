@@ -540,3 +540,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Delete Button Fix
 
 - [x] Fix delete button in edit person modal not responding to touches (added pointerEvents="auto")
+
+## Family Screen Redesign
+
+- [x] Replace family member cards with avatar-only view
+- [x] When avatar is tapped, expand to show prayer requests inline (no navigation)
+- [x] Animate selected avatar to move to the side while prayer requests appear
+- [x] Allow editing prayer requests directly from the expanded view
+- [x] Add ability to close expanded view by tapping elsewhere or back button

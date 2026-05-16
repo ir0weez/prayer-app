@@ -6,8 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
-
-const PEOPLE_STORAGE_KEY = "prayercircle_people";
+import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 const iconName = (name: string) => name as any;
 

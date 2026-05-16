@@ -530,3 +530,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix multiple family cards showing instead of combining into single card (deduplicate by familyId)
 - [x] Add profile photo display to family overview screen
 - [x] Fix family member navigation to show prayer requests
+
+## Critical Family Grouping Fixes
+
+- [x] Fix family.tsx using wrong storage key (prayercircle_people instead of prayercircle.people.v1)
+- [x] Fix groupIntoFamily to reuse existing familyId when adding to existing families instead of creating new ones
+- [x] Ensure family cards don't duplicate when members have different relationships

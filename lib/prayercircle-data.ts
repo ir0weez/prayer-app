@@ -557,13 +557,39 @@ export function getFamilyGroups(people: Person[]): Array<{ familyId: string; fam
 export function groupIntoFamily(people: Person[], personIds: string[]): Person[] {
   if (personIds.length < 2) return people; // Need at least 2 people to form a family
 
-  const familyId = `family-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const familyPeople = people.filter((p) => personIds.includes(p.id));
-  const lastName = getLastName(familyPeople[0]?.name || "Family");
+  // Check if any of the selected people are already in a family
+  const existingFamilyIds = new Set<string>();
+  const selectedPeople = people.filter((p) => personIds.includes(p.id));
+  selectedPeople.forEach((person) => {
+    if (person.familyId) {
+      existingFamilyIds.add(person.familyId);
+    }
+  });
+
+  // If there are existing families, merge them all into one
+  // Use the first existing familyId if available, otherwise create a new one
+  let familyId: string;
+  if (existingFamilyIds.size > 0) {
+    // Reuse the first existing family ID
+    familyId = Array.from(existingFamilyIds)[0];
+  } else {
+    // Create a new family ID
+    familyId = `family-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  const lastName = getLastName(selectedPeople[0]?.name || "Family");
   const familyName = `${lastName} Family`;
 
+  // Add all selected people to the family, and also add any existing family members
+  const allFamilyMemberIds = new Set(personIds);
+  people.forEach((person) => {
+    if (existingFamilyIds.has(person.familyId || "")) {
+      allFamilyMemberIds.add(person.id);
+    }
+  });
+
   return people.map((person) =>
-    personIds.includes(person.id)
+    allFamilyMemberIds.has(person.id)
       ? {
           ...person,
           familyId,

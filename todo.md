@@ -564,3 +564,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add checkmarks next to people's names in "Add to Family" modal when they're already in the same family
 - [x] Allow adding multiple people to a family in one session without closing the modal
 - [x] Show visual feedback when a person is successfully added to a family (opacity change + checkmark)
+
+## Family Hierarchy Organization
+
+- [x] Add spouse relationship tracking to Person model (spouseId field)
+- [x] Organize family members by spouse pairs and their children on family page
+- [x] Show couple avatars side-by-side with children grouped below them
+- [ ] Add UI to set/edit spouse relationships in person edit modal

@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Pressable, ScrollView, Text, View, Image, FlatList } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
@@ -10,6 +10,11 @@ import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { togglePrayerItemDone } from "@/lib/prayercircle-data";
 
 const iconName = (name: string) => name as any;
+
+type FamilyHierarchy = {
+  couples: Array<{ primary: Person; spouse?: Person }>;
+  singles: Person[];
+};
 
 export default function FamilyScreen() {
   const router = useRouter();
@@ -40,6 +45,29 @@ export default function FamilyScreen() {
     }
   }, [familyId]);
 
+  // Organize family members into couples and singles
+  const hierarchy = useMemo((): FamilyHierarchy => {
+    const processed = new Set<string>();
+    const couples: Array<{ primary: Person; spouse?: Person }> = [];
+    const singles: Person[] = [];
+
+    for (const person of familyMembers) {
+      if (processed.has(person.id)) continue;
+
+      if (person.spouseId) {
+        const spouse = familyMembers.find((p) => p.id === person.spouseId);
+        couples.push({ primary: person, spouse });
+        processed.add(person.id);
+        if (spouse) processed.add(spouse.id);
+      } else {
+        singles.push(person);
+        processed.add(person.id);
+      }
+    }
+
+    return { couples, singles };
+  }, [familyMembers]);
+
   const familyName = familyMembers[0]?.familyName || "Family";
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
 
@@ -56,6 +84,44 @@ export default function FamilyScreen() {
     setFamilyMembers(updatedMembers);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedMembers)).catch(() => undefined);
   };
+
+  const renderAvatar = (member: Person) => (
+    <Pressable
+      key={member.id}
+      onPress={() => handleAvatarPress(member.id)}
+      style={({ pressed }) => [
+        styles.avatarContainer,
+        selectedMemberId === member.id && styles.avatarContainerSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      {member.photoUri ? (
+        <Image
+          source={{ uri: member.photoUri }}
+          style={[
+            styles.avatar,
+            { borderColor: colors.primary },
+            selectedMemberId === member.id && { borderWidth: 4 },
+          ]}
+        />
+      ) : (
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: colors.primary, borderColor: colors.primary },
+            selectedMemberId === member.id && { borderWidth: 4 },
+          ]}
+        >
+          <Text style={[styles.avatarText, { color: colors.background }]}>
+            {member.avatarLabel || "?"}
+          </Text>
+        </View>
+      )}
+      <Text style={[styles.avatarName, { color: colors.foreground }]} numberOfLines={1}>
+        {member.name}
+      </Text>
+    </Pressable>
+  );
 
   return (
     <ScreenContainer className="bg-background">
@@ -74,46 +140,32 @@ export default function FamilyScreen() {
           <Text style={[styles.emptyText, { color: colors.muted }]}>No family members found.</Text>
         ) : (
           <View style={styles.container}>
-            {/* Avatar Row */}
-            <View style={styles.avatarRow}>
-              {familyMembers.map((member) => (
-                <Pressable
-                  key={member.id}
-                  onPress={() => handleAvatarPress(member.id)}
-                  style={({ pressed }) => [
-                    styles.avatarContainer,
-                    selectedMemberId === member.id && styles.avatarContainerSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {member.photoUri ? (
-                    <Image
-                      source={{ uri: member.photoUri }}
-                      style={[
-                        styles.avatar,
-                        { borderColor: colors.primary },
-                        selectedMemberId === member.id && { borderWidth: 4 },
-                      ]}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.avatar,
-                        { backgroundColor: colors.primary, borderColor: colors.primary },
-                        selectedMemberId === member.id && { borderWidth: 4 },
-                      ]}
-                    >
-                      <Text style={[styles.avatarText, { color: colors.background }]}>
-                        {member.avatarLabel || "?"}
-                      </Text>
+            {/* Couples Section */}
+            {hierarchy.couples.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.muted }]}>Couples</Text>
+                <View style={styles.couplesList}>
+                  {hierarchy.couples.map((couple, idx) => (
+                    <View key={`couple-${idx}`} style={styles.coupleRow}>
+                      {renderAvatar(couple.primary)}
+                      {couple.spouse && renderAvatar(couple.spouse)}
                     </View>
-                  )}
-                  <Text style={[styles.avatarName, { color: colors.foreground }]} numberOfLines={1}>
-                    {member.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Singles Section */}
+            {hierarchy.singles.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.muted }]}>
+                  {hierarchy.couples.length > 0 ? "Children & Others" : "Family Members"}
+                </Text>
+                <View style={styles.singlesList}>
+                  {hierarchy.singles.map((member) => renderAvatar(member))}
+                </View>
+              </View>
+            )}
 
             {/* Expanded Prayer Requests View */}
             {selectedMember && (
@@ -242,10 +294,27 @@ const styles = {
     marginTop: 20,
   },
   container: {
-    gap: 20,
+    gap: 24,
     flex: 1,
   },
-  avatarRow: {
+  section: {
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+  },
+  couplesList: {
+    gap: 16,
+  },
+  coupleRow: {
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
+    gap: 20,
+  },
+  singlesList: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
     justifyContent: "center" as const,
@@ -282,6 +351,7 @@ const styles = {
     borderWidth: 1,
     padding: 16,
     gap: 12,
+    marginTop: 8,
   },
   expandedHeader: {
     flexDirection: "row" as const,

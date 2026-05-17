@@ -29,6 +29,7 @@ export type Person = {
   prayerItems: PrayerItem[];
   familyId?: string; // ID of the family group this person belongs to (if any)
   familyName?: string; // Display name for the family group (e.g., "Gutierrez Family")
+  spouseId?: string; // ID of spouse if married (for organizing family hierarchy)
 };
 
 export type AddPersonOptions = {

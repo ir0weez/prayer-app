@@ -577,3 +577,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add "Family Type" dropdown to person edit modal (Spouse, Child, Other)
 - [x] Auto-link spouses when both are marked as "Spouse" to each other
 - [x] Update family hierarchy display to use family type instead of just spouse relationships
+
+## Stacked Avatar Fix
+
+- [x] Increase maxDisplay in StackedAvatar from 3 to 4 to show all family member photos in family cards

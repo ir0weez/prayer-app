@@ -273,8 +273,6 @@ export default function PersonScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const updatedPeople = groupIntoFamily(people, [personId, targetPersonId]);
     setPeople(updatedPeople);
-    setShowFamilyModal(false);
-    setSelectedFamilyMember(null);
   };
 
   const handleUngroupFromFamily = () => {
@@ -760,15 +758,25 @@ export default function PersonScreen() {
                   data={otherPeople}
                   keyExtractor={(item) => item.id}
                   scrollEnabled={true}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      onPress={() => handleGroupWithPerson(item.id)}
-                      style={({ pressed }) => [styles.familySelectItem, pressed && styles.pressed]}
-                    >
-                      <Text style={styles.familySelectItemName}>{item.name}</Text>
-                      <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
-                    </Pressable>
-                  )}
+                  renderItem={({ item }) => {
+                    const isInSameFamily = currentPerson?.familyId && item.familyId === currentPerson.familyId;
+                    return (
+                      <Pressable
+                        onPress={() => !isInSameFamily && handleGroupWithPerson(item.id)}
+                        style={({ pressed }) => [styles.familySelectItem, isInSameFamily && styles.familySelectItemChecked, pressed && styles.pressed]}
+                      >
+                        <View style={styles.familySelectItemContent}>
+                          <View>
+                            <Text style={styles.familySelectItemName}>{item.name}</Text>
+                            <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
+                          </View>
+                          {isInSameFamily && (
+                            <MaterialIcons name={iconName("check-circle")} size={24} color={PURPLE} />
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  }}
                 />
               </View>
             )}
@@ -1443,6 +1451,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
+  },
+  familySelectItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  familySelectItemChecked: {
+    opacity: 0.6,
   },
   familySelectItemName: {
     color: DEEP_TEXT,

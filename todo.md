@@ -558,3 +558,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Family Card Photo Fix
 
 - [x] Fix StackedAvatar component to display actual photos instead of just initials
+
+## Family Grouping UX Improvements
+
+- [x] Add checkmarks next to people's names in "Add to Family" modal when they're already in the same family
+- [x] Allow adding multiple people to a family in one session without closing the modal
+- [x] Show visual feedback when a person is successfully added to a family (opacity change + checkmark)

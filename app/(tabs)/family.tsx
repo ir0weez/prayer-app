@@ -1,8 +1,8 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { Pressable, ScrollView, Text, View, Image, FlatList, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
 import { type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
@@ -32,6 +32,10 @@ export default function FamilyScreen() {
           const people: Person[] = JSON.parse(peopleJson);
           const members = people.filter((p) => p.familyId === familyId);
           setFamilyMembers(members);
+          // Auto-select first member if none selected
+          if (members.length > 0 && !selectedMemberId) {
+            setSelectedMemberId(members[0].id);
+          }
         }
       } catch (error) {
         console.error("Failed to load family members:", error);
@@ -76,7 +80,7 @@ export default function FamilyScreen() {
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
 
   const handleAvatarPress = (memberId: string) => {
-    setSelectedMemberId(selectedMemberId === memberId ? null : memberId);
+    setSelectedMemberId(memberId);
   };
 
   const handleEditPrayer = (memberId: string) => {
@@ -118,43 +122,76 @@ export default function FamilyScreen() {
     );
   };
 
-  const renderAvatar = (member: Person) => (
-    <Pressable
-      key={member.id}
-      onPress={() => handleAvatarPress(member.id)}
-      style={({ pressed }) => [
-        styles.avatarContainer,
-        selectedMemberId === member.id && styles.avatarContainerSelected,
-        pressed && styles.pressed,
-      ]}
-    >
-      {member.photoUri ? (
-        <Image
-          source={{ uri: member.photoUri }}
-          style={[
-            styles.avatar,
-            { borderColor: colors.primary },
-            selectedMemberId === member.id && { borderWidth: 4 },
-          ]}
-        />
-      ) : (
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: colors.primary, borderColor: colors.primary },
-            selectedMemberId === member.id && { borderWidth: 4 },
-          ]}
-        >
-          <Text style={[styles.avatarText, { color: colors.background }]}>
-            {member.avatarLabel || "?"}
-          </Text>
+  const isSpouse = (member: Person) => member.familyType === "Spouse";
+  const isChild = (member: Person) => member.familyType === "Child";
+
+  const renderAvatar = (member: Person) => {
+    const isSelected = selectedMemberId === member.id;
+    const spouse = isSpouse(member);
+    const child = isChild(member);
+    const avatarSize = spouse ? 72 : child ? 56 : 72;
+
+    return (
+      <Pressable
+        key={member.id}
+        onPress={() => handleAvatarPress(member.id)}
+        style={({ pressed }) => [
+          styles.avatarContainer,
+          isSelected && styles.avatarContainerSelected,
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={styles.avatarWrapper}>
+          {member.photoUri ? (
+            <Image
+              source={{ uri: member.photoUri }}
+              style={[
+                styles.avatar,
+                {
+                  borderColor: colors.primary,
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                },
+                isSelected && { borderWidth: 4 },
+              ]}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                },
+                isSelected && { borderWidth: 4 },
+              ]}
+            >
+              <Text style={[styles.avatarText, { color: colors.background, fontSize: avatarSize * 0.35 }]}>
+                {member.avatarLabel || "?"}
+              </Text>
+            </View>
+          )}
+          {spouse && (
+            <View style={[styles.spouseBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.spouseBadgeText}>👥</Text>
+            </View>
+          )}
+          {child && (
+            <View style={[styles.childBadge, { backgroundColor: colors.success }]}>
+              <Text style={styles.childBadgeText}>👶</Text>
+            </View>
+          )}
         </View>
-      )}
-      <Text style={[styles.avatarName, { color: colors.foreground }]} numberOfLines={1}>
-        {member.name}
-      </Text>
-    </Pressable>
-  );
+        <Text style={[styles.avatarName, { color: colors.foreground }]} numberOfLines={1}>
+          {member.name}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <ScreenContainer className="bg-background">
@@ -175,45 +212,51 @@ export default function FamilyScreen() {
           <Text style={[styles.emptyText, { color: colors.muted }]}>No family members found.</Text>
         ) : (
           <View style={styles.container}>
-            {/* Couples Section */}
-            {hierarchy.couples.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.muted }]}>Couples</Text>
-                <View style={styles.couplesList}>
-                  {hierarchy.couples.map((couple, idx) => (
-                    <View key={`couple-${idx}`} style={styles.coupleRow}>
-                      {renderAvatar(couple.primary)}
-                      {couple.spouse && renderAvatar(couple.spouse)}
-                    </View>
-                  ))}
-                </View>
+            {/* Family Members Grid */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.muted }]}>FAMILY MEMBERS</Text>
+              <View style={styles.membersGrid}>
+                {hierarchy.couples.length > 0 && (
+                  <View style={styles.coupleRow}>
+                    {hierarchy.couples.map((couple, idx) => (
+                      <View key={`couple-${idx}`} style={styles.coupleGroup}>
+                        {renderAvatar(couple.primary)}
+                        {couple.spouse && renderAvatar(couple.spouse)}
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {hierarchy.singles.length > 0 && (
+                  <View style={styles.singlesRow}>
+                    {hierarchy.singles.map((member) => renderAvatar(member))}
+                  </View>
+                )}
               </View>
-            )}
+            </View>
 
-            {/* Singles Section */}
-            {hierarchy.singles.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: colors.muted }]}>
-                  {hierarchy.couples.length > 0 ? "Children & Others" : "Family Members"}
-                </Text>
-                <View style={styles.singlesList}>
-                  {hierarchy.singles.map((member) => renderAvatar(member))}
-                </View>
-              </View>
-            )}
-
-            {/* Expanded Prayer Requests View */}
+            {/* Prayer Requests for Selected Member */}
             {selectedMember && (
-              <View style={[styles.expandedView, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={styles.expandedHeader}>
-                  <Text style={[styles.expandedTitle, { color: colors.foreground }]}>
-                    {selectedMember.name}'s Prayer Requests
-                  </Text>
+              <View style={[styles.prayerSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={styles.prayerHeader}>
+                  <View>
+                    <Text style={[styles.prayerMemberName, { color: colors.foreground }]}>
+                      {selectedMember.name}
+                    </Text>
+                    {selectedMember.familyType && (
+                      <Text style={[styles.familyTypeLabel, { color: colors.muted }]}>
+                        {selectedMember.familyType === "Spouse" ? "👥 Spouse" : selectedMember.familyType === "Child" ? "👶 Child" : "Other"}
+                      </Text>
+                    )}
+                  </View>
                   <Pressable
-                    onPress={() => setSelectedMemberId(null)}
-                    style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+                    onPress={() => handleEditPrayer(selectedMember.id)}
+                    style={({ pressed }) => [
+                      styles.editIconButton,
+                      { backgroundColor: colors.primary },
+                      pressed && styles.pressed,
+                    ]}
                   >
-                    <MaterialIcons name={iconName("close")} size={20} color={colors.muted} />
+                    <MaterialIcons name={iconName("edit")} size={18} color="#FFFFFF" />
                   </Pressable>
                 </View>
 
@@ -268,18 +311,6 @@ export default function FamilyScreen() {
                     )}
                   />
                 )}
-
-                <Pressable
-                  onPress={() => handleEditPrayer(selectedMember.id)}
-                  style={({ pressed }) => [
-                    styles.editButton,
-                    { backgroundColor: colors.primary },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <MaterialIcons name={iconName("edit")} size={18} color="#FFFFFF" />
-                  <Text style={styles.editButtonText}>Edit Prayer Requests</Text>
-                </Pressable>
               </View>
             )}
           </View>
@@ -312,9 +343,6 @@ const styles = {
     flex: 1,
     textAlign: "center" as const,
   },
-  spacer: {
-    width: 44,
-  },
   pressed: {
     opacity: 0.7,
   },
@@ -345,15 +373,21 @@ const styles = {
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
   },
-  couplesList: {
+  membersGrid: {
     gap: 16,
   },
   coupleRow: {
     flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
     justifyContent: "center" as const,
-    gap: 20,
+    gap: 24,
   },
-  singlesList: {
+  coupleGroup: {
+    flexDirection: "row" as const,
+    gap: 12,
+    alignItems: "flex-end" as const,
+  },
+  singlesRow: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
     justifyContent: "center" as const,
@@ -365,19 +399,48 @@ const styles = {
     gap: 8,
   },
   avatarContainerSelected: {
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.08 }],
+  },
+  avatarWrapper: {
+    position: "relative" as const,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
     borderWidth: 2,
     alignItems: "center" as const,
     justifyContent: "center" as const,
   },
   avatarText: {
-    fontSize: 24,
     fontWeight: "700" as const,
+  },
+  spouseBadge: {
+    position: "absolute" as const,
+    bottom: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  spouseBadgeText: {
+    fontSize: 12,
+  },
+  childBadge: {
+    position: "absolute" as const,
+    bottom: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  childBadgeText: {
+    fontSize: 12,
   },
   avatarName: {
     fontSize: 12,
@@ -385,27 +448,33 @@ const styles = {
     maxWidth: 80,
     textAlign: "center" as const,
   },
-  expandedView: {
+  prayerSection: {
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     gap: 12,
     marginTop: 8,
   },
-  expandedHeader: {
+  prayerHeader: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "space-between" as const,
     marginBottom: 12,
   },
-  expandedTitle: {
-    fontSize: 15,
+  prayerMemberName: {
+    fontSize: 16,
     fontWeight: "600" as const,
-    flex: 1,
   },
-  closeButton: {
-    padding: 8,
-    marginRight: -8,
+  familyTypeLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  editIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
   },
   noPrayersText: {
     fontSize: 14,
@@ -453,19 +522,5 @@ const styles = {
     fontSize: 10,
     fontWeight: "600" as const,
     color: "#FFFFFF",
-  },
-  editButton: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-    marginTop: 12,
-  },
-  editButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600" as const,
   },
 };

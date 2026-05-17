@@ -599,3 +599,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Refine StackedAvatar to show 2 large spouse avatars prominently
 - [x] Add gradient opacity fade for children avatars after 4 total avatars
 - [x] Improve visual hierarchy and spacing for family cards
+
+## Family Screen Improvements
+
+- [x] Add visual distinction for spouses vs children (badge, ring color, or size)
+- [x] Implement avatar selection on family screen to show individual prayers
+- [x] Keep single-page layout while allowing multi-person prayer display

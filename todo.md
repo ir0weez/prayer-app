@@ -554,3 +554,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Button Text Fix
 
 - [x] Fix "Add to Family" button text not displaying fully (added width and padding constraints)
+
+## Family Card Photo Fix
+
+- [x] Fix StackedAvatar component to display actual photos instead of just initials

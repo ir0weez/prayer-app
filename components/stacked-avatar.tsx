@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { Person } from "@/lib/prayercircle-data";
 
 interface StackedAvatarProps {
@@ -32,23 +32,33 @@ export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvat
             },
           ]}
         >
-          <View
-            style={[
-              styles.avatar,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                backgroundColor: person.avatarColor,
-              },
-            ]}
-          >
-            {person.photoUri ? (
+          {person.photoUri ? (
+            <Image
+              source={{ uri: person.photoUri }}
+              style={[
+                styles.avatar,
+                {
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                },
+              ]}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                  backgroundColor: person.avatarColor,
+                },
+              ]}
+            >
               <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>{person.initials}</Text>
-            ) : (
-              <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>{person.initials}</Text>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       ))}
 

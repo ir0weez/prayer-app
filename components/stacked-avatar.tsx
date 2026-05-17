@@ -5,31 +5,58 @@ import { Person } from "@/lib/prayercircle-data";
 interface StackedAvatarProps {
   people: Person[];
   size?: number;
-  maxDisplay?: number;
 }
 
 /**
- * Displays multiple avatars stacked/overlapped for family groups.
- * Shows up to maxDisplay avatars, with a "+N" indicator if there are more.
+ * Displays family avatars with visual hierarchy:
+ * - First 2 people (spouses) shown as large avatars side-by-side
+ * - Children shown as smaller avatars with gradient opacity fade
+ * - After 4 total avatars, remaining count shown as "+N"
  */
-export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvatarProps) {
-  const displayPeople = people.slice(0, maxDisplay);
-  const overflowPeople = people.slice(maxDisplay);
-  const overlap = size * 0.35; // 35% overlap between avatars
-  const smallSize = size * 0.5; // Small avatars are 50% of main size
+export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
+  const largeSize = size; // 48px for spouses
+  const smallSize = size * 0.6; // 28.8px for children
+  const overlapLarge = largeSize * 0.25; // 25% overlap between large avatars
+  const overlapSmall = smallSize * 0.3; // 30% overlap for small avatars
+
+  // Separate spouses (first 2) from children
+  const spouses = people.slice(0, 2);
+  const children = people.slice(2);
+  const displayChildren = children.slice(0, 2); // Show up to 2 children
+  const overflowCount = children.length - 2;
+
+  // Calculate total width needed
+  let totalWidth = 0;
+  if (spouses.length > 0) {
+    totalWidth += largeSize;
+    if (spouses.length > 1) {
+      totalWidth += largeSize - overlapLarge;
+    }
+  }
+  if (displayChildren.length > 0) {
+    totalWidth += smallSize * 0.5; // Spacing before children
+    totalWidth += smallSize;
+    if (displayChildren.length > 1) {
+      totalWidth += smallSize - overlapSmall;
+    }
+  }
+  if (overflowCount > 0) {
+    totalWidth += smallSize * 0.5; // Spacing before overflow badge
+  }
 
   return (
-    <View style={[styles.container, { width: size + (displayPeople.length - 1) * (size - overlap) + smallSize + 8 }]}>
-      {displayPeople.map((person, index) => (
+    <View style={[styles.container, { width: Math.max(totalWidth, largeSize) }]}>
+      {/* Large spouse avatars */}
+      {spouses.map((person, index) => (
         <View
           key={person.id}
           style={[
             styles.avatarWrapper,
             {
-              width: size,
-              height: size,
-              left: index * (size - overlap),
-              zIndex: displayPeople.length - index,
+              width: largeSize,
+              height: largeSize,
+              left: index * (largeSize - overlapLarge),
+              zIndex: spouses.length - index,
             },
           ]}
         >
@@ -39,9 +66,9 @@ export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvat
               style={[
                 styles.avatar,
                 {
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
+                  width: largeSize,
+                  height: largeSize,
+                  borderRadius: largeSize / 2,
                 },
               ]}
             />
@@ -50,72 +77,92 @@ export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvat
               style={[
                 styles.avatar,
                 {
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
+                  width: largeSize,
+                  height: largeSize,
+                  borderRadius: largeSize / 2,
                   backgroundColor: person.avatarColor,
                 },
               ]}
             >
-              <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>{person.initials}</Text>
+              <Text style={[styles.avatarText, { fontSize: largeSize * 0.4 }]}>
+                {person.initials}
+              </Text>
             </View>
           )}
         </View>
       ))}
 
-      {overflowPeople.length > 0 && (
-        <View style={[styles.smallAvatarsContainer, { right: 0, bottom: 0 }]}>
-          {overflowPeople.slice(0, 2).map((person, index) => (
+      {/* Children avatars with gradient opacity fade */}
+      {displayChildren.length > 0 && (
+        <View
+          style={[
+            styles.childrenContainer,
+            {
+              left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
+            },
+          ]}
+        >
+          {displayChildren.map((person, index) => {
+            // Calculate opacity: first child at 1, second at 0.6
+            const opacity = 1 - index * 0.4;
+            return (
+              <View
+                key={person.id}
+                style={[
+                  styles.smallAvatarWrapper,
+                  {
+                    width: smallSize,
+                    height: smallSize,
+                    left: index * (smallSize - overlapSmall),
+                    zIndex: displayChildren.length - index,
+                    opacity,
+                  },
+                ]}
+              >
+                {person.photoUri ? (
+                  <Image
+                    source={{ uri: person.photoUri }}
+                    style={[
+                      styles.avatar,
+                      {
+                        width: smallSize,
+                        height: smallSize,
+                        borderRadius: smallSize / 2,
+                      },
+                    ]}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.avatar,
+                      {
+                        width: smallSize,
+                        height: smallSize,
+                        borderRadius: smallSize / 2,
+                        backgroundColor: person.avatarColor,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.avatarText, { fontSize: smallSize * 0.35 }]}>
+                      {person.initials}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+
+          {/* Overflow badge for remaining children */}
+          {overflowCount > 0 && (
             <View
-              key={person.id}
               style={[
                 styles.smallAvatarWrapper,
                 {
                   width: smallSize,
                   height: smallSize,
-                  left: index * (smallSize * 0.5),
-                  zIndex: 2 - index,
-                },
-              ]}
-            >
-              {person.photoUri ? (
-                <Image
-                  source={{ uri: person.photoUri }}
-                  style={[
-                    styles.avatar,
-                    {
-                      width: smallSize,
-                      height: smallSize,
-                      borderRadius: smallSize / 2,
-                    },
-                  ]}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatar,
-                    {
-                      width: smallSize,
-                      height: smallSize,
-                      borderRadius: smallSize / 2,
-                      backgroundColor: person.avatarColor,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.avatarText, { fontSize: smallSize * 0.35 }]}>{person.initials}</Text>
-                </View>
-              )}
-            </View>
-          ))}
-          {overflowPeople.length > 2 && (
-            <View
-              style={[
-                styles.smallAvatarWrapper,
-                {
-                  width: smallSize,
-                  height: smallSize,
-                  left: 2 * (smallSize * 0.5),
+                  left: displayChildren.length * (smallSize - overlapSmall),
                   zIndex: 0,
+                  opacity: 0.4,
                 },
               ]}
             >
@@ -130,7 +177,9 @@ export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvat
                   },
                 ]}
               >
-                <Text style={[styles.avatarText, { fontSize: smallSize * 0.35 }]}>+{overflowPeople.length - 2}</Text>
+                <Text style={[styles.avatarText, { fontSize: smallSize * 0.3 }]}>
+                  +{overflowCount}
+                </Text>
               </View>
             </View>
           )}
@@ -150,8 +199,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  smallAvatarsContainer: {
+  childrenContainer: {
     position: "absolute",
+    height: 48,
   },
   smallAvatarWrapper: {
     position: "absolute",
@@ -166,18 +216,6 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontWeight: "600",
-    color: "#fff",
-  },
-  overflowBadge: {
-    position: "absolute",
-    backgroundColor: "#999",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#fff",
-  },
-  overflowText: {
-    fontWeight: "700",
     color: "#fff",
   },
 });

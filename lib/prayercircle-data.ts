@@ -557,7 +557,7 @@ export function getFamilyGroups(people: Person[]): Array<{ familyId: string; fam
 }
 
 // Action: Group people into a family
-export function groupIntoFamily(people: Person[], personIds: string[]): Person[] {
+export function groupIntoFamily(people: Person[], personIds: string[], familyTypes?: Record<string, FamilyType | undefined>): Person[] {
   if (personIds.length < 2) return people; // Need at least 2 people to form a family
 
   // Check if any of the selected people are already in a family
@@ -597,6 +597,7 @@ export function groupIntoFamily(people: Person[], personIds: string[]): Person[]
           ...person,
           familyId,
           familyName,
+          familyType: familyTypes?.[person.id],
         }
       : person,
   );

@@ -587,3 +587,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add "ungroup all" icon button in top-right of family screen
 - [x] Show confirmation dialog before ungrouping entire family
 - [x] Remove familyId from all members when ungrouping
+
+## Family Type Selector Relocation
+
+- [x] Move Family Type selector from person edit modal to Add to Family modal (contextual placement)
+- [x] Hide Family Type selector from main person edit modal when person is not in a family
+- [x] Show Family Type selector in Add to Family modal so user can set role while selecting family

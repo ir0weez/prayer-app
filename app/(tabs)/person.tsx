@@ -272,8 +272,15 @@ export default function PersonScreen() {
   const handleGroupWithPerson = (targetPersonId: string) => {
     if (!personId || !currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const updatedPeople = groupIntoFamily(people, [personId, targetPersonId]);
+    // Create a map of familyType for both people being grouped
+    const familyTypes: Record<string, "Spouse" | "Child" | "Other" | undefined> = {};
+    if (draftFamilyType) {
+      familyTypes[personId] = draftFamilyType;
+    }
+    const updatedPeople = groupIntoFamily(people, [personId, targetPersonId], familyTypes);
     setPeople(updatedPeople);
+    setShowFamilyModal(false);
+    setDraftFamilyType(undefined); // Reset after grouping
   };
 
   const handleUngroupFromFamily = () => {
@@ -699,29 +706,7 @@ export default function PersonScreen() {
                 );
               })}
             </View>
-            {draftRelationship === "Family" && (
-              <>
-                <Text style={styles.modalFieldLabel}>Family Type</Text>
-                <View style={styles.editFamilyTypeRow}>
-                  {["Spouse", "Child", "Other"].map((type) => {
-                    const isSelected = draftFamilyType === type;
-                    return (
-                      <Pressable
-                        key={type}
-                        onPress={() => setDraftFamilyType(type as any)}
-                        style={({ pressed }) => [
-                          styles.editFamilyTypePill,
-                          { borderColor: isSelected ? PURPLE : BORDER, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Text style={[styles.editFamilyTypePillText, { color: isSelected ? PURPLE : MUTED_TEXT }]}>{type}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
+
             <Text style={styles.modalFieldLabel}>Birthday</Text>
             <TextInput
               value={draftBirthday}
@@ -806,6 +791,25 @@ export default function PersonScreen() {
                 />
               </View>
             )}
+            <Text style={styles.modalFieldLabel}>Family Type</Text>
+            <View style={styles.editFamilyTypeRow}>
+              {["Spouse", "Child", "Other"].map((type) => {
+                const isSelected = draftFamilyType === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => setDraftFamilyType(type as any)}
+                    style={({ pressed }) => [
+                      styles.editFamilyTypePill,
+                      { borderColor: isSelected ? PURPLE : BORDER, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.editFamilyTypePillText, { color: isSelected ? PURPLE : MUTED_TEXT }]}>{type}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
       </Modal>

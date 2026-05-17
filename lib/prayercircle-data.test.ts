@@ -38,6 +38,8 @@ import {
   updatePersonPhoto,
   updatePersonReminder,
   updatePersonReminderWithTime,
+  groupIntoFamily,
+  ungroupFromFamily,
 } from "./prayercircle-data";
 
 describe("PrayerCircle local data helpers", () => {
@@ -396,3 +398,69 @@ describe("PrayerCircle local data helpers", () => {
     expect(prependJournalEntry(initialJournal, people[0], "   ", "empty-id")).toBe(initialJournal);
   });
 });
+
+  it("groups two people into a family with familyType", () => {
+    let people = addPerson(initialPeople, "Alice", "Family");
+    people = addPerson(people, "Bob", "Family");
+
+    const grouped = groupIntoFamily(people, [people[0].id, people[1].id], {
+      [people[0].id]: "Spouse",
+      [people[1].id]: "Child",
+    });
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0].familyId).toBeDefined();
+    expect(grouped[0].familyId).toBe(grouped[1].familyId);
+    expect(grouped[0].familyType).toBe("Spouse");
+    expect(grouped[1].familyType).toBe("Child");
+    expect(grouped[0].familyName).toBe("Smith Family");
+  });
+
+  it("groups multiple people into an existing family and preserves familyType", () => {
+    let people = addPerson(initialPeople, "Alice", "Family");
+    people = addPerson(people, "Bob", "Family");
+    people = addPerson(people, "Charlie", "Family");
+
+    // First group Alice and Bob
+    let grouped = groupIntoFamily(people, [people[0].id, people[1].id], {
+      [people[0].id]: "Spouse",
+      [people[1].id]: "Spouse",
+    });
+
+    // Then add Charlie to the same family
+    grouped = groupIntoFamily(grouped, [grouped[0].id, grouped[2].id], {
+      [grouped[2].id]: "Child",
+    });
+
+    expect(grouped).toHaveLength(3);
+    expect(grouped[0].familyId).toBe(grouped[1].familyId);
+    expect(grouped[0].familyId).toBe(grouped[2].familyId);
+    expect(grouped[2].familyType).toBe("Child");
+  });
+
+  it("ungroups a person from family and clears familyId", () => {
+    let people = addPerson(initialPeople, "Alice", "Family");
+    people = addPerson(people, "Bob", "Family");
+
+    const grouped = groupIntoFamily(people, [people[0].id, people[1].id], {
+      [people[0].id]: "Spouse",
+      [people[1].id]: "Child",
+    });
+
+    const ungrouped = ungroupFromFamily(grouped, grouped[0].id);
+
+    expect(ungrouped[0].familyId).toBeUndefined();
+    expect(ungrouped[1].familyId).toBeDefined();
+  });
+
+  it("persists familyType when grouping without explicit familyTypes map", () => {
+    let people = addPerson(initialPeople, "Alice", "Family");
+    people = addPerson(people, "Bob", "Family");
+
+    // Group without specifying familyTypes (should not set familyType)
+    const grouped = groupIntoFamily(people, [people[0].id, people[1].id]);
+
+    expect(grouped[0].familyId).toBeDefined();
+    expect(grouped[0].familyType).toBeUndefined();
+    expect(grouped[1].familyType).toBeUndefined();
+  });

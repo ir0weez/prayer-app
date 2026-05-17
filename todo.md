@@ -580,7 +580,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 ## Stacked Avatar Fix
 
-- [x] Increase maxDisplay in StackedAvatar from 3 to 4 to show all family member photos in family cards
+- [x] Update StackedAvatar to show 2 large avatars (couple) with children as small overlapping avatars in background
 
 ## Ungroup All Feature
 

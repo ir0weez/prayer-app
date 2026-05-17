@@ -14,11 +14,12 @@ interface StackedAvatarProps {
  */
 export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvatarProps) {
   const displayPeople = people.slice(0, maxDisplay);
-  const overflow = Math.max(0, people.length - maxDisplay);
+  const overflowPeople = people.slice(maxDisplay);
   const overlap = size * 0.35; // 35% overlap between avatars
+  const smallSize = size * 0.5; // Small avatars are 50% of main size
 
   return (
-    <View style={[styles.container, { width: size + (displayPeople.length - 1) * (size - overlap) + 8 }]}>
+    <View style={[styles.container, { width: size + (displayPeople.length - 1) * (size - overlap) + smallSize + 8 }]}>
       {displayPeople.map((person, index) => (
         <View
           key={person.id}
@@ -62,20 +63,77 @@ export function StackedAvatar({ people, size = 48, maxDisplay = 3 }: StackedAvat
         </View>
       ))}
 
-      {overflow > 0 && (
-        <View
-          style={[
-            styles.overflowBadge,
-            {
-              width: size * 0.6,
-              height: size * 0.6,
-              borderRadius: (size * 0.6) / 2,
-              right: 0,
-              bottom: 0,
-            },
-          ]}
-        >
-          <Text style={[styles.overflowText, { fontSize: size * 0.25 }]}>+{overflow}</Text>
+      {overflowPeople.length > 0 && (
+        <View style={[styles.smallAvatarsContainer, { right: 0, bottom: 0 }]}>
+          {overflowPeople.slice(0, 2).map((person, index) => (
+            <View
+              key={person.id}
+              style={[
+                styles.smallAvatarWrapper,
+                {
+                  width: smallSize,
+                  height: smallSize,
+                  left: index * (smallSize * 0.5),
+                  zIndex: 2 - index,
+                },
+              ]}
+            >
+              {person.photoUri ? (
+                <Image
+                  source={{ uri: person.photoUri }}
+                  style={[
+                    styles.avatar,
+                    {
+                      width: smallSize,
+                      height: smallSize,
+                      borderRadius: smallSize / 2,
+                    },
+                  ]}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      width: smallSize,
+                      height: smallSize,
+                      borderRadius: smallSize / 2,
+                      backgroundColor: person.avatarColor,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { fontSize: smallSize * 0.35 }]}>{person.initials}</Text>
+                </View>
+              )}
+            </View>
+          ))}
+          {overflowPeople.length > 2 && (
+            <View
+              style={[
+                styles.smallAvatarWrapper,
+                {
+                  width: smallSize,
+                  height: smallSize,
+                  left: 2 * (smallSize * 0.5),
+                  zIndex: 0,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.avatar,
+                  {
+                    width: smallSize,
+                    height: smallSize,
+                    borderRadius: smallSize / 2,
+                    backgroundColor: "#999",
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarText, { fontSize: smallSize * 0.35 }]}>+{overflowPeople.length - 2}</Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -88,6 +146,14 @@ const styles = StyleSheet.create({
     height: 48,
   },
   avatarWrapper: {
+    position: "absolute",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  smallAvatarsContainer: {
+    position: "absolute",
+  },
+  smallAvatarWrapper: {
     position: "absolute",
     justifyContent: "center",
     alignItems: "center",

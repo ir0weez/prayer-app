@@ -51,15 +51,19 @@ export default function FamilyScreen() {
     const couples: Array<{ primary: Person; spouse?: Person }> = [];
     const singles: Person[] = [];
 
-    for (const person of familyMembers) {
+    // First, add all spouses (paired if possible)
+    const spouses = familyMembers.filter((p) => p.familyType === "Spouse" && !processed.has(p.id));
+    for (const person of spouses) {
       if (processed.has(person.id)) continue;
+      const spouse = familyMembers.find((p) => p.familyType === "Spouse" && p.id !== person.id && p.spouseId === person.id);
+      couples.push({ primary: person, spouse });
+      processed.add(person.id);
+      if (spouse) processed.add(spouse.id);
+    }
 
-      if (person.spouseId) {
-        const spouse = familyMembers.find((p) => p.id === person.spouseId);
-        couples.push({ primary: person, spouse });
-        processed.add(person.id);
-        if (spouse) processed.add(spouse.id);
-      } else {
+    // Then add children and others
+    for (const person of familyMembers) {
+      if (!processed.has(person.id)) {
         singles.push(person);
         processed.add(person.id);
       }

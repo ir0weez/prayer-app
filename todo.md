@@ -571,3 +571,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Organize family members by spouse pairs and their children on family page
 - [x] Show couple avatars side-by-side with children grouped below them
 - [ ] Add UI to set/edit spouse relationships in person edit modal
+
+## Family Type Selector UI
+
+- [x] Add "Family Type" dropdown to person edit modal (Spouse, Child, Other)
+- [x] Auto-link spouses when both are marked as "Spouse" to each other
+- [x] Update family hierarchy display to use family type instead of just spouse relationships

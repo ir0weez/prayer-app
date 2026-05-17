@@ -240,6 +240,7 @@ export default function PersonScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
+  const [draftFamilyType, setDraftFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
   const [draftBirthday, setDraftBirthday] = useState("");
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | undefined>(undefined);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
@@ -350,6 +351,7 @@ export default function PersonScreen() {
     if (!currentPerson) return;
     setDraftName(currentPerson.name);
     setDraftRelationship(currentPerson.relationship);
+    setDraftFamilyType(currentPerson.familyType);
     setDraftBirthday(currentPerson.birthday ?? "");
     setDraftPhotoUri(currentPerson.photoUri);
     setShowEditModal(true);
@@ -396,6 +398,7 @@ export default function PersonScreen() {
               photoUri: draftPhotoUri,
               avatarColor: colors.avatar,
               accentColor: colors.accent,
+              familyType: draftRelationship === "Family" ? draftFamilyType : undefined,
             }
           : person,
       ),
@@ -696,6 +699,29 @@ export default function PersonScreen() {
                 );
               })}
             </View>
+            {draftRelationship === "Family" && (
+              <>
+                <Text style={styles.modalFieldLabel}>Family Type</Text>
+                <View style={styles.editFamilyTypeRow}>
+                  {["Spouse", "Child", "Other"].map((type) => {
+                    const isSelected = draftFamilyType === type;
+                    return (
+                      <Pressable
+                        key={type}
+                        onPress={() => setDraftFamilyType(type as any)}
+                        style={({ pressed }) => [
+                          styles.editFamilyTypePill,
+                          { borderColor: isSelected ? PURPLE : BORDER, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text style={[styles.editFamilyTypePillText, { color: isSelected ? PURPLE : MUTED_TEXT }]}>{type}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
             <Text style={styles.modalFieldLabel}>Birthday</Text>
             <TextInput
               value={draftBirthday}
@@ -1303,6 +1329,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   editRelationshipPillText: {
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 17,
+  },
+  editFamilyTypeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    marginBottom: 16,
+  },
+  editFamilyTypePill: {
+    minHeight: 39,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editFamilyTypePillText: {
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 17,

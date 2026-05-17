@@ -581,3 +581,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Stacked Avatar Fix
 
 - [x] Increase maxDisplay in StackedAvatar from 3 to 4 to show all family member photos in family cards
+
+## Ungroup All Feature
+
+- [x] Add "ungroup all" icon button in top-right of family screen
+- [x] Show confirmation dialog before ungrouping entire family
+- [x] Remove familyId from all members when ungrouping

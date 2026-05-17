@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { Pressable, ScrollView, Text, View, Image, FlatList } from "react-native";
+import { Pressable, ScrollView, Text, View, Image, FlatList, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { type Person } from "@/lib/prayercircle-data";
@@ -89,6 +89,35 @@ export default function FamilyScreen() {
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedMembers)).catch(() => undefined);
   };
 
+  const handleUngroupAll = async () => {
+    Alert.alert(
+      "Ungroup Family",
+      "Are you sure you want to ungroup all family members? This cannot be undone.",
+      [
+        { text: "Cancel", onPress: () => {}, style: "cancel" },
+        {
+          text: "Ungroup",
+          onPress: async () => {
+            try {
+              const peopleJson = await AsyncStorage.getItem(PEOPLE_STORAGE_KEY);
+              if (peopleJson) {
+                const people: Person[] = JSON.parse(peopleJson);
+                const updated = people.map((p) =>
+                  p.familyId === familyId ? { ...p, familyId: undefined } : p
+                );
+                await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated));
+                router.back();
+              }
+            } catch (error) {
+              console.error("Failed to ungroup family:", error);
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
   const renderAvatar = (member: Person) => (
     <Pressable
       key={member.id}
@@ -134,7 +163,9 @@ export default function FamilyScreen() {
           <MaterialIcons name={iconName("chevron-left")} size={28} color={colors.primary} />
         </Pressable>
         <Text style={[styles.title, { color: colors.foreground }]}>{familyName}</Text>
-        <View style={styles.spacer} />
+        <Pressable onPress={handleUngroupAll} style={({ pressed }) => [styles.ungroupButton, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName("people")} size={24} color={colors.error} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}>
@@ -270,6 +301,10 @@ const styles = {
   backButton: {
     padding: 8,
     marginLeft: -8,
+  },
+  ungroupButton: {
+    padding: 8,
+    marginRight: -8,
   },
   title: {
     fontSize: 18,

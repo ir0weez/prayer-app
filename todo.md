@@ -550,3 +550,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add ability to close expanded view by tapping elsewhere or back button
 - [x] Add checkboxes to mark prayer requests as done inline
 - [x] Fix background colors to match theme (surface color for expanded view)
+
+## Button Text Fix
+
+- [x] Fix "Add to Family" button text not displaying fully (added width and padding constraints)

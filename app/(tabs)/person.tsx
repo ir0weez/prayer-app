@@ -726,7 +726,9 @@ export default function PersonScreen() {
             )}
             <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, styles.addToFamilyButton, pressed && styles.pressed]}>
               <MaterialIcons name={iconName("link")} size={18} color={PURPLE} />
-              <Text style={styles.modalSecondaryButtonText}>Add to Family</Text>
+              <Text style={styles.modalSecondaryButtonText} numberOfLines={1}>
+                Add to Family
+              </Text>
             </Pressable>
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
@@ -1410,12 +1412,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginTop: 12,
+    paddingHorizontal: 12,
   },
   modalSecondaryButtonText: {
     color: PURPLE,
     fontSize: 16,
     fontWeight: "900",
     lineHeight: 21,
+    flexShrink: 1,
   },
   familyMembersList: {
     backgroundColor: "#FBF8FF",
@@ -1456,6 +1460,7 @@ const styles = StyleSheet.create({
   },
   addToFamilyButton: {
     marginBottom: 16,
+    width: "100%",
   },
   pressed: {
     opacity: 0.75,

@@ -15,7 +15,7 @@ export default function FamilyScreen() {
   const [familyMembers, setFamilyMembers] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+
   const colors = useColors();
 
   useEffect(() => {
@@ -50,9 +50,7 @@ export default function FamilyScreen() {
     setSelectedMemberId(memberId);
   };
 
-  const handleEditToggle = () => {
-    setIsEditMode(!isEditMode);
-  };
+
 
   const handleTogglePrayerDone = (prayerId: string) => {
     const updatedMembers = togglePrayerItemDone(familyMembers, selectedMemberId || "", prayerId);
@@ -120,15 +118,19 @@ export default function FamilyScreen() {
             <MaterialIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prayer List</Text>
-          <Pressable onPress={handleEditToggle} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-            <Text style={[styles.editButton, { color: colors.primary }]}>{isEditMode ? "Done" : "Edit"}</Text>
+          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: selectedMember.id } })} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+            <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
           </Pressable>
         </View>
 
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <View style={[styles.heroAvatar, { backgroundColor: selectedMember.avatarColor, borderColor: selectedMember.accentColor }]}>
-            <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
+          <View style={[styles.heroAvatar, { backgroundColor: selectedMember.photoUri ? "transparent" : selectedMember.avatarColor, borderColor: selectedMember.accentColor }]}>
+            {selectedMember.photoUri ? (
+              <Image source={{ uri: selectedMember.photoUri }} style={styles.heroAvatarImage} />
+            ) : (
+              <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
+            )}
           </View>
           <Text style={[styles.heroName, { color: colors.foreground }]}>{selectedMember.name}</Text>
           <Text style={[styles.heroType, { color: colors.primary }]}>
@@ -202,8 +204,12 @@ export default function FamilyScreen() {
                     ],
                   ]}
                 >
-                  <View style={[styles.memberAvatarImage, { backgroundColor: member.avatarColor }]}>
-                    <Text style={styles.memberAvatarText}>{member.initials}</Text>
+                  <View style={[styles.memberAvatarImage, { backgroundColor: member.photoUri ? "transparent" : member.avatarColor }]}>
+                    {member.photoUri ? (
+                      <Image source={{ uri: member.photoUri }} style={styles.memberAvatarImagePhoto} />
+                    ) : (
+                      <Text style={styles.memberAvatarText}>{member.initials}</Text>
+                    )}
                   </View>
                 </Pressable>
               ))}
@@ -216,7 +222,7 @@ export default function FamilyScreen() {
           <View style={styles.prayerItemsHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prayer Items</Text>
             <Text style={[styles.prayerProgress, { color: colors.muted }]}>
-              {isEditMode ? "Edit mode" : `${prayerProgress.done}/${prayerProgress.total} done`}
+              {prayerProgress.done}/{prayerProgress.total} done
             </Text>
           </View>
 

@@ -632,3 +632,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Implement in-page edit mode toggle (Edit button switches between view/edit)
 - [x] Show prayer item add/edit/delete UI when in edit mode
 - [x] Persist changes without leaving the family screen
+
+## Family Screen Bug Fixes
+
+- [x] Fix photo avatars not displaying on family screen (showing initials instead)
+- [x] Revert Edit button to open full edit modal like person page
+- [x] Ensure Mark as Prayed button works identically to person page
+- [x] Ensure Last reached button works identically to person page
+- [x] Make family screen function exactly like person page

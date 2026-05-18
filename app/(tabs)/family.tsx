@@ -15,6 +15,7 @@ export default function FamilyScreen() {
   const [familyMembers, setFamilyMembers] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const colors = useColors();
 
   useEffect(() => {
@@ -47,6 +48,10 @@ export default function FamilyScreen() {
 
   const handleAvatarPress = (memberId: string) => {
     setSelectedMemberId(memberId);
+  };
+
+  const handleEditToggle = () => {
+    setIsEditMode(!isEditMode);
   };
 
   const handleTogglePrayerDone = (prayerId: string) => {
@@ -115,8 +120,8 @@ export default function FamilyScreen() {
             <MaterialIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prayer List</Text>
-          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: selectedMember.id } })} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-            <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
+          <Pressable onPress={handleEditToggle} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+            <Text style={[styles.editButton, { color: colors.primary }]}>{isEditMode ? "Done" : "Edit"}</Text>
           </Pressable>
         </View>
 
@@ -211,7 +216,7 @@ export default function FamilyScreen() {
           <View style={styles.prayerItemsHeader}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prayer Items</Text>
             <Text style={[styles.prayerProgress, { color: colors.muted }]}>
-              {prayerProgress.done}/{prayerProgress.total} done
+              {isEditMode ? "Edit mode" : `${prayerProgress.done}/${prayerProgress.total} done`}
             </Text>
           </View>
 
@@ -321,6 +326,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 4,
     borderColor: "#8B5CF6",
+    overflow: "hidden",
   },
   heroAvatarImage: {
     width: "100%",
@@ -408,6 +414,12 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  memberAvatarImagePhoto: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   memberAvatarText: {
     fontSize: 24,

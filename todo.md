@@ -624,3 +624,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add horizontal scrollable family member avatars
 - [x] Implement prayer items list with checkboxes and delete buttons
 - [x] Add "Mark as Prayed" and "Last reached" action buttons
+
+## Family Screen Photo Avatars & Edit Mode
+
+- [x] Display photo avatars on family screen hero section when available
+- [x] Display photo avatars in family members horizontal scroll when available
+- [x] Implement in-page edit mode toggle (Edit button switches between view/edit)
+- [x] Show prayer item add/edit/delete UI when in edit mode
+- [x] Persist changes without leaving the family screen

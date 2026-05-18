@@ -1587,7 +1587,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 0,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E6E1EA",
@@ -1604,6 +1604,7 @@ const styles = StyleSheet.create({
   personInfo: {
     flex: 1,
     marginLeft: 12,
+    marginVertical: 10,
     paddingRight: 6,
     justifyContent: "center",
   },
@@ -1622,7 +1623,8 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   personActions: {
-    alignItems: "flex-end",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   reachPill: {

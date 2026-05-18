@@ -100,7 +100,7 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
             styles.childrenContainer,
             {
               left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
-              top: childrenOffsetY,
+              top: childrenOffsetY - 12, // Negative offset to position lower within card
             },
           ]}
         >
@@ -194,7 +194,7 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
 const styles = StyleSheet.create({
   container: {
     position: "relative",
-    height: 72, // Increased to accommodate children positioned lower
+    height: 48, // Keep original height; children positioned with negative top offset
   },
   avatarWrapper: {
     position: "absolute",
@@ -204,7 +204,6 @@ const styles = StyleSheet.create({
   childrenContainer: {
     position: "absolute",
     height: 48,
-    top: 0, // Will be overridden by inline style
   },
   smallAvatarWrapper: {
     position: "absolute",

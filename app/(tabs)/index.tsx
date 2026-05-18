@@ -712,7 +712,9 @@ export default function HomeScreen() {
 
     return (
       <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        <StackedAvatar people={familyMembers} size={44} />
+        <View style={{ justifyContent: "center", alignItems: "center" }}>
+          <StackedAvatar people={familyMembers} size={44} />
+        </View>
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={styles.personName}>{familyName}</Text>
           <Text numberOfLines={1} style={styles.personMeta}>
@@ -1583,17 +1585,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   personCard: {
-    minHeight: 70,
+    minHeight: 80,
     marginHorizontal: 24,
     marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E6E1EA",
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start",
     shadowColor: "#6D617D",
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -1602,8 +1605,9 @@ const styles = StyleSheet.create({
   },
   personInfo: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
     paddingRight: 6,
+    justifyContent: "center",
   },
   personName: {
     color: DEEP_TEXT,

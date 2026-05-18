@@ -605,3 +605,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add visual distinction for spouses vs children (badge, ring color, or size)
 - [x] Implement avatar selection on family screen to show individual prayers
 - [x] Keep single-page layout while allowing multi-person prayer display
+
+## Family Screen Avatar Layout Refinement
+
+- [x] Revert family screen to stacked avatar layout (like home screen)
+- [x] Make children avatars smaller than spouses for visual distinction
+- [x] Keep prayer display on same page when avatar is selected

@@ -11,11 +11,6 @@ import { togglePrayerItemDone } from "@/lib/prayercircle-data";
 
 const iconName = (name: string) => name as any;
 
-type FamilyHierarchy = {
-  couples: Array<{ primary: Person; spouse?: Person }>;
-  singles: Person[];
-};
-
 export default function FamilyScreen() {
   const router = useRouter();
   const { familyId } = useLocalSearchParams<{ familyId: string }>();
@@ -48,33 +43,6 @@ export default function FamilyScreen() {
       loadFamily();
     }
   }, [familyId]);
-
-  // Organize family members into couples and singles
-  const hierarchy = useMemo((): FamilyHierarchy => {
-    const processed = new Set<string>();
-    const couples: Array<{ primary: Person; spouse?: Person }> = [];
-    const singles: Person[] = [];
-
-    // First, add all spouses (paired if possible)
-    const spouses = familyMembers.filter((p) => p.familyType === "Spouse" && !processed.has(p.id));
-    for (const person of spouses) {
-      if (processed.has(person.id)) continue;
-      const spouse = familyMembers.find((p) => p.familyType === "Spouse" && p.id !== person.id && p.spouseId === person.id);
-      couples.push({ primary: person, spouse });
-      processed.add(person.id);
-      if (spouse) processed.add(spouse.id);
-    }
-
-    // Then add children and others
-    for (const person of familyMembers) {
-      if (!processed.has(person.id)) {
-        singles.push(person);
-        processed.add(person.id);
-      }
-    }
-
-    return { couples, singles };
-  }, [familyMembers]);
 
   const familyName = familyMembers[0]?.familyName || "Family";
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
@@ -122,74 +90,195 @@ export default function FamilyScreen() {
     );
   };
 
-  const isSpouse = (member: Person) => member.familyType === "Spouse";
-  const isChild = (member: Person) => member.familyType === "Child";
+  // Render stacked avatars with click handling
+  const renderStackedAvatars = () => {
+    const largeSize = 72;
+    const smallSize = 44;
+    const overlapLarge = largeSize * 0.25;
+    const overlapSmall = smallSize * 0.3;
 
-  const renderAvatar = (member: Person) => {
-    const isSelected = selectedMemberId === member.id;
-    const spouse = isSpouse(member);
-    const child = isChild(member);
-    const avatarSize = spouse ? 72 : child ? 56 : 72;
+    const spouses = familyMembers.filter((p) => p.familyType === "Spouse");
+    const children = familyMembers.filter((p) => p.familyType === "Child");
+    const others = familyMembers.filter((p) => !p.familyType || (p.familyType !== "Spouse" && p.familyType !== "Child"));
+    
+    const displayChildren = children.slice(0, 2);
+    const overflowCount = children.length - 2;
+
+    let totalWidth = 0;
+    if (spouses.length > 0) {
+      totalWidth += largeSize;
+      if (spouses.length > 1) {
+        totalWidth += largeSize - overlapLarge;
+      }
+    }
+    if (displayChildren.length > 0) {
+      totalWidth += smallSize * 0.5;
+      totalWidth += smallSize;
+      if (displayChildren.length > 1) {
+        totalWidth += smallSize - overlapSmall;
+      }
+    }
+    if (overflowCount > 0) {
+      totalWidth += smallSize * 0.5;
+    }
 
     return (
-      <Pressable
-        key={member.id}
-        onPress={() => handleAvatarPress(member.id)}
-        style={({ pressed }) => [
-          styles.avatarContainer,
-          isSelected && styles.avatarContainerSelected,
-          pressed && styles.pressed,
-        ]}
-      >
-        <View style={styles.avatarWrapper}>
-          {member.photoUri ? (
-            <Image
-              source={{ uri: member.photoUri }}
+      <View style={[styles.stackedContainer, { width: Math.max(totalWidth, largeSize) }]}>
+        {/* Spouse avatars */}
+        {spouses.map((person, index) => {
+          const isSelected = selectedMemberId === person.id;
+          return (
+            <Pressable
+              key={person.id}
+              onPress={() => handleAvatarPress(person.id)}
               style={[
-                styles.avatar,
+                styles.avatarWrapper,
                 {
-                  borderColor: colors.primary,
-                  width: avatarSize,
-                  height: avatarSize,
-                  borderRadius: avatarSize / 2,
+                  width: largeSize,
+                  height: largeSize,
+                  left: index * (largeSize - overlapLarge),
+                  zIndex: spouses.length - index,
                 },
-                isSelected && { borderWidth: 4 },
-              ]}
-            />
-          ) : (
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary,
-                  width: avatarSize,
-                  height: avatarSize,
-                  borderRadius: avatarSize / 2,
-                },
-                isSelected && { borderWidth: 4 },
               ]}
             >
-              <Text style={[styles.avatarText, { color: colors.background, fontSize: avatarSize * 0.35 }]}>
-                {member.avatarLabel || "?"}
-              </Text>
-            </View>
-          )}
-          {spouse && (
-            <View style={[styles.spouseBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.spouseBadgeText}>👥</Text>
-            </View>
-          )}
-          {child && (
-            <View style={[styles.childBadge, { backgroundColor: colors.success }]}>
-              <Text style={styles.childBadgeText}>👶</Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.avatarName, { color: colors.foreground }]} numberOfLines={1}>
-          {member.name}
-        </Text>
-      </Pressable>
+              {person.photoUri ? (
+                <Image
+                  source={{ uri: person.photoUri }}
+                  style={[
+                    styles.avatar,
+                    {
+                      width: largeSize,
+                      height: largeSize,
+                      borderRadius: largeSize / 2,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      borderWidth: isSelected ? 4 : 2,
+                    },
+                  ]}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      width: largeSize,
+                      height: largeSize,
+                      borderRadius: largeSize / 2,
+                      backgroundColor: person.avatarColor || colors.primary,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      borderWidth: isSelected ? 4 : 2,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { fontSize: largeSize * 0.4, color: colors.background }]}>
+                    {person.initials}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+
+        {/* Children avatars */}
+        {displayChildren.length > 0 && (
+          <View
+            style={[
+              styles.childrenContainer,
+              {
+                left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
+              },
+            ]}
+          >
+            {displayChildren.map((person, index) => {
+              const isSelected = selectedMemberId === person.id;
+              const opacity = 1 - index * 0.4;
+              return (
+                <Pressable
+                  key={person.id}
+                  onPress={() => handleAvatarPress(person.id)}
+                  style={[
+                    styles.smallAvatarWrapper,
+                    {
+                      width: smallSize,
+                      height: smallSize,
+                      left: index * (smallSize - overlapSmall),
+                      zIndex: displayChildren.length - index,
+                      opacity,
+                    },
+                  ]}
+                >
+                  {person.photoUri ? (
+                    <Image
+                      source={{ uri: person.photoUri }}
+                      style={[
+                        styles.avatar,
+                        {
+                          width: smallSize,
+                          height: smallSize,
+                          borderRadius: smallSize / 2,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                          borderWidth: isSelected ? 3 : 2,
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.avatar,
+                        {
+                          width: smallSize,
+                          height: smallSize,
+                          borderRadius: smallSize / 2,
+                          backgroundColor: person.avatarColor || colors.primary,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                          borderWidth: isSelected ? 3 : 2,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.avatarText, { fontSize: smallSize * 0.35, color: colors.background }]}>
+                        {person.initials}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+
+            {/* Overflow badge */}
+            {overflowCount > 0 && (
+              <View
+                style={[
+                  styles.smallAvatarWrapper,
+                  {
+                    width: smallSize,
+                    height: smallSize,
+                    left: displayChildren.length * (smallSize - overlapSmall),
+                    zIndex: 0,
+                    opacity: 0.4,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      width: smallSize,
+                      height: smallSize,
+                      borderRadius: smallSize / 2,
+                      backgroundColor: colors.muted,
+                      borderColor: colors.border,
+                      borderWidth: 2,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { fontSize: smallSize * 0.3, color: colors.background }]}>
+                    +{overflowCount}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -212,26 +301,10 @@ export default function FamilyScreen() {
           <Text style={[styles.emptyText, { color: colors.muted }]}>No family members found.</Text>
         ) : (
           <View style={styles.container}>
-            {/* Family Members Grid */}
-            <View style={styles.section}>
+            {/* Stacked Avatars Section */}
+            <View style={[styles.section, styles.avatarSection]}>
               <Text style={[styles.sectionTitle, { color: colors.muted }]}>FAMILY MEMBERS</Text>
-              <View style={styles.membersGrid}>
-                {hierarchy.couples.length > 0 && (
-                  <View style={styles.coupleRow}>
-                    {hierarchy.couples.map((couple, idx) => (
-                      <View key={`couple-${idx}`} style={styles.coupleGroup}>
-                        {renderAvatar(couple.primary)}
-                        {couple.spouse && renderAvatar(couple.spouse)}
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {hierarchy.singles.length > 0 && (
-                  <View style={styles.singlesRow}>
-                    {hierarchy.singles.map((member) => renderAvatar(member))}
-                  </View>
-                )}
-              </View>
+              <View style={styles.stackedAvatarContainer}>{renderStackedAvatars()}</View>
             </View>
 
             {/* Prayer Requests for Selected Member */}
@@ -244,7 +317,7 @@ export default function FamilyScreen() {
                     </Text>
                     {selectedMember.familyType && (
                       <Text style={[styles.familyTypeLabel, { color: colors.muted }]}>
-                        {selectedMember.familyType === "Spouse" ? "👥 Spouse" : selectedMember.familyType === "Child" ? "👶 Child" : "Other"}
+                        {selectedMember.familyType === "Spouse" ? "Spouse" : selectedMember.familyType === "Child" ? "Child" : "Other"}
                       </Text>
                     )}
                   </View>
@@ -367,86 +440,44 @@ const styles = {
   section: {
     gap: 12,
   },
+  avatarSection: {
+    alignItems: "center" as const,
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "600" as const,
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
   },
-  membersGrid: {
-    gap: 16,
-  },
-  coupleRow: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
+  stackedAvatarContainer: {
+    height: 80,
     justifyContent: "center" as const,
-    gap: 24,
-  },
-  coupleGroup: {
-    flexDirection: "row" as const,
-    gap: 12,
-    alignItems: "flex-end" as const,
-  },
-  singlesRow: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "center" as const,
-    gap: 16,
-    paddingBottom: 4,
-  },
-  avatarContainer: {
     alignItems: "center" as const,
-    gap: 8,
   },
-  avatarContainerSelected: {
-    transform: [{ scale: 1.08 }],
+  stackedContainer: {
+    position: "relative" as const,
+    height: 72,
   },
   avatarWrapper: {
-    position: "relative" as const,
+    position: "absolute" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+  },
+  childrenContainer: {
+    position: "absolute" as const,
+    height: 72,
+  },
+  smallAvatarWrapper: {
+    position: "absolute" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
   },
   avatar: {
-    borderWidth: 2,
-    alignItems: "center" as const,
     justifyContent: "center" as const,
+    alignItems: "center" as const,
   },
   avatarText: {
-    fontWeight: "700" as const,
-  },
-  spouseBadge: {
-    position: "absolute" as const,
-    bottom: -4,
-    right: -4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  spouseBadgeText: {
-    fontSize: 12,
-  },
-  childBadge: {
-    position: "absolute" as const,
-    bottom: -4,
-    right: -4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  childBadgeText: {
-    fontSize: 12,
-  },
-  avatarName: {
-    fontSize: 12,
-    fontWeight: "500" as const,
-    maxWidth: 80,
-    textAlign: "center" as const,
+    fontWeight: "600" as const,
   },
   prayerSection: {
     borderRadius: 16,

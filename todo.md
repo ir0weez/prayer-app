@@ -611,3 +611,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Revert family screen to stacked avatar layout (like home screen)
 - [x] Make children avatars smaller than spouses for visual distinction
 - [x] Keep prayer display on same page when avatar is selected
+
+## Add to Family Modal Improvements
+
+- [x] Require family type selection before adding family member
+- [x] Disable "Add to Family" button until both person and family type are selected
+- [x] Show visual feedback when family type is selected

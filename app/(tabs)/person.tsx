@@ -271,12 +271,15 @@ export default function PersonScreen() {
 
   const handleGroupWithPerson = (targetPersonId: string) => {
     if (!personId || !currentPerson) return;
+    // Require family type to be selected
+    if (!draftFamilyType) {
+      Alert.alert("Select a relationship", "Please choose Spouse, Child, or Other before adding to family.");
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Create a map of familyType for both people being grouped
     const familyTypes: Record<string, "Spouse" | "Child" | "Other" | undefined> = {};
-    if (draftFamilyType) {
-      familyTypes[personId] = draftFamilyType;
-    }
+    familyTypes[personId] = draftFamilyType;
     const updatedPeople = groupIntoFamily(people, [personId, targetPersonId], familyTypes);
     setPeople(updatedPeople);
     setShowFamilyModal(false);
@@ -774,7 +777,7 @@ export default function PersonScreen() {
                     return (
                       <Pressable
                         onPress={() => !isInSameFamily && handleGroupWithPerson(item.id)}
-                        style={({ pressed }) => [styles.familySelectItem, isInSameFamily && styles.familySelectItemChecked, pressed && styles.pressed]}
+                        style={({ pressed }) => [styles.familySelectItem, isInSameFamily && styles.familySelectItemChecked, !draftFamilyType && { opacity: 0.5 }, pressed && styles.pressed]}
                       >
                         <View style={styles.familySelectItemContent}>
                           <View>

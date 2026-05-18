@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { Pressable, ScrollView, Text, View, Image, FlatList, Alert } from "react-native";
+import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
@@ -8,8 +8,6 @@ import { type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { togglePrayerItemDone } from "@/lib/prayercircle-data";
-
-const iconName = (name: string) => name as any;
 
 export default function FamilyScreen() {
   const router = useRouter();
@@ -51,507 +49,417 @@ export default function FamilyScreen() {
     setSelectedMemberId(memberId);
   };
 
-  const handleEditPrayer = (memberId: string) => {
-    router.push({ pathname: "/person", params: { personId: memberId } });
-  };
-
   const handleTogglePrayerDone = (prayerId: string) => {
     const updatedMembers = togglePrayerItemDone(familyMembers, selectedMemberId || "", prayerId);
     setFamilyMembers(updatedMembers);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedMembers)).catch(() => undefined);
   };
 
-  const handleUngroupAll = async () => {
-    Alert.alert(
-      "Ungroup Family",
-      "Are you sure you want to ungroup all family members? This cannot be undone.",
-      [
-        { text: "Cancel", onPress: () => {}, style: "cancel" },
-        {
-          text: "Ungroup",
-          onPress: async () => {
-            try {
-              const peopleJson = await AsyncStorage.getItem(PEOPLE_STORAGE_KEY);
-              if (peopleJson) {
-                const people: Person[] = JSON.parse(peopleJson);
-                const updated = people.map((p) =>
-                  p.familyId === familyId ? { ...p, familyId: undefined } : p
-                );
-                await AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated));
-                router.back();
-              }
-            } catch (error) {
-              console.error("Failed to ungroup family:", error);
-            }
-          },
-          style: "destructive",
-        },
-      ]
+  const handleDeletePrayer = (prayerId: string) => {
+    if (!selectedMember) return;
+    const updated = familyMembers.map((m) =>
+      m.id === selectedMember.id
+        ? {
+            ...m,
+            prayerItems: m.prayerItems?.filter((p) => p.id !== prayerId) || [],
+          }
+        : m
     );
+    setFamilyMembers(updated);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
   };
 
-  // Render stacked avatars with click handling
-  const renderStackedAvatars = () => {
-    const largeSize = 72;
-    const smallSize = 44;
-    const overlapLarge = largeSize * 0.25;
-    const overlapSmall = smallSize * 0.3;
+  const handleMarkAllPrayed = () => {
+    if (!selectedMember) return;
+    const today = new Date().toISOString().split("T")[0];
+    const updated = familyMembers.map((m) =>
+      m.id === selectedMember.id
+        ? {
+            ...m,
+            prayerItems: m.prayerItems?.map((p) => ({ ...p, isDone: true })) || [],
+            lastPrayedDate: today,
+          }
+        : m
+    );
+    setFamilyMembers(updated);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+  };
 
-    const spouses = familyMembers.filter((p) => p.familyType === "Spouse");
-    const children = familyMembers.filter((p) => p.familyType === "Child");
-    const others = familyMembers.filter((p) => !p.familyType || (p.familyType !== "Spouse" && p.familyType !== "Child"));
-    
-    const displayChildren = children.slice(0, 2);
-    const overflowCount = children.length - 2;
+  const prayerProgress = useMemo(() => {
+    if (!selectedMember?.prayerItems) return { done: 0, total: 0 };
+    const total = selectedMember.prayerItems.length;
+    const done = selectedMember.prayerItems.filter((p) => p.isDone).length;
+    return { done, total };
+  }, [selectedMember]);
 
-    let totalWidth = 0;
-    if (spouses.length > 0) {
-      totalWidth += largeSize;
-      if (spouses.length > 1) {
-        totalWidth += largeSize - overlapLarge;
-      }
-    }
-    if (displayChildren.length > 0) {
-      totalWidth += smallSize * 0.5;
-      totalWidth += smallSize;
-      if (displayChildren.length > 1) {
-        totalWidth += smallSize - overlapSmall;
-      }
-    }
-    if (overflowCount > 0) {
-      totalWidth += smallSize * 0.5;
-    }
+  const getLastReachedText = () => {
+    if (!selectedMember?.lastPrayedDate) return "Never";
+    const date = new Date(selectedMember.lastPrayedDate);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
 
+  if (loading || !selectedMember) {
     return (
-      <View style={[styles.stackedContainer, { width: Math.max(totalWidth, largeSize) }]}>
-        {/* Spouse avatars */}
-        {spouses.map((person, index) => {
-          const isSelected = selectedMemberId === person.id;
-          return (
-            <Pressable
-              key={person.id}
-              onPress={() => handleAvatarPress(person.id)}
-              style={[
-                styles.avatarWrapper,
-                {
-                  width: largeSize,
-                  height: largeSize,
-                  left: index * (largeSize - overlapLarge),
-                  zIndex: spouses.length - index,
-                },
-              ]}
-            >
-              {person.photoUri ? (
-                <Image
-                  source={{ uri: person.photoUri }}
-                  style={[
-                    styles.avatar,
-                    {
-                      width: largeSize,
-                      height: largeSize,
-                      borderRadius: largeSize / 2,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                      borderWidth: isSelected ? 4 : 2,
-                    },
-                  ]}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatar,
-                    {
-                      width: largeSize,
-                      height: largeSize,
-                      borderRadius: largeSize / 2,
-                      backgroundColor: person.avatarColor || colors.primary,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                      borderWidth: isSelected ? 4 : 2,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.avatarText, { fontSize: largeSize * 0.4, color: colors.background }]}>
-                    {person.initials}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
-
-        {/* Children avatars */}
-        {displayChildren.length > 0 && (
-          <View
-            style={[
-              styles.childrenContainer,
-              {
-                left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
-              },
-            ]}
-          >
-            {displayChildren.map((person, index) => {
-              const isSelected = selectedMemberId === person.id;
-              const opacity = 1 - index * 0.4;
-              return (
-                <Pressable
-                  key={person.id}
-                  onPress={() => handleAvatarPress(person.id)}
-                  style={[
-                    styles.smallAvatarWrapper,
-                    {
-                      width: smallSize,
-                      height: smallSize,
-                      left: index * (smallSize - overlapSmall),
-                      zIndex: displayChildren.length - index,
-                      opacity,
-                    },
-                  ]}
-                >
-                  {person.photoUri ? (
-                    <Image
-                      source={{ uri: person.photoUri }}
-                      style={[
-                        styles.avatar,
-                        {
-                          width: smallSize,
-                          height: smallSize,
-                          borderRadius: smallSize / 2,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                          borderWidth: isSelected ? 3 : 2,
-                        },
-                      ]}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.avatar,
-                        {
-                          width: smallSize,
-                          height: smallSize,
-                          borderRadius: smallSize / 2,
-                          backgroundColor: person.avatarColor || colors.primary,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                          borderWidth: isSelected ? 3 : 2,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.avatarText, { fontSize: smallSize * 0.35, color: colors.background }]}>
-                        {person.initials}
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-
-            {/* Overflow badge */}
-            {overflowCount > 0 && (
-              <View
-                style={[
-                  styles.smallAvatarWrapper,
-                  {
-                    width: smallSize,
-                    height: smallSize,
-                    left: displayChildren.length * (smallSize - overlapSmall),
-                    zIndex: 0,
-                    opacity: 0.4,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.avatar,
-                    {
-                      width: smallSize,
-                      height: smallSize,
-                      borderRadius: smallSize / 2,
-                      backgroundColor: colors.muted,
-                      borderColor: colors.border,
-                      borderWidth: 2,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.avatarText, { fontSize: smallSize * 0.3, color: colors.background }]}>
-                    +{overflowCount}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
+      <ScreenContainer>
+        <Text style={{ color: colors.foreground }}>Loading...</Text>
+      </ScreenContainer>
     );
-  };
+  }
 
   return (
     <ScreenContainer className="bg-background">
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("chevron-left")} size={28} color={colors.primary} />
-        </Pressable>
-        <Text style={[styles.title, { color: colors.foreground }]}>{familyName}</Text>
-        <Pressable onPress={handleUngroupAll} style={({ pressed }) => [styles.ungroupButton, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("people")} size={24} color={colors.error} />
-        </Pressable>
-      </View>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+            <MaterialIcons name="chevron-left" size={28} color={colors.primary} />
+          </Pressable>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prayer List</Text>
+          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: selectedMember.id } })} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+            <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
+          </Pressable>
+        </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}>
-        {loading ? (
-          <Text style={[styles.loadingText, { color: colors.muted }]}>Loading...</Text>
-        ) : familyMembers.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.muted }]}>No family members found.</Text>
-        ) : (
-          <View style={styles.container}>
-            {/* Stacked Avatars Section */}
-            <View style={[styles.section, styles.avatarSection]}>
-              <Text style={[styles.sectionTitle, { color: colors.muted }]}>FAMILY MEMBERS</Text>
-              <View style={styles.stackedAvatarContainer}>{renderStackedAvatars()}</View>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={[styles.heroAvatar, { backgroundColor: selectedMember.avatarColor, borderColor: selectedMember.accentColor }]}>
+            <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
+          </View>
+          <Text style={[styles.heroName, { color: colors.foreground }]}>{selectedMember.name}</Text>
+          <Text style={[styles.heroType, { color: colors.primary }]}>
+            {selectedMember.relationship === "Family" ? "Family" : selectedMember.relationship === "Friends" ? "Friend" : selectedMember.relationship === "Ministry" ? "Ministry" : "Prospect"}
+          </Text>
+
+          {/* Reminder Info */}
+          {selectedMember.reminderTime && (
+            <View style={styles.reminderInfo}>
+              <MaterialIcons name="notifications" size={16} color={colors.primary} />
+              <Text style={[styles.reminderText, { color: colors.muted }]}>
+                {selectedMember.reminderFrequency === "daily" ? "Every day" : `${selectedMember.reminderFrequency}`} • {selectedMember.reminderTime}
+              </Text>
             </View>
+          )}
 
-            {/* Prayer Requests for Selected Member */}
-            {selectedMember && (
-              <View style={[styles.prayerSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={styles.prayerHeader}>
-                  <View>
-                    <Text style={[styles.prayerMemberName, { color: colors.foreground }]}>
-                      {selectedMember.name}
-                    </Text>
-                    {selectedMember.familyType && (
-                      <Text style={[styles.familyTypeLabel, { color: colors.muted }]}>
-                        {selectedMember.familyType === "Spouse" ? "Spouse" : selectedMember.familyType === "Child" ? "Child" : "Other"}
-                      </Text>
-                    )}
+          {/* Prayer Status */}
+          <Text style={[styles.prayerStatus, { color: colors.muted }]}>
+            {prayerProgress.done === prayerProgress.total && prayerProgress.total > 0 ? "Prayed for today" : "Not reached yet"}
+          </Text>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <Pressable
+            onPress={handleMarkAllPrayed}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.prayedButton,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <MaterialIcons name="favorite" size={20} color="white" />
+            <Text style={styles.actionButtonText}>Mark as Prayed</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              const today = new Date().toISOString().split("T")[0];
+              const updated = familyMembers.map((m) =>
+                m.id === selectedMember.id ? { ...m, lastPrayedDate: today } : m
+              );
+              setFamilyMembers(updated);
+              AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.reachedButton,
+              { backgroundColor: "#EF4444", opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <MaterialIcons name="calendar-today" size={20} color="white" />
+            <Text style={styles.actionButtonText}>Last reached: {getLastReachedText()}</Text>
+          </Pressable>
+        </View>
+
+        {/* Family Members Horizontal Scroll */}
+        {familyMembers.length > 1 && (
+          <View style={styles.familyMembersSection}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Family Members</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.membersScroll}>
+              {familyMembers.map((member) => (
+                <Pressable
+                  key={member.id}
+                  onPress={() => handleAvatarPress(member.id)}
+                  style={[
+                    styles.memberAvatar,
+                    selectedMember.id === member.id && [
+                      styles.memberAvatarSelected,
+                      { borderColor: colors.primary },
+                    ],
+                  ]}
+                >
+                  <View style={[styles.memberAvatarImage, { backgroundColor: member.avatarColor }]}>
+                    <Text style={styles.memberAvatarText}>{member.initials}</Text>
                   </View>
-                  <Pressable
-                    onPress={() => handleEditPrayer(selectedMember.id)}
-                    style={({ pressed }) => [
-                      styles.editIconButton,
-                      { backgroundColor: colors.primary },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <MaterialIcons name={iconName("edit")} size={18} color="#FFFFFF" />
-                  </Pressable>
-                </View>
-
-                {selectedMember.prayerItems.length === 0 ? (
-                  <Text style={[styles.noPrayersText, { color: colors.muted }]}>
-                    No prayer requests yet
-                  </Text>
-                ) : (
-                  <FlatList
-                    data={selectedMember.prayerItems}
-                    keyExtractor={(item) => item.id}
-                    scrollEnabled={false}
-                    renderItem={({ item }) => (
-                      <Pressable
-                        onPress={() => handleTogglePrayerDone(item.id)}
-                        style={({ pressed }) => [styles.prayerItem, { borderBottomColor: colors.border }, pressed && styles.pressed]}
-                      >
-                        <View style={styles.prayerItemContent}>
-                          <View style={styles.checkboxContainer}>
-                            <View
-                              style={[
-                                styles.checkbox,
-                                {
-                                  borderColor: colors.primary,
-                                  backgroundColor: item.isDone ? colors.primary : "transparent",
-                                },
-                              ]}
-                            >
-                              {item.isDone && (
-                                <MaterialIcons name={iconName("check")} size={14} color={colors.background} />
-                              )}
-                            </View>
-                          </View>
-                          <View style={styles.prayerTextContainer}>
-                            <Text
-                              style={[
-                                styles.prayerItemTitle,
-                                { color: colors.foreground },
-                                item.isDone && styles.prayerItemDone,
-                              ]}
-                            >
-                              {item.title}
-                            </Text>
-                            {item.isUrgent && (
-                              <View style={[styles.urgentBadge, { backgroundColor: colors.error }]}>
-                                <Text style={styles.urgentText}>Urgent</Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
-                      </Pressable>
-                    )}
-                  />
-                )}
-              </View>
-            )}
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
         )}
+
+        {/* Prayer Items Section */}
+        <View style={styles.prayerItemsSection}>
+          <View style={styles.prayerItemsHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Prayer Items</Text>
+            <Text style={[styles.prayerProgress, { color: colors.muted }]}>
+              {prayerProgress.done}/{prayerProgress.total} done
+            </Text>
+          </View>
+
+          {selectedMember.prayerItems && selectedMember.prayerItems.length > 0 ? (
+            <View>
+              {selectedMember.prayerItems.map((prayer) => (
+                <View
+                  key={prayer.id}
+                  style={[
+                    styles.prayerItem,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      opacity: prayer.isDone ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <Pressable
+                    onPress={() => handleTogglePrayerDone(prayer.id)}
+                    style={styles.prayerCheckbox}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          borderColor: colors.primary,
+                          backgroundColor: prayer.isDone ? colors.primary : "transparent",
+                        },
+                      ]}
+                    >
+                      {prayer.isDone && (
+                        <MaterialIcons name="check" size={16} color="white" />
+                      )}
+                    </View>
+                  </Pressable>
+
+                  <Text
+                    style={[
+                      styles.prayerText,
+                      {
+                        color: colors.foreground,
+                        textDecorationLine: prayer.isDone ? "line-through" : "none",
+                      },
+                    ]}
+                  >
+                    {prayer.title}
+                  </Text>
+
+                  {prayer.isUrgent && (
+                    <MaterialIcons name="flash-on" size={18} color="#F59E0B" style={styles.urgentIcon} />
+                  )}
+
+                  <Pressable
+                    onPress={() => handleDeletePrayer(prayer.id)}
+                    style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+                  >
+                    <MaterialIcons name="close" size={20} color={colors.muted} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={[styles.emptyText, { color: colors.muted }]}>No prayer items yet</Text>
+          )}
+        </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </ScreenContainer>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
   header: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "space-between" as const,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  ungroupButton: {
-    padding: 8,
-    marginRight: -8,
-  },
-  title: {
+  headerTitle: {
     fontSize: 18,
-    fontWeight: "600" as const,
-    flex: 1,
-    textAlign: "center" as const,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
-  pressed: {
-    opacity: 0.7,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  loadingText: {
-    textAlign: "center" as const,
+  editButton: {
     fontSize: 16,
-    marginTop: 20,
+    fontWeight: "600",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
   },
-  emptyText: {
-    textAlign: "center" as const,
+  heroSection: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  heroAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 4,
+    borderColor: "#8B5CF6",
+  },
+  heroAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 60,
+  },
+  heroAvatarText: {
+    fontSize: 48,
+    fontWeight: "700",
+    color: "white",
+  },
+  heroName: {
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  heroType: {
     fontSize: 16,
-    marginTop: 20,
-  },
-  container: {
-    gap: 24,
-    flex: 1,
-  },
-  section: {
-    gap: 12,
-  },
-  avatarSection: {
-    alignItems: "center" as const,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600" as const,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
-  },
-  stackedAvatarContainer: {
-    height: 80,
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-  },
-  stackedContainer: {
-    position: "relative" as const,
-    height: 72,
-  },
-  avatarWrapper: {
-    position: "absolute" as const,
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-  },
-  childrenContainer: {
-    position: "absolute" as const,
-    height: 72,
-  },
-  smallAvatarWrapper: {
-    position: "absolute" as const,
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-  },
-  avatar: {
-    justifyContent: "center" as const,
-    alignItems: "center" as const,
-  },
-  avatarText: {
-    fontWeight: "600" as const,
-  },
-  prayerSection: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-    marginTop: 8,
-  },
-  prayerHeader: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    justifyContent: "space-between" as const,
+    fontWeight: "600",
     marginBottom: 12,
   },
-  prayerMemberName: {
-    fontSize: 16,
-    fontWeight: "600" as const,
+  reminderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
   },
-  familyTypeLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  editIconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  noPrayersText: {
+  reminderText: {
     fontSize: 14,
-    textAlign: "center" as const,
-    paddingVertical: 20,
+    fontWeight: "500",
+  },
+  prayerStatus: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  actionButtons: {
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 24,
+    gap: 8,
+  },
+  prayedButton: {
+    // backgroundColor set dynamically
+  },
+  reachedButton: {
+    // backgroundColor set dynamically
+  },
+  actionButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  familyMembersSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  membersScroll: {
+    flexDirection: "row",
+  },
+  memberAvatar: {
+    marginRight: 12,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  memberAvatarSelected: {
+    borderWidth: 3,
+  },
+  memberAvatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "white",
+  },
+  prayerItemsSection: {
+    paddingHorizontal: 16,
+  },
+  prayerItemsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  prayerProgress: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   prayerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    borderBottomWidth: 0.5,
-  },
-  prayerItemContent: {
-    flexDirection: "row" as const,
-    alignItems: "flex-start" as const,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
     gap: 10,
   },
-  checkboxContainer: {
-    paddingTop: 2,
+  prayerCheckbox: {
+    padding: 4,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     borderWidth: 2,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  prayerTextContainer: {
+  prayerText: {
     flex: 1,
-    gap: 6,
+    fontSize: 15,
+    fontWeight: "500",
   },
-  prayerItemTitle: {
+  urgentIcon: {
+    marginHorizontal: 4,
+  },
+  emptyText: {
     fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    paddingVertical: 24,
   },
-  prayerItemDone: {
-    textDecorationLine: "line-through" as const,
-    opacity: 0.5,
-  },
-  urgentBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: "flex-start" as const,
-  },
-  urgentText: {
-    fontSize: 10,
-    fontWeight: "600" as const,
-    color: "#FFFFFF",
-  },
-};
+});

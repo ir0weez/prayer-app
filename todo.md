@@ -617,3 +617,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Require family type selection before adding family member
 - [x] Disable "Add to Family" button until both person and family type are selected
 - [x] Show visual feedback when family type is selected
+
+## Family Screen Redesign (Mockup)
+
+- [x] Redesign family screen to match mockup layout with hero section
+- [x] Add horizontal scrollable family member avatars
+- [x] Implement prayer items list with checkboxes and delete buttons
+- [x] Add "Mark as Prayed" and "Last reached" action buttons

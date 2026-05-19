@@ -646,3 +646,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Implement prayer item input field on family screen
 - [x] Add functionality to create new prayer items directly from family screen
 - [x] Persist new prayer items to storage
+
+## Critical Bug Fixes
+
+- [x] Fix data deletion bug when toggling prayer items on family screen (was persisting only family subset instead of full people array)
+- [x] Fix avatar centering in family cards (wrap StackedAvatar in centered container)

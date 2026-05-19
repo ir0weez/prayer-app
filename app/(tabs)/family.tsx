@@ -12,7 +12,7 @@ import { togglePrayerItemDone } from "@/lib/prayercircle-data";
 export default function FamilyScreen() {
   const router = useRouter();
   const { familyId } = useLocalSearchParams<{ familyId: string }>();
-  const [familyMembers, setFamilyMembers] = useState<Person[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [newPrayerTitle, setNewPrayerTitle] = useState("");
@@ -25,9 +25,9 @@ export default function FamilyScreen() {
       try {
         const peopleJson = await AsyncStorage.getItem(PEOPLE_STORAGE_KEY);
         if (peopleJson) {
-          const people: Person[] = JSON.parse(peopleJson);
-          const members = people.filter((p) => p.familyId === familyId);
-          setFamilyMembers(members);
+          const allPeople: Person[] = JSON.parse(peopleJson);
+          setPeople(allPeople);
+          const members = allPeople.filter((p) => p.familyId === familyId);
           // Auto-select first member if none selected
           if (members.length > 0 && !selectedMemberId) {
             setSelectedMemberId(members[0].id);
@@ -45,6 +45,8 @@ export default function FamilyScreen() {
     }
   }, [familyId]);
 
+  // Derive family members from full people array
+  const familyMembers = useMemo(() => people.filter((p) => p.familyId === familyId), [people, familyId]);
   const familyName = familyMembers[0]?.familyName || "Family";
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
 
@@ -52,17 +54,15 @@ export default function FamilyScreen() {
     setSelectedMemberId(memberId);
   };
 
-
-
   const handleTogglePrayerDone = (prayerId: string) => {
-    const updatedMembers = togglePrayerItemDone(familyMembers, selectedMemberId || "", prayerId);
-    setFamilyMembers(updatedMembers);
-    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedMembers)).catch(() => undefined);
+    const updated = togglePrayerItemDone(people, selectedMemberId || "", prayerId);
+    setPeople(updated);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
   };
 
   const handleDeletePrayer = (prayerId: string) => {
     if (!selectedMember) return;
-    const updated = familyMembers.map((m) =>
+    const updated = people.map((m) =>
       m.id === selectedMember.id
         ? {
             ...m,
@@ -70,7 +70,7 @@ export default function FamilyScreen() {
           }
         : m
     );
-    setFamilyMembers(updated);
+    setPeople(updated);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
   };
 
@@ -84,7 +84,7 @@ export default function FamilyScreen() {
       isUrgent: false,
     };
 
-    const updated = familyMembers.map((m) =>
+    const updated = people.map((m) =>
       m.id === selectedMember.id
         ? {
             ...m,
@@ -93,7 +93,7 @@ export default function FamilyScreen() {
         : m
     );
 
-    setFamilyMembers(updated);
+    setPeople(updated);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
     setNewPrayerTitle("");
     setShowAddPrayerModal(false);
@@ -102,7 +102,7 @@ export default function FamilyScreen() {
   const handleMarkAllPrayed = () => {
     if (!selectedMember) return;
     const today = new Date().toISOString().split("T")[0];
-    const updated = familyMembers.map((m) =>
+    const updated = people.map((m) =>
       m.id === selectedMember.id
         ? {
             ...m,
@@ -111,7 +111,19 @@ export default function FamilyScreen() {
           }
         : m
     );
-    setFamilyMembers(updated);
+    setPeople(updated);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+  };
+
+  const handleLastReached = () => {
+    if (!selectedMember) return;
+    const today = new Date().toISOString().split("T")[0];
+    const updated = people.map((m) =>
+      m.id === selectedMember.id
+        ? { ...m, lastPrayedDate: today }
+        : m
+    );
+    setPeople(updated);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
   };
 
@@ -151,37 +163,42 @@ export default function FamilyScreen() {
         </View>
 
         {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <View style={[styles.heroAvatar, { backgroundColor: selectedMember.photoUri ? "transparent" : selectedMember.avatarColor, borderColor: selectedMember.accentColor }]}>
+        <View style={[styles.heroSection, { backgroundColor: colors.surface }]}>
+          <View style={styles.avatarContainer}>
             {selectedMember.photoUri ? (
-              <Image source={{ uri: selectedMember.photoUri }} style={styles.heroAvatarImage} />
+              <Image source={{ uri: selectedMember.photoUri }} style={styles.heroAvatar} />
             ) : (
-              <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
+              <View style={[styles.heroAvatar, { backgroundColor: selectedMember.avatarColor }]}>
+                <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
+              </View>
             )}
           </View>
           <Text style={[styles.heroName, { color: colors.foreground }]}>{selectedMember.name}</Text>
-          <Text style={[styles.heroType, { color: colors.primary }]}>
-            {selectedMember.relationship === "Family" ? "Family" : selectedMember.relationship === "Friends" ? "Friend" : selectedMember.relationship === "Ministry" ? "Ministry" : "Prospect"}
-          </Text>
+          <Text style={[styles.heroType, { color: colors.primary }]}>{selectedMember.familyType || "Family"}</Text>
 
           {/* Reminder Info */}
-          {selectedMember.reminderTime && (
-            <View style={styles.reminderInfo}>
-              <MaterialIcons name="notifications" size={16} color={colors.primary} />
-              <Text style={[styles.reminderText, { color: colors.muted }]}>
-                {selectedMember.reminderFrequency === "daily" ? "Every day" : `${selectedMember.reminderFrequency}`} • {selectedMember.reminderTime}
-              </Text>
-            </View>
-          )}
+          <View style={styles.reminderInfo}>
+            <MaterialIcons name="notifications" size={16} color={colors.primary} />
+            <Text style={[styles.reminderText, { color: colors.muted }]}>
+              {selectedMember.reminderFrequency === "daily"
+                ? "Daily"
+                : selectedMember.reminderFrequency === "weekly"
+                  ? `${selectedMember.reminderDaysOfWeek?.length || 0} weekly days`
+                  : selectedMember.reminderFrequency === "monthly"
+                    ? `Monthly on day ${selectedMember.reminderDayOfMonth || 1}`
+                    : "No reminder"}
+              {selectedMember.reminderTime && ` • ${selectedMember.reminderTime}`}
+            </Text>
+          </View>
 
           {/* Prayer Status */}
           <Text style={[styles.prayerStatus, { color: colors.muted }]}>
-            {prayerProgress.done === prayerProgress.total && prayerProgress.total > 0 ? "Prayed for today" : "Not reached yet"}
+            {selectedMember.lastPrayedDate ? `Last reached: ${getLastReachedText()}` : "Not reached yet"}
           </Text>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
+        <View style={styles.actionButtonsContainer}>
           <Pressable
             onPress={handleMarkAllPrayed}
             style={({ pressed }) => [
@@ -193,16 +210,8 @@ export default function FamilyScreen() {
             <MaterialIcons name="favorite" size={20} color="white" />
             <Text style={styles.actionButtonText}>Mark as Prayed</Text>
           </Pressable>
-
           <Pressable
-            onPress={() => {
-              const today = new Date().toISOString().split("T")[0];
-              const updated = familyMembers.map((m) =>
-                m.id === selectedMember.id ? { ...m, lastPrayedDate: today } : m
-              );
-              setFamilyMembers(updated);
-              AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
-            }}
+            onPress={handleLastReached}
             style={({ pressed }) => [
               styles.actionButton,
               styles.reachedButton,
@@ -401,73 +410,70 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: "center",
-    paddingVertical: 32,
+    paddingVertical: 24,
     paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginVertical: 16,
+    borderRadius: 16,
+  },
+  avatarContainer: {
+    marginBottom: 12,
   },
   heroAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: "#8B5CF6",
-    overflow: "hidden",
-  },
-  heroAvatarImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 60,
   },
   heroAvatarText: {
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: "700",
     color: "white",
   },
   heroName: {
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.5,
+    fontSize: 24,
+    fontWeight: "700",
     marginBottom: 4,
   },
   heroType: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     marginBottom: 12,
   },
   reminderInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
     marginBottom: 8,
+    gap: 6,
   },
   reminderText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
   prayerStatus: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
-  actionButtons: {
+  actionButtonsContainer: {
     paddingHorizontal: 16,
-    gap: 12,
     marginBottom: 24,
+    gap: 12,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     gap: 8,
   },
   prayedButton: {
-    // backgroundColor set dynamically
+    backgroundColor: "#8B5CF6",
   },
   reachedButton: {
-    // backgroundColor set dynamically
+    backgroundColor: "#EF4444",
   },
   actionButtonText: {
     color: "white",
@@ -509,12 +515,13 @@ const styles = StyleSheet.create({
     borderRadius: 32,
   },
   memberAvatarText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
     color: "white",
   },
   prayerItemsSection: {
     paddingHorizontal: 16,
+    marginBottom: 24,
   },
   prayerItemsHeader: {
     flexDirection: "row",
@@ -523,21 +530,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   prayerProgress: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 12,
+    fontWeight: "600",
   },
   prayerItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
     marginBottom: 8,
-    gap: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
   },
   prayerCheckbox: {
-    padding: 4,
+    paddingRight: 4,
   },
   checkbox: {
     width: 24,

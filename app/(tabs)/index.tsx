@@ -783,16 +783,12 @@ export default function HomeScreen() {
             )}
             {isDragged && (
               <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                {personIndex > 0 && (
-                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex - 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-                    <MaterialIcons name="arrow-upward" size={28} color="#8B5CF6" />
-                  </Pressable>
-                )}
-                {personIndex < totalCount - 1 && (
-                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex + 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-                    <MaterialIcons name="arrow-downward" size={28} color="#8B5CF6" />
-                  </Pressable>
-                )}
+                <Pressable disabled={personIndex === 0} onPress={() => { handleReorderPeople(personIndex, personIndex - 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }, personIndex === 0 && { opacity: 0.3 }]}>
+                  <MaterialIcons name="arrow-upward" size={28} color="#8B5CF6" />
+                </Pressable>
+                <Pressable disabled={personIndex === totalCount - 1} onPress={() => { handleReorderPeople(personIndex, personIndex + 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }, personIndex === totalCount - 1 && { opacity: 0.3 }]}>
+                  <MaterialIcons name="arrow-downward" size={28} color="#8B5CF6" />
+                </Pressable>
                 <Pressable onPress={() => setDraggedPersonId(null)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
                   <MaterialIcons name="close" size={24} color="#8B8199" />
                 </Pressable>

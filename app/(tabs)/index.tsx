@@ -712,8 +712,10 @@ export default function HomeScreen() {
     const reachProgress = getReachProgressRatio(daysSince);
 
     return (
-      <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, { alignItems: "center" }, pressed && styles.pressed]}>
-        <StackedAvatar people={familyMembers} size={44} />
+      <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+        <View style={{ marginRight: 12 }}>
+          <StackedAvatar people={familyMembers} size={44} />
+        </View>
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={styles.personName}>{familyName}</Text>
           <Text numberOfLines={1} style={styles.personMeta}>
@@ -1640,7 +1642,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     shadowColor: "#6D617D",
     shadowOpacity: 0.05,
     shadowRadius: 10,

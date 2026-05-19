@@ -640,3 +640,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Ensure Mark as Prayed button works identically to person page
 - [x] Ensure Last reached button works identically to person page
 - [x] Make family screen function exactly like person page
+
+## Add Prayer Item on Family Screen
+
+- [x] Implement prayer item input field on family screen
+- [x] Add functionality to create new prayer items directly from family screen
+- [x] Persist new prayer items to storage

@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet } from "react-native";
+import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, TextInput, Modal } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
@@ -15,6 +15,8 @@ export default function FamilyScreen() {
   const [familyMembers, setFamilyMembers] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [newPrayerTitle, setNewPrayerTitle] = useState("");
+  const [showAddPrayerModal, setShowAddPrayerModal] = useState(false);
 
   const colors = useColors();
 
@@ -70,6 +72,31 @@ export default function FamilyScreen() {
     );
     setFamilyMembers(updated);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+  };
+
+  const handleAddPrayer = () => {
+    if (!newPrayerTitle.trim() || !selectedMember) return;
+
+    const newPrayer = {
+      id: Date.now().toString(),
+      title: newPrayerTitle.trim(),
+      isDone: false,
+      isUrgent: false,
+    };
+
+    const updated = familyMembers.map((m) =>
+      m.id === selectedMember.id
+        ? {
+            ...m,
+            prayerItems: [...(m.prayerItems || []), newPrayer],
+          }
+        : m
+    );
+
+    setFamilyMembers(updated);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+    setNewPrayerTitle("");
+    setShowAddPrayerModal(false);
   };
 
   const handleMarkAllPrayed = () => {
@@ -289,6 +316,60 @@ export default function FamilyScreen() {
           )}
         </View>
 
+        {/* Add Prayer Input */}
+        <View style={[styles.addPrayerContainer, { backgroundColor: colors.background }]}>
+          <Pressable
+            onPress={() => setShowAddPrayerModal(true)}
+            style={[styles.addPrayerInput, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Text style={[styles.addPrayerPlaceholder, { color: colors.muted }]}>Add prayer item...</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowAddPrayerModal(true)}
+            style={[styles.addPrayerButton, { backgroundColor: colors.primary }]}
+          >
+            <MaterialIcons name="add" size={24} color="white" />
+          </Pressable>
+        </View>
+
+        {/* Add Prayer Modal */}
+        <Modal visible={showAddPrayerModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Prayer Item</Text>
+                <Pressable onPress={() => setShowAddPrayerModal(false)}>
+                  <MaterialIcons name="close" size={24} color={colors.muted} />
+                </Pressable>
+              </View>
+
+              <TextInput
+                placeholder="Prayer item..."
+                placeholderTextColor={colors.muted}
+                value={newPrayerTitle}
+                onChangeText={setNewPrayerTitle}
+                style={[styles.modalInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
+                multiline
+              />
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  onPress={() => setShowAddPrayerModal(false)}
+                  style={[styles.cancelButton, { backgroundColor: colors.surface }]}
+                >
+                  <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleAddPrayer}
+                  style={[styles.addButton, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.addButtonText}>Add Prayer</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </ScreenContainer>
@@ -479,5 +560,88 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
     paddingVertical: 24,
+  },
+  addPrayerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  addPrayerInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 14,
+  },
+  addPrayerPlaceholder: {
+    fontSize: 14,
+  },
+  addPrayerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    marginBottom: 16,
+    minHeight: 60,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  addButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

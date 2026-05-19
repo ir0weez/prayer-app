@@ -413,7 +413,7 @@ describe("PrayerCircle local data helpers", () => {
     expect(grouped[0].familyId).toBe(grouped[1].familyId);
     expect(grouped[0].familyType).toBe("Spouse");
     expect(grouped[1].familyType).toBe("Child");
-    expect(grouped[0].familyName).toBe("Smith Family");
+    expect(grouped[0].familyName).toBe("Alice Family");
   });
 
   it("groups multiple people into an existing family and preserves familyType", () => {

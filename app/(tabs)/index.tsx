@@ -463,7 +463,7 @@ export default function HomeScreen() {
     const elapsed = Date.now() - pendingFastAction.timestamp;
     return Math.max(0, UNDO_COUNTDOWN_MS - elapsed);
   }, [pendingFastAction]);
-  const activeFastProgress = activeFast ? getFastProgress(activeFast) : null;
+  const activeFastProgress = useMemo(() => activeFast ? getFastProgress(activeFast) : null, [activeFast]);
   // Note: activeFastStreak is now kept in sync with profile.fastingStreak via useEffect
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;

@@ -769,11 +769,6 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.personActions}>
-            {isDragged && (
-              <View style={{ marginRight: 8 }}>
-                <MaterialIcons name="drag-handle" size={20} color="#8B5CF6" />
-              </View>
-            )}
             {!isDragged && (
               <>
                 <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
@@ -784,7 +779,8 @@ export default function HomeScreen() {
               </>
             )}
             {isDragged && (
-              <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+                <MaterialIcons name="drag-handle" size={24} color="#8B5CF6" />
                 {personIndex > 0 && (
                   <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex - 1); setDraggedPersonId(null); }}>
                     <MaterialIcons name="arrow-upward" size={20} color="#8B5CF6" />

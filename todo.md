@@ -652,10 +652,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix data deletion bug when toggling prayer items on family screen (was persisting only family subset instead of full people array)
 - [x] Fix avatar centering in family cards (wrap StackedAvatar in centered container)
 
-## Drag-and-Drop Contact Reordering
+## Drag-and-Drop Contact Reordering (REMOVED - Too Complex)
 
-- [x] Implement drag-and-drop reordering for contacts on People screen
-- [x] Add long-press gesture to enable drag mode
-- [x] Persist reordered contact list to storage
-- [x] Add visual feedback during drag (opacity change, scale up)
-- [x] Test reordering across different contact types (individuals, families)
+- [x] Attempted to implement but removed due to architectural complexity
+- [x] Issue: People and families are stored separately; mixing them in reorder logic caused data loss
+- [x] Decision: Removed feature to restore stability; can revisit with simpler approach later (e.g., reorder on edit screen only)

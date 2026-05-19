@@ -321,6 +321,7 @@ export default function HomeScreen() {
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
+  const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
 
@@ -730,29 +731,78 @@ export default function HomeScreen() {
     );
   };
 
+  const handleReorderPeople = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const newPeople = [...people];
+    const [movedPerson] = newPeople.splice(fromIndex, 1);
+    newPeople.splice(toIndex, 0, movedPerson);
+    setPeople(newPeople);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(newPeople))).catch(() => undefined);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const renderPersonCard = (person: Person) => {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
     const isFull = daysSince >= 31;
     const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const reachProgress = getReachProgressRatio(daysSince);
+    const isDragged = draggedPersonId === person.id;
+    const personIndex = people.findIndex(p => p.id === person.id);
+    const totalCount = people.length;
+
     return (
-      <Pressable key={person.id} onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        {renderAvatar(person, 44)}
-        <View style={styles.personInfo}>
-          <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
-          <Text numberOfLines={1} style={styles.personMeta}>
-            {getBirthdayText(person)}
-          </Text>
-        </View>
-        <View style={styles.personActions}>
-            <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}> 
-            <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-            <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+      <View key={person.id} style={[isDragged && { opacity: 0.6 }]}>
+        <Pressable
+          onLongPress={() => {
+            setDraggedPersonId(person.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }}
+          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
+          style={({ pressed }) => [styles.personCard, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+        >
+          {renderAvatar(person, 44)}
+          <View style={styles.personInfo}>
+            <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
+            <Text numberOfLines={1} style={styles.personMeta}>
+              {getBirthdayText(person)}
+            </Text>
           </View>
-          <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
-        </View>
-      </Pressable>
+          <View style={styles.personActions}>
+            {isDragged && (
+              <View style={{ marginRight: 8 }}>
+                <MaterialIcons name="drag-handle" size={20} color="#8B5CF6" />
+              </View>
+            )}
+            {!isDragged && (
+              <>
+                <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+                  <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
+                  <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+                </View>
+                <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+              </>
+            )}
+            {isDragged && (
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {personIndex > 0 && (
+                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex - 1); setDraggedPersonId(null); }}>
+                    <MaterialIcons name="arrow-upward" size={20} color="#8B5CF6" />
+                  </Pressable>
+                )}
+                {personIndex < totalCount - 1 && (
+                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex + 1); setDraggedPersonId(null); }}>
+                    <MaterialIcons name="arrow-downward" size={20} color="#8B5CF6" />
+                  </Pressable>
+                )}
+                <Pressable onPress={() => setDraggedPersonId(null)}>
+                  <MaterialIcons name="close" size={20} color="#8B8199" />
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </Pressable>
+      </View>
     );
   };
 

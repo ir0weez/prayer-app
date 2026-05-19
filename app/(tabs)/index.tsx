@@ -320,6 +320,7 @@ export default function HomeScreen() {
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
+  const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -696,6 +697,16 @@ export default function HomeScreen() {
     );
   };
 
+  const handleReorderPeople = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const newPeople = [...people];
+    const [movedPerson] = newPeople.splice(fromIndex, 1);
+    newPeople.splice(toIndex, 0, movedPerson);
+    setPeople(newPeople);
+    AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(newPeople))).catch(() => undefined);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const renderFamilyCard = (familyMembers: Person[]) => {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
@@ -713,7 +724,7 @@ export default function HomeScreen() {
 
     return (
       <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12 }}>
+        <View style={{ marginRight: 12, justifyContent: "center", height: 70 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>
@@ -733,17 +744,25 @@ export default function HomeScreen() {
     );
   };
 
-  const renderPersonCard = (person: Person) => {
+  const renderPersonCard = (person: Person, index?: number, array?: Person[]) => {
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
     const isFull = daysSince >= 31;
     const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const reachProgress = getReachProgressRatio(daysSince);
+    const isDragged = draggedPersonId === person.id;
+    const personIndex = index ?? 0;
+    const totalCount = array?.length ?? 1;
+
     return (
-<View key={person.id}>
+      <View key={person.id} style={[isDragged && { opacity: 0.6 }]}>
         <Pressable
-          onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}
+          onLongPress={() => {
+            setDraggedPersonId(person.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }}
+          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
+          style={({ pressed }) => [styles.personCard, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
           <View style={styles.personInfo}>
@@ -753,11 +772,32 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.personActions}>
-            <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
-              <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-              <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
-            </View>
-            <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+            {!isDragged && (
+              <>
+                <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+                  <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
+                  <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+                </View>
+                <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+              </>
+            )}
+            {isDragged && (
+              <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                {personIndex > 0 && (
+                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex - 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+                    <MaterialIcons name="arrow-upward" size={28} color="#8B5CF6" />
+                  </Pressable>
+                )}
+                {personIndex < totalCount - 1 && (
+                  <Pressable onPress={() => { handleReorderPeople(personIndex, personIndex + 1); setDraggedPersonId(null); }} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+                    <MaterialIcons name="arrow-downward" size={28} color="#8B5CF6" />
+                  </Pressable>
+                )}
+                <Pressable onPress={() => setDraggedPersonId(null)} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+                  <MaterialIcons name="close" size={24} color="#8B8199" />
+                </Pressable>
+              </View>
+            )}
           </View>
         </Pressable>
       </View>
@@ -832,7 +872,7 @@ export default function HomeScreen() {
               <View key={section.title} style={styles.sectionBlock}>
                 <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
                 {section.familyGroups && section.familyGroups.map(renderFamilyCard)}
-                {section.people.map(renderPersonCard)}
+                {section.people.map((person, idx) => renderPersonCard(person, idx, section.people))}
               </View>
             ))}
           </>

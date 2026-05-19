@@ -724,7 +724,7 @@ export default function HomeScreen() {
 
     return (
       <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", height: 70 }}>
+        <View style={{ marginRight: 12, justifyContent: "center", height: 70, marginTop: 8 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>

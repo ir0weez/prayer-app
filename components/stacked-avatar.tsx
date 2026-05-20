@@ -18,7 +18,9 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
   const smallSize = size * 0.6; // 28.8px for children
   const overlapLarge = largeSize * 0.25; // 25% overlap between large avatars
   const overlapSmall = smallSize * 0.3; // 30% overlap for small avatars
-  const childrenOffsetY = 24; // Position children 24px down from top (below spouses)
+  // Position children so their bottoms align with couple avatars' bottoms
+  // Couple avatars start at top (0), children positioned lower so they align at bottom
+  const childrenOffsetY = largeSize - smallSize; // Children positioned so bottoms align
 
   // Separate spouses (first 2) from children
   const spouses = people.slice(0, 2);
@@ -57,6 +59,7 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
               width: largeSize,
               height: largeSize,
               left: index * (largeSize - overlapLarge),
+              top: 8, // Move couple avatars down slightly
               zIndex: spouses.length - index,
             },
           ]}
@@ -100,7 +103,8 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
             styles.childrenContainer,
             {
               left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
-              top: childrenOffsetY, // Position children below spouses
+              top: childrenOffsetY, // Position children so bottoms align with couple avatars
+              zIndex: 0, // Children behind couple avatars
             },
           ]}
         >

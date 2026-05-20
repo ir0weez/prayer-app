@@ -666,3 +666,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Adjust spouse avatar positioning - move them down more in family cards
 
 - [x] Display person's birthday on prayer detail page below relationship type
+
+- [ ] Add action buttons to family group page (Mark as Prayed, Last reached) like individual pages
+- [x] Add delete button to last reached date editor on person detail page

@@ -526,6 +526,12 @@ export default function PersonScreen() {
     setShowDateModal(false);
   };
 
+  const handleDeleteLastReachedDate = () => {
+    if (!personId) return;
+    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, ""));
+    setShowDateModal(false);
+  };
+
   if (!hasHydratedPeople) {
     return (
       <ScreenContainer containerClassName="bg-background" style={styles.container}>
@@ -917,6 +923,9 @@ export default function PersonScreen() {
             />
             <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Date</Text>
+            </Pressable>
+            <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+              <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>
             </Pressable>
           </View>
         </View>

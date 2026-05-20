@@ -23,14 +23,17 @@ export default function FamilyScreen() {
   useEffect(() => {
     const loadFamily = async () => {
       try {
+        setLoading(true);
         const peopleJson = await AsyncStorage.getItem(PEOPLE_STORAGE_KEY);
         if (peopleJson) {
           const allPeople: Person[] = JSON.parse(peopleJson);
           setPeople(allPeople);
           const members = allPeople.filter((p) => p.familyId === familyId);
-          // Auto-select first member if none selected
-          if (members.length > 0 && !selectedMemberId) {
+          // Always reset and auto-select first member when familyId changes
+          if (members.length > 0) {
             setSelectedMemberId(members[0].id);
+          } else {
+            setSelectedMemberId(null);
           }
         }
       } catch (error) {
@@ -44,6 +47,7 @@ export default function FamilyScreen() {
       loadFamily();
     }
   }, [familyId]);
+
 
   // Derive family members from full people array
   const familyMembers = useMemo(() => people.filter((p) => p.familyId === familyId), [people, familyId]);
@@ -140,10 +144,23 @@ export default function FamilyScreen() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  if (loading || !selectedMember) {
+  if (loading) {
     return (
       <ScreenContainer>
         <Text style={{ color: colors.foreground }}>Loading...</Text>
+      </ScreenContainer>
+    );
+  }
+
+  if (!selectedMember) {
+    return (
+      <ScreenContainer>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: colors.foreground, fontSize: 16 }}>No family members found</Text>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [{ marginTop: 16, padding: 12 }, pressed && { opacity: 0.6 }]}>
+            <Text style={{ color: colors.primary, fontSize: 14 }}>Go back</Text>
+          </Pressable>
+        </View>
       </ScreenContainer>
     );
   }

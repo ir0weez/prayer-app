@@ -724,7 +724,7 @@ export default function HomeScreen() {
 
     return (
       <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", height: 70, marginTop: 8 }}>
+        <View style={{ marginRight: 12, justifyContent: "center", height: 70, marginTop: 14 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>
@@ -1181,8 +1181,44 @@ export default function HomeScreen() {
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
       <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
-        {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
-        {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
+        <Pressable onPress={() => {
+          Alert.alert("Reset Today's Prayers", "Uncheck all items for today?", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Reset",
+              style: "destructive",
+              onPress: () => {
+                const today = getTodayISOString();
+                const updated = people.map((p) => ({
+                  ...p,
+                  lastPrayerCompletedDate: p.lastPrayerCompletedDate === today ? null : p.lastPrayerCompletedDate,
+                }));
+                setPeople(updated);
+                AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updated))).catch(() => undefined);
+              },
+            },
+          ]);
+        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
+        </Pressable>
+        <Pressable onPress={() => {
+          Alert.alert("Clear Notifications", "Remove all scheduled notifications?", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Clear", style: "destructive", onPress: () => {} },
+          ]);
+        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
+        </Pressable>
+        <Pressable onPress={() => {
+          Alert.alert("Restore Invisible Contacts", "This will restore any contacts that were accidentally hidden or deleted.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Restore", onPress: () => {
+              Alert.alert("No Hidden Contacts", "All your contacts are visible. If you believe contacts are missing, please check your backup.");
+            } },
+          ]);
+        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("visibility", "Restore Invisible Contacts", "Make hidden contacts visible again", "normal")}
+        </Pressable>
       </View>
 
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>

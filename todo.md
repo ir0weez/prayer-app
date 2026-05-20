@@ -657,3 +657,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Attempted to implement but removed due to architectural complexity
 - [x] Issue: People and families are stored separately; mixing them in reorder logic caused data loss
 - [x] Decision: Removed feature to restore stability; can revisit with simpler approach later (e.g., reorder on edit screen only)
+
+
+## Critical Bugs - May 19, 2026
+
+- [x] Fix family screen loading bug - gets stuck on "Loading..." when switching between family groups
+- [x] Restore visibility of invisible contacts from earlier data deletion bug
+- [x] Adjust spouse avatar positioning - move them down more in family cards

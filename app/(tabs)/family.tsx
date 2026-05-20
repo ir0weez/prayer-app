@@ -7,7 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
-import { togglePrayerItemDone } from "@/lib/prayercircle-data";
+import { togglePrayerItemDone, ungroupFromFamily } from "@/lib/prayercircle-data";
 
 export default function FamilyScreen() {
   const router = useRouter();
@@ -131,6 +131,27 @@ export default function FamilyScreen() {
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
   };
 
+  const handleUngroupFamily = () => {
+    if (!selectedMember) return;
+    Alert.alert(
+      "Ungroup Family?",
+      `Remove ${selectedMember.name} from the family group? They will become an individual contact.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Ungroup",
+          style: "destructive",
+          onPress: () => {
+            const updated = ungroupFromFamily(people, selectedMember.id);
+            setPeople(updated);
+            AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
   const prayerProgress = useMemo(() => {
     if (!selectedMember?.prayerItems) return { done: 0, total: 0 };
     const total = selectedMember.prayerItems.length;
@@ -174,9 +195,14 @@ export default function FamilyScreen() {
             <MaterialIcons name="chevron-left" size={28} color={colors.primary} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prayer List</Text>
-          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: selectedMember.id } })} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
-            <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
-          </Pressable>
+          <View style={styles.headerRightActions}>
+            <Pressable onPress={handleUngroupFamily} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+              <MaterialIcons name="link-off" size={24} color={colors.primary} />
+            </Pressable>
+            <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: selectedMember.id } })} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
+              <Text style={[styles.editButton, { color: colors.primary }]}>Edit</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Hero Section */}
@@ -416,6 +442,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     letterSpacing: -0.2,
+  },
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   editButton: {
     fontSize: 16,

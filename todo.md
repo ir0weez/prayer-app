@@ -669,3 +669,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [ ] Add action buttons to family group page (Mark as Prayed, Last reached) like individual pages
 - [x] Add delete button to last reached date editor on person detail page
+- [x] Add ungroup button to family group page header

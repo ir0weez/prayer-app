@@ -100,8 +100,8 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
           style={[
             styles.childrenContainer,
             {
-              left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.5,
-              top: childrenOffsetY + 4, // Position children slightly lower and more to the right
+              left: largeSize * 0.5, // Position children to overlap with couple avatars
+              top: childrenOffsetY, // Position children slightly below spouses
               zIndex: 0, // Children behind couple avatars
             },
           ]}

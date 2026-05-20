@@ -322,6 +322,7 @@ export default function HomeScreen() {
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
+  const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -711,6 +712,7 @@ export default function HomeScreen() {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
     const familyId = familyMembers[0]?.familyId || "";
+    const isExpanded = expandedFamilyId === familyId;
     const mostRecentPerson = familyMembers.reduce((prev, current) => {
       const prevDays = getDaysSinceLastPrayed(prev.lastPrayedDate);
       const currentDays = getDaysSinceLastPrayed(current.lastPrayedDate);
@@ -722,8 +724,33 @@ export default function HomeScreen() {
     const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const reachProgress = getReachProgressRatio(daysSince);
 
+    if (isExpanded) {
+      return (
+        <View key={familyId} style={[styles.personCard, { flexDirection: "column", padding: 12 }]}>
+          <Pressable
+            onPress={() => setExpandedFamilyId(null)}
+            style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", marginBottom: 12 }, pressed && { opacity: 0.7 }]}
+          >
+            <View style={{ marginRight: 12, justifyContent: "center", height: 70, marginTop: 14 }}>
+              <StackedAvatar people={familyMembers} size={44} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={styles.personName}>{familyName}</Text>
+              <Text numberOfLines={1} style={styles.personMeta}>
+                {familyMembers.length} {familyMembers.length === 1 ? "person" : "people"}
+              </Text>
+            </View>
+            <MaterialIcons name={iconName("chevron.up")} size={20} color="#8B8199" />
+          </Pressable>
+          <View style={{ borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 12, gap: 8 }}>
+            {familyMembers.map((member) => renderPersonCard(member))}
+          </View>
+        </View>
+      );
+    }
+
     return (
-      <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+      <Pressable key={familyId} onPress={() => setExpandedFamilyId(familyId)} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", height: 70, marginTop: 14 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -738,7 +765,7 @@ export default function HomeScreen() {
             <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
             <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
           </View>
-          <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+          <MaterialIcons name={iconName("chevron.down")} size={20} color="#8B8199" />
         </View>
       </Pressable>
     );

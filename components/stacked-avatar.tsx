@@ -100,15 +100,15 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
           style={[
             styles.childrenContainer,
             {
-              left: largeSize * 0.5, // Position children to overlap with couple avatars
+              left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25, // Position children to the right of couple avatars
               top: childrenOffsetY, // Position children slightly below spouses
               zIndex: 0, // Children behind couple avatars
             },
           ]}
         >
           {displayChildren.map((person, index) => {
-            // Calculate opacity: first child at 0.7, second at 0.35 (more subtle/ghosted)
-            const opacity = 0.7 - index * 0.35;
+            // Calculate opacity: first child at 1.0, second at 0.6 (visible with fade)
+            const opacity = 1 - index * 0.4;
             return (
               <View
                 key={person.id}

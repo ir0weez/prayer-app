@@ -18,9 +18,8 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
   const smallSize = size * 0.6; // 28.8px for children
   const overlapLarge = largeSize * 0.25; // 25% overlap between large avatars
   const overlapSmall = smallSize * 0.3; // 30% overlap for small avatars
-  // Position children so their bottoms align with couple avatars' bottoms
-  // Couple avatars start at top (0), children positioned lower so they align at bottom
-  const childrenOffsetY = largeSize - smallSize; // Children positioned so bottoms align
+  // Position children behind and slightly lower than spouses for visual hierarchy
+  const childrenOffsetY = 12; // Position children slightly below spouses
 
   // Separate spouses (first 2) from children
   const spouses = people.slice(0, 2);
@@ -59,7 +58,6 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
               width: largeSize,
               height: largeSize,
               left: index * (largeSize - overlapLarge),
-              top: 8, // Move couple avatars down slightly
               zIndex: spouses.length - index,
             },
           ]}
@@ -102,15 +100,15 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
           style={[
             styles.childrenContainer,
             {
-              left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25,
-              top: childrenOffsetY, // Position children so bottoms align with couple avatars
+              left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.5,
+              top: childrenOffsetY + 4, // Position children slightly lower and more to the right
               zIndex: 0, // Children behind couple avatars
             },
           ]}
         >
           {displayChildren.map((person, index) => {
-            // Calculate opacity: first child at 1, second at 0.6
-            const opacity = 1 - index * 0.4;
+            // Calculate opacity: first child at 0.7, second at 0.35 (more subtle/ghosted)
+            const opacity = 0.7 - index * 0.35;
             return (
               <View
                 key={person.id}

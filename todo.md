@@ -664,3 +664,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix family screen loading bug - gets stuck on "Loading..." when switching between family groups
 - [x] Restore visibility of invisible contacts from earlier data deletion bug
 - [x] Adjust spouse avatar positioning - move them down more in family cards
+
+- [x] Display person's birthday on prayer detail page below relationship type

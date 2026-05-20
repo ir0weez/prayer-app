@@ -576,6 +576,9 @@ export default function PersonScreen() {
           </View>
           <Text style={styles.personName}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
+          {currentPerson.birthday && (
+            <Text style={styles.personBirthday}>Birthday: {currentPerson.birthday}</Text>
+          )}
           <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("notifications")} size={17} color={PURPLE} />
             <Text style={styles.reminderChipText}>
@@ -1009,6 +1012,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 20,
+  },
+  personBirthday: {
+    marginTop: 4,
+    color: MUTED_TEXT,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 19,
   },
   reminderChip: {
     marginTop: 12,

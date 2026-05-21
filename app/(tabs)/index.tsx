@@ -12,6 +12,7 @@ import Svg, { Path } from "react-native-svg";
 import { ScreenContainer } from "@/components/screen-container";
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
+import { PrayerCompletionAnimation } from "@/components/prayer-completion-animation";
 import { HapticTab } from "@/components/haptic-tab";
 import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
@@ -326,6 +327,7 @@ export default function HomeScreen() {
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
+  const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -608,6 +610,7 @@ export default function HomeScreen() {
 
   const commitPrayTodayPerson = useCallback((personId: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCompletedPrayerAnimationId(personId);
     setPeople((previousPeople) => {
       const updatedPeople = markPersonPrayed(previousPeople, personId);
       maybeAdvanceStreak(updatedPeople);
@@ -700,6 +703,7 @@ export default function HomeScreen() {
     const urgentItems = getUrgentPrayerItems(person);
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
+    const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
         {urgentItems.length > 0 ? (
@@ -710,9 +714,18 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
-        </Pressable>
+        <View style={{ position: "relative", width: 60, height: 60, alignItems: "center", justifyContent: "center" }}>
+          <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
+          </Pressable>
+          {isShowingCompletionAnimation && (
+            <PrayerCompletionAnimation
+              isActive={isShowingCompletionAnimation}
+              color={person.accentColor}
+              onComplete={() => setCompletedPrayerAnimationId(null)}
+            />
+          )}
+        </View>
         {isPending ? (
           <View style={styles.undoCountdownPill}>
             <UndoCountdownBar color={currentTheme.primary} />

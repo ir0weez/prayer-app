@@ -326,33 +326,9 @@ export default function HomeScreen() {
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
-  const [fastAvatarColor, setFastAvatarColor] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (fastAvatarColor) {
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(fastAvatarPulse, {
-            toValue: 1.1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(fastAvatarPulse, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-      return () => animation.stop();
-    } else {
-      fastAvatarPulse.setValue(1);
-    }
-  }, [fastAvatarColor, fastAvatarPulse]);
 
   useEffect(() => {
     let isMounted = true;
@@ -473,6 +449,42 @@ export default function HomeScreen() {
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
+  
+  // Derive fast avatar color from the persisted fast status
+  const getStatusColor = (status?: FastDayStatus) => {
+    if (status === "completed") return "#22C55E"; // Green
+    if (status === "skipped") return "#F59E0B"; // Yellow
+    if (status === "missed") return "#EF4444"; // Red
+    return currentTheme.primary;
+  };
+  
+  const fastAvatarColorFromStatus = useMemo(() => {
+    if (!activeFast) return null;
+    return getStatusColor(activeFastTodayStatus);
+  }, [activeFast, activeFastTodayStatus]);
+
+  useEffect(() => {
+    if (fastAvatarColorFromStatus) {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(fastAvatarPulse, {
+            toValue: 1.1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(fastAvatarPulse, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    } else {
+      fastAvatarPulse.setValue(1);
+    }
+  }, [fastAvatarColorFromStatus, fastAvatarPulse]);
 
   useEffect(() => {
     if (!hasHydratedPeople || !activeFast) return;
@@ -620,14 +632,12 @@ export default function HomeScreen() {
     const updatedFasts = upsertFastDayStatus(fasts, activeFast.id, today, status);
     setFasts(updatedFasts);
     setPendingFastAction(null);
-    setFastAvatarColor(null);
     delete undoTimers.current['fast'];
   }, [activeFast, fasts, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setFastAvatarColor('#22C55E'); // Green
     setPendingFastAction({ action: 'completed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('completed'), UNDO_COUNTDOWN_MS);
   };
@@ -635,7 +645,6 @@ export default function HomeScreen() {
   const handleMissFast = () => {
     if (!activeFast || pendingFastAction) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setFastAvatarColor('#EF4444'); // Red
     setPendingFastAction({ action: 'missed', timestamp: Date.now() });
     undoTimers.current['fast'] = setTimeout(() => commitFastAction('missed'), UNDO_COUNTDOWN_MS);
   };
@@ -647,7 +656,6 @@ export default function HomeScreen() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPendingFastAction(null);
-    setFastAvatarColor(null);
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -837,14 +845,14 @@ export default function HomeScreen() {
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
-                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColor || currentTheme.primary} size={86} intensity={0.3} />
+                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || currentTheme.primary} size={86} intensity={0.3} />
                     <Pressable
                       onPress={handleCompleteFast}
                       onLongPress={handleMissFast}
                       delayLongPress={500}
-                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColor || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
                     >
-                      <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }, fastAvatarColor && { transform: [{ scale: fastAvatarPulse }] }]}>
+                      <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || currentTheme.primary }, fastAvatarColorFromStatus && { transform: [{ scale: fastAvatarPulse }] }]}>
                         {profile.photoUri ? (
                           <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
                         ) : (

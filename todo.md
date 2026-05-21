@@ -670,3 +670,24 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add action buttons to family group page (Mark as Prayed, Last reached) like individual pages
 - [x] Add delete button to last reached date editor on person detail page
 - [x] Add ungroup button to family group page header
+
+
+## New Features - May 20, 2026
+
+- [x] Add custom relationship category - allow users to type in their own relationship title
+  - [x] Add input field in Add Person modal for custom category
+  - [x] Display custom categories alongside preset ones (Family, Friends, Ministry, Prospect)
+  - [x] Custom relationship takes precedence when provided
+  
+- [x] Add app data reset button in Settings
+  - [x] Create "Clear All Data" button in Settings tab
+  - [x] Show confirmation dialog before deleting
+  - [x] Delete all people, families, prayer items, and reminders
+  - [x] Reset app to initial state
+  
+- [x] Add animations for visual appeal and social network feel
+  - [x] Pulsing animation around fasting avatar when marked as successful
+  - [x] Entrance animations for people cards (component created)
+  - [x] Custom animation components using react-native-reanimated
+  - [x] Smooth, performant animations that don't feel heavy
+  - [ ] Consider micro-interactions that feel alive without being distracting

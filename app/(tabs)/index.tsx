@@ -10,9 +10,12 @@ import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switc
 import Svg, { Path } from "react-native-svg";
 
 import { ScreenContainer } from "@/components/screen-container";
-import { StatusModal } from "@/components/status-modal";
+import { PulsingGlow } from "@/components/pulsing-glow";
+import { EntranceAnimation } from "@/components/entrance-animation";
+import { HapticTab } from "@/components/haptic-tab";
 import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
+import { StatusModal } from "@/components/status-modal";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -293,8 +296,10 @@ export default function HomeScreen() {
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
   const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("family" as RelationshipType);
+  const [newPersonCustomRelationship, setNewPersonCustomRelationship] = useState("");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
+  const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
@@ -520,8 +525,10 @@ export default function HomeScreen() {
   const resetAddPersonForm = () => {
     setNewPersonName("");
     setNewPersonRelationship("Family");
+    setNewPersonCustomRelationship("");
     setNewPersonBirthday("");
     setNewPersonPhotoUri(undefined);
+    setShowCustomRelationshipInput(false);
   };
 
   const handlePickNewPersonPhoto = async () => {
@@ -545,7 +552,9 @@ export default function HomeScreen() {
       return;
     }
 
-    const updatedPeople = addPerson(people, newPersonName, newPersonRelationship, {
+    // Use custom relationship if provided, otherwise use selected preset
+    const finalRelationship = newPersonCustomRelationship.trim() || newPersonRelationship;
+    const updatedPeople = addPerson(people, newPersonName, finalRelationship as RelationshipType, {
       birthday: normalizedBirthday,
       reminderFrequency: "none",
       reminderDaysOfWeek: [],
@@ -1126,18 +1135,26 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
-              {activeFastTypeInfo ? (
-                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
-              ) : (
-                <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
-              )}
-              {profile.fastingStreak > 0 && (
-                <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
-                  <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
-                </View>
-              )}
-            </Pressable>
+            <View style={{ position: "relative" }}>
+              <PulsingGlow
+                isActive={activeFast !== null}
+                size={56}
+                color={currentTheme.primary}
+                intensity={0.4}
+              />
+              <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
+                {activeFastTypeInfo ? (
+                  <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
+                ) : (
+                  <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
+                )}
+                {profile.fastingStreak > 0 && (
+                  <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
+                    <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -1219,6 +1236,25 @@ export default function HomeScreen() {
         }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("visibility", "Restore Invisible Contacts", "Make hidden contacts visible again", "normal")}
         </Pressable>
+        <Pressable onPress={() => {
+          Alert.alert("Clear All Data", "This will permanently delete all people, families, prayer items, reminders, and journal entries. This action cannot be undone.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete All", style: "destructive", onPress: () => {
+              setPeople([]);
+              setFasts([]);
+              setStreakRecord({ streak: 0, lastCompletedDate: null });
+              setProfile(DEFAULT_PROFILE);
+              AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+              AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+              AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
+              AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert("Data Cleared", "All app data has been deleted. The app is now reset to its initial state.");
+            } },
+          ]);
+        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("delete-forever", "Clear All Data", "Delete all people, families, and prayer items", "danger")}
+        </Pressable>
       </View>
 
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>
@@ -1293,18 +1329,39 @@ export default function HomeScreen() {
           <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
           <View style={styles.relationshipPills}>
             {RELATIONSHIP_ORDER.map((relationship) => {
-              const isActive = relationship === newPersonRelationship;
+              const isActive = relationship === newPersonRelationship && !newPersonCustomRelationship;
               return (
                 <Pressable
                   key={relationship}
-                  onPress={() => setNewPersonRelationship(relationship)}
+                  onPress={() => {
+                    setNewPersonRelationship(relationship);
+                    setNewPersonCustomRelationship("");
+                    setShowCustomRelationshipInput(false);
+                  }}
                   style={({ pressed }) => [styles.relationshipPill, { borderColor: relationshipColors[relationship].accent }, isActive && { backgroundColor: relationshipColors[relationship].accent, borderColor: relationshipColors[relationship].accent }, pressed && styles.pressed]}
                 >
                   <Text style={[styles.relationshipPillText, { color: relationshipColors[relationship].accent }, isActive && styles.relationshipPillTextActive]}>{relationship}</Text>
                 </Pressable>
               );
             })}
+            <Pressable
+              onPress={() => setShowCustomRelationshipInput(!showCustomRelationshipInput)}
+              style={({ pressed }) => [styles.relationshipPill, { borderColor: "#999" }, newPersonCustomRelationship && { backgroundColor: "#999", borderColor: "#999" }, pressed && styles.pressed]}
+            >
+              <Text style={[styles.relationshipPillText, { color: "#999" }, newPersonCustomRelationship && styles.relationshipPillTextActive]}>Custom</Text>
+            </Pressable>
           </View>
+
+          {showCustomRelationshipInput && (
+            <TextInput
+              value={newPersonCustomRelationship}
+              onChangeText={setNewPersonCustomRelationship}
+              placeholder="Enter custom relationship"
+              placeholderTextColor="#73808B"
+              returnKeyType="done"
+              style={[styles.textInput, { marginBottom: 12 }]}
+            />
+          )}
 
           <Text style={styles.fieldLabel}>BIRTHDAY (optional)</Text>
           <TextInput

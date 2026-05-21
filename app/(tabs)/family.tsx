@@ -219,6 +219,13 @@ export default function FamilyScreen() {
           <Text style={[styles.heroName, { color: colors.foreground }]}>{selectedMember.name}</Text>
           <Text style={[styles.heroType, { color: colors.primary }]}>{selectedMember.familyType || "Family"}</Text>
 
+          {/* Birthday */}
+          {selectedMember.birthday && (
+            <Text style={[styles.heroBirthday, { color: colors.muted }]}>
+              Birthday: {selectedMember.birthday}
+            </Text>
+          )}
+
           {/* Reminder Info */}
           <View style={styles.reminderInfo}>
             <MaterialIcons name="notifications" size={16} color={colors.primary} />
@@ -487,6 +494,11 @@ const styles = StyleSheet.create({
   heroType: {
     fontSize: 14,
     fontWeight: "600",
+    marginBottom: 8,
+  },
+  heroBirthday: {
+    fontSize: 13,
+    fontWeight: "500",
     marginBottom: 12,
   },
   reminderInfo: {

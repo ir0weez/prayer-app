@@ -831,7 +831,10 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
         {visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0 ? (
           <>
-            <Text style={styles.subheading}>PRAY TODAY</Text>
+            <View style={styles.prayTodayHeaderContainer}>
+              <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColor || currentTheme.primary} size={300} intensity={0.4} />
+              <Text style={styles.subheading}>PRAY TODAY</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
@@ -1571,6 +1574,11 @@ const styles = StyleSheet.create({
   peopleContent: {
     paddingTop: 12,
     paddingBottom: 132,
+  },
+  prayTodayHeaderContainer: {
+    position: "relative",
+    marginHorizontal: 24,
+    marginBottom: 4,
   },
   subheading: {
     marginHorizontal: 24,

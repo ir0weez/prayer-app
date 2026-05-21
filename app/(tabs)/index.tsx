@@ -99,7 +99,7 @@ const DEEP_TEXT = "#141326";
 const MUTED_TEXT = "#7E7C88";
 const SCREEN_BG = "#FAF6FF";
 const ADD_SCREEN_BG = "#EEF8FF";
-const AVATAR_PALETTE = ["#F4EAFE", "#E6F3FF", "#EAF9F0", "#FFF2DC", "#FFE9EF", "#EEF0FF"];
+const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
 
 const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primary: string; accent: string; background: string; soft: string; border: string }> = {

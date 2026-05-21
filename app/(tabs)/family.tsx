@@ -132,17 +132,21 @@ export default function FamilyScreen() {
   };
 
   const handleUngroupFamily = () => {
-    if (!selectedMember) return;
+    if (!familyId) return;
+    const familyMembers = people.filter((p) => p.familyId === familyId);
     Alert.alert(
-      "Ungroup Family?",
-      `Remove ${selectedMember.name} from the family group? They will become an individual contact.`,
+      "Disband Family Group?",
+      `This will remove all ${familyMembers.length} members from the family group. They will become individual contacts.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Ungroup",
+          text: "Disband",
           style: "destructive",
           onPress: () => {
-            const updated = ungroupFromFamily(people, selectedMember.id);
+            let updated = people;
+            for (const member of familyMembers) {
+              updated = ungroupFromFamily(updated, member.id);
+            }
             setPeople(updated);
             AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
             router.back();

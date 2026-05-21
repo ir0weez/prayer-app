@@ -374,11 +374,19 @@ export default function HomeScreen() {
     useCallback(() => {
       if (!hasHydratedPeople) return undefined;
       let isActive = true;
-      AsyncStorage.getItem(PEOPLE_STORAGE_KEY)
-        .then((storedPeople) => {
-          if (!isActive || !storedPeople) return;
-          const parsedPeople = JSON.parse(storedPeople) as Person[];
-          if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today));
+      Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY)])
+        .then(([storedPeople, storedFasts, storedProfile]) => {
+          if (!isActive) return;
+          if (storedPeople) {
+            const parsedPeople = JSON.parse(storedPeople) as Person[];
+            if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today));
+          }
+          if (storedFasts) {
+            setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
+          }
+          if (storedProfile) {
+            setProfile(parseStoredProfile(storedProfile));
+          }
         })
         .catch(() => undefined);
       return () => {
@@ -1146,26 +1154,18 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            <View style={{ position: "relative" }}>
-              <PulsingGlow
-                isActive={activeFast !== null}
-                size={56}
-                color={currentTheme.primary}
-                intensity={0.4}
-              />
-              <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
-                {activeFastTypeInfo ? (
-                  <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
-                ) : (
-                  <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
-                )}
-                {profile.fastingStreak > 0 && (
-                  <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
-                    <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
-                  </View>
-                )}
-              </Pressable>
-            </View>
+            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
+              {activeFastTypeInfo ? (
+                <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
+              ) : (
+                <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
+              )}
+              {profile.fastingStreak > 0 && (
+                <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
+                  <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
+                </View>
+              )}
+            </Pressable>
           </View>
         </View>
 

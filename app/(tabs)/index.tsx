@@ -873,13 +873,13 @@ export default function HomeScreen() {
                       delayLongPress={500}
                       style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
                     >
-                      <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || currentTheme.primary }, fastAvatarColorFromStatus && { transform: [{ scale: fastAvatarPulse }] }]}>
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || currentTheme.primary }]}>
                         {profile.photoUri ? (
                           <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
                         ) : (
                           <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
                         )}
-                      </Animated.View>
+                      </View>
                     </Pressable>
                   </View>
                   <View style={[styles.fastingStreakBadge, { backgroundColor: currentTheme.primary }]}>

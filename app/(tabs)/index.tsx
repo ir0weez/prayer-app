@@ -714,18 +714,16 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <View style={{ position: "relative", width: 60, height: 60, alignItems: "center", justifyContent: "center" }}>
-          <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
-          </Pressable>
-          {isShowingCompletionAnimation && (
-            <PrayerCompletionAnimation
-              isActive={isShowingCompletionAnimation}
-              color={person.accentColor}
-              onComplete={() => setCompletedPrayerAnimationId(null)}
-            />
-          )}
-        </View>
+        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
+        </Pressable>
+        {isShowingCompletionAnimation && (
+          <PrayerCompletionAnimation
+            isActive={isShowingCompletionAnimation}
+            color={person.accentColor}
+            onComplete={() => setCompletedPrayerAnimationId(null)}
+          />
+        )}
         {isPending ? (
           <View style={styles.undoCountdownPill}>
             <UndoCountdownBar color={currentTheme.primary} />
@@ -1672,6 +1670,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: SCREEN_BG,
+    zIndex: 10,
   },
   storyPlusDone: {
     backgroundColor: "#31C48D",

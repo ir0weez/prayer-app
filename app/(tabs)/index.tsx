@@ -831,28 +831,28 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
         {visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0 ? (
           <>
-            <View style={styles.prayTodayHeaderContainer}>
-              <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColor || currentTheme.primary} size={300} intensity={0.4} />
-              <Text style={styles.subheading}>PRAY TODAY</Text>
-            </View>
+            <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
-                  <Pressable
-                    onPress={handleCompleteFast}
-                    onLongPress={handleMissFast}
-                    delayLongPress={500}
-                    style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColor || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
-                  >
-                    <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }, fastAvatarColor && { transform: [{ scale: fastAvatarPulse }] }]}>
-                      {profile.photoUri ? (
-                        <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
-                      ) : (
-                        <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
-                      )}
-                    </Animated.View>
-                  </Pressable>
+                  <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
+                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColor || currentTheme.primary} size={86} intensity={0.3} />
+                    <Pressable
+                      onPress={handleCompleteFast}
+                      onLongPress={handleMissFast}
+                      delayLongPress={500}
+                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColor || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                    >
+                      <Animated.View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColor || currentTheme.primary }, fastAvatarColor && { transform: [{ scale: fastAvatarPulse }] }]}>
+                        {profile.photoUri ? (
+                          <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
+                        ) : (
+                          <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
+                        )}
+                      </Animated.View>
+                    </Pressable>
+                  </View>
                   <View style={[styles.fastingStreakBadge, { backgroundColor: currentTheme.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>

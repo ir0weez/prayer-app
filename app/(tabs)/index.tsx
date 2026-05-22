@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
+import { useColors } from "@/hooks/use-colors";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -59,7 +60,7 @@ import {
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
 type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
-type ThemeKey = "default" | "ocean" | "forest" | "sunset" | "rose";
+
 
 type RelationshipSection = {
   title: RelationshipType;
@@ -73,8 +74,6 @@ type PrayerStreakRecord = {
 };
 
 type AppSettings = {
-  themeKey: ThemeKey;
-  darkMode: boolean;
   demoMode: boolean;
 };
 
@@ -95,23 +94,10 @@ type PersonalProfile = {
 };
 
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
-const PURPLE = "#8557D9";
-const DEEP_TEXT = "#141326";
-const MUTED_TEXT = "#7E7C88";
-const SCREEN_BG = "#FAF6FF";
-const ADD_SCREEN_BG = "#EEF8FF";
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
 
-const COLOR_THEMES: Record<ThemeKey, { name: string; description: string; primary: string; accent: string; background: string; soft: string; border: string }> = {
-  default: { name: "Default", description: "Original PrayerCircle purple theme", primary: "#8557D9", accent: "#6B46C1", background: "#FAF6FF", soft: "#F0E8FF", border: "#D8C7F3" },
-  ocean: { name: "Ocean", description: "Calming blue and teal theme", primary: "#0A86B8", accent: "#12A6A6", background: "#EEF8FF", soft: "#DDF2FA", border: "#BEE7F1" },
-  forest: { name: "Forest", description: "Natural green and earth tones", primary: "#2E8B3C", accent: "#6C7A32", background: "#F1F8EF", soft: "#E3F3DF", border: "#C9E7C4" },
-  sunset: { name: "Sunset", description: "Warm orange and coral theme", primary: "#F25700", accent: "#E56B6F", background: "#FFF6EF", soft: "#FFE6D6", border: "#F8CBB4" },
-  rose: { name: "Rose", description: "Elegant pink and rose theme", primary: "#C91463", accent: "#E75A7C", background: "#FFF3F8", soft: "#FCE2ED", border: "#F3C3D5" },
-};
-
-const DEFAULT_SETTINGS: AppSettings = { themeKey: "default", darkMode: true, demoMode: false };
+const DEFAULT_SETTINGS: AppSettings = { demoMode: false };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
@@ -180,8 +166,7 @@ function parseStoredSettings(value: string | null): AppSettings {
   if (!value) return DEFAULT_SETTINGS;
   try {
     const parsed = JSON.parse(value) as Partial<AppSettings>;
-    const themeKey = parsed.themeKey && COLOR_THEMES[parsed.themeKey] ? parsed.themeKey : "default";
-    return { themeKey, darkMode: Boolean(parsed.darkMode), demoMode: Boolean(parsed.demoMode) };
+    return { demoMode: Boolean(parsed.demoMode) };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -416,12 +401,7 @@ export default function HomeScreen() {
     AsyncStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings)).catch(() => undefined);
   }, [hasHydratedPeople, settings]);
 
-  useEffect(() => {
-    if (!hasHydratedPeople) return;
-    // Apply dark mode setting to the app via ThemeProvider
-    const scheme = settings.darkMode ? "dark" : "light";
-    setColorScheme(scheme);
-  }, [hasHydratedPeople, settings.darkMode, setColorScheme]);
+
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -440,7 +420,9 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const currentTheme = COLOR_THEMES[settings.themeKey];
+  const colors = useColors();
+  const { colorScheme } = useThemeContext();
+  const styles = createStyles(colors);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const visiblePrayTodayList = useMemo(
     () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
@@ -469,7 +451,7 @@ export default function HomeScreen() {
     if (status === "completed") return "#22C55E"; // Green
     if (status === "skipped") return "#F59E0B"; // Yellow
     if (status === "missed") return "#EF4444"; // Red
-    return currentTheme.primary;
+    return colors.primary;
   };
   
   const fastAvatarColorFromStatus = useMemo(() => {
@@ -722,7 +704,7 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: currentTheme.primary, borderColor: currentTheme.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
           <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
         </Pressable>
         {isShowingCompletionAnimation && (
@@ -734,7 +716,7 @@ export default function HomeScreen() {
         )}
         {isPending ? (
           <View style={styles.undoCountdownPill}>
-            <UndoCountdownBar color={currentTheme.primary} />
+            <UndoCountdownBar color={colors.primary} />
           </View>
         ) : null}
       </View>
@@ -846,18 +828,18 @@ export default function HomeScreen() {
 
   const renderPeopleScreen = () => (
     <>
-      <View style={[styles.header, { backgroundColor: currentTheme.background, borderBottomColor: currentTheme.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
           <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.headerStats}>
           <View style={styles.statItem}>
-            <MaterialIcons name={iconName("local-fire-department")} size={30} color={currentTheme.primary} />
+            <MaterialIcons name={iconName("local-fire-department")} size={30} color={colors.primary} />
             <Text style={styles.statNumber}>{streak}</Text>
           </View>
           <View style={styles.statItem}>
-            <MaterialIcons name={iconName("chat-bubble")} size={28} color={currentTheme.primary} />
+            <MaterialIcons name={iconName("chat-bubble")} size={28} color={colors.primary} />
             <Text style={styles.statNumber}>{remainingPrayTodayCount}</Text>
           </View>
         </View>
@@ -872,14 +854,14 @@ export default function HomeScreen() {
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
-                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || currentTheme.primary} size={86} intensity={0.3} />
+                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} />
                     <Pressable
                       onPress={handleCompleteFast}
                       onLongPress={handleMissFast}
                       delayLongPress={500}
-                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || currentTheme.primary, borderWidth: 3 }, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}
                     >
-                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || currentTheme.primary }]}>
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || colors.primary }]}>
                         {profile.photoUri ? (
                           <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
                         ) : (
@@ -888,19 +870,19 @@ export default function HomeScreen() {
                       </View>
                     </Pressable>
                   </View>
-                  <View style={[styles.fastingStreakBadge, { backgroundColor: currentTheme.primary }]}>
+                  <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}>
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
                   {profile.statusHighlight && (
-                    <View style={[styles.fastingStatusBubble, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
+                    <View style={[styles.fastingStatusBubble, { backgroundColor: profile.statusColor || colors.primary }]}>
                       <Text style={styles.speechBubbleText} numberOfLines={2}>{profile.statusHighlight}</Text>
-                      <View style={[styles.speechBubblePointer, { borderTopColor: profile.statusColor || currentTheme.primary }]} />
+                      <View style={[styles.speechBubblePointer, { borderTopColor: profile.statusColor || colors.primary }]} />
                     </View>
                   )}
                   {pendingFastAction && (
                     <Pressable onPress={handleUndoFastAction} style={styles.undoCountdownPill}>
-                      <UndoCountdownBar color={currentTheme.primary} />
+                      <UndoCountdownBar color={colors.primary} />
                     </Pressable>
                   )}
                 </View>
@@ -921,7 +903,7 @@ export default function HomeScreen() {
           </>
         ) : (
           <View style={styles.emptyStateCard}>
-            <MaterialIcons name={iconName("groups")} size={46} color={currentTheme.primary} />
+            <MaterialIcons name={iconName("groups")} size={46} color={colors.primary} />
             <Text style={styles.emptyTitle}>No people yet</Text>
             <Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text>
           </View>
@@ -931,8 +913,8 @@ export default function HomeScreen() {
   );
 
   const renderSimpleScreen = (title: string, icon: string, description: string) => (
-    <View style={[styles.simpleScreen, { backgroundColor: currentTheme.background }]}>
-      <MaterialIcons name={iconName(icon)} size={54} color={currentTheme.primary} />
+    <View style={[styles.simpleScreen, { backgroundColor: colors.background }]}>
+      <MaterialIcons name={iconName(icon)} size={54} color={colors.primary} />
       <Text style={styles.simpleTitle}>{title}</Text>
       <Text style={styles.simpleDescription}>{description}</Text>
     </View>
@@ -940,8 +922,8 @@ export default function HomeScreen() {
 
   const renderSettingsRow = (icon: string, title: string, subtitle: string, tone: "normal" | "danger" = "normal", right?: React.ReactNode) => (
     <View style={styles.settingsRow}>
-      <View style={[styles.settingsIconTile, { backgroundColor: tone === "danger" ? "#FFF0F2" : currentTheme.soft }]}>
-        <MaterialIcons name={iconName(icon)} size={23} color={tone === "danger" ? "#D3384A" : currentTheme.primary} />
+      <View style={[styles.settingsIconTile, { backgroundColor: tone === "danger" ? "#FFF0F2" : colors.surface }]}>
+        <MaterialIcons name={iconName(icon)} size={23} color={tone === "danger" ? "#D3384A" : colors.primary} />
       </View>
       <View style={styles.settingsRowText}>
         <Text style={[styles.settingsRowTitle, tone === "danger" && styles.settingsRowTitleDanger]}>{title}</Text>
@@ -1100,12 +1082,12 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: currentTheme.border, backgroundColor: "#FFFFFF" }]}>
+      <View style={[styles.profileSettingsCard, { borderColor: colors.border, backgroundColor: "#FFFFFF" }]}>
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
               <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-                <View style={[styles.profileAvatar, { backgroundColor: currentTheme.primary }]}>
+                <View style={[styles.profileAvatar, { backgroundColor: colors.primary }]}>
                   {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={40} color="#FFFFFF" />}
                 </View>
               </Pressable>
@@ -1115,7 +1097,7 @@ export default function HomeScreen() {
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
               {isEditingStatusInline ? (
                 <View style={styles.statusModalOverlay}>
-                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
+                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: profile.statusColor || colors.primary }]}>
                     <TextInput
                       style={[styles.statusThoughtBubbleExpandedInput, { color: "#FFFFFF", backgroundColor: "rgba(255,255,255,0.15)" }]}
                       placeholder="What's on your mind?"
@@ -1162,25 +1144,25 @@ export default function HomeScreen() {
                   setDraftStatusText(profile.statusText || "");
                   setIsEditingStatusInline(true);
                 }} style={styles.statusPillContainer}>
-                  <View style={[styles.statusPill, { backgroundColor: profile.statusColor || currentTheme.primary }]}>
+                  <View style={[styles.statusPill, { backgroundColor: profile.statusColor || colors.primary }]}>
                     <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
                   </View>
                   {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={[styles.statusExpirationTime, { backgroundColor: profile.statusColor || currentTheme.primary }]}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
+                    <Text style={[styles.statusExpirationTime, { backgroundColor: profile.statusColor || colors.primary }]}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
                   )}
                 </Pressable>
               )}
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
-            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}>
+            <Pressable onPress={() => router.push("/profile")} style={({ pressed }) => [styles.fastIconButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
               {activeFastTypeInfo ? (
                 <MaterialIcons name={iconName(activeFastTypeInfo.icon)} size={32} color="#FFFFFF" />
               ) : (
                 <MaterialIcons name={iconName("add")} size={32} color="#FFFFFF" />
               )}
               {profile.fastingStreak > 0 && (
-                <View style={[styles.streakBadge, { backgroundColor: currentTheme.primary }]}>
+                <View style={[styles.streakBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.streakBadgeText}>🔥{profile.fastingStreak}</Text>
                 </View>
               )}
@@ -1189,7 +1171,7 @@ export default function HomeScreen() {
         </View>
 
         {activeFast && (
-          <View style={[styles.fastProgressInCard, { backgroundColor: currentTheme.primary }]}>
+          <View style={[styles.fastProgressInCard, { backgroundColor: colors.primary }]}>
             <View style={styles.fastProgressHeader}>
               <Text style={styles.fastProgressLabel}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
               <Text style={styles.fastProgressType}>{activeFast.type}</Text>
@@ -1203,7 +1185,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={[styles.fastingStatsRow, { borderTopColor: currentTheme.border }]}>
+        <View style={[styles.fastingStatsRow, { borderTopColor: colors.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
           <View style={styles.settingsStatDivider} />
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#F59E0B" }]}>{activeFastProgress?.skipped ?? 0}</Text><Text style={styles.settingsStatLabel}>Skipped</Text></View>
@@ -1213,21 +1195,15 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
-      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
-        {renderSettingsRow("wb-sunny", "Dark Mode", "Use a calmer low-light interface", "normal", <Switch value={settings.darkMode} onValueChange={(darkMode) => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setSettings((previous) => ({ ...previous, darkMode }));
-          setColorScheme(darkMode ? "dark" : "light");
-        }} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.darkMode ? "#FFFFFF" : "#4F6470"} />)}
-        <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && styles.pressed]}>
-          {renderSettingsRow("palette", "Color Theme", currentTheme.name, "normal", <View style={[styles.colorSwatch, { backgroundColor: currentTheme.primary }]} />)}
-        </Pressable>
-        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: currentTheme.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+
+
+        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
       </View>
 
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         <Pressable onPress={() => {
           Alert.alert("Reset Today's Prayers", "Uncheck all items for today?", [
             { text: "Cancel", style: "cancel" },
@@ -1288,7 +1264,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>
-      <View style={[styles.settingsCard, { borderColor: currentTheme.border }]}>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
       </View>
     </ScrollView>
@@ -1310,7 +1286,7 @@ export default function HomeScreen() {
           setActiveTab(tab);
           setShowAddPerson(false);
         }}
-        style={({ pressed }) => [styles.tabItem, isActive && { backgroundColor: currentTheme.primary }, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.tabItem, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
       >
         <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#5F6670"} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
@@ -1320,7 +1296,7 @@ export default function HomeScreen() {
 
   if (showAddPerson) {
     return (
-      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: currentTheme.background }]}>
+      <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.addScreenRoot, { backgroundColor: colors.background }]}>
         <View style={styles.addTopBar}>
           <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
@@ -1337,7 +1313,7 @@ export default function HomeScreen() {
               {newPersonPhotoUri ? (
                 <Image source={{ uri: newPersonPhotoUri }} style={styles.photoPreview} />
               ) : (
-                <MaterialIcons name={iconName("photo-camera")} size={34} color={currentTheme.primary} />
+                <MaterialIcons name={iconName("photo-camera")} size={34} color={colors.primary} />
               )}
               <View style={styles.photoBadge}>
                 <MaterialIcons name={iconName("add")} size={21} color="#FFFFFF" />
@@ -1410,7 +1386,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: currentTheme.background }]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
       {renderContent()}
 
       {activeTab === "people" || activeTab === "home" ? (
@@ -1419,13 +1395,13 @@ export default function HomeScreen() {
             setActiveTab("people");
             setShowAddPerson(true);
           }}
-          style={({ pressed }) => [styles.fab, { backgroundColor: currentTheme.primary }, pressed && styles.fabPressed]}
+          style={({ pressed }) => [styles.fab, { backgroundColor: colors.primary }, pressed && styles.fabPressed]}
         >
           <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
         </Pressable>
       ) : null}
 
-      <BlurView intensity={82} tint="light" experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: currentTheme.border }]}>
+      <BlurView intensity={82} tint="light" experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: colors.border }]}>
         {renderTab("people", "People", "groups")}
         {renderTab("reminders", "Reminders", "notifications")}
         {renderTab("journal", "Journal", "article")}
@@ -1442,7 +1418,7 @@ export default function HomeScreen() {
               <Pressable onPress={handleSaveProfile}><Text style={styles.sheetDone}>Save</Text></Pressable>
             </View>
             <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [styles.profilePhotoEditor, pressed && styles.pressed]}>
-              {draftProfilePhotoUri ? <Image source={{ uri: draftProfilePhotoUri }} style={styles.profilePhotoEditorImage} /> : <MaterialIcons name={iconName("add-a-photo")} size={34} color={currentTheme.primary} />}
+              {draftProfilePhotoUri ? <Image source={{ uri: draftProfilePhotoUri }} style={styles.profilePhotoEditorImage} /> : <MaterialIcons name={iconName("add-a-photo")} size={34} color={colors.primary} />}
               <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Change profile picture" : "Add profile picture"}</Text>
             </Pressable>
             <Text style={styles.fieldLabel}>NAME</Text>
@@ -1456,7 +1432,7 @@ export default function HomeScreen() {
           <Pressable style={styles.sheetBackdrop} onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }} />
           <View style={[styles.themeSheet, styles.fastCreatorSheet]}>
             <View style={styles.sheetHeader}>
-              <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={DEEP_TEXT} /></Pressable>
+              <Pressable onPress={() => { setShowFastCreator(false); setShowFastEditor(false); }}><MaterialIcons name={iconName("close")} size={30} color={colors.foreground} /></Pressable>
               <Text style={styles.sheetTitle}>{editingFastId ? "Edit Fast" : "Start a New Fast"}</Text>
               {editingFastId && <Pressable onPress={() => confirmDeleteFast(editingFastId)} style={({ pressed }) => [pressed && styles.pressed]}><MaterialIcons name={iconName("trash")} size={24} color="#C75265" /></Pressable>}
               {!editingFastId && <View style={{ width: 42 }} />}
@@ -1504,35 +1480,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      <Modal transparent visible={showThemeSheet} animationType="slide" onRequestClose={() => setShowThemeSheet(false)}>
-        <View style={styles.sheetOverlay}>
-          <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
-          <View style={styles.themeSheet}>
-            <View style={styles.sheetHeader}>
-              <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
-              <Text style={styles.sheetTitle}>Color Theme</Text>
-              <View style={{ width: 48 }} />
-            </View>
-            {(Object.keys(COLOR_THEMES) as ThemeKey[]).map((themeKey) => {
-              const theme = COLOR_THEMES[themeKey];
-              const selected = settings.themeKey === themeKey;
-              return (
-                <Pressable key={themeKey} onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSettings((previous) => ({ ...previous, themeKey }));
-                }} style={({ pressed }) => [styles.themeOption, selected && { borderColor: theme.primary, borderWidth: 2 }, pressed && styles.pressed]}>
-                  <View style={[styles.themeOptionSwatch, { backgroundColor: theme.primary }]} />
-                  <View style={styles.themeOptionText}>
-                    <Text style={styles.themeOptionTitle}>{theme.name}</Text>
-                    <Text style={styles.themeOptionDescription}>{theme.description}</Text>
-                  </View>
-                  {selected ? <MaterialIcons name={iconName("check-circle")} size={30} color={theme.primary} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </Modal>
+
       <StatusModal
         visible={showStatusModal}
         statusText={profile.statusText || ""}
@@ -1544,16 +1492,17 @@ export default function HomeScreen() {
           expiresAt.setHours(expiresAt.getHours() + 24);
           setProfile((prev) => ({ ...prev, statusText: text, statusPhotoUri: photoUri, statusHighlight: text, statusExpiresAt: expiresAt.toISOString() }));
         }}
-        primaryColor={currentTheme.primary}
+        primaryColor={colors.primary}
       />
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any) {
+  return StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: SCREEN_BG,
+    backgroundColor: colors.background,
   },
   header: {
     minHeight: 95,
@@ -1565,10 +1514,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    backgroundColor: SCREEN_BG,
+    backgroundColor: colors.background,
   },
   appTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.8,
@@ -1576,7 +1525,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     marginTop: 3,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 17,
@@ -1593,7 +1542,7 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     marginTop: 2,
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 16,
     fontWeight: "700",
     lineHeight: 19,
@@ -1637,7 +1586,7 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: 38,
     borderWidth: 3,
-    borderColor: PURPLE,
+    borderColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
@@ -1677,7 +1626,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: SCREEN_BG,
+    borderColor: colors.background,
     zIndex: 10,
   },
   storyPlusDone: {
@@ -1705,7 +1654,7 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
   },
   undoCountdownText: {
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 9,
     fontWeight: "800",
     lineHeight: 10,
@@ -1720,7 +1669,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: SCREEN_BG,
+    borderColor: colors.background,
     flexDirection: "row",
     gap: 2,
   },
@@ -1782,7 +1731,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   personName: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 15,
     fontWeight: "800",
     letterSpacing: -0.2,
@@ -1790,7 +1739,7 @@ const styles = StyleSheet.create({
   },
   personMeta: {
     marginTop: 2,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: "500",
     lineHeight: 15,
@@ -1832,10 +1781,10 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   reachPillTextMuted: {
-    color: MUTED_TEXT,
+    color: colors.muted,
   },
   emptyInlineText: {
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
   },
   emptyStateCard: {
@@ -1850,13 +1799,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     marginTop: 10,
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 16,
     fontWeight: "800",
   },
   emptyDescription: {
     marginTop: 6,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     textAlign: "center",
     lineHeight: 18,
@@ -1866,17 +1815,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 34,
-    backgroundColor: SCREEN_BG,
+    backgroundColor: colors.background,
   },
   simpleTitle: {
     marginTop: 14,
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 25,
     fontWeight: "800",
   },
   simpleDescription: {
     marginTop: 7,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 16,
     textAlign: "center",
     lineHeight: 23,
@@ -1887,7 +1836,7 @@ const styles = StyleSheet.create({
     paddingBottom: 132,
   },
   settingsTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 34,
     fontWeight: "900",
     letterSpacing: -1.1,
@@ -2258,14 +2207,14 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   profileNameText: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
   },
   profileSubtitle: {
     marginTop: 2,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 17,
@@ -2366,13 +2315,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fastSummaryTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 16,
     fontWeight: "900",
     lineHeight: 20,
   },
   fastSummarySubtitle: {
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 17,
@@ -2409,7 +2358,7 @@ const styles = StyleSheet.create({
     borderColor: "#050505",
   },
   fastDurationText: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 18,
     fontWeight: "900",
   },
@@ -2435,7 +2384,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fastTypeText: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 15,
     fontWeight: "900",
   },
@@ -2469,7 +2418,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 14,
     backgroundColor: "#EFE8FB",
-    color: PURPLE,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: "800",
   },
@@ -2535,7 +2484,7 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   settingsStatLabel: {
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 17,
@@ -2582,7 +2531,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   settingsRowTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 23,
@@ -2592,7 +2541,7 @@ const styles = StyleSheet.create({
   },
   settingsRowSubtitle: {
     marginTop: 1,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
@@ -2619,7 +2568,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   fastStatusText: {
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: "900",
   },
@@ -2665,7 +2614,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   sheetTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 20,
     fontWeight: "900",
   },
@@ -2691,14 +2640,14 @@ const styles = StyleSheet.create({
     marginLeft: 18,
   },
   themeOptionTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 21,
     fontWeight: "900",
     lineHeight: 27,
   },
   themeOptionDescription: {
     marginTop: 2,
-    color: MUTED_TEXT,
+    color: colors.muted,
     fontSize: 15,
     fontWeight: "600",
     lineHeight: 20,
@@ -2710,7 +2659,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: PURPLE,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#3E226B",
@@ -2755,7 +2704,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tabItemActive: {
-    backgroundColor: PURPLE,
+    backgroundColor: colors.primary,
   },
   tabLabel: {
     color: "#77737D",
@@ -2771,7 +2720,7 @@ const styles = StyleSheet.create({
   },
   addScreenRoot: {
     flex: 1,
-    backgroundColor: ADD_SCREEN_BG,
+    backgroundColor: colors.background,
   },
   addTopBar: {
     height: 76,
@@ -2780,8 +2729,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: "#CFE9F0",
-    backgroundColor: ADD_SCREEN_BG,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   closeButton: {
     width: 44,
@@ -2790,7 +2739,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addTitle: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 22,
     fontWeight: "800",
     lineHeight: 28,
@@ -2824,7 +2773,7 @@ const styles = StyleSheet.create({
     height: 104,
     borderRadius: 52,
     borderWidth: 3,
-    borderColor: PURPLE,
+    borderColor: colors.primary,
     backgroundColor: "#E8E2FA",
     alignItems: "center",
     justifyContent: "center",
@@ -2836,9 +2785,9 @@ const styles = StyleSheet.create({
     width: 35,
     height: 35,
     borderRadius: 18,
-    backgroundColor: PURPLE,
+    backgroundColor: colors.primary,
     borderWidth: 4,
-    borderColor: ADD_SCREEN_BG,
+    borderColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2870,7 +2819,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#BCECF2",
     backgroundColor: "#FFFFFF",
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 16,
     fontWeight: "600",
     lineHeight: 21,
@@ -2892,11 +2841,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   relationshipPillActive: {
-    borderColor: PURPLE,
-    backgroundColor: PURPLE,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   relationshipPillText: {
-    color: DEEP_TEXT,
+    color: colors.foreground,
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 20,
@@ -2927,7 +2876,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: SCREEN_BG,
+    borderColor: colors.background,
     backgroundColor: '#FF6B35',
     flexDirection: 'row',
     gap: 2,
@@ -2970,4 +2919,5 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
-});
+  });
+}

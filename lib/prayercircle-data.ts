@@ -659,3 +659,43 @@ export function removeExpiredEmergencyPrayers(person: Person): Person {
 export function removeExpiredEmergencyPrayersFromAll(people: Person[]): Person[] {
   return people.map(removeExpiredEmergencyPrayers);
 }
+
+// Helper: Get remaining time for emergency prayer in milliseconds
+export function getEmergencyPrayerTimeRemaining(emergencyExpiresAt: string | undefined): number {
+  if (!emergencyExpiresAt) return 0;
+  const expiresTime = new Date(emergencyExpiresAt).getTime();
+  const now = new Date().getTime();
+  return Math.max(0, expiresTime - now);
+}
+
+// Helper: Format remaining time as "Xh Ym" or "Xm Ys"
+export function formatEmergencyPrayerCountdown(millisRemaining: number): string {
+  if (millisRemaining <= 0) return "Expired";
+  
+  const totalSeconds = Math.floor(millisRemaining / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
+// Helper: Get progress percentage (0-1) for emergency prayer countdown
+export function getEmergencyPrayerProgress(emergencyExpiresAt: string | undefined): number {
+  if (!emergencyExpiresAt) return 1;
+  
+  const expiresTime = new Date(emergencyExpiresAt).getTime();
+  const createdTime = expiresTime - (24 * 60 * 60 * 1000); // 24 hours in ms
+  const now = new Date().getTime();
+  
+  const totalDuration = expiresTime - createdTime;
+  const elapsed = now - createdTime;
+  
+  return Math.max(0, Math.min(1, 1 - (elapsed / totalDuration)));
+}

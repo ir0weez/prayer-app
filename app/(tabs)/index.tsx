@@ -38,6 +38,9 @@ import {
   groupIntoFamily,
   ungroupFromFamily,
   removeExpiredEmergencyPrayersFromAll,
+  getEmergencyPrayerTimeRemaining,
+  formatEmergencyPrayerCountdown,
+  getEmergencyPrayerProgress,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -314,6 +317,7 @@ export default function HomeScreen() {
   const [pendingFastAction, setPendingFastAction] = useState<{ action: 'completed' | 'missed'; timestamp: number } | null>(null);
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
+  const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -419,6 +423,24 @@ export default function HomeScreen() {
       Object.values(timers).forEach(clearTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newCountdowns: Record<string, number> = {};
+      people.forEach((person) => {
+        person.prayerItems.forEach((item) => {
+          if (item.isEmergency && item.emergencyExpiresAt) {
+            const remaining = getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt);
+            if (remaining > 0) {
+              newCountdowns[item.id] = remaining;
+            }
+          }
+        });
+      });
+      setEmergencyCountdowns(newCountdowns);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [people]);
 
   const colors = useColors();
   const { colorScheme } = useThemeContext();
@@ -690,6 +712,7 @@ export default function HomeScreen() {
     const emergencyPrayers = person.prayerItems.filter((item) => item.isEmergency);
     const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
     const isEmergency = emergencyPrayers.length > 0;
+    const emergencyCountdown = isEmergency && displayItem?.emergencyExpiresAt ? emergencyCountdowns[displayItem.id] || 0 : 0;
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
@@ -699,6 +722,11 @@ export default function HomeScreen() {
           <View style={[styles.storyTag, isEmergency && { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
             <Text numberOfLines={1} style={[styles.storyTagText, isEmergency && { color: "#DC2626" }]}>{displayItem.title}</Text>
             {isEmergency && <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />}
+            {isEmergency && emergencyCountdown > 0 && (
+              <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
+                {formatEmergencyPrayerCountdown(emergencyCountdown)}
+              </Text>
+            )}
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>

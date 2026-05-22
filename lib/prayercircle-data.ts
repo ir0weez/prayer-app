@@ -3,6 +3,8 @@ export type PrayerItem = {
   title: string;
   isUrgent: boolean;
   isDone: boolean;
+  isEmergency?: boolean;
+  emergencyExpiresAt?: string;
 };
 
 export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";
@@ -622,4 +624,38 @@ export function getInitialState() {
     people: initialPeople,
     journal: initialJournal,
   };
+}
+
+// Helper: Add emergency prayer to a person
+export function addEmergencyPrayer(person: Person, title: string): Person {
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const emergencyItem: PrayerItem = {
+    id: `emergency-${Date.now()}`,
+    title,
+    isUrgent: true,
+    isDone: false,
+    isEmergency: true,
+    emergencyExpiresAt: expiresAt,
+  };
+  return {
+    ...person,
+    prayerItems: [emergencyItem, ...person.prayerItems],
+  };
+}
+
+// Helper: Remove expired emergency prayers
+export function removeExpiredEmergencyPrayers(person: Person): Person {
+  const now = new Date().toISOString();
+  return {
+    ...person,
+    prayerItems: person.prayerItems.filter(
+      (item) => !item.isEmergency || !item.emergencyExpiresAt || item.emergencyExpiresAt > now,
+    ),
+  };
+}
+
+// Helper: Remove expired emergency prayers from all people
+export function removeExpiredEmergencyPrayersFromAll(people: Person[]): Person[] {
+  return people.map(removeExpiredEmergencyPrayers);
 }

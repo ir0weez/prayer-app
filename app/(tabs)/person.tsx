@@ -27,6 +27,7 @@ import {
   updatePersonReminderWithTime,
   groupIntoFamily,
   ungroupFromFamily,
+  addEmergencyPrayer,
   type Person,
   type RelationshipType,
   type ReminderFrequency,
@@ -245,6 +246,8 @@ export default function PersonScreen() {
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | undefined>(undefined);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [selectedFamilyMember, setSelectedFamilyMember] = useState<string | null>(null);
+  const [showEmergencyPrayerModal, setShowEmergencyPrayerModal] = useState(false);
+  const [emergencyPrayerText, setEmergencyPrayerText] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -369,6 +372,19 @@ export default function PersonScreen() {
     if (!personId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
+  };
+
+  const handleAddEmergencyPrayer = () => {
+    if (!personId || !currentPerson || !emergencyPrayerText.trim()) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    updatePeople((previousPeople) => {
+      const person = previousPeople.find((p) => p.id === personId);
+      if (!person) return previousPeople;
+      const updated = addEmergencyPrayer(person, emergencyPrayerText.trim());
+      return previousPeople.map((p) => (p.id === personId ? updated : p));
+    });
+    setEmergencyPrayerText("");
+    setShowEmergencyPrayerModal(false);
   };
 
   const openEditModal = () => {
@@ -629,6 +645,14 @@ export default function PersonScreen() {
           </View>
         </Pressable>
         <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
+
+        <Pressable
+          onPress={() => setShowEmergencyPrayerModal(true)}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}
+        >
+          <MaterialIcons name={iconName("local-fire-department")} size={22} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
+        </Pressable>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Prayer Items</Text>
@@ -940,6 +964,33 @@ export default function PersonScreen() {
             </Pressable>
             <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showEmergencyPrayerModal} animationType="slide" onRequestClose={() => setShowEmergencyPrayerModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Emergency Prayer (24h)</Text>
+              <Pressable onPress={() => setShowEmergencyPrayerModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalDescription}>Add an urgent prayer request that will appear in Pray Today for the next 24 hours.</Text>
+            <Text style={styles.modalFieldLabel}>Prayer Request</Text>
+            <TextInput
+              value={emergencyPrayerText}
+              onChangeText={setEmergencyPrayerText}
+              placeholder="Type your prayer request..."
+              placeholderTextColor={MUTED_TEXT}
+              multiline
+              returnKeyType="done"
+              style={[styles.modalInput, { minHeight: 100, paddingTop: 12, textAlignVertical: "top" }]}
+            />
+            <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
+              <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
             </Pressable>
           </View>
         </View>

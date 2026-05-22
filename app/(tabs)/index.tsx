@@ -36,6 +36,7 @@ import {
   relationshipColors,
   groupIntoFamily,
   ungroupFromFamily,
+  removeExpiredEmergencyPrayersFromAll,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -381,7 +382,10 @@ export default function HomeScreen() {
           if (!isActive) return;
           if (storedPeople) {
             const parsedPeople = JSON.parse(storedPeople) as Person[];
-            if (Array.isArray(parsedPeople)) setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(parsedPeople), today));
+            if (Array.isArray(parsedPeople)) {
+              const cleanedPeople = removeExpiredEmergencyPrayersFromAll(parsedPeople);
+              setPeople(resetDailyPrayerCompletionsIfNeeded(normalizePeopleForStorage(cleanedPeople), today));
+            }
           }
           if (storedFasts) {
             setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
@@ -701,14 +705,18 @@ export default function HomeScreen() {
 
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
+    const emergencyPrayers = person.prayerItems.filter((item) => item.isEmergency);
+    const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
+    const isEmergency = emergencyPrayers.length > 0;
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
-        {urgentItems.length > 0 ? (
-          <View style={styles.storyTag}>
-            <Text numberOfLines={1} style={styles.storyTagText}>{urgentItems[0].title}</Text>
+        {displayItem ? (
+          <View style={[styles.storyTag, isEmergency && { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
+            <Text numberOfLines={1} style={[styles.storyTagText, isEmergency && { color: "#DC2626" }]}>{displayItem.title}</Text>
+            {isEmergency && <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />}
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>

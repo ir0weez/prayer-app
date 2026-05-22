@@ -1756,11 +1756,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   personCard: {
-    minHeight: 70,
+    minHeight: 90,
     marginHorizontal: 24,
     marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 0,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E6E1EA",

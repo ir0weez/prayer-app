@@ -812,7 +812,7 @@ export default function HomeScreen() {
           <View style={styles.personInfo}>
             <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
             <Text numberOfLines={1} style={styles.personMeta}>
-              {getBirthdayText(person)}
+              {daysSince === 999 ? "Never prayed" : `Prayed ${daysSince === 0 ? "today" : daysSince === 1 ? "yesterday" : `${daysSince} days ago`}`}
             </Text>
           </View>
           <View style={styles.personActions}>

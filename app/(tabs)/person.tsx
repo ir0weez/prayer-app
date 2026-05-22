@@ -3,8 +3,8 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -297,6 +297,20 @@ export default function PersonScreen() {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
   }, [hasHydratedPeople, people]);
+
+  // Refresh people data when navigating to this screen
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(PEOPLE_STORAGE_KEY)
+        .then((storedPeople) => {
+          if (storedPeople) {
+            const parsedPeople = JSON.parse(storedPeople) as Person[];
+            setPeople(Array.isArray(parsedPeople) ? normalizePeopleForStorage(parsedPeople) : []);
+          }
+        })
+        .catch(() => undefined);
+    }, []),
+  );
 
   const currentPerson = useMemo(
     () => people.find((person) => person.id === personId),

@@ -686,16 +686,16 @@ export default function HomeScreen() {
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: person.photoUri ? person.avatarColor : getAvatarPaletteColor(person),
-            borderColor: person.photoUri ? "transparent" : "rgba(255,255,255,0.88)",
-            borderWidth: person.photoUri ? 0 : Math.max(1, size * 0.04),
+            backgroundColor: person.photoUri ? person.avatarColor : person.accentColor,
+            borderColor: "transparent",
+            borderWidth: 0,
           },
         ]}
       >
         {person.photoUri ? (
           <Image source={{ uri: person.photoUri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
         ) : (
-          <Text style={[styles.avatarText, { fontSize: textSize, color: person.accentColor }]}>
+          <Text style={[styles.avatarText, { fontSize: textSize, color: "#FFFFFF" }]}>
             {label}
           </Text>
         )}

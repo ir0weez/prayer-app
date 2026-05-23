@@ -985,7 +985,7 @@ export default function HomeScreen() {
         <Text style={[styles.settingsRowTitle, tone === "danger" && styles.settingsRowTitleDanger]}>{title}</Text>
         <Text style={styles.settingsRowSubtitle}>{subtitle}</Text>
       </View>
-      {right ?? <MaterialIcons name={iconName("chevron-right")} size={24} color="#73808B" />}
+      {right ?? <MaterialIcons name={iconName("chevron-right")} size={24} color={colors.muted} />}
     </View>
   );
 
@@ -1138,7 +1138,7 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: colors.border, backgroundColor: "#FFFFFF" }]}>
+      <View style={[styles.profileSettingsCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
@@ -2603,7 +2603,7 @@ function createStyles(colors: any) {
     borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   settingsRow: {
     minHeight: 68,
@@ -2612,7 +2612,7 @@ function createStyles(colors: any) {
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(204,220,226,0.55)",
+    borderBottomColor: colors.border,
   },
   settingsIconTile: {
     width: 40,
@@ -2694,7 +2694,7 @@ function createStyles(colors: any) {
     paddingBottom: 28,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: "#FFFBFF",
+    backgroundColor: colors.background,
   },
   sheetHeader: {
     minHeight: 64,
@@ -2704,7 +2704,7 @@ function createStyles(colors: any) {
     justifyContent: "space-between",
   },
   sheetDone: {
-    color: "#77737D",
+    color: colors.primary,
     fontSize: 19,
     fontWeight: "600",
   },
@@ -2723,8 +2723,8 @@ function createStyles(colors: any) {
     paddingHorizontal: 18,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E4E1E8",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
   },

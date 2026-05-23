@@ -884,24 +884,19 @@ export default function HomeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
               {getAllActiveEmergencyPrayers(people).map(({ person, item }) => {
-                const progress = getEmergencyPrayerProgress(item.emergencyExpiresAt);
                 return (
                   <View key={`emergency-${item.id}`} style={styles.storyItem}>
                     <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
                       <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>{item.title}</Text>
-                      <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />
-                      {emergencyCountdowns[item.id] && emergencyCountdowns[item.id] > 0 && (
-                        <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
-                          {formatEmergencyPrayerCountdown(emergencyCountdowns[item.id])}
-                        </Text>
-                      )}
                     </View>
                     <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
                       <View style={[styles.storyRing, { borderColor: person.accentColor }]}>
                         {renderAvatar(person, 66, false)}
-                        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, backgroundColor: "#FEE2E2", borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: "hidden" }}>
-                          <View style={{ height: "100%", width: `${progress * 100}%`, backgroundColor: "#EF4444" }} />
-                        </View>
+                        {emergencyCountdowns[item.id] && emergencyCountdowns[item.id] > 0 && (
+                          <View style={[styles.emergencyTimerBadge, { backgroundColor: "#EF4444" }]}>
+                            <Text style={styles.emergencyTimerText}>{formatEmergencyPrayerCountdown(emergencyCountdowns[item.id])}</Text>
+                          </View>
+                        )}
                       </View>
                     </Pressable>
                   </View>
@@ -1773,6 +1768,24 @@ function createStyles(colors: any) {
     fontSize: 11,
     fontWeight: "900",
     lineHeight: 13,
+  },
+  emergencyTimerBadge: {
+    position: "absolute",
+    bottom: -8,
+    right: -8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  emergencyTimerText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
+    lineHeight: 11,
   },
   avatar: {
     alignItems: "center",

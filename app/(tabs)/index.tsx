@@ -41,6 +41,7 @@ import {
   getEmergencyPrayerTimeRemaining,
   formatEmergencyPrayerCountdown,
   getEmergencyPrayerProgress,
+  getAllActiveEmergencyPrayers,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -78,6 +79,7 @@ type PrayerStreakRecord = {
 
 type AppSettings = {
   demoMode: boolean;
+  colorTheme: "default" | "ocean" | "forest" | "sunset" | "rose";
 };
 
 type PersonalProfile = {
@@ -100,7 +102,7 @@ const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry",
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
 
-const DEFAULT_SETTINGS: AppSettings = { demoMode: false };
+const DEFAULT_SETTINGS: AppSettings = { demoMode: false, colorTheme: "default" };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
@@ -169,7 +171,9 @@ function parseStoredSettings(value: string | null): AppSettings {
   if (!value) return DEFAULT_SETTINGS;
   try {
     const parsed = JSON.parse(value) as Partial<AppSettings>;
-    return { demoMode: Boolean(parsed.demoMode) };
+    const validThemes = ["default", "ocean", "forest", "sunset", "rose"];
+    const colorTheme = validThemes.includes(parsed.colorTheme || "") ? (parsed.colorTheme as AppSettings["colorTheme"]) : "default";
+    return { demoMode: Boolean(parsed.demoMode), colorTheme };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -879,6 +883,30 @@ export default function HomeScreen() {
             <Text style={styles.subheading}>PRAY TODAY</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
+              {getAllActiveEmergencyPrayers(people).map(({ person, item }) => {
+                const progress = getEmergencyPrayerProgress(item.emergencyExpiresAt);
+                return (
+                  <View key={`emergency-${item.id}`} style={styles.storyItem}>
+                    <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
+                      <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>{item.title}</Text>
+                      <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />
+                      {emergencyCountdowns[item.id] && emergencyCountdowns[item.id] > 0 && (
+                        <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
+                          {formatEmergencyPrayerCountdown(emergencyCountdowns[item.id])}
+                        </Text>
+                      )}
+                    </View>
+                    <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+                      <View style={[styles.storyRing, { borderColor: person.accentColor }]}>
+                        {renderAvatar(person, 66, false)}
+                        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, backgroundColor: "#FEE2E2", borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: "hidden" }}>
+                          <View style={{ height: "100%", width: `${progress * 100}%`, backgroundColor: "#EF4444" }} />
+                        </View>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
                {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
@@ -1224,8 +1252,9 @@ export default function HomeScreen() {
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
-
-
+        <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("palette", "Color Theme", settings.colorTheme.charAt(0).toUpperCase() + settings.colorTheme.slice(1))}
+        </Pressable>
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
       </View>
 
@@ -1522,6 +1551,44 @@ export default function HomeScreen() {
         }}
         primaryColor={colors.primary}
       />
+
+      <Modal transparent visible={showThemeSheet} animationType="slide" onRequestClose={() => setShowThemeSheet(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowThemeSheet(false)} />
+          <View style={styles.themeSheet}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowThemeSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
+              <Text style={styles.sheetTitle}>Color Theme</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={styles.themeOptions}>
+              {[
+                { id: "default", name: "Default", description: "Original PrayerCircle purple theme", color: "#8557D9" },
+                { id: "ocean", name: "Ocean", description: "Calming blue and teal theme", color: "#0A86B8" },
+                { id: "forest", name: "Forest", description: "Natural green and earth tones", color: "#2E8B3C" },
+                { id: "sunset", name: "Sunset", description: "Warm orange and coral theme", color: "#F25700" },
+                { id: "rose", name: "Rose", description: "Elegant pink and rose theme", color: "#C91463" },
+              ].map((theme) => (
+                <Pressable
+                  key={theme.id}
+                  onPress={() => {
+                    setSettings((prev) => ({ ...prev, colorTheme: theme.id as AppSettings["colorTheme"] }));
+                    setShowThemeSheet(false);
+                  }}
+                  style={({ pressed }) => [styles.themeOption, pressed && styles.pressed, settings.colorTheme === theme.id && { borderColor: theme.color, borderWidth: 2 }]}
+                >
+                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.color }]} />
+                  <View style={styles.themeOptionText}>
+                    <Text style={styles.themeOptionName}>{theme.name}</Text>
+                    <Text style={styles.themeOptionDescription}>{theme.description}</Text>
+                  </View>
+                  {settings.colorTheme === theme.id && <MaterialIcons name={iconName("check-circle")} size={24} color={theme.color} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -1740,8 +1807,8 @@ function createStyles(colors: any) {
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E6E1EA",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1786,11 +1853,11 @@ function createStyles(colors: any) {
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#E0D8EA",
-    backgroundColor: "#F7F2FB",
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   reachPillEmpty: {
-    backgroundColor: "#FBF8FE",
+    backgroundColor: colors.background,
     borderStyle: "dashed",
   },
   reachPillFill: {
@@ -2646,6 +2713,9 @@ function createStyles(colors: any) {
     fontSize: 20,
     fontWeight: "900",
   },
+  themeOptions: {
+    paddingVertical: 12,
+  },
   themeOption: {
     minHeight: 92,
     marginHorizontal: 24,
@@ -2658,7 +2728,7 @@ function createStyles(colors: any) {
     flexDirection: "row",
     alignItems: "center",
   },
-  themeOptionSwatch: {
+  themeColorSwatch: {
     width: 58,
     height: 58,
     borderRadius: 10,
@@ -2667,7 +2737,7 @@ function createStyles(colors: any) {
     flex: 1,
     marginLeft: 18,
   },
-  themeOptionTitle: {
+  themeOptionName: {
     color: colors.foreground,
     fontSize: 21,
     fontWeight: "900",

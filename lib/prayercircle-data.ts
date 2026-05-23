@@ -686,6 +686,22 @@ export function formatEmergencyPrayerCountdown(millisRemaining: number): string 
   }
 }
 
+// Helper: Get all active emergency prayers across all people
+export function getAllActiveEmergencyPrayers(people: Person[]): Array<{ person: Person; item: PrayerItem }> {
+  const now = new Date().toISOString();
+  const emergencies: Array<{ person: Person; item: PrayerItem }> = [];
+  
+  people.forEach((person) => {
+    person.prayerItems.forEach((item) => {
+      if (item.isEmergency && item.emergencyExpiresAt && item.emergencyExpiresAt > now) {
+        emergencies.push({ person, item });
+      }
+    });
+  });
+  
+  return emergencies;
+}
+
 // Helper: Get progress percentage (0-1) for emergency prayer countdown
 export function getEmergencyPrayerProgress(emergencyExpiresAt: string | undefined): number {
   if (!emergencyExpiresAt) return 1;

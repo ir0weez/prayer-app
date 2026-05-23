@@ -670,19 +670,28 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && styles.prayerItemUrgent]}>
+              <View style={[styles.prayerItem, item.isUrgent && styles.prayerItemUrgent, item.isEmergency && { backgroundColor: "#FEE2E2", borderColor: "#EF4444", borderWidth: 1 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
                 >
                   {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
                 </Pressable>
-                <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone]}>{item.title}</Text>
-                <Pressable onPress={() => handleToggleUrgent(item.id)} style={({ pressed }) => [styles.iconCircle, item.isUrgent && styles.iconCircleUrgent, pressed && styles.pressed]}>
-                  <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
-                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }]}>{item.title}</Text>
+                  {item.isEmergency && item.emergencyExpiresAt && (
+                    <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer</Text>
+                  )}
+                </View>
+                {item.isEmergency ? (
+                  <MaterialIcons name={iconName("local-fire-department")} size={20} color="#EF4444" />
+                ) : (
+                  <Pressable onPress={() => handleToggleUrgent(item.id)} style={({ pressed }) => [styles.iconCircle, item.isUrgent && styles.iconCircleUrgent, pressed && styles.pressed]}>
+                    <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [styles.iconCircle, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("close")} size={18} color={MUTED_TEXT} />
+                  <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : MUTED_TEXT} />
                 </Pressable>
               </View>
             )}

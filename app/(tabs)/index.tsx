@@ -9,6 +9,7 @@ import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { PulsingGlow } from "@/components/pulsing-glow";
@@ -765,7 +766,7 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const renderFamilyCard = (familyMembers: Person[]) => {
+  const renderFamilyCard = (familyMembers: Person[], index?: number) => {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
     const familyId = familyMembers[0]?.familyId || "";
@@ -783,9 +784,11 @@ export default function HomeScreen() {
     const reachText = emergencyCountdown ? formatEmergencyPrayerCountdown(emergencyCountdown) : daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const emergencyProgress = familyEmergency ? getEmergencyPrayerProgress(familyEmergency.item.emergencyExpiresAt) : 0;
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
+    const familyIndex = index ?? 0;
 
     return (
-      <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+      <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
+        <Pressable onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", height: 44 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -806,7 +809,8 @@ export default function HomeScreen() {
                 </View>
           <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
         </View>
-      </Pressable>
+        </Pressable>
+      </ReAnimated.View>
     );
   };
 
@@ -825,7 +829,7 @@ export default function HomeScreen() {
     const totalCount = array?.length ?? 1;
 
     return (
-      <View key={person.id} style={[isDragged && { opacity: 0.6 }]}>
+      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
         <Pressable
           onLongPress={() => {
             setDraggedPersonId(person.id);
@@ -870,7 +874,7 @@ export default function HomeScreen() {
             )}
           </View>
         </Pressable>
-      </View>
+      </ReAnimated.View>
     );
   };
 

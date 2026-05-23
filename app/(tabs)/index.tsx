@@ -774,11 +774,14 @@ export default function HomeScreen() {
       const currentDays = getDaysSinceLastPrayed(current.lastPrayedDate);
       return currentDays < prevDays ? current : prev;
     });
+    const activeEmergencies = getAllActiveEmergencyPrayers(people);
+    const familyEmergency = activeEmergencies.find((ep) => familyMembers.some((m) => m.id === ep.person.id));
+    const emergencyCountdown = familyEmergency ? emergencyCountdowns[familyEmergency.item.id] : undefined;
     const daysSince = getDaysSinceLastPrayed(mostRecentPerson.lastPrayedDate);
     const isFull = daysSince >= 0 && daysSince <= 3;
-    const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(mostRecentPerson);
-    const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
-    const reachProgress = getReachProgressRatio(daysSince);
+    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(mostRecentPerson);
+    const reachText = emergencyCountdown ? formatEmergencyPrayerCountdown(emergencyCountdown) : daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
+    const reachProgress = emergencyCountdown ? 1 : getReachProgressRatio(daysSince);
 
     return (
       <Pressable key={familyId} onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
@@ -803,11 +806,14 @@ export default function HomeScreen() {
   };
 
   const renderPersonCard = (person: Person, index?: number, array?: Person[]) => {
+    const activeEmergencies = getAllActiveEmergencyPrayers(people);
+    const personEmergency = activeEmergencies.find((ep) => ep.person.id === person.id);
+    const emergencyCountdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
     const isFull = daysSince >= 31;
-    const reachColor = daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
-    const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
-    const reachProgress = getReachProgressRatio(daysSince);
+    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
+    const reachText = emergencyCountdown ? formatEmergencyPrayerCountdown(emergencyCountdown) : daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
+    const reachProgress = emergencyCountdown ? 1 : getReachProgressRatio(daysSince);
     const isDragged = draggedPersonId === person.id;
     const personIndex = index ?? 0;
     const totalCount = array?.length ?? 1;

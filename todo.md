@@ -711,3 +711,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Connect expanded family container to main card with continuous border
 - [x] Add smooth fade-in animation to expanded family member list
 - [x] Remove bottom border radius from main family card when expanded to create seamless connection with expanded list
+- [x] Fix avatar vertical centering in family cards by removing paddingTop and adding alignItems: center

@@ -705,3 +705,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix expanded family member rendering to use correct variable names and EmergencyPrayerPill props
 - [x] Redesign emergency prayer countdown pill to use solid red depleting progress instead of animated stripes
 - [x] Fix expanded family container width to match main card (marginHorizontal: 24) so it doesn't overlap next group
+- [x] Reduce emergency pill size to match regular reach pills (height: 26, padding: 10, borderRadius: 13)

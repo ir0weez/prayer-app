@@ -27,9 +27,10 @@ export function EmergencyPrayerPill({ timeRemaining, progress = 1 }: EmergencyPr
 
 const styles = StyleSheet.create({
   container: {
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    minWidth: 58,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -40,15 +41,13 @@ const styles = StyleSheet.create({
   progressFill: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#EF4444",
-    borderRadius: 16,
+    borderRadius: 13,
   },
   timeText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "900",
     color: "#FFFFFF",
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    lineHeight: 15,
     zIndex: 10,
   },
 });

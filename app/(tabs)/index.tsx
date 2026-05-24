@@ -976,12 +976,26 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers)}
                       {isExpanded && (
-                        <View style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 8, gap: 8 }}>
-                          {familyMembers.map((member) => (
+                        <View style={{ marginHorizontal: 16, marginTop: -8, gap: 0 }}>
+                          {familyMembers.map((member, memberIdx) => (
                             <Pressable
                               key={member.id}
                               onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })}
-                              style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}
+                              style={({ pressed }) => {
+                                const isFirst = memberIdx === 0;
+                                const isLast = memberIdx === familyMembers.length - 1;
+                                return [
+                                  styles.personCard,
+                                  {
+                                    marginTop: isFirst ? 0 : -1,
+                                    borderTopLeftRadius: isFirst ? 0 : 12,
+                                    borderTopRightRadius: isFirst ? 0 : 12,
+                                    borderBottomLeftRadius: isLast ? 12 : 0,
+                                    borderBottomRightRadius: isLast ? 12 : 0,
+                                  },
+                                  pressed && styles.pressed,
+                                ];
+                              }}
                             >
                               {renderAvatar(member, 44)}
                               <View style={styles.personInfo}>

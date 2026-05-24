@@ -707,3 +707,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix expanded family container width to match main card (marginHorizontal: 24) so it doesn't overlap next group
 - [x] Reduce emergency pill size to match regular reach pills (height: 26, padding: 10, borderRadius: 13)
 - [x] Fix expanded family container corner gap and add bottom margin for spacing (marginTop: -1, marginBottom: 8)
+- [x] Fix emergency pill to use theme colors for light/dark mode support
+- [x] Connect expanded family container to main card with continuous border
+- [x] Add smooth fade-in animation to expanded family member list

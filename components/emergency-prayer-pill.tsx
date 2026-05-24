@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { useColors } from "@/hooks/use-colors";
 
 interface EmergencyPrayerPillProps {
   timeRemaining: string;
@@ -7,14 +8,17 @@ interface EmergencyPrayerPillProps {
 }
 
 export function EmergencyPrayerPill({ timeRemaining, progress = 1 }: EmergencyPrayerPillProps) {
+  const colors = useColors();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.error }]}>
       {/* Depleting red progress fill */}
       <View
         style={[
           styles.progressFill,
           {
             width: `${Math.round(progress * 100)}%`,
+            backgroundColor: colors.error,
           },
         ]}
       />
@@ -34,13 +38,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
-    backgroundColor: "#1F2937",
     borderWidth: 1,
-    borderColor: "#DC2626",
   },
   progressFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#EF4444",
     borderRadius: 13,
   },
   timeText: {

@@ -768,7 +768,7 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const renderFamilyCard = (familyMembers: Person[], index?: number) => {
+  const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
     const familyId = familyMembers[0]?.familyId || "";
@@ -790,7 +790,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", height: 44, paddingTop: 6 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -974,7 +974,7 @@ export default function HomeScreen() {
                   const isExpanded = expandedFamilyId === familyId;
                   return (
                     <View key={familyId}>
-                      {renderFamilyCard(familyMembers)}
+                      {renderFamilyCard(familyMembers, undefined, isExpanded)}
                       {isExpanded && (
                         <ReAnimated.View entering={FadeIn.duration(200)} style={{ marginHorizontal: 24, marginTop: -1, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
                           {familyMembers.map((member, memberIdx) => {

@@ -802,7 +802,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.personActions}>
           {emergencyCountdown ? (
-            <EmergencyPrayerPill timeRemaining={reachText} />
+            <EmergencyPrayerPill timeRemaining={reachText} progress={emergencyProgress} />
           ) : (
             <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
               <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
@@ -851,7 +851,7 @@ export default function HomeScreen() {
             {!isDragged && (
               <>
                 {emergencyCountdown ? (
-                  <EmergencyPrayerPill timeRemaining={reachText} />
+                  <EmergencyPrayerPill timeRemaining={reachText} progress={emergencyProgress} />
                 ) : (
                   <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
                     <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
@@ -1007,7 +1007,7 @@ export default function HomeScreen() {
                                 </View>
                                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
                                   {emergencyCountdown ? (
-                                    <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} />
+                                    <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={memberEmergency ? getEmergencyPrayerProgress(memberEmergency.item.emergencyExpiresAt) : 0} />
                                   ) : (
                                     <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
                                       <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>

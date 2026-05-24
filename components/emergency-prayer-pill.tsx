@@ -1,77 +1,23 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
-import Svg, { Defs, Pattern, Line, Rect } from "react-native-svg";
 
 interface EmergencyPrayerPillProps {
   timeRemaining: string;
+  progress?: number; // 0 to 1, where 1 is full and 0 is empty
 }
 
-export function EmergencyPrayerPill({ timeRemaining }: EmergencyPrayerPillProps) {
-  const translateX = useSharedValue(0);
-
-  useEffect(() => {
-    // Animate the diagonal stripes moving to the left continuously
-    translateX.value = withRepeat(
-      withTiming(-20, {
-        duration: 1500,
-        easing: Easing.linear,
-      }),
-      -1, // Infinite repeat
-      true // Reverse
-    );
-  }, [translateX]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
+export function EmergencyPrayerPill({ timeRemaining, progress = 1 }: EmergencyPrayerPillProps) {
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.pillBackground, animatedStyle]}>
-        {/* Diagonal stripe pattern background */}
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-          <Defs>
-            <Pattern
-              id="diagonalStripes"
-              x="0"
-              y="0"
-              width="20"
-              height="20"
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(-45)"
-            >
-              <Line
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="20"
-                stroke="#FCD34D"
-                strokeWidth="10"
-              />
-              <Line
-                x1="10"
-                y1="0"
-                x2="10"
-                y2="20"
-                stroke="#DC2626"
-                strokeWidth="10"
-              />
-            </Pattern>
-          </Defs>
-          <Rect
-            width="100%"
-            height="100%"
-            fill="url(#diagonalStripes)"
-          />
-        </Svg>
-      </Animated.View>
+      {/* Depleting red progress fill */}
+      <View
+        style={[
+          styles.progressFill,
+          {
+            width: `${Math.round(progress * 100)}%`,
+          },
+        ]}
+      />
 
       {/* Time remaining text overlay */}
       <Text style={styles.timeText}>{timeRemaining}</Text>
@@ -91,9 +37,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DC2626",
   },
-  pillBackground: {
+  progressFill: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.8,
+    backgroundColor: "#EF4444",
+    borderRadius: 16,
   },
   timeText: {
     fontSize: 12,

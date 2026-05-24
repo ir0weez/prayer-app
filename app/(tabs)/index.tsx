@@ -976,7 +976,7 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers)}
                       {isExpanded && (
-                        <View style={{ marginHorizontal: 16, marginTop: -12, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+                        <View style={{ marginHorizontal: 24, marginTop: -12, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
                           {familyMembers.map((member, memberIdx) => {
                             const isLast = memberIdx === familyMembers.length - 1;
                             const activeEmergencies = getAllActiveEmergencyPrayers(people);

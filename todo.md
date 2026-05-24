@@ -704,3 +704,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Test Family Group section on person profile
 - [x] Fix expanded family member rendering to use correct variable names and EmergencyPrayerPill props
 - [x] Redesign emergency prayer countdown pill to use solid red depleting progress instead of animated stripes
+- [x] Fix expanded family container width to match main card (marginHorizontal: 24) so it doesn't overlap next group

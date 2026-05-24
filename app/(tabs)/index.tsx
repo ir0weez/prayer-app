@@ -19,6 +19,7 @@ import { HapticTab } from "@/components/haptic-tab";
 import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
+import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -799,14 +800,14 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.personActions}>
-          <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty, emergencyCountdown ? { backgroundColor: "#1F2937" } : undefined]}>
-                  {emergencyCountdown ? (
-                    <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: `${Math.round(reachProgress * 100)}%` }]} />
-                  ) : (
-                    <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-                  )}
-                  <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
-                </View>
+          {emergencyCountdown ? (
+            <EmergencyPrayerPill timeRemaining={reachText} />
+          ) : (
+            <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+              <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
+              <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+            </View>
+          )}
           <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
         </View>
         </Pressable>
@@ -848,14 +849,14 @@ export default function HomeScreen() {
           <View style={styles.personActions}>
             {!isDragged && (
               <>
-                <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty, emergencyCountdown ? { backgroundColor: "#1F2937" } : undefined]}>
-                  {emergencyCountdown ? (
-                    <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: `${Math.round(reachProgress * 100)}%` }]} />
-                  ) : (
+                {emergencyCountdown ? (
+                  <EmergencyPrayerPill timeRemaining={reachText} />
+                ) : (
+                  <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
                     <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-                  )}
-                  <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
-                </View>
+                    <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
+                  </View>
+                )}
                 <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
               </>
             )}

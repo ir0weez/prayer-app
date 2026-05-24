@@ -654,6 +654,21 @@ export default function PersonScreen() {
           <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
         </Pressable>
 
+        {currentPerson.familyId && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Family Group</Text>
+            </View>
+            <View style={styles.familyGroupCard}>
+              <View style={styles.familyGroupInfo}>
+                <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
+                <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
+              </View>
+              <MaterialIcons name={iconName("people")} size={24} color={PURPLE} />
+            </View>
+          </>
+        )}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Prayer Items</Text>
           <Text style={styles.sectionStats}>{doneCount}/{currentPerson.prayerItems.length} done</Text>
@@ -1626,5 +1641,31 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  familyGroupCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#F5F3F7",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  familyGroupInfo: {
+    flex: 1,
+  },
+  familyGroupName: {
+    color: DEEP_TEXT,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  familyGroupMeta: {
+    color: MUTED_TEXT,
+    fontSize: 13,
   },
 });

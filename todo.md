@@ -691,3 +691,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Custom animation components using react-native-reanimated
   - [x] Smooth, performant animations that don't feel heavy
   - [ ] Consider micro-interactions that feel alive without being distracting
+
+## Family Card Improvements (Current)
+
+- [ ] Fix family card avatar vertical centering - add top padding to stacked avatars
+- [ ] Implement expandable family cards - show/hide member list on tap
+- [ ] Create individual member cards within expanded family view
+- [ ] Add member card tap navigation to person profile
+- [ ] Add "Family Group" section to person profile page
+- [ ] Display family name and member count in person profile
+- [ ] Test expandable family cards with various family sizes
+- [ ] Test Family Group section on person profile

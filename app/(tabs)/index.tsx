@@ -324,6 +324,7 @@ export default function HomeScreen() {
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
+  const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -789,8 +790,8 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => router.push({ pathname: "/family", params: { familyId } })} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", height: 44 }}>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}>
+        <View style={{ marginRight: 12, justifyContent: "center", height: 44, paddingTop: 6 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>
@@ -968,7 +969,35 @@ export default function HomeScreen() {
             {relationshipSections.map((section) => (
               <View key={section.title} style={styles.sectionBlock}>
                 <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
-                {section.familyGroups && section.familyGroups.map(renderFamilyCard)}
+                {section.familyGroups && section.familyGroups.map((familyMembers) => {
+                  const familyId = familyMembers[0]?.familyId || "";
+                  const isExpanded = expandedFamilyId === familyId;
+                  return (
+                    <View key={familyId}>
+                      {renderFamilyCard(familyMembers)}
+                      {isExpanded && (
+                        <View style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 8, gap: 8 }}>
+                          {familyMembers.map((member) => (
+                            <Pressable
+                              key={member.id}
+                              onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })}
+                              style={({ pressed }) => [styles.personCard, pressed && styles.pressed]}
+                            >
+                              {renderAvatar(member, 44)}
+                              <View style={styles.personInfo}>
+                                <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
+                                <Text numberOfLines={1} style={styles.personMeta}>
+                                  {getDaysSinceLastPrayed(member.lastPrayedDate) === 999 ? "Never prayed" : `Prayed ${getDaysSinceLastPrayed(member.lastPrayedDate) === 0 ? "today" : getDaysSinceLastPrayed(member.lastPrayedDate) === 1 ? "yesterday" : `${getDaysSinceLastPrayed(member.lastPrayedDate)} days ago`}`}
+                                </Text>
+                              </View>
+                              <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
                 {section.people.map((person, idx) => renderPersonCard(person, idx, section.people))}
               </View>
             ))}

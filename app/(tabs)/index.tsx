@@ -976,37 +976,47 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers)}
                       {isExpanded && (
-                        <View style={{ marginHorizontal: 16, marginTop: -8, gap: 0 }}>
-                          {familyMembers.map((member, memberIdx) => (
-                            <Pressable
-                              key={member.id}
-                              onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })}
-                              style={({ pressed }) => {
-                                const isFirst = memberIdx === 0;
-                                const isLast = memberIdx === familyMembers.length - 1;
-                                return [
-                                  styles.personCard,
-                                  {
-                                    marginTop: isFirst ? 0 : -1,
-                                    borderTopLeftRadius: isFirst ? 0 : 12,
-                                    borderTopRightRadius: isFirst ? 0 : 12,
-                                    borderBottomLeftRadius: isLast ? 12 : 0,
-                                    borderBottomRightRadius: isLast ? 12 : 0,
-                                  },
-                                  pressed && styles.pressed,
-                                ];
-                              }}
-                            >
-                              {renderAvatar(member, 44)}
-                              <View style={styles.personInfo}>
-                                <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
-                                <Text numberOfLines={1} style={styles.personMeta}>
-                                  {getDaysSinceLastPrayed(member.lastPrayedDate) === 999 ? "Never prayed" : `Prayed ${getDaysSinceLastPrayed(member.lastPrayedDate) === 0 ? "today" : getDaysSinceLastPrayed(member.lastPrayedDate) === 1 ? "yesterday" : `${getDaysSinceLastPrayed(member.lastPrayedDate)} days ago`}`}
-                                </Text>
-                              </View>
-                              <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
-                            </Pressable>
-                          ))}
+                        <View style={{ marginHorizontal: 16, marginTop: -12, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+                          {familyMembers.map((member, memberIdx) => {
+                            const isLast = memberIdx === familyMembers.length - 1;
+                            const activeEmergencies = getAllActiveEmergencyPrayers(people);
+                            const memberEmergency = activeEmergencies.find((ep) => ep.person.id === member.id);
+                            const emergencyCountdown = memberEmergency ? emergencyCountdowns[memberEmergency.item.id] : undefined;
+                            const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
+                            const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
+                            return (
+                              <Pressable
+                                key={member.id}
+                                onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })}
+                                style={({ pressed }) => [{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  paddingVertical: 12,
+                                  paddingHorizontal: 16,
+                                  borderBottomWidth: isLast ? 0 : 1,
+                                  borderBottomColor: colors.border,
+                                  backgroundColor: pressed ? colors.primary + '15' : 'transparent',
+                                }]}
+                              >
+                                {renderAvatar(member, 44)}
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                  <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
+                                  <Text numberOfLines={1} style={styles.personMeta}>
+                                    {daysSince === 999 ? "Never prayed" : `Prayed ${daysSince === 0 ? "today" : daysSince === 1 ? "yesterday" : `${daysSince} days ago`}`}
+                                  </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                                  {emergencyCountdown ? (
+                                    <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} />
+                                  ) : (
+                                    <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
+                                      <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>
+                                    </View>
+                                  )}
+                                </View>
+                              </Pressable>
+                            );
+                          })}
                         </View>
                       )}
                     </View>

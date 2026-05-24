@@ -694,11 +694,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 ## Family Card Improvements (Current)
 
-- [ ] Fix family card avatar vertical centering - add top padding to stacked avatars
-- [ ] Implement expandable family cards - show/hide member list on tap
-- [ ] Create individual member cards within expanded family view
-- [ ] Add member card tap navigation to person profile
-- [ ] Add "Family Group" section to person profile page
-- [ ] Display family name and member count in person profile
-- [ ] Test expandable family cards with various family sizes
-- [ ] Test Family Group section on person profile
+- [x] Fix family card avatar vertical centering - add top padding to stacked avatars
+- [x] Implement expandable family cards - show/hide member list on tap
+- [x] Create individual member cards within expanded family view
+- [x] Add member card tap navigation to person profile
+- [x] Add "Family Group" section to person profile page
+- [x] Display family name and member count in person profile
+- [x] Test expandable family cards with various family sizes
+- [x] Test Family Group section on person profile
+- [x] Fix expanded family member rendering to use correct variable names and EmergencyPrayerPill props

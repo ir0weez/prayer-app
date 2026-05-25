@@ -1888,11 +1888,11 @@ function createStyles(colors: any) {
     lineHeight: 18,
   },
   personCard: {
-    minHeight: 90,
+    minHeight: 76,
     marginHorizontal: 24,
     marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,

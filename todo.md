@@ -716,3 +716,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix tab bar dark mode support by using dynamic tint and theme colors
 - [x] Fix person detail page dark mode support by converting hardcoded colors to theme-aware colors
 - [x] Fix avatar vertical centering by adding paddingTop to push avatars down in family cards
+- [x] Fix avatar vertical centering by making container take full height and center avatars within it

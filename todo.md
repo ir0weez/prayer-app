@@ -712,5 +712,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add smooth fade-in animation to expanded family member list
 - [x] Remove bottom border radius from main family card when expanded to create seamless connection with expanded list
 - [x] Fix avatar vertical centering in family cards by removing paddingTop and adding alignItems: center
+- [x] Fix avatar vertical centering by removing explicit height constraint to allow natural centering
 - [x] Fix tab bar dark mode support by using theme colors for border and background
 - [x] Fix person detail page dark mode support by converting hardcoded colors to theme-aware colors

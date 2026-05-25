@@ -792,7 +792,7 @@ export default function HomeScreen() {
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
         <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", flex: 1, height: "100%" }}>
+        <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", height: 90 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>

@@ -67,6 +67,23 @@ function getThemeColors(colors: any) {
   };
 }
 
+// Helper function to map light background colors to theme-aware colors
+function getThemeAwareColor(lightColor: string, colors: any): string {
+  const colorMap: Record<string, string> = {
+    "#FFFFFF": colors.surface,
+    "#FBF8FF": colors.surface,
+    "#F6F0FA": colors.surface,
+    "#F5F3F7": colors.surface,
+    "#F4EEF9": colors.surface,
+    "#EFE8FB": colors.surface,
+    "#FFF7F8": colors.surface,
+    "#FEE2E2": colors.surface,
+    "#FFE8EA": colors.surface,
+    "#FFF0F3": colors.surface,
+  };
+  return colorMap[lightColor.toUpperCase()] || lightColor;
+}
+
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
@@ -573,6 +590,7 @@ export default function PersonScreen() {
 
   const themeColors = getThemeColors(colors);
   const styles = createStyles(themeColors);
+  const getThemeColor = (lightColor: string) => getThemeAwareColor(lightColor, colors);
 
   if (!hasHydratedPeople) {
     return (
@@ -697,7 +715,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && styles.prayerItemUrgent, item.isEmergency && { backgroundColor: "#FEE2E2", borderColor: "#EF4444", borderWidth: 1 }]}>
+              <View style={[styles.prayerItem, item.isUrgent && styles.prayerItemUrgent, item.isEmergency && { backgroundColor: getThemeColor("#FEE2E2"), borderColor: "#EF4444", borderWidth: 1 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}

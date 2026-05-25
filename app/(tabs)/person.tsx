@@ -274,6 +274,7 @@ export default function PersonScreen() {
   const [selectedFamilyMember, setSelectedFamilyMember] = useState<string | null>(null);
   const [showEmergencyPrayerModal, setShowEmergencyPrayerModal] = useState(false);
   const [emergencyPrayerText, setEmergencyPrayerText] = useState("");
+  const [emergencyPrayerDuration, setEmergencyPrayerDuration] = useState<1 | 5 | 12 | 24>(24);
 
   useEffect(() => {
     let isMounted = true;
@@ -406,10 +407,11 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => {
       const person = previousPeople.find((p) => p.id === personId);
       if (!person) return previousPeople;
-      const updated = addEmergencyPrayer(person, emergencyPrayerText.trim());
+      const updated = addEmergencyPrayer(person, emergencyPrayerText.trim(), emergencyPrayerDuration);
       return previousPeople.map((p) => (p.id === personId ? updated : p));
     });
     setEmergencyPrayerText("");
+    setEmergencyPrayerDuration(24);
     setShowEmergencyPrayerModal(false);
   };
 
@@ -1027,12 +1029,30 @@ export default function PersonScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Emergency Prayer (24h)</Text>
+              <Text style={styles.modalTitle}>Emergency Prayer ({emergencyPrayerDuration}h)</Text>
               <Pressable onPress={() => setShowEmergencyPrayerModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
-            <Text style={styles.modalDescription}>Add an urgent prayer request that will appear in Pray Today for the next 24 hours.</Text>
+            <Text style={styles.modalDescription}>Add an urgent prayer request that will appear in Pray Today for the next {emergencyPrayerDuration} hours.</Text>
+            <Text style={styles.modalFieldLabel}>Duration</Text>
+            <View style={styles.durationSelector}>
+              {[1, 5, 12, 24].map((duration) => (
+                <Pressable
+                  key={duration}
+                  onPress={() => setEmergencyPrayerDuration(duration as 1 | 5 | 12 | 24)}
+                  style={({ pressed }) => [
+                    styles.durationOption,
+                    emergencyPrayerDuration === duration && styles.durationOptionActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.durationOptionText, emergencyPrayerDuration === duration && styles.durationOptionActiveText]}>
+                    {duration}h
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <Text style={styles.modalFieldLabel}>Prayer Request</Text>
             <TextInput
               value={emergencyPrayerText}
@@ -1673,6 +1693,35 @@ function createStyles(themeColors: any) {
   },
   pressed: {
     opacity: 0.75,
+  },
+  durationSelector: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 8,
+  },
+  durationOption: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    backgroundColor: SURFACE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  durationOptionActive: {
+    backgroundColor: PURPLE,
+    borderColor: PURPLE,
+  },
+  durationOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: MUTED_TEXT,
+  },
+  durationOptionActiveText: {
+    color: "#FFFFFF",
   },
   familyGroupCard: {
     flexDirection: "row",

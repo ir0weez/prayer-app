@@ -627,9 +627,9 @@ export function getInitialState() {
 }
 
 // Helper: Add emergency prayer to a person
-export function addEmergencyPrayer(person: Person, title: string): Person {
+export function addEmergencyPrayer(person: Person, title: string, durationHours: number = 24): Person {
   const now = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
   const emergencyItem: PrayerItem = {
     id: `emergency-${Date.now()}`,
     title,

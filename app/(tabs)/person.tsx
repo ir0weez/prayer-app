@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { useColors } from "@/hooks/use-colors";
 import {
   addPrayerItem,
   formatDaysSinceLastPrayer,
@@ -51,13 +52,20 @@ const REMINDER_FREQUENCIES: { value: ReminderFrequency; label: string; descripti
   { value: "none", label: "Off", description: "Do not show" },
 ];
 const RELATIONSHIP_OPTIONS: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
-const PURPLE = "#8557D9";
-const DEEP_TEXT = "#141326";
-const MUTED_TEXT = "#7E7C88";
-const SCREEN_BG = "#FAF6FF";
-const SURFACE = "#FFFFFF";
-const BORDER = "#E7E1EF";
+// Keep warning color as is
 const WARNING = "#F59E0B";
+
+// Helper function to get theme-aware colors
+function getThemeColors(colors: any) {
+  return {
+    PURPLE: colors.primary,
+    DEEP_TEXT: colors.foreground,
+    MUTED_TEXT: colors.muted,
+    SCREEN_BG: colors.background,
+    SURFACE: colors.surface,
+    BORDER: colors.border,
+  };
+}
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -132,7 +140,7 @@ async function requestReminderPermissions() {
       name: "Prayer reminders",
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: PURPLE,
+      lightColor: "#8557D9", // Use default purple for Android notification channel
     });
   }
 
@@ -225,6 +233,7 @@ async function schedulePersonReminders(
 
 export default function PersonScreen() {
   const router = useRouter();
+  const colors = useColors();
   const params = useLocalSearchParams<{ personId: string }>();
   const personId = Array.isArray(params.personId) ? params.personId[0] : params.personId;
 
@@ -331,7 +340,7 @@ export default function PersonScreen() {
   );
 
   const doneCount = currentPerson?.prayerItems.filter((item) => item.isDone).length ?? 0;
-  const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : PURPLE;
+  const lastReachedColor = currentPerson ? getLastReachedAccentColor(currentPerson) : colors.primary;
   const daysSinceLastReached = currentPerson ? getDaysSinceLastPrayed(currentPerson.lastPrayedDate) : 999;
   const hasPrayedToday = currentPerson ? currentPerson.lastPrayerCompletedDate === getTodayISOString() : false;
 
@@ -562,6 +571,9 @@ export default function PersonScreen() {
     setShowDateModal(false);
   };
 
+  const themeColors = getThemeColors(colors);
+  const styles = createStyles(themeColors);
+
   if (!hasHydratedPeople) {
     return (
       <ScreenContainer containerClassName="bg-background" style={styles.container}>
@@ -577,7 +589,7 @@ export default function PersonScreen() {
       <ScreenContainer containerClassName="bg-background" style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("chevron-left")} size={34} color={PURPLE} />
+            <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
           </Pressable>
           <Text style={styles.headerTitle}>Prayer</Text>
           <View style={styles.headerIconButton} />
@@ -593,7 +605,7 @@ export default function PersonScreen() {
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName("chevron-left")} size={34} color={PURPLE} />
+          <MaterialIcons name={iconName("chevron-left")} size={34} color={colors.primary} />
         </Pressable>
         <Text style={styles.headerTitle}>Prayer List</Text>
         <Pressable onPress={openEditModal} style={({ pressed }) => [styles.headerEditButton, pressed && styles.pressed]}>
@@ -616,7 +628,7 @@ export default function PersonScreen() {
             <Text style={styles.personBirthday}>Birthday: {currentPerson.birthday}</Text>
           )}
           <Pressable onPress={openReminderModal} style={({ pressed }) => [styles.reminderChip, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("notifications")} size={17} color={PURPLE} />
+             <MaterialIcons name={iconName("notifications")} size={17} color={colors.primary} />
             <Text style={styles.reminderChipText}>
               {getReminderScheduleText(currentPerson)}
             </Text>
@@ -664,7 +676,7 @@ export default function PersonScreen() {
                 <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
                 <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
               </View>
-              <MaterialIcons name={iconName("people")} size={24} color={PURPLE} />
+               <MaterialIcons name={iconName("people")} size={24} color={colors.primary} />
             </View>
           </>
         )}
@@ -676,7 +688,7 @@ export default function PersonScreen() {
 
         {currentPerson.prayerItems.length === 0 ? (
           <View style={styles.emptyCard}>
-            <MaterialIcons name={iconName("playlist-add-check")} size={34} color={PURPLE} />
+             <MaterialIcons name={iconName("playlist-add-check")} size={34} color={colors.primary} />
             <Text style={styles.emptyStateText}>No prayer items yet</Text>
           </View>
         ) : (
@@ -706,7 +718,7 @@ export default function PersonScreen() {
                   </Pressable>
                 )}
                 <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [styles.iconCircle, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : MUTED_TEXT} />
+                  <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : colors.muted} />
                 </Pressable>
               </View>
             )}
@@ -717,7 +729,7 @@ export default function PersonScreen() {
           <TextInput
             style={styles.input}
             placeholder="Add prayer item..."
-            placeholderTextColor={MUTED_TEXT}
+            placeholderTextColor={colors.muted}
             value={newItemTitle}
             onChangeText={setNewItemTitle}
             onSubmitEditing={handleAddItem}
@@ -736,7 +748,7 @@ export default function PersonScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Person</Text>
               <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
             <Text style={styles.modalDescription}>Update this person's details or delete them from your prayer list.</Text>
@@ -746,7 +758,7 @@ export default function PersonScreen() {
                 {draftPhotoUri ? (
                   <Image source={{ uri: draftPhotoUri }} style={styles.editPhotoImage} />
                 ) : (
-                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={PURPLE} />
+                  <MaterialIcons name={iconName("add-a-photo")} size={28} color={colors.primary} />
                 )}
               </View>
               <Text style={styles.editPhotoText}>{draftPhotoUri ? "Change picture" : "Add picture"}</Text>
@@ -756,7 +768,7 @@ export default function PersonScreen() {
               value={draftName}
               onChangeText={setDraftName}
               placeholder="Name"
-              placeholderTextColor={MUTED_TEXT}
+              placeholderTextColor={colors.muted}
               returnKeyType="done"
               style={styles.modalInput}
             />
@@ -771,11 +783,11 @@ export default function PersonScreen() {
                     onPress={() => setDraftRelationship(relationship)}
                     style={({ pressed }) => [
                       styles.editRelationshipPill,
-                      { borderColor: isSelected ? colors.accent : BORDER, backgroundColor: isSelected ? colors.avatar : "#FBF8FF" },
+                      { borderColor: isSelected ? relationshipColors[relationship].accent : "#E7E1EF", backgroundColor: isSelected ? relationshipColors[relationship].avatar : "#FBF8FF" },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.editRelationshipPillText, { color: isSelected ? colors.accent : MUTED_TEXT }]}>{relationship}</Text>
+                    <Text style={[styles.editRelationshipPillText, { color: isSelected ? relationshipColors[relationship].accent : "#7E7C88" }]}>{relationship}</Text>
                   </Pressable>
                 );
               })}
@@ -786,7 +798,7 @@ export default function PersonScreen() {
               value={draftBirthday}
               onChangeText={setDraftBirthday}
               placeholder="MM/DD/YYYY"
-              placeholderTextColor={MUTED_TEXT}
+              placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
               style={styles.modalInput}
@@ -802,13 +814,13 @@ export default function PersonScreen() {
                   ))}
                 </View>
                 <Pressable onPress={handleUngroupFromFamily} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("link-off")} size={18} color={PURPLE} />
+                  <MaterialIcons name={iconName("link-off")} size={18} color={colors.primary} />
                   <Text style={styles.modalSecondaryButtonText}>Remove from Family</Text>
                 </Pressable>
               </>
             )}
             <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, styles.addToFamilyButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("link")} size={18} color={PURPLE} />
+              <MaterialIcons name={iconName("link")} size={18} color={colors.primary} />
               <Text style={styles.modalSecondaryButtonText} numberOfLines={1}>
                 Add to Family
               </Text>
@@ -831,7 +843,7 @@ export default function PersonScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to Family</Text>
               <Pressable onPress={() => setShowFamilyModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
             <Text style={styles.modalDescription}>Select a person to group with {currentPerson?.name}.</Text>
@@ -856,7 +868,7 @@ export default function PersonScreen() {
                             <Text style={styles.familySelectItemRelationship}>{item.relationship}</Text>
                           </View>
                           {isInSameFamily && (
-                            <MaterialIcons name={iconName("check-circle")} size={24} color={PURPLE} />
+                            <MaterialIcons name={iconName("check-circle")} size={24} color={colors.primary} />
                           )}
                         </View>
                       </Pressable>
@@ -875,11 +887,11 @@ export default function PersonScreen() {
                     onPress={() => setDraftFamilyType(type as any)}
                     style={({ pressed }) => [
                       styles.editFamilyTypePill,
-                      { borderColor: isSelected ? PURPLE : BORDER, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
+                      { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.editFamilyTypePillText, { color: isSelected ? PURPLE : MUTED_TEXT }]}>{type}</Text>
+                    <Text style={[styles.editFamilyTypePillText, { color: isSelected ? colors.primary : colors.muted }]}>{type}</Text>
                   </Pressable>
                 );
               })}
@@ -894,7 +906,7 @@ export default function PersonScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Prayer Reminder</Text>
               <Pressable onPress={() => setShowReminderModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
             <Text style={styles.modalDescription}>Choose when this person should appear in Pray Today and receive reminders.</Text>
@@ -939,7 +951,7 @@ export default function PersonScreen() {
                   value={draftReminderMonthDay}
                   onChangeText={setDraftReminderMonthDay}
                   placeholder="15"
-                  placeholderTextColor={MUTED_TEXT}
+                  placeholderTextColor={colors.muted}
                   keyboardType="number-pad"
                   returnKeyType="done"
                   style={styles.modalInput}
@@ -951,7 +963,7 @@ export default function PersonScreen() {
               value={draftReminderTime}
               onChangeText={setDraftReminderTime}
               placeholder="08:00"
-              placeholderTextColor={MUTED_TEXT}
+              placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
               style={styles.modalInput}
@@ -969,7 +981,7 @@ export default function PersonScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Last Reached</Text>
               <Pressable onPress={() => setShowDateModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
             <Text style={styles.modalDescription}>Enter a previous contact date. This date updates the home-screen progress color.</Text>
@@ -978,7 +990,7 @@ export default function PersonScreen() {
               value={draftLastReachedDate}
               onChangeText={setDraftLastReachedDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={MUTED_TEXT}
+              placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
               style={styles.modalInput}
@@ -999,7 +1011,7 @@ export default function PersonScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Emergency Prayer (24h)</Text>
               <Pressable onPress={() => setShowEmergencyPrayerModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
-                <MaterialIcons name={iconName("close")} size={23} color={MUTED_TEXT} />
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
             <Text style={styles.modalDescription}>Add an urgent prayer request that will appear in Pray Today for the next 24 hours.</Text>
@@ -1008,7 +1020,7 @@ export default function PersonScreen() {
               value={emergencyPrayerText}
               onChangeText={setEmergencyPrayerText}
               placeholder="Type your prayer request..."
-              placeholderTextColor={MUTED_TEXT}
+              placeholderTextColor={colors.muted}
               multiline
               returnKeyType="done"
               style={[styles.modalInput, { minHeight: 100, paddingTop: 12, textAlignVertical: "top" }]}
@@ -1023,7 +1035,9 @@ export default function PersonScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(themeColors: any) {
+  const { PURPLE, DEEP_TEXT, MUTED_TEXT, SCREEN_BG, SURFACE, BORDER } = themeColors;
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SCREEN_BG,
@@ -1668,4 +1682,5 @@ const styles = StyleSheet.create({
     color: MUTED_TEXT,
     fontSize: 13,
   },
-});
+  });
+}

@@ -7,6 +7,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
@@ -791,7 +792,7 @@ export default function HomeScreen() {
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
         <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center" }}>
+        <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 4 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
         <View style={styles.personInfo}>
@@ -1527,7 +1528,7 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <BlurView intensity={82} tint="light" experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: colors.border }]}>
+      <BlurView intensity={82} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         {renderTab("people", "People", "groups")}
         {renderTab("reminders", "Reminders", "notifications")}
         {renderTab("journal", "Journal", "article")}

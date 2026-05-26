@@ -691,7 +691,7 @@ export default function PersonScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Family Group</Text>
             </View>
-            <View style={styles.familyGroupCard}>
+            <View style={[styles.familyGroupCard, { backgroundColor: getThemeAwareColor("#F5F3F7", colors) }]}>
               <View style={styles.familyGroupInfo}>
                 <Text style={styles.familyGroupName}>{currentPerson.familyName || "Family"}</Text>
                 <Text style={styles.familyGroupMeta}>{familyMembers.length} {familyMembers.length === 1 ? "member" : "members"}</Text>
@@ -717,7 +717,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && styles.prayerItemUrgent, item.isEmergency && { backgroundColor: getThemeColor("#FEE2E2"), borderColor: "#EF4444", borderWidth: 1 }]}>
+              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
@@ -733,11 +733,11 @@ export default function PersonScreen() {
                 {item.isEmergency ? (
                   <MaterialIcons name={iconName("local-fire-department")} size={20} color="#EF4444" />
                 ) : (
-                  <Pressable onPress={() => handleToggleUrgent(item.id)} style={({ pressed }) => [styles.iconCircle, item.isUrgent && styles.iconCircleUrgent, pressed && styles.pressed]}>
+                  <Pressable onPress={() => handleToggleUrgent(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, item.isUrgent && { ...styles.iconCircleUrgent, backgroundColor: getThemeAwareColor("#FFE8EA", colors) }, pressed && styles.pressed]}>
                     <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
                   </Pressable>
                 )}
-                <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [styles.iconCircle, pressed && styles.pressed]}>
+                <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
                   <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : colors.muted} />
                 </Pressable>
               </View>
@@ -801,11 +801,14 @@ export default function PersonScreen() {
                   <Pressable
                     key={relationship}
                     onPress={() => setDraftRelationship(relationship)}
-                    style={({ pressed }) => [
-                      styles.editRelationshipPill,
-                      { borderColor: isSelected ? relationshipColors[relationship].accent : "#E7E1EF", backgroundColor: isSelected ? relationshipColors[relationship].avatar : "#FBF8FF" },
-                      pressed && styles.pressed,
-                    ]}
+                    style={({ pressed }) => {
+                      const bgColor = isSelected ? relationshipColors[relationship].avatar : getThemeAwareColor("#FBF8FF", colors);
+                      return [
+                        styles.editRelationshipPill,
+                        { borderColor: isSelected ? relationshipColors[relationship].accent : "#E7E1EF", backgroundColor: bgColor },
+                        pressed && styles.pressed,
+                      ];
+                    }}
                   >
                     <Text style={[styles.editRelationshipPillText, { color: isSelected ? relationshipColors[relationship].accent : "#7E7C88" }]}>{relationship}</Text>
                   </Pressable>
@@ -821,32 +824,32 @@ export default function PersonScreen() {
               placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
             {familyMembers.length > 0 && (
               <>
                 <Text style={styles.modalFieldLabel}>Family Members</Text>
-                <View style={styles.familyMembersList}>
+                <View style={[styles.familyMembersList, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}>
                   {familyMembers.map((member) => (
                     <View key={member.id} style={styles.familyMemberItem}>
                       <Text style={styles.familyMemberName}>{member.name}</Text>
                     </View>
                   ))}
                 </View>
-                <Pressable onPress={handleUngroupFromFamily} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+                <Pressable onPress={handleUngroupFromFamily} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
                   <MaterialIcons name={iconName("link-off")} size={18} color={colors.primary} />
                   <Text style={styles.modalSecondaryButtonText}>Remove from Family</Text>
                 </Pressable>
               </>
             )}
-            <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [styles.modalSecondaryButton, styles.addToFamilyButton, pressed && styles.pressed]}>
+            <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, styles.addToFamilyButton, pressed && styles.pressed]}>
               <MaterialIcons name={iconName("link")} size={18} color={colors.primary} />
               <Text style={styles.modalSecondaryButtonText} numberOfLines={1}>
                 Add to Family
               </Text>
             </Pressable>
             <View style={styles.modalActionRow}>
-              <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [styles.modalDeleteButton, pressed && styles.pressed]}>
+              <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [{ ...styles.modalDeleteButton, backgroundColor: getThemeAwareColor("#FFF0F3", colors) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
               </Pressable>
               <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.modalPrimaryButton, styles.modalSaveButton, pressed && styles.pressed]}>
@@ -907,7 +910,7 @@ export default function PersonScreen() {
                     onPress={() => setDraftFamilyType(type as any)}
                     style={({ pressed }) => [
                       styles.editFamilyTypePill,
-                      { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? "#E8DFFF" : "#FBF8FF" },
+                      { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: colors.surface },
                       pressed && styles.pressed,
                     ]}
                   >
@@ -955,7 +958,7 @@ export default function PersonScreen() {
                       <Pressable
                         key={`${label}-${index}`}
                         onPress={() => toggleDraftReminderDay(index)}
-                        style={({ pressed }) => [styles.dayToggle, isSelected && styles.dayToggleActive, pressed && styles.pressed]}
+                        style={({ pressed }) => [{ ...styles.dayToggle, backgroundColor: isSelected ? styles.dayToggleActive.backgroundColor : getThemeAwareColor("#FBF8FF", colors) }, isSelected && styles.dayToggleActive, pressed && styles.pressed]}
                       >
                         <Text style={[styles.dayToggleText, isSelected && styles.dayToggleTextActive]}>{label}</Text>
                       </Pressable>
@@ -974,7 +977,7 @@ export default function PersonScreen() {
                   placeholderTextColor={colors.muted}
                   keyboardType="number-pad"
                   returnKeyType="done"
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
                 />
               </>
             ) : null}
@@ -986,7 +989,7 @@ export default function PersonScreen() {
               placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
             <Pressable onPress={handleSaveReminder} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Reminder</Text>
@@ -1013,12 +1016,12 @@ export default function PersonScreen() {
               placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
             <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Save Date</Text>
             </Pressable>
-            <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [styles.modalSecondaryButton, pressed && styles.pressed]}>
+            <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
               <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>
             </Pressable>
           </View>
@@ -1061,7 +1064,7 @@ export default function PersonScreen() {
               placeholderTextColor={colors.muted}
               multiline
               returnKeyType="done"
-              style={[styles.modalInput, { minHeight: 100, paddingTop: 12, textAlignVertical: "top" }]}
+              style={[styles.modalInput, { minHeight: 100, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
             <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
@@ -1276,7 +1279,7 @@ function createStyles(themeColors: any) {
   },
   prayerItemUrgent: {
     borderColor: "#F5A3AD",
-    backgroundColor: "#FFF7F8",
+    backgroundColor: undefined, // Will be set dynamically
   },
   prayerItemCheckbox: {
     width: 25,
@@ -1305,12 +1308,12 @@ function createStyles(themeColors: any) {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#F4EEF9",
+    backgroundColor: undefined, // Will be set dynamically
     alignItems: "center",
     justifyContent: "center",
   },
   iconCircleUrgent: {
-    backgroundColor: "#FFE8EA",
+    backgroundColor: undefined, // Will be set dynamically
   },
   lightningText: {
     color: MUTED_TEXT,
@@ -1525,7 +1528,7 @@ function createStyles(themeColors: any) {
     borderRadius: 19,
     borderWidth: 1.5,
     borderColor: BORDER,
-    backgroundColor: "#FBF8FF",
+    backgroundColor: undefined, // Will be set dynamically
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1557,7 +1560,7 @@ function createStyles(themeColors: any) {
     borderRadius: 16,
     paddingHorizontal: 14,
     color: DEEP_TEXT,
-    backgroundColor: "#FBF8FF",
+    backgroundColor: undefined, // Will be set dynamically
     fontSize: 17,
     fontWeight: "800",
     marginBottom: 16,
@@ -1601,7 +1604,7 @@ function createStyles(themeColors: any) {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#FFF0F3",
+    backgroundColor: undefined, // Will be set dynamically
     borderWidth: 1,
     borderColor: "#F4C6D0",
     alignItems: "center",
@@ -1626,7 +1629,7 @@ function createStyles(themeColors: any) {
   modalSecondaryButton: {
     minHeight: 50,
     borderRadius: 25,
-    backgroundColor: "#EFE8FB",
+    backgroundColor: undefined, // Will be set dynamically
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1642,7 +1645,7 @@ function createStyles(themeColors: any) {
     flexShrink: 1,
   },
   familyMembersList: {
-    backgroundColor: "#FBF8FF",
+    backgroundColor: undefined, // Will be set dynamically
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
@@ -1731,7 +1734,7 @@ function createStyles(themeColors: any) {
     paddingVertical: 14,
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: "#F5F3F7",
+    backgroundColor: undefined, // Will be set dynamically
     borderRadius: 12,
     borderWidth: 1,
     borderColor: BORDER,

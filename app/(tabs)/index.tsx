@@ -977,7 +977,7 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers, undefined, isExpanded)}
                       {isExpanded && (
-                        <ReAnimated.View entering={FadeIn.duration(200)} style={{ marginHorizontal: 24, marginTop: -12, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+                        <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 24, marginTop: -12, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
                           {familyMembers.map((member, memberIdx) => {
                             const isLast = memberIdx === familyMembers.length - 1;
                             const activeEmergencies = getAllActiveEmergencyPrayers(people);

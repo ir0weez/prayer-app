@@ -11,6 +11,16 @@ export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";
 export type ReminderFrequency = "none" | "daily" | "weekly" | "monthly";
 export type FamilyType = "Spouse" | "Child" | "Other"; // For organizing family hierarchy
 
+export type PersonalTodo = {
+  id: string;
+  title: string;
+  description?: string;
+  scheduledTime: string; // ISO datetime string (YYYY-MM-DDTHH:mm:ss)
+  isDone: boolean;
+  completedAt?: string; // ISO datetime string when completed
+  order: number; // Sequential order for completion
+};
+
 export type Person = {
   id: string;
   name: string;
@@ -34,6 +44,8 @@ export type Person = {
   familyName?: string; // Display name for the family group (e.g., "Gutierrez Family")
   spouseId?: string; // ID of spouse if married (for organizing family hierarchy)
   familyType?: FamilyType; // Type of family member: Spouse, Child, or Other
+  isPersonal?: boolean; // Mark this contact as yourself for personal to-do list
+  personalTodos?: PersonalTodo[]; // To-do items for personal profile
 };
 
 export type AddPersonOptions = {
@@ -449,8 +461,10 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       accentColor: person.accentColor || colors.accent,
       reminderDaysOfWeek: Array.isArray(person.reminderDaysOfWeek) ? person.reminderDaysOfWeek : [],
       prayerItems: Array.isArray(person.prayerItems) ? person.prayerItems : [],
+      personalTodos: Array.isArray(person.personalTodos) ? person.personalTodos : [],
       lastPrayedDate: person.lastPrayedDate ?? null,
       lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
+      isPersonal: person.isPersonal ?? false,
     };
   });
 }
@@ -497,7 +511,9 @@ export function addPerson(
       reminderDayOfMonth: reminderFrequency === "monthly" ? reminderDayOfMonth : undefined,
       reminderTime: reminderFrequency === "none" ? undefined : normalizeOptionalText(options.reminderTime),
       prayerItems: [],
+      personalTodos: [],
       reminderDaysOfWeek: reminderFrequency === "weekly" ? reminderDaysOfWeek : [],
+      isPersonal: false,
     },
   ];
 }
@@ -714,4 +730,89 @@ export function getEmergencyPrayerProgress(emergencyExpiresAt: string | undefine
   const elapsed = now - createdTime;
   
   return Math.max(0, Math.min(1, 1 - (elapsed / totalDuration)));
+}
+
+// Helper: Add personal to-do to a person
+export function addPersonalTodo(person: Person, title: string, scheduledTime: string, description?: string): Person {
+  if (!person.isPersonal) return person;
+  
+  const todos = person.personalTodos || [];
+  const maxOrder = todos.length > 0 ? Math.max(...todos.map(t => t.order)) : -1;
+  
+  const newTodo: PersonalTodo = {
+    id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    title: title.trim(),
+    description: description?.trim(),
+    scheduledTime,
+    isDone: false,
+    order: maxOrder + 1,
+  };
+  
+  return {
+    ...person,
+    personalTodos: [...todos, newTodo],
+  };
+}
+
+// Helper: Mark personal to-do as done
+export function completePersonalTodo(person: Person, todoId: string): Person {
+  if (!person.isPersonal || !person.personalTodos) return person;
+  
+  return {
+    ...person,
+    personalTodos: person.personalTodos.map(todo =>
+      todo.id === todoId
+        ? { ...todo, isDone: true, completedAt: new Date().toISOString() }
+        : todo
+    ),
+  };
+}
+
+// Helper: Remove personal to-do
+export function removePersonalTodo(person: Person, todoId: string): Person {
+  if (!person.isPersonal || !person.personalTodos) return person;
+  
+  return {
+    ...person,
+    personalTodos: person.personalTodos.filter(todo => todo.id !== todoId),
+  };
+}
+
+// Helper: Get next incomplete personal to-do
+export function getNextPersonalTodo(person: Person): PersonalTodo | undefined {
+  if (!person.isPersonal || !person.personalTodos) return undefined;
+  
+  const incomplete = person.personalTodos.filter(todo => !todo.isDone);
+  if (incomplete.length === 0) return undefined;
+  
+  // Sort by order and return the first one
+  return incomplete.sort((a, b) => a.order - b.order)[0];
+}
+
+// Helper: Get due personal to-dos (scheduled time has passed)
+export function getDuePersonalTodos(person: Person): PersonalTodo[] {
+  if (!person.isPersonal || !person.personalTodos) return [];
+  
+  const now = new Date().toISOString();
+  return person.personalTodos.filter(
+    todo => !todo.isDone && todo.scheduledTime <= now
+  ).sort((a, b) => a.order - b.order);
+}
+
+// Helper: Mark a contact as personal
+export function setPersonAsPersonal(people: Person[], personId: string, isPersonal: boolean): Person[] {
+  return people.map(person =>
+    person.id === personId
+      ? {
+          ...person,
+          isPersonal,
+          personalTodos: isPersonal ? (person.personalTodos || []) : undefined,
+        }
+      : person
+  );
+}
+
+// Helper: Get all personal contacts
+export function getPersonalContacts(people: Person[]): Person[] {
+  return people.filter(person => person.isPersonal);
 }

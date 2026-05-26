@@ -985,7 +985,13 @@ export default function HomeScreen() {
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
-                  {profile.statusHighlight && (
+                  {duePersonalTodos.length > 0 && duePersonalTodos[0] && (
+                    <View style={[styles.fastingStatusBubble, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.speechBubbleText} numberOfLines={2}>{duePersonalTodos[0].todo.title}</Text>
+                      <View style={[styles.speechBubblePointer, { borderTopColor: colors.primary }]} />
+                    </View>
+                  )}
+                  {!duePersonalTodos.length && profile.statusHighlight && (
                     <View style={[styles.fastingStatusBubble, { backgroundColor: profile.statusColor || colors.primary }]}>
                       <Text style={styles.speechBubbleText} numberOfLines={2}>{profile.statusHighlight}</Text>
                       <View style={[styles.speechBubblePointer, { borderTopColor: profile.statusColor || colors.primary }]} />

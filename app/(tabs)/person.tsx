@@ -29,6 +29,8 @@ import {
   groupIntoFamily,
   ungroupFromFamily,
   addEmergencyPrayer,
+  completePersonalTodo,
+  removePersonalTodo,
   type Person,
   type RelationshipType,
   type ReminderFrequency,
@@ -776,6 +778,74 @@ export default function PersonScreen() {
             <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
           </Pressable>
         </View>
+
+        {currentPerson.isPersonal && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>To-Do List</Text>
+              <Text style={styles.sectionStats}>{(currentPerson.personalTodos || []).filter(t => !t.isDone).length} pending</Text>
+            </View>
+
+            {(currentPerson.personalTodos || []).length === 0 ? (
+              <View style={styles.emptyCard}>
+                <MaterialIcons name={iconName("checklist")} size={34} color={colors.primary} />
+                <Text style={styles.emptyStateText}>No to-dos yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={currentPerson.personalTodos || []}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => (
+                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }]}>
+                    <Pressable
+                      onPress={() => {
+                        if (!currentPerson) return;
+                        setPeople((previousPeople) =>
+                          previousPeople.map((person) =>
+                            person.id === currentPerson.id ? completePersonalTodo(person, item.id) : person
+                          )
+                        );
+                      }}
+                      style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
+                    >
+                      {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
+                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone]}>{item.title}</Text>
+                      {item.description && <Text numberOfLines={1} style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>{item.description}</Text>}
+                      <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Due: {item.scheduledTime.substring(11, 16)}</Text>
+                    </View>
+                    <Pressable onPress={() => {
+                      if (!currentPerson) return;
+                      setPeople((previousPeople) =>
+                        previousPeople.map((person) =>
+                          person.id === currentPerson.id ? removePersonalTodo(person, item.id) : person
+                        )
+                      );
+                    }} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
+                      <MaterialIcons name={iconName("close")} size={18} color={colors.muted} />
+                    </Pressable>
+                  </View>
+                )}
+              />
+            )}
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Add to-do..."
+                placeholderTextColor={colors.muted}
+                value={personalTodoTitle}
+                onChangeText={setPersonalTodoTitle}
+                returnKeyType="done"
+              />
+              <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.pressed]} onPress={() => setShowPersonalTodoModal(true)}>
+                <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </>
+        )}
 
       </ScrollView>
 

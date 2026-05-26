@@ -735,7 +735,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add to-do list UI to personal to-do page (similar to prayer items)
 - [ ] Test personal to-do feature end-to-end
 
-## Personal Profile Feature (In Progress)
+## Personal Profile Feature (Complete)
 
 - [x] Fixed dark mode on person detail page - all hardcoded light colors now use theme-aware colors
 - [x] Added isPersonal flag to Person data structure
@@ -746,7 +746,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Implement to-do item creation with scheduled time
 - [x] Implement sequential to-do completion flow (next one appears after completion)
 - [x] Integrate personal to-dos into Pray Today section as urgent items when due
-- [ ] Replace "Add Status" button in Settings with "To-Do List" button
-- [ ] Test personal profile feature end-to-end
-- [ ] Add ability to edit/delete personal to-dos
-- [ ] Show personal to-do list view in person detail screen when isPersonal is true
+- [x] Add To-Do List section on person detail screen below Prayer Items
+- [x] Show personal to-do list view in person detail screen when isPersonal is true
+- [x] Display due personal to-dos as thought bubbles over fasting avatar in Pray Today
+- [x] Add ability to delete personal to-dos from the list
+- [x] Personal to-dos sit in thought bubble until checked off

@@ -1426,7 +1426,7 @@ function createStyles(themeColors: any) {
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F6F0FA",
+    backgroundColor: SURFACE,
   },
   modalDescription: {
     marginTop: 7,
@@ -1448,14 +1448,14 @@ function createStyles(themeColors: any) {
     borderRadius: 17,
     borderWidth: 1.5,
     borderColor: BORDER,
-    backgroundColor: "#FBF8FF",
+    backgroundColor: SURFACE,
     paddingHorizontal: 12,
     paddingVertical: 10,
     justifyContent: "center",
   },
   frequencyOptionActive: {
     borderColor: PURPLE,
-    backgroundColor: "#EFE8FB",
+    backgroundColor: SURFACE,
   },
   frequencyOptionTitle: {
     color: DEEP_TEXT,
@@ -1564,7 +1564,7 @@ function createStyles(themeColors: any) {
   },
   editPhotoPicker: {
     alignItems: "center",
-    backgroundColor: "#FBF8FF",
+    backgroundColor: SURFACE,
     borderColor: BORDER,
     borderRadius: 18,
     borderWidth: 1,
@@ -1575,7 +1575,7 @@ function createStyles(themeColors: any) {
   },
   editPhotoCircle: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: SURFACE,
     borderRadius: 30,
     height: 60,
     justifyContent: "center",

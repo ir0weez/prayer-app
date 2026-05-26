@@ -717,3 +717,20 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix person detail page dark mode support by converting hardcoded colors to theme-aware colors
 - [x] Fix avatar vertical centering by adding paddingTop to push avatars down in family cards
 - [x] Fix avatar vertical centering by making container take full height and center avatars within it
+
+
+## Dark Mode & Personal To-Do List Features
+
+- [x] Fix remaining dark mode issues on person detail page (light backgrounds in dark mode)
+- [ ] Add "isPersonal" flag to Person data structure
+- [ ] Create UI to mark a contact as personal (yourself)
+- [ ] Create ToDo data structure with title, description, scheduledTime, completed fields
+- [ ] Implement to-do CRUD operations (add, edit, delete, complete)
+- [ ] Add time-based scheduling for to-dos (specific times each day)
+- [ ] Integrate personal to-dos into getPrayTodayList function
+- [ ] Display personal to-dos in "Pray Today" section as urgent items
+- [ ] Implement to-do completion tracking (complete and show next to-do)
+- [ ] Replace "Add status" button with "To-Do List" button in Settings page
+- [ ] Create dedicated personal to-do management page (accessible from Settings)
+- [ ] Add to-do list UI to personal to-do page (similar to prayer items)
+- [ ] Test personal to-do feature end-to-end

@@ -741,10 +741,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Added isPersonal flag to Person data structure
 - [x] Added PersonalTodo type with scheduled time, sequential ordering, and completion tracking
 - [x] Added helper functions for personal to-do CRUD operations
-- [ ] Create UI to mark a contact as personal (yourself)
-- [ ] Create personal to-do list management screen
-- [ ] Implement to-do item creation with scheduled time
-- [ ] Implement sequential to-do completion flow (next one appears after completion)
-- [ ] Integrate personal to-dos into Pray Today section as urgent items when due
+- [x] Create UI to mark a contact as personal (yourself) - toggle in edit modal
+- [x] Create personal to-do list management modal
+- [x] Implement to-do item creation with scheduled time
+- [x] Implement sequential to-do completion flow (next one appears after completion)
+- [x] Integrate personal to-dos into Pray Today section as urgent items when due
 - [ ] Replace "Add Status" button in Settings with "To-Do List" button
 - [ ] Test personal profile feature end-to-end
+- [ ] Add ability to edit/delete personal to-dos
+- [ ] Show personal to-do list view in person detail screen when isPersonal is true

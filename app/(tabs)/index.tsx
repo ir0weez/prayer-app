@@ -45,6 +45,9 @@ import {
   formatEmergencyPrayerCountdown,
   getEmergencyPrayerProgress,
   getAllActiveEmergencyPrayers,
+  getDuePersonalTodos,
+  completePersonalTodo,
+  getPersonalContacts,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -454,6 +457,17 @@ export default function HomeScreen() {
   const { colorScheme } = useThemeContext();
   const styles = createStyles(colors);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
+  const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
+  const duePersonalTodos = useMemo(() => {
+    const todos: Array<{ contact: Person; todo: any }> = [];
+    personalContacts.forEach((contact) => {
+      const dueTodos = getDuePersonalTodos(contact);
+      dueTodos.forEach((todo) => {
+        todos.push({ contact, todo });
+      });
+    });
+    return todos;
+  }, [personalContacts]);
   const visiblePrayTodayList = useMemo(
     () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
     [pendingPrayerIds, prayTodayList, today],
@@ -922,10 +936,33 @@ export default function HomeScreen() {
                         )}
                       </View>
                     </Pressable>
-                  </View>
-                );
+                  </View>                );
               })}
-               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
+              {duePersonalTodos.map(({ contact, todo }) => (
+                <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
+                  <View style={[styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: colors.primary }]}>
+                    <Text numberOfLines={1} style={[styles.storyTagText, { color: colors.primary }]}>{todo.title}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setPeople((previousPeople: Person[]) =>
+                        previousPeople.map((person: Person) =>
+                          person.id === contact.id ? completePersonalTodo(person, todo.id) : person
+                        )
+                      );
+                    }}
+                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
+                  >
+                    <View style={[styles.storyRing, { borderColor: colors.primary }]}>
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: colors.primary }]}>
+                        <MaterialIcons name={iconName("checklist")} size={32} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+              ))}
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
                     <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} />

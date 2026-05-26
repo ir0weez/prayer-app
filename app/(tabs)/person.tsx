@@ -275,6 +275,11 @@ export default function PersonScreen() {
   const [showEmergencyPrayerModal, setShowEmergencyPrayerModal] = useState(false);
   const [emergencyPrayerText, setEmergencyPrayerText] = useState("");
   const [emergencyPrayerDuration, setEmergencyPrayerDuration] = useState<1 | 5 | 12 | 24>(24);
+  const [draftIsPersonal, setDraftIsPersonal] = useState(false);
+  const [showPersonalTodoModal, setShowPersonalTodoModal] = useState(false);
+  const [personalTodoTitle, setPersonalTodoTitle] = useState("");
+  const [personalTodoDescription, setPersonalTodoDescription] = useState("");
+  const [personalTodoTime, setPersonalTodoTime] = useState("09:00");
 
   useEffect(() => {
     let isMounted = true;
@@ -422,6 +427,7 @@ export default function PersonScreen() {
     setDraftFamilyType(currentPerson.familyType);
     setDraftBirthday(currentPerson.birthday ?? "");
     setDraftPhotoUri(currentPerson.photoUri);
+    setDraftIsPersonal(currentPerson.isPersonal ?? false);
     setShowEditModal(true);
   };
 
@@ -467,6 +473,7 @@ export default function PersonScreen() {
               avatarColor: colors.avatar,
               accentColor: colors.accent,
               familyType: draftRelationship === "Family" ? draftFamilyType : undefined,
+              isPersonal: draftIsPersonal,
             }
           : person,
       ),
@@ -686,6 +693,16 @@ export default function PersonScreen() {
           <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
         </Pressable>
 
+        {currentPerson.isPersonal && (
+          <Pressable
+            onPress={() => setShowPersonalTodoModal(true)}
+            style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}
+          >
+            <MaterialIcons name={iconName("checklist")} size={22} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Add Personal To-Do</Text>
+          </Pressable>
+        )}
+
         {currentPerson.familyId && (
           <>
             <View style={styles.sectionHeader}>
@@ -848,6 +865,13 @@ export default function PersonScreen() {
                 Add to Family
               </Text>
             </Pressable>
+
+            <Text style={styles.modalFieldLabel}>Personal Profile</Text>
+            <Pressable onPress={() => setDraftIsPersonal(!draftIsPersonal)} style={({ pressed }) => [styles.modalSecondaryButton, { backgroundColor: draftIsPersonal ? colors.primary : getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName(draftIsPersonal ? "check-circle" : "radio-button-unchecked")} size={18} color={draftIsPersonal ? "#FFFFFF" : colors.primary} />
+              <Text style={[styles.modalSecondaryButtonText, { color: draftIsPersonal ? "#FFFFFF" : colors.primary }]}>Mark as yourself (personal to-do list)</Text>
+            </Pressable>
+
             <View style={styles.modalActionRow}>
               <Pressable accessibilityLabel="Delete person" onPress={confirmDeletePerson} pointerEvents="auto" style={({ pressed }) => [{ ...styles.modalDeleteButton, backgroundColor: getThemeAwareColor("#FFF0F3", colors) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" />
@@ -1068,6 +1092,52 @@ export default function PersonScreen() {
             />
             <Pressable onPress={handleAddEmergencyPrayer} style={({ pressed }) => [styles.modalPrimaryButton, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add Emergency Prayer</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showPersonalTodoModal} animationType="slide" onRequestClose={() => setShowPersonalTodoModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Personal To-Do</Text>
+              <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
+                <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
+              </Pressable>
+            </View>
+            <Text style={styles.modalDescription}>Add a to-do item to your personal list with a scheduled time.</Text>
+            <Text style={styles.modalFieldLabel}>To-Do Title</Text>
+            <TextInput
+              value={personalTodoTitle}
+              onChangeText={setPersonalTodoTitle}
+              placeholder="What do you need to do?"
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Text style={styles.modalFieldLabel}>Description (optional)</Text>
+            <TextInput
+              value={personalTodoDescription}
+              onChangeText={setPersonalTodoDescription}
+              placeholder="Add details..."
+              placeholderTextColor={colors.muted}
+              multiline
+              returnKeyType="done"
+              style={[styles.modalInput, { minHeight: 80, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Text style={styles.modalFieldLabel}>Scheduled Time</Text>
+            <TextInput
+              value={personalTodoTime}
+              onChangeText={setPersonalTodoTime}
+              placeholder="HH:mm"
+              placeholderTextColor={colors.muted}
+              keyboardType="numbers-and-punctuation"
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+              <Text style={styles.modalPrimaryButtonText}>Add To-Do</Text>
             </Pressable>
           </View>
         </View>

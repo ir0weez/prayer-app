@@ -29,6 +29,7 @@ import {
   groupIntoFamily,
   ungroupFromFamily,
   addEmergencyPrayer,
+  addPersonalTodo,
   completePersonalTodo,
   removePersonalTodo,
   type Person,
@@ -422,6 +423,24 @@ export default function PersonScreen() {
     setShowEmergencyPrayerModal(false);
   };
 
+  const handleAddPersonalTodo = () => {
+    if (!personId || !currentPerson || !personalTodoTitle.trim()) return;
+    if (!personalTodoTime.trim()) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) => {
+      const person = previousPeople.find((p) => p.id === personId);
+      if (!person) return previousPeople;
+      const today = getTodayISOString();
+      const scheduledTime = `${today}T${personalTodoTime}:00`;
+      const updated = addPersonalTodo(person, personalTodoTitle.trim(), scheduledTime, personalTodoDescription.trim() || undefined);
+      return previousPeople.map((p) => (p.id === personId ? updated : p));
+    });
+    setPersonalTodoTitle("");
+    setPersonalTodoDescription("");
+    setPersonalTodoTime("");
+    setShowPersonalTodoModal(false);
+  };
+
   const openEditModal = () => {
     if (!currentPerson) return;
     setDraftName(currentPerson.name);
@@ -694,16 +713,6 @@ export default function PersonScreen() {
           <MaterialIcons name={iconName("local-fire-department")} size={22} color="#FFFFFF" />
           <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
         </Pressable>
-
-        {currentPerson.isPersonal && (
-          <Pressable
-            onPress={() => setShowPersonalTodoModal(true)}
-            style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}
-          >
-            <MaterialIcons name={iconName("checklist")} size={22} color="#FFFFFF" />
-            <Text style={styles.actionButtonText}>Add Personal To-Do</Text>
-          </Pressable>
-        )}
 
         {currentPerson.familyId && (
           <>
@@ -1206,7 +1215,7 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
-            <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+            <Pressable onPress={handleAddPersonalTodo} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
               <Text style={styles.modalPrimaryButtonText}>Add To-Do</Text>
             </Pressable>
           </View>

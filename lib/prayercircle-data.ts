@@ -839,20 +839,32 @@ export function getIconForTodo(title: string): string {
   // Prayer-related
   if (lower.includes("pray") || lower.includes("prayer")) return "favorite";
   
+  // Dental/Teeth-related
+  if (lower.includes("brush") || lower.includes("teeth") || lower.includes("tooth") || lower.includes("dental") || lower.includes("floss")) return "cleaning-services";
+  
+  // Mental health/Therapy-related
+  if (lower.includes("therapy") || lower.includes("counseling") || lower.includes("permission") || lower.includes("internal") || lower.includes("meditation")) return "sentiment-satisfied";
+  
+  // Questions/Learning-related
+  if (lower.includes("question") || lower.includes("answer") || lower.includes("quiz") || lower.includes("test")) return "help";
+  
+  // Language learning (Duolingo, etc.)
+  if (lower.includes("duolingo") || lower.includes("language") || lower.includes("spanish") || lower.includes("french") || lower.includes("german") || lower.includes("learn language")) return "translate";
+  
   // Schedule/Plan-related
-  if (lower.includes("schedule") || lower.includes("plan") || lower.includes("meeting") || lower.includes("appointment")) return "event";
+  if (lower.includes("schedule") || lower.includes("plan") || lower.includes("meeting")) return "event";
   
   // Eat/Food-related
-  if (lower.includes("eat") || lower.includes("meal") || lower.includes("lunch") || lower.includes("dinner") || lower.includes("breakfast") || lower.includes("food")) return "restaurant";
+  if (lower.includes("eat") || lower.includes("meal") || lower.includes("lunch") || lower.includes("dinner") || lower.includes("breakfast") || lower.includes("food") || lower.includes("snack")) return "restaurant";
   
   // Sleep/Rest-related
   if (lower.includes("sleep") || lower.includes("rest") || lower.includes("nap") || lower.includes("bed")) return "nights-stay";
   
   // Exercise/Fitness-related
-  if (lower.includes("exercise") || lower.includes("workout") || lower.includes("run") || lower.includes("gym") || lower.includes("walk") || lower.includes("sport")) return "directions-run";
+  if (lower.includes("exercise") || lower.includes("workout") || lower.includes("run") || lower.includes("gym") || lower.includes("walk") || lower.includes("sport") || lower.includes("yoga")) return "directions-run";
   
-  // Study/Learn-related
-  if (lower.includes("study") || lower.includes("learn") || lower.includes("read") || lower.includes("book")) return "school";
+  // Study/Learn-related (excluding language learning which is handled above)
+  if ((lower.includes("study") || lower.includes("learn") || lower.includes("read") || lower.includes("book")) && !lower.includes("language")) return "school";
   
   // Work-related
   if (lower.includes("work") || lower.includes("project") || lower.includes("task") || lower.includes("email")) return "work";
@@ -864,8 +876,8 @@ export function getIconForTodo(title: string): string {
   if (lower.includes("shop") || lower.includes("buy") || lower.includes("errand") || lower.includes("store")) return "shopping-cart";
   
   // Health/Doctor
-  if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine")) return "local-hospital";
+  if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine") || lower.includes("appointment")) return "local-hospital";
   
   // Default icon
-  return "checklist";
+  return "task-alt";
 }

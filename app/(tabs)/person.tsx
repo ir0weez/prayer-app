@@ -808,8 +808,10 @@ export default function PersonScreen() {
                 data={currentPerson.personalTodos || []}
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
-                renderItem={({ item }) => (
-                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }]}>
+                renderItem={({ item }) => {
+                  const todoColor = item.color || "#8B5CF6";
+                  return (
+                  <View style={[styles.prayerItem, item.isDone && { opacity: 0.5 }, { borderLeftColor: todoColor, borderLeftWidth: 4 }]}>
                     <Pressable
                       onPress={() => {
                         if (!currentPerson) return;
@@ -820,12 +822,12 @@ export default function PersonScreen() {
                           )
                         );
                       }}
-                      style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed, { backgroundColor: todoColor }]}
                     >
                       {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
                     </Pressable>
                     <View style={{ flex: 1 }}>
-                      <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone]}>{item.title}</Text>
+                      <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, { color: todoColor }]}>{item.title}</Text>
                       {item.description && <Text numberOfLines={1} style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>{item.description}</Text>}
                       <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Due: {item.scheduledTime}</Text>
                     </View>
@@ -849,7 +851,8 @@ export default function PersonScreen() {
                       <MaterialIcons name={iconName("close")} size={18} color={colors.muted} />
                     </Pressable>
                   </View>
-                )}
+                );
+                }}
               />
             )}
 

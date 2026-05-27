@@ -15,7 +15,8 @@ export type PersonalTodo = {
   id: string;
   title: string;
   description?: string;
-  scheduledTime: string; // ISO datetime string (YYYY-MM-DDTHH:mm:ss)
+  scheduledTime: string; // ISO datetime string (YYYY-MM-DDTHH:mm:ss) or HH:mm time only
+  daysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday. If empty, shows every day.
   isDone: boolean;
   completedAt?: string; // ISO datetime string when completed
   order: number; // Sequential order for completion
@@ -733,7 +734,7 @@ export function getEmergencyPrayerProgress(emergencyExpiresAt: string | undefine
 }
 
 // Helper: Add personal to-do to a person
-export function addPersonalTodo(person: Person, title: string, scheduledTime: string, description?: string): Person {
+export function addPersonalTodo(person: Person, title: string, scheduledTime: string, description?: string, daysOfWeek?: number[]): Person {
   if (!person.isPersonal) return person;
   
   const todos = person.personalTodos || [];
@@ -744,6 +745,7 @@ export function addPersonalTodo(person: Person, title: string, scheduledTime: st
     title: title.trim(),
     description: description?.trim(),
     scheduledTime,
+    daysOfWeek: daysOfWeek && daysOfWeek.length > 0 ? daysOfWeek : undefined,
     isDone: false,
     order: maxOrder + 1,
   };
@@ -793,10 +795,27 @@ export function getNextPersonalTodo(person: Person): PersonalTodo | undefined {
 export function getDuePersonalTodos(person: Person): PersonalTodo[] {
   if (!person.isPersonal || !person.personalTodos) return [];
   
-  const now = new Date().toISOString();
-  return person.personalTodos.filter(
-    todo => !todo.isDone && todo.scheduledTime <= now
-  ).sort((a, b) => a.order - b.order);
+  const now = new Date();
+  const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  const currentDayOfWeek = now.getDay();
+  
+  return person.personalTodos.filter(todo => {
+    if (todo.isDone) return false;
+    
+    // Check if today is in the allowed days of week (if specified)
+    if (todo.daysOfWeek && todo.daysOfWeek.length > 0 && !todo.daysOfWeek.includes(currentDayOfWeek)) {
+      return false;
+    }
+    
+    // Handle time-only format (HH:mm) or full datetime format
+    if (todo.scheduledTime.includes('T')) {
+      // Full datetime format - compare with current datetime
+      return todo.scheduledTime <= now.toISOString();
+    } else {
+      // Time-only format (HH:mm) - compare with current time
+      return todo.scheduledTime <= currentTime;
+    }
+  }).sort((a, b) => a.order - b.order);
 }
 
 // Helper: Mark a contact as personal

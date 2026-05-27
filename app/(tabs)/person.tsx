@@ -430,9 +430,8 @@ export default function PersonScreen() {
     setPeople((previousPeople) => {
       const person = previousPeople.find((p) => p.id === personId);
       if (!person) return previousPeople;
-      const today = getTodayISOString();
-      const scheduledTime = `${today}T${personalTodoTime}:00`;
-      const updated = addPersonalTodo(person, personalTodoTitle.trim(), scheduledTime, personalTodoDescription.trim() || undefined);
+      // Store time-only format (HH:mm) - will be compared with current time
+      const updated = addPersonalTodo(person, personalTodoTitle.trim(), personalTodoTime, personalTodoDescription.trim() || undefined);
       return previousPeople.map((p) => (p.id === personId ? updated : p));
     });
     setPersonalTodoTitle("");
@@ -849,7 +848,7 @@ export default function PersonScreen() {
                 onChangeText={setPersonalTodoTitle}
                 returnKeyType="done"
               />
-              <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.pressed]} onPress={() => setShowPersonalTodoModal(true)}>
+              <Pressable style={({ pressed }) => [styles.addButton, pressed && styles.pressed]} onPress={handleAddPersonalTodo}>
                 <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -1180,31 +1179,12 @@ export default function PersonScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Personal To-Do</Text>
+              <Text style={styles.modalTitle}>Set Time & Days</Text>
               <Pressable onPress={() => setShowPersonalTodoModal(false)} style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName("close")} size={23} color={colors.muted} />
               </Pressable>
             </View>
-            <Text style={styles.modalDescription}>Add a to-do item to your personal list with a scheduled time.</Text>
-            <Text style={styles.modalFieldLabel}>To-Do Title</Text>
-            <TextInput
-              value={personalTodoTitle}
-              onChangeText={setPersonalTodoTitle}
-              placeholder="What do you need to do?"
-              placeholderTextColor={colors.muted}
-              returnKeyType="done"
-              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
-            />
-            <Text style={styles.modalFieldLabel}>Description (optional)</Text>
-            <TextInput
-              value={personalTodoDescription}
-              onChangeText={setPersonalTodoDescription}
-              placeholder="Add details..."
-              placeholderTextColor={colors.muted}
-              multiline
-              returnKeyType="done"
-              style={[styles.modalInput, { minHeight: 80, paddingTop: 12, textAlignVertical: "top", backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
-            />
+            <Text style={styles.modalDescription}>Set when this to-do should appear and which days of the week.</Text>
             <Text style={styles.modalFieldLabel}>Scheduled Time</Text>
             <TextInput
               value={personalTodoTime}
@@ -1215,8 +1195,21 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
-            <Pressable onPress={handleAddPersonalTodo} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
-              <Text style={styles.modalPrimaryButtonText}>Add To-Do</Text>
+            <Text style={styles.modalFieldLabel}>Repeat on Days</Text>
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
+                <Pressable key={index} style={({ pressed }) => [styles.dayButton, pressed && styles.pressed]} onPress={() => {
+                  // Day selection will be implemented in next phase
+                }}>
+                  <Text style={styles.dayButtonText}>{day}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => {
+              setShowPersonalTodoModal(false);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
+              <Text style={styles.modalPrimaryButtonText}>Done</Text>
             </Pressable>
           </View>
         </View>
@@ -1900,6 +1893,19 @@ function createStyles(themeColors: any) {
   familyGroupMeta: {
     color: MUTED_TEXT,
     fontSize: 13,
+  },
+  dayButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: SURFACE,
+  },
+  dayButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: DEEP_TEXT,
   },
   });
 }

@@ -283,6 +283,8 @@ export default function PersonScreen() {
   const [personalTodoTitle, setPersonalTodoTitle] = useState("");
   const [personalTodoDescription, setPersonalTodoDescription] = useState("");
   const [personalTodoTime, setPersonalTodoTime] = useState("09:00");
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -809,6 +811,7 @@ export default function PersonScreen() {
                     <Pressable
                       onPress={() => {
                         if (!currentPerson) return;
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         setPeople((previousPeople) =>
                           previousPeople.map((person) =>
                             person.id === currentPerson.id ? completePersonalTodo(person, item.id) : person
@@ -822,8 +825,16 @@ export default function PersonScreen() {
                     <View style={{ flex: 1 }}>
                       <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone]}>{item.title}</Text>
                       {item.description && <Text numberOfLines={1} style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>{item.description}</Text>}
-                      <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Due: {item.scheduledTime.substring(11, 16)}</Text>
+                      <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Due: {item.scheduledTime}</Text>
                     </View>
+                    <Pressable onPress={() => {
+                      setEditingTodoId(item.id);
+                      setPersonalTodoTime(item.scheduledTime);
+                      setSelectedDaysOfWeek(item.daysOfWeek || []);
+                      setShowPersonalTodoModal(true);
+                    }} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
+                      <MaterialIcons name={iconName("alarm")} size={18} color={colors.primary} />
+                    </Pressable>
                     <Pressable onPress={() => {
                       if (!currentPerson) return;
                       setPeople((previousPeople) =>
@@ -1197,19 +1208,45 @@ export default function PersonScreen() {
             />
             <Text style={styles.modalFieldLabel}>Repeat on Days</Text>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
-                <Pressable key={index} style={({ pressed }) => [styles.dayButton, pressed && styles.pressed]} onPress={() => {
-                  // Day selection will be implemented in next phase
-                }}>
-                  <Text style={styles.dayButtonText}>{day}</Text>
-                </Pressable>
-              ))}
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
+                const isSelected = selectedDaysOfWeek.includes(index);
+                return (
+                  <Pressable key={index} style={({ pressed }) => [styles.dayButton, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }, pressed && styles.pressed]} onPress={() => {
+                    if (isSelected) {
+                      setSelectedDaysOfWeek(selectedDaysOfWeek.filter(d => d !== index));
+                    } else {
+                      setSelectedDaysOfWeek([...selectedDaysOfWeek, index].sort((a, b) => a - b));
+                    }
+                  }}>
+                    <Text style={[styles.dayButtonText, isSelected && { color: "#FFFFFF" }]}>{day}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
             <Pressable onPress={() => {
-              setShowPersonalTodoModal(false);
+              if (!currentPerson || !editingTodoId) {
+                setShowPersonalTodoModal(false);
+                return;
+              }
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setPeople((previousPeople) =>
+                previousPeople.map((person) => {
+                  if (person.id !== currentPerson.id) return person;
+                  const todos = person.personalTodos || [];
+                  return {
+                    ...person,
+                    personalTodos: todos.map(todo =>
+                      todo.id === editingTodoId
+                        ? { ...todo, scheduledTime: personalTodoTime, daysOfWeek: selectedDaysOfWeek.length > 0 ? selectedDaysOfWeek : undefined }
+                        : todo
+                    ),
+                  };
+                })
+              );
+              setEditingTodoId(null);
+              setShowPersonalTodoModal(false);
             }} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
-              <Text style={styles.modalPrimaryButtonText}>Done</Text>
+              <Text style={styles.modalPrimaryButtonText}>Save</Text>
             </Pressable>
           </View>
         </View>

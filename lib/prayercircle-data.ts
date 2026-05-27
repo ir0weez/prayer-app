@@ -840,16 +840,16 @@ export function getIconForTodo(title: string): string {
   if (lower.includes("pray") || lower.includes("prayer")) return "favorite";
   
   // Schedule/Plan-related
-  if (lower.includes("schedule") || lower.includes("plan") || lower.includes("meeting") || lower.includes("appointment")) return "calendar-today";
+  if (lower.includes("schedule") || lower.includes("plan") || lower.includes("meeting") || lower.includes("appointment")) return "event";
   
   // Eat/Food-related
   if (lower.includes("eat") || lower.includes("meal") || lower.includes("lunch") || lower.includes("dinner") || lower.includes("breakfast") || lower.includes("food")) return "restaurant";
   
   // Sleep/Rest-related
-  if (lower.includes("sleep") || lower.includes("rest") || lower.includes("nap") || lower.includes("bed")) return "bedtime";
+  if (lower.includes("sleep") || lower.includes("rest") || lower.includes("nap") || lower.includes("bed")) return "nights-stay";
   
   // Exercise/Fitness-related
-  if (lower.includes("exercise") || lower.includes("workout") || lower.includes("run") || lower.includes("gym") || lower.includes("walk") || lower.includes("sport")) return "fitness-center";
+  if (lower.includes("exercise") || lower.includes("workout") || lower.includes("run") || lower.includes("gym") || lower.includes("walk") || lower.includes("sport")) return "directions-run";
   
   // Study/Learn-related
   if (lower.includes("study") || lower.includes("learn") || lower.includes("read") || lower.includes("book")) return "school";
@@ -864,7 +864,7 @@ export function getIconForTodo(title: string): string {
   if (lower.includes("shop") || lower.includes("buy") || lower.includes("errand") || lower.includes("store")) return "shopping-cart";
   
   // Health/Doctor
-  if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine") || lower.includes("appointment")) return "local-hospital";
+  if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine")) return "local-hospital";
   
   // Default icon
   return "checklist";

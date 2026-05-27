@@ -459,7 +459,15 @@ export default function HomeScreen() {
   const styles = createStyles(colors);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
+  const visiblePrayTodayList = useMemo(
+    () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
+    [pendingPrayerIds, prayTodayList, today],
+  );
   const duePersonalTodos = useMemo(() => {
+    // Only show personal to-dos after all prayer requests are completed
+    if (visiblePrayTodayList.length > 0) {
+      return []; // Don't show to-dos until prayers are done
+    }
     const todos: Array<{ contact: Person; todo: any }> = [];
     personalContacts.forEach((contact) => {
       const dueTodos = getDuePersonalTodos(contact);
@@ -468,11 +476,7 @@ export default function HomeScreen() {
       });
     });
     return todos;
-  }, [personalContacts]);
-  const visiblePrayTodayList = useMemo(
-    () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
-    [pendingPrayerIds, prayTodayList, today],
-  );
+  }, [personalContacts, visiblePrayTodayList]);
   const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
   const pendingPrayerCount = pendingPrayerIds.filter((personId) => prayTodayList.some((person) => person.id === personId)).length;
   const streak = streakRecord.streak;

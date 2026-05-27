@@ -941,8 +941,8 @@ export default function HomeScreen() {
               })}
               {duePersonalTodos.map(({ contact, todo }) => (
                 <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
-                  <View style={[styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: colors.primary }]}>
-                    <Text numberOfLines={1} style={[styles.storyTagText, { color: colors.primary }]}>{todo.title}</Text>
+                  <View style={[styles.storyTag, { backgroundColor: (todo.color || colors.primary) + "20", borderColor: todo.color || colors.primary }]}>
+                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
                   </View>
                   <Pressable
                     onPress={() => {
@@ -955,9 +955,9 @@ export default function HomeScreen() {
                     }}
                     style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
                   >
-                    <View style={[styles.storyRing, { borderColor: colors.primary }]}>
-                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: colors.primary }]}>
-                        <MaterialIcons name={iconName("checklist")} size={32} color="#FFFFFF" />
+                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
+                        <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
                       </View>
                     </View>
                   </Pressable>

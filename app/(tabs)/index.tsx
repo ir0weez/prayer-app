@@ -941,7 +941,7 @@ export default function HomeScreen() {
               })}
               {duePersonalTodos.map(({ contact, todo }) => (
                 <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
-                  <View style={[styles.storyTag, { backgroundColor: (todo.color || colors.primary) + "20", borderColor: todo.color || colors.primary }]}>
+                  <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
                     <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
                   </View>
                   <Pressable

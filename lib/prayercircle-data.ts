@@ -17,6 +17,7 @@ export type PersonalTodo = {
   description?: string;
   scheduledTime: string; // ISO datetime string (YYYY-MM-DDTHH:mm:ss) or HH:mm time only
   daysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday. If empty, shows every day.
+  color?: string; // Hex color code (e.g., "#8B5CF6", "#EF4444", "#10B981", "#F59E0B", "#3B82F6")
   isDone: boolean;
   completedAt?: string; // ISO datetime string when completed
   order: number; // Sequential order for completion
@@ -734,7 +735,7 @@ export function getEmergencyPrayerProgress(emergencyExpiresAt: string | undefine
 }
 
 // Helper: Add personal to-do to a person
-export function addPersonalTodo(person: Person, title: string, scheduledTime: string, description?: string, daysOfWeek?: number[]): Person {
+export function addPersonalTodo(person: Person, title: string, scheduledTime: string, description?: string, daysOfWeek?: number[], color?: string): Person {
   if (!person.isPersonal) return person;
   
   const todos = person.personalTodos || [];
@@ -746,6 +747,7 @@ export function addPersonalTodo(person: Person, title: string, scheduledTime: st
     description: description?.trim(),
     scheduledTime,
     daysOfWeek: daysOfWeek && daysOfWeek.length > 0 ? daysOfWeek : undefined,
+    color: color || "#8B5CF6",
     isDone: false,
     order: maxOrder + 1,
   };
@@ -796,25 +798,18 @@ export function getDuePersonalTodos(person: Person): PersonalTodo[] {
   if (!person.isPersonal || !person.personalTodos) return [];
   
   const now = new Date();
-  const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
   const currentDayOfWeek = now.getDay();
   
+  // Return all pending to-dos (not done) that match the current day of week
+  // They will show in the thought bubble regardless of time
   return person.personalTodos.filter(todo => {
     if (todo.isDone) return false;
     
-    // Check if today is in the allowed days of week (if specified)
-    if (todo.daysOfWeek && todo.daysOfWeek.length > 0 && !todo.daysOfWeek.includes(currentDayOfWeek)) {
-      return false;
-    }
+    // If no specific days are set, show on all days
+    if (!todo.daysOfWeek || todo.daysOfWeek.length === 0) return true;
     
-    // Handle time-only format (HH:mm) or full datetime format
-    if (todo.scheduledTime.includes('T')) {
-      // Full datetime format - compare with current datetime
-      return todo.scheduledTime <= now.toISOString();
-    } else {
-      // Time-only format (HH:mm) - compare with current time
-      return todo.scheduledTime <= currentTime;
-    }
+    // Check if today is in the allowed days of week
+    return todo.daysOfWeek.includes(currentDayOfWeek);
   }).sort((a, b) => a.order - b.order);
 }
 
@@ -834,4 +829,43 @@ export function setPersonAsPersonal(people: Person[], personId: string, isPerson
 // Helper: Get all personal contacts
 export function getPersonalContacts(people: Person[]): Person[] {
   return people.filter(person => person.isPersonal);
+}
+
+
+// Helper: Get icon name based on to-do title keywords
+export function getIconForTodo(title: string): string {
+  const lower = title.toLowerCase();
+  
+  // Prayer-related
+  if (lower.includes("pray") || lower.includes("prayer")) return "favorite";
+  
+  // Schedule/Plan-related
+  if (lower.includes("schedule") || lower.includes("plan") || lower.includes("meeting") || lower.includes("appointment")) return "calendar-today";
+  
+  // Eat/Food-related
+  if (lower.includes("eat") || lower.includes("meal") || lower.includes("lunch") || lower.includes("dinner") || lower.includes("breakfast") || lower.includes("food")) return "restaurant";
+  
+  // Sleep/Rest-related
+  if (lower.includes("sleep") || lower.includes("rest") || lower.includes("nap") || lower.includes("bed")) return "bedtime";
+  
+  // Exercise/Fitness-related
+  if (lower.includes("exercise") || lower.includes("workout") || lower.includes("run") || lower.includes("gym") || lower.includes("walk") || lower.includes("sport")) return "fitness-center";
+  
+  // Study/Learn-related
+  if (lower.includes("study") || lower.includes("learn") || lower.includes("read") || lower.includes("book")) return "school";
+  
+  // Work-related
+  if (lower.includes("work") || lower.includes("project") || lower.includes("task") || lower.includes("email")) return "work";
+  
+  // Call/Communication-related
+  if (lower.includes("call") || lower.includes("text") || lower.includes("message") || lower.includes("contact")) return "phone";
+  
+  // Shopping/Errands
+  if (lower.includes("shop") || lower.includes("buy") || lower.includes("errand") || lower.includes("store")) return "shopping-cart";
+  
+  // Health/Doctor
+  if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine") || lower.includes("appointment")) return "local-hospital";
+  
+  // Default icon
+  return "checklist";
 }

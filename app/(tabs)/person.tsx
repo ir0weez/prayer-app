@@ -285,6 +285,8 @@ export default function PersonScreen() {
   const [personalTodoTime, setPersonalTodoTime] = useState("09:00");
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([]);
+  const [selectedTodoColor, setSelectedTodoColor] = useState<string>("#8B5CF6");
+  const TODO_COLORS = ["#8B5CF6", "#EF4444", "#10B981", "#F59E0B", "#3B82F6"];
 
   useEffect(() => {
     let isMounted = true;
@@ -433,7 +435,7 @@ export default function PersonScreen() {
       const person = previousPeople.find((p) => p.id === personId);
       if (!person) return previousPeople;
       // Store time-only format (HH:mm) - will be compared with current time
-      const updated = addPersonalTodo(person, personalTodoTitle.trim(), personalTodoTime, personalTodoDescription.trim() || undefined);
+      const updated = addPersonalTodo(person, personalTodoTitle.trim(), personalTodoTime, personalTodoDescription.trim() || undefined, undefined, selectedTodoColor);
       return previousPeople.map((p) => (p.id === personId ? updated : p));
     });
     setPersonalTodoTitle("");
@@ -831,6 +833,7 @@ export default function PersonScreen() {
                       setEditingTodoId(item.id);
                       setPersonalTodoTime(item.scheduledTime);
                       setSelectedDaysOfWeek(item.daysOfWeek || []);
+                      setSelectedTodoColor(item.color || "#8B5CF6");
                       setShowPersonalTodoModal(true);
                     }} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
                       <MaterialIcons name={iconName("alarm")} size={18} color={colors.primary} />
@@ -1206,6 +1209,20 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
+            <Text style={styles.modalFieldLabel}>Color</Text>
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+              {TODO_COLORS.map((color) => (
+                <Pressable
+                  key={color}
+                  onPress={() => setSelectedTodoColor(color)}
+                  style={({ pressed }) => [
+                    { width: 44, height: 44, borderRadius: 22, backgroundColor: color },
+                    selectedTodoColor === color && { borderWidth: 3, borderColor: colors.foreground },
+                    pressed && styles.pressed,
+                  ]}
+                />
+              ))}
+            </View>
             <Text style={styles.modalFieldLabel}>Repeat on Days</Text>
             <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
@@ -1237,7 +1254,7 @@ export default function PersonScreen() {
                     ...person,
                     personalTodos: todos.map(todo =>
                       todo.id === editingTodoId
-                        ? { ...todo, scheduledTime: personalTodoTime, daysOfWeek: selectedDaysOfWeek.length > 0 ? selectedDaysOfWeek : undefined }
+                        ? { ...todo, scheduledTime: personalTodoTime, daysOfWeek: selectedDaysOfWeek.length > 0 ? selectedDaysOfWeek : undefined, color: selectedTodoColor }
                         : todo
                     ),
                   };

@@ -48,6 +48,7 @@ import {
   getDuePersonalTodos,
   completePersonalTodo,
   getPersonalContacts,
+  getIconForTodo,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -986,9 +987,12 @@ export default function HomeScreen() {
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
                   {duePersonalTodos.length > 0 && duePersonalTodos[0] && (
-                    <View style={[styles.fastingStatusBubble, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.speechBubbleText} numberOfLines={2}>{duePersonalTodos[0].todo.title}</Text>
-                      <View style={[styles.speechBubblePointer, { borderTopColor: colors.primary }]} />
+                    <View style={[styles.fastingStatusBubble, { backgroundColor: duePersonalTodos[0].todo.color || colors.primary }]}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <MaterialIcons name={iconName(getIconForTodo(duePersonalTodos[0].todo.title))} size={18} color="#FFFFFF" />
+                        <Text style={styles.speechBubbleText} numberOfLines={2}>{duePersonalTodos[0].todo.title}</Text>
+                      </View>
+                      <View style={[styles.speechBubblePointer, { borderTopColor: duePersonalTodos[0].todo.color || colors.primary }]} />
                     </View>
                   )}
                   {!duePersonalTodos.length && profile.statusHighlight && (

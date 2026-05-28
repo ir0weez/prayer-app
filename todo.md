@@ -792,14 +792,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Update profile name and subtitle colors to use theme colors
   - [x] All 66 tests passing
 
-## Status Bar Notification for Emergency Prayers (Complete)
+## Status Bar Notification for Emergency Prayers (Removed)
 
-- [x] Set up expo-notifications and request permissions
-- [x] Create persistent notification that shows in system status bar
-  - [x] Display emergency prayer count in notification title
-  - [x] Show in status bar on both iOS and Android
-  - [x] Update notification when emergency prayers are added/removed
-  - [x] Make notification persistent (doesn't disappear on tap)
-- [x] Test notification displays correctly in status bar
-- [x] Verify notification updates in real-time
-- [ ] Save checkpoint after implementation
+- [x] Attempted to implement status bar notification using expo-notifications
+- [x] Realized standard notifications don't work as pill badges in status bar
+- [x] User decided to remove feature entirely
+- [x] Cleaned up code and removed useEmergencyNotification hook

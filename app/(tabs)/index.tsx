@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useEmergencyNotification } from "@/hooks/use-emergency-notification";
 import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
@@ -336,9 +335,6 @@ export default function HomeScreen() {
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
-
-  // Show persistent notification for emergency prayers in status bar
-  useEmergencyNotification(people);
 
   useEffect(() => {
     let isMounted = true;

@@ -21,7 +21,6 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
-import { NotificationPill } from "@/components/notification-pill";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -1572,12 +1571,6 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
-      <NotificationPill
-        visible={getAllActiveEmergencyPrayers(people).length > 0}
-        title={getAllActiveEmergencyPrayers(people).length > 0 ? `${getAllActiveEmergencyPrayers(people).length} emergency prayer${getAllActiveEmergencyPrayers(people).length > 1 ? 's' : ''}` : ''}
-        icon="priority-high"
-        backgroundColor="#EF4444"
-      />
       {renderContent()}
 
       {activeTab === "people" || activeTab === "home" ? (

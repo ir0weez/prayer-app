@@ -3141,7 +3141,7 @@ function createStyles(colors: any) {
   },
   fastingStatusBubble: {
     position: 'absolute',
-    top: -50,
+    top: -20,
     left: -20,
     maxWidth: 160,
     paddingHorizontal: 12,

@@ -1011,21 +1011,7 @@ export default function HomeScreen() {
                     <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
                     <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
                   </View>
-                  {duePersonalTodos.length > 0 && duePersonalTodos[0] && (
-                    <View style={[styles.fastingStatusBubble, { backgroundColor: duePersonalTodos[0].todo.color || colors.primary }]}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <MaterialIcons name={iconName(getIconForTodo(duePersonalTodos[0].todo.title))} size={18} color="#FFFFFF" />
-                        <Text style={styles.speechBubbleText} numberOfLines={2}>{duePersonalTodos[0].todo.title}</Text>
-                      </View>
-                      <View style={[styles.speechBubblePointer, { borderTopColor: duePersonalTodos[0].todo.color || colors.primary }]} />
-                    </View>
-                  )}
-                  {!duePersonalTodos.length && profile.statusHighlight && (
-                    <View style={[styles.fastingStatusBubble, { backgroundColor: profile.statusColor || colors.primary }]}>
-                      <Text style={styles.speechBubbleText} numberOfLines={2}>{profile.statusHighlight}</Text>
-                      <View style={[styles.speechBubblePointer, { borderTopColor: profile.statusColor || colors.primary }]} />
-                    </View>
-                  )}
+                  {/* Speech bubble removed - will be replaced with better UX */}
                   {pendingFastAction && (
                     <Pressable onPress={handleUndoFastAction} style={styles.undoCountdownPill}>
                       <UndoCountdownBar color={colors.primary} />
@@ -1586,6 +1572,12 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
+      <NotificationPill
+        visible={getAllActiveEmergencyPrayers(people).length > 0}
+        title={getAllActiveEmergencyPrayers(people).length > 0 ? `${getAllActiveEmergencyPrayers(people).length} emergency prayer${getAllActiveEmergencyPrayers(people).length > 1 ? 's' : ''}` : ''}
+        icon="priority-high"
+        backgroundColor="#EF4444"
+      />
       {renderContent()}
 
       {activeTab === "people" || activeTab === "home" ? (

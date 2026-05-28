@@ -21,6 +21,7 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
+import { NotificationPill } from "@/components/notification-pill";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -46,6 +47,7 @@ import {
   getEmergencyPrayerProgress,
   getAllActiveEmergencyPrayers,
   getDuePersonalTodos,
+  getNextPersonalTodo,
   completePersonalTodo,
   getPersonalContacts,
   getIconForTodo,
@@ -477,6 +479,25 @@ export default function HomeScreen() {
     });
     return todos;
   }, [personalContacts, visiblePrayTodayList]);
+  
+  // Get next personal to-do (even if not due yet) to show in speech bubble
+  const nextPersonalTodo = useMemo(() => {
+    if (visiblePrayTodayList.length > 0) {
+      return null; // Don't show to-dos until prayers are done
+    }
+    // If there are due to-dos, return the first one
+    if (duePersonalTodos.length > 0) {
+      return duePersonalTodos[0];
+    }
+    // Otherwise, find the next to-do in the schedule
+    for (const contact of personalContacts) {
+      const nextTodo = getNextPersonalTodo(contact);
+      if (nextTodo) {
+        return { contact, todo: nextTodo };
+      }
+    }
+    return null;
+  }, [personalContacts, visiblePrayTodayList, duePersonalTodos]);
   const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
   const pendingPrayerCount = pendingPrayerIds.filter((personId) => prayTodayList.some((person) => person.id === personId)).length;
   const streak = streakRecord.streak;

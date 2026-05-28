@@ -766,3 +766,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Ensure to-dos reappear in thought bubble after unmarking or auto-reset
 - [x] Run full test suite to verify no regressions (all 66 tests passing)
 - [ ] Save checkpoint after recurring to-do implementation
+
+## Status Highlight Replacement & Notification Pill (Complete)
+
+- [x] Replace status highlight speech bubble with next personal to-do display
+  - [x] Remove statusHighlight field from profile display logic
+  - [x] Update Pray Today section to show next due to-do as speech bubble instead
+  - [x] When to-do is completed, automatically show next to-do in bubble
+- [x] Implement dynamic notification pill for emergency prayers
+  - [x] Create notification pill component that displays at top of screen
+  - [x] Show emergency prayer count and title in pill
+  - [x] Update pill when emergency prayers are added/removed
+  - [x] Style as native-looking notification badge (pink/rose color)
+- [x] Test both features end-to-end
+- [x] Run full test suite and verify no regressions (all 66 tests passing)
+- [ ] Save checkpoint after implementation

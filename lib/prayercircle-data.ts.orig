@@ -799,25 +799,10 @@ export function getDuePersonalTodos(person: Person): PersonalTodo[] {
   
   const now = new Date();
   const currentDayOfWeek = now.getDay();
-  const todayISODate = now.toISOString().split('T')[0];
-  
-  // Auto-reset recurring to-dos if they were completed on a previous day
-  const resetTodos = person.personalTodos.map(todo => {
-    if (todo.isDone && todo.completedAt) {
-      const completedDate = todo.completedAt.split('T')[0];
-      // If completed on a different day and has recurring days set, check if today is a recurring day
-      if (completedDate !== todayISODate && todo.daysOfWeek && todo.daysOfWeek.length > 0) {
-        if (todo.daysOfWeek.includes(currentDayOfWeek)) {
-          // Reset for today
-          return { ...todo, isDone: false };
-        }
-      }
-    }
-    return todo;
-  });
   
   // Return all pending to-dos (not done) that match the current day of week
-  return resetTodos.filter(todo => {
+  // They will show in the thought bubble regardless of time
+  return person.personalTodos.filter(todo => {
     if (todo.isDone) return false;
     
     // If no specific days are set, show on all days

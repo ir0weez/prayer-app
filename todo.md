@@ -751,3 +751,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Display due personal to-dos as thought bubbles over fasting avatar in Pray Today
 - [x] Add ability to delete personal to-dos from the list
 - [x] Personal to-dos sit in thought bubble until checked off
+
+## Personal To-Do Recurring & Toggle Fixes (Complete)
+
+- [x] Implement auto-reset logic for recurring to-dos in getDuePersonalTodos
+  - [x] Check if to-do was completed on a previous day (completedAt !== today)
+  - [x] If completed on different day and has daysOfWeek set, check if today is a recurring day
+  - [x] Auto-reset isDone to false when recurring day arrives
+- [x] Verify unmark functionality works correctly (toggle isDone state)
+  - [x] Updated checkbox handler to properly manage completedAt when toggling
+  - [x] When unmarking: remove completedAt timestamp
+  - [x] When marking: add completedAt with current date and time
+- [x] Test recurring to-dos reset on their scheduled days
+- [x] Ensure to-dos reappear in thought bubble after unmarking or auto-reset
+- [x] Run full test suite to verify no regressions (all 66 tests passing)
+- [ ] Save checkpoint after recurring to-do implementation

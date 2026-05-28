@@ -817,9 +817,34 @@ export default function PersonScreen() {
                         if (!currentPerson) return;
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         setPeople((previousPeople) =>
-                          previousPeople.map((person) =>
-                            person.id === currentPerson.id ? completePersonalTodo(person, item.id) : person
-                          )
+                          previousPeople.map((person) => {
+                            if (person.id === currentPerson.id) {
+                              // Toggle done state and manage completedAt
+                              return {
+                                ...person,
+                                personalTodos: (person.personalTodos || []).map((todo) => {
+                                  if (todo.id === item.id) {
+                                    if (todo.isDone) {
+                                      // Unmark: remove completedAt
+                                      const { completedAt, ...rest } = todo;
+                                      return { ...rest, isDone: false };
+                                    } else {
+                                      // Mark as done: add completedAt
+                                      const now = new Date();
+                                      const todayISODate = now.toISOString().split('T')[0];
+                                      return {
+                                        ...todo,
+                                        isDone: true,
+                                        completedAt: `${todayISODate}T${now.toTimeString().slice(0, 8)}`,
+                                      };
+                                    }
+                                  }
+                                  return todo;
+                                }),
+                              };
+                            }
+                            return person;
+                          })
                         );
                       }}
                       style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed, { backgroundColor: todoColor }]}

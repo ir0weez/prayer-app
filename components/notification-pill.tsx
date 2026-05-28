@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 
@@ -36,6 +37,7 @@ export function NotificationPill({
   duration = 0,
 }: NotificationPillProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
   const [shouldRender, setShouldRender] = useState(visible);
 
@@ -83,6 +85,8 @@ export function NotificationPill({
         styles.container,
         {
           transform: [{ translateY: slideAnim }],
+          top: insets.top,
+          paddingTop: 8,
         },
       ]}
     >

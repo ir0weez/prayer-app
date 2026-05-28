@@ -291,13 +291,13 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenContainer containerClassName="bg-[#FAF6FF]" className="flex-1">
+    <ScreenContainer className="flex-1 bg-background">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("arrow-back")} size={26} color={DEEP_TEXT} />
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
           </Pressable>
-          <Text style={styles.headerTitle}>My Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>My Profile</Text>
           <View style={styles.headerRightButtons}>
             {selectedFast && (
               <Pressable onPress={() => {
@@ -347,8 +347,8 @@ export default function ProfileScreen() {
             {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileImage} /> : <MaterialIcons name={iconName("person")} size={42} color="#FFFFFF" />}
           </View>
           <View style={styles.profileCopy}>
-            <Text style={styles.profileName}>{profile.name}</Text>
-            <Text style={styles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
+            <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
+            <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
           </View>
         </View>
 

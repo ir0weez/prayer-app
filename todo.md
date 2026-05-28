@@ -781,3 +781,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Test both features end-to-end
 - [x] Run full test suite and verify no regressions (all 66 tests passing)
 - [ ] Save checkpoint after implementation
+
+## Dark Mode Fix for Fasting Profile Page (Complete)
+
+- [x] Fix dark mode support on profile.tsx (fasting page)
+  - [x] Replace hardcoded light background with bg-background class
+  - [x] Update header icon button to use colors.surface
+  - [x] Update header title color to use colors.foreground
+  - [x] Update profile name and subtitle colors to use theme colors
+  - [x] All 66 tests passing

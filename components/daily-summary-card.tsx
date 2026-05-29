@@ -98,7 +98,7 @@ export function DailySummaryCard({
         </View>
       </View>
 
-      {/* Summary paragraph - Joi style, larger text */}
+      {/* Summary paragraph - Joi style with white bold numbers and darker connecting words */}
       <View style={{ marginBottom: 16 }}>
         <Text
           style={{
@@ -108,12 +108,14 @@ export function DailySummaryCard({
             fontWeight: "500",
           }}
         >
-          <Text style={{ fontWeight: "600" }}>You have </Text>
-          <Text style={{ fontWeight: "700" }}>✓ {totalTodos} todo{totalTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>You have </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {totalTodos}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{totalTodos !== 1 ? "s" : ""}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> and </Text>
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="favorite" size={18} color={colors.primary} /> {totalPrayers} prayer{totalPrayers !== 1 ? "s" : ""}
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+            <MaterialIcons name="favorite" size={20} color={colors.primary} /> {totalPrayers}
           </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{totalPrayers !== 1 ? "s" : ""}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>
       </View>

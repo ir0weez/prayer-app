@@ -793,13 +793,41 @@ export function getNextPersonalTodo(person: Person): PersonalTodo | undefined {
   return incomplete.sort((a, b) => a.order - b.order)[0];
 }
 
+// Helper: Get current date in Pacific Standard Time (PST/PDT)
+function getTodayInPST(): string {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  
+  return `${year}-${month}-${day}`;
+}
+
+// Helper: Get current day of week in Pacific Standard Time
+function getCurrentDayOfWeekInPST(): number {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    weekday: 'long',
+  });
+  
+  const dayName = formatter.format(new Date());
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  return days.indexOf(dayName);
+}
+
 // Helper: Get due personal to-dos (scheduled time has passed)
 export function getDuePersonalTodos(person: Person): PersonalTodo[] {
   if (!person.isPersonal || !person.personalTodos) return [];
   
-  const now = new Date();
-  const currentDayOfWeek = now.getDay();
-  const todayISODate = now.toISOString().split('T')[0];
+  const currentDayOfWeek = getCurrentDayOfWeekInPST();
+  const todayISODate = getTodayInPST();
   
   // Auto-reset recurring to-dos if they were completed on a previous day
   const resetTodos = person.personalTodos.map(todo => {

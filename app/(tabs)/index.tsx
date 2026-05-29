@@ -22,6 +22,7 @@ import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
+import { DailySummaryCard } from "@/components/daily-summary-card";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
@@ -1455,9 +1456,37 @@ export default function HomeScreen() {
     </ScrollView>
   );
 
+  const renderRemindersScreen = () => {
+    // Get personal todos from the profile
+    const personalPerson = people.find(p => p.isPersonal);
+    const personalTodos = personalPerson?.personalTodos || [];
+    const completedPersonalTodos = personalTodos.filter(t => t.isDone).length;
+    
+    // Get all prayers from all people
+    const totalPrayers = people.reduce((sum, p) => sum + (p.prayerItems?.length || 0), 0);
+    const completedPrayers = people.reduce((sum, p) => sum + (p.prayerItems?.filter(pr => pr.isDone).length || 0), 0);
+
+    return (
+      <ScreenContainer className="p-4">
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          <View className="gap-4">
+            <Text className="text-2xl font-bold text-foreground">Reminders</Text>
+            <DailySummaryCard
+              totalTodos={personalTodos.length}
+              completedTodos={completedPersonalTodos}
+              totalPrayers={totalPrayers}
+              completedPrayers={completedPrayers}
+            />
+            <Text className="text-base text-muted mt-4">Choose which people appear in Pray Today.</Text>
+          </View>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  };
+
   const renderContent = () => {
     if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
-    if (activeTab === "reminders") return renderSimpleScreen("Reminders", "notifications", "Choose which people appear in Pray Today.");
+    if (activeTab === "reminders") return renderRemindersScreen();
     if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your journal entries appear here." : "Personal prayer journal entries will appear here later.");
     return renderSettingsScreen();
   };

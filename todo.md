@@ -811,3 +811,22 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Add success notification haptic on completion
 - [x] Test animations for smooth performance (all 66 tests passing)
 - [ ] Save checkpoint after implementation
+
+## To-Do Reset Timing & Reminders Tab (Complete)
+
+- [x] Fix to-do reset timing to use Pacific Standard Time
+  - [x] Created getTodayInPST() helper function using Intl.DateTimeFormat
+  - [x] Created getCurrentDayOfWeekInPST() helper function
+  - [x] Updated getDuePersonalTodos to use PST for day boundary calculations
+  - [x] Todos now reset at midnight PST, not mid-day
+- [x] Add Joi-style daily summary to Reminders tab
+  - [x] Created DailySummaryCard component with live counters
+  - [x] Displays "You have X Todos and Y Prayers today"
+  - [x] Counts update in real-time as items are completed
+  - [x] Styled to match Joi calendar aesthetic with theme colors
+- [x] Implement scroll-up animations
+  - [x] Added scroll-up animation to DailySummaryCard (30px slide + fade in)
+  - [x] Animation duration: 400ms with parallel timing
+  - [x] Smooth transitions with opacity fade-in
+- [x] Test all changes and verify functionality (all 66 tests passing)
+- [ ] Save checkpoint after implementation

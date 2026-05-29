@@ -843,10 +843,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Changed filter to count ALL prayers, not just regular ones
   - [x] Prayer count now matches home screen X/X prayed today
   - [x] Counts update in real-time as prayers are marked complete
-- [x] Replaced progress bar with personal todo circles
+- [x] Replaced progress bar with personal todo avatars
   - [x] Removed useless progress bar
-  - [x] Display personal todos as colored circles like Pray Today section
-  - [x] Circles show first letter of todo title or checkmark when done
-  - [x] Tap circles to toggle todo completion directly from Reminders tab
+  - [x] Display personal todos as avatars with icons (like Pray Today section)
+  - [x] Added thought bubbles above each avatar showing todo title
+  - [x] Made todo row horizontally scrollable
+  - [x] Shows only personal todos (no fasting avatar or prayer avatars)
+  - [x] Tap avatars to toggle todo completion directly from Reminders tab
+  - [x] Checkmark badge appears when todo is completed
   - [x] All 66 tests passing
 - [x] Save checkpoint after implementation

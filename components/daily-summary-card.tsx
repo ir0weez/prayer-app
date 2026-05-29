@@ -1,7 +1,8 @@
-import { View, Text, Animated, Pressable } from "react-native";
+import { View, Text, Animated, Pressable, ScrollView } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { getIconForTodo } from "@/lib/prayercircle-data";
 
 interface DailySummaryCardProps {
   totalTodos: number;
@@ -10,6 +11,51 @@ interface DailySummaryCardProps {
   completedPrayers: number;
   personalTodos?: any[];
   onTodoComplete?: (todoId: string) => void;
+}
+
+// Map icon names to Material Icons
+function iconName(icon: string | null | undefined): any {
+  const iconMap: Record<string, any> = {
+    "brush": "brush",
+    "utensils": "restaurant",
+    "dumbbell": "fitness-center",
+    "book": "book",
+    "coffee": "local-cafe",
+    "heart": "favorite",
+    "star": "star",
+    "check": "check-circle",
+    "clock": "access-time",
+    "person": "person",
+    "users": "group",
+    "home": "home",
+    "work": "work",
+    "phone": "phone",
+    "mail": "mail",
+    "map": "map",
+    "camera": "camera",
+    "music": "music-note",
+    "video": "videocam",
+    "image": "image",
+    "document": "description",
+    "settings": "settings",
+    "logout": "logout",
+    "delete": "delete",
+    "edit": "edit",
+    "add": "add",
+    "close": "close",
+    "search": "search",
+    "menu": "menu",
+    "back": "arrow-back",
+    "forward": "arrow-forward",
+    "up": "arrow-upward",
+    "down": "arrow-downward",
+    "more": "more-vert",
+    "info": "info",
+    "warning": "warning",
+    "error": "error",
+    "success": "check-circle",
+  };
+  return iconMap[icon || ""] || "circle";
 }
 
 export function DailySummaryCard({
@@ -124,37 +170,113 @@ export function DailySummaryCard({
         </Text>
       </View>
 
-      {/* Personal todos as circles */}
+      {/* Personal todos as horizontal scrollable avatars with thought bubbles */}
       {personalTodos && personalTodos.length > 0 && (
-        <View style={{ marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-          {personalTodos.map((todo, idx) => (
-            <Pressable
-              key={idx}
-              onPress={() => onTodoComplete && onTodoComplete(todo.id)}
-              style={({ pressed }) => [
-                {
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  backgroundColor: todo.isDone ? colors.success : (todo.color || colors.primary),
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: pressed ? 0.8 : (todo.isDone ? 0.6 : 1),
-                },
-              ]}
-            >
-              <Text
+        <View style={{ marginTop: 16 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 24 }}
+            style={{ marginHorizontal: -24, paddingHorizontal: 24 }}
+          >
+            {personalTodos.map((todo, idx) => (
+              <View
+                key={idx}
                 style={{
-                  fontSize: 24,
-                  fontWeight: "600",
-                  color: "white",
-                  textAlign: "center",
+                  width: 86,
+                  height: 110,
+                  marginRight: 7,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
                 }}
               >
-                {todo.isDone ? "✓" : (todo.title?.charAt(0).toUpperCase() || "•")}
-              </Text>
-            </Pressable>
-          ))}
+                {/* Thought bubble label */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: -8,
+                    zIndex: 4,
+                    minHeight: 26,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 13,
+                    borderWidth: 2,
+                    borderColor: todo.color || colors.primary,
+                    backgroundColor: "#FFFFFF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: todo.color || colors.primary,
+                      fontSize: 11,
+                      fontWeight: "800",
+                      lineHeight: 13,
+                    }}
+                  >
+                    {todo.title}
+                  </Text>
+                </View>
+
+                {/* Avatar circle */}
+                <Pressable
+                  onPress={() => onTodoComplete && onTodoComplete(todo.id)}
+                  style={({ pressed }) => [
+                    {
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View
+                    style={{
+                      width: 76,
+                      height: 76,
+                      borderRadius: 38,
+                      borderWidth: 3,
+                      borderColor: todo.isDone ? "#31C48D" : (todo.color || colors.primary),
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: todo.color || colors.primary,
+                    }}
+                  >
+                    <MaterialIcons
+                      name={iconName(getIconForTodo(todo.title))}
+                      size={32}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                </Pressable>
+
+                {/* Checkmark overlay when done */}
+                {todo.isDone && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: "#31C48D",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 2,
+                      borderColor: colors.background,
+                      zIndex: 10,
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>✓</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 

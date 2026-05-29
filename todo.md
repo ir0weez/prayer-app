@@ -852,4 +852,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Tap avatars to toggle todo completion directly from Reminders tab
   - [x] Checkmark badge appears when todo is completed
   - [x] All 66 tests passing
+- [x] Fixed critical bugs in Reminders tab
+  - [x] Prayer count now uses prayTodayList (matches home screen)
+  - [x] Counts update in real-time when items are checked off
+  - [x] Only incomplete todos display (completed ones disappear)
+  - [x] Icons now render correctly on todo avatars
+  - [x] Completed todos filtered from display
+  - [x] All 66 tests passing
 - [x] Save checkpoint after implementation

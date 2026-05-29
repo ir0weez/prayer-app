@@ -1457,27 +1457,26 @@ export default function HomeScreen() {
   );
 
   const renderRemindersScreen = () => {
-    // Get personal todos from the profile
+    // Get personal todos from the profile (only incomplete ones)
     const personalPerson = people.find(p => p.isPersonal);
-    const personalTodos = personalPerson?.personalTodos || [];
-    const completedPersonalTodos = personalTodos.filter(t => t.isDone).length;
+    const allPersonalTodos = personalPerson?.personalTodos || [];
+    const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
+    const completedPersonalTodos = allPersonalTodos.filter(t => t.isDone).length;
     
-    // Get ALL prayers (including urgent/emergency) for accurate count
-    const allPrayers = people.flatMap(p => p.prayerItems || []);
-    const completedAllPrayers = allPrayers.filter(pr => pr.isDone).length;
-    const totalPrayers = allPrayers.length;
-    const completedPrayers = completedAllPrayers;
+    // Use prayTodayList for accurate prayer count (same as home screen)
+    const totalPrayers = prayTodayList.length;
+    const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
 
     return (
       <ScreenContainer className="p-0">
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View className="gap-0">
             <DailySummaryCard
-              totalTodos={personalTodos.length}
+              totalTodos={allPersonalTodos.length}
               completedTodos={completedPersonalTodos}
               totalPrayers={totalPrayers}
               completedPrayers={completedPrayers}
-              personalTodos={personalTodos}
+              personalTodos={incompleteTodos}
               onTodoComplete={(todoId) => {
                 const updatedPeople = people.map(p => {
                   if (p.isPersonal) {

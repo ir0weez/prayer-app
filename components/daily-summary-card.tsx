@@ -13,49 +13,26 @@ interface DailySummaryCardProps {
   onTodoComplete?: (todoId: string) => void;
 }
 
-// Map icon names to Material Icons
+// Map icon names from getIconForTodo to Material Icons
 function iconName(icon: string | null | undefined): any {
   const iconMap: Record<string, any> = {
-    "brush": "brush",
-    "utensils": "restaurant",
-    "dumbbell": "fitness-center",
-    "book": "book",
-    "coffee": "local-cafe",
-    "heart": "favorite",
-    "star": "star",
-    "check": "check-circle",
-    "clock": "access-time",
-    "person": "person",
-    "users": "group",
-    "home": "home",
+    "favorite": "favorite",
+    "cleaning-services": "cleaning-services",
+    "sentiment-satisfied": "sentiment-satisfied",
+    "help": "help",
+    "translate": "translate",
+    "event": "event",
+    "restaurant": "restaurant",
+    "nights-stay": "nights-stay",
+    "directions-run": "directions-run",
+    "school": "school",
     "work": "work",
     "phone": "phone",
-    "mail": "mail",
-    "map": "map",
-    "camera": "camera",
-    "music": "music-note",
-    "video": "videocam",
-    "image": "image",
-    "document": "description",
-    "settings": "settings",
-    "logout": "logout",
-    "delete": "delete",
-    "edit": "edit",
-    "add": "add",
-    "close": "close",
-    "search": "search",
-    "menu": "menu",
-    "back": "arrow-back",
-    "forward": "arrow-forward",
-    "up": "arrow-upward",
-    "down": "arrow-downward",
-    "more": "more-vert",
-    "info": "info",
-    "warning": "warning",
-    "error": "error",
-    "success": "check-circle",
+    "shopping-cart": "shopping-cart",
+    "local-hospital": "local-hospital",
+    "task-alt": "task-alt",
   };
-  return iconMap[icon || ""] || "circle";
+  return iconMap[icon || ""] || "task-alt";
 }
 
 export function DailySummaryCard({

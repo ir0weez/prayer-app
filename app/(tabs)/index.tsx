@@ -1462,12 +1462,11 @@ export default function HomeScreen() {
     const personalTodos = personalPerson?.personalTodos || [];
     const completedPersonalTodos = personalTodos.filter(t => t.isDone).length;
     
-    // Get prayers that are due today (not completed, not urgent/emergency)
-    const allDuePrayers = people.flatMap(p => p.prayerItems || []);
-    const duePrayersForToday = allDuePrayers.filter(pr => !pr.isDone && !pr.isUrgent && !pr.isEmergency);
-    const completedDuePrayers = allDuePrayers.filter(pr => pr.isDone && !pr.isUrgent && !pr.isEmergency);
-    const totalPrayers = duePrayersForToday.length + completedDuePrayers.length;
-    const completedPrayers = completedDuePrayers.length;
+    // Get ALL prayers (including urgent/emergency) for accurate count
+    const allPrayers = people.flatMap(p => p.prayerItems || []);
+    const completedAllPrayers = allPrayers.filter(pr => pr.isDone).length;
+    const totalPrayers = allPrayers.length;
+    const completedPrayers = completedAllPrayers;
 
     return (
       <ScreenContainer className="p-0">
@@ -1478,6 +1477,21 @@ export default function HomeScreen() {
               completedTodos={completedPersonalTodos}
               totalPrayers={totalPrayers}
               completedPrayers={completedPrayers}
+              personalTodos={personalTodos}
+              onTodoComplete={(todoId) => {
+                const updatedPeople = people.map(p => {
+                  if (p.isPersonal) {
+                    return {
+                      ...p,
+                      personalTodos: p.personalTodos?.map(t => 
+                        t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
+                      ) || [],
+                    };
+                  }
+                  return p;
+                });
+                setPeople(updatedPeople);
+              }}
             />
             <View className="px-6 pt-8">
               <Text className="text-base text-muted">Choose which people appear in Pray Today.</Text>

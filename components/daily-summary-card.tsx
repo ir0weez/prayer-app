@@ -1,4 +1,4 @@
-import { View, Text, Animated } from "react-native";
+import { View, Text, Animated, Pressable } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -8,6 +8,8 @@ interface DailySummaryCardProps {
   completedTodos: number;
   totalPrayers: number;
   completedPrayers: number;
+  personalTodos?: any[];
+  onTodoComplete?: (todoId: string) => void;
 }
 
 export function DailySummaryCard({
@@ -15,6 +17,8 @@ export function DailySummaryCard({
   completedTodos,
   totalPrayers,
   completedPrayers,
+  personalTodos = [],
+  onTodoComplete,
 }: DailySummaryCardProps) {
   const colors = useColors();
   const remainingTodos = totalTodos - completedTodos;
@@ -120,36 +124,39 @@ export function DailySummaryCard({
         </Text>
       </View>
 
-      {/* Progress bar */}
-      <View style={{ marginTop: 12 }}>
-        <View
-          style={{
-            height: 6,
-            backgroundColor: colors.border,
-            borderRadius: 3,
-            overflow: "hidden",
-          }}
-        >
-          <View
-            style={{
-              height: "100%",
-              width: `${totalTodos + totalPrayers > 0 ? ((completedTodos + completedPrayers) / (totalTodos + totalPrayers)) * 100 : 0}%`,
-              backgroundColor: colors.primary,
-            }}
-          />
+      {/* Personal todos as circles */}
+      {personalTodos && personalTodos.length > 0 && (
+        <View style={{ marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          {personalTodos.map((todo, idx) => (
+            <Pressable
+              key={idx}
+              onPress={() => onTodoComplete && onTodoComplete(todo.id)}
+              style={({ pressed }) => [
+                {
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: todo.isDone ? colors.success : (todo.color || colors.primary),
+                  justifyContent: "center",
+                  alignItems: "center",
+                  opacity: pressed ? 0.8 : (todo.isDone ? 0.6 : 1),
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: "600",
+                  color: "white",
+                  textAlign: "center",
+                }}
+              >
+                {todo.isDone ? "✓" : (todo.title?.charAt(0).toUpperCase() || "•")}
+              </Text>
+            </Pressable>
+          ))}
         </View>
-        <Text
-          style={{
-            fontSize: 13,
-            color: colors.muted,
-            textAlign: "center",
-            marginTop: 6,
-            fontWeight: "500",
-          }}
-        >
-          {completedTodos + completedPrayers}/{totalTodos + totalPrayers} completed
-        </Text>
-      </View>
+      )}
 
       {remainingTodos === 0 && remainingPrayers === 0 && totalTodos > 0 && totalPrayers > 0 && (
         <View

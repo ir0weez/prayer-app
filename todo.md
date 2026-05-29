@@ -839,4 +839,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Raised header up with adjusted padding
   - [x] Larger summary text (18px) without card border
   - [x] All 66 tests passing
+- [x] Fixed prayer count to include all prayers (urgent/emergency)
+  - [x] Changed filter to count ALL prayers, not just regular ones
+  - [x] Prayer count now matches home screen X/X prayed today
+  - [x] Counts update in real-time as prayers are marked complete
+- [x] Replaced progress bar with personal todo circles
+  - [x] Removed useless progress bar
+  - [x] Display personal todos as colored circles like Pray Today section
+  - [x] Circles show first letter of todo title or checkmark when done
+  - [x] Tap circles to toggle todo completion directly from Reminders tab
+  - [x] All 66 tests passing
 - [x] Save checkpoint after implementation

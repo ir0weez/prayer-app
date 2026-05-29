@@ -1462,9 +1462,12 @@ export default function HomeScreen() {
     const personalTodos = personalPerson?.personalTodos || [];
     const completedPersonalTodos = personalTodos.filter(t => t.isDone).length;
     
-    // Get all prayers from all people
-    const totalPrayers = people.reduce((sum, p) => sum + (p.prayerItems?.length || 0), 0);
-    const completedPrayers = people.reduce((sum, p) => sum + (p.prayerItems?.filter(pr => pr.isDone).length || 0), 0);
+    // Get prayers that are due today (not completed, not urgent/emergency)
+    const allDuePrayers = people.flatMap(p => p.prayerItems || []);
+    const duePrayersForToday = allDuePrayers.filter(pr => !pr.isDone && !pr.isUrgent && !pr.isEmergency);
+    const completedDuePrayers = allDuePrayers.filter(pr => pr.isDone && !pr.isUrgent && !pr.isEmergency);
+    const totalPrayers = duePrayersForToday.length + completedDuePrayers.length;
+    const completedPrayers = completedDuePrayers.length;
 
     return (
       <ScreenContainer className="p-4">

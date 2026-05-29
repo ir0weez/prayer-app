@@ -1,6 +1,5 @@
 import { View, Text, Animated } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEffect, useRef } from "react";
 
 interface DailySummaryCardProps {
@@ -39,12 +38,27 @@ export function DailySummaryCard({
     ]).start();
   }, [slideAnim, opacityAnim]);
 
+  // Get today's date in PST
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const parts = formatter.formatToParts(now);
+  const dayName = parts.find(p => p.type === 'weekday')?.value || '';
+  const monthName = parts.find(p => p.type === 'month')?.value || '';
+  const dayNum = parts.find(p => p.type === 'day')?.value || '';
+  const yearNum = parts.find(p => p.type === 'year')?.value || '';
+
   return (
     <Animated.View
       style={{
         backgroundColor: colors.surface,
         borderRadius: 16,
-        padding: 16,
+        padding: 20,
         marginHorizontal: 16,
         marginVertical: 12,
         borderWidth: 1,
@@ -53,73 +67,105 @@ export function DailySummaryCard({
         opacity: opacityAnim,
       }}
     >
-      <Text
-        style={{
-          fontSize: 16,
-          fontWeight: "600",
-          color: colors.foreground,
-          marginBottom: 12,
-        }}
-      >
-        Today's Summary
-      </Text>
-
-      <View style={{ gap: 8 }}>
-        {/* Todos summary */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <MaterialIcons name="checklist" size={20} color={colors.primary} />
-          <Text style={{ fontSize: 14, color: colors.foreground, flex: 1 }}>
-            <Text style={{ fontWeight: "600" }}>
-              {remainingTodos} {remainingTodos === 1 ? "Todo" : "Todos"}
-            </Text>
-            <Text style={{ color: colors.muted }}> remaining</Text>
-          </Text>
-          {totalTodos > 0 && (
-            <Text style={{ fontSize: 12, color: colors.muted }}>
-              {completedTodos}/{totalTodos}
-            </Text>
-          )}
-        </View>
-
-        {/* Prayers summary */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <MaterialIcons name="favorite" size={20} color={colors.primary} />
-          <Text style={{ fontSize: 14, color: colors.foreground, flex: 1 }}>
-            <Text style={{ fontWeight: "600" }}>
-              {remainingPrayers} {remainingPrayers === 1 ? "Prayer" : "Prayers"}
-            </Text>
-            <Text style={{ color: colors.muted }}> remaining</Text>
-          </Text>
-          {totalPrayers > 0 && (
-            <Text style={{ fontSize: 12, color: colors.muted }}>
-              {completedPrayers}/{totalPrayers}
-            </Text>
-          )}
-        </View>
-
-        {/* Completion status */}
-        {remainingTodos === 0 && remainingPrayers === 0 && totalTodos > 0 && totalPrayers > 0 && (
-          <View
+      {/* Header with day and date - Joi style */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <Text
+          style={{
+            fontSize: 48,
+            fontWeight: "800",
+            color: colors.foreground,
+          }}
+        >
+          {dayName}
+        </Text>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text
             style={{
-              marginTop: 8,
-              paddingTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: colors.border,
+              fontSize: 14,
+              color: colors.muted,
             }}
           >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: colors.primary,
-                textAlign: "center",
-              }}
-            >
-              ✨ All done for today!
-            </Text>
-          </View>
-        )}
+            {monthName} {dayNum}
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: colors.muted,
+            }}
+          >
+            {yearNum}
+          </Text>
+        </View>
       </View>
+
+      {/* Summary paragraph - Joi style */}
+      <View style={{ marginBottom: 12 }}>
+        <Text
+          style={{
+            fontSize: 16,
+            lineHeight: 24,
+            color: colors.foreground,
+          }}
+        >
+          <Text style={{ fontWeight: "600" }}>You have </Text>
+          <Text style={{ fontWeight: "600" }}>✓ {totalTodos} todo{totalTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted }}> and </Text>
+          <Text style={{ fontWeight: "600" }}>💜 {totalPrayers} prayer{totalPrayers !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted }}> today.</Text>
+        </Text>
+      </View>
+
+      {/* Progress bar */}
+      <View style={{ marginTop: 8 }}>
+        <View
+          style={{
+            height: 6,
+            backgroundColor: colors.border,
+            borderRadius: 3,
+            overflow: "hidden",
+          }}
+        >
+          <View
+            style={{
+              height: "100%",
+              width: `${totalTodos + totalPrayers > 0 ? ((completedTodos + completedPrayers) / (totalTodos + totalPrayers)) * 100 : 0}%`,
+              backgroundColor: colors.primary,
+            }}
+          />
+        </View>
+        <Text
+          style={{
+            fontSize: 12,
+            color: colors.muted,
+            textAlign: "center",
+            marginTop: 4,
+          }}
+        >
+          {completedTodos + completedPrayers}/{totalTodos + totalPrayers} completed
+        </Text>
+      </View>
+
+      {remainingTodos === 0 && remainingPrayers === 0 && totalTodos > 0 && totalPrayers > 0 && (
+        <View
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: colors.success,
+              textAlign: "center",
+            }}
+          >
+            ✨ All done for today!
+          </Text>
+        </View>
+      )}
     </Animated.View>
   );
 }

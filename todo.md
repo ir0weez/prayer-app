@@ -820,13 +820,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Updated getDuePersonalTodos to use PST for day boundary calculations
   - [x] Todos now reset at midnight PST, not mid-day
 - [x] Add Joi-style daily summary to Reminders tab
-  - [x] Created DailySummaryCard component with live counters
-  - [x] Displays "You have X Todos and Y Prayers today"
-  - [x] Counts update in real-time as items are completed
+  - [x] Redesigned DailySummaryCard to match Joi calendar layout
+  - [x] Big bold day name (Mon, Tue, etc) with date on right
+  - [x] Paragraph format: "You have ✓ X todos and 💜 Y prayers today"
+  - [x] Fixed prayer count to only count regular prayers (not urgent/emergency)
+  - [x] Added progress bar showing completion percentage
   - [x] Styled to match Joi calendar aesthetic with theme colors
 - [x] Implement scroll-up animations
   - [x] Added scroll-up animation to DailySummaryCard (30px slide + fade in)
   - [x] Animation duration: 400ms with parallel timing
   - [x] Smooth transitions with opacity fade-in
 - [x] Test all changes and verify functionality (all 66 tests passing)
-- [ ] Save checkpoint after implementation
+- [x] Save checkpoint after implementation

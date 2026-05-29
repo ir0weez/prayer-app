@@ -1470,17 +1470,18 @@ export default function HomeScreen() {
     const completedPrayers = completedDuePrayers.length;
 
     return (
-      <ScreenContainer className="p-4">
+      <ScreenContainer className="p-0">
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          <View className="gap-4">
-            <Text className="text-2xl font-bold text-foreground">Reminders</Text>
+          <View className="gap-0">
             <DailySummaryCard
               totalTodos={personalTodos.length}
               completedTodos={completedPersonalTodos}
               totalPrayers={totalPrayers}
               completedPrayers={completedPrayers}
             />
-            <Text className="text-base text-muted mt-4">Choose which people appear in Pray Today.</Text>
+            <View className="px-6 pt-8">
+              <Text className="text-base text-muted">Choose which people appear in Pray Today.</Text>
+            </View>
           </View>
         </ScrollView>
       </ScreenContainer>

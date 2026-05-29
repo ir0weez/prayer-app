@@ -1,6 +1,7 @@
 import { View, Text, Animated } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface DailySummaryCardProps {
   totalTodos: number;
@@ -56,24 +57,21 @@ export function DailySummaryCard({
   return (
     <Animated.View
       style={{
-        backgroundColor: colors.surface,
-        borderRadius: 16,
-        padding: 20,
-        marginHorizontal: 16,
-        marginVertical: 12,
-        borderWidth: 1,
-        borderColor: colors.border,
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        paddingBottom: 24,
         transform: [{ translateY: slideAnim }],
         opacity: opacityAnim,
       }}
     >
-      {/* Header with day and date - Joi style */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+      {/* Header with day and date - Joi style, no card box */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <Text
           style={{
-            fontSize: 48,
+            fontSize: 56,
             fontWeight: "800",
             color: colors.foreground,
+            lineHeight: 60,
           }}
         >
           {dayName}
@@ -81,16 +79,18 @@ export function DailySummaryCard({
         <View style={{ alignItems: "flex-end" }}>
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 16,
               color: colors.muted,
+              fontWeight: "500",
             }}
           >
             {monthName} {dayNum}
           </Text>
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 16,
               color: colors.muted,
+              fontWeight: "500",
             }}
           >
             {yearNum}
@@ -98,25 +98,28 @@ export function DailySummaryCard({
         </View>
       </View>
 
-      {/* Summary paragraph - Joi style */}
-      <View style={{ marginBottom: 12 }}>
+      {/* Summary paragraph - Joi style, larger text */}
+      <View style={{ marginBottom: 16 }}>
         <Text
           style={{
-            fontSize: 16,
-            lineHeight: 24,
+            fontSize: 18,
+            lineHeight: 28,
             color: colors.foreground,
+            fontWeight: "500",
           }}
         >
           <Text style={{ fontWeight: "600" }}>You have </Text>
-          <Text style={{ fontWeight: "600" }}>✓ {totalTodos} todo{totalTodos !== 1 ? "s" : ""}</Text>
-          <Text style={{ color: colors.muted }}> and </Text>
-          <Text style={{ fontWeight: "600" }}>💜 {totalPrayers} prayer{totalPrayers !== 1 ? "s" : ""}</Text>
-          <Text style={{ color: colors.muted }}> today.</Text>
+          <Text style={{ fontWeight: "700" }}>✓ {totalTodos} todo{totalTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> and </Text>
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="favorite" size={18} color={colors.primary} /> {totalPrayers} prayer{totalPrayers !== 1 ? "s" : ""}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>
       </View>
 
       {/* Progress bar */}
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 12 }}>
         <View
           style={{
             height: 6,
@@ -135,10 +138,11 @@ export function DailySummaryCard({
         </View>
         <Text
           style={{
-            fontSize: 12,
+            fontSize: 13,
             color: colors.muted,
             textAlign: "center",
-            marginTop: 4,
+            marginTop: 6,
+            fontWeight: "500",
           }}
         >
           {completedTodos + completedPrayers}/{totalTodos + totalPrayers} completed
@@ -148,15 +152,15 @@ export function DailySummaryCard({
       {remainingTodos === 0 && remainingPrayers === 0 && totalTodos > 0 && totalPrayers > 0 && (
         <View
           style={{
-            marginTop: 12,
-            paddingTop: 12,
+            marginTop: 16,
+            paddingTop: 16,
             borderTopWidth: 1,
             borderTopColor: colors.border,
           }}
         >
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: "600",
               color: colors.success,
               textAlign: "center",

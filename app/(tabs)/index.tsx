@@ -21,6 +21,7 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
+import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import {
   addPerson,
   formatDaysSinceLastPrayer,

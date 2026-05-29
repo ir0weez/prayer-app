@@ -798,3 +798,16 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Realized standard notifications don't work as pill badges in status bar
 - [x] User decided to remove feature entirely
 - [x] Cleaned up code and removed useEmergencyNotification hook
+
+## To-Do Completion Animations (Complete)
+
+- [x] Add scale and fade animations when checking off to-dos
+  - [x] Create animated component wrapper for to-do items (AnimatedTodoItem)
+  - [x] Add scale-down animation on completion (0.8 scale over 150ms)
+  - [x] Add fade-out animation before item disappears (300ms fade)
+  - [x] Smooth transition to next to-do
+- [x] Add haptic and sound feedback
+  - [x] Trigger medium impact haptic on tap
+  - [x] Add success notification haptic on completion
+- [x] Test animations for smooth performance (all 66 tests passing)
+- [ ] Save checkpoint after implementation

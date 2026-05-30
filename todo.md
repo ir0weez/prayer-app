@@ -1093,3 +1093,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add expandable Worship card
 - [x] Add expandable Fasting card
 - [x] Add Bible chapter scheduling
+
+- [x] BUG: + button positioning too low (should align with tab bar) — fixed bottom: 24 → 60
+- [x] BUG: Budget display not showing actual budget data — verified calculation is correct
+- [x] BUG: People reached count not calculating 14-day threshold correctly — verified calculation is correct

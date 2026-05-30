@@ -1569,12 +1569,15 @@ export default function HomeScreen() {
       if (activeFastTodayStatus === 'completed') scheduleFastingStatus = 'complete';
       else if (activeFastTodayStatus === 'missed') scheduleFastingStatus = 'missed';
       else if (activeFastTodayStatus === 'skipped') scheduleFastingStatus = 'skipped';
+      // Calculate people to reach out to (only those who HAVE been marked and are past 14 days)
       const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const schedulePeopleToReach = people.filter(p => {
-        if (p.isPersonal) return false;
-        if (!p.lastPrayedDate) return false;
+        if (p.isPersonal) return false; // Don't count personal profile
+        if (!p.lastPrayedDate) return false; // Don't count people never marked
         return p.lastPrayedDate <= fourteenDaysAgo;
       }).length;
+      
+      // Calculate total budget and spent from AsyncStorage data
       const scheduleTotalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
       const scheduleTotalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
       const scheduleBudgetAmount = scheduleTotalBudgeted - scheduleTotalSpent;

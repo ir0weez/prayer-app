@@ -1508,12 +1508,12 @@ export default function HomeScreen() {
       fastingStatus = 'skipped';
     }
     
-    // Calculate people to reach out to (not reached in 14+ days)
+    // Calculate people to reach out to (not reached in 14 days)
     const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const peopleToReach = people.filter(p => {
       if (p.isPersonal) return false; // Don't count personal profile
-      if (!p.lastPrayedDate) return true; // Count people never prayed for
-      return p.lastPrayedDate <= fourteenDaysAgo; // Count people not reached in 14+ days
+      const lastPrayed = p.lastPrayedDate || '1900-01-01';
+      return lastPrayed < fourteenDaysAgo;
     }).length;
     
     // Calculate total budget and spent from AsyncStorage data

@@ -1097,3 +1097,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] BUG: + button positioning too low (should align with tab bar) — fixed bottom: 24 → 60
 - [x] BUG: Budget display not showing actual budget data — verified calculation is correct
 - [x] BUG: People reached count not calculating 14-day threshold correctly — verified calculation is correct
+
+- [x] BUG: Fasting status not updating in Schedule summary — fixed with useMemo reactivity
+- [x] BUG: Todos count not updating in Schedule summary — fixed with useMemo reactivity
+- [x] BUG: Last reached (people to reach) not updating in Schedule summary — fixed with useMemo reactivity
+- [x] BUG: Current Bible chapter not updating in Schedule summary — fixed with useMemo reactivity
+- [x] BUG: Budget not updating when changed in Schedule summary — fixed with useMemo reactivity

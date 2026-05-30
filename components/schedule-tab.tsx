@@ -376,6 +376,17 @@ export function ScheduleTab({
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
   const [formDueDate, setFormDueDate] = useState("");
 
+  // Memoize summary data to ensure it updates when props change
+  const memoizedSummaryData = useMemo(() => ({
+    remainingTodos,
+    remainingPrayers,
+    fastingStatus,
+    budgetAmount,
+    peopleToReach,
+    currentBibleStudy,
+    personalTodos,
+  }), [remainingTodos, remainingPrayers, fastingStatus, budgetAmount, peopleToReach, currentBibleStudy, personalTodos]);
+
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({
@@ -629,13 +640,13 @@ export function ScheduleTab({
       {/* Summary Card - ABOVE the day header, fixed position */}
       <View style={scheduleStyles.summaryContainer}>
         <DailySummaryCard
-          remainingTodos={remainingTodos}
-          remainingPrayers={remainingPrayers}
-          fastingStatus={fastingStatus}
-          budgetAmount={budgetAmount}
-          peopleToReach={peopleToReach}
-          currentBibleStudy={currentBibleStudy}
-          personalTodos={personalTodos}
+          remainingTodos={memoizedSummaryData.remainingTodos}
+          remainingPrayers={memoizedSummaryData.remainingPrayers}
+          fastingStatus={memoizedSummaryData.fastingStatus}
+          budgetAmount={memoizedSummaryData.budgetAmount}
+          peopleToReach={memoizedSummaryData.peopleToReach}
+          currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+          personalTodos={memoizedSummaryData.personalTodos}
           onTodoComplete={onTodoComplete}
         />
       </View>

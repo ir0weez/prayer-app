@@ -69,3 +69,44 @@ export function markChapterAsRead(chapters: BibleChapter[] | undefined, book: st
   
   return updatedChapters;
 }
+
+
+// Get the most recent Bible chapter read from AsyncStorage
+export async function getMostRecentBibleChapter(): Promise<string> {
+  try {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
+    const data = await AsyncStorage.getItem('bibleReadChapters');
+    if (!data) {
+      return 'Genesis 1';
+    }
+
+    const readChapters = JSON.parse(data) as string[];
+    if (readChapters.length === 0) {
+      return 'Genesis 1';
+    }
+
+    // Get the last chapter read (most recent)
+    const lastChapterId = readChapters[readChapters.length - 1];
+    const [book, chapterStr] = lastChapterId.split('-');
+    const chapter = parseInt(chapterStr, 10);
+
+    // Find the next chapter to read
+    const bookIndex = BIBLE_BOOKS.indexOf(book);
+    const chaptersInBook = CHAPTER_COUNTS[book] || 1;
+
+    if (chapter < chaptersInBook) {
+      // Next chapter in same book
+      return `${book} ${chapter + 1}`;
+    } else if (bookIndex < BIBLE_BOOKS.length - 1) {
+      // Next book
+      const nextBook = BIBLE_BOOKS[bookIndex + 1];
+      return `${nextBook} 1`;
+    } else {
+      // All chapters read
+      return `${book} ${chapter}`;
+    }
+  } catch (error) {
+    console.error('Error getting most recent Bible chapter:', error);
+    return 'Genesis 1';
+  }
+}

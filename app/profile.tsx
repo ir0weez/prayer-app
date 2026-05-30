@@ -57,6 +57,27 @@ const PURPLE = "#8557D9";
 const SOFT_PURPLE = "#F0E8FF";
 const BORDER = "#DAC8F6";
 
+const profileButtons = {
+  flexDirection: 'row' as const,
+  gap: 8,
+  marginLeft: 'auto' as const,
+};
+
+const profileButton = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 6,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 20,
+};
+
+const profileButtonText = {
+  color: '#FFFFFF',
+  fontSize: 12,
+  fontWeight: '600' as const,
+};
+
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
@@ -350,6 +371,16 @@ export default function ProfileScreen() {
             <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
             <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
           </View>
+          <View style={styles.profileButtons}>
+            <Pressable onPress={() => router.push('/bible-chapters')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+              <MaterialIcons name="school" size={20} color="#FFFFFF" />
+              <Text style={styles.profileButtonText}>Bible</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/budget-tracker')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+              <MaterialIcons name="attach-money" size={20} color="#FFFFFF" />
+              <Text style={styles.profileButtonText}>Budget</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.statsGrid}>
@@ -603,6 +634,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 19,
   },
+  profileButtons: profileButtons,
+  profileButton: profileButton,
+  profileButtonText: profileButtonText,
   statsGrid: {
     flexDirection: "row",
     gap: 10,

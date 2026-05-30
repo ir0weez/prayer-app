@@ -962,3 +962,19 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Chapters persist to AsyncStorage
   - [x] Strikethrough and green background for completed chapters
   - [x] Section headers for each Bible book
+
+- [x] Add Bible Tracker button to Settings
+  - [x] Added Bible Tracker button to profile card
+  - [x] Button opens Bible chapters tracker screen
+  - [x] Shows current Bible progress
+- [x] Add Budget Tracker button to Settings
+  - [x] Added Budget Tracker button next to Bible Tracker
+  - [x] Button opens budget tracker screen
+  - [x] Shows budget summary
+- [x] Sync Bible progress to Reminders tab
+  - [x] Created getMostRecentBibleChapter() helper function
+  - [x] Display dynamic Bible book/chapter based on read chapters
+  - [x] Updates in real-time as chapters are marked read
+- [x] Removed underlines from Reminders summary text
+  - [x] Cleaner visual appearance
+  - [x] All 66 tests passing

@@ -152,27 +152,27 @@ export function DailySummaryCard({
           }}
         >
           <Text style={{ color: colors.muted, fontWeight: "500" }}>You have </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>✓ {remainingTodos}</Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {remainingTodos}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}>, you are currently reading </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="school" size={20} color={colors.foreground} /> {currentBibleStudy}
           </Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}>, have </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="favorite" size={20} color={colors.foreground} /> {remainingPrayers}
           </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="attach-money" size={20} color={colors.foreground} /> {budgetAmount}
           </Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> to budget, </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="people" size={20} color={colors.foreground} /> {peopleToReach}
           </Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> people to reach, and your fasting is </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20, textDecorationLine: "underline", textDecorationColor: colors.border, textDecorationStyle: "solid", opacity: 0.6 }}>{getFastingStatusDisplay()}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>
       </View>

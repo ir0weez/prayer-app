@@ -950,3 +950,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Test all features
   - [x] All 66 tests passing
   - [x] TypeScript clean
+
+- [x] Removed underlines from summary text
+  - [x] Cleaned up styling to remove textDecorationLine properties
+  - [x] Maintained bold white text for key metrics
+  - [x] All 66 tests passing
+- [x] Created dedicated Bible chapters tracker screen (app/bible-chapters.tsx)
+  - [x] Shows all 66 Bible books with chapter counts
+  - [x] Check off chapters one by one as you read
+  - [x] Progress bar showing overall reading completion percentage
+  - [x] Chapters persist to AsyncStorage
+  - [x] Strikethrough and green background for completed chapters
+  - [x] Section headers for each Bible book

@@ -1093,3 +1093,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add expandable Worship card
 - [x] Add expandable Fasting card
 - [x] Add Bible chapter scheduling
+
+- [x] BUG: Restore daily summary card to Schedule tab (was removed during Schedule rebuild)
+- [x] BUG: Fix + button position to align with the tab bar (currently too low)

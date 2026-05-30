@@ -1444,16 +1444,20 @@ export default function HomeScreen() {
   useEffect(() => {
     const loadBibleAndBudgetData = async () => {
       try {
-        const [bibleData, budgetCatsData, budgetTransData, bookStatusData, lastReadData] = await Promise.all([
+        const [bibleData, budgetExpensesData, bookStatusData, lastReadData] = await Promise.all([
           AsyncStorage.getItem('bibleChapters'),
-          AsyncStorage.getItem('budgetCategories'),
-          AsyncStorage.getItem('budgetTransactions'),
+          AsyncStorage.getItem('monthlyBudgetExpenses'),
           AsyncStorage.getItem('bibleBookStatus'),
           AsyncStorage.getItem('bibleLastReadDate')
         ]);
         if (bibleData) setBibleChapters(JSON.parse(bibleData));
-        if (budgetCatsData) setBudgetCategories(JSON.parse(budgetCatsData));
-        if (budgetTransData) setBudgetTransactions(JSON.parse(budgetTransData));
+        if (budgetExpensesData) {
+          const expenses = JSON.parse(budgetExpensesData);
+          const totalAmount = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
+          const totalPaid = expenses.filter((e: any) => e.isPaid).reduce((sum: number, e: any) => sum + e.amount, 0);
+          setBudgetCategories([{ budgetedAmount: totalAmount }]);
+          setBudgetTransactions(expenses.filter((e: any) => e.isPaid).map((e: any) => ({ amount: e.amount })));
+        }
         if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
         if (lastReadData) setBibleLastReadDate(lastReadData);
       } catch (error) {

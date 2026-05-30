@@ -637,8 +637,8 @@ export function ScheduleTab({
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Summary Card - ABOVE the day header, fixed position */}
-      <View style={scheduleStyles.summaryContainer}>
+      {/* Summary Card - ABOVE the day header, scroll-linked animation */}
+      <Animated.View style={[scheduleStyles.summaryContainer, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
         <DailySummaryCard
           remainingTodos={memoizedSummaryData.remainingTodos}
           remainingPrayers={memoizedSummaryData.remainingPrayers}
@@ -649,7 +649,7 @@ export function ScheduleTab({
           personalTodos={memoizedSummaryData.personalTodos}
           onTodoComplete={onTodoComplete}
         />
-      </View>
+      </Animated.View>
 
       {/* Day Header - hides on scroll up, shows on scroll down */}
       <Animated.View

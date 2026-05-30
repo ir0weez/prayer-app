@@ -1103,3 +1103,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] BUG: Last reached (people to reach) not updating in Schedule summary — fixed with useMemo reactivity
 - [x] BUG: Current Bible chapter not updating in Schedule summary — fixed with useMemo reactivity
 - [x] BUG: Budget not updating when changed in Schedule summary — fixed with useMemo reactivity
+
+- [x] BUG: Budget changes not persisting to AsyncStorage — fixed by reading from monthlyBudgetExpenses
+- [x] BUG: Scroll animation doesn't cover summary (fades instead of sliding) — fixed by wrapping summary in Animated.View with scroll-linked transform
+- [x] BUG: Ministry events not displaying in Schedule tab — verified ministries are correctly added to listData and renderItem

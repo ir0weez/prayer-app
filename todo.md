@@ -1048,3 +1048,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix budget calendar to show amounts and fix date offset
   - [x] Fixed date creation to use correct month (added 12:00 time)
   - [x] Changed display from "0/1" to show remaining amount "$X"
+
+- [x] Fix back gesture navigation to return to People tab instead of exiting app
+  - [x] Added BackHandler listener to tab layout
+  - [x] Prevents app exit on back swipe, returns to People tab instead

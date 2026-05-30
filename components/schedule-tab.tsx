@@ -57,6 +57,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { DailySummaryCard } from "@/components/daily-summary-card";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 140;
@@ -333,7 +334,29 @@ function ExpandableSection({
 }
 
 // ─── Main Schedule Tab Component ─────────────────────────────────────────────
-export function ScheduleTab({ people, fasts }: { people: Person[]; fasts: PersonalFast[] }) {
+export function ScheduleTab({
+  people,
+  fasts,
+  remainingTodos = 0,
+  remainingPrayers = 0,
+  fastingStatus = 'not-selected',
+  budgetAmount = 0,
+  peopleToReach = 0,
+  currentBibleStudy = 'Genesis 1',
+  personalTodos = [],
+  onTodoComplete,
+}: {
+  people: Person[];
+  fasts: PersonalFast[];
+  remainingTodos?: number;
+  remainingPrayers?: number;
+  fastingStatus?: string;
+  budgetAmount?: number;
+  peopleToReach?: number;
+  currentBibleStudy?: string;
+  personalTodos?: any[];
+  onTodoComplete?: (todoId: string) => void;
+}) {
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
@@ -603,6 +626,20 @@ export function ScheduleTab({ people, fasts }: { people: Person[]; fasts: Person
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
+      {/* Summary Card - ABOVE the day header, fixed position */}
+      <View style={scheduleStyles.summaryContainer}>
+        <DailySummaryCard
+          remainingTodos={remainingTodos}
+          remainingPrayers={remainingPrayers}
+          fastingStatus={fastingStatus}
+          budgetAmount={budgetAmount}
+          peopleToReach={peopleToReach}
+          currentBibleStudy={currentBibleStudy}
+          personalTodos={personalTodos}
+          onTodoComplete={onTodoComplete}
+        />
+      </View>
+
       {/* Day Header - hides on scroll up, shows on scroll down */}
       <Animated.View
         style={[
@@ -659,7 +696,7 @@ export function ScheduleTab({ people, fasts }: { people: Person[]; fasts: Person
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: DAY_HEADER_HEIGHT + 16 }]}
+            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 16 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -983,12 +1020,11 @@ const scheduleStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  summaryContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
   dayHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 8,

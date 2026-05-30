@@ -988,3 +988,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Restructured card to display buttons below name/subtitle
   - [x] Better visual hierarchy for Bible and Budget buttons
   - [x] Buttons positioned prominently in the profile card
+
+- [x] Change chapter buttons to outline style with toggle completion
+  - [x] Unread chapters show as outline (border only, no fill)
+  - [x] Tap to toggle to green filled (completed)
+  - [x] Tap again to undo (back to outline)
+- [x] Add book status pills next to each book title
+  - [x] Show "current", "complete", or "not started" status
+  - [x] Tappable to cycle through states
+  - [x] Only one book can be "current" at a time
+- [x] Integrate current book display in Reminders tab
+  - [x] Display the book marked as "current" in the summary
+  - [x] Update dynamically when book status changes

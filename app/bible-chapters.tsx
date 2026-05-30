@@ -78,16 +78,32 @@ const BIBLE_BOOKS = [
 ];
 
 const BIBLE_STORAGE_KEY = 'bibleChapters';
+const BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus';
+
+type BookStatus = 'not-started' | 'current' | 'complete';
+
+interface BookStatusData {
+  [bookName: string]: BookStatus;
+}
 
 export default function BibleChaptersScreen() {
   const colors = useColors();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
+  const [bookStatuses, setBookStatuses] = useState<BookStatusData>({});
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
       await AsyncStorage.setItem(BIBLE_STORAGE_KEY, JSON.stringify(Array.from(chapters)));
     } catch (error) {
       console.error('Failed to save Bible chapters:', error);
+    }
+  }, []);
+
+  const saveBookStatuses = useCallback(async (statuses: BookStatusData) => {
+    try {
+      await AsyncStorage.setItem(BIBLE_BOOK_STATUS_KEY, JSON.stringify(statuses));
+    } catch (error) {
+      console.error('Failed to save book statuses:', error);
     }
   }, []);
 
@@ -102,10 +118,22 @@ export default function BibleChaptersScreen() {
     }
   }, []);
 
+  const loadBookStatuses = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(BIBLE_BOOK_STATUS_KEY);
+      if (stored) {
+        setBookStatuses(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Failed to load book statuses:', error);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadReadChapters();
-    }, [loadReadChapters])
+      loadBookStatuses();
+    }, [loadReadChapters, loadBookStatuses])
   );
 
   const toggleChapter = (bookName: string, chapterNum: number) => {
@@ -118,6 +146,55 @@ export default function BibleChaptersScreen() {
     }
     setReadChapters(newChapters);
     saveReadChapters(newChapters);
+  };
+
+  const cycleBookStatus = (bookName: string) => {
+    const currentStatus = bookStatuses[bookName] || 'not-started';
+    let nextStatus: BookStatus;
+
+    if (currentStatus === 'not-started') {
+      nextStatus = 'current';
+    } else if (currentStatus === 'current') {
+      nextStatus = 'complete';
+    } else {
+      nextStatus = 'not-started';
+    }
+
+    // If setting to 'current', unset any other current books
+    const newStatuses = { ...bookStatuses };
+    if (nextStatus === 'current') {
+      Object.keys(newStatuses).forEach(key => {
+        if (newStatuses[key] === 'current') {
+          newStatuses[key] = 'not-started';
+        }
+      });
+    }
+
+    newStatuses[bookName] = nextStatus;
+    setBookStatuses(newStatuses);
+    saveBookStatuses(newStatuses);
+  };
+
+  const getStatusColor = (status: BookStatus | undefined) => {
+    switch (status) {
+      case 'current':
+        return colors.primary;
+      case 'complete':
+        return '#22C55E';
+      default:
+        return colors.muted;
+    }
+  };
+
+  const getStatusLabel = (status: BookStatus | undefined) => {
+    switch (status) {
+      case 'current':
+        return 'current';
+      case 'complete':
+        return 'complete';
+      default:
+        return 'not started';
+    }
   };
 
   const totalChapters = BIBLE_BOOKS.reduce((sum, book) => sum + book.chapters, 0);
@@ -162,11 +239,27 @@ export default function BibleChaptersScreen() {
     bookSection: {
       marginBottom: 24,
     },
+    bookHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
     bookTitle: {
       fontSize: 18,
       fontWeight: '700',
       color: colors.foreground,
-      marginBottom: 12,
+    },
+    statusPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      borderWidth: 2,
+    },
+    statusPillText: {
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'capitalize' as const,
     },
     chapterGrid: {
       flexDirection: 'row',
@@ -179,11 +272,11 @@ export default function BibleChaptersScreen() {
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 2,
     },
     chapterText: {
       fontSize: 16,
       fontWeight: '700',
-      color: '#FFFFFF',
     },
     checkmark: {
       marginTop: 2,
@@ -213,14 +306,37 @@ export default function BibleChaptersScreen() {
         {/* Bible books and chapters grid */}
         {BIBLE_BOOKS.map((book) => {
           const bookChapters = Array.from({ length: book.chapters }, (_, i) => i + 1);
+          const bookStatus = bookStatuses[book.name] || 'not-started';
+          const statusColor = getStatusColor(bookStatus);
+
           return (
             <View key={book.name} style={styles.bookSection}>
-              <Text style={styles.bookTitle}>{book.name}</Text>
+              <View style={styles.bookHeader}>
+                <Text style={styles.bookTitle}>{book.name}</Text>
+                <Pressable
+                  onPress={() => cycleBookStatus(book.name)}
+                  style={[
+                    styles.statusPill,
+                    {
+                      borderColor: statusColor,
+                      backgroundColor: bookStatus === 'not-started' ? 'transparent' : statusColor + '20',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      { color: statusColor },
+                    ]}
+                  >
+                    {getStatusLabel(bookStatus)}
+                  </Text>
+                </Pressable>
+              </View>
               <View style={styles.chapterGrid}>
                 {bookChapters.map((chapterNum) => {
                   const chapterId = `${book.name}-${chapterNum}`;
                   const isRead = readChapters.has(chapterId);
-                  const backgroundColor = isRead ? '#22C55E' : '#FFA500';
 
                   return (
                     <Pressable
@@ -229,12 +345,20 @@ export default function BibleChaptersScreen() {
                       style={({ pressed }) => [
                         styles.chapterButton,
                         {
-                          backgroundColor,
+                          borderColor: isRead ? '#22C55E' : colors.muted,
+                          backgroundColor: isRead ? '#22C55E' : 'transparent',
                           opacity: pressed ? 0.8 : 1,
                         },
                       ]}
                     >
-                      <Text style={styles.chapterText}>{chapterNum}</Text>
+                      <Text
+                        style={[
+                          styles.chapterText,
+                          { color: isRead ? '#FFFFFF' : colors.foreground },
+                        ]}
+                      >
+                        {chapterNum}
+                      </Text>
                       {isRead && (
                         <MaterialIcons
                           name="check"

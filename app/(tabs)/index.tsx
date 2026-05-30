@@ -1459,22 +1459,25 @@ export default function HomeScreen() {
   const [bibleChapters, setBibleChapters] = useState<any[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<any[]>([]);
   const [budgetTransactions, setBudgetTransactions] = useState<any[]>([]);
+  const [bookStatuses, setBookStatuses] = useState<any>({});
 
   useEffect(() => {
     const loadBibleAndBudgetData = async () => {
       try {
-        const [bibleData, budgetCatsData, budgetTransData] = await Promise.all([
+        const [bibleData, budgetCatsData, budgetTransData, bookStatusData] = await Promise.all([
           AsyncStorage.getItem('bibleChapters'),
           AsyncStorage.getItem('budgetCategories'),
-          AsyncStorage.getItem('budgetTransactions')
+          AsyncStorage.getItem('budgetTransactions'),
+          AsyncStorage.getItem('bibleBookStatus')
         ]);
         if (bibleData) setBibleChapters(JSON.parse(bibleData));
         if (budgetCatsData) setBudgetCategories(JSON.parse(budgetCatsData));
         if (budgetTransData) setBudgetTransactions(JSON.parse(budgetTransData));
+        if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
       } catch (error) {
         console.error('Error loading Bible/Budget data:', error);
       }
-    };
+    }
     loadBibleAndBudgetData();
   }, [expirationRefresh]);
 
@@ -1521,13 +1524,11 @@ export default function HomeScreen() {
     const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
     const budgetAmount = totalBudgeted - totalSpent;
     
-    // Get current Bible study from Bible chapters in AsyncStorage
+    // Get current Bible study from book status (marked as 'current')
     let currentBibleStudy = 'Genesis 1';
-    if (bibleChapters.length > 0) {
-      const unreadChapter = bibleChapters.find((c: any) => !c.isRead);
-      if (unreadChapter) {
-        currentBibleStudy = `${unreadChapter.book} ${unreadChapter.chapter}`;
-      }
+    const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
+    if (currentBook) {
+      currentBibleStudy = `${currentBook[0]} 1`;
     }
 
     return (

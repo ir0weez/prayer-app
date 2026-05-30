@@ -898,3 +898,55 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Changed all icons to foreground color (black in light mode, white in dark mode)
   - [x] Removed purple primary color from icons for better visual consistency
   - [x] All 66 tests passing
+
+## Bible & Budget Tracker Features (In Progress)
+
+- [ ] Design data structures
+  - [ ] Bible tracker: book, chapter, verses read, completion status
+  - [ ] Budget tracker: categories, budgeted amount, spent amount, transactions
+- [ ] Implement Bible tracker
+  - [ ] Bible book/chapter selector
+  - [ ] Mark chapters as read
+  - [ ] Display current reading progress
+  - [ ] Persist data to AsyncStorage
+- [ ] Implement budget tracker
+  - [ ] Create budget categories
+  - [ ] Log expenses with amounts
+  - [ ] Calculate remaining budget per category
+  - [ ] Persist data to AsyncStorage
+- [ ] Add screens to Settings tab
+  - [ ] Bible tracker screen
+  - [ ] Budget tracker screen
+- [ ] Update Reminders tab
+  - [ ] Display current Bible book and chapter (with progress)
+  - [ ] Display total budget and spent amounts
+- [ ] Test all features
+- [ ] Save checkpoint
+
+
+## Bible & Budget Tracker Features (Complete)
+
+- [x] Create Bible tracker screen (app/bible-tracker.tsx)
+  - [x] Select Bible books from dropdown
+  - [x] Mark chapters as read with checkmarks
+  - [x] Track progress through entire Bible
+  - [x] Persist Bible progress to AsyncStorage
+  - [x] Display current book and chapter
+- [x] Create budget tracker screen (app/budget-tracker.tsx)
+  - [x] Add budget categories with amounts
+  - [x] Log expenses to categories
+  - [x] Track remaining budget per category
+  - [x] Display total budgeted, spent, and remaining
+  - [x] Persist budget data to AsyncStorage
+- [x] Integrate Bible data into Reminders tab
+  - [x] Load Bible chapters from AsyncStorage
+  - [x] Display current Bible book/chapter in summary
+  - [x] Update when new chapters are marked read
+- [x] Integrate budget data into Reminders tab
+  - [x] Load budget categories and transactions from AsyncStorage
+  - [x] Calculate remaining budget
+  - [x] Display in daily summary
+  - [x] Update in real-time as expenses are logged
+- [x] Test all features
+  - [x] All 66 tests passing
+  - [x] TypeScript clean

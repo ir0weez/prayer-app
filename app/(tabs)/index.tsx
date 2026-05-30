@@ -1456,6 +1456,28 @@ export default function HomeScreen() {
     </ScrollView>
   );
 
+  const [bibleChapters, setBibleChapters] = useState<any[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<any[]>([]);
+  const [budgetTransactions, setBudgetTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadBibleAndBudgetData = async () => {
+      try {
+        const [bibleData, budgetCatsData, budgetTransData] = await Promise.all([
+          AsyncStorage.getItem('bibleChapters'),
+          AsyncStorage.getItem('budgetCategories'),
+          AsyncStorage.getItem('budgetTransactions')
+        ]);
+        if (bibleData) setBibleChapters(JSON.parse(bibleData));
+        if (budgetCatsData) setBudgetCategories(JSON.parse(budgetCatsData));
+        if (budgetTransData) setBudgetTransactions(JSON.parse(budgetTransData));
+      } catch (error) {
+        console.error('Error loading Bible/Budget data:', error);
+      }
+    };
+    loadBibleAndBudgetData();
+  }, [expirationRefresh]);
+
   const renderRemindersScreen = () => {
     // Get personal todos from the profile (only incomplete ones)
     const personalPerson = people.find(p => p.isPersonal);
@@ -1494,11 +1516,19 @@ export default function HomeScreen() {
       return lastPrayed < fourteenDaysAgo;
     }).length;
     
-    // Get budget amount (from personal profile or default 0)
-    const budgetAmount = personalPerson?.budgetAmount || 0;
+    // Calculate total budget and spent from AsyncStorage data
+    const totalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
+    const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
+    const budgetAmount = totalBudgeted - totalSpent;
     
-    // Get current Bible study (placeholder: Genesis 1)
-    const currentBibleStudy = personalPerson?.currentBibleStudy || 'Genesis 1';
+    // Get current Bible study from Bible chapters in AsyncStorage
+    let currentBibleStudy = 'Genesis 1';
+    if (bibleChapters.length > 0) {
+      const unreadChapter = bibleChapters.find((c: any) => !c.isRead);
+      if (unreadChapter) {
+        currentBibleStudy = `${unreadChapter.book} ${unreadChapter.chapter}`;
+      }
+    }
 
     return (
       <ScreenContainer className="p-0">

@@ -23,6 +23,28 @@ export type PersonalTodo = {
   order: number; // Sequential order for completion
 };
 
+export type BibleChapter = {
+  book: string; // e.g., "Genesis", "Exodus", "Matthew"
+  chapter: number; // Chapter number
+  isRead: boolean; // Whether this chapter has been read
+  readDate?: string; // ISO date string when read
+};
+
+export type BudgetCategory = {
+  id: string;
+  name: string; // e.g., "Groceries", "Utilities", "Giving"
+  budgetedAmount: number; // Total budget for this category
+  color?: string; // Hex color code for visual distinction
+};
+
+export type BudgetTransaction = {
+  id: string;
+  categoryId: string; // Reference to BudgetCategory
+  amount: number; // Amount spent
+  description: string; // What was purchased
+  date: string; // ISO date string
+};
+
 export type Person = {
   id: string;
   name: string;
@@ -50,6 +72,9 @@ export type Person = {
   personalTodos?: PersonalTodo[]; // To-do items for personal profile
   budgetAmount?: number; // Ministry finance budget amount (for personal profile)
   currentBibleStudy?: string; // Current Bible book and chapter being studied (e.g., "Genesis 1")
+  bibleChapters?: BibleChapter[]; // Tracked Bible chapters read
+  budgetCategories?: BudgetCategory[]; // Budget categories for tracking
+  budgetTransactions?: BudgetTransaction[]; // Expense transactions
 };
 
 export type AddPersonOptions = {

@@ -2,7 +2,7 @@
 
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
@@ -90,6 +90,7 @@ export default function BibleChaptersScreen() {
   const colors = useColors();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
   const [bookStatuses, setBookStatuses] = useState<BookStatusData>({});
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
@@ -218,6 +219,17 @@ export default function BibleChaptersScreen() {
       saveReadChapters(newChapters);
     }
 
+    // If setting to 'not-started', unmark all chapters
+    if (nextStatus === 'not-started') {
+      const newChapters = new Set(readChapters);
+      const bookChapters = getBookChapterCount(bookName);
+      for (let i = 1; i <= bookChapters; i++) {
+        newChapters.delete(`${bookName}-${i}`);
+      }
+      setReadChapters(newChapters);
+      saveReadChapters(newChapters);
+    }
+
     newStatuses[bookName] = nextStatus;
     setBookStatuses(newStatuses);
     saveBookStatuses(newStatuses);
@@ -268,6 +280,23 @@ export default function BibleChaptersScreen() {
         return 'not started';
     }
   };
+
+  // Auto-scroll to current book on load
+  useEffect(() => {
+    if (scrollViewRef.current && bookStatuses) {
+      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
+      if (currentBook) {
+        const bookIndex = BIBLE_BOOKS.findIndex(b => b.name === currentBook[0]);
+        if (bookIndex !== -1) {
+          // Scroll to the current book (approximate position)
+          setTimeout(() => {
+            const estimatedPosition = bookIndex * 280; // Rough estimate of each book section height
+            scrollViewRef.current?.scrollTo({ y: estimatedPosition, animated: true });
+          }, 100);
+        }
+      }
+    }
+  }, [bookStatuses]);
 
   const totalChapters = BIBLE_BOOKS.reduce((sum, book) => sum + book.chapters, 0);
   const readCount = readChapters.size;
@@ -374,7 +403,7 @@ export default function BibleChaptersScreen() {
 
   return (
     <ScreenContainer className="p-0">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
         {/* Header with reset button and progress */}
         <View style={styles.header}>
           <View style={styles.headerTop}>

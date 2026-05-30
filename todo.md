@@ -1010,3 +1010,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add reset button at top of Bible tracker
   - [x] Button to clear all Bible progress
   - [x] Confirmation dialog before resetting
+
+- [x] Redesign Budget page with monthly calendar view
+  - [x] Create calendar view showing days of the month
+  - [x] Allow marking expenses as due on specific days
+  - [x] Show expense amount for each day
+  - [x] Mark expenses as paid
+  - [x] Calculate total for the month
+- [x] Update Reminders tab to show budget total and remaining
+  - [x] Display total monthly expenses
+  - [x] Display remaining balance after paid expenses
+- [x] Auto-scroll Bible tracker to current book
+  - [x] Detect book marked as "current"
+  - [x] Scroll to that book on page load
+- [x] Unmark chapters when setting book to "not started"
+  - [x] When cycling back to "not started", clear all chapter marks

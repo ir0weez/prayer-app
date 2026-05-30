@@ -978,3 +978,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Removed underlines from Reminders summary text
   - [x] Cleaner visual appearance
   - [x] All 66 tests passing
+
+
+## Bug Fixes
+
+- [ ] Fix Bible tracker button navigation
+  - [ ] Verify button navigates to Bible chapters screen
+  - [ ] Test navigation works from Settings profile card
+- [ ] Fix people-to-reach count calculation
+  - [ ] Only count people where lastPrayedDate is 14+ days ago
+  - [ ] Show 0 if all people are caught up
+  - [ ] Update calculation in Reminders tab

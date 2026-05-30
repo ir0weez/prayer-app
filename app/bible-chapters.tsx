@@ -143,6 +143,8 @@ export default function BibleChaptersScreen() {
       newChapters.delete(chapterId);
     } else {
       newChapters.add(chapterId);
+      // Save the date of last Bible read
+      AsyncStorage.setItem('bibleLastReadDate', new Date().toISOString()).catch(() => undefined);
     }
 
     setReadChapters(newChapters);
@@ -258,18 +260,26 @@ export default function BibleChaptersScreen() {
     if (scrollViewRef.current && bookStatuses) {
       const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
       if (currentBook) {
-        let scrollPosition = 100; // Account for header height
+        // Calculate scroll position based on screen width and actual layout
+        // Each chapter button is ~18% width with gap 6, so ~5 per row
+        // Each row height is approximately (screenWidth * 0.18) + gap = ~70px
+        // Book header is ~40px, section margin is 12px
+        const ROW_HEIGHT = 72; // approximate height of each chapter row
+        const HEADER_HEIGHT = 40; // book title + pill height
+        const SECTION_MARGIN = 12;
+        const PAGE_HEADER = 120; // top header with progress bar
+
+        let scrollPosition = PAGE_HEADER;
         for (let i = 0; i < BIBLE_BOOKS.length; i++) {
           if (BIBLE_BOOKS[i].name === currentBook[0]) {
             break;
           }
-          // Estimate height: book header (50px) + grid rows (each chapter ~60px, 5 per row)
           const rows = Math.ceil(BIBLE_BOOKS[i].chapters / 5);
-          scrollPosition += 50 + (rows * 60) + 16; // +16 for margin
+          scrollPosition += HEADER_HEIGHT + (rows * ROW_HEIGHT) + SECTION_MARGIN;
         }
         setTimeout(() => {
           scrollViewRef.current?.scrollTo({ y: scrollPosition, animated: true });
-        }, 100);
+        }, 300);
       }
     }
   }, [bookStatuses]);
@@ -339,7 +349,7 @@ export default function BibleChaptersScreen() {
       fontWeight: '600',
     },
     bookSection: {
-      marginBottom: 20,
+      marginBottom: 12,
     },
     bookHeader: {
       flexDirection: 'row',
@@ -366,12 +376,12 @@ export default function BibleChaptersScreen() {
     chapterGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 8,
+      gap: 6,
     },
     chapterButton: {
       width: '18%',
       aspectRatio: 1,
-      borderRadius: 12,
+      borderRadius: 10,
       borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',

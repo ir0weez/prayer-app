@@ -1059,3 +1059,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Add isRecurring flag to MonthlyExpense interface
   - [x] Add checkbox to add expense modal
   - [x] Display recurring badge on expenses
+
+- [x] Fix Bible tracker spacing (reduced gaps between books)
+- [x] Fix auto-scroll to current book (improved height calculation)
+- [x] Add current Bible chapter pill to Settings profile card
+- [x] Add days-since-last-read counter pill to Settings profile card
+- [x] Save lastBibleReadDate when marking chapters as read

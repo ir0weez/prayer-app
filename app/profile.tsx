@@ -132,8 +132,13 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-      Promise.all([AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY)])
-        .then(([storedProfile, storedFasts]) => {
+      Promise.all([
+        AsyncStorage.getItem(PROFILE_STORAGE_KEY),
+        AsyncStorage.getItem(FASTS_STORAGE_KEY),
+        AsyncStorage.getItem('bibleBookStatus'),
+        AsyncStorage.getItem('bibleLastReadDate'),
+      ])
+        .then(([storedProfile, storedFasts, storedBibleStatus, storedLastRead]) => {
           if (!isActive) return;
           let nextFasts = storedFasts ? normalizeFastsForStorage(JSON.parse(storedFasts)) : [];
            nextFasts = nextFasts.map((fast) => ({
@@ -143,6 +148,16 @@ export default function ProfileScreen() {
           setProfile(parseStoredProfile(storedProfile));
           setFasts(nextFasts);
           setSelectedFastId((current) => current ?? getActiveFast(nextFasts, today)?.id ?? nextFasts[0]?.id ?? null);
+
+          // Load Bible reading info
+          if (storedBibleStatus) {
+            const statuses = JSON.parse(storedBibleStatus);
+            const currentEntry = Object.entries(statuses).find(([_, s]) => s === 'current');
+            setCurrentBibleBook(currentEntry ? currentEntry[0] : null);
+          }
+          if (storedLastRead) {
+            setLastBibleReadDate(storedLastRead);
+          }
         })
         .catch(() => undefined);
       return () => {
@@ -385,6 +400,21 @@ export default function ProfileScreen() {
               <Text style={styles.profileButtonText}>Budget</Text>
             </Pressable>
           </View>
+          {/* Bible Reading Info */}
+          {currentBibleBook && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
+                <MaterialIcons name="menu-book" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: 4 }}>{currentBibleBook}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 }}>
+                <MaterialIcons name="schedule" size={14} color={colors.muted} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginLeft: 4 }}>
+                  {lastBibleReadDate ? `${Math.floor((Date.now() - new Date(lastBibleReadDate).getTime()) / (1000 * 60 * 60 * 24))}d ago` : 'No reads yet'}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.statsGrid}>

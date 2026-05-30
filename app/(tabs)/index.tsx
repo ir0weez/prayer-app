@@ -13,6 +13,7 @@ import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { ScheduleTab } from "@/components/schedule-tab";
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
 import { PrayerCompletionAnimation } from "@/components/prayer-completion-animation";
@@ -73,7 +74,7 @@ import {
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 
-type AppTab = "home" | "people" | "reminders" | "journal" | "settings";
+type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
 
 type RelationshipSection = {
@@ -1550,7 +1551,7 @@ export default function HomeScreen() {
 
   const renderContent = () => {
     if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
-    if (activeTab === "reminders") return renderRemindersScreen();
+    if (activeTab === "schedule") return <ScheduleTab people={people} fasts={fasts} />;
     if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your journal entries appear here." : "Personal prayer journal entries will appear here later.");
     return renderSettingsScreen();
   };
@@ -1681,7 +1682,7 @@ export default function HomeScreen() {
 
       <BlurView intensity={82} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         {renderTab("people", "People", "groups")}
-        {renderTab("reminders", "Reminders", "notifications")}
+        {renderTab("schedule", "Schedule", "event-note")}
         {renderTab("journal", "Journal", "article")}
         {renderTab("settings", "Settings", "settings")}
       </BlurView>

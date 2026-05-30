@@ -1075,3 +1075,21 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix Settings Bible pill auto-refresh when returning from profile/Bible pages
 - [x] Make Bible pill bigger with overlapping squircle "Xd ago" badge on bottom-left
 - [x] Fix back gesture: only go to People from tabs, sub-pages go to previous page
+
+- [x] Rename "Reminders" tab to "Schedule"
+- [x] Build Schedule tab with Joi-style day header and date strip
+- [x] Add scroll-up behavior that covers day summary, scroll-down reveals it
+- [x] Add swipe left/right to navigate between days
+- [x] Implement linear view showing todos, events, ministries, worship card, fasting card, Bible reading
+- [x] Add keyword-based illustrated event cards (BBQ, Church, Worship, Bible Study, Doctor, Baby Shower, holidays)
+- [x] Completed events shrink and show solid color instead of image
+- [x] Add animated icons next to todos (spark animation on complete)
+- [x] Build "+" button modal with Ministry, Event, and Todo creation forms
+- [x] Ministry form: type, due date/duration, location
+- [x] Event form: standard calendar event fields
+- [x] Todo form: simple checkbox item
+- [x] Integrate People birthdays into Schedule dates
+- [x] Transfer personal page todos to Schedule area
+- [x] Add expandable Worship card
+- [x] Add expandable Fasting card
+- [x] Add Bible chapter scheduling

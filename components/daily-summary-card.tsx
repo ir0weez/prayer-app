@@ -5,10 +5,9 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
 
 interface DailySummaryCardProps {
-  totalTodos: number;
-  completedTodos: number;
-  totalPrayers: number;
-  completedPrayers: number;
+  remainingTodos: number;
+  remainingPrayers: number;
+  fastingStatus: string;
   personalTodos?: any[];
   onTodoComplete?: (todoId: string) => void;
 }
@@ -36,16 +35,27 @@ function iconName(icon: string | null | undefined): any {
 }
 
 export function DailySummaryCard({
-  totalTodos,
-  completedTodos,
-  totalPrayers,
-  completedPrayers,
+  remainingTodos,
+  remainingPrayers,
+  fastingStatus,
   personalTodos = [],
   onTodoComplete,
 }: DailySummaryCardProps) {
   const colors = useColors();
-  const remainingTodos = totalTodos - completedTodos;
-  const remainingPrayers = totalPrayers - completedPrayers;
+  
+  // Format fasting status for display
+  const getFastingStatusDisplay = () => {
+    switch (fastingStatus) {
+      case 'complete':
+        return 'Complete';
+      case 'missed':
+        return 'Missed';
+      case 'skipped':
+        return 'Skipped';
+      default:
+        return 'Not selected';
+    }
+  };
   
   // Scroll-up animation
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -136,13 +146,15 @@ export function DailySummaryCard({
           }}
         >
           <Text style={{ color: colors.muted, fontWeight: "500" }}>You have </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {totalTodos}</Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{totalTodos !== 1 ? "s" : ""}</Text>
-          <Text style={{ color: colors.muted, fontWeight: "500" }}> and </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {remainingTodos}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-            <MaterialIcons name="favorite" size={20} color={colors.primary} /> {totalPrayers}
+            <MaterialIcons name="favorite" size={20} color={colors.primary} /> {remainingPrayers}
           </Text>
-          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{totalPrayers !== 1 ? "s" : ""}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, and your fasting is </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>
       </View>
@@ -257,7 +269,7 @@ export function DailySummaryCard({
         </View>
       )}
 
-      {remainingTodos === 0 && remainingPrayers === 0 && totalTodos > 0 && totalPrayers > 0 && (
+      {remainingTodos === 0 && remainingPrayers === 0 && (
         <View
           style={{
             marginTop: 16,

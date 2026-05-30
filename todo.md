@@ -859,4 +859,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Icons now render correctly on todo avatars
   - [x] Completed todos filtered from display
   - [x] All 66 tests passing
+- [x] Added fasting status to daily summary
+  - [x] Summary shows remaining todos, prayers, and fasting status
+  - [x] Fasting status displays as Complete, Missed, Skipped, or Not selected
+  - [x] Linked to active fasting profile status
+  - [x] Changed to remaining counts for real-time countdown effect
+  - [x] All 66 tests passing
 - [x] Save checkpoint after implementation

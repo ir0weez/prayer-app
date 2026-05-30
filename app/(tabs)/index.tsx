@@ -1466,16 +1466,20 @@ export default function HomeScreen() {
     // Use prayTodayList for accurate prayer count (same as home screen)
     const totalPrayers = prayTodayList.length;
     const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
+    const remainingPrayers = totalPrayers - completedPrayers;
+    const remainingTodos = incompleteTodos.length;
+    
+    // Get fasting status
+    const fastingStatus = activeFastTodayStatus || 'not-selected';
 
     return (
       <ScreenContainer className="p-0">
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View className="gap-0">
             <DailySummaryCard
-              totalTodos={allPersonalTodos.length}
-              completedTodos={completedPersonalTodos}
-              totalPrayers={totalPrayers}
-              completedPrayers={completedPrayers}
+              remainingTodos={remainingTodos}
+              remainingPrayers={remainingPrayers}
+              fastingStatus={fastingStatus}
               personalTodos={incompleteTodos}
               onTodoComplete={(todoId) => {
                 const updatedPeople = people.map(p => {

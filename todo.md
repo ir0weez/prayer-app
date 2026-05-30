@@ -978,3 +978,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Removed underlines from Reminders summary text
   - [x] Cleaner visual appearance
   - [x] All 66 tests passing
+
+- [x] Redesign Bible tracker to use calendar-style chapter buttons
+  - [x] 5-column grid layout matching fasting calendar style
+  - [x] Orange buttons for unread chapters, green for completed
+  - [x] Book headers above each section
+  - [x] Progress bar at top showing completion percentage
+- [x] Improve Settings profile card layout
+  - [x] Restructured card to display buttons below name/subtitle
+  - [x] Better visual hierarchy for Bible and Budget buttons
+  - [x] Buttons positioned prominently in the profile card

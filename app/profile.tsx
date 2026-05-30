@@ -363,21 +363,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={dynamicStyles.profileCard}>
-          <View style={dynamicStyles.profileAvatar}>
-            {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileImage} /> : <MaterialIcons name={iconName("person")} size={42} color="#FFFFFF" />}
-          </View>
-          <View style={styles.profileCopy}>
-            <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
-            <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
+        <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+            <View style={dynamicStyles.profileAvatar}>
+              {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileImage} /> : <MaterialIcons name={iconName("person")} size={42} color="#FFFFFF" />}
+            </View>
+            <View style={[styles.profileCopy, { marginLeft: 12 }]}>
+              <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
+              <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
+            </View>
           </View>
           <View style={styles.profileButtons}>
             <Pressable onPress={() => router.push('/bible-chapters')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name="school" size={20} color="#FFFFFF" />
+              <MaterialIcons name="school" size={18} color="#FFFFFF" />
               <Text style={styles.profileButtonText}>Bible</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/budget-tracker')} style={({ pressed }) => [styles.profileButton, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
-              <MaterialIcons name="attach-money" size={20} color="#FFFFFF" />
+              <MaterialIcons name="attach-money" size={18} color="#FFFFFF" />
               <Text style={styles.profileButtonText}>Budget</Text>
             </Pressable>
           </View>

@@ -1,10 +1,12 @@
-import { View, Text, ScrollView, Pressable, SectionList } from 'react-native';
+'use client';
+
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
+import { ScrollView, View, Pressable, Text, StyleSheet } from 'react-native';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -75,26 +77,28 @@ const BIBLE_BOOKS = [
   { name: 'Revelation', chapters: 22 },
 ];
 
+const BIBLE_STORAGE_KEY = 'bibleChapters';
+
 export default function BibleChaptersScreen() {
   const colors = useColors();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
 
-  const loadReadChapters = useCallback(async () => {
+  const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
-      const data = await AsyncStorage.getItem('bibleReadChapters');
-      if (data) {
-        setReadChapters(new Set(JSON.parse(data)));
-      }
+      await AsyncStorage.setItem(BIBLE_STORAGE_KEY, JSON.stringify(Array.from(chapters)));
     } catch (error) {
-      console.error('Error loading Bible chapters:', error);
+      console.error('Failed to save Bible chapters:', error);
     }
   }, []);
 
-  const saveReadChapters = useCallback(async (chapters: Set<string>) => {
+  const loadReadChapters = useCallback(async () => {
     try {
-      await AsyncStorage.setItem('bibleReadChapters', JSON.stringify(Array.from(chapters)));
+      const stored = await AsyncStorage.getItem(BIBLE_STORAGE_KEY);
+      if (stored) {
+        setReadChapters(new Set(JSON.parse(stored)));
+      }
     } catch (error) {
-      console.error('Error saving Bible chapters:', error);
+      console.error('Failed to load Bible chapters:', error);
     }
   }, []);
 
@@ -116,82 +120,137 @@ export default function BibleChaptersScreen() {
     saveReadChapters(newChapters);
   };
 
-  const sections = BIBLE_BOOKS.map(book => ({
-    title: book.name,
-    data: Array.from({ length: book.chapters }, (_, i) => ({
-      book: book.name,
-      chapter: i + 1,
-    })),
-  }));
-
   const totalChapters = BIBLE_BOOKS.reduce((sum, book) => sum + book.chapters, 0);
   const readCount = readChapters.size;
   const progressPercent = Math.round((readCount / totalChapters) * 100);
 
-  return (
-    <ScreenContainer className="p-4">
-      {/* Header with progress */}
-      <View className="mb-6">
-        <View className="flex-row justify-between items-center mb-3">
-          <Text className="text-2xl font-bold text-foreground">Bible Reading</Text>
-          <Text className="text-sm font-semibold text-muted">{readCount}/{totalChapters}</Text>
-        </View>
-        <View className="bg-surface rounded-full h-3 overflow-hidden">
-          <View
-            className="bg-primary h-full"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </View>
-        <Text className="text-xs text-muted mt-2">{progressPercent}% complete</Text>
-      </View>
+  const styles = StyleSheet.create({
+    header: {
+      marginBottom: 24,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '900',
+      color: colors.foreground,
+    },
+    counter: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.muted,
+    },
+    progressBar: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      height: 12,
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    progressFill: {
+      backgroundColor: colors.primary,
+      height: '100%',
+    },
+    progressText: {
+      fontSize: 12,
+      color: colors.muted,
+    },
+    bookSection: {
+      marginBottom: 24,
+    },
+    bookTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.foreground,
+      marginBottom: 12,
+    },
+    chapterGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chapterButton: {
+      width: '18%',
+      minHeight: 56,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chapterText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    checkmark: {
+      marginTop: 2,
+    },
+  });
 
-      {/* Bible books and chapters */}
-      <SectionList
-        sections={sections}
-        keyExtractor={(item, index) => `${item.book}-${item.chapter}`}
-        renderItem={({ item }) => {
-          const chapterId = `${item.book}-${item.chapter}`;
-          const isRead = readChapters.has(chapterId);
-          return (
-            <Pressable
-              onPress={() => toggleChapter(item.book, item.chapter)}
-              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-            >
-              <View
-                className={`flex-row items-center p-3 rounded-lg mb-2 ${
-                  isRead ? 'bg-success/20' : 'bg-surface'
-                }`}
-              >
-                <View
-                  className={`w-5 h-5 rounded border-2 items-center justify-center mr-3 ${
-                    isRead
-                      ? 'bg-success border-success'
-                      : 'border-border'
-                  }`}
-                >
-                  {isRead && (
-                    <MaterialIcons name="check" size={14} color={colors.background} />
-                  )}
-                </View>
-                <Text
-                  className={`flex-1 font-medium ${
-                    isRead ? 'text-success line-through' : 'text-foreground'
-                  }`}
-                >
-                  Chapter {item.chapter}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
-        renderSectionHeader={({ section: { title } }) => (
-          <View className="mt-4 mb-2">
-            <Text className="text-lg font-bold text-foreground">{title}</Text>
+  return (
+    <ScreenContainer className="p-0">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
+        {/* Header with progress */}
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Bible Reading</Text>
+            <Text style={styles.counter}>{readCount}/{totalChapters}</Text>
           </View>
-        )}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-      />
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progressPercent}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>{progressPercent}% complete</Text>
+        </View>
+
+        {/* Bible books and chapters grid */}
+        {BIBLE_BOOKS.map((book) => {
+          const bookChapters = Array.from({ length: book.chapters }, (_, i) => i + 1);
+          return (
+            <View key={book.name} style={styles.bookSection}>
+              <Text style={styles.bookTitle}>{book.name}</Text>
+              <View style={styles.chapterGrid}>
+                {bookChapters.map((chapterNum) => {
+                  const chapterId = `${book.name}-${chapterNum}`;
+                  const isRead = readChapters.has(chapterId);
+                  const backgroundColor = isRead ? '#22C55E' : '#FFA500';
+
+                  return (
+                    <Pressable
+                      key={chapterId}
+                      onPress={() => toggleChapter(book.name, chapterNum)}
+                      style={({ pressed }) => [
+                        styles.chapterButton,
+                        {
+                          backgroundColor,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.chapterText}>{chapterNum}</Text>
+                      {isRead && (
+                        <MaterialIcons
+                          name="check"
+                          size={14}
+                          color="#FFFFFF"
+                          style={styles.checkmark}
+                        />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
     </ScreenContainer>
   );
 }

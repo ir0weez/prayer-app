@@ -1052,3 +1052,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix back gesture navigation to return to People tab instead of exiting app
   - [x] Added BackHandler listener to tab layout
   - [x] Prevents app exit on back swipe, returns to People tab instead
+
+- [x] Fix date offset bug in Budget tracker (expenses showing on wrong day)
+  - [x] Changed from Date constructor to string formatting to avoid timezone issues
+- [x] Add recurring expense functionality
+  - [x] Add isRecurring flag to MonthlyExpense interface
+  - [x] Add checkbox to add expense modal
+  - [x] Display recurring badge on expenses

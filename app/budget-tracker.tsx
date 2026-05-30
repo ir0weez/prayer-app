@@ -17,6 +17,7 @@ interface MonthlyExpense {
   amount: number;
   isPaid: boolean;
   dueDate: string; // ISO date string
+  isRecurring?: boolean; // Auto-create each month
 }
 
 export default function BudgetTrackerScreen() {
@@ -28,6 +29,7 @@ export default function BudgetTrackerScreen() {
   const [newExpenseName, setNewExpenseName] = useState('');
   const [newExpenseAmount, setNewExpenseAmount] = useState('');
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   const loadExpenses = useCallback(async () => {
     try {
@@ -106,14 +108,19 @@ export default function BudgetTrackerScreen() {
       return;
     }
 
-    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDay, 12, 0, 0);
+    const year = currentMonth.getFullYear();
+    const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDay).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+
     const newExpense: MonthlyExpense = {
       id: Date.now().toString(),
       day: selectedDay,
       name: newExpenseName,
       amount: parseFloat(newExpenseAmount),
       isPaid: false,
-      dueDate: newDate.toISOString().split('T')[0],
+      dueDate: dateString,
+      isRecurring: isRecurring,
     };
 
     const updated = [...expenses, newExpense];
@@ -121,6 +128,7 @@ export default function BudgetTrackerScreen() {
     setNewExpenseName('');
     setNewExpenseAmount('');
     setSelectedDay(null);
+    setIsRecurring(false);
     setShowAddModal(false);
   };
 
@@ -321,6 +329,24 @@ export default function BudgetTrackerScreen() {
       marginBottom: 12,
       fontSize: 14,
     },
+    recurringCheckbox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      marginBottom: 16,
+      borderWidth: 1,
+      gap: 8,
+    },
+    recurringCheckboxInner: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     daySelector: {
       marginBottom: 16,
     },
@@ -491,9 +517,14 @@ export default function BudgetTrackerScreen() {
                     )}
                   </Pressable>
                   <View style={styles.expenseInfo}>
-                    <Text style={[styles.expenseName, expense.isPaid && { textDecorationLine: 'line-through', color: colors.muted }]}>
-                      {expense.name}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.expenseName, expense.isPaid && { textDecorationLine: 'line-through', color: colors.muted }]}>
+                        {expense.name}
+                      </Text>
+                      {expense.isRecurring && (
+                        <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600', backgroundColor: colors.primary + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>Recurring</Text>
+                      )}
+                    </View>
                     <Text style={styles.expenseAmount}>Due: {expense.day}</Text>
                   </View>
                   <Text style={[styles.summaryValue, expense.isPaid && { color: colors.muted }]}>
@@ -543,6 +574,27 @@ export default function BudgetTrackerScreen() {
               onChangeText={setNewExpenseAmount}
               keyboardType="decimal-pad"
             />
+
+            {/* Recurring Checkbox */}
+            <Pressable
+              onPress={() => setIsRecurring(!isRecurring)}
+              style={[styles.recurringCheckbox, { borderColor: colors.border }]}
+            >
+              <View
+                style={[
+                  styles.recurringCheckboxInner,
+                  {
+                    backgroundColor: isRecurring ? colors.primary : 'transparent',
+                    borderColor: isRecurring ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                {isRecurring && (
+                  <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                )}
+              </View>
+              <Text style={{ color: colors.foreground, fontSize: 14 }}>Recurring monthly</Text>
+            </Pressable>
 
             <View style={styles.daySelector}>
               <Text style={styles.daySelectorLabel}>Select Day of Month</Text>

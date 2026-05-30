@@ -5,7 +5,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, TextInput } from 'react-native';
 
 const BUDGET_STORAGE_KEY = 'monthlyBudgetExpenses';
@@ -21,6 +21,7 @@ interface MonthlyExpense {
 
 export default function BudgetTrackerScreen() {
   const colors = useColors();
+  const router = useRouter();
   const [expenses, setExpenses] = useState<MonthlyExpense[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
@@ -391,6 +392,9 @@ export default function BudgetTrackerScreen() {
         {/* Month Header */}
         <View style={styles.header}>
           <View style={styles.monthHeader}>
+            <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
+              <MaterialIcons name="close" size={24} color={colors.foreground} />
+            </Pressable>
             <Text style={styles.monthTitle}>{monthName}</Text>
             <View style={styles.monthNav}>
               <Pressable onPress={previousMonth} style={styles.navButton}>

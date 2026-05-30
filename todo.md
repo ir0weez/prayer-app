@@ -889,3 +889,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] All 66 tests passing
   - [x] TypeScript clean
 - [x] Save checkpoint
+- [x] Fixed fasting status display
+  - [x] Map dayStatuses values (completed/missed/skipped) to display format (complete/missed/skipped)
+  - [x] Reminders tab now shows correct fasting status based on user selection
+  - [x] All 66 tests passing

@@ -1476,8 +1476,15 @@ export default function HomeScreen() {
     const remainingPrayers = totalPrayers - completedPrayers;
     const remainingTodos = incompleteTodos.length;
     
-    // Get fasting status
-    const fastingStatus = activeFastTodayStatus || 'not-selected';
+    // Get fasting status - map from dayStatuses to display format
+    let fastingStatus = 'not-selected';
+    if (activeFastTodayStatus === 'completed') {
+      fastingStatus = 'complete';
+    } else if (activeFastTodayStatus === 'missed') {
+      fastingStatus = 'missed';
+    } else if (activeFastTodayStatus === 'skipped') {
+      fastingStatus = 'skipped';
+    }
     
     // Calculate people to reach out to (not reached in 14 days)
     const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];

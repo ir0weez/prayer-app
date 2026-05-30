@@ -8,6 +8,9 @@ interface DailySummaryCardProps {
   remainingTodos: number;
   remainingPrayers: number;
   fastingStatus: string;
+  budgetAmount: number;
+  peopleToReach: number;
+  currentBibleStudy: string;
   personalTodos?: any[];
   onTodoComplete?: (todoId: string) => void;
 }
@@ -38,6 +41,9 @@ export function DailySummaryCard({
   remainingTodos,
   remainingPrayers,
   fastingStatus,
+  budgetAmount,
+  peopleToReach,
+  currentBibleStudy,
   personalTodos = [],
   onTodoComplete,
 }: DailySummaryCardProps) {
@@ -148,12 +154,24 @@ export function DailySummaryCard({
           <Text style={{ color: colors.muted, fontWeight: "500" }}>You have </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {remainingTodos}</Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
-          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, you are currently reading </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+            <MaterialIcons name="school" size={20} color={colors.primary} /> {currentBibleStudy}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, have </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="favorite" size={20} color={colors.primary} /> {remainingPrayers}
           </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
-          <Text style={{ color: colors.muted, fontWeight: "500" }}>, and your fasting is </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+            <MaterialIcons name="attach-money" size={20} color={colors.primary} /> {budgetAmount}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> to budget, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+            <MaterialIcons name="people" size={20} color={colors.primary} /> {peopleToReach}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> people to reach, and your fasting is </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>

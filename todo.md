@@ -866,3 +866,26 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Changed to remaining counts for real-time countdown effect
   - [x] All 66 tests passing
 - [x] Save checkpoint after implementation
+
+## Reminders Tab Enhanced Features (Complete)
+
+- [x] Sort todos by time when time is set
+  - [x] Implement time-based sorting for personal todos
+  - [x] Display todos in chronological order
+- [x] Add ministry finance tracker
+  - [x] Added budgetAmount field to Person type
+  - [x] Display budget amount in summary with $ symbol
+- [x] Add people reach-out counter
+  - [x] Count people not reached out to in 14 days
+  - [x] Display count in summary with people icon
+- [x] Add Bible study tracker
+  - [x] Display current Bible book and chapter
+  - [x] Use Genesis 1 as placeholder for now
+  - [x] Add book icon to summary
+- [x] Update summary paragraph with all metrics
+  - [x] Format: "You have X todos, you are currently reading [Book Chapter], have Y Prayers, Z to budget, W people to reach, and your fasting is [status] today."
+  - [x] Add appropriate symbols for each metric
+- [x] Test all features and verify functionality
+  - [x] All 66 tests passing
+  - [x] TypeScript clean
+- [x] Save checkpoint

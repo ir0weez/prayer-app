@@ -1463,6 +1463,13 @@ export default function HomeScreen() {
     const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
     const completedPersonalTodos = allPersonalTodos.filter(t => t.isDone).length;
     
+    // Sort incomplete todos by time
+    const sortedIncompleteTodos = [...incompleteTodos].sort((a, b) => {
+      const timeA = a.scheduledTime || '23:59';
+      const timeB = b.scheduledTime || '23:59';
+      return timeA.localeCompare(timeB);
+    });
+    
     // Use prayTodayList for accurate prayer count (same as home screen)
     const totalPrayers = prayTodayList.length;
     const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
@@ -1471,6 +1478,20 @@ export default function HomeScreen() {
     
     // Get fasting status
     const fastingStatus = activeFastTodayStatus || 'not-selected';
+    
+    // Calculate people to reach out to (not reached in 14 days)
+    const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const peopleToReach = people.filter(p => {
+      if (p.isPersonal) return false; // Don't count personal profile
+      const lastPrayed = p.lastPrayedDate || '1900-01-01';
+      return lastPrayed < fourteenDaysAgo;
+    }).length;
+    
+    // Get budget amount (from personal profile or default 0)
+    const budgetAmount = personalPerson?.budgetAmount || 0;
+    
+    // Get current Bible study (placeholder: Genesis 1)
+    const currentBibleStudy = personalPerson?.currentBibleStudy || 'Genesis 1';
 
     return (
       <ScreenContainer className="p-0">
@@ -1480,7 +1501,10 @@ export default function HomeScreen() {
               remainingTodos={remainingTodos}
               remainingPrayers={remainingPrayers}
               fastingStatus={fastingStatus}
-              personalTodos={incompleteTodos}
+              budgetAmount={budgetAmount}
+              peopleToReach={peopleToReach}
+              currentBibleStudy={currentBibleStudy}
+              personalTodos={sortedIncompleteTodos}
               onTodoComplete={(todoId) => {
                 const updatedPeople = people.map(p => {
                   if (p.isPersonal) {

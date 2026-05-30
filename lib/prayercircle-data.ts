@@ -48,6 +48,8 @@ export type Person = {
   familyType?: FamilyType; // Type of family member: Spouse, Child, or Other
   isPersonal?: boolean; // Mark this contact as yourself for personal to-do list
   personalTodos?: PersonalTodo[]; // To-do items for personal profile
+  budgetAmount?: number; // Ministry finance budget amount (for personal profile)
+  currentBibleStudy?: string; // Current Bible book and chapter being studied (e.g., "Genesis 1")
 };
 
 export type AddPersonOptions = {

@@ -57,12 +57,9 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
-import { DailySummaryCard } from "@/components/daily-summary-card";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 140;
-const SUMMARY_HEIGHT = 280; // Approximate height of the DailySummaryCard
-const TOTAL_HEADER_HEIGHT = DAY_HEADER_HEIGHT + SUMMARY_HEIGHT;
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -336,32 +333,7 @@ function ExpandableSection({
 }
 
 // ─── Main Schedule Tab Component ─────────────────────────────────────────────
-interface ScheduleTabProps {
-  people: Person[];
-  fasts: PersonalFast[];
-  // Summary data for the DailySummaryCard
-  remainingTodos?: number;
-  remainingPrayers?: number;
-  fastingStatus?: string;
-  budgetAmount?: number;
-  peopleToReach?: number;
-  currentBibleStudy?: string;
-  personalTodos?: any[];
-  onTodoComplete?: (todoId: string) => void;
-}
-
-export function ScheduleTab({
-  people,
-  fasts,
-  remainingTodos = 0,
-  remainingPrayers = 0,
-  fastingStatus = 'not-selected',
-  budgetAmount = 0,
-  peopleToReach = 0,
-  currentBibleStudy = 'Genesis 1',
-  personalTodos = [],
-  onTodoComplete,
-}: ScheduleTabProps) {
+export function ScheduleTab({ people, fasts }: { people: Person[]; fasts: PersonalFast[] }) {
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
@@ -381,27 +353,16 @@ export function ScheduleTab({
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
   const [formDueDate, setFormDueDate] = useState("");
 
-  // Scroll animation - summary hides on scroll up, shows on scroll down
+  // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
-  const summaryOpacity = scrollY.interpolate({
-    inputRange: [0, SUMMARY_HEIGHT / 2],
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, DAY_HEADER_HEIGHT / 2],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
-  const summaryTranslateY = scrollY.interpolate({
-    inputRange: [0, SUMMARY_HEIGHT],
-    outputRange: [0, -SUMMARY_HEIGHT],
-    extrapolate: "clamp",
-  });
-  // The day header (date strip) stays visible but slides up when summary collapses
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, DAY_HEADER_HEIGHT / 2],
-    outputRange: [1, 1],
-    extrapolate: "clamp",
-  });
   const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, SUMMARY_HEIGHT],
-    outputRange: [SUMMARY_HEIGHT, 0],
+    inputRange: [0, DAY_HEADER_HEIGHT],
+    outputRange: [0, -DAY_HEADER_HEIGHT],
     extrapolate: "clamp",
   });
 
@@ -640,35 +601,9 @@ export function ScheduleTab({
     [colors, selectedDate]
   );
 
-  // Render the summary as a ListHeaderComponent
-  const renderListHeader = useCallback(() => (
-    <View>
-      {/* Daily Summary Card - the user's favorite part */}
-      <Animated.View
-        style={[
-          {
-            opacity: summaryOpacity,
-            transform: [{ translateY: summaryTranslateY }],
-          },
-        ]}
-      >
-        <DailySummaryCard
-          remainingTodos={remainingTodos}
-          remainingPrayers={remainingPrayers}
-          fastingStatus={fastingStatus}
-          budgetAmount={budgetAmount}
-          peopleToReach={peopleToReach}
-          currentBibleStudy={currentBibleStudy}
-          personalTodos={personalTodos}
-          onTodoComplete={onTodoComplete}
-        />
-      </Animated.View>
-    </View>
-  ), [remainingTodos, remainingPrayers, fastingStatus, budgetAmount, peopleToReach, currentBibleStudy, personalTodos, onTodoComplete, summaryOpacity, summaryTranslateY]);
-
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Day Header with Date Strip - stays visible, slides up as summary collapses */}
+      {/* Day Header - hides on scroll up, shows on scroll down */}
       <Animated.View
         style={[
           scheduleStyles.dayHeader,
@@ -724,7 +659,6 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            ListHeaderComponent={renderListHeader}
             contentContainerStyle={[scheduleStyles.listContent, { paddingTop: DAY_HEADER_HEIGHT + 16 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
@@ -1122,11 +1056,11 @@ const scheduleStyles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 15,
-    bottom: 60,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

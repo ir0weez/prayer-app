@@ -1551,65 +1551,7 @@ export default function HomeScreen() {
 
   const renderContent = () => {
     if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
-    if (activeTab === "schedule") {
-      // Compute summary data for the DailySummaryCard
-      const personalPerson = people.find(p => p.isPersonal);
-      const allPersonalTodos = personalPerson?.personalTodos || [];
-      const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
-      const sortedIncompleteTodos = [...incompleteTodos].sort((a, b) => {
-        const timeA = a.scheduledTime || '23:59';
-        const timeB = b.scheduledTime || '23:59';
-        return timeA.localeCompare(timeB);
-      });
-      const totalPrayers = prayTodayList.length;
-      const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
-      const scheduleRemainingPrayers = totalPrayers - completedPrayers;
-      const scheduleRemainingTodos = incompleteTodos.length;
-      let scheduleFastingStatus = 'not-selected';
-      if (activeFastTodayStatus === 'completed') scheduleFastingStatus = 'complete';
-      else if (activeFastTodayStatus === 'missed') scheduleFastingStatus = 'missed';
-      else if (activeFastTodayStatus === 'skipped') scheduleFastingStatus = 'skipped';
-      const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const schedulePeopleToReach = people.filter(p => {
-        if (p.isPersonal) return false;
-        if (!p.lastPrayedDate) return false;
-        return p.lastPrayedDate <= fourteenDaysAgo;
-      }).length;
-      const scheduleTotalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
-      const scheduleTotalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
-      const scheduleBudgetAmount = scheduleTotalBudgeted - scheduleTotalSpent;
-      let scheduleCurrentBibleStudy = 'Genesis 1';
-      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-      if (currentBook) scheduleCurrentBibleStudy = `${currentBook[0]} 1`;
-
-      return (
-        <ScheduleTab
-          people={people}
-          fasts={fasts}
-          remainingTodos={scheduleRemainingTodos}
-          remainingPrayers={scheduleRemainingPrayers}
-          fastingStatus={scheduleFastingStatus}
-          budgetAmount={scheduleBudgetAmount}
-          peopleToReach={schedulePeopleToReach}
-          currentBibleStudy={scheduleCurrentBibleStudy}
-          personalTodos={sortedIncompleteTodos}
-          onTodoComplete={(todoId) => {
-            const updatedPeople = people.map(p => {
-              if (p.isPersonal) {
-                return {
-                  ...p,
-                  personalTodos: p.personalTodos?.map(t =>
-                    t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
-                  ) || [],
-                };
-              }
-              return p;
-            });
-            setPeople(updatedPeople);
-          }}
-        />
-      );
-    }
+    if (activeTab === "schedule") return <ScheduleTab people={people} fasts={fasts} />;
     if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your journal entries appear here." : "Personal prayer journal entries will appear here later.");
     return renderSettingsScreen();
   };

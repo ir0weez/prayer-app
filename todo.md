@@ -893,3 +893,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Map dayStatuses values (completed/missed/skipped) to display format (complete/missed/skipped)
   - [x] Reminders tab now shows correct fasting status based on user selection
   - [x] All 66 tests passing
+- [x] Updated summary styling
+  - [x] Added faint underlines to bolded text (using border color with 60% opacity)
+  - [x] Changed all icons to foreground color (black in light mode, white in dark mode)
+  - [x] Removed purple primary color from icons for better visual consistency
+  - [x] All 66 tests passing

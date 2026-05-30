@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { ScrollView, View, Pressable, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Pressable, Text, StyleSheet, Alert } from 'react-native';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -136,6 +136,28 @@ export default function BibleChaptersScreen() {
     }, [loadReadChapters, loadBookStatuses])
   );
 
+  const getBookChapterCount = (bookName: string) => {
+    const book = BIBLE_BOOKS.find(b => b.name === bookName);
+    return book?.chapters || 0;
+  };
+
+  const getReadChapterCountForBook = (bookName: string) => {
+    const bookChapters = BIBLE_BOOKS.find(b => b.name === bookName)?.chapters || 0;
+    let count = 0;
+    for (let i = 1; i <= bookChapters; i++) {
+      if (readChapters.has(`${bookName}-${i}`)) {
+        count++;
+      }
+    }
+    return count;
+  };
+
+  const isBookFullyRead = (bookName: string) => {
+    const totalChapters = getBookChapterCount(bookName);
+    const readCount = getReadChapterCountForBook(bookName);
+    return totalChapters > 0 && totalChapters === readCount;
+  };
+
   const toggleChapter = (bookName: string, chapterNum: number) => {
     const chapterId = `${bookName}-${chapterNum}`;
     const newChapters = new Set(readChapters);
@@ -146,6 +168,20 @@ export default function BibleChaptersScreen() {
     }
     setReadChapters(newChapters);
     saveReadChapters(newChapters);
+
+    // Check if book is now fully read and auto-complete
+    const bookChapters = getBookChapterCount(bookName);
+    let readCount = 0;
+    for (let i = 1; i <= bookChapters; i++) {
+      if (newChapters.has(`${bookName}-${i}`)) {
+        readCount++;
+      }
+    }
+    if (bookChapters > 0 && bookChapters === readCount && bookStatuses[bookName] !== 'complete') {
+      const newStatuses: BookStatusData = { ...bookStatuses, [bookName]: 'complete' };
+      setBookStatuses(newStatuses);
+      saveBookStatuses(newStatuses);
+    }
   };
 
   const cycleBookStatus = (bookName: string) => {
@@ -160,8 +196,9 @@ export default function BibleChaptersScreen() {
       nextStatus = 'not-started';
     }
 
+    const newStatuses: BookStatusData = { ...bookStatuses };
+
     // If setting to 'current', unset any other current books
-    const newStatuses = { ...bookStatuses };
     if (nextStatus === 'current') {
       Object.keys(newStatuses).forEach(key => {
         if (newStatuses[key] === 'current') {
@@ -170,9 +207,44 @@ export default function BibleChaptersScreen() {
       });
     }
 
+    // If setting to 'complete', mark all chapters as read
+    if (nextStatus === 'complete') {
+      const newChapters = new Set(readChapters);
+      const bookChapters = getBookChapterCount(bookName);
+      for (let i = 1; i <= bookChapters; i++) {
+        newChapters.add(`${bookName}-${i}`);
+      }
+      setReadChapters(newChapters);
+      saveReadChapters(newChapters);
+    }
+
     newStatuses[bookName] = nextStatus;
     setBookStatuses(newStatuses);
     saveBookStatuses(newStatuses);
+  };
+
+  const resetAllData = () => {
+    Alert.alert(
+      'Reset Bible Progress',
+      'Are you sure you want to clear all Bible reading progress? This cannot be undone.',
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            try {
+              setReadChapters(new Set());
+              setBookStatuses({} as BookStatusData);
+              await AsyncStorage.setItem(BIBLE_STORAGE_KEY, JSON.stringify([]));
+              await AsyncStorage.setItem(BIBLE_BOOK_STATUS_KEY, JSON.stringify({}));
+            } catch (error) {
+              console.error('Failed to reset Bible data:', error);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   const getStatusColor = (status: BookStatus | undefined) => {
@@ -205,6 +277,12 @@ export default function BibleChaptersScreen() {
     header: {
       marginBottom: 24,
     },
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -220,6 +298,17 @@ export default function BibleChaptersScreen() {
       fontSize: 14,
       fontWeight: '600',
       color: colors.muted,
+    },
+    resetButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: '#EF4444',
+    },
+    resetButtonText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '700',
     },
     progressBar: {
       backgroundColor: colors.surface,
@@ -286,8 +375,13 @@ export default function BibleChaptersScreen() {
   return (
     <ScreenContainer className="p-0">
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
-        {/* Header with progress */}
+        {/* Header with reset button and progress */}
         <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Pressable onPress={resetAllData} style={styles.resetButton}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </Pressable>
+          </View>
           <View style={styles.headerRow}>
             <Text style={styles.title}>Bible Reading</Text>
             <Text style={styles.counter}>{readCount}/{totalChapters}</Text>

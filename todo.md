@@ -1000,3 +1000,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Integrate current book display in Reminders tab
   - [x] Display the book marked as "current" in the summary
   - [x] Update dynamically when book status changes
+
+- [x] Auto-complete book when all chapters marked done
+  - [x] Check if all chapters are read when marking a chapter
+  - [x] Automatically change pill to "complete" if all chapters done
+- [x] Mark all chapters green when setting book to complete
+  - [x] When tapping pill to set status to "complete", mark all chapters as read
+  - [x] Update UI to show all green buttons
+- [x] Add reset button at top of Bible tracker
+  - [x] Button to clear all Bible progress
+  - [x] Confirmation dialog before resetting

@@ -1030,3 +1030,21 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Move reset button to right side of header
 - [x] Position status pill next to book name
 - [x] Add close/exit button to Bible tracker page
+
+- [ ] Redesign undo timers on Pray Today section
+  - [ ] Make timers more prominent and visible
+  - [ ] Better positioning to avoid overlapping avatars
+- [ ] Add Bible info to Settings profile
+  - [ ] Show current Bible chapter being read
+  - [ ] Display days since last Bible read (count-up timer)
+  - [ ] Keep pill form styling
+- [ ] Fix budget calendar display
+  - [ ] Show total amount due on each day
+  - [ ] Show "$0" when all expenses paid
+  - [ ] Fix date offset issue (showing on wrong day)
+
+- [x] Redesign undo timers on Pray Today section
+  - [x] Reposition timer below avatar instead of overlapping
+- [x] Fix budget calendar to show amounts and fix date offset
+  - [x] Fixed date creation to use correct month (added 12:00 time)
+  - [x] Changed display from "0/1" to show remaining amount "$X"

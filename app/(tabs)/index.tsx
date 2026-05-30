@@ -1969,9 +1969,9 @@ function createStyles(colors: any) {
   },
   undoCountdownPill: {
     position: "absolute",
-    left: 5,
-    right: 5,
-    top: 8,
+    left: -8,
+    right: -8,
+    bottom: -32,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,

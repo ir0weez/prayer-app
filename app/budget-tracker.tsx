@@ -105,7 +105,7 @@ export default function BudgetTrackerScreen() {
       return;
     }
 
-    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDay);
+    const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDay, 12, 0, 0);
     const newExpense: MonthlyExpense = {
       id: Date.now().toString(),
       day: selectedDay,
@@ -445,7 +445,7 @@ export default function BudgetTrackerScreen() {
                 <Text style={styles.dayNumber}>{day}</Text>
                 {totalCount > 0 && (
                   <Text style={[styles.dayExpenseCount, paidCount === totalCount && styles.dayExpenseCountPaid]}>
-                    {paidCount}/{totalCount}
+                    ${dayExpenses.reduce((sum, e) => sum + (e.isPaid ? 0 : e.amount), 0).toFixed(0)}
                   </Text>
                 )}
               </Pressable>

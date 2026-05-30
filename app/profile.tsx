@@ -126,6 +126,8 @@ export default function ProfileScreen() {
   const [draftFastType, setDraftFastType] = useState<FastType>("Health");
   const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
+  const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
+  const [lastBibleReadDate, setLastBibleReadDate] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {

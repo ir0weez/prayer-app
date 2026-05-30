@@ -1025,3 +1025,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Scroll to that book on page load
 - [x] Unmark chapters when setting book to "not started"
   - [x] When cycling back to "not started", clear all chapter marks
+
+- [x] Fix Bible tracker auto-scroll to current book
+- [x] Move reset button to right side of header
+- [x] Position status pill next to book name
+- [x] Add close/exit button to Bible tracker page

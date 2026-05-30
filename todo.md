@@ -1065,3 +1065,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add current Bible chapter pill to Settings profile card
 - [x] Add days-since-last-read counter pill to Settings profile card
 - [x] Save lastBibleReadDate when marking chapters as read
+
+- [x] Replace "Add status" pill in Settings with Bible reading info (current book + days since read)
+- [x] Fix people-to-reach count to only include people who have been marked AND are past 14 days

@@ -1280,63 +1280,32 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              {isEditingStatusInline ? (
-                <View style={styles.statusModalOverlay}>
-                  <View style={[styles.statusThoughtBubbleExpanded, { backgroundColor: profile.statusColor || colors.primary }]}>
-                    <TextInput
-                      style={[styles.statusThoughtBubbleExpandedInput, { color: "#FFFFFF", backgroundColor: "rgba(255,255,255,0.15)" }]}
-                      placeholder="What's on your mind?"
-                      placeholderTextColor="rgba(255,255,255,0.6)"
-                      value={draftStatusText}
-                      onChangeText={setDraftStatusText}
-                      maxLength={100}
-                      multiline
-                      autoFocus
-                    />
-                    {showColorPicker && (
-                      <View style={styles.statusColorPalette}>
-                        {['#0A86B8', '#8557D9', '#2E8B3C', '#F25700', '#C91463', '#E75A7C'].map((color) => (
-                          <Pressable
-                            key={color}
-                            onPress={() => {
-                              setProfile((prev) => ({ ...prev, statusColor: color }));
-                              setShowColorPicker(false);
-                            }}
-                            style={[styles.colorOption, { backgroundColor: color }, profile.statusColor === color && styles.colorOptionSelected]}
-                          />
-                        ))}
+              {/* Bible Reading Info Pills */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {(() => {
+                  const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
+                  if (currentBook) {
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '25', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                        <MaterialIcons name="menu-book" size={12} color={colors.primary} />
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary, marginLeft: 3 }}>{currentBook[0]}</Text>
                       </View>
-                    )}
-                    <View style={styles.statusThoughtBubbleExpandedActions}>
-                      <Pressable onPress={() => setShowColorPicker(!showColorPicker)} style={({ pressed }) => [styles.statusThoughtBubbleExpandedColor, pressed && styles.pressed]}>
-                        <MaterialIcons name={iconName("palette")} size={20} color="#FFFFFF" />
-                      </Pressable>
-                      <Pressable onPress={() => {
-                        const expiresAt = new Date();
-                        expiresAt.setHours(expiresAt.getHours() + 24);
-                        setProfile((prev) => ({ ...prev, statusText: draftStatusText, statusHighlight: draftStatusText, statusExpiresAt: expiresAt.toISOString() }));
-                        setIsEditingStatusInline(false);
-                        setDraftStatusText("");
-                        setShowColorPicker(false);
-                      }} style={({ pressed }) => [styles.statusThoughtBubbleExpandedSave, pressed && styles.pressed]}>
-                        <MaterialIcons name={iconName("check")} size={20} color="#FFFFFF" />
-                      </Pressable>
+                    );
+                  }
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.muted + '25', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                      <MaterialIcons name="menu-book" size={12} color={colors.muted} />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted, marginLeft: 3 }}>No book set</Text>
                     </View>
-                  </View>
+                  );
+                })()}
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                  <MaterialIcons name="schedule" size={12} color={colors.muted} />
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted, marginLeft: 3 }}>
+                    {bibleLastReadDate ? `${Math.max(0, Math.floor((Date.now() - new Date(bibleLastReadDate).getTime()) / (1000 * 60 * 60 * 24)))}d ago` : 'No reads yet'}
+                  </Text>
                 </View>
-              ) : (
-                <Pressable onPress={() => {
-                  setDraftStatusText(profile.statusText || "");
-                  setIsEditingStatusInline(true);
-                }} style={styles.statusPillContainer}>
-                  <View style={[styles.statusPill, { backgroundColor: profile.statusColor || colors.primary }]}>
-                    <Text style={styles.statusPillText}>{profile.statusText || '✨ Add status'}</Text>
-                  </View>
-                  {profile.statusExpiresAt && getExpirationTime(profile.statusExpiresAt) && (
-                    <Text style={[styles.statusExpirationTime, { backgroundColor: profile.statusColor || colors.primary }]}>{expirationRefresh || null}{getExpirationTime(profile.statusExpiresAt)}</Text>
-                  )}
-                </Pressable>
-              )}
+              </View>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1460,20 +1429,23 @@ export default function HomeScreen() {
   const [budgetCategories, setBudgetCategories] = useState<any[]>([]);
   const [budgetTransactions, setBudgetTransactions] = useState<any[]>([]);
   const [bookStatuses, setBookStatuses] = useState<any>({});
+  const [bibleLastReadDate, setBibleLastReadDate] = useState<string | null>(null);
 
   useEffect(() => {
     const loadBibleAndBudgetData = async () => {
       try {
-        const [bibleData, budgetCatsData, budgetTransData, bookStatusData] = await Promise.all([
+        const [bibleData, budgetCatsData, budgetTransData, bookStatusData, lastReadData] = await Promise.all([
           AsyncStorage.getItem('bibleChapters'),
           AsyncStorage.getItem('budgetCategories'),
           AsyncStorage.getItem('budgetTransactions'),
-          AsyncStorage.getItem('bibleBookStatus')
+          AsyncStorage.getItem('bibleBookStatus'),
+          AsyncStorage.getItem('bibleLastReadDate')
         ]);
         if (bibleData) setBibleChapters(JSON.parse(bibleData));
         if (budgetCatsData) setBudgetCategories(JSON.parse(budgetCatsData));
         if (budgetTransData) setBudgetTransactions(JSON.parse(budgetTransData));
         if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
+        if (lastReadData) setBibleLastReadDate(lastReadData);
       } catch (error) {
         console.error('Error loading Bible/Budget data:', error);
       }
@@ -1511,12 +1483,12 @@ export default function HomeScreen() {
       fastingStatus = 'skipped';
     }
     
-    // Calculate people to reach out to (not reached in 14 days)
+    // Calculate people to reach out to (only those who HAVE been marked and are past 14 days)
     const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const peopleToReach = people.filter(p => {
       if (p.isPersonal) return false; // Don't count personal profile
-      const lastPrayed = p.lastPrayedDate || '1900-01-01';
-      return lastPrayed < fourteenDaysAgo;
+      if (!p.lastPrayedDate) return false; // Don't count people never marked
+      return p.lastPrayedDate <= fourteenDaysAgo;
     }).length;
     
     // Calculate total budget and spent from AsyncStorage data

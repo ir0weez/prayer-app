@@ -1068,3 +1068,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Replace "Add status" pill in Settings with Bible reading info (current book + days since read)
 - [x] Fix people-to-reach count to only include people who have been marked AND are past 14 days
+
+- [x] Fix Bible tracker auto-scroll using onLayout measurements (not pixel guessing)
+- [x] Don't scroll if no book is marked as current
+- [x] Add book navigation modal (list icon) for quick jump to any book
+- [x] Fix Settings Bible pill auto-refresh when returning from profile/Bible pages
+- [x] Make Bible pill bigger with overlapping squircle "Xd ago" badge on bottom-left
+- [x] Fix back gesture: only go to People from tabs, sub-pages go to previous page

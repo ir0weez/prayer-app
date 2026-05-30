@@ -1,12 +1,10 @@
-'use client';
-
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ScrollView, View, Pressable, Text, StyleSheet, Alert } from 'react-native';
+import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -89,6 +87,9 @@ export default function BibleChaptersScreen() {
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
   const [bookStatuses, setBookStatuses] = useState<BookStatusData>({});
   const scrollViewRef = useRef<ScrollView>(null);
+  const [showBookNav, setShowBookNav] = useState(false);
+  const bookPositions = useRef<Record<string, number>>({});
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
@@ -127,8 +128,46 @@ export default function BibleChaptersScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      setHasScrolled(false);
     }, [loadData])
   );
+
+  // Scroll to current book once positions are measured
+  useEffect(() => {
+    if (hasScrolled) return;
+    const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
+    if (!currentBook) return; // Don't scroll if no book is current
+
+    const targetPosition = bookPositions.current[currentBook[0]];
+    if (targetPosition !== undefined && targetPosition > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: targetPosition - 10, animated: true });
+        setHasScrolled(true);
+      }, 400);
+    }
+  }, [bookStatuses, hasScrolled]);
+
+  const handleBookLayout = (bookName: string, y: number) => {
+    bookPositions.current[bookName] = y;
+    // Check if we need to scroll after this layout
+    if (!hasScrolled) {
+      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
+      if (currentBook && currentBook[0] === bookName) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: y - 10, animated: true });
+          setHasScrolled(true);
+        }, 500);
+      }
+    }
+  };
+
+  const scrollToBook = (bookName: string) => {
+    const position = bookPositions.current[bookName];
+    if (position !== undefined) {
+      scrollViewRef.current?.scrollTo({ y: position - 10, animated: true });
+    }
+    setShowBookNav(false);
+  };
 
   const getBookChapterCount = (bookName: string): number => {
     const book = BIBLE_BOOKS.find(b => b.name === bookName);
@@ -143,7 +182,6 @@ export default function BibleChaptersScreen() {
       newChapters.delete(chapterId);
     } else {
       newChapters.add(chapterId);
-      // Save the date of last Bible read
       AsyncStorage.setItem('bibleLastReadDate', new Date().toISOString()).catch(() => undefined);
     }
 
@@ -255,145 +293,9 @@ export default function BibleChaptersScreen() {
     );
   };
 
-  // Auto-scroll to current book on load
-  useEffect(() => {
-    if (scrollViewRef.current && bookStatuses) {
-      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-      if (currentBook) {
-        // Calculate scroll position based on screen width and actual layout
-        // Each chapter button is ~18% width with gap 6, so ~5 per row
-        // Each row height is approximately (screenWidth * 0.18) + gap = ~70px
-        // Book header is ~40px, section margin is 12px
-        const ROW_HEIGHT = 72; // approximate height of each chapter row
-        const HEADER_HEIGHT = 40; // book title + pill height
-        const SECTION_MARGIN = 12;
-        const PAGE_HEADER = 120; // top header with progress bar
-
-        let scrollPosition = PAGE_HEADER;
-        for (let i = 0; i < BIBLE_BOOKS.length; i++) {
-          if (BIBLE_BOOKS[i].name === currentBook[0]) {
-            break;
-          }
-          const rows = Math.ceil(BIBLE_BOOKS[i].chapters / 5);
-          scrollPosition += HEADER_HEIGHT + (rows * ROW_HEIGHT) + SECTION_MARGIN;
-        }
-        setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ y: scrollPosition, animated: true });
-        }, 300);
-      }
-    }
-  }, [bookStatuses]);
-
   const totalChapters = BIBLE_BOOKS.reduce((sum, book) => sum + book.chapters, 0);
   const readCount = readChapters.size;
   const progressPercent = Math.round((readCount / totalChapters) * 100);
-
-  const styles = StyleSheet.create({
-    header: {
-      marginBottom: 24,
-    },
-    headerTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 16,
-    },
-    closeButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 8,
-      backgroundColor: colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerCenter: {
-      flex: 1,
-      alignItems: 'center',
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: '900',
-      color: colors.foreground,
-    },
-    counter: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.muted,
-      marginTop: 4,
-    },
-    resetButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: '#EF4444',
-    },
-    resetButtonText: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    progressBar: {
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      height: 12,
-      overflow: 'hidden',
-      marginBottom: 8,
-    },
-    progressFill: {
-      backgroundColor: colors.primary,
-      height: '100%',
-    },
-    progressText: {
-      fontSize: 12,
-      color: colors.muted,
-      fontWeight: '600',
-    },
-    bookSection: {
-      marginBottom: 12,
-    },
-    bookHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-start',
-      marginBottom: 12,
-      gap: 12,
-    },
-    bookTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.foreground,
-    },
-    statusPill: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      borderWidth: 2,
-    },
-    statusPillText: {
-      fontSize: 11,
-      fontWeight: '700',
-    },
-    chapterGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 6,
-    },
-    chapterButton: {
-      width: '18%',
-      aspectRatio: 1,
-      borderRadius: 10,
-      borderWidth: 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    chapterText: {
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    checkmark: {
-      marginTop: 2,
-    },
-  });
 
   return (
     <ScreenContainer className="p-0">
@@ -401,26 +303,26 @@ export default function BibleChaptersScreen() {
         {/* Header with close, title, and reset buttons */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Pressable onPress={() => router.back()} style={styles.closeButton}>
+            <Pressable onPress={() => router.back()} style={[styles.closeButton, { backgroundColor: colors.surface }]}>
               <MaterialIcons name="close" size={24} color={colors.foreground} />
             </Pressable>
             <View style={styles.headerCenter}>
-              <Text style={styles.title}>Bible Reading</Text>
-              <Text style={styles.counter}>{readCount}/{totalChapters}</Text>
+              <Text style={[styles.title, { color: colors.foreground }]}>Bible Reading</Text>
+              <Text style={[styles.counter, { color: colors.muted }]}>{readCount}/{totalChapters}</Text>
             </View>
-            <Pressable onPress={resetAllData} style={styles.resetButton}>
-              <Text style={styles.resetButtonText}>Reset</Text>
-            </Pressable>
+            <View style={styles.headerRight}>
+              <Pressable onPress={() => setShowBookNav(true)} style={[styles.navButton, { backgroundColor: colors.surface }]}>
+                <MaterialIcons name="list" size={20} color={colors.foreground} />
+              </Pressable>
+              <Pressable onPress={resetAllData} style={styles.resetButton}>
+                <Text style={styles.resetButtonText}>Reset</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${progressPercent}%` },
-              ]}
-            />
+          <View style={[styles.progressBar, { backgroundColor: colors.surface }]}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
           </View>
-          <Text style={styles.progressText}>{progressPercent}% complete</Text>
+          <Text style={[styles.progressText, { color: colors.muted }]}>{progressPercent}% complete</Text>
         </View>
 
         {/* Bible books and chapters grid */}
@@ -430,9 +332,13 @@ export default function BibleChaptersScreen() {
           const statusColor = getStatusColor(bookStatus);
 
           return (
-            <View key={book.name} style={styles.bookSection}>
+            <View
+              key={book.name}
+              style={styles.bookSection}
+              onLayout={(e) => handleBookLayout(book.name, e.nativeEvent.layout.y)}
+            >
               <View style={styles.bookHeader}>
-                <Text style={styles.bookTitle}>{book.name}</Text>
+                <Text style={[styles.bookTitle, { color: colors.foreground }]}>{book.name}</Text>
                 <Pressable
                   onPress={() => cycleBookStatus(book.name)}
                   style={[
@@ -443,12 +349,7 @@ export default function BibleChaptersScreen() {
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      { color: statusColor },
-                    ]}
-                  >
+                  <Text style={[styles.statusPillText, { color: statusColor }]}>
                     {getStatusLabel(bookStatus)}
                   </Text>
                 </Pressable>
@@ -471,21 +372,11 @@ export default function BibleChaptersScreen() {
                         },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.chapterText,
-                          { color: isRead ? '#FFFFFF' : colors.foreground },
-                        ]}
-                      >
+                      <Text style={[styles.chapterText, { color: isRead ? '#FFFFFF' : colors.foreground }]}>
                         {chapterNum}
                       </Text>
                       {isRead && (
-                        <MaterialIcons
-                          name="check"
-                          size={12}
-                          color="#FFFFFF"
-                          style={styles.checkmark}
-                        />
+                        <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
                       )}
                     </Pressable>
                   );
@@ -495,6 +386,201 @@ export default function BibleChaptersScreen() {
           );
         })}
       </ScrollView>
+
+      {/* Book Navigation Modal */}
+      <Modal visible={showBookNav} transparent animationType="slide" onRequestClose={() => setShowBookNav(false)}>
+        <View style={styles.navModalOverlay}>
+          <Pressable style={styles.navModalBackdrop} onPress={() => setShowBookNav(false)} />
+          <View style={[styles.navModalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.navModalHeader}>
+              <Text style={[styles.navModalTitle, { color: colors.foreground }]}>Jump to Book</Text>
+              <Pressable onPress={() => setShowBookNav(false)}>
+                <MaterialIcons name="close" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
+            <FlatList
+              data={BIBLE_BOOKS}
+              keyExtractor={(item) => item.name}
+              renderItem={({ item }) => {
+                const status = bookStatuses[item.name] || 'not-started';
+                const statusColor = getStatusColor(status);
+                return (
+                  <Pressable
+                    onPress={() => scrollToBook(item.name)}
+                    style={({ pressed }) => [styles.navItem, { borderBottomColor: colors.border }, pressed && { opacity: 0.7 }]}
+                  >
+                    <Text style={[styles.navItemText, { color: colors.foreground }]}>{item.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.navItemChapters, { color: colors.muted }]}>{item.chapters} ch.</Text>
+                      <View style={[styles.navItemDot, { backgroundColor: statusColor }]} />
+                    </View>
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    marginBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  counter: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  navButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  progressBar: {
+    borderRadius: 12,
+    height: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bookSection: {
+    marginBottom: 16,
+  },
+  bookHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 10,
+    gap: 10,
+  },
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chapterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chapterButton: {
+    width: '18%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chapterText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  checkmark: {
+    marginTop: 2,
+  },
+  navModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  navModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  navModalContent: {
+    maxHeight: '70%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+  navModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(128,128,128,0.2)',
+  },
+  navModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  navItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  navItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  navItemChapters: {
+    fontSize: 13,
+  },
+  navItemDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+});

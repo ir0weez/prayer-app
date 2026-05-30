@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
 
@@ -305,6 +305,18 @@ export default function HomeScreen() {
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+
+  // Handle back gesture/button: go to People tab if on another tab
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (activeTab !== 'people' && activeTab !== 'home') {
+        setActiveTab('people');
+        return true; // Prevent default (exit app)
+      }
+      return false; // Let default behavior happen (exit app from People tab)
+    });
+    return () => backHandler.remove();
+  }, [activeTab]);
   const [hasHydratedPeople, setHasHydratedPeople] = useState(false);
   const [streakRecord, setStreakRecord] = useState<PrayerStreakRecord>({ streak: 0, lastCompletedDate: null });
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -1280,31 +1292,28 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              {/* Bible Reading Info Pills */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+              {/* Bible Reading Info Pill */}
+              <View style={{ marginTop: 6, position: 'relative', alignSelf: 'flex-start' }}>
                 {(() => {
                   const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-                  if (currentBook) {
-                    return (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '25', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                        <MaterialIcons name="menu-book" size={12} color={colors.primary} />
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary, marginLeft: 3 }}>{currentBook[0]}</Text>
-                      </View>
-                    );
-                  }
+                  const daysAgo = bibleLastReadDate ? Math.max(0, Math.floor((Date.now() - new Date(bibleLastReadDate).getTime()) / (1000 * 60 * 60 * 24))) : null;
+                  const bookName = currentBook ? currentBook[0] : 'No book set';
+                  const pillColor = currentBook ? colors.primary : colors.muted;
                   return (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.muted + '25', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                      <MaterialIcons name="menu-book" size={12} color={colors.muted} />
-                      <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted, marginLeft: 3 }}>No book set</Text>
-                    </View>
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: pillColor + '20', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: pillColor + '40' }}>
+                        <MaterialIcons name="menu-book" size={16} color={pillColor} />
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: pillColor, marginLeft: 5 }}>{bookName}</Text>
+                      </View>
+                      {/* Days-ago badge overlapping bottom-left */}
+                      <View style={{ position: 'absolute', bottom: -8, left: 4, backgroundColor: colors.surface, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.muted }}>
+                          {daysAgo !== null ? `${daysAgo}d ago` : 'No reads'}
+                        </Text>
+                      </View>
+                    </>
                   );
                 })()}
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                  <MaterialIcons name="schedule" size={12} color={colors.muted} />
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted, marginLeft: 3 }}>
-                    {bibleLastReadDate ? `${Math.max(0, Math.floor((Date.now() - new Date(bibleLastReadDate).getTime()) / (1000 * 60 * 60 * 24)))}d ago` : 'No reads yet'}
-                  </Text>
-                </View>
               </View>
             </View>
           </View>

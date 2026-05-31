@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -26,6 +27,7 @@ import ReAnimated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
+import { FlameSparkIcon } from "./flame-spark-icon";
 import {
   addDays,
   BirthdayEvent,
@@ -64,46 +66,6 @@ const DAY_HEADER_HEIGHT = 140;
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
-}
-
-// ─── Flame Spark Animation Component ────────────────────────────────────────
-function FlameSparkIcon({ isCompleted }: { isCompleted: boolean }) {
-  const sparkScale = useSharedValue(1);
-  const sparkOpacity = useSharedValue(0.6);
-  const sparkRotation = useSharedValue(0);
-
-  useEffect(() => {
-    if (isCompleted) {
-      sparkScale.value = withSequence(
-        withTiming(1.4, { duration: 150 }),
-        withTiming(1, { duration: 200 })
-      );
-      sparkOpacity.value = withSequence(
-        withTiming(1, { duration: 100 }),
-        withTiming(0.8, { duration: 300 })
-      );
-      sparkRotation.value = withSequence(
-        withTiming(10, { duration: 100 }),
-        withTiming(-10, { duration: 100 }),
-        withTiming(5, { duration: 80 }),
-        withTiming(0, { duration: 80 })
-      );
-    }
-  }, [isCompleted, sparkScale, sparkOpacity, sparkRotation]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: sparkScale.value },
-      { rotate: `${sparkRotation.value}deg` },
-    ],
-    opacity: sparkOpacity.value,
-  }));
-
-  return (
-    <ReAnimated.View style={animatedStyle}>
-      <Text style={{ fontSize: 18 }}>{isCompleted ? "🔥" : "🔲"}</Text>
-    </ReAnimated.View>
-  );
 }
 
 // ─── Event Card Component ────────────────────────────────────────────────────
@@ -151,7 +113,41 @@ function EventCard({
     );
   }
 
-  // Active: illustrated card if keyword matches
+  // Active: illustrated card with full-bleed image if available
+  if (keyword && keyword.imageUrl) {
+    return (
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggle();
+        }}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+      >
+        <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40" }]}>
+          {/* Full-bleed background image */}
+          <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
+          {/* Content overlay with gradient */}
+          <View style={eventStyles.fullBleedOverlay}>
+            <View style={eventStyles.fullBleedContent}>
+              <Text style={[eventStyles.fullBleedTitle, { color: keyword.textColor }]}>{event.title}</Text>
+              {event.startTime && (
+                <Text style={[eventStyles.fullBleedTime, { color: keyword.textColor + "DD" }]}>
+                  {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                </Text>
+              )}
+              {event.location && (
+                <Text style={[eventStyles.fullBleedLocation, { color: keyword.textColor + "BB" }]} numberOfLines={1}>
+                  📍 {event.location}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
+
+  // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
     return (
       <Pressable
@@ -385,7 +381,8 @@ export function ScheduleTab({
     peopleToReach,
     currentBibleStudy,
     personalTodos,
-  }), [remainingTodos, remainingPrayers, fastingStatus, budgetAmount, peopleToReach, currentBibleStudy, personalTodos]);
+    onTodoComplete,
+  }), [remainingTodos, remainingPrayers, fastingStatus, budgetAmount, peopleToReach, currentBibleStudy, personalTodos, onTodoComplete]);
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -513,10 +510,19 @@ export function ScheduleTab({
   const handleSaveTodo = () => {
     if (!formTitle.trim()) return;
     const newTodo = createScheduleTodo(
-      { title: formTitle.trim(), date: formDate || selectedDate },
+      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
-    setTodos((prev) => [...prev, newTodo]);
+    setTodos((prev) => {
+      const updated = [...prev, newTodo];
+      // Auto-sort todos by time for the selected date
+      return updated.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        const aTime = a.startTime || "23:59";
+        const bTime = b.startTime || "23:59";
+        return aTime.localeCompare(bTime);
+      });
+    });
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -647,7 +653,7 @@ export function ScheduleTab({
           peopleToReach={memoizedSummaryData.peopleToReach}
           currentBibleStudy={memoizedSummaryData.currentBibleStudy}
           personalTodos={memoizedSummaryData.personalTodos}
-          onTodoComplete={onTodoComplete}
+          onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
         />
       </Animated.View>
 
@@ -907,6 +913,15 @@ export function ScheduleTab({
                 value={formDate}
                 onChangeText={setFormDate}
                 placeholder={selectedDate}
+                placeholderTextColor={colors.muted}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME (optional)</Text>
+              <TextInput
+                value={formStartTime}
+                onChangeText={setFormStartTime}
+                placeholder="e.g., 2:30 PM"
                 placeholderTextColor={colors.muted}
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                 returnKeyType="done"
@@ -1304,6 +1319,50 @@ const eventStyles = StyleSheet.create({
   defaultTime: {
     fontSize: 12,
     marginTop: 2,
+  },
+  fullBleedCard: {
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    minHeight: 120,
+    position: 'relative',
+  },
+  fullBleedImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  fullBleedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  fullBleedContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  fullBleedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  fullBleedTime: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  fullBleedLocation: {
+    fontSize: 12,
   },
 });
 

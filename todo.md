@@ -1107,3 +1107,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] BUG: Budget changes not persisting to AsyncStorage — fixed by reading from monthlyBudgetExpenses
 - [x] BUG: Scroll animation doesn't cover summary (fades instead of sliding) — fixed by wrapping summary in Animated.View with scroll-linked transform
 - [x] BUG: Ministry events not displaying in Schedule tab — verified ministries are correctly added to listData and renderItem
+
+- [x] Add time picker for todos in Schedule tab
+- [x] Auto-reorder todos and events by time (chronological order)
+- [x] Improve todo UI with animated flame icon (gray fill, color on right, spark animation)
+- [x] Generate keyword-based event illustrations (church, BBQ, worship, etc.) — 9 keywords: church, BBQ, worship, Bible study, doctor, baby shower, birthday, Christmas, Easter
+- [x] Implement full-bleed event images that blend into event card background — images render with overlay gradient and text on bottom

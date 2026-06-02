@@ -1441,31 +1441,41 @@ export default function HomeScreen() {
   const [bookStatuses, setBookStatuses] = useState<any>({});
   const [bibleLastReadDate, setBibleLastReadDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadBibleAndBudgetData = async () => {
-      try {
-        const [bibleData, budgetExpensesData, bookStatusData, lastReadData] = await Promise.all([
-          AsyncStorage.getItem('bibleChapters'),
-          AsyncStorage.getItem('monthlyBudgetExpenses'),
-          AsyncStorage.getItem('bibleBookStatus'),
-          AsyncStorage.getItem('bibleLastReadDate')
-        ]);
-        if (bibleData) setBibleChapters(JSON.parse(bibleData));
-        if (budgetExpensesData) {
-          const expenses = JSON.parse(budgetExpensesData);
-          const totalAmount = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
-          const totalPaid = expenses.filter((e: any) => e.isPaid).reduce((sum: number, e: any) => sum + e.amount, 0);
-          setBudgetCategories([{ budgetedAmount: totalAmount }]);
-          setBudgetTransactions(expenses.filter((e: any) => e.isPaid).map((e: any) => ({ amount: e.amount })));
-        }
-        if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
-        if (lastReadData) setBibleLastReadDate(lastReadData);
-      } catch (error) {
-        console.error('Error loading Bible/Budget data:', error);
+  const loadBibleAndBudgetData = useCallback(async () => {
+    try {
+      const [bibleData, budgetExpensesData, bookStatusData, lastReadData] = await Promise.all([
+        AsyncStorage.getItem('bibleChapters'),
+        AsyncStorage.getItem('monthlyBudgetExpenses'),
+        AsyncStorage.getItem('bibleBookStatus'),
+        AsyncStorage.getItem('bibleLastReadDate')
+      ]);
+      if (bibleData) setBibleChapters(JSON.parse(bibleData));
+      if (budgetExpensesData) {
+        const expenses = JSON.parse(budgetExpensesData);
+        const totalAmount = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
+        const totalPaid = expenses.filter((e: any) => e.isPaid).reduce((sum: number, e: any) => sum + e.amount, 0);
+        setBudgetCategories([{ budgetedAmount: totalAmount }]);
+        setBudgetTransactions(expenses.filter((e: any) => e.isPaid).map((e: any) => ({ amount: e.amount })));
       }
+      if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
+      if (lastReadData) setBibleLastReadDate(lastReadData);
+    } catch (error) {
+      console.error('Error loading Bible/Budget data:', error);
     }
+  }, []);
+
+  useEffect(() => {
     loadBibleAndBudgetData();
-  }, [expirationRefresh]);
+  }, [expirationRefresh, loadBibleAndBudgetData]);
+
+  // Reload budget/Bible data whenever Schedule tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (activeTab === 'schedule') {
+        loadBibleAndBudgetData();
+      }
+    }, [activeTab, loadBibleAndBudgetData])
+  );
 
   const renderRemindersScreen = () => {
     // Get personal todos from the profile (only incomplete ones)

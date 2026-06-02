@@ -13,6 +13,8 @@ interface DailySummaryCardProps {
   currentBibleStudy: string;
   personalTodos?: any[];
   onTodoComplete?: (todoId: string) => void;
+  eventCount?: number;
+  ministryCount?: number;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -46,6 +48,8 @@ export function DailySummaryCard({
   currentBibleStudy,
   personalTodos = [],
   onTodoComplete,
+  eventCount = 0,
+  ministryCount = 0,
 }: DailySummaryCardProps) {
   const colors = useColors();
   
@@ -171,7 +175,13 @@ export function DailySummaryCard({
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
             <MaterialIcons name="people" size={20} color={colors.foreground} /> {peopleToReach}
           </Text>
-          <Text style={{ color: colors.muted, fontWeight: "500" }}> people to reach, and your fasting is </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> people to reach, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{eventCount}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> event{eventCount !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{ministryCount}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> ministr{ministryCount !== 1 ? "ies" : "y"}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, and your fasting is </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
         </Text>

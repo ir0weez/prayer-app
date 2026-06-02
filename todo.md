@@ -1113,3 +1113,19 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Improve todo UI with animated flame icon (gray fill, color on right, spark animation)
 - [x] Generate keyword-based event illustrations (church, BBQ, worship, etc.) — 9 keywords: church, BBQ, worship, Bible study, doctor, baby shower, birthday, Christmas, Easter
 - [x] Implement full-bleed event images that blend into event card background — images render with overlay gradient and text on bottom
+- [x] Add calendar date picker UI to all Schedule forms (Event, Todo, Ministry)
+- [x] Add clock time picker UI to all Schedule forms (Event, Todo, Ministry)
+- [x] Fix real-time summary refresh when budget/Bible/fasting changes in other tabs
+- [x] Add event/ministry counts to Schedule summary ("_todos, _events, _ministries")vent/ministry counts to Schedule summary ("_todos, _events, _ministries") — displays actual counts for the selected day
+- [ ] Implement Bible Study scheduling form with book selection and date/time
+- [ ] Auto-check Bible chapters when Bible Study is marked complete
+- [ ] Update summary to show next chapter after Bible Study completion
+
+- [x] Create unified Bible tracking system (lib/bible-unified.ts)
+- [x] Migrate app/bible-tracker.tsx to use unified system
+- [x] Create Bible sync helpers (lib/bible-sync.ts) to sync unified system to old systems
+- [x] Add BibleStudySession type and helpers to lib/schedule-data.ts
+- [ ] Add Bible Study form to Schedule tab with book/chapter picker
+- [ ] Wire Bible Study completion to mark chapters in unified + sync to old systems
+- [ ] Update Schedule summary to show next chapter from unified system
+- [ ] Test Bible Study scheduling end-to-end

@@ -4,6 +4,7 @@ import { getTodayISOString } from "./prayercircle-data";
 export const SCHEDULE_EVENTS_KEY = "prayercircle.schedule.events.v1";
 export const SCHEDULE_TODOS_KEY = "prayercircle.schedule.todos.v1";
 export const SCHEDULE_MINISTRIES_KEY = "prayercircle.schedule.ministries.v1";
+export const SCHEDULE_BIBLE_STUDIES_KEY = "prayercircle.schedule.biblestudies.v1";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,18 @@ export type ScheduleTodo = {
   icon?: string; // MaterialIcons name
   color?: string;
   order: number;
+};
+
+export type BibleStudySession = {
+  id: string;
+  book: string;
+  chapter: number;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  notes?: string;
+  isCompleted: boolean;
+  completedAt?: string;
 };
 
 export type ScheduleMinistry = {
@@ -257,3 +270,42 @@ export const MINISTRY_TYPES = [
 ] as const;
 
 export type MinistryType = (typeof MINISTRY_TYPES)[number];
+
+
+// ─── Bible Study Helpers ─────────────────────────────────────────────────────
+
+export function createBibleStudySession(data: Partial<BibleStudySession>): BibleStudySession {
+  return {
+    id: data.id || `bs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    book: data.book || "Genesis",
+    chapter: data.chapter || 1,
+    date: data.date || new Date().toISOString().split("T")[0],
+    startTime: data.startTime,
+    endTime: data.endTime,
+    notes: data.notes,
+    isCompleted: data.isCompleted || false,
+    completedAt: data.completedAt,
+  };
+}
+
+export function getBibleStudiesForDate(studies: BibleStudySession[], date: string): BibleStudySession[] {
+  return studies
+    .filter((s) => s.date === date)
+    .sort((a, b) => {
+      const aTime = a.startTime || "00:00";
+      const bTime = b.startTime || "00:00";
+      return aTime.localeCompare(bTime);
+    });
+}
+
+export function toggleBibleStudyCompleted(studies: BibleStudySession[], id: string): BibleStudySession[] {
+  return studies.map((s) =>
+    s.id === id
+      ? {
+          ...s,
+          isCompleted: !s.isCompleted,
+          completedAt: !s.isCompleted ? new Date().toISOString() : undefined,
+        }
+      : s
+  );
+}

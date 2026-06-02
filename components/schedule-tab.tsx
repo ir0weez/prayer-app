@@ -28,6 +28,7 @@ import ReAnimated, {
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { FlameSparkIcon } from "./flame-spark-icon";
+import { DateTimePicker } from "./date-time-picker";
 import {
   addDays,
   BirthdayEvent,
@@ -50,6 +51,11 @@ import {
   SCHEDULE_EVENTS_KEY,
   SCHEDULE_MINISTRIES_KEY,
   SCHEDULE_TODOS_KEY,
+  SCHEDULE_BIBLE_STUDIES_KEY,
+  BibleStudySession,
+  createBibleStudySession,
+  getBibleStudiesForDate,
+  toggleBibleStudyCompleted,
   ScheduleEvent,
   ScheduleMinistry,
   ScheduleTodo,
@@ -60,6 +66,8 @@ import {
 import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { DailySummaryCard } from "@/components/daily-summary-card";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState } from "@/lib/bible-unified";
+import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 140;
@@ -654,6 +662,8 @@ export function ScheduleTab({
           currentBibleStudy={memoizedSummaryData.currentBibleStudy}
           personalTodos={memoizedSummaryData.personalTodos}
           onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+          eventCount={getEventsForDate(events, selectedDate).length}
+          ministryCount={getMinistriesForDate(ministries, selectedDate).length}
         />
       </Animated.View>
 
@@ -824,36 +834,30 @@ export function ScheduleTab({
                     </View>
                   )}
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
-                  <TextInput
-                    value={formDate}
-                    onChangeText={setFormDate}
-                    placeholder={selectedDate}
-                    placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                    returnKeyType="done"
+                  <DateTimePicker
+                    value={formDate || selectedDate}
+                    onChange={setFormDate}
+                    mode="date"
+                    label="Select Date"
                   />
                   <View style={scheduleStyles.formRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>START TIME</Text>
-                      <TextInput
+                      <DateTimePicker
                         value={formStartTime}
-                        onChangeText={setFormStartTime}
-                        placeholder="e.g., 9:00 AM"
-                        placeholderTextColor={colors.muted}
-                        style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                        returnKeyType="done"
+                        onChange={setFormStartTime}
+                        mode="time"
+                        label="Start Time"
                       />
                     </View>
                     <View style={{ width: 12 }} />
                     <View style={{ flex: 1 }}>
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>END TIME</Text>
-                      <TextInput
+                      <DateTimePicker
                         value={formEndTime}
-                        onChangeText={setFormEndTime}
-                        placeholder="e.g., 10:00 AM"
-                        placeholderTextColor={colors.muted}
-                        style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                        returnKeyType="done"
+                        onChange={setFormEndTime}
+                        mode="time"
+                        label="End Time"
                       />
                     </View>
                   </View>
@@ -909,22 +913,18 @@ export function ScheduleTab({
                 onSubmitEditing={handleSaveTodo}
               />
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE (optional)</Text>
-              <TextInput
-                value={formDate}
-                onChangeText={setFormDate}
-                placeholder={selectedDate}
-                placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                returnKeyType="done"
+              <DateTimePicker
+                value={formDate || selectedDate}
+                onChange={setFormDate}
+                mode="date"
+                label="Select Date"
               />
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME (optional)</Text>
-              <TextInput
+              <DateTimePicker
                 value={formStartTime}
-                onChangeText={setFormStartTime}
-                placeholder="e.g., 2:30 PM"
-                placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                returnKeyType="done"
+                onChange={setFormStartTime}
+                mode="time"
+                label="Select Time"
               />
             </View>
           </View>
@@ -978,45 +978,37 @@ export function ScheduleTab({
                     ))}
                   </View>
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
-                  <TextInput
-                    value={formDate}
-                    onChangeText={setFormDate}
-                    placeholder={selectedDate}
-                    placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                    returnKeyType="done"
+                  <DateTimePicker
+                    value={formDate || selectedDate}
+                    onChange={setFormDate}
+                    mode="date"
+                    label="Select Date"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DUE DATE / DURATION</Text>
-                  <TextInput
+                  <DateTimePicker
                     value={formDueDate}
-                    onChangeText={setFormDueDate}
-                    placeholder="YYYY-MM-DD (optional)"
-                    placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                    returnKeyType="done"
+                    onChange={setFormDueDate}
+                    mode="date"
+                    label="Select Due Date"
                   />
                   <View style={scheduleStyles.formRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>START TIME</Text>
-                      <TextInput
+                      <DateTimePicker
                         value={formStartTime}
-                        onChangeText={setFormStartTime}
-                        placeholder="e.g., 6:00 PM"
-                        placeholderTextColor={colors.muted}
-                        style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                        returnKeyType="done"
+                        onChange={setFormStartTime}
+                        mode="time"
+                        label="Start Time"
                       />
                     </View>
                     <View style={{ width: 12 }} />
                     <View style={{ flex: 1 }}>
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>END TIME</Text>
-                      <TextInput
+                      <DateTimePicker
                         value={formEndTime}
-                        onChangeText={setFormEndTime}
-                        placeholder="e.g., 8:00 PM"
-                        placeholderTextColor={colors.muted}
-                        style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                        returnKeyType="done"
+                        onChange={setFormEndTime}
+                        mode="time"
+                        label="End Time"
                       />
                     </View>
                   </View>

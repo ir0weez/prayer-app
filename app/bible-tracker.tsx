@@ -1,55 +1,54 @@
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
-import { BIBLE_BOOKS, CHAPTER_COUNTS, getCurrentBibleProgress, markChapterAsRead } from '@/lib/bible-tracker';
-import { BibleChapter } from '@/lib/prayercircle-data';
+import { BIBLE_BOOKS, CHAPTER_COUNTS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getBookProgress, UnifiedBibleState } from '@/lib/bible-unified';
 import { useCallback, useEffect, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 
 export default function BibleTrackerScreen() {
   const colors = useColors();
-  const [chapters, setChapters] = useState<BibleChapter[]>([]);
+  const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
   const [selectedBook, setSelectedBook] = useState<string>('Genesis');
   const [showChapters, setShowChapters] = useState(false);
 
-  const loadChapters = useCallback(async () => {
+  const loadBibleState = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem('bibleChapters');
-      if (stored) {
-        setChapters(JSON.parse(stored));
-      }
+      const state = await loadUnifiedBible();
+      setBibleState(state);
     } catch (error) {
-      console.error('Error loading Bible chapters:', error);
-    }
-  }, []);
-
-  const saveChapters = useCallback(async (newChapters: BibleChapter[]) => {
-    try {
-      await AsyncStorage.setItem('bibleChapters', JSON.stringify(newChapters));
-      setChapters(newChapters);
-    } catch (error) {
-      console.error('Error saving Bible chapters:', error);
-      Alert.alert('Error', 'Failed to save Bible progress');
+      console.error('Error loading Bible state:', error);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadChapters();
-    }, [loadChapters])
+      loadBibleState();
+    }, [loadBibleState])
   );
 
-  const progress = getCurrentBibleProgress(chapters);
+  const handleMarkChapterRead = async (chapter: number) => {
+    try {
+      const updated = await markChapterAsRead(selectedBook, chapter);
+      setBibleState(updated);
+    } catch (error) {
+      console.error('Error marking chapter as read:', error);
+      Alert.alert('Error', 'Failed to save Bible progress');
+    }
+  };
+
+  if (!bibleState) {
+    return (
+      <ScreenContainer className="items-center justify-center">
+        <Text className="text-muted">Loading...</Text>
+      </ScreenContainer>
+    );
+  }
+
+  const currentDisplay = getCurrentBibleDisplay(bibleState);
   const totalChapters = CHAPTER_COUNTS[selectedBook] || 1;
   const bookChapters = Array.from({ length: totalChapters }, (_, i) => i + 1);
-  const readChapters = chapters.filter(c => c.book === selectedBook && c.isRead).length;
-
-  const handleMarkChapterRead = (chapter: number) => {
-    const updated = markChapterAsRead(chapters, selectedBook, chapter);
-    saveChapters(updated);
-  };
+  const progress = getBookProgress(bibleState, selectedBook);
 
   return (
     <ScreenContainer className="p-4">
@@ -60,8 +59,8 @@ export default function BibleTrackerScreen() {
         >
           <View className="flex-row items-center justify-between bg-surface rounded-lg p-4">
             <View>
-              <Text className="text-lg font-bold text-foreground">{progress.book} {progress.chapter}</Text>
-              <Text className="text-sm text-muted">{readChapters} of {totalChapters} chapters read</Text>
+              <Text className="text-lg font-bold text-foreground">{currentDisplay}</Text>
+              <Text className="text-sm text-muted">{progress.read} of {progress.total} chapters read</Text>
             </View>
             <MaterialIcons name={showChapters ? 'expand-less' : 'expand-more'} size={24} color={colors.foreground} />
           </View>
@@ -95,7 +94,7 @@ export default function BibleTrackerScreen() {
             <Text className="text-sm font-semibold text-muted mb-3">CHAPTERS</Text>
             <View className="flex-row flex-wrap">
               {bookChapters.map(chapter => {
-                const isRead = chapters.some(c => c.book === selectedBook && c.chapter === chapter && c.isRead);
+                const isRead = bibleState.chapters.some(c => c.book === selectedBook && c.chapter === chapter && c.isRead);
                 return (
                   <Pressable
                     key={chapter}

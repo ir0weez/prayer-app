@@ -1125,7 +1125,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Migrate app/bible-tracker.tsx to use unified system
 - [x] Create Bible sync helpers (lib/bible-sync.ts) to sync unified system to old systems
 - [x] Add BibleStudySession type and helpers to lib/schedule-data.ts
-- [ ] Add Bible Study form to Schedule tab with book/chapter picker
+- [x] Add Bible Study form to Schedule tab with book/chapter picker
 - [ ] Wire Bible Study completion to mark chapters in unified + sync to old systems
 - [ ] Update Schedule summary to show next chapter from unified system
 - [ ] Test Bible Study scheduling end-to-end

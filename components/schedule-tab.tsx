@@ -368,7 +368,7 @@ export function ScheduleTab({
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addType, setAddType] = useState<"event" | "todo" | "ministry" | null>(null);
+  const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | null>(null);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -379,6 +379,9 @@ export function ScheduleTab({
   const [formNotes, setFormNotes] = useState("");
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
   const [formDueDate, setFormDueDate] = useState("");
+  const [formBibleBook, setFormBibleBook] = useState("Genesis");
+  const [formBibleChapter, setFormBibleChapter] = useState("1");
+  const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
 
   // Memoize summary data to ensure it updates when props change
   const memoizedSummaryData = useMemo(() => ({
@@ -549,6 +552,22 @@ export function ScheduleTab({
       notes: formNotes || undefined,
     });
     setMinistries((prev) => [...prev, newMinistry]);
+    resetForm();
+    setAddType(null);
+    setShowAddModal(false);
+  };
+
+  const handleSaveBibleStudy = async () => {
+    if (!formBibleBook || !formBibleChapter) return;
+    const newStudy = createBibleStudySession({
+      book: formBibleBook,
+      chapter: parseInt(formBibleChapter, 10),
+      date: formDate || selectedDate,
+      startTime: formStartTime || undefined,
+      endTime: formEndTime || undefined,
+      notes: formNotes || undefined,
+    });
+    setBibleStudies((prev) => [...prev, newStudy]);
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -794,6 +813,18 @@ export function ScheduleTab({
                 <Text style={[scheduleStyles.addTypeDesc, { color: colors.muted }]}>Simple checkbox item</Text>
               </View>
             </Pressable>
+            <Pressable
+              onPress={() => setAddType("bible-study")}
+              style={({ pressed }) => [scheduleStyles.addTypeOption, { borderColor: colors.border }, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.addTypeIcon, { backgroundColor: "#FF6B6B20" }]}>
+                <MaterialIcons name="menu-book" size={24} color="#FF6B6B" />
+              </View>
+              <View>
+                <Text style={[scheduleStyles.addTypeLabel, { color: colors.foreground }]}>Bible Study</Text>
+                <Text style={[scheduleStyles.addTypeDesc, { color: colors.muted }]}>Schedule Bible chapter reading</Text>
+              </View>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
@@ -1028,6 +1059,91 @@ export function ScheduleTab({
           </View>
         </View>
       </Modal>
+
+      {/* Add Modal - Bible Study Form */}
+      <Modal transparent visible={addType === "bible-study"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
+        <View style={scheduleStyles.formOverlay}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface }]}>
+            <View style={scheduleStyles.formHeader}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <MaterialIcons name="close" size={28} color={colors.foreground} />
+              </Pressable>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Bible Study</Text>
+              <Pressable onPress={handleSaveBibleStudy} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
+              </Pressable>
+            </View>
+            <FlatList
+              data={[{ key: "form" }]}
+              keyExtractor={(item) => item.key}
+              renderItem={() => (
+                <View style={scheduleStyles.formContent}>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>BOOK OF THE BIBLE</Text>
+                  <View style={scheduleStyles.bibleBookPicker}>
+                    {BIBLE_BOOKS.slice(0, 12).map((book) => (
+                      <Pressable
+                        key={book}
+                        onPress={() => setFormBibleBook(book)}
+                        style={({ pressed }) => [scheduleStyles.bibleBookButton, { borderColor: colors.border }, formBibleBook === book && { backgroundColor: colors.primary, borderColor: colors.primary }, pressed && { opacity: 0.7 }]}
+                      >
+                        <Text style={[scheduleStyles.bibleBookButtonText, { color: colors.foreground }, formBibleBook === book && { color: "#FFFFFF" }]}>{book}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>CHAPTER</Text>
+                  <TextInput
+                    value={formBibleChapter}
+                    onChangeText={setFormBibleChapter}
+                    placeholder="1"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="number-pad"
+                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    returnKeyType="done"
+                  />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
+                  <DateTimePicker
+                    value={formDate || selectedDate}
+                    onChange={setFormDate}
+                    mode="date"
+                    label="Select Date"
+                  />
+                  <View style={scheduleStyles.formRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>START TIME</Text>
+                      <DateTimePicker
+                        value={formStartTime}
+                        onChange={setFormStartTime}
+                        mode="time"
+                        label="Start Time"
+                      />
+                    </View>
+                    <View style={{ width: 12 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>END TIME</Text>
+                      <DateTimePicker
+                        value={formEndTime}
+                        onChange={setFormEndTime}
+                        mode="time"
+                        label="End Time"
+                      />
+                    </View>
+                  </View>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES</Text>
+                  <TextInput
+                    value={formNotes}
+                    onChangeText={setFormNotes}
+                    placeholder="e.g., Focus on verses 1-10"
+                    placeholderTextColor={colors.muted}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    returnKeyType="done"
+                  />
+                </View>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1233,6 +1349,25 @@ const scheduleStyles = StyleSheet.create({
   },
   ministryPillText: {
     fontSize: 13,
+    fontWeight: "600",
+  },
+  bibleBookPicker: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  bibleBookButton: {
+    flex: 0.3,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bibleBookButtonText: {
+    fontSize: 12,
     fontWeight: "600",
   },
 });

@@ -1138,3 +1138,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] BUG: Sort todos/events/ministries chronologically by time within a day
 - [ ] FEATURE: Show time in pill next to todos
 - [ ] CHECKPOINT: Save after each major fix
+
+- [x] BUG: Remove day name and date from summary card (showing twice - once in summary, once in day header)
+- [x] BUG: Scroll doesn't go all the way to top (summary card blocking full scroll)
+- [x] BUG: Budget displays with too many decimals (712.6199999999999 instead of formatted)

@@ -111,39 +111,7 @@ export function DailySummaryCard({
         opacity: opacityAnim,
       }}
     >
-      {/* Header with day and date - Joi style, no card box */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-        <Text
-          style={{
-            fontSize: 56,
-            fontWeight: "800",
-            color: colors.foreground,
-            lineHeight: 60,
-          }}
-        >
-          {dayName}
-        </Text>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text
-            style={{
-              fontSize: 16,
-              color: colors.muted,
-              fontWeight: "500",
-            }}
-          >
-            {monthName} {dayNum}
-          </Text>
-          <Text
-            style={{
-              fontSize: 16,
-              color: colors.muted,
-              fontWeight: "500",
-            }}
-          >
-            {yearNum}
-          </Text>
-        </View>
-      </View>
+
 
       {/* Summary paragraph - Joi style with white bold numbers and darker connecting words */}
       <View style={{ marginBottom: 16 }}>
@@ -169,7 +137,7 @@ export function DailySummaryCard({
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-            <MaterialIcons name="attach-money" size={20} color={colors.foreground} /> {budgetAmount}
+            <MaterialIcons name="attach-money" size={20} color={colors.foreground} /> {budgetAmount.toFixed(2)}
           </Text>
           <Text style={{ color: colors.muted, fontWeight: "500" }}> to budget, </Text>
           <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>

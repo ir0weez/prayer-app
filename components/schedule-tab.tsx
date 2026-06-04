@@ -63,7 +63,7 @@ import {
   toggleMinistryCompleted,
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState } from "@/lib/bible-unified";
@@ -218,6 +218,7 @@ function TodoItem({
   onToggle: () => void;
 }) {
   const colors = useColors();
+  const iconNameStr = getIconForTodo(todo.title);
 
   return (
     <Pressable
@@ -227,7 +228,13 @@ function TodoItem({
       }}
       style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
     >
-      <FlameSparkIcon isCompleted={todo.isCompleted} />
+      <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : colors.primary }]}>
+        <MaterialIcons
+          name={todo.isCompleted ? "check" : (iconNameStr as any)}
+          size={16}
+          color="#FFFFFF"
+        />
+      </View>
       <Text
         style={[
           todoStyles.title,
@@ -575,22 +582,54 @@ export function ScheduleTab({
 
   // Build flat list data
   const listData = useMemo(() => {
-    const items: Array<{ type: string; id: string; data: any }> = [];
+    const items: Array<{ type: string; id: string; data: any; sortTime?: string }> = [];
 
     // Birthdays first
     dayBirthdays.forEach((b) => items.push({ type: "birthday", id: b.id, data: b }));
 
-    // Todos
-    dayTodos.forEach((t) => items.push({ type: "todo", id: t.id, data: t }));
+    // Combine todos, events, and ministries with time info for chronological sorting
+    const timedItems: Array<{ type: string; id: string; data: any; sortTime: string }> = [];
 
-    // Events (incomplete first, then completed)
+    // Add todos with time
+    dayTodos.forEach((t) => {
+      timedItems.push({
+        type: "todo",
+        id: t.id,
+        data: t,
+        sortTime: t.startTime || "23:59",
+      });
+    });
+
+    // Add incomplete events with time
     const incompleteEvents = dayEvents.filter((e) => !e.isCompleted);
-    const completedEvents = dayEvents.filter((e) => e.isCompleted);
-    incompleteEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
-    completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
+    incompleteEvents.forEach((e) => {
+      timedItems.push({
+        type: "event",
+        id: e.id,
+        data: e,
+        sortTime: e.startTime || "23:59",
+      });
+    });
 
-    // Ministries
-    dayMinistries.forEach((m) => items.push({ type: "ministry", id: m.id, data: m }));
+    // Add ministries with time
+    dayMinistries.forEach((m) => {
+      timedItems.push({
+        type: "ministry",
+        id: m.id,
+        data: m,
+        sortTime: m.startTime || "23:59",
+      });
+    });
+
+    // Sort by time (chronological)
+    timedItems.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+    // Add sorted items
+    timedItems.forEach((item) => items.push(item));
+
+    // Add completed events at the end
+    const completedEvents = dayEvents.filter((e) => e.isCompleted);
+    completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
 
     // Expandable sections (worship, fasting, bible)
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
@@ -1518,6 +1557,13 @@ const todoStyles = StyleSheet.create({
     gap: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: "#E6DCF830",
+  },
+  iconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 15,

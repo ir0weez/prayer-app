@@ -137,14 +137,14 @@ function EventCard({
           {/* Content overlay with gradient */}
           <View style={eventStyles.fullBleedOverlay}>
             <View style={eventStyles.fullBleedContent}>
-              <Text style={[eventStyles.fullBleedTitle, { color: keyword.textColor }]}>{event.title}</Text>
+              <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.startTime && (
-                <Text style={[eventStyles.fullBleedTime, { color: keyword.textColor + "DD" }]}>
+                <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
                   {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
                 </Text>
               )}
               {event.location && (
-                <Text style={[eventStyles.fullBleedLocation, { color: keyword.textColor + "BB" }]} numberOfLines={1}>
+                <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
                   📍 {event.location}
                 </Text>
               )}
@@ -670,8 +670,13 @@ export function ScheduleTab({
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Summary Card - ABOVE the day header, scroll-linked animation */}
-      <Animated.View style={[scheduleStyles.summaryContainer, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
+      {/* Fixed Schedule Title */}
+      <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border }]}>
+        <Text style={[scheduleStyles.scheduleTitleText, { color: colors.foreground }]}>Schedule</Text>
+      </View>
+
+      {/* Summary Card - NOT animated, always visible */}
+      <View style={scheduleStyles.summaryContainer}>
         <DailySummaryCard
           remainingTodos={memoizedSummaryData.remainingTodos}
           remainingPrayers={memoizedSummaryData.remainingPrayers}
@@ -684,13 +689,13 @@ export function ScheduleTab({
           eventCount={getEventsForDate(events, selectedDate).length}
           ministryCount={getMinistriesForDate(ministries, selectedDate).length}
         />
-      </Animated.View>
+      </View>
 
-      {/* Day Header - hides on scroll up, shows on scroll down */}
+      {/* Day Header + Date Strip - slides over summary on scroll up (Joi-style) */}
       <Animated.View
         style={[
-          scheduleStyles.dayHeader,
-          { backgroundColor: colors.background, opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] },
+          scheduleStyles.dayHeaderCard,
+          { backgroundColor: colors.background, transform: [{ translateY: headerTranslateY }] },
         ]}
       >
         <View style={scheduleStyles.dayHeaderContent}>
@@ -1154,11 +1159,20 @@ const scheduleStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scheduleTitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  scheduleTitleText: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
   summaryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  dayHeader: {
+  dayHeaderCard: {
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 8,

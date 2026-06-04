@@ -1129,3 +1129,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Wire Bible Study completion to mark chapters in unified + sync to old systems
 - [ ] Update Schedule summary to show next chapter from unified system
 - [ ] Test Bible Study scheduling end-to-end
+
+- [x] BUG: Remove day header duplication in Schedule tab (show once, not twice)
+- [x] FEATURE: Add "Schedule" title at top, summary below, date strip slides over on scroll-up (Joi-style)
+- [x] FEATURE: Make event text white for visibility on image backgrounds
+- [ ] FEATURE: Match todo icons to types (prayer hands, toothbrush, therapy icon, etc.)
+- [ ] FEATURE: Link summary avatars to Schedule todos instead of prayer profile todos
+- [ ] BUG: Sort todos/events/ministries chronologically by time within a day
+- [ ] FEATURE: Show time in pill next to todos
+- [ ] CHECKPOINT: Save after each major fix

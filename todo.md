@@ -1144,3 +1144,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] BUG: Budget displays with too many decimals (712.6199999999999 instead of formatted)
 - [x] FEATURE: Match todo icons to specific types (toothbrush for Brush Teeth, prayer hands for Pray, etc.)
 - [x] FEATURE: Chronological sorting for todos, events, and ministries by time within each day
+- [x] FEATURE: Link summary avatars to Schedule todos (tapping avatars opens Schedule todo form)

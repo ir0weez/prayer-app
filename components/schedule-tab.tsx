@@ -790,6 +790,13 @@ export function ScheduleTab({
                   currentBibleStudy={memoizedSummaryData.currentBibleStudy}
                   personalTodos={memoizedSummaryData.personalTodos}
                   onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+                  onAvatarPress={(todo) => {
+                    setFormTitle(todo.title);
+                    setFormDate(selectedDate);
+                    setFormStartTime(todo.dueTime || "");
+                    setAddType("todo");
+                    setShowAddModal(true);
+                  }}
                   eventCount={getEventsForDate(events, selectedDate).length}
                   ministryCount={getMinistriesForDate(ministries, selectedDate).length}
                 />

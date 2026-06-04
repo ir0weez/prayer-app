@@ -13,6 +13,7 @@ interface DailySummaryCardProps {
   currentBibleStudy: string;
   personalTodos?: any[];
   onTodoComplete?: (todoId: string) => void;
+  onAvatarPress?: (todo: any) => void;
   eventCount?: number;
   ministryCount?: number;
 }
@@ -48,6 +49,7 @@ export function DailySummaryCard({
   currentBibleStudy,
   personalTodos = [],
   onTodoComplete,
+  onAvatarPress,
   eventCount = 0,
   ministryCount = 0,
 }: DailySummaryCardProps) {
@@ -209,7 +211,7 @@ export function DailySummaryCard({
 
                 {/* Avatar circle */}
                 <Pressable
-                  onPress={() => onTodoComplete && onTodoComplete(todo.id)}
+                  onPress={() => onAvatarPress ? onAvatarPress(todo) : (onTodoComplete && onTodoComplete(todo.id))}
                   style={({ pressed }) => [
                     {
                       alignItems: "center",

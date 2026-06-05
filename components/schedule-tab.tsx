@@ -743,7 +743,7 @@ export function ScheduleTab({
 
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={[{ flex: 1, zIndex: 100 }, swipeStyle]}>
+        <ReAnimated.View style={[{ flex: 1 }, swipeStyle]}>
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
@@ -1214,7 +1214,11 @@ const scheduleStyles = StyleSheet.create({
   summaryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    zIndex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   dayHeaderCard: {
     paddingHorizontal: 24,

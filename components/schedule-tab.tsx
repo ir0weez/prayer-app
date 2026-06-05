@@ -1230,7 +1230,7 @@ const scheduleStyles = StyleSheet.create({
   },
   dayHeaderCardOverlay: {
     position: 'absolute',
-    top: 56,
+    top: 0, // Start at summary position, will translate up via animation
     left: 0,
     right: 0,
     zIndex: 20,

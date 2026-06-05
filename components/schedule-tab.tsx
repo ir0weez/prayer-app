@@ -1227,10 +1227,6 @@ const scheduleStyles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     zIndex: 10,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
   },
   dayHeaderContent: {
     flexDirection: "row",
@@ -1279,7 +1275,7 @@ const scheduleStyles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
-    paddingTop: 16,
+    paddingTop: DAY_HEADER_HEIGHT, // Add space for date card to slide over
   },
   emptyState: {
     alignItems: "center",

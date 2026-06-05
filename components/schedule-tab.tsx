@@ -739,47 +739,7 @@ export function ScheduleTab({
         />
       </View>
 
-      {/* Fixed Date Card - sits between summary and list, scrollable list goes behind it */}
-      <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.background, zIndex: 3 }]}>
-        <View style={scheduleStyles.dayHeaderContent}>
-          <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
-            {dateHeader.dayName}
-            <Text style={{ color: colors.error }}>•</Text>
-          </Text>
-          <View style={scheduleStyles.dateRight}>
-            <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
-              {dateHeader.monthName} {dateHeader.dayNum}
-            </Text>
-            <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
-              {dateHeader.year}
-            </Text>
-          </View>
-        </View>
-        <View style={scheduleStyles.dateStrip}>
-          {weekDates.map((date) => {
-            const isSelected = date === selectedDate;
-            const isToday = date === today;
-            return (
-              <Pressable
-                key={date}
-                onPress={() => setSelectedDate(date)}
-                style={({ pressed }) => [
-                  scheduleStyles.dateItem,
-                  isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                  {getDayNumber(date)}
-                </Text>
-                <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                  {getShortDayName(date)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+      {/* Date card will be ListHeaderComponent of FlatList */}
 
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
@@ -795,7 +755,48 @@ export function ScheduleTab({
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
-            ListHeaderComponent={null}
+            ListHeaderComponent={
+              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.background }]}>
+                <View style={scheduleStyles.dayHeaderContent}>
+                  <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
+                    {dateHeader.dayName}
+                    <Text style={{ color: colors.error }}>•</Text>
+                  </Text>
+                  <View style={scheduleStyles.dateRight}>
+                    <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
+                      {dateHeader.monthName} {dateHeader.dayNum}
+                    </Text>
+                    <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
+                      {dateHeader.year}
+                    </Text>
+                  </View>
+                </View>
+                <View style={scheduleStyles.dateStrip}>
+                  {weekDates.map((date) => {
+                    const isSelected = date === selectedDate;
+                    const isToday = date === today;
+                    return (
+                      <Pressable
+                        key={date}
+                        onPress={() => setSelectedDate(date)}
+                        style={({ pressed }) => [
+                          scheduleStyles.dateItem,
+                          isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
+                          pressed && { opacity: 0.7 },
+                        ]}
+                      >
+                        <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                          {getDayNumber(date)}
+                        </Text>
+                        <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                          {getShortDayName(date)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            }
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>
                 <MaterialIcons name="event-note" size={48} color={colors.muted} />

@@ -739,54 +739,7 @@ export function ScheduleTab({
         />
       </View>
 
-      {/* Day Header + Date Strip - slides over summary on scroll up (Joi-style) */}
-      <Animated.View
-        style={[
-          scheduleStyles.dayHeaderCard,
-          { backgroundColor: colors.background, transform: [{ translateY: headerTranslateY }] },
-        ]}
-      >
-        <View style={scheduleStyles.dayHeaderContent}>
-          <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
-            {dateHeader.dayName}
-            <Text style={{ color: colors.error }}>•</Text>
-          </Text>
-          <View style={scheduleStyles.dateRight}>
-            <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
-              {dateHeader.monthName} {dateHeader.dayNum}
-            </Text>
-            <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
-              {dateHeader.year}
-            </Text>
-          </View>
-        </View>
-
-        {/* Date Strip */}
-        <View style={scheduleStyles.dateStrip}>
-          {weekDates.map((date) => {
-            const isSelected = date === selectedDate;
-            const isToday = date === today;
-            return (
-              <Pressable
-                key={date}
-                onPress={() => setSelectedDate(date)}
-                style={({ pressed }) => [
-                  scheduleStyles.dateItem,
-                  isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                  {getDayNumber(date)}
-                </Text>
-                <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                  {getShortDayName(date)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Animated.View>
+      {/* Date Header will be in FlatList ListHeaderComponent */}
 
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
@@ -802,7 +755,7 @@ export function ScheduleTab({
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
-            ListHeaderComponent={null}
+            ListHeaderComponent={<Animated.View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.background, transform: [{ translateY: headerTranslateY }] }]}><View style={scheduleStyles.dayHeaderContent}><Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>{dateHeader.dayName}<Text style={{ color: colors.error }}>•</Text></Text><View style={scheduleStyles.dateRight}><Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>{dateHeader.monthName} {dateHeader.dayNum}</Text><Text style={[scheduleStyles.yearText, { color: colors.muted }]}>{dateHeader.year}</Text></View></View><View style={scheduleStyles.dateStrip}>{weekDates.map((date) => { const isSelected = date === selectedDate; const isToday = date === today; return (<Pressable key={date} onPress={() => setSelectedDate(date)} style={({ pressed }) => [scheduleStyles.dateItem, isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 }, pressed && { opacity: 0.7 }]}><Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>{getDayNumber(date)}</Text><Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>{getShortDayName(date)}</Text></Pressable>); })}</View></Animated.View>}
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>
                 <MaterialIcons name="event-note" size={48} color={colors.muted} />

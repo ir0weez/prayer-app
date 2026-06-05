@@ -748,7 +748,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 180 }]}
+            contentContainerStyle={scheduleStyles.listContent}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],

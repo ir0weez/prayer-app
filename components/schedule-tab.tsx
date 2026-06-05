@@ -716,6 +716,29 @@ export function ScheduleTab({
 
 
 
+      {/* Fixed Summary Card - stays at top */}
+      <View style={scheduleStyles.summaryContainer}>
+        <DailySummaryCard
+          remainingTodos={memoizedSummaryData.remainingTodos}
+          remainingPrayers={memoizedSummaryData.remainingPrayers}
+          fastingStatus={memoizedSummaryData.fastingStatus}
+          budgetAmount={memoizedSummaryData.budgetAmount}
+          peopleToReach={memoizedSummaryData.peopleToReach}
+          currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+          personalTodos={memoizedSummaryData.personalTodos}
+          onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+          onAvatarPress={(todo) => {
+            setFormTitle(todo.title);
+            setFormDate(selectedDate);
+            setFormStartTime(todo.dueTime || "");
+            setAddType("todo");
+            setShowAddModal(true);
+          }}
+          eventCount={getEventsForDate(events, selectedDate).length}
+          ministryCount={getMinistriesForDate(ministries, selectedDate).length}
+        />
+      </View>
+
       {/* Day Header + Date Strip - slides over summary on scroll up (Joi-style) */}
       <Animated.View
         style={[
@@ -779,29 +802,7 @@ export function ScheduleTab({
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
-            ListHeaderComponent={
-              <View style={scheduleStyles.summaryContainer}>
-                <DailySummaryCard
-                  remainingTodos={memoizedSummaryData.remainingTodos}
-                  remainingPrayers={memoizedSummaryData.remainingPrayers}
-                  fastingStatus={memoizedSummaryData.fastingStatus}
-                  budgetAmount={memoizedSummaryData.budgetAmount}
-                  peopleToReach={memoizedSummaryData.peopleToReach}
-                  currentBibleStudy={memoizedSummaryData.currentBibleStudy}
-                  personalTodos={memoizedSummaryData.personalTodos}
-                  onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
-                  onAvatarPress={(todo) => {
-                    setFormTitle(todo.title);
-                    setFormDate(selectedDate);
-                    setFormStartTime(todo.dueTime || "");
-                    setAddType("todo");
-                    setShowAddModal(true);
-                  }}
-                  eventCount={getEventsForDate(events, selectedDate).length}
-                  ministryCount={getMinistriesForDate(ministries, selectedDate).length}
-                />
-              </View>
-            }
+            ListHeaderComponent={null}
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>
                 <MaterialIcons name="event-note" size={48} color={colors.muted} />

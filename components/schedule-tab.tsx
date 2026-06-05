@@ -743,12 +743,12 @@ export function ScheduleTab({
 
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={[{ flex: 1 }, swipeStyle]}>
+        <ReAnimated.View style={[{ flex: 1, zIndex: 10 }, swipeStyle]}>
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 180 }]}
+            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],

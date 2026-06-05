@@ -1220,11 +1220,13 @@ const scheduleStyles = StyleSheet.create({
   summaryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
+    zIndex: 5,
   },
   dayHeaderCard: {
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 8,
+    zIndex: 10,
   },
   dayHeaderContent: {
     flexDirection: "row",

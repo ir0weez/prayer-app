@@ -748,7 +748,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0 }]}
+            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 180 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -1214,11 +1214,7 @@ const scheduleStyles = StyleSheet.create({
   summaryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    zIndex: 5,
   },
   dayHeaderCard: {
     paddingHorizontal: 24,

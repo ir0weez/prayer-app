@@ -756,7 +756,7 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.background }]}>
+              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
                 <View style={scheduleStyles.dayHeaderContent}>
                   <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                     {dateHeader.dayName}

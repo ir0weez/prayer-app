@@ -70,7 +70,7 @@ import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDispla
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const DAY_HEADER_HEIGHT = 180; // Height of summary card + date card
+const DAY_HEADER_HEIGHT = 160; // Height of summary card
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -1275,7 +1275,8 @@ const scheduleStyles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
-    paddingTop: DAY_HEADER_HEIGHT, // Add space for date card to slide over
+    paddingTop: DAY_HEADER_HEIGHT,
+    zIndex: 10,
   },
   emptyState: {
     alignItems: "center",

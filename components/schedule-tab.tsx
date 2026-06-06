@@ -756,7 +756,8 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
+              <Animated.View style={[{ transform: [{ translateY: headerTranslateY }] }]}>
+                <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }]}>
                 <View style={scheduleStyles.dayHeaderContent}>
                   <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                     {dateHeader.dayName}
@@ -795,7 +796,8 @@ export function ScheduleTab({
                     );
                   })}
                 </View>
-              </View>
+                </View>
+              </Animated.View>
             }
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>

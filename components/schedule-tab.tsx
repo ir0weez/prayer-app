@@ -716,34 +716,11 @@ export function ScheduleTab({
 
 
 
-      {/* Fixed Summary Card - stays at top */}
-      <View style={scheduleStyles.summaryContainer}>
-        <DailySummaryCard
-          remainingTodos={memoizedSummaryData.remainingTodos}
-          remainingPrayers={memoizedSummaryData.remainingPrayers}
-          fastingStatus={memoizedSummaryData.fastingStatus}
-          budgetAmount={memoizedSummaryData.budgetAmount}
-          peopleToReach={memoizedSummaryData.peopleToReach}
-          currentBibleStudy={memoizedSummaryData.currentBibleStudy}
-          personalTodos={memoizedSummaryData.personalTodos}
-          onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
-          onAvatarPress={(todo) => {
-            setFormTitle(todo.title);
-            setFormDate(selectedDate);
-            setFormStartTime(todo.dueTime || "");
-            setAddType("todo");
-            setShowAddModal(true);
-          }}
-          eventCount={getEventsForDate(events, selectedDate).length}
-          ministryCount={getMinistriesForDate(ministries, selectedDate).length}
-        />
-      </View>
-
       {/* Date card will be ListHeaderComponent of FlatList */}
 
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={[{ flex: 1, zIndex: 10 }, swipeStyle]}>
+        <ReAnimated.View style={[{ flex: 1, zIndex: 0 }, swipeStyle]}>
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
@@ -811,6 +788,29 @@ export function ScheduleTab({
           />
         </ReAnimated.View>
       </GestureDetector>
+
+      {/* Fixed Summary Card - stays at top and renders on top of FlatList */}
+      <View style={[scheduleStyles.summaryContainer, { position: "absolute", top: 56, left: 0, right: 0, zIndex: 100 }]}>
+        <DailySummaryCard
+          remainingTodos={memoizedSummaryData.remainingTodos}
+          remainingPrayers={memoizedSummaryData.remainingPrayers}
+          fastingStatus={memoizedSummaryData.fastingStatus}
+          budgetAmount={memoizedSummaryData.budgetAmount}
+          peopleToReach={memoizedSummaryData.peopleToReach}
+          currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+          personalTodos={memoizedSummaryData.personalTodos}
+          onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+          onAvatarPress={(todo) => {
+            setFormTitle(todo.title);
+            setFormDate(selectedDate);
+            setFormStartTime(todo.dueTime || "");
+            setAddType("todo");
+            setShowAddModal(true);
+          }}
+          eventCount={getEventsForDate(events, selectedDate).length}
+          ministryCount={getMinistriesForDate(ministries, selectedDate).length}
+        />
+      </View>
 
       {/* + FAB Button */}
       <Pressable
@@ -1274,7 +1274,7 @@ const scheduleStyles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
-    paddingTop: 0,
+    paddingTop: 160,
   },
   emptyState: {
     alignItems: "center",

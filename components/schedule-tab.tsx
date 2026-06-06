@@ -716,63 +716,87 @@ export function ScheduleTab({
 
 
 
-      {/* Date card will be ListHeaderComponent of FlatList */}
-
       {/* Swipeable content area */}
       <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={[{ flex: 1, zIndex: 0 }, swipeStyle]}>
+        <ReAnimated.View style={[{ flex: 1 }, swipeStyle]}>
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { backgroundColor: colors.surface }]}
+            contentContainerStyle={[scheduleStyles.listContent, { backgroundColor: colors.surface, paddingTop: 0 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
+            stickyHeaderIndices={[0, 1]}
             ListHeaderComponent={
-              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
-                <View style={scheduleStyles.dayHeaderContent}>
-                  <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
-                    {dateHeader.dayName}
-                    <Text style={{ color: colors.error }}>•</Text>
-                  </Text>
-                  <View style={scheduleStyles.dateRight}>
-                    <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
-                      {dateHeader.monthName} {dateHeader.dayNum}
+              <>
+                {/* Summary Card - Sticky Header Index 0 */}
+                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingHorizontal: 20, paddingVertical: 12 }]}>
+                  <DailySummaryCard
+                    remainingTodos={memoizedSummaryData.remainingTodos}
+                    remainingPrayers={memoizedSummaryData.remainingPrayers}
+                    fastingStatus={memoizedSummaryData.fastingStatus}
+                    budgetAmount={memoizedSummaryData.budgetAmount}
+                    peopleToReach={memoizedSummaryData.peopleToReach}
+                    currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+                    personalTodos={memoizedSummaryData.personalTodos}
+                    onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+                    onAvatarPress={(todo) => {
+                      setFormTitle(todo.title);
+                      setFormDate(selectedDate);
+                      setFormStartTime(todo.dueTime || "");
+                      setAddType("todo");
+                      setShowAddModal(true);
+                    }}
+                    eventCount={getEventsForDate(events, selectedDate).length}
+                    ministryCount={getMinistriesForDate(ministries, selectedDate).length}
+                  />
+                </View>
+                {/* Date Header - Sticky Header Index 1 */}
+                <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
+                  <View style={scheduleStyles.dayHeaderContent}>
+                    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
+                      {dateHeader.dayName}
+                      <Text style={{ color: colors.error }}>•</Text>
                     </Text>
-                    <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
-                      {dateHeader.year}
-                    </Text>
+                    <View style={scheduleStyles.dateRight}>
+                      <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
+                        {dateHeader.monthName} {dateHeader.dayNum}
+                      </Text>
+                      <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
+                        {dateHeader.year}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={scheduleStyles.dateStrip}>
+                    {weekDates.map((date) => {
+                      const isSelected = date === selectedDate;
+                      const isToday = date === today;
+                      return (
+                        <Pressable
+                          key={date}
+                          onPress={() => setSelectedDate(date)}
+                          style={({ pressed }) => [
+                            scheduleStyles.dateItem,
+                            isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                            {getDayNumber(date)}
+                          </Text>
+                          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                            {getShortDayName(date)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
-                <View style={scheduleStyles.dateStrip}>
-                  {weekDates.map((date) => {
-                    const isSelected = date === selectedDate;
-                    const isToday = date === today;
-                    return (
-                      <Pressable
-                        key={date}
-                        onPress={() => setSelectedDate(date)}
-                        style={({ pressed }) => [
-                          scheduleStyles.dateItem,
-                          isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-                          pressed && { opacity: 0.7 },
-                        ]}
-                      >
-                        <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                          {getDayNumber(date)}
-                        </Text>
-                        <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                          {getShortDayName(date)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
+              </>
             }
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>
@@ -788,29 +812,6 @@ export function ScheduleTab({
           />
         </ReAnimated.View>
       </GestureDetector>
-
-      {/* Fixed Summary Card - stays at top and renders on top of FlatList */}
-      <View style={[scheduleStyles.summaryContainer, { position: "absolute", top: 56, left: 0, right: 0, zIndex: 100 }]}>
-        <DailySummaryCard
-          remainingTodos={memoizedSummaryData.remainingTodos}
-          remainingPrayers={memoizedSummaryData.remainingPrayers}
-          fastingStatus={memoizedSummaryData.fastingStatus}
-          budgetAmount={memoizedSummaryData.budgetAmount}
-          peopleToReach={memoizedSummaryData.peopleToReach}
-          currentBibleStudy={memoizedSummaryData.currentBibleStudy}
-          personalTodos={memoizedSummaryData.personalTodos}
-          onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
-          onAvatarPress={(todo) => {
-            setFormTitle(todo.title);
-            setFormDate(selectedDate);
-            setFormStartTime(todo.dueTime || "");
-            setAddType("todo");
-            setShowAddModal(true);
-          }}
-          eventCount={getEventsForDate(events, selectedDate).length}
-          ministryCount={getMinistriesForDate(ministries, selectedDate).length}
-        />
-      </View>
 
       {/* + FAB Button */}
       <Pressable

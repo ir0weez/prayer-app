@@ -748,7 +748,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={scheduleStyles.listContent}
+            contentContainerStyle={[scheduleStyles.listContent, { backgroundColor: colors.surface }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -756,7 +756,7 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -20 }]}>
+              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
                 <View style={scheduleStyles.dayHeaderContent}>
                   <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                     {dateHeader.dayName}
@@ -1273,10 +1273,9 @@ const scheduleStyles = StyleSheet.create({
     marginTop: 2,
   },
   listContent: {
-    paddingHorizontal: 0,
+    paddingHorizontal: 20,
     paddingBottom: 120,
-    paddingTop: DAY_HEADER_HEIGHT - 60,
-    zIndex: 100,
+    paddingTop: 0,
   },
   emptyState: {
     alignItems: "center",

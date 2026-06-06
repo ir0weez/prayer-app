@@ -716,8 +716,8 @@ export function ScheduleTab({
 
 
 
-      {/* Fixed Summary Card - stays at top */}
-      <View style={scheduleStyles.summaryContainer}>
+      {/* Summary Card - positioned absolutely behind list */}
+      <View style={[scheduleStyles.summaryContainer, { position: 'absolute', top: 56, left: 0, right: 0, zIndex: 0 }]}>
         <DailySummaryCard
           remainingTodos={memoizedSummaryData.remainingTodos}
           remainingPrayers={memoizedSummaryData.remainingPrayers}
@@ -756,8 +756,7 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <Animated.View style={[{ transform: [{ translateY: headerTranslateY }] }]}>
-                <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }]}>
+              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderRadius: 16 }]}>
                 <View style={scheduleStyles.dayHeaderContent}>
                   <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                     {dateHeader.dayName}
@@ -796,8 +795,7 @@ export function ScheduleTab({
                     );
                   })}
                 </View>
-                </View>
-              </Animated.View>
+              </View>
             }
             ListEmptyComponent={
               <View style={scheduleStyles.emptyState}>

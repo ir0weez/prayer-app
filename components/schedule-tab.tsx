@@ -1220,6 +1220,7 @@ const scheduleStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
+    marginTop: 160, // Start below the summary card
   },
   dayHeaderCardOverlay: {
     position: 'absolute',

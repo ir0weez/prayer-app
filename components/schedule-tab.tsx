@@ -756,7 +756,7 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
+              <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -20 }]}>
                 <View style={scheduleStyles.dayHeaderContent}>
                   <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                     {dateHeader.dayName}
@@ -905,7 +905,7 @@ export function ScheduleTab({
                     returnKeyType="done"
                   />
                   {formTitle.trim() && detectEventKeyword(formTitle) && (
-                    <View style={[scheduleStyles.keywordPreview, { backgroundColor: detectEventKeyword(formTitle)!.bgColor }]}>
+                    <View style={[scheduleStyles.keywordPrefix, { backgroundColor: detectEventKeyword(formTitle)!.bgColor }]}>
                       <Text style={{ fontSize: 20 }}>{detectEventKeyword(formTitle)!.emoji}</Text>
                       <Text style={{ color: detectEventKeyword(formTitle)!.textColor, fontSize: 12, fontWeight: "600", marginLeft: 8 }}>
                         {detectEventKeyword(formTitle)!.label} card will be shown
@@ -1217,7 +1217,7 @@ const scheduleStyles = StyleSheet.create({
     zIndex: 1,
   },
   dayHeaderCard: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
   },
@@ -1273,10 +1273,10 @@ const scheduleStyles = StyleSheet.create({
     marginTop: 2,
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingBottom: 120,
-    paddingTop: DAY_HEADER_HEIGHT,
-    zIndex: 10,
+    paddingTop: DAY_HEADER_HEIGHT - 60,
+    zIndex: 100,
   },
   emptyState: {
     alignItems: "center",
@@ -1395,13 +1395,15 @@ const scheduleStyles = StyleSheet.create({
   formRow: {
     flexDirection: "row",
   },
-  keywordPreview: {
+  keywordPrefix: {
+    marginTop: 8,
+  },
+  todoItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 1,
   },
   ministryTypePills: {
     flexDirection: "row",

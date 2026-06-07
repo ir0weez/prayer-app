@@ -1140,7 +1140,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] CHECKPOINT: Save after each major fix
 
 - [x] BUG: Remove day name and date from summary card (showing twice - once in summary, once in day header)
-- [x] BUG: Scroll doesn't go all the way to top (summary card blocking full scroll) — FINAL FIX: Used sticky headers (stickyHeaderIndices=[0,1]) so summary and date header are part of FlatList scroll context, with date header scrolling over summary
+- [x] BUG: Scroll doesn't go all the way to top (summary card blocking full scroll) — FINAL FIX v3: Created DateHeaderOverlay component with scroll-driven animation. Summary is sticky, date header is absolutely positioned with translateY animation that moves it up as user scrolls, creating proper scroll-over effect
 - [x] BUG: Budget displays with too many decimals (712.6199999999999 instead of formatted)
 - [x] FEATURE: Match todo icons to specific types (toothbrush for Brush Teeth, prayer hands for Pray, etc.)
 - [x] FEATURE: Chronological sorting for todos, events, and ministries by time within each day

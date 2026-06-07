@@ -76,6 +76,95 @@ function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
 
+// ─── Date Header Overlay Component ──────────────────────────────────────────────
+function DateHeaderOverlay({
+  dateHeader,
+  weekDates,
+  selectedDate,
+  today,
+  colors,
+  scrollY,
+  onDateSelect,
+}: {
+  dateHeader: any;
+  weekDates: string[];
+  selectedDate: string;
+  today: string;
+  colors: any;
+  scrollY: Animated.Value;
+  onDateSelect: (date: string) => void;
+}) {
+  // Animate the date header to stay below the summary as it scrolls
+  const dateHeaderStyle = {
+    transform: [
+      {
+        translateY: scrollY.interpolate({
+          inputRange: [0, DAY_HEADER_HEIGHT],
+          outputRange: [0, DAY_HEADER_HEIGHT],
+          extrapolate: "clamp",
+        }),
+      },
+    ],
+  };
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          top: DAY_HEADER_HEIGHT,
+          left: 0,
+          right: 0,
+          backgroundColor: colors.surface,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          zIndex: 100,
+        },
+        dateHeaderStyle,
+      ]}
+    >
+      <View style={scheduleStyles.dayHeaderContent}>
+        <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
+          {dateHeader.dayName}
+          <Text style={{ color: colors.error }}>•</Text>
+        </Text>
+        <View style={scheduleStyles.dateRight}>
+          <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
+            {dateHeader.monthName} {dateHeader.dayNum}
+          </Text>
+          <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
+            {dateHeader.year}
+          </Text>
+        </View>
+      </View>
+      <View style={scheduleStyles.dateStrip}>
+        {weekDates.map((date) => {
+          const isSelected = date === selectedDate;
+          const isToday = date === today;
+          return (
+            <Pressable
+              key={date}
+              onPress={() => onDateSelect(date)}
+              style={({ pressed }) => [
+                scheduleStyles.dateItem,
+                isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                {getDayNumber(date)}
+              </Text>
+              <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                {getShortDayName(date)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Animated.View>
+  );
+}
+
 // ─── Event Card Component ────────────────────────────────────────────────────
 function EventCard({
   event,
@@ -730,11 +819,11 @@ export function ScheduleTab({
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
-            stickyHeaderIndices={[0, 1]}
+            stickyHeaderIndices={[0]}
             ListHeaderComponent={
               <>
                 {/* Summary Card - Sticky Header Index 0 */}
-                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingHorizontal: 20, paddingVertical: 12 }]}>
+                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   <DailySummaryCard
                     remainingTodos={memoizedSummaryData.remainingTodos}
                     remainingPrayers={memoizedSummaryData.remainingPrayers}
@@ -755,47 +844,7 @@ export function ScheduleTab({
                     ministryCount={getMinistriesForDate(ministries, selectedDate).length}
                   />
                 </View>
-                {/* Date Header - Sticky Header Index 1 */}
-                <View style={[scheduleStyles.dayHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
-                  <View style={scheduleStyles.dayHeaderContent}>
-                    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
-                      {dateHeader.dayName}
-                      <Text style={{ color: colors.error }}>•</Text>
-                    </Text>
-                    <View style={scheduleStyles.dateRight}>
-                      <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
-                        {dateHeader.monthName} {dateHeader.dayNum}
-                      </Text>
-                      <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
-                        {dateHeader.year}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={scheduleStyles.dateStrip}>
-                    {weekDates.map((date) => {
-                      const isSelected = date === selectedDate;
-                      const isToday = date === today;
-                      return (
-                        <Pressable
-                          key={date}
-                          onPress={() => setSelectedDate(date)}
-                          style={({ pressed }) => [
-                            scheduleStyles.dateItem,
-                            isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-                            pressed && { opacity: 0.7 },
-                          ]}
-                        >
-                          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                            {getDayNumber(date)}
-                          </Text>
-                          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                            {getShortDayName(date)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
+
               </>
             }
             ListEmptyComponent={
@@ -812,6 +861,17 @@ export function ScheduleTab({
           />
         </ReAnimated.View>
       </GestureDetector>
+      
+      {/* Animated Date Header that scrolls over summary */}
+      <DateHeaderOverlay
+        dateHeader={dateHeader}
+        weekDates={weekDates}
+        selectedDate={selectedDate}
+        today={today}
+        colors={colors}
+        scrollY={scrollY}
+        onDateSelect={setSelectedDate}
+      />
 
       {/* + FAB Button */}
       <Pressable

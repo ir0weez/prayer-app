@@ -723,7 +723,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0 }]}
+            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0, backgroundColor: colors.surface }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -736,7 +736,7 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   <DailySummaryCard
-                    remainingTodos={getTodosForDate(todos, selectedDate).length}
+                    remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
                     remainingPrayers={memoizedSummaryData.remainingPrayers}
                     fastingStatus={memoizedSummaryData.fastingStatus}
                     budgetAmount={memoizedSummaryData.budgetAmount}
@@ -751,8 +751,8 @@ export function ScheduleTab({
                       setAddType("todo");
                       setShowAddModal(true);
                     }}
-                    eventCount={getEventsForDate(events, selectedDate).length}
-                    ministryCount={getMinistriesForDate(ministries, selectedDate).length}
+                    eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
+                    ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                   />
                 </View>
 

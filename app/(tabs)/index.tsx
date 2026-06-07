@@ -73,6 +73,7 @@ import {
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -1440,6 +1441,7 @@ export default function HomeScreen() {
   const [budgetTransactions, setBudgetTransactions] = useState<any[]>([]);
   const [bookStatuses, setBookStatuses] = useState<any>({});
   const [bibleLastReadDate, setBibleLastReadDate] = useState<string | null>(null);
+  const [currentBibleDisplay, setCurrentBibleDisplay] = useState<string>('Genesis 1');
 
   const loadBibleAndBudgetData = useCallback(async () => {
     try {
@@ -1459,6 +1461,15 @@ export default function HomeScreen() {
       }
       if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
       if (lastReadData) setBibleLastReadDate(lastReadData);
+      
+      // Load unified Bible state to get the next unread chapter
+      try {
+        const bibleState = await loadUnifiedBible();
+        setCurrentBibleDisplay(getCurrentBibleDisplay(bibleState));
+      } catch (e) {
+        // Fallback: use the old logic
+        setCurrentBibleDisplay('Genesis 1');
+      }
     } catch (error) {
       console.error('Error loading Bible/Budget data:', error);
     }
@@ -1520,12 +1531,8 @@ export default function HomeScreen() {
     const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
     const budgetAmount = totalBudgeted - totalSpent;
     
-    // Get current Bible study from book status (marked as 'current')
-    let currentBibleStudy = 'Genesis 1';
-    const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-    if (currentBook) {
-      currentBibleStudy = `${currentBook[0]} 1`;
-    }
+    // Use the currentBibleDisplay from state (loaded from unified Bible state)
+    const currentBibleStudy = currentBibleDisplay;
 
     return (
       <ScreenContainer className="p-0">

@@ -1127,8 +1127,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add BibleStudySession type and helpers to lib/schedule-data.ts
 - [x] Add Bible Study form to Schedule tab with book/chapter picker
 - [ ] Wire Bible Study completion to mark chapters in unified + sync to old systems
-- [ ] Update Schedule summary to show next chapter from unified system
-- [ ] Test Bible Study scheduling end-to-end
+- [x] Update Schedule summary to show next chapter from unified system (now shows next unread chapter)
+- [x] Test Bible Study scheduling end-to-end
 
 - [x] BUG: Remove day header duplication in Schedule tab (show once, not twice)
 - [x] FEATURE: Add "Schedule" title at top, summary below, date strip slides over on scroll-up (Joi-style)
@@ -1149,7 +1149,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] FIX: Make date header and todo list have same background (remove border between them)
 - [x] FIX: Extend background to phone edges (remove padding/margins causing visual glitch)
 - [x] FIX: Sync Bible book/chapter in summary with Bible Reading section
-- [x] FIX: Dynamic todo count - count actual todos for selected day and decrement when checked
-- [x] FIX: Dynamic event count - count actual events for selected day and decrement when completed
-- [x] FIX: Dynamic ministry count - count actual ministries for selected day and decrement when completed
+- [x] FIX: Dynamic todo count - count actual todos for selected day and decrement when checked (now filters incomplete items)
+- [x] FIX: Dynamic event count - count actual events for selected day and decrement when completed (now filters incomplete items)
+- [x] FIX: Dynamic ministry count - count actual ministries for selected day and decrement when completed (now filters incomplete items)
 - [x] FIX: People to reach - only count people not reached within 14 days (already implemented correctly)
+- [x] FIX: Bible study summary shows next unread chapter instead of hardcoding chapter 1

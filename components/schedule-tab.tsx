@@ -734,9 +734,9 @@ export function ScheduleTab({
             ListHeaderComponent={
               <>
                 {/* Summary Card - Sticky Header Index 0 */}
-                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   <DailySummaryCard
-                    remainingTodos={memoizedSummaryData.remainingTodos}
+                    remainingTodos={getTodosForDate(todos, selectedDate).length}
                     remainingPrayers={memoizedSummaryData.remainingPrayers}
                     fastingStatus={memoizedSummaryData.fastingStatus}
                     budgetAmount={memoizedSummaryData.budgetAmount}
@@ -758,7 +758,7 @@ export function ScheduleTab({
 
 
                 {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
-                <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
                   <View style={scheduleStyles.dayHeaderContent}>
                     <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                       {dateHeader.dayName}
@@ -1217,11 +1217,15 @@ const scheduleStyles = StyleSheet.create({
   summaryContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
+    borderBottomWidth: 0,
   },
-  dayHeaderCard: {
+  dateHeaderCard: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomWidth: 0,
   },
   dayHeaderCardOverlay: {
     position: 'absolute',
@@ -1275,9 +1279,9 @@ const scheduleStyles = StyleSheet.create({
     marginTop: 2,
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingBottom: 120,
-    paddingTop: 160,
+    paddingTop: 0,
   },
   emptyState: {
     alignItems: "center",

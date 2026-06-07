@@ -1145,3 +1145,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] FEATURE: Match todo icons to specific types (toothbrush for Brush Teeth, prayer hands for Pray, etc.)
 - [x] FEATURE: Chronological sorting for todos, events, and ministries by time within each day
 - [x] FEATURE: Link summary avatars to Schedule todos (tapping avatars opens Schedule todo form)
+
+- [x] FIX: Make date header and todo list have same background (remove border between them)
+- [x] FIX: Extend background to phone edges (remove padding/margins causing visual glitch)
+- [x] FIX: Sync Bible book/chapter in summary with Bible Reading section
+- [x] FIX: Dynamic todo count - count actual todos for selected day and decrement when checked
+- [x] FIX: Dynamic event count - count actual events for selected day and decrement when completed
+- [x] FIX: Dynamic ministry count - count actual ministries for selected day and decrement when completed
+- [x] FIX: People to reach - only count people not reached within 14 days (already implemented correctly)

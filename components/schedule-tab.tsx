@@ -723,7 +723,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            contentContainerStyle={[scheduleStyles.listContent, { backgroundColor: colors.surface, paddingTop: 0 }]}
+            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0 }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -734,7 +734,7 @@ export function ScheduleTab({
             ListHeaderComponent={
               <>
                 {/* Summary Card - Sticky Header Index 0 */}
-                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
+                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
                   <DailySummaryCard
                     remainingTodos={memoizedSummaryData.remainingTodos}
                     remainingPrayers={memoizedSummaryData.remainingPrayers}
@@ -758,7 +758,7 @@ export function ScheduleTab({
 
 
                 {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
-                <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16 }]}>
+                <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
                   <View style={scheduleStyles.dayHeaderContent}>
                     <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
                       {dateHeader.dayName}
@@ -780,7 +780,7 @@ export function ScheduleTab({
                       return (
                         <Pressable
                           key={date}
-                          onPress={() => onDateSelect(date)}
+                          onPress={() => setSelectedDate(date)}
                           style={({ pressed }) => [
                             scheduleStyles.dateItem,
                             isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },

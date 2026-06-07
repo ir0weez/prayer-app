@@ -1140,7 +1140,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] CHECKPOINT: Save after each major fix
 
 - [x] BUG: Remove day name and date from summary card (showing twice - once in summary, once in day header)
-- [x] BUG: Scroll doesn't go all the way to top (summary card blocking full scroll) — FINAL FIX v4: Restructured to match Joi Calendar pattern. Summary is sticky header, date header + date strip + todos are ONE scrollable card that moves as a unit and covers the summary when scrolling up
+- [x] BUG: Scroll doesn't go all the way to top (summary card blocking full scroll) — FINAL FIX v5: Simplified layout. Summary scrolls normally with everything else. Fixed crash on date selection (onDateSelect → setSelectedDate). Added visual separation with borders between summary and date card.
 - [x] BUG: Budget displays with too many decimals (712.6199999999999 instead of formatted)
 - [x] FEATURE: Match todo icons to specific types (toothbrush for Brush Teeth, prayer hands for Pray, etc.)
 - [x] FEATURE: Chronological sorting for todos, events, and ministries by time within each day

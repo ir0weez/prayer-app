@@ -1,4 +1,4 @@
-import { View, Text, Animated, Pressable, ScrollView } from "react-native";
+import { View, Text, Animated, Pressable, ScrollView, Image } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -16,6 +16,8 @@ interface DailySummaryCardProps {
   onAvatarPress?: (todo: any) => void;
   eventCount?: number;
   ministryCount?: number;
+  userName?: string;
+  userProfilePhoto?: string;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -52,6 +54,8 @@ export function DailySummaryCard({
   onAvatarPress,
   eventCount = 0,
   ministryCount = 0,
+  userName = "Friend",
+  userProfilePhoto,
 }: DailySummaryCardProps) {
   const colors = useColors();
   
@@ -113,7 +117,38 @@ export function DailySummaryCard({
         opacity: opacityAnim,
       }}
     >
-
+      {/* Greeting header with profile picture - Joi style */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 12 }}>
+        {userProfilePhoto && (
+          <Image
+            source={{ uri: userProfilePhoto }}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: colors.primary,
+            }}
+          />
+        )}
+        {!userProfilePhoto && (
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: colors.primary,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialIcons name="person" size={28} color="#FFFFFF" />
+          </View>
+        )}
+        <View>
+          <Text style={{ fontSize: 14, color: colors.muted, fontWeight: "500" }}>Good morning,</Text>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground }}>{userName}</Text>
+        </View>
+      </View>
 
       {/* Summary paragraph - Joi style with white bold numbers and darker connecting words */}
       <View style={{ marginBottom: 16 }}>

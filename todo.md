@@ -1159,3 +1159,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Implement swipe gestures on events (left to delete, right to edit)
 - [x] Create material design progress bar component
 - [x] Integrate progress bar under Schedule summary showing tasks & events completion
+
+- [x] Add "Good morning, [Name]" greeting with profile picture to Schedule summary
+- [x] Fix profile data loading to use canonical PROFILE_STORAGE_KEY
+- [x] Reload profile data when Schedule tab comes into focus (useFocusEffect)
+- [x] Reduce todo item width by increasing horizontal padding (4px → 16px)

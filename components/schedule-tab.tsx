@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   Animated,
   Dimensions,
@@ -66,6 +67,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync";
@@ -564,6 +566,35 @@ export function ScheduleTab({
     }).catch(() => undefined);
   }, []);
 
+  // Profile data from AsyncStorage - use canonical PROFILE_STORAGE_KEY
+  const [userName, setUserName] = useState("Friend");
+  const [userProfilePhoto, setUserProfilePhoto] = useState<string | undefined>(undefined);
+  
+  const loadProfileData = useCallback(() => {
+    AsyncStorage.getItem(PROFILE_STORAGE_KEY).then((data) => {
+      if (data) {
+        try {
+          const profile = JSON.parse(data);
+          if (profile.name) setUserName(profile.name);
+          if (profile.photoUri) setUserProfilePhoto(profile.photoUri);
+        } catch (e) {
+          // Silent fail
+        }
+      }
+    }).catch(() => undefined);
+  }, []);
+  
+  useEffect(() => {
+    loadProfileData();
+  }, [loadProfileData]);
+  
+  // Reload profile when tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileData();
+    }, [loadProfileData])
+  );
+
   // Form handlers
   const resetForm = () => {
     setFormTitle("");
@@ -840,6 +871,8 @@ export function ScheduleTab({
                     }}
                     eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                     ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
+                    userName={userName}
+                    userProfilePhoto={userProfilePhoto}
                   />
                   
                   {/* Progress Bar */}
@@ -1666,7 +1699,7 @@ const todoStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
     gap: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: "#E6DCF830",

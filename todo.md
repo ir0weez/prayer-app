@@ -1154,3 +1154,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] FIX: Dynamic ministry count - count actual ministries for selected day and decrement when completed (now filters incomplete items)
 - [x] FIX: People to reach - only count people not reached within 14 days (already implemented correctly)
 - [x] FIX: Bible study summary shows next unread chapter instead of hardcoding chapter 1
+
+- [x] Implement swipe gestures on todos (left to delete, right to edit)
+- [x] Implement swipe gestures on events (left to delete, right to edit)
+- [x] Create material design progress bar component
+- [x] Integrate progress bar under Schedule summary showing tasks & events completion

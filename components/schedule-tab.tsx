@@ -29,6 +29,7 @@ import ReAnimated, {
 import { useColors } from "@/hooks/use-colors";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
+import { ScheduleProgressBar } from "./schedule-progress-bar";
 import {
   addDays,
   BirthdayEvent,
@@ -80,132 +81,171 @@ function iconName(name: string) {
 function EventCard({
   event,
   onToggle,
+  onEdit,
+  onDelete,
 }: {
   event: ScheduleEvent;
   onToggle: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const colors = useColors();
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
   const cardScale = useSharedValue(1);
+  const swipeX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((e) => {
+      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
+    })
+    .onEnd((e) => {
+      if (e.translationX < -50 && onDelete) {
+        runOnJS(onDelete)();
+      } else if (e.translationX > 50 && onEdit) {
+        runOnJS(onEdit)();
+      }
+      swipeX.value = withTiming(0, { duration: 200 });
+    });
 
   const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }],
+    transform: [{ scale: cardScale.value }, { translateX: swipeX.value }],
+  }));
+
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
   }));
 
   if (event.isCompleted) {
     // Completed: solid color box, smaller
     const completedColor = keyword?.accentColor || colors.muted;
     return (
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
-        }}
-        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-      >
-        <ReAnimated.View style={[animatedCardStyle]}>
-          <View style={[eventStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
-            <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
-            <Text style={[eventStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
-              {event.title}
-            </Text>
-            {event.startTime && (
-              <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
-                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
-              </Text>
-            )}
-            <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
-          </View>
+      <GestureDetector gesture={panGesture}>
+        <ReAnimated.View style={swipeStyle}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggle();
+            }}
+            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+          >
+            <ReAnimated.View style={[animatedCardStyle]}>
+              <View style={[eventStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
+                <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
+                <Text style={[eventStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+                  {event.title}
+                </Text>
+                {event.startTime && (
+                  <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
+                    {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+                  </Text>
+                )}
+                <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+              </View>
+            </ReAnimated.View>
+          </Pressable>
         </ReAnimated.View>
-      </Pressable>
+      </GestureDetector>
     );
   }
 
   // Active: illustrated card with full-bleed image if available
   if (keyword && keyword.imageUrl) {
     return (
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
-        }}
-        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-      >
-        <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40" }]}>
-          {/* Full-bleed background image */}
-          <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
-          {/* Content overlay with gradient */}
-          <View style={eventStyles.fullBleedOverlay}>
-            <View style={eventStyles.fullBleedContent}>
-              <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
-              {event.startTime && (
-                <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
-                  {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-                </Text>
-              )}
-              {event.location && (
-                <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                  📍 {event.location}
-                </Text>
-              )}
+      <GestureDetector gesture={panGesture}>
+        <ReAnimated.View style={swipeStyle}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggle();
+            }}
+            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+          >
+            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40" }]}>
+              {/* Full-bleed background image */}
+              <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
+              {/* Content overlay with gradient */}
+              <View style={eventStyles.fullBleedOverlay}>
+                <View style={eventStyles.fullBleedContent}>
+                  <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+                  {event.startTime && (
+                    <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
+                      {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                    </Text>
+                  )}
+                  {event.location && (
+                    <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                      📍 {event.location}
+                    </Text>
+                  )}
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-      </Pressable>
+          </Pressable>
+        </ReAnimated.View>
+      </GestureDetector>
     );
   }
 
   // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
     return (
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
-        }}
-        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-      >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
-          <View style={eventStyles.illustratedContent}>
-            <Text style={[eventStyles.illustratedTitle, { color: keyword.textColor }]}>{event.title}</Text>
-            {event.startTime && (
-              <Text style={[eventStyles.illustratedTime, { color: keyword.textColor + "BB" }]}>
-                {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-              </Text>
-            )}
-            {event.location && (
-              <Text style={[eventStyles.illustratedLocation, { color: keyword.textColor + "99" }]} numberOfLines={1}>
-                📍 {event.location}
-              </Text>
-            )}
-          </View>
-          <Text style={eventStyles.illustratedEmoji}>{keyword.emoji}</Text>
-        </View>
-      </Pressable>
+      <GestureDetector gesture={panGesture}>
+        <ReAnimated.View style={swipeStyle}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggle();
+            }}
+            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+          >
+            <View style={[eventStyles.illustratedCard, { backgroundColor: keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
+              <View style={eventStyles.illustratedContent}>
+                <Text style={[eventStyles.illustratedTitle, { color: keyword.textColor }]}>{event.title}</Text>
+                {event.startTime && (
+                  <Text style={[eventStyles.illustratedTime, { color: keyword.textColor + "BB" }]}>
+                    {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                  </Text>
+                )}
+                {event.location && (
+                  <Text style={[eventStyles.illustratedLocation, { color: keyword.textColor + "99" }]} numberOfLines={1}>
+                    📍 {event.location}
+                  </Text>
+                )}
+              </View>
+              <Text style={eventStyles.illustratedEmoji}>{keyword.emoji}</Text>
+            </View>
+          </Pressable>
+        </ReAnimated.View>
+      </GestureDetector>
     );
   }
 
   // Default event card (no keyword match)
   return (
-    <Pressable
-      onPress={() => {
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onToggle();
-      }}
-      style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-    >
-      <View style={[eventStyles.defaultCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={[eventStyles.defaultTitle, { color: colors.foreground }]}>{event.title}</Text>
-          {event.startTime && (
-            <Text style={[eventStyles.defaultTime, { color: colors.muted }]}>
-              {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-            </Text>
-          )}
-        </View>
-      </View>
-    </Pressable>
+    <GestureDetector gesture={panGesture}>
+      <ReAnimated.View style={swipeStyle}>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        >
+          <View style={[eventStyles.defaultCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[eventStyles.defaultTitle, { color: colors.foreground }]}>{event.title}</Text>
+              {event.startTime && (
+                <Text style={[eventStyles.defaultTime, { color: colors.muted }]}>
+                  {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                </Text>
+              )}
+            </View>
+          </View>
+        </Pressable>
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 
@@ -213,39 +253,66 @@ function EventCard({
 function TodoItem({
   todo,
   onToggle,
+  onEdit,
+  onDelete,
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
+  const swipeX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((e) => {
+      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
+    })
+    .onEnd((e) => {
+      if (e.translationX < -50 && onDelete) {
+        runOnJS(onDelete)();
+      } else if (e.translationX > 50 && onEdit) {
+        runOnJS(onEdit)();
+      }
+      swipeX.value = withTiming(0, { duration: 200 });
+    });
+
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }));
 
   return (
-    <Pressable
-      onPress={() => {
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onToggle();
-      }}
-      style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
-    >
-      <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : colors.primary }]}>
-        <MaterialIcons
-          name={todo.isCompleted ? "check" : (iconNameStr as any)}
-          size={16}
-          color="#FFFFFF"
-        />
-      </View>
-      <Text
-        style={[
-          todoStyles.title,
-          { color: colors.foreground },
-          todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
-        ]}
-        numberOfLines={1}
-      >
-        {todo.title}
-      </Text>
-    </Pressable>
+    <GestureDetector gesture={panGesture}>
+      <ReAnimated.View style={swipeStyle}>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
+        >
+          <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : colors.primary }]}>
+            <MaterialIcons
+              name={todo.isCompleted ? "check" : (iconNameStr as any)}
+              size={16}
+              color="#FFFFFF"
+            />
+          </View>
+          <Text
+            style={[
+              todoStyles.title,
+              { color: colors.foreground },
+              todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
+            ]}
+            numberOfLines={1}
+          >
+            {todo.title}
+          </Text>
+        </Pressable>
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 
@@ -649,6 +716,16 @@ export function ScheduleTab({
             <TodoItem
               todo={item.data}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
+              onEdit={() => {
+                setFormTitle(item.data.title);
+                setFormDate(item.data.date);
+                setFormStartTime(item.data.startTime || "");
+                setAddType("todo");
+                setShowAddModal(true);
+              }}
+              onDelete={() => {
+                setTodos((prev) => prev.filter(t => t.id !== item.data.id));
+              }}
             />
           );
         case "event":
@@ -656,6 +733,16 @@ export function ScheduleTab({
             <EventCard
               event={item.data}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
+              onEdit={() => {
+                setFormTitle(item.data.title);
+                setFormDate(item.data.date);
+                setFormStartTime(item.data.startTime || "");
+                setAddType("event");
+                setShowAddModal(true);
+              }}
+              onDelete={() => {
+                setEvents((prev) => prev.filter(e => e.id !== item.data.id));
+              }}
             />
           );
         case "ministry":
@@ -753,6 +840,13 @@ export function ScheduleTab({
                     }}
                     eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                     ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
+                  />
+                  
+                  {/* Progress Bar */}
+                  <ScheduleProgressBar
+                    completed={getTodosForDate(todos, selectedDate).filter(t => t.isCompleted).length + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
+                    total={getTodosForDate(todos, selectedDate).length + getEventsForDate(events, selectedDate).length}
+                    label="Tasks & Events"
                   />
                 </View>
 

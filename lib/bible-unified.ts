@@ -83,11 +83,26 @@ export async function initializeUnifiedBible(): Promise<UnifiedBibleState> {
   return state;
 }
 
-// Load unified Bible state
+// Load unified Bible state and migrate old bookStatuses if needed
 export async function loadUnifiedBible(): Promise<UnifiedBibleState> {
   try {
     const data = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
-    if (data) return JSON.parse(data);
+    if (data) {
+      const state = JSON.parse(data);
+      // Migrate old bookStatuses if they exist
+      try {
+        const oldBookStatusData = await AsyncStorage.getItem(BIBLE_BOOK_STATUS_KEY);
+        if (oldBookStatusData) {
+          const oldStatuses = JSON.parse(oldBookStatusData);
+          // Merge old statuses into the unified state
+          state.bookStatuses = { ...state.bookStatuses, ...oldStatuses };
+          await saveUnifiedBible(state);
+        }
+      } catch (e) {
+        // Ignore migration error
+      }
+      return state;
+    }
   } catch (e) {
     // Ignore
   }

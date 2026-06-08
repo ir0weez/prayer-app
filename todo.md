@@ -1168,3 +1168,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Integrate user greeting and profile picture into summary paragraph (not separate)
 - [x] Wire Bible study completion to markChapterAsRead and sync to unified Bible system
 - [x] Add marginHorizontal to event cards and dropdown menus to reduce width
+
+## Current Sprint - Bible & UI Improvements
+
+- [ ] FIX: Bible display shows Genesis 1 instead of 2 Timothy 2 (currently marked as current)
+- [ ] FEATURE: Add color picker (5 colors) to todo/event/ministry creation forms
+- [ ] FEATURE: Display colored badges/indicators on todos, events, and ministries
+- [ ] FEATURE: Add swipe-right-to-edit and swipe-left-to-delete to ministry items
+- [ ] FEATURE: Hide empty todo/event/ministry sections when count is 0
+- [ ] FIX: Add missing icons for stats in summary
+- [ ] FIX: Sticky todo scroll bug - top todo scrolls with page when scrolling down

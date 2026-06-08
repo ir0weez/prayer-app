@@ -813,9 +813,56 @@ export function ScheduleTab({
         case "expandable-bible":
           return (
             <ExpandableSection title="Bible Reading" icon="menu-book">
-              <Text style={{ color: colors.foreground, fontSize: 14 }}>
+              <Text style={{ color: colors.foreground, fontSize: 14, marginBottom: 12 }}>
                 {item.data ? `Currently reading: ${item.data}` : "No book marked as current."}
               </Text>
+              {dayBibleStudies && dayBibleStudies.length > 0 && (
+                <View>
+                  {dayBibleStudies.map((study) => (
+                    <Pressable
+                      key={study.id}
+                      onPress={async () => {
+                        // Toggle completion
+                        const updated = toggleBibleStudyCompleted(dayBibleStudies, study.id);
+                        setBibleStudies(prev => {
+                          const all = prev.map(s => updated.find(u => u.id === s.id) || s);
+                          return all;
+                        });
+                        
+                        // Mark chapter as read in unified Bible system
+                        const completedStudy = updated.find(s => s.id === study.id);
+                        if (completedStudy && completedStudy.isCompleted) {
+                          try {
+                            await markChapterAsRead(study.book, study.chapter);
+                            await syncUnifiedBibleToAllOldSystems();
+                            // Trigger parent refresh by calling onBibleUpdate if available
+                            if (onBibleUpdate) {
+                              onBibleUpdate();
+                            }
+                          } catch (e) {
+                            console.error('Failed to mark chapter as read:', e);
+                          }
+                        }
+                      }}
+                      style={({ pressed }) => [
+                        { opacity: pressed ? 0.7 : 1 },
+                        { paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }}>
+                          {study.book} {study.chapter}
+                        </Text>
+                        <MaterialIcons
+                          name={study.isCompleted ? "check-circle" : "radio-button-unchecked"}
+                          size={20}
+                          color={study.isCompleted ? colors.success : colors.muted}
+                        />
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
             </ExpandableSection>
           );
         default:
@@ -1578,6 +1625,7 @@ const eventStyles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    marginHorizontal: 16,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1607,6 +1655,7 @@ const eventStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 8,
+    marginHorizontal: 16,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1630,6 +1679,7 @@ const eventStyles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
+    marginHorizontal: 16,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1651,6 +1701,7 @@ const eventStyles = StyleSheet.create({
   fullBleedCard: {
     borderRadius: 16,
     marginBottom: 12,
+    marginHorizontal: 16,
     borderWidth: 1,
     overflow: 'hidden',
     minHeight: 120,

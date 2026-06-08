@@ -117,41 +117,36 @@ export function DailySummaryCard({
         opacity: opacityAnim,
       }}
     >
-      {/* Greeting header with profile picture - Joi style */}
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 12 }}>
-        {userProfilePhoto && (
-          <Image
-            source={{ uri: userProfilePhoto }}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: colors.primary,
-            }}
-          />
-        )}
-        {!userProfilePhoto && (
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: colors.primary,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <MaterialIcons name="person" size={28} color="#FFFFFF" />
-          </View>
-        )}
-        <View>
-          <Text style={{ fontSize: 14, color: colors.muted, fontWeight: "500" }}>Good morning,</Text>
-          <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground }}>{userName}</Text>
-        </View>
-      </View>
-
-      {/* Summary paragraph - Joi style with white bold numbers and darker connecting words */}
+      {/* Summary paragraph with greeting and profile - Joi style */}
       <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 12, gap: 10 }}>
+          {userProfilePhoto && (
+            <Image
+              source={{ uri: userProfilePhoto }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: colors.primary,
+              }}
+            />
+          )}
+          {!userProfilePhoto && (
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: colors.primary,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="person" size={20} color="#FFFFFF" />
+            </View>
+          )}
+          <Text style={{ fontSize: 14, color: colors.muted, fontWeight: "500", marginTop: 2 }}>Good morning, <Text style={{ fontWeight: "700", color: colors.foreground }}>{userName}</Text></Text>
+        </View>
         <Text
           style={{
             fontSize: 18,

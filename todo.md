@@ -1164,3 +1164,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix profile data loading to use canonical PROFILE_STORAGE_KEY
 - [x] Reload profile data when Schedule tab comes into focus (useFocusEffect)
 - [x] Reduce todo item width by increasing horizontal padding (4px → 16px)
+
+- [x] Integrate user greeting and profile picture into summary paragraph (not separate)
+- [x] Wire Bible study completion to markChapterAsRead and sync to unified Bible system
+- [x] Add marginHorizontal to event cards and dropdown menus to reduce width

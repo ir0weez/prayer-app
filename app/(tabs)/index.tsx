@@ -1602,9 +1602,8 @@ export default function HomeScreen() {
       const scheduleTotalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
       const scheduleTotalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
       const scheduleBudgetAmount = scheduleTotalBudgeted - scheduleTotalSpent;
-      let scheduleCurrentBibleStudy = 'Genesis 1';
-      const currentBook = Object.entries(bookStatuses).find(([_, status]) => status === 'current');
-      if (currentBook) scheduleCurrentBibleStudy = `${currentBook[0]} 1`;
+      // Use the currentBibleDisplay from state (which is loaded from unified Bible system)
+      const scheduleCurrentBibleStudy = currentBibleDisplay;
 
       return (
         <ScheduleTab

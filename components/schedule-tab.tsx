@@ -739,36 +739,42 @@ export function ScheduleTab({
     // Combine todos, events, and ministries with time info for chronological sorting
     const timedItems: Array<{ type: string; id: string; data: any; sortTime: string }> = [];
 
-    // Add todos with time
-    dayTodos.forEach((t) => {
-      timedItems.push({
-        type: "todo",
-        id: t.id,
-        data: t,
-        sortTime: t.startTime || "23:59",
+    // Add todos with time (only if there are any)
+    if (dayTodos.length > 0) {
+      dayTodos.forEach((t) => {
+        timedItems.push({
+          type: "todo",
+          id: t.id,
+          data: t,
+          sortTime: t.startTime || "23:59",
+        });
       });
-    });
+    }
 
-    // Add incomplete events with time
+    // Add incomplete events with time (only if there are any)
     const incompleteEvents = dayEvents.filter((e) => !e.isCompleted);
-    incompleteEvents.forEach((e) => {
-      timedItems.push({
-        type: "event",
-        id: e.id,
-        data: e,
-        sortTime: e.startTime || "23:59",
+    if (incompleteEvents.length > 0) {
+      incompleteEvents.forEach((e) => {
+        timedItems.push({
+          type: "event",
+          id: e.id,
+          data: e,
+          sortTime: e.startTime || "23:59",
+        });
       });
-    });
+    }
 
-    // Add ministries with time
-    dayMinistries.forEach((m) => {
-      timedItems.push({
-        type: "ministry",
-        id: m.id,
-        data: m,
-        sortTime: m.startTime || "23:59",
+    // Add ministries with time (only if there are any)
+    if (dayMinistries.length > 0) {
+      dayMinistries.forEach((m) => {
+        timedItems.push({
+          type: "ministry",
+          id: m.id,
+          data: m,
+          sortTime: m.startTime || "23:59",
+        });
       });
-    });
+    }
 
     // Sort by time (chronological)
     timedItems.sort((a, b) => a.sortTime.localeCompare(b.sortTime));

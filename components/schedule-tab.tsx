@@ -457,7 +457,17 @@ export function ScheduleTab({
   const [formDueDate, setFormDueDate] = useState("");
   const [formBibleBook, setFormBibleBook] = useState("Genesis");
   const [formBibleChapter, setFormBibleChapter] = useState("1");
+  const [formColor, setFormColor] = useState("#6366F1"); // Default indigo
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
+
+  // Color palette for todos, events, and ministries
+  const COLOR_PALETTE = [
+    { name: "Indigo", hex: "#6366F1" },
+    { name: "Rose", hex: "#EC4899" },
+    { name: "Amber", hex: "#F59E0B" },
+    { name: "Emerald", hex: "#10B981" },
+    { name: "Sky", hex: "#0EA5E9" },
+  ];
 
   // Memoize summary data to ensure it updates when props change
   const memoizedSummaryData = useMemo(() => ({
@@ -605,6 +615,7 @@ export function ScheduleTab({
     setFormNotes("");
     setFormMinistryType("Outreach");
     setFormDueDate("");
+    setFormColor("#6366F1"); // Reset to default indigo
   };
 
   const handleSaveEvent = () => {
@@ -616,6 +627,7 @@ export function ScheduleTab({
       endTime: formEndTime || undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
+      color: formColor,
     });
     setEvents((prev) => [...prev, newEvent]);
     resetForm();
@@ -626,7 +638,7 @@ export function ScheduleTab({
   const handleSaveTodo = () => {
     if (!formTitle.trim()) return;
     const newTodo = createScheduleTodo(
-      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined },
+      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined, color: formColor },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
     setTodos((prev) => {
@@ -651,6 +663,7 @@ export function ScheduleTab({
       type: formMinistryType,
       date: formDate || selectedDate,
       dueDate: formDueDate || undefined,
+      color: formColor,
       startTime: formStartTime || undefined,
       endTime: formEndTime || undefined,
       location: formLocation || undefined,
@@ -1089,6 +1102,24 @@ export function ScheduleTab({
                     multiline
                     returnKeyType="done"
                   />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
+                  <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                    {COLOR_PALETTE.map((color) => (
+                      <Pressable
+                        key={color.hex}
+                        onPress={() => setFormColor(color.hex)}
+                        style={({ pressed }) => [{
+                          width: 50,
+                          height: 50,
+                          borderRadius: 25,
+                          backgroundColor: color.hex,
+                          borderWidth: formColor === color.hex ? 3 : 0,
+                          borderColor: colors.foreground,
+                          opacity: pressed ? 0.8 : 1,
+                        }]}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
               showsVerticalScrollIndicator={false}
@@ -1135,6 +1166,24 @@ export function ScheduleTab({
                 mode="time"
                 label="Select Time"
               />
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                {COLOR_PALETTE.map((color) => (
+                  <Pressable
+                    key={color.hex}
+                    onPress={() => setFormColor(color.hex)}
+                    style={({ pressed }) => [{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 25,
+                      backgroundColor: color.hex,
+                      borderWidth: formColor === color.hex ? 3 : 0,
+                      borderColor: colors.foreground,
+                      opacity: pressed ? 0.8 : 1,
+                    }]}
+                  />
+                ))}
+              </View>
             </View>
           </View>
         </View>
@@ -1230,6 +1279,24 @@ export function ScheduleTab({
                     style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                     returnKeyType="done"
                   />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
+                  <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                    {COLOR_PALETTE.map((color) => (
+                      <Pressable
+                        key={color.hex}
+                        onPress={() => setFormColor(color.hex)}
+                        style={({ pressed }) => [{
+                          width: 50,
+                          height: 50,
+                          borderRadius: 25,
+                          backgroundColor: color.hex,
+                          borderWidth: formColor === color.hex ? 3 : 0,
+                          borderColor: colors.foreground,
+                          opacity: pressed ? 0.8 : 1,
+                        }]}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
               showsVerticalScrollIndicator={false}

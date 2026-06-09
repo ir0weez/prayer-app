@@ -203,14 +203,14 @@ function EventCard({
           >
             <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
               <View style={eventStyles.illustratedContent}>
-                <Text style={[eventStyles.illustratedTitle, { color: keyword.textColor }]}>{event.title}</Text>
+                <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
                 {event.startTime && (
-                  <Text style={[eventStyles.illustratedTime, { color: keyword.textColor + "BB" }]}>
+                  <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
                     {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
                   </Text>
                 )}
                 {event.location && (
-                  <Text style={[eventStyles.illustratedLocation, { color: keyword.textColor + "99" }]} numberOfLines={1}>
+                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
                     📍 {event.location}
                   </Text>
                 )}
@@ -237,9 +237,9 @@ function EventCard({
           <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border }]}>
             <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
             <View style={{ flex: 1 }}>
-              <Text style={[eventStyles.defaultTitle, { color: colors.foreground }]}>{event.title}</Text>
+              <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>
               {event.startTime && (
-                <Text style={[eventStyles.defaultTime, { color: colors.muted }]}>
+                <Text style={[eventStyles.defaultTime, { color: event.color ? '#FFFFFFDD' : colors.muted }]}>
                   {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
                 </Text>
               )}
@@ -492,16 +492,16 @@ export function ScheduleTab({
   const [formDueDate, setFormDueDate] = useState("");
   const [formBibleBook, setFormBibleBook] = useState("Genesis");
   const [formBibleChapter, setFormBibleChapter] = useState("1");
-  const [formColor, setFormColor] = useState("#6366F1"); // Default indigo
+  const [formColor, setFormColor] = useState("#6B7280"); // Default gray
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
 
   // Color palette for todos, events, and ministries
   const COLOR_PALETTE = [
-    { name: "Indigo", hex: "#6366F1" },
-    { name: "Rose", hex: "#EC4899" },
-    { name: "Amber", hex: "#F59E0B" },
-    { name: "Emerald", hex: "#10B981" },
-    { name: "Sky", hex: "#0EA5E9" },
+    { name: "Gray", hex: "#6B7280" },
+    { name: "Red", hex: "#EF4444" },
+    { name: "Orange", hex: "#F97316" },
+    { name: "Yellow", hex: "#FBBF24" },
+    { name: "Blue", hex: "#3B82F6" },
   ];
 
   // Memoize summary data to ensure it updates when props change

@@ -912,7 +912,7 @@ export function ScheduleTab({
               { useNativeDriver: true }
             )}
             scrollEventThrottle={16}
-            stickyHeaderIndices={[0, 1]}
+            stickyHeaderIndices={[0]}
             ListHeaderComponent={
               <>
                 {/* Summary Card - Sticky Header Index 0 */}

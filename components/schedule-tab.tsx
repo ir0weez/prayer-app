@@ -480,6 +480,8 @@ export function ScheduleTab({
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | null>(null);
+  const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
+  const [showMinistryForm, setShowMinistryForm] = useState(false);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");

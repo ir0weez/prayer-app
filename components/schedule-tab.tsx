@@ -163,7 +163,7 @@ function EventCard({
             }}
             style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40", borderTopWidth: 4, borderTopColor: event.color || colors.primary }]}>
+            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40" }]}>
               {/* Full-bleed background image */}
               <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
               {/* Content overlay with gradient */}
@@ -201,7 +201,7 @@ function EventCard({
             }}
             style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <View style={[eventStyles.illustratedCard, { backgroundColor: keyword.bgColor, borderColor: keyword.accentColor + "40", borderTopWidth: 4, borderTopColor: event.color || colors.primary }]}>
+            <View style={[eventStyles.illustratedCard, { backgroundColor: keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
               <View style={eventStyles.illustratedContent}>
                 <Text style={[eventStyles.illustratedTitle, { color: keyword.textColor }]}>{event.title}</Text>
                 {event.startTime && (
@@ -234,7 +234,7 @@ function EventCard({
           }}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.defaultCard, { backgroundColor: colors.surface, borderColor: colors.border, borderTopWidth: 4, borderTopColor: event.color || colors.primary }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border }]}>
             <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
             <View style={{ flex: 1 }}>
               <Text style={[eventStyles.defaultTitle, { color: colors.foreground }]}>{event.title}</Text>
@@ -293,9 +293,9 @@ function TodoItem({
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onToggle();
           }}
-          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }, { borderLeftWidth: 4, borderLeftColor: todo.color || colors.primary }]}
+          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
         >
-          <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : colors.primary }]}>
+          <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }]}>
             <MaterialIcons
               name={todo.isCompleted ? "check" : (iconNameStr as any)}
               size={16}
@@ -335,7 +335,7 @@ function MinistryCard({
       }}
       style={({ pressed }) => [pressed && { opacity: 0.7 }]}
     >
-      <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftWidth: 4, borderLeftColor: ministry.color || "#7C5CFF" }]}>
+      <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
           <Text style={ministryStyles.typeText}>{ministry.type}</Text>
         </View>

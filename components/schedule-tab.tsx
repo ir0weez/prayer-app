@@ -322,43 +322,78 @@ function TodoItem({
 function MinistryCard({
   ministry,
   onToggle,
+  onEdit,
+  onDelete,
 }: {
   ministry: ScheduleMinistry;
   onToggle: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const colors = useColors();
+  const cardScale = useSharedValue(1);
+  const swipeX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((e) => {
+      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
+    })
+    .onEnd((e) => {
+      if (e.translationX < -50 && onDelete) {
+        runOnJS(onDelete)();
+      } else if (e.translationX > 50 && onEdit) {
+        runOnJS(onEdit)();
+      }
+      swipeX.value = withTiming(0, { duration: 200 });
+    });
+
+  const animatedCardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }, { translateX: swipeX.value }],
+  }));
+
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }));
+
   return (
-    <Pressable
-      onPress={() => {
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onToggle();
-      }}
-      style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-    >
-      <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-          <Text style={ministryStyles.typeText}>{ministry.type}</Text>
-        </View>
-        <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
-          {ministry.title}
-        </Text>
-        {ministry.location && (
-          <Text style={[ministryStyles.location, { color: colors.muted }]} numberOfLines={1}>
-            📍 {ministry.location}
-          </Text>
-        )}
-        {ministry.startTime && (
-          <Text style={[ministryStyles.time, { color: colors.muted }]}>
-            {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
-          </Text>
-        )}
-        {ministry.isCompleted && (
-          <View style={ministryStyles.checkBadge}>
-            <MaterialIcons name="check-circle" size={16} color="#22C55E" />
-          </View>
-        )}
-      </View>
-    </Pressable>
+    <GestureDetector gesture={panGesture}>
+      <ReAnimated.View style={swipeStyle}>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
+          <ReAnimated.View style={[animatedCardStyle]}>
+            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: ministry.color || "#7C5CFF", borderLeftWidth: 4 }]}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+                <Text style={ministryStyles.typeText}>{ministry.type}</Text>
+              </View>
+              <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
+                {ministry.title}
+              </Text>
+              {ministry.location && (
+                <Text style={[ministryStyles.location, { color: colors.muted }]} numberOfLines={1}>
+                  📍 {ministry.location}
+                </Text>
+              )}
+              {ministry.startTime && (
+                <Text style={[ministryStyles.time, { color: colors.muted }]}>
+                  {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
+                </Text>
+              )}
+              {ministry.isCompleted && (
+                <View style={ministryStyles.checkBadge}>
+                  <MaterialIcons name="check-circle" size={16} color="#22C55E" />
+                </View>
+              )}
+            </View>
+          </ReAnimated.View>
+        </Pressable>
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 
@@ -794,6 +829,13 @@ export function ScheduleTab({
             <MinistryCard
               ministry={item.data}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
+              onEdit={() => {
+                setEditingMinistry(item.data);
+                setShowMinistryForm(true);
+              }}
+              onDelete={() => {
+                setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));
+              }}
             />
           );
         case "expandable-worship":

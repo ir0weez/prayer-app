@@ -163,7 +163,7 @@ function EventCard({
             }}
             style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40" }]}>
+            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40", backgroundColor: event.color }]}>
               {/* Full-bleed background image */}
               <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
               {/* Content overlay with gradient */}
@@ -201,7 +201,7 @@ function EventCard({
             }}
             style={({ pressed }) => [pressed && { opacity: 0.85 }]}
           >
-            <View style={[eventStyles.illustratedCard, { backgroundColor: keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
+            <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
               <View style={eventStyles.illustratedContent}>
                 <Text style={[eventStyles.illustratedTitle, { color: keyword.textColor }]}>{event.title}</Text>
                 {event.startTime && (

@@ -502,6 +502,7 @@ export function ScheduleTab({
     { name: "Orange", hex: "#F97316" },
     { name: "Yellow", hex: "#FBBF24" },
     { name: "Blue", hex: "#3B82F6" },
+    { name: "Purple", hex: "#A855F7" },
   ];
 
   // Memoize summary data to ensure it updates when props change

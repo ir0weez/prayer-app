@@ -31,6 +31,8 @@ import { useColors } from "@/hooks/use-colors";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
+import { TimeBlockCard } from "./time-block-card";
+import { calculateAvailableTimeBlocks } from "@/lib/time-blocks";
 import {
   addDays,
   BirthdayEvent,
@@ -85,11 +87,13 @@ function EventCard({
   onToggle,
   onEdit,
   onDelete,
+  people = [],
 }: {
   event: ScheduleEvent;
   onToggle: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  people?: Person[];
 }) {
   const colors = useColors();
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
@@ -117,6 +121,13 @@ function EventCard({
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }));
+
+  const linkedPeople = useMemo(() => {
+    if (!event.linkedPeopleIds || event.linkedPeopleIds.length === 0) return [];
+    return event.linkedPeopleIds
+      .map((id) => people.find((p) => p.id === id))
+      .filter((p) => p !== undefined) as Person[];
+  }, [event.linkedPeopleIds, people]);
 
   if (event.isCompleted) {
     // Completed: solid color box, smaller
@@ -244,6 +255,46 @@ function EventCard({
                 </Text>
               )}
             </View>
+            {linkedPeople.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center', marginLeft: 8 }}>
+                {linkedPeople.slice(0, 2).map((person) => (
+                  <View
+                    key={person.id}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: person.avatarColor || colors.primary,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: event.color ? '#FFFFFF' : colors.background,
+                    }}
+                  >
+                    <Text style={{ fontSize: 8, fontWeight: '600', color: '#FFFFFF' }}>
+                      {person.initials}
+                    </Text>
+                  </View>
+                ))}
+                {linkedPeople.length > 2 && (
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: event.color ? '#FFFFFF' : colors.muted,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: 0.7,
+                    }}
+                  >
+                    <Text style={{ fontSize: 8, fontWeight: '600', color: event.color ? '#000000' : '#FFFFFF' }}>
+                      +{linkedPeople.length - 2}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         </Pressable>
       </ReAnimated.View>
@@ -257,11 +308,13 @@ function TodoItem({
   onToggle,
   onEdit,
   onDelete,
+  people = [],
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  people?: Person[];
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -284,6 +337,13 @@ function TodoItem({
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }));
+
+  const linkedPeople = useMemo(() => {
+    if (!todo.linkedPeopleIds || todo.linkedPeopleIds.length === 0) return [];
+    return todo.linkedPeopleIds
+      .map((id) => people.find((p) => p.id === id))
+      .filter((p) => p !== undefined) as Person[];
+  }, [todo.linkedPeopleIds, people]);
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -312,6 +372,45 @@ function TodoItem({
           >
             {todo.title}
           </Text>
+          {linkedPeople.length > 0 && (
+            <View style={{ flexDirection: 'row', marginLeft: 'auto', gap: 4, alignItems: 'center' }}>
+              {linkedPeople.slice(0, 3).map((person) => (
+                <View
+                  key={person.id}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: person.avatarColor || colors.primary,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: colors.background,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                    {person.initials}
+                  </Text>
+                </View>
+              ))}
+              {linkedPeople.length > 3 && (
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: colors.muted,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                    +{linkedPeople.length - 3}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </Pressable>
       </ReAnimated.View>
     </GestureDetector>
@@ -324,11 +423,13 @@ function MinistryCard({
   onToggle,
   onEdit,
   onDelete,
+  people = [],
 }: {
   ministry: ScheduleMinistry;
   onToggle: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  people?: Person[];
 }) {
   const colors = useColors();
   const cardScale = useSharedValue(1);
@@ -355,6 +456,13 @@ function MinistryCard({
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }));
+
+  const linkedPeople = useMemo(() => {
+    if (!ministry.linkedPeopleIds || ministry.linkedPeopleIds.length === 0) return [];
+    return ministry.linkedPeopleIds
+      .map((id) => people.find((p) => p.id === id))
+      .filter((p) => p !== undefined) as Person[];
+  }, [ministry.linkedPeopleIds, people]);
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -387,6 +495,45 @@ function MinistryCard({
               {ministry.isCompleted && (
                 <View style={ministryStyles.checkBadge}>
                   <MaterialIcons name="check-circle" size={16} color="#22C55E" />
+                </View>
+              )}
+              {linkedPeople.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  {linkedPeople.slice(0, 3).map((person) => (
+                    <View
+                      key={person.id}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: person.avatarColor || colors.primary,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: colors.background,
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                        {person.initials}
+                      </Text>
+                    </View>
+                  ))}
+                  {linkedPeople.length > 3 && (
+                    <View
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: colors.muted,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }}>
+                        +{linkedPeople.length - 3}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -495,6 +642,7 @@ export function ScheduleTab({
   const [formBibleBook, setFormBibleBook] = useState("Genesis");
   const [formBibleChapter, setFormBibleChapter] = useState("1");
   const [formColor, setFormColor] = useState("#6B7280"); // Default gray
+  const [formLinkedPeopleIds, setFormLinkedPeopleIds] = useState<string[]>([]); // People linked to current item
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
 
   // Color palette for todos, events, and ministries
@@ -654,6 +802,7 @@ export function ScheduleTab({
     setFormMinistryType("Outreach");
     setFormDueDate("");
     setFormColor("#6366F1"); // Reset to default indigo
+    setFormLinkedPeopleIds([]);
   };
 
   const handleSaveEvent = () => {
@@ -667,6 +816,9 @@ export function ScheduleTab({
       notes: formNotes || undefined,
       color: formColor,
     });
+    if (formLinkedPeopleIds.length > 0) {
+      newEvent.linkedPeopleIds = formLinkedPeopleIds;
+    }
     setEvents((prev) => [...prev, newEvent]);
     resetForm();
     setAddType(null);
@@ -679,6 +831,9 @@ export function ScheduleTab({
       { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined, color: formColor },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
+    if (formLinkedPeopleIds.length > 0) {
+      newTodo.linkedPeopleIds = formLinkedPeopleIds;
+    }
     setTodos((prev) => {
       const updated = [...prev, newTodo];
       // Auto-sort todos by time for the selected date
@@ -707,6 +862,9 @@ export function ScheduleTab({
       location: formLocation || undefined,
       notes: formNotes || undefined,
     });
+    if (formLinkedPeopleIds.length > 0) {
+      newMinistry.linkedPeopleIds = formLinkedPeopleIds;
+    }
     setMinistries((prev) => [...prev, newMinistry]);
     resetForm();
     setAddType(null);
@@ -782,6 +940,21 @@ export function ScheduleTab({
     // Add sorted items
     timedItems.forEach((item) => items.push(item));
 
+    // Calculate and add available time blocks (white spaces)
+    const allScheduledItems = [
+      ...dayTodos.filter((t) => t.startTime),
+      ...dayEvents.filter((e) => !e.isCompleted && e.startTime),
+      ...dayMinistries.filter((m) => m.startTime),
+    ];
+    const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
+    availableBlocks.forEach((block, index) => {
+      items.push({
+        type: "time-block",
+        id: block.id,
+        data: { block, index, totalBlocks: availableBlocks.length },
+      });
+    });
+
     // Add completed events at the end
     const completedEvents = dayEvents.filter((e) => e.isCompleted);
     completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
@@ -803,6 +976,7 @@ export function ScheduleTab({
           return (
             <TodoItem
               todo={item.data}
+              people={people}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);
@@ -820,6 +994,7 @@ export function ScheduleTab({
           return (
             <EventCard
               event={item.data}
+              people={people}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);
@@ -837,6 +1012,7 @@ export function ScheduleTab({
           return (
             <MinistryCard
               ministry={item.data}
+              people={people}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
               onEdit={() => {
                 setEditingMinistry(item.data);
@@ -882,11 +1058,19 @@ export function ScheduleTab({
               </Text>
             </ExpandableSection>
           );
+        case "time-block":
+          return (
+            <TimeBlockCard
+              block={item.data.block}
+              index={item.data.index}
+              totalBlocks={item.data.totalBlocks}
+            />
+          );
         default:
           return null;
       }
     },
-    [colors, selectedDate]
+    [colors, selectedDate, people]
   );
 
   return (
@@ -1171,6 +1355,38 @@ export function ScheduleTab({
                       />
                     ))}
                   </View>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK PEOPLE (optional)</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    {people.map((person) => (
+                      <Pressable
+                        key={person.id}
+                        onPress={() => {
+                          setFormLinkedPeopleIds((prev) =>
+                            prev.includes(person.id)
+                              ? prev.filter((id) => id !== person.id)
+                              : [...prev, person.id]
+                          );
+                        }}
+                        style={({ pressed }) => [{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 16,
+                          backgroundColor: formLinkedPeopleIds.includes(person.id) ? colors.primary : colors.background,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          opacity: pressed ? 0.8 : 1,
+                        }]}
+                      >
+                        <Text style={[{
+                          color: formLinkedPeopleIds.includes(person.id) ? '#fff' : colors.foreground,
+                          fontSize: 12,
+                          fontWeight: '500',
+                        }]}>
+                          {person.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               )}
               showsVerticalScrollIndicator={false}
@@ -1233,6 +1449,38 @@ export function ScheduleTab({
                       opacity: pressed ? 0.8 : 1,
                     }]}
                   />
+                ))}
+              </View>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK PEOPLE (optional)</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {people.map((person) => (
+                  <Pressable
+                    key={person.id}
+                    onPress={() => {
+                      setFormLinkedPeopleIds((prev) =>
+                        prev.includes(person.id)
+                          ? prev.filter((id) => id !== person.id)
+                          : [...prev, person.id]
+                      );
+                    }}
+                    style={({ pressed }) => [{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 16,
+                      backgroundColor: formLinkedPeopleIds.includes(person.id) ? colors.primary : colors.background,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      opacity: pressed ? 0.8 : 1,
+                    }]}
+                  >
+                    <Text style={[{
+                      color: formLinkedPeopleIds.includes(person.id) ? '#fff' : colors.foreground,
+                      fontSize: 12,
+                      fontWeight: '500',
+                    }]}>
+                      {person.name}
+                    </Text>
+                  </Pressable>
                 ))}
               </View>
             </View>
@@ -1346,6 +1594,38 @@ export function ScheduleTab({
                           opacity: pressed ? 0.8 : 1,
                         }]}
                       />
+                    ))}
+                  </View>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK PEOPLE (optional)</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    {people.map((person) => (
+                      <Pressable
+                        key={person.id}
+                        onPress={() => {
+                          setFormLinkedPeopleIds((prev) =>
+                            prev.includes(person.id)
+                              ? prev.filter((id) => id !== person.id)
+                              : [...prev, person.id]
+                          );
+                        }}
+                        style={({ pressed }) => [{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 16,
+                          backgroundColor: formLinkedPeopleIds.includes(person.id) ? colors.primary : colors.background,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          opacity: pressed ? 0.8 : 1,
+                        }]}
+                      >
+                        <Text style={[{
+                          color: formLinkedPeopleIds.includes(person.id) ? '#fff' : colors.foreground,
+                          fontSize: 12,
+                          fontWeight: '500',
+                        }]}>
+                          {person.name}
+                        </Text>
+                      </Pressable>
                     ))}
                   </View>
                 </View>

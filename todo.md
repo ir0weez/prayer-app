@@ -1177,4 +1177,36 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] FEATURE: Add swipe-right-to-edit and swipe-left-to-delete to ministry items
 - [ ] FEATURE: Hide empty todo/event/ministry sections when count is 0
 - [ ] FIX: Add missing icons for stats in summary
-- [ ] FIX: Sticky todo scroll bug - top todo scrolls with page when scrolling down
+- [x] FIX: Sticky todo scroll bug - top todo scrolls with page when scrolling down
+
+## People Linking to Schedule Items (Current)
+
+- [x] Add linkedPeopleIds field to ScheduleTodo, ScheduleEvent, ScheduleMinistry types
+- [x] Add people selector UI to Todo creation form
+- [x] Add people selector UI to Event creation form
+- [x] Add people selector UI to Ministry creation form
+- [x] Update TodoItem component to accept people prop and render linked avatars
+- [x] Update EventCard component to accept people prop and render linked avatars
+- [x] Update MinistryCard component to accept people prop and render linked avatars
+- [x] Pass people prop to all three components in renderItem function
+- [x] Display linked people as small avatar circles (24px) on schedule items
+- [x] Show overflow badge (+N) when more than 3 people are linked
+- [x] Persist linkedPeopleIds to AsyncStorage with schedule items
+- [ ] Write unit tests for linkedPeopleIds persistence in schedule-data.test.ts
+- [ ] Test linked people avatars display correctly on all schedule items
+- [ ] Test avatar overflow badge displays correctly when >3 people linked
+
+## White Space (Time Block) Feature (Complete)
+
+- [x] Create time-blocks.ts helper library with time conversion functions
+- [x] Implement calculateAvailableTimeBlocks function to find gaps in schedule
+- [x] Add formatDuration helper to display time in readable format (e.g., "2h 30m")
+- [x] Create TimeBlockCard component to display available time blocks
+- [x] Add visual indicators for block size (green for 2+ hours, orange for 1+ hour, gray for <1 hour)
+- [x] Display suggested activities based on block size (strategic planning, writing, quick tasks)
+- [x] Integrate time blocks into Schedule tab rendering
+- [x] Calculate and display available blocks between scheduled items
+- [x] Write comprehensive unit tests for time block calculations (12 tests passing)
+- [x] Test time conversion, duration formatting, and gap detection
+- [x] Test overlapping events and completed item filtering
+- [x] Test custom business hours support

@@ -22,6 +22,7 @@ export type ScheduleEvent = {
   completedAt?: string;
   color?: string; // Override color
   keyword?: string; // Detected keyword for illustration
+  linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this event
 };
 
 export type ScheduleTodo = {
@@ -34,6 +35,7 @@ export type ScheduleTodo = {
   icon?: string; // MaterialIcons name
   color?: string;
   order: number;
+  linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this todo
 };
 
 export type BibleStudySession = {
@@ -61,6 +63,7 @@ export type ScheduleMinistry = {
   isCompleted: boolean;
   completedAt?: string;
   color?: string;
+  linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this ministry
 };
 
 export type BirthdayEvent = {

@@ -1210,3 +1210,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Test time conversion, duration formatting, and gap detection
 - [x] Test overlapping events and completed item filtering
 - [x] Test custom business hours support
+
+## Schedule Tab UI Improvements (Complete)
+
+- [x] Refactor time blocks to intertwine chronologically with todos/events instead of showing at end
+- [x] Redesign time block cards to be more compact and readable (TimeBlockIndicator component)
+- [x] Replace people selector list with avatar-based picker (AvatarPeopleSelector component)
+- [x] Display linked people's actual photos on schedule item cards using StackedAvatar
+- [x] Test all UI improvements and verify readability
+- [x] All components compile without TypeScript errors

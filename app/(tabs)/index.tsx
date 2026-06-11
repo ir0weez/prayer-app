@@ -1488,6 +1488,15 @@ export default function HomeScreen() {
     }, [activeTab, loadBibleAndBudgetData])
   );
 
+  // Reload Bible display whenever home tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (activeTab === 'home') {
+        loadBibleAndBudgetData();
+      }
+    }, [activeTab, loadBibleAndBudgetData])
+  );
+
   const renderRemindersScreen = () => {
     // Get personal todos from the profile (only incomplete ones)
     const personalPerson = people.find(p => p.isPersonal);

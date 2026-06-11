@@ -1232,3 +1232,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix time block color selection - customColor prop now properly passed to TimeBlockIndicator
 - [x] Add countdown timer to time blocks - shows remaining hours/minutes and updates every minute
 - [x] Time blocks disappear when time passes - already implemented with filterExpiredTimeBlocks
+- [x] Fix Bible chapter display in summary - now reloads when home tab comes into focus

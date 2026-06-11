@@ -440,10 +440,10 @@ function MinistryCard({
               style={[
                 {
                   position: "absolute",
-                  top: -2,
-                  left: -2,
-                  right: -2,
-                  bottom: -2,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   borderRadius: 14,
                   backgroundColor: ministry.color || "#7C5CFF",
                   zIndex: -1,
@@ -2094,7 +2094,8 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 8,
     marginHorizontal: 16,
     borderWidth: 1,
@@ -2105,7 +2106,7 @@ const ministryStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2115,10 +2116,13 @@ const ministryStyles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "600",
+    marginTop: 0,
+    marginBottom: 2,
   },
   location: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 0,
+    marginBottom: 2,
   },
   time: {
     fontSize: 12,

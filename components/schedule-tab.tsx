@@ -26,6 +26,8 @@ import ReAnimated, {
   runOnJS,
   interpolate,
   Extrapolation,
+  withRepeat,
+  Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
 import { FlameSparkIcon } from "./flame-spark-icon";
@@ -366,6 +368,27 @@ function MinistryCard({
   const colors = useColors();
   const cardScale = useSharedValue(1);
   const swipeX = useSharedValue(0);
+  const glowOpacity = useSharedValue(0);
+  const glowScale = useSharedValue(1);
+
+  useEffect(() => {
+    glowOpacity.value = withRepeat(
+      withTiming(0.4, {
+        duration: 1500,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+    glowScale.value = withRepeat(
+      withTiming(1.15, {
+        duration: 1500,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+  }, []);
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
@@ -389,6 +412,11 @@ function MinistryCard({
     transform: [{ translateX: swipeX.value }],
   }));
 
+  const glowAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowScale.value }],
+  }));
+
   const linkedPeople = useMemo(() => {
     if (!ministry.linkedPeopleIds || ministry.linkedPeopleIds.length === 0) return [];
     return ministry.linkedPeopleIds
@@ -407,8 +435,24 @@ function MinistryCard({
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View style={[animatedCardStyle]}>
-            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: ministry.color || "#7C5CFF", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", shadowColor: ministry.color || "#7C5CFF", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 }]}>
+            {/* Pulsing glow background */}
+            <ReAnimated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: -8,
+                  left: -8,
+                  right: -8,
+                  bottom: -8,
+                  borderRadius: 18,
+                  backgroundColor: ministry.color || "#7C5CFF",
+                  zIndex: -1,
+                },
+                glowAnimatedStyle,
+              ]}
+            />
+            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
                 <Text style={ministryStyles.typeText}>{ministry.type}</Text>
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>

@@ -1233,5 +1233,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add countdown timer to time blocks - shows remaining hours/minutes and updates every minute
 - [x] Time blocks disappear when time passes - already implemented with filterExpiredTimeBlocks
 - [x] Fix Bible chapter display in summary - now reloads when home tab comes into focus
-- [x] Add glow effect to ministry cards - uses selected color with shadow effect
-- [x] Remove left edge highlight from ministry cards - replaced with full glow effect
+- [x] Add pulsing glow effect to ministry cards - animates with 1.5s cycle like fasting avatar
+- [x] Add colored border to ministry cards - matches the selected ministry color
+- [x] Remove shadow-only glow - replaced with pulsing animated glow background

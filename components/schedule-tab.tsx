@@ -440,11 +440,11 @@ function MinistryCard({
               style={[
                 {
                   position: "absolute",
-                  top: -8,
-                  left: -8,
-                  right: -8,
-                  bottom: -8,
-                  borderRadius: 18,
+                  top: -2,
+                  left: -2,
+                  right: -2,
+                  bottom: -2,
+                  borderRadius: 14,
                   backgroundColor: ministry.color || "#7C5CFF",
                   zIndex: -1,
                 },

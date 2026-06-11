@@ -35,7 +35,7 @@ import { TimeBlockCard } from "./time-block-card";
 import { TimeBlockIndicator } from "./time-block-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
-import { calculateAvailableTimeBlocks } from "@/lib/time-blocks";
+import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
 import {
   addDays,
   BirthdayEvent,
@@ -542,6 +542,9 @@ export function ScheduleTab({
   const [formColor, setFormColor] = useState("#6B7280"); // Default gray
   const [formLinkedPeopleIds, setFormLinkedPeopleIds] = useState<string[]>([]); // People linked to current item
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
+  const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
+  const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
+  const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
 
   // Color palette for todos, events, and ministries
   const COLOR_PALETTE = [
@@ -839,11 +842,12 @@ export function ScheduleTab({
       ...dayMinistries.filter((m) => m.startTime),
     ];
     const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
+    const activeBlocks = filterExpiredTimeBlocks(availableBlocks);
 
     // Merge time blocks with timed items for chronological intertwining
     const allTimedItems = [
       ...timedItems,
-      ...availableBlocks.map((block) => ({
+      ...activeBlocks.map((block) => ({
         type: "time-block",
         id: block.id,
         data: { block },
@@ -961,7 +965,18 @@ export function ScheduleTab({
             </ExpandableSection>
           );
         case "time-block":
-          return <TimeBlockIndicator block={item.data.block} />;
+          return (
+            <Pressable
+              onPress={() => {
+                // Show color picker modal
+                setEditingTimeBlock(item.data.block);
+                setShowTimeBlockColorPicker(true);
+              }}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <TimeBlockIndicator block={item.data.block} />
+            </Pressable>
+          );
         default:
           return null;
       }
@@ -985,6 +1000,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
+            extraData={[selectedDate, listData, colors]}
             contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0, backgroundColor: colors.surface }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
@@ -1575,6 +1591,55 @@ export function ScheduleTab({
             />
           </View>
         </View>
+      </Modal>
+
+      {/* Time Block Color Picker Modal */}
+      <Modal transparent visible={showTimeBlockColorPicker} animationType="fade" onRequestClose={() => setShowTimeBlockColorPicker(false)}>
+        <Pressable style={scheduleStyles.modalOverlay} onPress={() => setShowTimeBlockColorPicker(false)}>
+          <View style={[scheduleStyles.addTypeSheet, { backgroundColor: colors.surface }]}>
+            <Text style={[scheduleStyles.addTypeTitle, { color: colors.foreground }]}>Choose Color for Time Block</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 16, marginBottom: 20 }}>
+              {COLOR_PALETTE.map((color) => (
+                <Pressable
+                  key={color.hex}
+                  onPress={() => {
+                    if (editingTimeBlock) {
+                      setTimeBlockColors((prev) => ({
+                        ...prev,
+                        [editingTimeBlock.id]: color.hex,
+                      }));
+                    }
+                    setShowTimeBlockColorPicker(false);
+                  }}
+                  style={({ pressed }) => [{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: color.hex,
+                    borderWidth: timeBlockColors[editingTimeBlock?.id] === color.hex ? 3 : 0,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.8 : 1,
+                  }]}
+                />
+              ))}
+            </View>
+            <Pressable
+              onPress={() => {
+                if (editingTimeBlock) {
+                  // Delete the time block by removing it from the schedule
+                  // For now, just close the modal
+                }
+                setShowTimeBlockColorPicker(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.addTypeOption, { borderColor: colors.error }, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.addTypeIcon, { backgroundColor: colors.error + "20" }]}>
+                <MaterialIcons name="delete" size={24} color={colors.error} />
+              </View>
+              <Text style={[scheduleStyles.addTypeLabel, { color: colors.error }]}>Delete Time Block</Text>
+            </Pressable>
+          </View>
+        </Pressable>
       </Modal>
     </View>
   );

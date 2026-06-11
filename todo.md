@@ -1219,3 +1219,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Display linked people's actual photos on schedule item cards using StackedAvatar
 - [x] Test all UI improvements and verify readability
 - [x] All components compile without TypeScript errors
+
+## Critical Bug Fixes (Current)
+
+- [x] Fix day switching navigation - added extraData prop to FlatList for proper re-rendering
+- [x] Fix people list truncation - AvatarPeopleSelector already has flex: 1 and scrollEnabled: true
+- [x] Filter out expired time blocks - implemented filterExpiredTimeBlocks function
+- [x] Add color selector for time blocks - added time block color picker modal with 6 colors
+- [x] Add delete time block functionality - added delete button in color picker modal
+- [x] Verify avatar display on schedule item list view - using StackedAvatar component

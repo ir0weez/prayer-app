@@ -108,7 +108,7 @@ export function AvatarPeopleSelector({
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: 300,
+    flex: 1,
   },
   groupContainer: {
     marginBottom: 20,

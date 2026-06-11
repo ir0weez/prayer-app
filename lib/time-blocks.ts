@@ -9,6 +9,8 @@ export type TimeBlock = {
   endTime: string; // HH:mm
   durationMinutes: number;
   label: string; // e.g., "2h 30m available"
+  color?: string; // Optional user-selected color (hex)
+  isExpired?: boolean; // Whether the time block has passed
 };
 
 /**
@@ -112,6 +114,19 @@ export function calculateAvailableTimeBlocks(
   }
 
   return availableBlocks;
+}
+
+/**
+ * Filter out expired time blocks based on current time
+ */
+export function filterExpiredTimeBlocks(blocks: TimeBlock[]): TimeBlock[] {
+  const now = new Date();
+  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  return blocks.filter((block) => {
+    const blockEndMinutes = timeToMinutes(block.endTime);
+    return blockEndMinutes > currentTimeMinutes;
+  });
 }
 
 /**

@@ -407,8 +407,8 @@ function MinistryCard({
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View style={[animatedCardStyle]}>
-            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: ministry.color || "#7C5CFF", borderLeftWidth: 4 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: ministry.color || "#7C5CFF", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 }]}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", shadowColor: ministry.color || "#7C5CFF", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 }]}>
                 <Text style={ministryStyles.typeText}>{ministry.type}</Text>
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>

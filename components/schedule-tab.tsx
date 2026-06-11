@@ -463,19 +463,21 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              {ministry.startTime && (
-                <Text style={[ministryStyles.time, { color: colors.muted }]}>
-                  {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
-                </Text>
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                {ministry.startTime && (
+                  <Text style={[ministryStyles.time, { color: colors.muted }]}>
+                    {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
+                  </Text>
+                )}
+                {linkedPeople.length > 0 && (
+                  <View style={{ marginLeft: 8 }}>
+                    <StackedAvatar people={linkedPeople} size={20} />
+                  </View>
+                )}
+              </View>
               {ministry.isCompleted && (
                 <View style={ministryStyles.checkBadge}>
                   <MaterialIcons name="check-circle" size={16} color="#22C55E" />
-                </View>
-              )}
-              {linkedPeople.length > 0 && (
-                <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <StackedAvatar people={linkedPeople} size={24} />
                 </View>
               )}
             </View>
@@ -2091,7 +2093,6 @@ const ministryStyles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     position: "relative",
-    maxWidth: "85%",
   },
   typeTag: {
     alignSelf: "flex-start",

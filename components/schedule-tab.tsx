@@ -974,7 +974,7 @@ export function ScheduleTab({
               }}
               style={({ pressed }) => [pressed && { opacity: 0.7 }]}
             >
-              <TimeBlockIndicator block={item.data.block} />
+              <TimeBlockIndicator block={item.data.block} customColor={timeBlockColors[item.data.block.id]} />
             </Pressable>
           );
         default:

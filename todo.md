@@ -1229,3 +1229,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add delete time block functionality - added delete button in color picker modal
 - [x] Verify avatar display on schedule item list view - using StackedAvatar component
 - [x] Remove sticky header from schedule page - entire page now scrolls naturally
+- [x] Fix time block color selection - customColor prop now properly passed to TimeBlockIndicator
+- [x] Add countdown timer to time blocks - shows remaining hours/minutes and updates every minute
+- [x] Time blocks disappear when time passes - already implemented with filterExpiredTimeBlocks

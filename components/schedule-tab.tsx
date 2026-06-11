@@ -2090,11 +2090,9 @@ const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
     padding: 12,
-    marginBottom: 10,
-    marginHorizontal: "auto",
+    marginBottom: 8,
     borderWidth: 1,
     position: "relative",
-    maxWidth: "90%",
   },
   typeTag: {
     alignSelf: "flex-start",

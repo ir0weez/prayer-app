@@ -1228,3 +1228,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add color selector for time blocks - added time block color picker modal with 6 colors
 - [x] Add delete time block functionality - added delete button in color picker modal
 - [x] Verify avatar display on schedule item list view - using StackedAvatar component
+- [x] Remove sticky header from schedule page - entire page now scrolls naturally

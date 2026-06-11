@@ -660,14 +660,16 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, timeBlockColorsData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
+          AsyncStorage.getItem('SCHEDULE_TIME_BLOCK_COLORS_KEY'),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
         if (ministriesData) setMinistries(JSON.parse(ministriesData));
+        if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
       } catch (e) {
         // Silent fail
       }
@@ -685,6 +687,9 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(ministries)).catch(() => undefined);
   }, [ministries]);
+  useEffect(() => {
+    AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
+  }, [timeBlockColors]);
 
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
@@ -2091,6 +2096,7 @@ const ministryStyles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     marginBottom: 8,
+    marginHorizontal: 16,
     borderWidth: 1,
     position: "relative",
   },

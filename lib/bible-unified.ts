@@ -148,17 +148,15 @@ export function getNextUnreadChapter(state: UnifiedBibleState, book: string): Bi
 
 // Get current book (first one marked as 'current', or first 'not-started')
 export function getCurrentBook(state: UnifiedBibleState): string | null {
+  // Only return books marked as 'current'
   const current = Object.entries(state.bookStatuses).find(([_, status]) => status === 'current');
-  if (current) return current[0];
-  
-  const notStarted = Object.entries(state.bookStatuses).find(([_, status]) => status === 'not-started');
-  return notStarted ? notStarted[0] : null;
+  return current ? current[0] : null;
 }
 
 // Get display string for current reading (e.g., "Genesis 5")
 export function getCurrentBibleDisplay(state: UnifiedBibleState): string {
   const book = getCurrentBook(state);
-  if (!book) return 'No book selected';
+  if (!book) return '';
   
   const nextChapter = getNextUnreadChapter(state, book);
   if (nextChapter) {
@@ -167,7 +165,7 @@ export function getCurrentBibleDisplay(state: UnifiedBibleState): string {
   
   // All chapters read, show last chapter
   const lastChapter = state.chapters.filter((c) => c.book === book).pop();
-  return lastChapter ? `${book} ${lastChapter.chapter}` : book;
+  return lastChapter ? `${book} ${lastChapter.chapter}` : '';
 }
 
 // Get progress for a book (e.g., "5 of 50 chapters read")

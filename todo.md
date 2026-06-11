@@ -1236,3 +1236,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add pulsing glow effect to ministry cards - animates with 1.5s cycle like fasting avatar
 - [x] Add colored border to ministry cards - matches the selected ministry color
 - [x] Remove shadow-only glow - replaced with pulsing animated glow background
+- [x] Constrain ministry card width - set maxWidth to 85% to prevent full-width cards
+- [x] Fix Bible chapter display - only shows books marked as "current", not "not-started"
+- [x] Bible chapter disappears when no current book - returns empty string instead of placeholder

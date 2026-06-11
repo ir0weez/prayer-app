@@ -2091,6 +2091,7 @@ const ministryStyles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     position: "relative",
+    maxWidth: "85%",
   },
   typeTag: {
     alignSelf: "flex-start",

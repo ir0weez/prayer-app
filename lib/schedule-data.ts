@@ -64,6 +64,8 @@ export type ScheduleMinistry = {
   completedAt?: string;
   color?: string;
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this ministry
+  bibleBook?: string; // Bible book being read
+  bibleChapter?: string; // Bible chapter being read
 };
 
 export type BirthdayEvent = {

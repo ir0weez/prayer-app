@@ -380,14 +380,15 @@ function MinistryCard({
       -1,
       true
     );
-    glowScale.value = withRepeat(
-      withTiming(1.005, {
-        duration: 1500,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
+    // Don't scale the glow, just use opacity
+    // glowScale.value = withRepeat(
+    //   withTiming(1.005, {
+    //     duration: 1500,
+    //     easing: Easing.inOut(Easing.ease),
+    //   }),
+    //   -1,
+    //   true
+    // );
   }, []);
 
   const panGesture = Gesture.Pan()
@@ -414,7 +415,7 @@ function MinistryCard({
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
-    transform: [{ scale: glowScale.value }],
+    // Don't scale - just use opacity for pulse
   }));
 
   const linkedPeople = useMemo(() => {
@@ -710,9 +711,17 @@ export function ScheduleTab({
       if (data) {
         const state: UnifiedBibleState = JSON.parse(data);
         const display = getCurrentBibleDisplay(state);
+        console.log('Bible data loaded:', { hasData: !!data, display, bookStatuses: state.bookStatuses });
         if (display) setCurrentBibleBook(display);
+        else setCurrentBibleBook('No book marked as current');
+      } else {
+        console.log('No Bible data in storage');
+        setCurrentBibleBook('No book marked as current');
       }
-    }).catch(() => undefined);
+    }).catch((e) => {
+      console.error('Error loading Bible data:', e);
+      setCurrentBibleBook('Error loading Bible data');
+    });
   }, []);
 
   // Profile data from AsyncStorage - use canonical PROFILE_STORAGE_KEY
@@ -745,9 +754,15 @@ export function ScheduleTab({
         if (data) {
           const state: UnifiedBibleState = JSON.parse(data);
           const display = getCurrentBibleDisplay(state);
+          console.log('Bible data reloaded on focus:', { display, bookStatuses: state.bookStatuses });
           if (display) setCurrentBibleBook(display);
+          else setCurrentBibleBook('No book marked as current');
+        } else {
+          setCurrentBibleBook('No book marked as current');
         }
-      }).catch(() => undefined);
+      }).catch((e) => {
+        console.error('Error reloading Bible data:', e);
+      });
     }, [loadProfileData])
   );
 
@@ -824,6 +839,10 @@ export function ScheduleTab({
     });
     if (formLinkedPeopleIds.length > 0) {
       newMinistry.linkedPeopleIds = formLinkedPeopleIds;
+    }
+    if (formBibleBook) {
+      newMinistry.bibleBook = formBibleBook;
+      newMinistry.bibleChapter = formBibleChapter;
     }
     setMinistries((prev) => [...prev, newMinistry]);
     resetForm();
@@ -927,7 +946,7 @@ export function ScheduleTab({
     // Expandable sections (worship, fasting, bible)
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
     items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
-    items.push({ type: "expandable-bible", id: "bible-section", data: currentBibleBook });
+    items.push({ type: "expandable-bible", id: "bible-section", data: currentBibleBook || 'No book marked as current' });
 
     return items;
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, activeFast, currentBibleBook]);
@@ -1019,7 +1038,7 @@ export function ScheduleTab({
           return (
             <ExpandableSection title="Bible Reading" icon="menu-book">
               <Text style={{ color: colors.foreground, fontSize: 14 }}>
-                {item.data ? `Currently reading: ${item.data}` : "No book marked as current."}
+                {item.data || "No book marked as current."}
               </Text>
             </ExpandableSection>
           );
@@ -1528,6 +1547,26 @@ export function ScheduleTab({
                     style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                     returnKeyType="done"
                   />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>BIBLE BOOK & CHAPTER (optional)</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                    <TextInput
+                      value={formBibleBook}
+                      onChangeText={setFormBibleBook}
+                      placeholder="e.g., Genesis"
+                      placeholderTextColor={colors.muted}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                      returnKeyType="done"
+                    />
+                    <TextInput
+                      value={formBibleChapter}
+                      onChangeText={setFormBibleChapter}
+                      placeholder="Ch."
+                      placeholderTextColor={colors.muted}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, width: 60 }]}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                    />
+                  </View>
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
                   <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
                     {COLOR_PALETTE.map((color) => (
@@ -2057,7 +2096,7 @@ const ministryStyles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    marginBottom: 6,
+    marginBottom: 2,
     marginHorizontal: 16,
     borderWidth: 1,
     position: "relative",

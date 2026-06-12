@@ -188,11 +188,15 @@ export function DailySummaryCard({
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
           <MaterialIcons name="people" size={20} color={colors.foreground} /> {peopleToReach}
         </Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}> people to reach, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{eventCount}</Text>
+              <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+          <MaterialIcons name="event" size={20} color={colors.foreground} /> {eventCount}
+        </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> event{eventCount !== 1 ? "s" : ""}</Text>
         <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{ministryCount}</Text>
+        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
+          <MaterialIcons name="church" size={20} color={colors.foreground} /> {ministryCount}
+        </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> ministr{ministryCount !== 1 ? "ies" : "y"}</Text>
         <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{availableHours}</Text>

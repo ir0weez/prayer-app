@@ -76,7 +76,7 @@ import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercirc
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -381,7 +381,7 @@ function MinistryCard({
       true
     );
     glowScale.value = withRepeat(
-      withTiming(1.02, {
+      withTiming(1.005, {
         duration: 1500,
         easing: Easing.inOut(Easing.ease),
       }),
@@ -598,6 +598,7 @@ export function ScheduleTab({
     { name: "Red", hex: "#EF4444" },
     { name: "Orange", hex: "#F97316" },
     { name: "Yellow", hex: "#FBBF24" },
+    { name: "Green", hex: "#10B981" },
     { name: "Blue", hex: "#3B82F6" },
     { name: "Purple", hex: "#A855F7" },
   ];
@@ -705,11 +706,11 @@ export function ScheduleTab({
   // Current Bible book from AsyncStorage
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   useEffect(() => {
-    AsyncStorage.getItem("bibleBookStatus").then((data) => {
+    AsyncStorage.getItem(UNIFIED_BIBLE_KEY).then((data) => {
       if (data) {
-        const statuses = JSON.parse(data);
-        const current = Object.entries(statuses).find(([_, s]) => s === "current");
-        if (current) setCurrentBibleBook(current[0]);
+        const state: UnifiedBibleState = JSON.parse(data);
+        const display = getCurrentBibleDisplay(state);
+        if (display) setCurrentBibleBook(display);
       }
     }).catch(() => undefined);
   }, []);
@@ -740,11 +741,11 @@ export function ScheduleTab({
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
-      AsyncStorage.getItem("bibleBookStatus").then((data) => {
+      AsyncStorage.getItem(UNIFIED_BIBLE_KEY).then((data) => {
         if (data) {
-          const statuses = JSON.parse(data);
-          const current = Object.entries(statuses).find(([_, s]) => s === "current");
-          if (current) setCurrentBibleBook(current[0]);
+          const state: UnifiedBibleState = JSON.parse(data);
+          const display = getCurrentBibleDisplay(state);
+          if (display) setCurrentBibleBook(display);
         }
       }).catch(() => undefined);
     }, [loadProfileData])
@@ -2089,6 +2090,7 @@ const ministryStyles = StyleSheet.create({
   time: {
     fontSize: 12,
     marginTop: 0,
+    marginBottom: 0,
   },
   checkBadge: {
     position: "absolute",

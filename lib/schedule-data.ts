@@ -269,6 +269,7 @@ export const MINISTRY_TYPES = [
   "Missions",
   "Hospitality",
   "Counseling",
+  "Bible Study",
   "Other",
 ] as const;
 

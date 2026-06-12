@@ -18,6 +18,7 @@ interface DailySummaryCardProps {
   ministryCount?: number;
   userName?: string;
   userProfilePhoto?: string;
+  availableHours?: number;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -56,6 +57,7 @@ export function DailySummaryCard({
   ministryCount = 0,
   userName = "Friend",
   userProfilePhoto,
+  availableHours = 0,
 }: DailySummaryCardProps) {
   const colors = useColors();
   
@@ -192,7 +194,10 @@ export function DailySummaryCard({
         <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{ministryCount}</Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> ministr{ministryCount !== 1 ? "ies" : "y"}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, and your fasting is </Text>
+        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{availableHours}</Text>
+        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> hour{availableHours !== 1 ? "s" : ""}</Text>
+        <Text style={{ color: colors.muted, fontWeight: "500" }}> available, and your fasting is </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
         <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
       </Text>

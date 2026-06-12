@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -6,80 +6,67 @@ import { TimeBlock, timeToMinutes } from "@/lib/time-blocks";
 
 interface TimeBlockIndicatorProps {
   block: TimeBlock;
-  customColor?: string; // User-selected color (hex)
 }
 
 /**
  * Compact time block indicator for inline display in schedule
- * Shows available time between scheduled items
+ * Shows available time between scheduled items with fixed time-based colors
  */
-export function TimeBlockIndicator({ block, customColor }: TimeBlockIndicatorProps) {
+export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
   const colors = useColors();
-  const [remainingTime, setRemainingTime] = useState(block.label);
 
-  // Update remaining time every minute
-  useEffect(() => {
-    const updateRemainingTime = () => {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const endMinutes = timeToMinutes(block.endTime);
-      const remaining = Math.max(0, endMinutes - currentMinutes);
-      
-      if (remaining > 0) {
-        const hours = Math.floor(remaining / 60);
-        const mins = remaining % 60;
-        if (hours > 0) {
-          setRemainingTime(`${hours}h ${mins}m`);
-        } else {
-          setRemainingTime(`${mins}m`);
-        }
-      }
-    };
-    
-    updateRemainingTime();
-    const interval = setInterval(updateRemainingTime, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, [block]);
+  // Get color based on start time
+  const getColorForTimeBlock = (startTime: string) => {
+    const startMinutes = timeToMinutes(startTime);
+    const sixAM = 6 * 60; // 360
+    const nineAM = 9 * 60; // 540
+    const onePM = 13 * 60; // 780
+    const sevenPM = 19 * 60; // 1140
+    const tenPM = 22 * 60; // 1320
 
-  // Determine visual style based on block size
-  const isLargeBlock = block.durationMinutes >= 120;
-  const isMediumBlock = block.durationMinutes >= 60;
+    if (startMinutes < nineAM) {
+      // 6am-9am: light green/teal
+      return { bg: "#D1FAE5", border: "#10B981", text: "#047857" };
+    } else if (startMinutes < onePM) {
+      // 9am-1pm: purple
+      return { bg: "#EDE9FE", border: "#A855F7", text: "#6D28D9" };
+    } else if (startMinutes < sevenPM) {
+      // 1pm-7pm: orange
+      return { bg: "#FEF3C7", border: "#F59E0B", text: "#D97706" };
+    } else if (startMinutes < tenPM) {
+      // 7pm-10pm: purple
+      return { bg: "#EDE9FE", border: "#A855F7", text: "#6D28D9" };
+    } else {
+      // 10pm-11:59pm: black/dark gray
+      return { bg: "#F3F4F6", border: "#1F2937", text: "#111827" };
+    }
+  };
 
-  // Use custom color if provided, otherwise use default colors
-  let bgColor = isLargeBlock ? "#D1FAE5" : isMediumBlock ? "#FEF3C7" : "#F3F4F6";
-  let borderColor = isLargeBlock ? "#10B981" : isMediumBlock ? "#F59E0B" : "#6B7280";
-  let textColor = isLargeBlock ? "#047857" : isMediumBlock ? "#D97706" : "#4B5563";
-
-  if (customColor) {
-    borderColor = customColor;
-    // Create a light version of the custom color for background
-    bgColor = customColor + "20"; // Add 20% opacity
-    textColor = customColor;
-  }
+  const colorScheme = getColorForTimeBlock(block.startTime);
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: bgColor,
-          borderLeftColor: borderColor,
+          backgroundColor: colorScheme.bg,
+          borderLeftColor: colorScheme.border,
         },
       ]}
     >
       <View style={styles.timeRange}>
-        <MaterialIcons name="schedule" size={14} color={textColor} />
-        <Text style={[styles.time, { color: textColor }]}>
+        <MaterialIcons name="schedule" size={14} color={colorScheme.text} />
+        <Text style={[styles.time, { color: colorScheme.text }]}>
           {block.startTime}
         </Text>
-        <Text style={[styles.arrow, { color: textColor }]}>→</Text>
-        <Text style={[styles.time, { color: textColor }]}>
+        <Text style={[styles.arrow, { color: colorScheme.text }]}>→</Text>
+        <Text style={[styles.time, { color: colorScheme.text }]}>
           {block.endTime}
         </Text>
       </View>
 
-      <View style={[styles.badge, { backgroundColor: borderColor }]}>
-        <Text style={styles.badgeText}>{remainingTime}</Text>
+      <View style={[styles.badge, { backgroundColor: colorScheme.border }]}>
+        <Text style={styles.badgeText}>{block.label}</Text>
       </View>
     </View>
   );

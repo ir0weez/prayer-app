@@ -893,7 +893,7 @@ export function ScheduleTab({
       ...dayMinistries.filter((m) => m.startTime),
     ];
     const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-    const activeBlocks = filterExpiredTimeBlocks(availableBlocks);
+    const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);
 
     // Merge time blocks with timed items for chronological intertwining
     const allTimedItems = [
@@ -1017,22 +1017,13 @@ export function ScheduleTab({
           );
         case "time-block":
           return (
-            <Pressable
-              onPress={() => {
-                // Show color picker modal
-                setEditingTimeBlock(item.data.block);
-                setShowTimeBlockColorPicker(true);
-              }}
-              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-            >
-              <TimeBlockIndicator block={item.data.block} customColor={timeBlockColors[item.data.block.id]} />
-            </Pressable>
+            <TimeBlockIndicator block={item.data.block} />
           );
         default:
           return null;
       }
     },
-    [colors, selectedDate, people, timeBlockColors]
+    [colors, selectedDate, people]
   );
 
   return (
@@ -1063,27 +1054,36 @@ export function ScheduleTab({
               <>
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
-                  <DailySummaryCard
-                    remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
-                    remainingPrayers={memoizedSummaryData.remainingPrayers}
-                    fastingStatus={memoizedSummaryData.fastingStatus}
-                    budgetAmount={memoizedSummaryData.budgetAmount}
-                    peopleToReach={memoizedSummaryData.peopleToReach}
-                    currentBibleStudy={memoizedSummaryData.currentBibleStudy}
-                    personalTodos={memoizedSummaryData.personalTodos}
-                    onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
-                    onAvatarPress={(todo) => {
-                      setFormTitle(todo.title);
-                      setFormDate(selectedDate);
-                      setFormStartTime(todo.dueTime || "");
-                      setAddType("todo");
-                      setShowAddModal(true);
-                    }}
-                    eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
-                    ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
-                    userName={userName}
-                    userProfilePhoto={userProfilePhoto}
-                  />
+                  {(() => {
+                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
+                    const totalMinutes = availableBlocks.reduce((sum, block) => sum + block.durationMinutes, 0);
+                    const availableHours = Math.floor(totalMinutes / 60);
+                    
+                    return (
+                      <DailySummaryCard
+                        remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
+                        remainingPrayers={memoizedSummaryData.remainingPrayers}
+                        fastingStatus={memoizedSummaryData.fastingStatus}
+                        budgetAmount={memoizedSummaryData.budgetAmount}
+                        peopleToReach={memoizedSummaryData.peopleToReach}
+                        currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+                        personalTodos={memoizedSummaryData.personalTodos}
+                        onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+                        onAvatarPress={(todo) => {
+                          setFormTitle(todo.title);
+                          setFormDate(selectedDate);
+                          setFormStartTime(todo.dueTime || "");
+                          setAddType("todo");
+                          setShowAddModal(true);
+                        }}
+                        eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
+                        ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
+                        userName={userName}
+                        availableHours={availableHours}
+                        userProfilePhoto={userProfilePhoto}
+                      />
+                    );
+                  })()}
                   
                   {/* Progress Bar */}
                   <ScheduleProgressBar
@@ -1643,54 +1643,7 @@ export function ScheduleTab({
         </View>
       </Modal>
 
-      {/* Time Block Color Picker Modal */}
-      <Modal transparent visible={showTimeBlockColorPicker} animationType="fade" onRequestClose={() => setShowTimeBlockColorPicker(false)}>
-        <Pressable style={scheduleStyles.modalOverlay} onPress={() => setShowTimeBlockColorPicker(false)}>
-          <View style={[scheduleStyles.addTypeSheet, { backgroundColor: colors.surface }]}>
-            <Text style={[scheduleStyles.addTypeTitle, { color: colors.foreground }]}>Choose Color for Time Block</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 16, marginBottom: 20 }}>
-              {COLOR_PALETTE.map((color) => (
-                <Pressable
-                  key={color.hex}
-                  onPress={() => {
-                    if (editingTimeBlock) {
-                      setTimeBlockColors((prev) => ({
-                        ...prev,
-                        [editingTimeBlock.id]: color.hex,
-                      }));
-                    }
-                    setShowTimeBlockColorPicker(false);
-                  }}
-                  style={({ pressed }) => [{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 30,
-                    backgroundColor: color.hex,
-                    borderWidth: timeBlockColors[editingTimeBlock?.id] === color.hex ? 3 : 0,
-                    borderColor: colors.primary,
-                    opacity: pressed ? 0.8 : 1,
-                  }]}
-                />
-              ))}
-            </View>
-            <Pressable
-              onPress={() => {
-                if (editingTimeBlock) {
-                  // Delete the time block by removing it from the schedule
-                  // For now, just close the modal
-                }
-                setShowTimeBlockColorPicker(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.addTypeOption, { borderColor: colors.error }, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.addTypeIcon, { backgroundColor: colors.error + "20" }]}>
-                <MaterialIcons name="delete" size={24} color={colors.error} />
-              </View>
-              <Text style={[scheduleStyles.addTypeLabel, { color: colors.error }]}>Delete Time Block</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+
     </View>
   );
 }
@@ -2095,8 +2048,8 @@ const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 4,
+    marginBottom: 6,
     marginHorizontal: 16,
     borderWidth: 1,
     position: "relative",
@@ -2104,9 +2057,9 @@ const ministryStyles = StyleSheet.create({
   typeTag: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2117,12 +2070,14 @@ const ministryStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginTop: 0,
-    marginBottom: 2,
+    marginBottom: 1,
+    lineHeight: 18,
   },
   location: {
     fontSize: 12,
     marginTop: 0,
-    marginBottom: 2,
+    marginBottom: 1,
+    lineHeight: 14,
   },
   time: {
     fontSize: 12,

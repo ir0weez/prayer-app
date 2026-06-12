@@ -118,8 +118,18 @@ export function calculateAvailableTimeBlocks(
 
 /**
  * Filter out expired time blocks based on current time
+ * Only filters if the selectedDate is today
  */
-export function filterExpiredTimeBlocks(blocks: TimeBlock[]): TimeBlock[] {
+export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: string): TimeBlock[] {
+  // Get today's date in ISO format
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+  
+  // Only filter if the selected date is today
+  if (selectedDate !== todayISO) {
+    return blocks;
+  }
+  
   const now = new Date();
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
   

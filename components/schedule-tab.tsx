@@ -1032,7 +1032,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people]
+    [colors, selectedDate, people, timeBlockColors]
   );
 
   return (

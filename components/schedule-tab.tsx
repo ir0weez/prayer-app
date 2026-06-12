@@ -381,7 +381,7 @@ function MinistryCard({
       true
     );
     glowScale.value = withRepeat(
-      withTiming(1.15, {
+      withTiming(1.02, {
         duration: 1500,
         easing: Easing.inOut(Easing.ease),
       }),
@@ -2059,7 +2059,7 @@ const ministryStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 8,
-    marginBottom: 1,
+    marginBottom: 6,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2070,13 +2070,13 @@ const ministryStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginTop: 0,
-    marginBottom: 1,
+    marginBottom: 0,
     lineHeight: 18,
   },
   location: {
     fontSize: 12,
     marginTop: 0,
-    marginBottom: 1,
+    marginBottom: 0,
     lineHeight: 14,
   },
   time: {

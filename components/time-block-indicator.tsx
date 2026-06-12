@@ -25,8 +25,8 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
     const tenPM = 22 * 60; // 1320
 
     if (startMinutes < nineAM) {
-      // 6am-9am: light green/teal
-      return { bg: "#D1FAE5", border: "#10B981", text: "#047857" };
+      // 6am-9am: black/dark gray
+      return { bg: "#F3F4F6", border: "#1F2937", text: "#111827" };
     } else if (startMinutes < onePM) {
       // 9am-1pm: purple
       return { bg: "#EDE9FE", border: "#A855F7", text: "#6D28D9" };

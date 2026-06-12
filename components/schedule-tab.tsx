@@ -736,10 +736,17 @@ export function ScheduleTab({
     loadProfileData();
   }, [loadProfileData]);
   
-  // Reload profile when tab comes into focus
+  // Reload profile and Bible book when tab comes into focus
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
+      AsyncStorage.getItem("bibleBookStatus").then((data) => {
+        if (data) {
+          const statuses = JSON.parse(data);
+          const current = Object.entries(statuses).find(([_, s]) => s === "current");
+          if (current) setCurrentBibleBook(current[0]);
+        }
+      }).catch(() => undefined);
     }, [loadProfileData])
   );
 

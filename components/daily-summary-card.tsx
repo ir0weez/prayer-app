@@ -188,7 +188,8 @@ export function DailySummaryCard({
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
           <MaterialIcons name="people" size={20} color={colors.foreground} /> {peopleToReach}
         </Text>
-              <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> people to reach</Text>
+        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
         <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
           <MaterialIcons name="event" size={20} color={colors.foreground} /> {eventCount}
         </Text>

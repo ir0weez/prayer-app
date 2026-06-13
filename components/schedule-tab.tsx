@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -76,8 +77,8 @@ import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercirc
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY } from "@/lib/bible-unified";
-import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter } from "@/lib/bible-unified";
+import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
@@ -711,14 +712,16 @@ export function ScheduleTab({
   // Fasting info for expandable card
   const activeFast = useMemo(() => getActiveFast(fasts, selectedDate), [fasts, selectedDate]);
 
-  // Current Bible book from AsyncStorage
+  // Current Bible book and full state from AsyncStorage
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
+  const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
   useEffect(() => {
     AsyncStorage.getItem(UNIFIED_BIBLE_KEY).then((data) => {
       if (data) {
         const state: UnifiedBibleState = JSON.parse(data);
         const display = getCurrentBibleDisplay(state);
         console.log('Bible data loaded:', { hasData: !!data, display, bookStatuses: state.bookStatuses });
+        setBibleState(state);
         if (display) setCurrentBibleBook(display);
         else setCurrentBibleBook('No book marked as current');
       } else {
@@ -762,6 +765,7 @@ export function ScheduleTab({
           const state: UnifiedBibleState = JSON.parse(data);
           const display = getCurrentBibleDisplay(state);
           console.log('Bible data reloaded on focus:', { display, bookStatuses: state.bookStatuses });
+          setBibleState(state);
           if (display) setCurrentBibleBook(display);
           else setCurrentBibleBook('No book marked as current');
         } else {
@@ -953,10 +957,10 @@ export function ScheduleTab({
     // Expandable sections (worship, fasting, bible)
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
     items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
-    items.push({ type: "expandable-bible", id: "bible-section", data: currentBibleBook || 'No book marked as current' });
+    items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleBook || 'No book marked as current', state: bibleState } });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, activeFast, currentBibleBook]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, activeFast, currentBibleBook, bibleState]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any } }) => {
@@ -1044,9 +1048,47 @@ export function ScheduleTab({
         case "expandable-bible":
           return (
             <ExpandableSection title="Bible Reading" icon="menu-book">
-              <Text style={{ color: colors.foreground, fontSize: 14 }}>
-                {item.data || "No book marked as current."}
-              </Text>
+              {item.data?.state ? (
+                <View style={{ gap: 12 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>
+                    {item.data.display}
+                  </Text>
+                  <Pressable
+                    onPress={async () => {
+                      if (item.data?.state) {
+                        const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                        if (book) {
+                          const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
+                          if (nextChapter) {
+                            try {
+                              const updated = await markChapterAsRead(book, nextChapter.chapter);
+                              setBibleState(updated);
+                              // Sync to old systems
+                              await syncUnifiedBibleToAllOldSystems(updated);
+                              // Reload display
+                              const newDisplay = getCurrentBibleDisplay(updated);
+                              setCurrentBibleBook(newDisplay || 'No book marked as current');
+                              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch (error) {
+                              console.error('Error marking chapter as read:', error);
+                            }
+                          }
+                        }
+                      }
+                    }}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
+                      <MaterialIcons name="check" size={18} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={{ color: colors.muted, fontSize: 14 }}>
+                  {item.data?.display || "No book marked as current."}
+                </Text>
+              )}
             </ExpandableSection>
           );
         case "time-block":

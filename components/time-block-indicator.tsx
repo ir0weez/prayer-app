@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -11,9 +11,54 @@ interface TimeBlockIndicatorProps {
 /**
  * Compact time block indicator for inline display in schedule
  * Shows available time between scheduled items with fixed time-based colors
+ * Dynamically updates to show countdown as time passes
  */
 export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
   const colors = useColors();
+  const [displayBlock, setDisplayBlock] = useState<TimeBlock | null>(block);
+  const [remainingHours, setRemainingHours] = useState(0);
+
+  // Update block display and remaining hours every minute
+  useEffect(() => {
+    const updateBlock = () => {
+      const now = new Date();
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+
+      const startMinutes = timeToMinutes(block.startTime);
+      const endMinutes = timeToMinutes(block.endTime);
+
+      // If current time is past the end time, don't show the block
+      if (currentTimeInMinutes >= endMinutes) {
+        setDisplayBlock(null);
+        return;
+      }
+
+      // If current time is within the block, update start time to current time
+      if (currentTimeInMinutes >= startMinutes) {
+        const newStartHours = currentHours;
+        const newStartTime = `${String(newStartHours).padStart(2, "0")}:${String(currentMinutes).padStart(2, "0")}`;
+        setDisplayBlock({ ...block, startTime: newStartTime });
+
+        // Calculate remaining hours
+        const remainingMinutes = endMinutes - currentTimeInMinutes;
+        const hours = Math.floor(remainingMinutes / 60);
+        const mins = remainingMinutes % 60;
+        setRemainingHours(hours + (mins > 0 ? 1 : 0)); // Round up
+      } else {
+        setDisplayBlock(block);
+        const totalMinutes = endMinutes - startMinutes;
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        setRemainingHours(hours + (mins > 0 ? 1 : 0));
+      }
+    };
+
+    updateBlock();
+    const interval = setInterval(updateBlock, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [block]);
 
   // Get color based on start time
   const getColorForTimeBlock = (startTime: string) => {
@@ -42,7 +87,12 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
     }
   };
 
-  const colorScheme = getColorForTimeBlock(block.startTime);
+  // Don't render if block has passed
+  if (!displayBlock) {
+    return null;
+  }
+
+  const colorScheme = getColorForTimeBlock(displayBlock!.startTime);
 
   return (
     <View
@@ -57,19 +107,25 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
       <View style={styles.timeRange}>
         <MaterialIcons name="schedule" size={14} color={colorScheme.text} />
         <Text style={[styles.time, { color: colorScheme.text }]}>
-          {block.startTime}
+          {displayBlock!.startTime}
         </Text>
         <Text style={[styles.arrow, { color: colorScheme.text }]}>→</Text>
         <Text style={[styles.time, { color: colorScheme.text }]}>
-          {block.endTime}
+          {displayBlock!.endTime}
         </Text>
       </View>
 
       <View style={[styles.badge, { backgroundColor: colorScheme.border }]}>
-        <Text style={styles.badgeText}>{block.label}</Text>
+        <Text style={styles.badgeText}>{remainingHours}h</Text>
       </View>
     </View>
   );
+}
+
+// Helper function to format hours remaining
+function formatHoursRemaining(hours: number): string {
+  if (hours === 0) return "<1h";
+  return `${hours}h`;
 }
 
 const styles = StyleSheet.create({

@@ -1090,8 +1090,28 @@ export function ScheduleTab({
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
                     const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
-                    const totalMinutes = availableBlocks.reduce((sum, block) => sum + block.durationMinutes, 0);
-                    const availableHours = Math.floor(totalMinutes / 60);
+                    
+                    // Calculate remaining hours for today only
+                    let totalMinutes = 0;
+                    const now = new Date();
+                    const selectedDateObj = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
+                    const isToday = selectedDateObj.toDateString() === now.toDateString();
+                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
+                    
+                    availableBlocks.forEach(block => {
+                      const endMinutes = (parseInt(block.endTime.split(':')[0]) * 60) + parseInt(block.endTime.split(':')[1]);
+                      if (isToday && endMinutes > currentTimeInMinutes) {
+                        // Only count time remaining from now
+                        const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
+                        const blockStart = Math.max(startMinutes, currentTimeInMinutes);
+                        totalMinutes += Math.max(0, endMinutes - blockStart);
+                      } else if (!isToday) {
+                        // For future dates, count full duration
+                        totalMinutes += block.durationMinutes;
+                      }
+                    });
+                    
+                    const availableHours = Math.ceil(totalMinutes / 60);
                     
                     return (
                       <DailySummaryCard
@@ -1113,7 +1133,7 @@ export function ScheduleTab({
                         eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                         userName={userName}
-                        availableHours={availableHours}
+                        availableHours={Math.max(0, availableHours)}
                         userProfilePhoto={userProfilePhoto}
                       />
                     );
@@ -1236,18 +1256,7 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
             </Pressable>
-            <Pressable
-              onPress={() => {
-                setAddType("bible-study");
-                setShowAddModal(false);
-              }}
-              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-            >
-              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#FF6B6B" }]}>
-                <MaterialIcons name="menu-book" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Bible Study</Text>
-            </Pressable>
+
           </View>
         </>
       )}

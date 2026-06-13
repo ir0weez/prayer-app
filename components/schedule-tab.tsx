@@ -464,15 +464,22 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2, gap: 8 }}>
-                {ministry.startTime && (
-                  <Text style={[ministryStyles.time, { color: colors.muted, flex: 1 }]}>
-                    {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
-                  </Text>
-                )}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  {ministry.startTime && (
+                    <Text style={[ministryStyles.time, { color: colors.muted }]}>
+                      {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
+                    </Text>
+                  )}
+                  {ministry.bibleBook && (
+                    <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
+                      📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                    </Text>
+                  )}
+                </View>
                 {linkedPeople.length > 0 && (
                   <View style={{ paddingTop: 0 }}>
-                    <StackedAvatar people={linkedPeople} size={16} />
+                    <StackedAvatar people={linkedPeople} size={28} />
                   </View>
                 )}
               </View>
@@ -2170,6 +2177,11 @@ const ministryStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: 0,
     marginBottom: 0,
+  },
+  bibleRef: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
   },
   checkBadge: {
     position: "absolute",

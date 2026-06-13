@@ -77,8 +77,10 @@ import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercirc
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
+
+const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
@@ -716,22 +718,49 @@ export function ScheduleTab({
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
   useEffect(() => {
-    AsyncStorage.getItem(UNIFIED_BIBLE_KEY).then((data) => {
-      if (data) {
-        const state: UnifiedBibleState = JSON.parse(data);
-        const display = getCurrentBibleDisplay(state);
-        console.log('Bible data loaded:', { hasData: !!data, display, bookStatuses: state.bookStatuses });
-        setBibleState(state);
-        if (display) setCurrentBibleBook(display);
-        else setCurrentBibleBook('No book marked as current');
-      } else {
-        console.log('No Bible data in storage');
-        setCurrentBibleBook('No book marked as current');
+    const loadBibleData = async () => {
+      try {
+        // Try to load unified Bible state first
+        let state: UnifiedBibleState | null = null;
+        const unifiedData = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
+        
+        if (unifiedData) {
+          state = JSON.parse(unifiedData);
+          if (state) console.log('Unified Bible data loaded:', { display: getCurrentBibleDisplay(state), bookStatuses: state.bookStatuses });
+        } else {
+          // Fallback: check for legacy book status
+          const legacyBookStatus = await AsyncStorage.getItem('bibleBookStatus');
+          if (legacyBookStatus) {
+            const legacyStatuses = JSON.parse(legacyBookStatus);
+            console.log('Found legacy book status, migrating:', legacyStatuses);
+            
+            // Create a new unified state with the legacy book statuses
+            state = {
+              chapters: [],
+              bookStatuses: legacyStatuses,
+            };
+            
+            // Save migrated state to unified storage
+            await AsyncStorage.setItem(UNIFIED_BIBLE_KEY, JSON.stringify(state));
+          }
+        }
+        
+        if (state && state.bookStatuses) {
+          setBibleState(state);
+          const display = getCurrentBibleDisplay(state);
+          if (display) setCurrentBibleBook(display);
+          else setCurrentBibleBook('No book marked as current');
+        } else {
+          console.log('No Bible data found in either storage system');
+          setCurrentBibleBook('No book marked as current');
+        }
+      } catch (e) {
+        console.error('Error loading Bible data:', e);
+        setCurrentBibleBook('Error loading Bible data');
       }
-    }).catch((e) => {
-      console.error('Error loading Bible data:', e);
-      setCurrentBibleBook('Error loading Bible data');
-    });
+    };
+    
+    loadBibleData();
   }, []);
 
   // Profile data from AsyncStorage - use canonical PROFILE_STORAGE_KEY
@@ -760,20 +789,48 @@ export function ScheduleTab({
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
-      AsyncStorage.getItem(UNIFIED_BIBLE_KEY).then((data) => {
-        if (data) {
-          const state: UnifiedBibleState = JSON.parse(data);
-          const display = getCurrentBibleDisplay(state);
-          console.log('Bible data reloaded on focus:', { display, bookStatuses: state.bookStatuses });
-          setBibleState(state);
-          if (display) setCurrentBibleBook(display);
-          else setCurrentBibleBook('No book marked as current');
-        } else {
-          setCurrentBibleBook('No book marked as current');
+      
+      const reloadBibleData = async () => {
+        try {
+          // Try to load unified Bible state first
+          let state: UnifiedBibleState | null = null;
+          const unifiedData = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
+          
+          if (unifiedData) {
+            state = JSON.parse(unifiedData);
+            if (state) console.log('Unified Bible data reloaded on focus:', { display: getCurrentBibleDisplay(state), bookStatuses: state.bookStatuses });
+          } else {
+            // Fallback: check for legacy book status
+            const legacyBookStatus = await AsyncStorage.getItem('bibleBookStatus');
+            if (legacyBookStatus) {
+              const legacyStatuses = JSON.parse(legacyBookStatus);
+              console.log('Found legacy book status on focus, migrating:', legacyStatuses);
+              
+              // Create a new unified state with the legacy book statuses
+              state = {
+                chapters: [],
+                bookStatuses: legacyStatuses,
+              };
+              
+              // Save migrated state to unified storage
+              await AsyncStorage.setItem(UNIFIED_BIBLE_KEY, JSON.stringify(state));
+            }
+          }
+          
+          if (state && state.bookStatuses) {
+            setBibleState(state);
+            const display = getCurrentBibleDisplay(state);
+            if (display) setCurrentBibleBook(display);
+            else setCurrentBibleBook('No book marked as current');
+          } else {
+            setCurrentBibleBook('No book marked as current');
+          }
+        } catch (e) {
+          console.error('Error reloading Bible data:', e);
         }
-      }).catch((e) => {
-        console.error('Error reloading Bible data:', e);
-      });
+      };
+      
+      reloadBibleData();
     }, [loadProfileData])
   );
 

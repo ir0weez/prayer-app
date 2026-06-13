@@ -456,8 +456,13 @@ function MinistryCard({
               ]}
             />
             <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-                <Text style={ministryStyles.typeText}>{ministry.type}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+                  <Text style={ministryStyles.typeText}>{ministry.type}</Text>
+                </View>
+                {linkedPeople.length > 0 && (
+                  <StackedAvatar people={linkedPeople} size={20} />
+                )}
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
                 {ministry.title}
@@ -467,8 +472,8 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2, gap: 8 }}>
-                <View style={{ flex: 1 }}>
+              {(ministry.startTime || ministry.bibleBook) && (
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 2 }}>
                   {ministry.startTime && (
                     <Text style={[ministryStyles.time, { color: colors.muted }]}>
                       {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
@@ -480,12 +485,7 @@ function MinistryCard({
                     </Text>
                   )}
                 </View>
-                {linkedPeople.length > 0 && (
-                  <View>
-                    <StackedAvatar people={linkedPeople} size={24} />
-                  </View>
-                )}
-              </View>
+              )}
               {ministry.isCompleted && (
                 <View style={ministryStyles.checkBadge}>
                   <MaterialIcons name="check-circle" size={16} color="#22C55E" />
@@ -2269,8 +2269,8 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     marginBottom: 2,
     marginHorizontal: 16,
     borderWidth: 1,
@@ -2278,38 +2278,40 @@ const ministryStyles = StyleSheet.create({
   },
   typeTag: {
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginBottom: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 0,
   },
   typeText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
   title: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     marginTop: 2,
-    marginBottom: 2,
-    lineHeight: 18,
+    marginBottom: 0,
+    lineHeight: 16,
   },
   location: {
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 2,
-    lineHeight: 14,
-  },
-  time: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 0,
     marginBottom: 0,
+    lineHeight: 13,
+  },
+  time: {
+    fontSize: 11,
+    marginTop: 0,
+    marginBottom: 0,
+    lineHeight: 13,
   },
   bibleRef: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
-    marginTop: 2,
+    marginTop: 0,
+    lineHeight: 13,
   },
   checkBadge: {
     position: "absolute",

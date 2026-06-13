@@ -456,7 +456,7 @@ function MinistryCard({
               ]}
             />
             <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 8 }]}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
                 <Text style={ministryStyles.typeText}>{ministry.type}</Text>
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
@@ -467,22 +467,22 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
-                <View style={{ flex: 1, justifyContent: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 2, gap: 8 }}>
+                <View style={{ flex: 1 }}>
                   {ministry.startTime && (
                     <Text style={[ministryStyles.time, { color: colors.muted }]}>
                       {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
                     </Text>
                   )}
                   {ministry.bibleBook && (
-                    <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
+                    <Text style={[ministryStyles.bibleRef, { color: colors.primary }]}>
                       📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
                     </Text>
                   )}
                 </View>
                 {linkedPeople.length > 0 && (
-                  <View style={{ paddingTop: 24 }}>
-                    <StackedAvatar people={linkedPeople} size={28} />
+                  <View>
+                    <StackedAvatar people={linkedPeople} size={24} />
                   </View>
                 )}
               </View>
@@ -2281,7 +2281,7 @@ const ministryStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 8,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2291,14 +2291,14 @@ const ministryStyles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "600",
-    marginTop: 0,
-    marginBottom: 0,
+    marginTop: 2,
+    marginBottom: 2,
     lineHeight: 18,
   },
   location: {
     fontSize: 12,
-    marginTop: 0,
-    marginBottom: 0,
+    marginTop: 2,
+    marginBottom: 2,
     lineHeight: 14,
   },
   time: {

@@ -456,7 +456,7 @@ function MinistryCard({
               ]}
             />
             <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 8 }]}>
                 <Text style={ministryStyles.typeText}>{ministry.type}</Text>
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
@@ -481,7 +481,7 @@ function MinistryCard({
                   )}
                 </View>
                 {linkedPeople.length > 0 && (
-                  <View style={{ paddingTop: 12 }}>
+                  <View style={{ paddingTop: 24 }}>
                     <StackedAvatar people={linkedPeople} size={28} />
                   </View>
                 )}
@@ -755,8 +755,10 @@ export function ScheduleTab({
         }
         
         if (state && state.bookStatuses) {
+          console.log('Bible state loaded successfully:', { bookStatuses: state.bookStatuses, chaptersCount: state.chapters.length });
           setBibleState(state);
           const display = getCurrentBibleDisplay(state);
+          console.log('getCurrentBibleDisplay returned:', display);
           if (display) setCurrentBibleBook(display);
           else setCurrentBibleBook('No book marked as current');
         } else {

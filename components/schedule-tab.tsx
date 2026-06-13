@@ -467,8 +467,8 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, gap: 8 }}>
-                <View style={{ flex: 1, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+                <View style={{ flex: 1, justifyContent: 'center' }}>
                   {ministry.startTime && (
                     <Text style={[ministryStyles.time, { color: colors.muted }]}>
                       {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}

@@ -439,15 +439,15 @@ function MinistryCard({
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View style={[animatedCardStyle]}>
-            {/* Pulsing glow background */}
+            {/* Pulsing glow background - starts from card edge */}
             <ReAnimated.View
               style={[
                 {
                   position: "absolute",
-                  top: -2,
-                  left: -2,
-                  right: -2,
-                  bottom: -2,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   borderRadius: 16,
                   backgroundColor: ministry.color || "#7C5CFF",
                   zIndex: -1,
@@ -467,8 +467,8 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
-                <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, gap: 8 }}>
+                <View style={{ flex: 1, alignItems: 'center' }}>
                   {ministry.startTime && (
                     <Text style={[ministryStyles.time, { color: colors.muted }]}>
                       {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}

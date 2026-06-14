@@ -598,6 +598,8 @@ export function ScheduleTab({
   const [formBibleChapter, setFormBibleChapter] = useState("1");
   const [formColor, setFormColor] = useState("#6B7280"); // Default gray
   const [formLinkedPeopleIds, setFormLinkedPeopleIds] = useState<string[]>([]); // People linked to current item
+  const [formLinkedEventId, setFormLinkedEventId] = useState<string | null>(null); // Event linked to todo
+  const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
@@ -846,6 +848,8 @@ export function ScheduleTab({
     setFormDueDate("");
     setFormColor("#6366F1"); // Reset to default indigo
     setFormLinkedPeopleIds([]);
+    setFormLinkedEventId(null);
+    setFormLinkedMinistryId(null);
   };
 
   const handleSaveEvent = () => {
@@ -876,6 +880,12 @@ export function ScheduleTab({
     );
     if (formLinkedPeopleIds.length > 0) {
       newTodo.linkedPeopleIds = formLinkedPeopleIds;
+    }
+    if (formLinkedEventId) {
+      newTodo.linkedEventId = formLinkedEventId;
+    }
+    if (formLinkedMinistryId) {
+      newTodo.linkedMinistryId = formLinkedMinistryId;
     }
     setTodos((prev) => {
       const updated = [...prev, newTodo];
@@ -1567,6 +1577,75 @@ export function ScheduleTab({
                     </Text>
                   </Pressable>
                 ))}
+              </View>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK TO EVENT OR MINISTRY (optional)</Text>
+              <View style={{ gap: 8, marginBottom: 16 }}>
+                {events.length > 0 && (
+                  <View>
+                    <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>EVENTS</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {events.map((event) => (
+                        <Pressable
+                          key={event.id}
+                          onPress={() => {
+                            setFormLinkedEventId(formLinkedEventId === event.id ? null : event.id);
+                            setFormLinkedMinistryId(null);
+                          }}
+                          style={({ pressed }) => [{
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 16,
+                            backgroundColor: formLinkedEventId === event.id ? colors.primary : colors.background,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            opacity: pressed ? 0.8 : 1,
+                          }]}
+                        >
+                          <Text style={[{
+                            color: formLinkedEventId === event.id ? '#fff' : colors.foreground,
+                            fontSize: 12,
+                            fontWeight: '500',
+                          }]}>
+                            {event.title}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {ministries.length > 0 && (
+                  <View>
+                    <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>MINISTRIES</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {ministries.map((ministry) => (
+                        <Pressable
+                          key={ministry.id}
+                          onPress={() => {
+                            setFormLinkedMinistryId(formLinkedMinistryId === ministry.id ? null : ministry.id);
+                            setFormLinkedEventId(null);
+                          }}
+                          style={({ pressed }) => [{
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 16,
+                            backgroundColor: formLinkedMinistryId === ministry.id ? colors.primary : colors.background,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            opacity: pressed ? 0.8 : 1,
+                          }]}
+                        >
+                          <Text style={[{
+                            color: formLinkedMinistryId === ministry.id ? '#fff' : colors.foreground,
+                            fontSize: 12,
+                            fontWeight: '500',
+                          }]}>
+                            {ministry.title}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           </View>

@@ -36,6 +36,8 @@ export type ScheduleTodo = {
   color?: string;
   order: number;
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this todo
+  linkedEventId?: string; // ID of event this todo is linked to
+  linkedMinistryId?: string; // ID of ministry this todo is linked to
 };
 
 export type BibleStudySession = {

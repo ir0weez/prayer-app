@@ -1,4 +1,4 @@
-import { View, Text, Animated, Pressable, ScrollView, Image } from "react-native";
+import { Animated, Image, View, Text } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -19,6 +19,7 @@ interface DailySummaryCardProps {
   userName?: string;
   userProfilePhoto?: string;
   availableHours?: number;
+  prayerStreak?: number;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -58,6 +59,7 @@ export function DailySummaryCard({
   userName = "Friend",
   userProfilePhoto,
   availableHours = 0,
+  prayerStreak = 0,
 }: DailySummaryCardProps) {
   const colors = useColors();
   
@@ -72,6 +74,20 @@ export function DailySummaryCard({
         return 'Skipped';
       default:
         return 'Not selected';
+    }
+  };
+  
+  // Get badge color based on fasting status
+  const getBadgeColor = () => {
+    switch (fastingStatus) {
+      case 'complete':
+        return '#22C55E'; // Green
+      case 'missed':
+        return '#F59E0B'; // Yellow/Orange
+      case 'skipped':
+        return '#EF4444'; // Red
+      default:
+        return colors.primary; // Default app color
     }
   };
   
@@ -127,217 +143,126 @@ export function DailySummaryCard({
         opacity: opacityAnim,
       }}
     >
-      {/* Summary paragraph with greeting and profile integrated */}
-      <Text
-        style={{
-          fontSize: 18,
-          lineHeight: 28,
-          color: colors.foreground,
-          fontWeight: "500",
-          marginBottom: 16,
-        }}
-      >
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>{getTimeBasedGreeting()}, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{userName}</Text>
-        {userProfilePhoto && (
-          <Image
-            source={{ uri: userProfilePhoto }}
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: colors.primary,
-              marginLeft: 8,
-              marginRight: 2,
-            }}
-          />
-        )}
-        {!userProfilePhoto && (
+      {/* Summary paragraph with greeting and profile badge */}
+      <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={{ fontSize: 18, color: colors.muted, fontWeight: "500" }}>
+            {getTimeBasedGreeting()},{" "}
+          </Text>
           <View
             style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: colors.primary,
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: 8,
-              marginRight: 2,
+              backgroundColor: getBadgeColor(),
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              position: 'relative',
             }}
           >
-            <MaterialIcons name="person" size={12} color="#FFFFFF" />
-          </View>
-        )}
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>. You have </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>✓ {remainingTodos}</Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, you are currently reading </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="school" size={20} color={colors.foreground} /> {currentBibleStudy}
-        </Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, have </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="favorite" size={20} color={colors.foreground} /> {remainingPrayers}
-        </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="attach-money" size={20} color={colors.foreground} /> {budgetAmount.toFixed(2)}
-        </Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}> to budget, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="people" size={20} color={colors.foreground} /> {peopleToReach}
-        </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> people to reach</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="event" size={20} color={colors.foreground} /> {eventCount}
-        </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> event{eventCount !== 1 ? "s" : ""}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>
-          <MaterialIcons name="church" size={20} color={colors.foreground} /> {ministryCount}
-        </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> ministr{ministryCount !== 1 ? "ies" : "y"}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{availableHours}</Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}> hour{availableHours !== 1 ? "s" : ""}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}> available, and your fasting is </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, fontSize: 20 }}>{getFastingStatusDisplay()}</Text>
-        <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
-      </Text>
-
-      {/* Personal todos as horizontal scrollable avatars with thought bubbles */}
-      {personalTodos && personalTodos.length > 0 && (
-        <View style={{ marginTop: 16 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 24 }}
-            style={{ marginHorizontal: -24, paddingHorizontal: 24 }}
-          >
-            {personalTodos.map((todo, idx) => (
+            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 16 }}>
+              {userName}
+            </Text>
+            {prayerStreak > 0 && (
               <View
-                key={idx}
                 style={{
-                  width: 86,
-                  height: 110,
-                  marginRight: 7,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  position: "relative",
+                  backgroundColor: '#FF6B6B',
+                  borderRadius: 12,
+                  width: 24,
+                  height: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'absolute',
+                  right: -8,
+                  top: -8,
+                  borderWidth: 2,
+                  borderColor: colors.background,
                 }}
               >
-                {/* Thought bubble label */}
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: -8,
-                    zIndex: 4,
-                    minHeight: 26,
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 13,
-                    borderWidth: 2,
-                    borderColor: todo.color || colors.primary,
-                    backgroundColor: "#FFFFFF",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      color: todo.color || colors.primary,
-                      fontSize: 11,
-                      fontWeight: "800",
-                      lineHeight: 13,
-                    }}
-                  >
-                    {todo.title}
-                  </Text>
-                </View>
-
-                {/* Avatar circle */}
-                <Pressable
-                  onPress={() => onAvatarPress ? onAvatarPress(todo) : (onTodoComplete && onTodoComplete(todo.id))}
-                  style={({ pressed }) => [
-                    {
-                      alignItems: "center",
-                      justifyContent: "center",
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <View
-                    style={{
-                      width: 76,
-                      height: 76,
-                      borderRadius: 38,
-                      borderWidth: 3,
-                      borderColor: todo.isDone ? "#31C48D" : (todo.color || colors.primary),
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: todo.color || colors.primary,
-                    }}
-                  >
-                    <MaterialIcons
-                      name={iconName(getIconForTodo(todo.title))}
-                      size={32}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                </Pressable>
-
-                {/* Checkmark overlay when done */}
-                {todo.isDone && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      right: 0,
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      backgroundColor: "#31C48D",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: colors.background,
-                      zIndex: 10,
-                    }}
-                  >
-                    <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>✓</Text>
-                  </View>
-                )}
+                <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 12 }}>
+                  {prayerStreak}
+                </Text>
               </View>
-            ))}
-          </ScrollView>
+            )}
+          </View>
+          {userProfilePhoto && (
+            <Image
+              source={{ uri: userProfilePhoto }}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: colors.primary,
+                marginLeft: 8,
+              }}
+            />
+          )}
+          {!userProfilePhoto && (
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: colors.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                marginLeft: 8,
+              }}
+            >
+              <MaterialIcons name="person" size={12} color="#FFFFFF" />
+            </View>
+          )}
         </View>
-      )}
-
-      {remainingTodos === 0 && remainingPrayers === 0 && (
-        <View
+        
+        <Text
           style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
+            fontSize: 16,
+            lineHeight: 24,
+            color: colors.foreground,
+            fontWeight: "500",
           }}
         >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: colors.success,
-              textAlign: "center",
-            }}
-          >
-            ✨ All done for today!
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>You have </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>✓ {remainingTodos}</Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> todo{remainingTodos !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, you are currently reading </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            📖 {currentBibleStudy}
           </Text>
-        </View>
-      )}
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, have </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            ❤️ {remainingPrayers}
+          </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> prayer{remainingPrayers !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            💵 ${budgetAmount.toFixed(2)}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> to budget, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            👥 {peopleToReach}
+          </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> people to reach</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            📅 {eventCount}
+          </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> event{eventCount !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            🏛️ {ministryCount}
+          </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> ministr{ministryCount !== 1 ? "ies" : "y"}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}>, </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            ⏰ {availableHours}
+          </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}> hour{availableHours !== 1 ? "s" : ""}</Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> available, and your fasting is </Text>
+          <Text style={{ fontWeight: "700", color: colors.foreground }}>
+            {getFastingStatusDisplay()}
+          </Text>
+          <Text style={{ color: colors.muted, fontWeight: "500" }}> today.</Text>
+        </Text>
+      </View>
     </Animated.View>
   );
 }

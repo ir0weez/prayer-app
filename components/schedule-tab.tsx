@@ -73,7 +73,7 @@ import {
   toggleMinistryCompleted,
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo, calculatePrayerStreak } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
@@ -1208,23 +1208,34 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
-                    
-                    // Calculate remaining hours for today only
-                    let totalMinutes = 0;
                     const now = new Date();
                     const selectedDateObj = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
                     const isToday = selectedDateObj.toDateString() === now.toDateString();
-                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
+                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
                     
+                    // Get all scheduled items for the day
+                    const allItems = [
+                      ...getTodosForDate(todos, selectedDate).filter(t => t.startTime && !t.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime && !m.isCompleted)
+                    ];
+                    
+                    // Calculate available time blocks
+                    const availableBlocks = calculateAvailableTimeBlocks(allItems);
+                    
+                    // Calculate remaining hours
+                    let totalMinutes = 0;
                     availableBlocks.forEach(block => {
+                      const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
                       const endMinutes = (parseInt(block.endTime.split(':')[0]) * 60) + parseInt(block.endTime.split(':')[1]);
-                      if (isToday && endMinutes > currentTimeInMinutes) {
-                        // Only count time remaining from now
-                        const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
-                        const blockStart = Math.max(startMinutes, currentTimeInMinutes);
-                        totalMinutes += Math.max(0, endMinutes - blockStart);
-                      } else if (!isToday) {
+                      
+                      if (isToday) {
+                        // For today, only count time from now onwards
+                        if (endMinutes > currentTimeInMinutes) {
+                          const blockStart = Math.max(startMinutes, currentTimeInMinutes);
+                          totalMinutes += Math.max(0, endMinutes - blockStart);
+                        }
+                      } else {
                         // For future dates, count full duration
                         totalMinutes += block.durationMinutes;
                       }
@@ -1254,6 +1265,7 @@ export function ScheduleTab({
                         userName={userName}
                         availableHours={Math.max(0, availableHours)}
                         userProfilePhoto={userProfilePhoto}
+                        prayerStreak={calculatePrayerStreak(people)}
                       />
                     );
                   })()}

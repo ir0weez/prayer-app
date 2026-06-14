@@ -461,7 +461,7 @@ function MinistryCard({
                   <Text style={ministryStyles.typeText}>{ministry.type}</Text>
                 </View>
                 {linkedPeople.length > 0 && (
-                  <StackedAvatar people={linkedPeople} size={20} />
+                  <StackedAvatar people={linkedPeople} size={32} />
                 )}
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
@@ -2270,7 +2270,7 @@ const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 3,
     marginBottom: 2,
     marginHorizontal: 16,
     borderWidth: 1,
@@ -2279,39 +2279,39 @@ const ministryStyles = StyleSheet.create({
   typeTag: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
     marginBottom: 0,
   },
   typeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700",
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     marginTop: 2,
     marginBottom: 0,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   location: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 0,
     marginBottom: 0,
-    lineHeight: 13,
+    lineHeight: 14,
   },
   time: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 0,
     marginBottom: 0,
-    lineHeight: 13,
+    lineHeight: 14,
   },
   bibleRef: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
     marginTop: 0,
-    lineHeight: 13,
+    lineHeight: 14,
   },
   checkBadge: {
     position: "absolute",

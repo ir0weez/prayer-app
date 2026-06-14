@@ -73,7 +73,7 @@ import {
   toggleMinistryCompleted,
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo, calculatePrayerStreak } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
@@ -456,13 +456,8 @@ function MinistryCard({
               ]}
             />
             <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-                  <Text style={ministryStyles.typeText}>{ministry.type}</Text>
-                </View>
-                {linkedPeople.length > 0 && (
-                  <StackedAvatar people={linkedPeople} size={32} />
-                )}
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+                <Text style={ministryStyles.typeText}>{ministry.type}</Text>
               </View>
               <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
                 {ministry.title}
@@ -472,20 +467,25 @@ function MinistryCard({
                   📍 {ministry.location}
                 </Text>
               )}
-              {(ministry.startTime || ministry.bibleBook) && (
-                <View style={{ flexDirection: 'row', gap: 12, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+                <View style={{ flex: 1, justifyContent: 'center' }}>
                   {ministry.startTime && (
                     <Text style={[ministryStyles.time, { color: colors.muted }]}>
                       {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
                     </Text>
                   )}
                   {ministry.bibleBook && (
-                    <Text style={[ministryStyles.bibleRef, { color: colors.primary }]}>
+                    <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
                       📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
                     </Text>
                   )}
                 </View>
-              )}
+                {linkedPeople.length > 0 && (
+                  <View style={{ paddingTop: 0 }}>
+                    <StackedAvatar people={linkedPeople} size={28} />
+                  </View>
+                )}
+              </View>
               {ministry.isCompleted && (
                 <View style={ministryStyles.checkBadge}>
                   <MaterialIcons name="check-circle" size={16} color="#22C55E" />
@@ -734,18 +734,9 @@ export function ScheduleTab({
             const legacyStatuses = JSON.parse(legacyBookStatus);
             console.log('Found legacy book status, migrating:', legacyStatuses);
             
-            // Initialize full chapters array for all books
-            const chapters = [];
-            for (const book of BIBLE_BOOKS) {
-              const chapterCount = { Genesis: 50, Exodus: 40, Leviticus: 27, Numbers: 36, Deuteronomy: 34, Joshua: 24, Judges: 21, Ruth: 4, '1 Samuel': 31, '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, '1 Chronicles': 29, '2 Chronicles': 36, Ezra: 10, Nehemiah: 13, Esther: 10, Job: 42, Psalms: 150, Proverbs: 31, Ecclesiastes: 12, Isaiah: 66, Jeremiah: 52, Lamentations: 5, Ezekiel: 48, Daniel: 12, Hosea: 14, Joel: 3, Amos: 9, Obadiah: 1, Jonah: 4, Micah: 7, Nahum: 3, Habakkuk: 3, Zephaniah: 3, Haggai: 2, Zechariah: 14, Malachi: 4, Matthew: 28, Mark: 16, Luke: 24, John: 21, Acts: 28, Romans: 16, '1 Corinthians': 16, '2 Corinthians': 13, Galatians: 6, Ephesians: 6, Philippians: 4, Colossians: 4, '1 Thessalonians': 5, '2 Thessalonians': 3, '1 Timothy': 6, '2 Timothy': 4, Titus: 3, Philemon: 1, Hebrews: 13, James: 5, '1 Peter': 5, '2 Peter': 3, '1 John': 5, '2 John': 1, '3 John': 1, Jude: 1, Revelation: 22 }[book] || 1;
-              for (let ch = 1; ch <= chapterCount; ch++) {
-                chapters.push({ book, chapter: ch, isRead: false });
-              }
-            }
-            
-            // Create a new unified state with the legacy book statuses and full chapters array
+            // Create a new unified state with the legacy book statuses
             state = {
-              chapters,
+              chapters: [],
               bookStatuses: legacyStatuses,
             };
             
@@ -755,10 +746,8 @@ export function ScheduleTab({
         }
         
         if (state && state.bookStatuses) {
-          console.log('Bible state loaded successfully:', { bookStatuses: state.bookStatuses, chaptersCount: state.chapters.length });
           setBibleState(state);
           const display = getCurrentBibleDisplay(state);
-          console.log('getCurrentBibleDisplay returned:', display);
           if (display) setCurrentBibleBook(display);
           else setCurrentBibleBook('No book marked as current');
         } else {
@@ -817,18 +806,9 @@ export function ScheduleTab({
               const legacyStatuses = JSON.parse(legacyBookStatus);
               console.log('Found legacy book status on focus, migrating:', legacyStatuses);
               
-              // Initialize full chapters array for all books
-              const chapters = [];
-              for (const book of BIBLE_BOOKS) {
-                const chapterCount = { Genesis: 50, Exodus: 40, Leviticus: 27, Numbers: 36, Deuteronomy: 34, Joshua: 24, Judges: 21, Ruth: 4, '1 Samuel': 31, '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, '1 Chronicles': 29, '2 Chronicles': 36, Ezra: 10, Nehemiah: 13, Esther: 10, Job: 42, Psalms: 150, Proverbs: 31, Ecclesiastes: 12, Isaiah: 66, Jeremiah: 52, Lamentations: 5, Ezekiel: 48, Daniel: 12, Hosea: 14, Joel: 3, Amos: 9, Obadiah: 1, Jonah: 4, Micah: 7, Nahum: 3, Habakkuk: 3, Zephaniah: 3, Haggai: 2, Zechariah: 14, Malachi: 4, Matthew: 28, Mark: 16, Luke: 24, John: 21, Acts: 28, Romans: 16, '1 Corinthians': 16, '2 Corinthians': 13, Galatians: 6, Ephesians: 6, Philippians: 4, Colossians: 4, '1 Thessalonians': 5, '2 Thessalonians': 3, '1 Timothy': 6, '2 Timothy': 4, Titus: 3, Philemon: 1, Hebrews: 13, James: 5, '1 Peter': 5, '2 Peter': 3, '1 John': 5, '2 John': 1, '3 John': 1, Jude: 1, Revelation: 22 }[book] || 1;
-                for (let ch = 1; ch <= chapterCount; ch++) {
-                  chapters.push({ book, chapter: ch, isRead: false });
-                }
-              }
-              
-              // Create a new unified state with the legacy book statuses and full chapters array
+              // Create a new unified state with the legacy book statuses
               state = {
-                chapters,
+                chapters: [],
                 bookStatuses: legacyStatuses,
               };
               
@@ -1208,34 +1188,23 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
+                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
+                    
+                    // Calculate remaining hours for today only
+                    let totalMinutes = 0;
                     const now = new Date();
                     const selectedDateObj = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
                     const isToday = selectedDateObj.toDateString() === now.toDateString();
-                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
                     
-                    // Get all scheduled items for the day
-                    const allItems = [
-                      ...getTodosForDate(todos, selectedDate).filter(t => t.startTime && !t.isCompleted),
-                      ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime && !m.isCompleted)
-                    ];
-                    
-                    // Calculate available time blocks
-                    const availableBlocks = calculateAvailableTimeBlocks(allItems);
-                    
-                    // Calculate remaining hours
-                    let totalMinutes = 0;
                     availableBlocks.forEach(block => {
-                      const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
                       const endMinutes = (parseInt(block.endTime.split(':')[0]) * 60) + parseInt(block.endTime.split(':')[1]);
-                      
-                      if (isToday) {
-                        // For today, only count time from now onwards
-                        if (endMinutes > currentTimeInMinutes) {
-                          const blockStart = Math.max(startMinutes, currentTimeInMinutes);
-                          totalMinutes += Math.max(0, endMinutes - blockStart);
-                        }
-                      } else {
+                      if (isToday && endMinutes > currentTimeInMinutes) {
+                        // Only count time remaining from now
+                        const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
+                        const blockStart = Math.max(startMinutes, currentTimeInMinutes);
+                        totalMinutes += Math.max(0, endMinutes - blockStart);
+                      } else if (!isToday) {
                         // For future dates, count full duration
                         totalMinutes += block.durationMinutes;
                       }
@@ -1265,7 +1234,6 @@ export function ScheduleTab({
                         userName={userName}
                         availableHours={Math.max(0, availableHours)}
                         userProfilePhoto={userProfilePhoto}
-                        prayerStreak={calculatePrayerStreak(people)}
                       />
                     );
                   })()}
@@ -2281,8 +2249,8 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     marginBottom: 2,
     marginHorizontal: 16,
     borderWidth: 1,
@@ -2290,10 +2258,10 @@ const ministryStyles = StyleSheet.create({
   },
   typeTag: {
     alignSelf: "flex-start",
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 0,
+    borderRadius: 8,
+    marginBottom: 6,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2303,9 +2271,9 @@ const ministryStyles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "600",
-    marginTop: 2,
+    marginTop: 0,
     marginBottom: 0,
-    lineHeight: 17,
+    lineHeight: 18,
   },
   location: {
     fontSize: 12,
@@ -2317,13 +2285,11 @@ const ministryStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: 0,
     marginBottom: 0,
-    lineHeight: 14,
   },
   bibleRef: {
     fontSize: 12,
     fontWeight: "500",
-    marginTop: 0,
-    lineHeight: 14,
+    marginTop: 2,
   },
   checkBadge: {
     position: "absolute",

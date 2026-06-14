@@ -768,6 +768,7 @@ export function ScheduleTab({
   // Profile data from AsyncStorage - use canonical PROFILE_STORAGE_KEY
   const [userName, setUserName] = useState("Friend");
   const [userProfilePhoto, setUserProfilePhoto] = useState<string | undefined>(undefined);
+  const [prayerStreak, setPrayerStreak] = useState(0);
   
   const loadProfileData = useCallback(() => {
     AsyncStorage.getItem(PROFILE_STORAGE_KEY).then((data) => {
@@ -1244,6 +1245,7 @@ export function ScheduleTab({
                         userName={userName}
                         availableHours={Math.max(0, availableHours)}
                         userProfilePhoto={userProfilePhoto}
+                        prayerStreak={prayerStreak}
                       />
                     );
                   })()}

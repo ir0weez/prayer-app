@@ -703,6 +703,26 @@ export function ScheduleTab({
     transform: [{ translateX: swipeTranslateX.value }],
   }));
 
+  // Helper function to get last chapter read from completed Read ministries
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[]): string => {
+    // Filter for completed Read ministries with Bible info
+    const readMinistries = ministriesList.filter(
+      (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
+    );
+    
+    if (readMinistries.length === 0) return 'No chapters read';
+    
+    // Sort by completedAt (most recent first), with date as fallback
+    const sorted = readMinistries.sort((a, b) => {
+      const timeA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
+      const timeB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
+      return timeB - timeA; // Most recent first
+    });
+    
+    const latest = sorted[0];
+    return `${latest.bibleBook} ${latest.bibleChapter}`;
+  };
+
   // Load data
   useEffect(() => {
     const loadData = async () => {
@@ -1281,7 +1301,7 @@ export function ScheduleTab({
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={memoizedSummaryData.currentBibleStudy}
+                        currentBibleStudy={getLastChapterRead(ministries)}
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {

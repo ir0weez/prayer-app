@@ -192,7 +192,7 @@ export function DailySummaryCard({
         <Text style={{ fontSize: 16, lineHeight: 24, color: colors.foreground, fontWeight: "400" }}>
           You have{' '}
           <Text style={{ fontWeight: "700" }}>✓ {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}</Text>
-          , you are currently reading{' '}
+          , last chapter read{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy}
           </Text>
@@ -203,8 +203,7 @@ export function DailySummaryCard({
           , <Text style={{ fontWeight: "700" }}>$ {budgetAmount.toFixed(2)}</Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
-          </Text>
-          {' '}to reach, <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
+          </Text> to reach, <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
           <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>, <Text style={{ fontWeight: "700" }}>{availableHours} hours</Text>{' '}available, and your fasting is{' '}
           <Text style={{ fontWeight: "700" }}>{getFastingStatusDisplay()}</Text> today.
         </Text>

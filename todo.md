@@ -1252,3 +1252,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add "Read" option to ministry creation form
 - [x] Implement ministry collapse on complete (shrink and show solid color overlay)
 - [x] Connect Bible summary to ministry form (mark chapters as read when Read ministry created)
+- [x] Update summary display to show "last chapter read" from completed Read ministries instead of "currently reading"
+- [x] Fix "to reach" text to not be bolded in summary

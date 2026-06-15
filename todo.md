@@ -1249,3 +1249,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add profile name badge with fast-based color (green/yellow/red) and streak counter overlay
 - [ ] Implement contact card expand animation with layout transition (avatars move down, name moves left)
 - [x] Add todo-to-event linking with checkbox selector in todo creation page
+- [x] Add "Read" option to ministry creation form
+- [x] Implement ministry collapse on complete (shrink and show solid color overlay)

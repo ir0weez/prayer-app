@@ -428,6 +428,39 @@ function MinistryCard({
       .filter((p) => p !== undefined) as Person[];
   }, [ministry.linkedPeopleIds, people]);
 
+  if (ministry.isCompleted) {
+    // Completed: solid color box, smaller
+    const completedColor = ministry.color || "#7C5CFF";
+    return (
+      <GestureDetector gesture={panGesture}>
+        <ReAnimated.View style={swipeStyle}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggle();
+            }}
+            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+          >
+            <ReAnimated.View style={[animatedCardStyle]}>
+              <View style={[ministryStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
+                <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
+                <Text style={[ministryStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+                  {ministry.title}
+                </Text>
+                {ministry.startTime && (
+                  <Text style={[ministryStyles.completedTime, { color: completedColor + "99" }]}>
+                    {ministry.startTime}{ministry.endTime ? ` - ${ministry.endTime}` : ""}
+                  </Text>
+                )}
+                <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+              </View>
+            </ReAnimated.View>
+          </Pressable>
+        </ReAnimated.View>
+      </GestureDetector>
+    );
+  }
+
   return (
     <GestureDetector gesture={panGesture}>
       <ReAnimated.View style={swipeStyle}>
@@ -2376,6 +2409,31 @@ const ministryStyles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 12,
+  },
+  completedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    gap: 10,
+  },
+  completedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  completedTitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    flex: 1,
+  },
+  completedTime: {
+    fontSize: 11,
+    marginRight: 8,
   },
 });
 

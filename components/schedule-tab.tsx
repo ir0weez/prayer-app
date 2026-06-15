@@ -936,7 +936,7 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
-  const handleSaveMinistry = () => {
+  const handleSaveMinistry = async () => {
     if (!formTitle.trim()) return;
     const newMinistry = createScheduleMinistry({
       title: formTitle.trim(),
@@ -955,6 +955,24 @@ export function ScheduleTab({
     if (formBibleBook) {
       newMinistry.bibleBook = formBibleBook;
       newMinistry.bibleChapter = formBibleChapter;
+      
+      // If this is a "Read" ministry and Bible info is provided, mark chapters as read
+      if (formMinistryType === "Read" && formBibleChapter) {
+        try {
+          const chapterNum = parseInt(formBibleChapter, 10);
+          if (!isNaN(chapterNum)) {
+            const updated = await markChapterAsRead(formBibleBook, chapterNum);
+            setBibleState(updated);
+            // Sync to old systems
+            await syncUnifiedBibleToAllOldSystems(updated);
+            // Reload display
+            const newDisplay = getCurrentBibleDisplay(updated);
+            setCurrentBibleBook(newDisplay || 'No book marked as current');
+          }
+        } catch (error) {
+          console.error('Error marking Bible chapter as read:', error);
+        }
+      }
     }
     setMinistries((prev) => [...prev, newMinistry]);
     resetForm();

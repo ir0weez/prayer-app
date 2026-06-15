@@ -118,6 +118,20 @@ export function DailySummaryCard({
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+  
+  // Get badge color based on fasting status
+  const getBadgeColor = () => {
+    switch (fastingStatus) {
+      case 'complete':
+        return '#22C55E'; // Green
+      case 'missed':
+        return '#F59E0B'; // Orange/Yellow
+      case 'skipped':
+        return '#EF4444'; // Red
+      default:
+        return colors.primary; // Primary color
+    }
+  };
 
   return (
     <Animated.View
@@ -142,7 +156,7 @@ export function DailySummaryCard({
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 12,
-              backgroundColor: colors.primary,
+              backgroundColor: getBadgeColor(),
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
@@ -188,10 +202,10 @@ export function DailySummaryCard({
           </Text>
           , <Text style={{ fontWeight: "700" }}>$ {budgetAmount.toFixed(2)}</Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people to reach
+            <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
           </Text>
-          , <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
-          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>, <Text style={{ fontWeight: "700" }}>{availableHours} hours</Text> available, and your fasting is{' '}
+          {' '}to reach, <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
+          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>, <Text style={{ fontWeight: "700" }}>{availableHours} hours</Text>{' '}available, and your fasting is{' '}
           <Text style={{ fontWeight: "700" }}>{getFastingStatusDisplay()}</Text> today.
         </Text>
       </View>

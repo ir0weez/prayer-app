@@ -1254,3 +1254,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Connect Bible summary to ministry form (mark chapters as read when Read ministry created)
 - [x] Update summary display to show "last chapter read" from completed Read ministries instead of "currently reading"
 - [x] Fix "to reach" text to not be bolded in summary
+- [x] Fix Bible summary to include completed Bible Study sessions (not just Read ministries)
+- [x] Add Event/Ministry badge display to todo cards

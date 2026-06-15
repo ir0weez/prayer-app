@@ -282,12 +282,16 @@ function TodoItem({
   onEdit,
   onDelete,
   people = [],
+  events = [],
+  ministries = [],
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   people?: Person[];
+  events?: ScheduleEvent[];
+  ministries?: ScheduleMinistry[]
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -347,6 +351,13 @@ function TodoItem({
           </Text>
           {linkedPeople.length > 0 && (
             <StackedAvatar people={linkedPeople} size={24} />
+          )}
+          {(todo.linkedEventId || todo.linkedMinistryId) && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: todo.linkedEventId ? colors.primary : '#A855F7', marginLeft: 'auto' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>
+                {todo.linkedEventId ? 'Event' : 'Ministry'}
+              </Text>
+            </View>
           )}
         </Pressable>
       </ReAnimated.View>
@@ -703,24 +714,40 @@ export function ScheduleTab({
     transform: [{ translateX: swipeTranslateX.value }],
   }));
 
-  // Helper function to get last chapter read from completed Read ministries
-  const getLastChapterRead = (ministriesList: ScheduleMinistry[]): string => {
+  // Helper function to get last chapter read from completed Read ministries or Bible Study sessions
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[]): string => {
     // Filter for completed Read ministries with Bible info
     const readMinistries = ministriesList.filter(
       (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
     );
     
-    if (readMinistries.length === 0) return 'No chapters read';
+    // Combine with Bible Study sessions (they have book and chapter)
+    const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [
+      ...readMinistries.map(m => ({
+        book: m.bibleBook!,
+        chapter: m.bibleChapter!,
+        date: m.date,
+        completedAt: m.completedAt
+      })),
+      ...bibleStudiesList.filter(b => b.isCompleted).map(b => ({
+        book: b.book,
+        chapter: b.chapter.toString(),
+        date: b.date,
+        completedAt: b.completedAt
+      }))
+    ];
+    
+    if (allReadItems.length === 0) return 'No chapters read';
     
     // Sort by completedAt (most recent first), with date as fallback
-    const sorted = readMinistries.sort((a, b) => {
+    const sorted = allReadItems.sort((a, b) => {
       const timeA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
       const timeB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
       return timeB - timeA; // Most recent first
     });
     
     const latest = sorted[0];
-    return `${latest.bibleBook} ${latest.bibleChapter}`;
+    return `${latest.book} ${latest.chapter}`;
   };
 
   // Load data
@@ -1111,6 +1138,8 @@ export function ScheduleTab({
             <TodoItem
               todo={item.data}
               people={people}
+              events={events}
+              ministries={ministries}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);
@@ -1301,7 +1330,7 @@ export function ScheduleTab({
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={getLastChapterRead(ministries)}
+                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies)}
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {

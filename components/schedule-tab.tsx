@@ -754,15 +754,17 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, timeBlockColorsData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
+          AsyncStorage.getItem(SCHEDULE_BIBLE_STUDIES_KEY),
           AsyncStorage.getItem('SCHEDULE_TIME_BLOCK_COLORS_KEY'),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
         if (ministriesData) setMinistries(JSON.parse(ministriesData));
+        if (bibleStudiesData) setBibleStudies(JSON.parse(bibleStudiesData));
         if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
       } catch (e) {
         // Silent fail
@@ -781,6 +783,9 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(ministries)).catch(() => undefined);
   }, [ministries]);
+  useEffect(() => {
+    AsyncStorage.setItem(SCHEDULE_BIBLE_STUDIES_KEY, JSON.stringify(bibleStudies)).catch(() => undefined);
+  }, [bibleStudies]);
   useEffect(() => {
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
   }, [timeBlockColors]);

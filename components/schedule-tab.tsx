@@ -428,8 +428,11 @@ function MinistryCard({
   }));
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    // Don't scale - just use opacity for pulse
+    shadowColor: ministry.color || "#7C5CFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: glowOpacity.value * 0.6,
+    shadowRadius: 12 + glowOpacity.value * 8,
+    elevation: 8 + glowOpacity.value * 4,
   }));
 
   const linkedPeople = useMemo(() => {
@@ -486,23 +489,8 @@ function MinistryCard({
           }}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >
-          <ReAnimated.View style={[animatedCardStyle]}>
-            {/* Pulsing glow background - starts from card edge */}
-            <ReAnimated.View
-              style={[
-                {
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  borderRadius: 16,
-                  backgroundColor: ministry.color || "#7C5CFF",
-                  zIndex: -1,
-                },
-                glowAnimatedStyle,
-              ]}
-            />
+          <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
+            {/* Glow effect now using shadow */}
             <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
               <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
                 <Text style={ministryStyles.typeText}>{ministry.type}</Text>

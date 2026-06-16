@@ -478,7 +478,11 @@ function MinistryCard({
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            // Animate scale down before toggling
+            cardScale.value = withTiming(0.95, { duration: 150, easing: Easing.inOut(Easing.ease) }, () => {
+              runOnJS(onToggle)();
+              cardScale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+            });
           }}
           style={({ pressed }) => [pressed && { opacity: 0.7 }]}
         >

@@ -53,6 +53,8 @@ import {
   completePersonalTodo,
   getPersonalContacts,
   getIconForTodo,
+  togglePrayerItemDone,
+  togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
 import {
   calculateFastStreak,
@@ -347,6 +349,7 @@ export default function HomeScreen() {
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+  const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -883,6 +886,7 @@ export default function HomeScreen() {
     const emergencyProgress = personEmergency ? getEmergencyPrayerProgress(personEmergency.item.emergencyExpiresAt) : 0;
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
     const isDragged = draggedPersonId === person.id;
+    const isExpanded = expandedPersonId === person.id;
     const personIndex = index ?? 0;
     const totalCount = array?.length ?? 1;
 
@@ -893,8 +897,8 @@ export default function HomeScreen() {
             setDraggedPersonId(person.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
-          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          onPress={() => !isDragged && setExpandedPersonId(isExpanded ? null : person.id)}
+          style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
           <View style={styles.personInfo}>
@@ -932,6 +936,22 @@ export default function HomeScreen() {
             )}
           </View>
         </Pressable>
+        {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
+          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2, borderColor: getLastReachedAccentColor(person), paddingHorizontal: 12, paddingVertical: 8 }}>
+            {person.prayerItems.map((item, idx) => (
+              <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
+                <View style={{ paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Pressable onPress={() => setPeople((previousPeople) => togglePrayerItemDone(previousPeople, person.id, item.id))} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.6 }]}>
+                    <Text style={[{ color: colors.foreground, fontSize: 14 }, item.isDone && { textDecorationLine: "line-through", color: colors.muted }]}>{item.title}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setPeople((previousPeople) => togglePrayerItemUrgent(previousPeople, person.id, item.id))}>
+                    <MaterialIcons name={item.isUrgent ? "priority-high" : "low-priority"} size={16} color={item.isUrgent ? "#EF4444" : colors.muted} />
+                  </Pressable>
+                </View>
+              </ReAnimated.View>
+            ))}
+          </ReAnimated.View>
+        )}
       </ReAnimated.View>
     );
   };

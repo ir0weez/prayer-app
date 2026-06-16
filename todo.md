@@ -1268,6 +1268,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add scale-down animation for ministry completion
 - [x] Implement contact card expand animation (tap to expand/collapse)
 - [x] Fix glow effect for ministry cards (shadow-based halo effect)
+- [x] Add prayer items reveal animation on contact expand (staggered slide-in)
 
 
 - [ ] Reduce ministry card padding and margins for more compact layout

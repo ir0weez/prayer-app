@@ -56,6 +56,7 @@ import {
   togglePrayerItemDone,
   togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
+import { SCHEDULE_TODOS_KEY } from "@/lib/schedule-data";
 import {
   calculateFastStreak,
   createPersonalFast,
@@ -350,6 +351,7 @@ export default function HomeScreen() {
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
+  const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -357,8 +359,8 @@ export default function HomeScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY)])
-      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -370,6 +372,7 @@ export default function HomeScreen() {
         setSettings(parseStoredSettings(storedSettings));
         setProfile(parseStoredProfile(storedProfile));
         if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
+        if (storedScheduleTodos) setScheduleTodos(JSON.parse(storedScheduleTodos));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -1018,6 +1021,34 @@ export default function HomeScreen() {
                     <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
                       <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
                         <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+              ))}
+              {scheduleTodos.filter(todo => {
+                const todoDate = new Date(todo.dueDate || getTodayISOString()).toISOString().split('T')[0];
+                const todayDate = getTodayISOString();
+                return todoDate === todayDate && !todo.isCompleted;
+              }).map((todo) => (
+                <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
+                  <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
+                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setScheduleTodos((previousTodos) =>
+                        previousTodos.map((t) =>
+                          t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t
+                        )
+                      );
+                    }}
+                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
+                  >
+                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
+                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
+                        <MaterialIcons name="check-circle" size={32} color="#FFFFFF" />
                       </View>
                     </View>
                   </Pressable>

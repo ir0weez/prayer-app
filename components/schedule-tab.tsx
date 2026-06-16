@@ -1008,8 +1008,8 @@ export function ScheduleTab({
       newMinistry.bibleBook = formBibleBook;
       newMinistry.bibleChapter = formBibleChapter;
       
-      // If this is a "Read" ministry and Bible info is provided, mark chapters as read
-      if (formMinistryType === "Read" && formBibleChapter) {
+      // If this is a "Read" or "Bible Study" ministry and Bible info is provided, mark chapters as read
+      if ((formMinistryType === "Read" || formMinistryType === "Bible Study") && formBibleChapter) {
         try {
           const chapterNum = parseInt(formBibleChapter, 10);
           if (!isNaN(chapterNum)) {

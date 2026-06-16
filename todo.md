@@ -1256,3 +1256,4 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix "to reach" text to not be bolded in summary
 - [x] Fix Bible summary to include completed Bible Study sessions (not just Read ministries)
 - [x] Add Event/Ministry badge display to todo cards
+- [x] Fix Bible Study ministries to mark chapters as read (same as Read ministries)

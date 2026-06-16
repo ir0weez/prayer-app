@@ -1257,3 +1257,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix Bible summary to include completed Bible Study sessions (not just Read ministries)
 - [x] Add Event/Ministry badge display to todo cards
 - [x] Fix Bible Study ministries to mark chapters as read (same as Read ministries)
+
+## Phase 3 Bug Fixes (Current)
+
+- [x] Fix available hours calculation (date comparison issue)
+- [x] Replace todo people selector with tag selector (Ministry/Event/Family/Therapy/Personal)
+- [x] Fix name badge colors (red for missed, yellow for skipped)
+- [x] Reduce ministry card padding for compact layout
+- [x] Free time blocks already persist correctly on non-selected days
+
+
+- [ ] Reduce ministry card padding and margins for more compact layout
+- [ ] Fix free time blocks to persist on non-selected days (only countdown on selected day)

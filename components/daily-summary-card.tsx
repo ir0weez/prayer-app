@@ -125,9 +125,9 @@ export function DailySummaryCard({
       case 'complete':
         return '#22C55E'; // Green
       case 'missed':
-        return '#F59E0B'; // Orange/Yellow
-      case 'skipped':
         return '#EF4444'; // Red
+      case 'skipped':
+        return '#F59E0B'; // Yellow
       default:
         return colors.primary; // Primary color
     }

@@ -352,10 +352,10 @@ function TodoItem({
           {linkedPeople.length > 0 && (
             <StackedAvatar people={linkedPeople} size={24} />
           )}
-          {(todo.linkedEventId || todo.linkedMinistryId) && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: todo.linkedEventId ? colors.primary : '#A855F7', marginLeft: 'auto' }}>
+          {(todo.linkedEventId || todo.linkedMinistryId || todo.tag) && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: todo.linkedEventId ? colors.primary : (todo.linkedMinistryId ? '#A855F7' : (todo.color || colors.primary)), marginLeft: 'auto' }}>
               <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>
-                {todo.linkedEventId ? 'Event' : 'Ministry'}
+                {todo.linkedEventId ? 'Event' : (todo.linkedMinistryId ? 'Ministry' : todo.tag)}
               </Text>
             </View>
           )}
@@ -644,6 +644,7 @@ export function ScheduleTab({
   const [formLinkedPeopleIds, setFormLinkedPeopleIds] = useState<string[]>([]); // People linked to current item
   const [formLinkedEventId, setFormLinkedEventId] = useState<string | null>(null); // Event linked to todo
   const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
+  const [formTodoTag, setFormTodoTag] = useState<string | null>(null); // Tag for todo (Ministry/Event/Family/Therapy/Personal)
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
@@ -936,6 +937,7 @@ export function ScheduleTab({
     setFormLinkedPeopleIds([]);
     setFormLinkedEventId(null);
     setFormLinkedMinistryId(null);
+    setFormTodoTag(null);
   };
 
   const handleSaveEvent = () => {
@@ -972,6 +974,9 @@ export function ScheduleTab({
     }
     if (formLinkedMinistryId) {
       newTodo.linkedMinistryId = formLinkedMinistryId;
+    }
+    if (formTodoTag) {
+      newTodo.tag = formTodoTag;
     }
     setTodos((prev) => {
       const updated = [...prev, newTodo];
@@ -1306,11 +1311,14 @@ export function ScheduleTab({
                   {(() => {
                     const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
                     
+
                     // Calculate remaining hours for today only
                     let totalMinutes = 0;
                     const now = new Date();
-                    const selectedDateObj = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
-                    const isToday = selectedDateObj.toDateString() === now.toDateString();
+                    // Parse selectedDate properly - it's in ISO format (YYYY-MM-DD)
+                    const selectedDateObj = new Date(selectedDate + 'T00:00:00');
+                    const todayISO = now.toISOString().split('T')[0];
+                    const isToday = selectedDate === todayISO;
                     const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
                     
                     availableBlocks.forEach(block => {
@@ -1653,34 +1661,30 @@ export function ScheduleTab({
                   />
                 ))}
               </View>
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK PEOPLE (optional)</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TAG (optional)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {people.map((person) => (
+                {['Ministry', 'Event', 'Family', 'Therapy', 'Personal'].map((tag) => (
                   <Pressable
-                    key={person.id}
+                    key={tag}
                     onPress={() => {
-                      setFormLinkedPeopleIds((prev) =>
-                        prev.includes(person.id)
-                          ? prev.filter((id) => id !== person.id)
-                          : [...prev, person.id]
-                      );
+                      setFormTodoTag(formTodoTag === tag ? null : tag);
                     }}
                     style={({ pressed }) => [{
                       paddingHorizontal: 12,
                       paddingVertical: 8,
                       borderRadius: 16,
-                      backgroundColor: formLinkedPeopleIds.includes(person.id) ? colors.primary : colors.background,
+                      backgroundColor: formTodoTag === tag ? colors.primary : colors.background,
                       borderWidth: 1,
                       borderColor: colors.border,
                       opacity: pressed ? 0.8 : 1,
                     }]}
                   >
                     <Text style={[{
-                      color: formLinkedPeopleIds.includes(person.id) ? '#fff' : colors.foreground,
+                      color: formTodoTag === tag ? '#fff' : colors.foreground,
                       fontSize: 12,
                       fontWeight: '500',
                     }]}>
-                      {person.name}
+                      {tag}
                     </Text>
                   </Pressable>
                 ))}
@@ -2435,19 +2439,19 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 2,
-    marginHorizontal: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 1,
+    marginHorizontal: 12,
     borderWidth: 1,
     position: "relative",
   },
   typeTag: {
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginBottom: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 4,
   },
   typeText: {
     color: "#FFFFFF",

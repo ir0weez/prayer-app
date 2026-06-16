@@ -1266,6 +1266,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Reduce ministry card padding for compact layout
 - [x] Free time blocks already persist correctly on non-selected days
 - [x] Add scale-down animation for ministry completion
+- [x] Implement contact card expand animation (tap to expand/collapse)
 
 
 - [ ] Reduce ministry card padding and margins for more compact layout

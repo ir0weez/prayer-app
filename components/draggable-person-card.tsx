@@ -1,6 +1,8 @@
 import { Pressable, View, Text, StyleSheet } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
+import { useState } from "react";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import { Person } from "@/lib/prayercircle-data";
 
 interface DraggablePersonCardProps {
@@ -40,6 +42,22 @@ export function DraggablePersonCard({
   reachProgress,
   styles,
 }: DraggablePersonCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const expandAnim = useSharedValue(0);
+
+  const handlePress = () => {
+    if (!isDragged) {
+      const newExpanded = !isExpanded;
+      setIsExpanded(newExpanded);
+      expandAnim.value = withTiming(newExpanded ? 1 : 0, {
+        duration: 300,
+        easing: Easing.inOut(Easing.ease),
+      });
+      if (newExpanded) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+  };
   return (
     <View style={[isDragged && { opacity: 0.6 }]}>
       <Pressable
@@ -47,7 +65,7 @@ export function DraggablePersonCard({
           onLongPress(person.id);
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }}
-        onPress={() => !isDragged && onPress(person)}
+        onPress={handlePress}
         style={({ pressed }) => [
           styles.personCard,
           pressed && !isDragged && styles.pressed,

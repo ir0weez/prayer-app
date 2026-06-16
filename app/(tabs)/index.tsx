@@ -1027,9 +1027,11 @@ export default function HomeScreen() {
                 </View>
               ))}
               {scheduleTodos.filter(todo => {
-                const todoDate = new Date(todo.dueDate || getTodayISOString()).toISOString().split('T')[0];
+                if (todo.isCompleted) return false;
+                if (!todo.dueDate) return false;
+                const todoDate = todo.dueDate.split('T')[0];
                 const todayDate = getTodayISOString();
-                return todoDate === todayDate && !todo.isCompleted;
+                return todoDate === todayDate;
               }).map((todo) => (
                 <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
                   <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>

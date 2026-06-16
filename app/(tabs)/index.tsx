@@ -1026,7 +1026,7 @@ export default function HomeScreen() {
                   </Pressable>
                 </View>
               ))}
-              {scheduleTodos.filter(todo => {
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter(todo => {
                 if (todo.isCompleted) return false;
                 if (!todo.dueDate) return false;
                 const todoDate = todo.dueDate.split('T')[0];

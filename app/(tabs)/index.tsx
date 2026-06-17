@@ -1028,8 +1028,8 @@ export default function HomeScreen() {
               ))}
               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter(todo => {
                 if (todo.isCompleted) return false;
-                if (!todo.dueDate) return false;
-                const todoDate = todo.dueDate.split('T')[0];
+                if (!todo.date) return false;
+                const todoDate = todo.date.split('T')[0];
                 const todayDate = getTodayISOString();
                 return todoDate === todayDate;
               }).map((todo) => (

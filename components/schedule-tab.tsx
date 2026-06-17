@@ -322,6 +322,16 @@ function TodoItem({
       .filter((p) => p !== undefined) as Person[];
   }, [todo.linkedPeopleIds, people]);
 
+  const linkedEvent = useMemo(() => {
+    if (!todo.linkedEventId) return null;
+    return events.find((e) => e.id === todo.linkedEventId) || null;
+  }, [todo.linkedEventId, events]);
+
+  const linkedMinistry = useMemo(() => {
+    if (!todo.linkedMinistryId) return null;
+    return ministries.find((m) => m.id === todo.linkedMinistryId) || null;
+  }, [todo.linkedMinistryId, ministries]);
+
   return (
     <GestureDetector gesture={panGesture}>
       <ReAnimated.View style={swipeStyle}>
@@ -352,10 +362,10 @@ function TodoItem({
           {linkedPeople.length > 0 && (
             <StackedAvatar people={linkedPeople} size={24} />
           )}
-          {(todo.linkedEventId || todo.linkedMinistryId || todo.tag) && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: todo.linkedEventId ? colors.primary : (todo.linkedMinistryId ? '#A855F7' : (todo.color || colors.primary)), marginLeft: 'auto' }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>
-                {todo.linkedEventId ? 'Event' : (todo.linkedMinistryId ? 'Ministry' : todo.tag)}
+          {(linkedEvent || linkedMinistry || todo.tag) && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || (todo.color || colors.primary), marginLeft: 'auto' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
+                {linkedEvent?.title || linkedMinistry?.title || todo.tag}
               </Text>
             </View>
           )}
@@ -1301,7 +1311,7 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime)]);
+                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime && !t.isCompleted), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime && !m.isCompleted)]);
                     
 
                     // Calculate remaining hours for today only
@@ -1326,7 +1336,7 @@ export function ScheduleTab({
                       }
                     });
                     
-                    const availableHours = Math.ceil(totalMinutes / 60);
+                    const availableHours = Math.floor(totalMinutes / 60);
                     
                     return (
                       <DailySummaryCard
@@ -1610,7 +1620,7 @@ export function ScheduleTab({
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
-            <View style={scheduleStyles.formContent}>
+            <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>WHAT DO YOU NEED TO DO?</Text>
               <TextInput
                 value={formTitle}
@@ -1683,11 +1693,14 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK TO EVENT OR MINISTRY (optional)</Text>
               <View style={{ gap: 8, marginBottom: 16 }}>
-                {events.length > 0 && (
-                  <View>
-                    <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>EVENTS</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {events.map((event) => (
+                {(() => {
+                  const today = getTodayISOString();
+                  const upcomingEvents = events.filter(e => e.date && e.date >= today);
+                  return upcomingEvents.length > 0 && (
+                    <View>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>EVENTS</Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {upcomingEvents.map((event) => (
                         <Pressable
                           key={event.id}
                           onPress={() => {
@@ -1713,14 +1726,18 @@ export function ScheduleTab({
                           </Text>
                         </Pressable>
                       ))}
+                      </View>
                     </View>
-                  </View>
-                )}
-                {ministries.length > 0 && (
-                  <View>
-                    <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>MINISTRIES</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {ministries.map((ministry) => (
+                  );
+                })()}
+                {(() => {
+                  const today = getTodayISOString();
+                  const upcomingMinistries = ministries.filter(m => m.date && m.date >= today);
+                  return upcomingMinistries.length > 0 && (
+                    <View>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>MINISTRIES</Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {upcomingMinistries.map((ministry) => (
                         <Pressable
                           key={ministry.id}
                           onPress={() => {
@@ -1745,12 +1762,13 @@ export function ScheduleTab({
                             {ministry.title}
                           </Text>
                         </Pressable>
-                      ))}
+                        ))}
+                      </View>
                     </View>
-                  </View>
-                )}
+                  );
+                })()}
               </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -1274,3 +1274,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [ ] Reduce ministry card padding and margins for more compact layout
 - [ ] Fix free time blocks to persist on non-selected days (only countdown on selected day)
+
+
+## Phase 4 Bug Fixes (Current)
+
+- [x] Fix fast progress bar to increment daily until finish date
+- [x] Fix available hours calculation (showing 17 hours at 9 PM, should be much less)
+- [x] Fix todo creation form scroll issue (can't scroll up)
+- [x] Filter events/ministries to show only upcoming items with dates
+- [x] Update todo badge to show event/ministry title and match color
+- [ ] Compact ministry creation person selector layout
+- [ ] Change swipe delete to long-press with confirmation modal
+- [ ] Fix prospect contact tap to open prayer card

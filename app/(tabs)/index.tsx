@@ -532,6 +532,7 @@ export default function HomeScreen() {
     return Math.max(0, UNDO_COUNTDOWN_MS - elapsed);
   }, [pendingFastAction]);
   const activeFastProgress = useMemo(() => activeFast ? getFastProgress(activeFast) : null, [activeFast]);
+  const activeFastCurrentDay = useMemo(() => activeFast ? getCurrentFastDay(activeFast) : 1, [activeFast]);
   // Note: activeFastStreak is now kept in sync with profile.fastingStreak via useEffect
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
@@ -1396,7 +1397,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.fastProgressBarContainer}>
               <AnimatedWavyProgressBar
-                progress={Math.min(((activeFastProgress?.completed ?? 0) / activeFast.durationDays) * 100, 100)}
+                progress={Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}
                 color="#FFFFFF"
               />
             </View>

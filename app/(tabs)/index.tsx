@@ -1051,7 +1051,7 @@ export default function HomeScreen() {
                   >
                     <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
                       <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
-                        <MaterialIcons name="check-circle" size={32} color="#FFFFFF" />
+                        <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
                       </View>
                     </View>
                   </Pressable>

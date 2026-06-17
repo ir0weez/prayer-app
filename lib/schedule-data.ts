@@ -112,6 +112,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["concert", "music", "band"], label: "Concert", emoji: "🎶", bgColor: "#F9FBE7", textColor: "#33691E", accentColor: "#8BC34A" },
   { keywords: ["travel", "trip", "vacation", "flight"], label: "Travel", emoji: "✈️🌴", bgColor: "#E1F5FE", textColor: "#01579B", accentColor: "#03A9F4" },
   { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
+  { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

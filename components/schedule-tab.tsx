@@ -2450,9 +2450,9 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
     marginHorizontal: 12,
     borderWidth: 1,
     position: "relative",
@@ -2460,9 +2460,9 @@ const ministryStyles = StyleSheet.create({
   typeTag: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   typeText: {
     color: "#FFFFFF",
@@ -2473,13 +2473,13 @@ const ministryStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginTop: 0,
-    marginBottom: 0,
+    marginBottom: 4,
     lineHeight: 18,
   },
   location: {
     fontSize: 12,
     marginTop: 0,
-    marginBottom: 0,
+    marginBottom: 4,
     lineHeight: 14,
   },
   time: {

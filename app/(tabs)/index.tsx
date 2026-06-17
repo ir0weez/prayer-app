@@ -56,7 +56,7 @@ import {
   togglePrayerItemDone,
   togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
-import { SCHEDULE_TODOS_KEY } from "@/lib/schedule-data";
+import { SCHEDULE_TODOS_KEY, type ScheduleTodo } from "@/lib/schedule-data";
 import {
   calculateFastStreak,
   createPersonalFast,
@@ -341,6 +341,7 @@ export default function HomeScreen() {
   const [draftFastDuration, setDraftFastDuration] = useState<number>(40);
   const [draftFastType, setDraftFastType] = useState<FastType>("Health");
   const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
+  const [expandedTodoStack, setExpandedTodoStack] = useState(false);
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
   const [showFastEditor, setShowFastEditor] = useState(false);
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
@@ -1027,7 +1028,48 @@ export default function HomeScreen() {
                   </Pressable>
                 </View>
               ))}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter(todo => {
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && !expandedTodoStack && scheduleTodos.filter(todo => {
+                if (todo.isCompleted) return false;
+                if (!todo.date) return false;
+                const todoDate = todo.date.split('T')[0];
+                const todayDate = getTodayISOString();
+                return todoDate === todayDate;
+              }).length > 0 && (
+                <View key="todo-stack-collapsed" style={[styles.storyItem, { position: 'relative', width: 86, height: 86 }]}>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setExpandedTodoStack(true);
+                    }}
+                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
+                  >
+                    {scheduleTodos.filter(todo => {
+                      if (todo.isCompleted) return false;
+                      if (!todo.date) return false;
+                      const todoDate = todo.date.split('T')[0];
+                      const todayDate = getTodayISOString();
+                      return todoDate === todayDate;
+                    }).slice(0, 3).map((todo, idx) => (
+                      <View
+                        key={todo.id}
+                        style={[
+                          styles.storyRing,
+                          {
+                            borderColor: todo.color || colors.primary,
+                            position: 'absolute',
+                            transform: [{ translateY: idx * 6 }, { translateX: idx * 4 }],
+                          },
+                        ]}
+                      >
+                        <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
+                          <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
+                        </View>
+                      </View>
+                    ))}
+                  </Pressable>
+                </View>
+              )}
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && scheduleTodos.filter(todo => {
                 if (todo.isCompleted) return false;
                 if (!todo.date) return false;
                 const todoDate = todo.date.split('T')[0];
@@ -1057,7 +1099,15 @@ export default function HomeScreen() {
                   </Pressable>
                 </View>
               ))}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && (
+                <Pressable
+                  onPress={() => setExpandedTodoStack(false)}
+                  style={[styles.storyItem, { opacity: 0.6 }]}
+                >
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>Collapse</Text>
+                </Pressable>
+              )}
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && !expandedTodoStack && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
                     <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} />

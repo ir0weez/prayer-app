@@ -901,7 +901,7 @@ export default function HomeScreen() {
             setDraggedPersonId(person.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
-          onPress={() => !isDragged && setExpandedPersonId(isExpanded ? null : person.id)}
+          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
           style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}

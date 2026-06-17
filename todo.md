@@ -1283,6 +1283,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix todo creation form scroll issue (can't scroll up)
 - [x] Filter events/ministries to show only upcoming items with dates
 - [x] Update todo badge to show event/ministry title and match color
-- [ ] Compact ministry creation person selector layout
+- [x] Compact ministry creation person selector layout
 - [ ] Change swipe delete to long-press with confirmation modal
-- [ ] Fix prospect contact tap to open prayer card
+- [x] Fix prospect contact tap to open prayer card

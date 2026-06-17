@@ -71,7 +71,7 @@ export function AvatarPeopleSelector({
                 >
                   <StackedAvatar
                     people={[person]}
-                    size={48}
+                    size={40}
                   />
                 </View>
                 <Text
@@ -111,39 +111,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   groupContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   groupTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 12,
-    marginHorizontal: 16,
+    marginBottom: 8,
+    marginHorizontal: 8,
   },
   avatarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 8,
-    gap: 12,
+    paddingHorizontal: 4,
+    gap: 8,
   },
   avatarWrapper: {
     alignItems: "center",
-    width: "33.33%",
-    paddingHorizontal: 8,
+    width: "25%",
+    paddingHorizontal: 4,
   },
   avatarWrapperSelected: {
     opacity: 1,
   },
   avatarContainer: {
-    borderRadius: 40,
+    borderRadius: 20,
     overflow: "hidden",
-    marginBottom: 6,
+    marginBottom: 4,
     borderWidth: 2,
     borderColor: "transparent",
   },
   personName: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "500",
     textAlign: "center",
   },

@@ -1312,32 +1312,18 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    const availableBlocks = calculateAvailableTimeBlocks([...getTodosForDate(todos, selectedDate).filter(t => t.startTime && !t.isCompleted), ...getEventsForDate(events, selectedDate).filter(e => !e.isCompleted && e.startTime), ...getMinistriesForDate(ministries, selectedDate).filter(m => m.startTime && !m.isCompleted)]);
+                    const allScheduledItems = [
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter((e) => !e.isCompleted && e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+                    ];
+                    const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
+                    const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);
                     
-
-                    // Calculate remaining hours for today only
+                    // Calculate total available hours from the time blocks
                     let totalMinutes = 0;
-                    const now = new Date();
-                    // Parse selectedDate properly - it's in ISO format (YYYY-MM-DD)
-                    const selectedDateObj = new Date(selectedDate + 'T00:00:00');
-                    const todayISO = now.toISOString().split('T')[0];
-                    const isToday = selectedDate === todayISO;
-                    const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
-                    
-                    availableBlocks.forEach(block => {
-                      const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
-                      const endMinutes = (parseInt(block.endTime.split(':')[0]) * 60) + parseInt(block.endTime.split(':')[1]);
-                      
-                      if (isToday) {
-                        // Only count time remaining from now
-                        if (endMinutes > currentTimeInMinutes) {
-                          const blockStart = Math.max(startMinutes, currentTimeInMinutes);
-                          totalMinutes += Math.max(0, endMinutes - blockStart);
-                        }
-                      } else {
-                        // For future dates, count full duration
-                        totalMinutes += block.durationMinutes;
-                      }
+                    activeBlocks.forEach(block => {
+                      totalMinutes += block.durationMinutes;
                     });
                     
                     const availableHours = Math.floor(totalMinutes / 60);

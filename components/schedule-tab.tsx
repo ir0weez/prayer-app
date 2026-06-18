@@ -1712,7 +1712,7 @@ export function ScheduleTab({
                             fontSize: 12,
                             fontWeight: '500',
                           }]}>
-                            {event.title}
+                            {event.title} {event.date && `• ${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                           </Text>
                         </Pressable>
                       ))}
@@ -1749,7 +1749,7 @@ export function ScheduleTab({
                             fontSize: 12,
                             fontWeight: '500',
                           }]}>
-                            {ministry.title}
+                            {ministry.title} {ministry.date && `• ${new Date(ministry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                           </Text>
                         </Pressable>
                         ))}

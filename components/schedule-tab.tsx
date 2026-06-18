@@ -1721,13 +1721,11 @@ export function ScheduleTab({
                   );
                 })()}
                 {(() => {
-                  const today = getTodayISOString();
-                  const upcomingMinistries = ministries.filter(m => m.date && m.date >= today);
-                  return upcomingMinistries.length > 0 && (
+                  return ministries.length > 0 && (
                     <View>
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 11, marginBottom: 6 }]}>MINISTRIES</Text>
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                        {upcomingMinistries.map((ministry) => (
+                        {ministries.map((ministry) => (
                         <Pressable
                           key={ministry.id}
                           onPress={() => {

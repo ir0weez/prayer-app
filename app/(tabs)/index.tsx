@@ -1043,55 +1043,14 @@ export default function HomeScreen() {
                   </Pressable>
                 </View>
               ))}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && !expandedTodoStack && scheduleTodos.filter(todo => {
-                if (todo.isCompleted) return false;
-                if (!todo.date) return false;
-                const todoDate = todo.date.split('T')[0];
-                const todayDate = getTodayISOString();
-                return todoDate === todayDate;
-              }).length > 0 && (
-                <ReAnimated.View key="todo-stack-collapsed" style={[styles.storyItem, { position: 'relative', width: 86, height: 86 }]}>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setExpandedTodoStack(true);
-                    }}
-                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
-                  >
-                    {scheduleTodos.filter(todo => {
-                      if (todo.isCompleted) return false;
-                      if (!todo.date) return false;
-                      const todoDate = todo.date.split('T')[0];
-                      const todayDate = getTodayISOString();
-                      return todoDate === todayDate;
-                    }).slice(0, 3).map((todo, idx) => (
-                      <View
-                        key={todo.id}
-                        style={[
-                          styles.storyRing,
-                          {
-                            borderColor: todo.color || colors.primary,
-                            position: 'absolute',
-                            transform: [{ translateY: idx * 6 }, { translateX: idx * 4 }],
-                          },
-                        ]}
-                      >
-                        <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
-                          <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
-                        </View>
-                      </View>
-                    ))}
-                  </Pressable>
-                </ReAnimated.View>
-              )}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && scheduleTodos.filter(todo => {
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter(todo => {
                 if (todo.isCompleted) return false;
                 if (!todo.date) return false;
                 const todoDate = todo.date.split('T')[0];
                 const todayDate = getTodayISOString();
                 return todoDate === todayDate;
               }).map((todo) => (
-                <ReAnimated.View key={`schedule-todo-${todo.id}`} style={[styles.storyItem, todoStackAnimatedStyle]}>
+                <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
                   <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
                     <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
                   </View>
@@ -1112,19 +1071,9 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </Pressable>
-                </ReAnimated.View>
+                </View>
               ))}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && (
-                <ReAnimated.View style={[styles.storyItem, todoStackAnimatedStyle]}>
-                  <Pressable
-                    onPress={() => setExpandedTodoStack(false)}
-                    style={[styles.storyItem, { opacity: 0.6 }]}
-                  >
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>Collapse</Text>
-                  </Pressable>
-                </ReAnimated.View>
-              )}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && !expandedTodoStack && (
+              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
                     <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} />

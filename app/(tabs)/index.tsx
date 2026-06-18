@@ -10,7 +10,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, SlideInUp, withTiming, Easing } from "react-native-reanimated";
+import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
@@ -343,6 +343,21 @@ export default function HomeScreen() {
   const [draftFastFocusInput, setDraftFastFocusInput] = useState("");
   const [expandedTodoStack, setExpandedTodoStack] = useState(false);
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
+  const todoStackScale = useSharedValue(0);
+
+  // Animate todo stack expansion
+  useEffect(() => {
+    todoStackScale.value = withSpring(expandedTodoStack ? 1 : 0, {
+      damping: 8,
+      mass: 1,
+      overshootClamping: false,
+    });
+  }, [expandedTodoStack, todoStackScale]);
+
+  const todoStackAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: todoStackScale.value,
+    transform: [{ scale: todoStackScale.value }],
+  }));
   const [showFastEditor, setShowFastEditor] = useState(false);
   const [editingFastId, setEditingFastId] = useState<string | null>(null);
   const [pendingPrayerIds, setPendingPrayerIds] = useState<string[]>([]);
@@ -1035,7 +1050,7 @@ export default function HomeScreen() {
                 const todayDate = getTodayISOString();
                 return todoDate === todayDate;
               }).length > 0 && (
-                <View key="todo-stack-collapsed" style={[styles.storyItem, { position: 'relative', width: 86, height: 86 }]}>
+                <ReAnimated.View key="todo-stack-collapsed" style={[styles.storyItem, { position: 'relative', width: 86, height: 86 }]}>
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1067,7 +1082,7 @@ export default function HomeScreen() {
                       </View>
                     ))}
                   </Pressable>
-                </View>
+                </ReAnimated.View>
               )}
               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && scheduleTodos.filter(todo => {
                 if (todo.isCompleted) return false;
@@ -1076,7 +1091,7 @@ export default function HomeScreen() {
                 const todayDate = getTodayISOString();
                 return todoDate === todayDate;
               }).map((todo) => (
-                <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
+                <ReAnimated.View key={`schedule-todo-${todo.id}`} style={[styles.storyItem, todoStackAnimatedStyle]}>
                   <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
                     <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
                   </View>
@@ -1097,15 +1112,17 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </Pressable>
-                </View>
+                </ReAnimated.View>
               ))}
               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && expandedTodoStack && (
-                <Pressable
-                  onPress={() => setExpandedTodoStack(false)}
-                  style={[styles.storyItem, { opacity: 0.6 }]}
-                >
-                  <Text style={{ color: colors.muted, fontSize: 12 }}>Collapse</Text>
-                </Pressable>
+                <ReAnimated.View style={[styles.storyItem, todoStackAnimatedStyle]}>
+                  <Pressable
+                    onPress={() => setExpandedTodoStack(false)}
+                    style={[styles.storyItem, { opacity: 0.6 }]}
+                  >
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>Collapse</Text>
+                  </Pressable>
+                </ReAnimated.View>
               )}
               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && !expandedTodoStack && (
                 <View key="completion-celebration" style={styles.storyItem}>

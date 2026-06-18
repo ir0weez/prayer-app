@@ -1325,13 +1325,16 @@ export function ScheduleTab({
                     const currentTimeInMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
                     
                     availableBlocks.forEach(block => {
+                      const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
                       const endMinutes = (parseInt(block.endTime.split(':')[0]) * 60) + parseInt(block.endTime.split(':')[1]);
-                      if (isToday && endMinutes > currentTimeInMinutes) {
+                      
+                      if (isToday) {
                         // Only count time remaining from now
-                        const startMinutes = (parseInt(block.startTime.split(':')[0]) * 60) + parseInt(block.startTime.split(':')[1]);
-                        const blockStart = Math.max(startMinutes, currentTimeInMinutes);
-                        totalMinutes += Math.max(0, endMinutes - blockStart);
-                      } else if (!isToday) {
+                        if (endMinutes > currentTimeInMinutes) {
+                          const blockStart = Math.max(startMinutes, currentTimeInMinutes);
+                          totalMinutes += Math.max(0, endMinutes - blockStart);
+                        }
+                      } else {
                         // For future dates, count full duration
                         totalMinutes += block.durationMinutes;
                       }

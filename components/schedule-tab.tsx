@@ -1326,7 +1326,7 @@ export function ScheduleTab({
                       totalMinutes += block.durationMinutes;
                     });
                     
-                    const availableHours = (totalMinutes / 60).toFixed(1);
+                    const availableHours = Math.floor(totalMinutes / 60);
                     
                     return (
                       <DailySummaryCard
@@ -1348,7 +1348,7 @@ export function ScheduleTab({
                         eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                         userName={userName}
-                        availableHours={Math.max(0, parseFloat(availableHours))}
+                        availableHours={Math.max(0, availableHours)}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
                       />

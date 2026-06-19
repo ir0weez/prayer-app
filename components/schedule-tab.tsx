@@ -81,6 +81,7 @@ import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
+import { SpotifySongCard } from "@/components/spotify-song-card";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
@@ -1076,19 +1077,36 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
-  const handleAddSongToForm = () => {
+  const handleAddSongToForm = async () => {
     if (!formSongLink.trim()) return;
     
-    const newSong = {
-      id: `song-${Date.now()}`,
-      title: "Song Title",
-      artist: "Artist Name",
-      spotifyUrl: formSongLink.includes('spotify') ? formSongLink : undefined,
-      appleMusicUrl: formSongLink.includes('music.apple') ? formSongLink : undefined,
-    };
-    
-    setFormWorshipSongs([...formWorshipSongs, newSong]);
-    setFormSongLink("");
+    if (formSongLink.includes('spotify.com/playlist') || formSongLink.includes('spotify:playlist')) {
+      try {
+        const { extractPlaylistId, fetchSpotifyPlaylist } = await import('@/lib/spotify-api');
+        const playlistId = extractPlaylistId(formSongLink);
+        
+        if (!playlistId) return;
+        
+        const playlist = await fetchSpotifyPlaylist(playlistId);
+        if (!playlist) return;
+        
+        const newSongs = playlist.songs.map(song => ({
+          id: song.id,
+          title: song.name,
+          artist: song.artist,
+          album: song.album,
+          imageUrl: song.imageUrl,
+          spotifyUrl: song.spotifyUrl,
+          duration: song.duration.toString(),
+        }));
+        
+        setFormWorshipSongs([...formWorshipSongs, ...newSongs]);
+        if (!formTitle) setFormTitle(playlist.name);
+        setFormSongLink("");
+      } catch (error) {
+        console.error('Error fetching Spotify playlist:', error);
+      }
+    }
   };
 
   const handleSaveWorshipList = async () => {
@@ -2168,28 +2186,16 @@ export function ScheduleTab({
                 <>
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 16 }]}>SONGS ({formWorshipSongs.length})</Text>
                   {formWorshipSongs.map((song) => (
-                    <View key={song.id} style={[{
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      padding: 12,
-                      marginBottom: 8,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[{ color: colors.foreground, fontWeight: '600' }]}>{song.title}</Text>
-                        <Text style={[{ color: colors.muted, fontSize: 12 }]}>{song.artist}</Text>
-                      </View>
-                      <Pressable
-                        onPress={() => setFormWorshipSongs(formWorshipSongs.filter(s => s.id !== song.id))}
-                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-                      >
-                        <MaterialIcons name="close" size={20} color={colors.muted} />
-                      </Pressable>
-                    </View>
+                    <SpotifySongCard
+                      key={song.id}
+                      title={song.title}
+                      artist={song.artist || 'Unknown Artist'}
+                      album={song.album}
+                      imageUrl={song.imageUrl}
+                      spotifyUrl={song.spotifyUrl || ''}
+                      duration={song.duration}
+                      onRemove={() => setFormWorshipSongs(formWorshipSongs.filter(s => s.id !== song.id))}
+                    />
                   ))}
                 </>
               )}

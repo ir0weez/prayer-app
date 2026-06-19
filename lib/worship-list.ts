@@ -24,6 +24,8 @@ export type WorshipList = {
   updatedAt: string; // ISO date
   color?: string; // Hex color for the list
   imageUrl?: string; // Cover image for the list
+  spotifyPlaylistId?: string; // Spotify playlist ID if imported from Spotify
+  spotifyPlaylistUrl?: string; // Original Spotify playlist URL
 };
 
 // Storage key

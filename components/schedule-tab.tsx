@@ -40,6 +40,7 @@ import { TimeBlockIndicator } from "./time-block-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
+import { WorshipListSelector } from "./worship-list-selector";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
 import {
   addDays,
@@ -1230,11 +1231,19 @@ export function ScheduleTab({
           );
         case "expandable-worship":
           return (
-            <ExpandableSection title="Worship" icon="music-note">
-              <Text style={{ color: colors.muted, fontSize: 14 }}>
-                Add worship time to your day. Tap + to schedule a worship session.
-              </Text>
-            </ExpandableSection>
+            <WorshipListSelector
+              selectedDate={selectedDate}
+              linkedWorshipList={item.data?.linkedList}
+              availableWorshipLists={item.data?.availableLists || []}
+              onSelectWorshipList={(list: any) => {
+                // Handle worship list selection
+                console.log("Selected worship list:", list.name);
+              }}
+              onRemoveWorshipList={() => {
+                // Handle worship list removal
+                console.log("Removed worship list");
+              }}
+            />
           );
         case "expandable-fasting":
           return (

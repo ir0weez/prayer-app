@@ -5,6 +5,7 @@ export const SCHEDULE_EVENTS_KEY = "prayercircle.schedule.events.v1";
 export const SCHEDULE_TODOS_KEY = "prayercircle.schedule.todos.v1";
 export const SCHEDULE_MINISTRIES_KEY = "prayercircle.schedule.ministries.v1";
 export const SCHEDULE_BIBLE_STUDIES_KEY = "prayercircle.schedule.biblestudies.v1";
+export const SCHEDULE_WORSHIP_LINKS_KEY = "prayercircle.schedule.worship.links.v1";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,15 @@ export type ScheduleMinistry = {
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this ministry
   bibleBook?: string; // Bible book being read
   bibleChapter?: string; // Bible chapter being read
+};
+
+export type WorshipListLink = {
+  id: string;
+  date: string; // ISO YYYY-MM-DD - which day this worship list is linked to
+  worshipListId: string; // ID of the worship list
+  worshipListName: string; // Cached name of the worship list
+  worshipListImageUrl?: string; // Cached image URL
+  createdAt: string; // ISO date
 };
 
 export type BirthdayEvent = {

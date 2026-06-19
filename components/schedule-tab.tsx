@@ -1134,9 +1134,9 @@ export function ScheduleTab({
 
     // Calculate available time blocks
     const allScheduledItems = [
-      ...dayTodos.filter((t) => t.startTime),
+      ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
       ...dayEvents.filter((e) => !e.isCompleted && e.startTime),
-      ...dayMinistries.filter((m) => m.startTime),
+      ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
     ];
     const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
     const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);

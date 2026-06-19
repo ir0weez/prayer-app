@@ -1694,8 +1694,14 @@ export function ScheduleTab({
                         <Pressable
                           key={event.id}
                           onPress={() => {
-                            setFormLinkedEventId(formLinkedEventId === event.id ? null : event.id);
-                            setFormLinkedMinistryId(null);
+                            if (formLinkedEventId === event.id) {
+                              setFormLinkedEventId(null);
+                              setFormTodoTag(null);
+                            } else {
+                              setFormLinkedEventId(event.id);
+                              setFormTodoTag('Event');
+                              setFormLinkedMinistryId(null);
+                            }
                           }}
                           style={({ pressed }) => [{
                             paddingHorizontal: 12,
@@ -1729,8 +1735,14 @@ export function ScheduleTab({
                         <Pressable
                           key={ministry.id}
                           onPress={() => {
-                            setFormLinkedMinistryId(formLinkedMinistryId === ministry.id ? null : ministry.id);
-                            setFormLinkedEventId(null);
+                            if (formLinkedMinistryId === ministry.id) {
+                              setFormLinkedMinistryId(null);
+                              setFormTodoTag(null);
+                            } else {
+                              setFormLinkedMinistryId(ministry.id);
+                              setFormTodoTag('Ministry');
+                              setFormLinkedEventId(null);
+                            }
                           }}
                           style={({ pressed }) => [{
                             paddingHorizontal: 12,

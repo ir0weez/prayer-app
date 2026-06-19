@@ -78,6 +78,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
+import { createWorshipList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
@@ -648,7 +649,7 @@ export function ScheduleTab({
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | null>(null);
+  const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
   const [showMinistryForm, setShowMinistryForm] = useState(false);
 
@@ -1065,6 +1066,16 @@ export function ScheduleTab({
       }
     }
     setMinistries((prev) => [...prev, newMinistry]);
+    resetForm();
+    setAddType(null);
+    setShowAddModal(false);
+  };
+
+  const handleSaveWorshipList = () => {
+    if (!formTitle.trim()) return;
+    const newList = createWorshipList(formTitle, formNotes);
+    // TODO: Save worship list to AsyncStorage
+    console.log("Created worship list:", newList);
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -1509,6 +1520,18 @@ export function ScheduleTab({
                 <MaterialIcons name="check-box" size={20} color="#FFFFFF" />
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setAddType("worship");
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#9C27B0" }]}>
+                <MaterialIcons name="music-note" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
             </Pressable>
 
           </View>
@@ -2044,6 +2067,50 @@ export function ScheduleTab({
         </View>
       </Modal>
 
+      {/* Add Modal - Worship List Form */}
+      <Modal transparent visible={addType === "worship"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
+        <View style={scheduleStyles.formOverlay}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface }]}>
+            <View style={scheduleStyles.formHeader}>
+              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
+                <MaterialIcons name="close" size={28} color={colors.foreground} />
+              </Pressable>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>New Worship List</Text>
+              <Pressable onPress={handleSaveWorshipList} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>WORSHIP LIST NAME</Text>
+              <TextInput
+                placeholder="e.g., Sunday Worship, Prayer & Meditation"
+                placeholderTextColor={colors.muted}
+                value={formTitle}
+                onChangeText={setFormTitle}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DESCRIPTION (optional)</Text>
+              <TextInput
+                placeholder="e.g., Songs for Sunday morning service"
+                placeholderTextColor={colors.muted}
+                value={formNotes}
+                onChangeText={setFormNotes}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>ADD SONGS</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 12, marginTop: -8 }]}>Paste Spotify or Apple Music links to add songs to this worship list</Text>
+              <TextInput
+                placeholder="Paste a Spotify or Apple Music link..."
+                placeholderTextColor={colors.muted}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );

@@ -672,6 +672,7 @@ export function ScheduleTab({
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [formSongLink, setFormSongLink] = useState("");
+  const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
@@ -781,18 +782,20 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
           AsyncStorage.getItem(SCHEDULE_BIBLE_STUDIES_KEY),
           AsyncStorage.getItem('SCHEDULE_TIME_BLOCK_COLORS_KEY'),
+          AsyncStorage.getItem(WORSHIP_LISTS_KEY),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
         if (ministriesData) setMinistries(JSON.parse(ministriesData));
         if (bibleStudiesData) setBibleStudies(JSON.parse(bibleStudiesData));
         if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
+        if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
       } catch (e) {
         // Silent fail
       }
@@ -1073,11 +1076,34 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
+  const handleAddSongToForm = () => {
+    if (!formSongLink.trim()) return;
+    
+    const newSong = {
+      id: `song-${Date.now()}`,
+      title: "Song Title",
+      artist: "Artist Name",
+      spotifyUrl: formSongLink.includes('spotify') ? formSongLink : undefined,
+      appleMusicUrl: formSongLink.includes('music.apple') ? formSongLink : undefined,
+    };
+    
+    setFormWorshipSongs([...formWorshipSongs, newSong]);
+    setFormSongLink("");
+  };
+
   const handleSaveWorshipList = async () => {
     if (!formTitle.trim()) return;
-    const newList = createWorshipList(formTitle, formNotes);
+    let newList = createWorshipList(formTitle, formNotes);
     
-    // Save to AsyncStorage
+    for (const song of formWorshipSongs) {
+      newList = addSongToList(newList, {
+        title: song.title,
+        artist: song.artist,
+        spotifyUrl: song.spotifyUrl,
+        appleMusicUrl: song.appleMusicUrl,
+      });
+    }
+    
     try {
       const existingLists = await AsyncStorage.getItem(WORSHIP_LISTS_KEY);
       const lists = existingLists ? JSON.parse(existingLists) : [];
@@ -1090,6 +1116,7 @@ export function ScheduleTab({
     }
     
     resetForm();
+    setFormWorshipSongs([]);
     setAddType(null);
     setShowAddModal(false);
   };
@@ -1258,7 +1285,7 @@ export function ScheduleTab({
             <WorshipListSelector
               selectedDate={selectedDate}
               linkedWorshipList={item.data?.linkedList}
-              availableWorshipLists={item.data?.availableLists || []}
+              availableWorshipLists={worshipLists}
               onSelectWorshipList={(list: any) => {
                 // Handle worship list selection
                 console.log("Selected worship list:", list.name);
@@ -2114,12 +2141,58 @@ export function ScheduleTab({
               />
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>ADD SONGS</Text>
               <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 12, marginTop: -8 }]}>Paste Spotify or Apple Music links to add songs to this worship list</Text>
-              <TextInput
-                placeholder="Paste a Spotify or Apple Music link..."
-                placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                returnKeyType="done"
-              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  placeholder="Paste a Spotify or Apple Music link..."
+                  placeholderTextColor={colors.muted}
+                  value={formSongLink}
+                  onChangeText={setFormSongLink}
+                  style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                  returnKeyType="done"
+                />
+                <Pressable
+                  onPress={handleAddSongToForm}
+                  style={({ pressed }) => [{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    justifyContent: 'center',
+                  }, pressed && { opacity: 0.7 }]}
+                >
+                  <MaterialIcons name="add" size={20} color="white" />
+                </Pressable>
+              </View>
+              
+              {formWorshipSongs.length > 0 && (
+                <>
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 16 }]}>SONGS ({formWorshipSongs.length})</Text>
+                  {formWorshipSongs.map((song) => (
+                    <View key={song.id} style={[{
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[{ color: colors.foreground, fontWeight: '600' }]}>{song.title}</Text>
+                        <Text style={[{ color: colors.muted, fontSize: 12 }]}>{song.artist}</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => setFormWorshipSongs(formWorshipSongs.filter(s => s.id !== song.id))}
+                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                      >
+                        <MaterialIcons name="close" size={20} color={colors.muted} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </>
+              )}
             </ScrollView>
           </View>
         </View>

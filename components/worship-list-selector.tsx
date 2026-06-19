@@ -90,19 +90,11 @@ export function WorshipListSelector({
             </View>
           </Pressable>
         ) : (
-          <Pressable
-            onPress={() => setShowModal(true)}
-            style={({ pressed }) => [
-              styles.addButton,
-              {
-                backgroundColor: colors.primary + '20',
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <MaterialIcons name="add" size={20} color={colors.primary} />
-            <Text style={[styles.addButtonText, { color: colors.primary }]}>Add Worship List</Text>
-          </Pressable>
+          <View style={[styles.emptyState, { backgroundColor: colors.primary + '10', borderRadius: 8, paddingVertical: 12 }]}>
+            <MaterialIcons name="music-note" size={20} color={colors.muted} />
+            <Text style={[styles.emptyStateText, { color: colors.muted, fontSize: 13 }]}>No worship list linked</Text>
+            <Text style={[styles.emptyStateSubtext, { color: colors.muted, fontSize: 11 }]}>Create one from the + button</Text>
+          </View>
         )}
       </View>
 

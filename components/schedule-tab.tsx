@@ -78,7 +78,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
-import { createWorshipList } from "@/lib/worship-list";
+import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
@@ -670,6 +670,8 @@ export function ScheduleTab({
   const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
   const [formTodoTag, setFormTodoTag] = useState<string | null>(null); // Tag for todo (Ministry/Event/Family/Therapy/Personal)
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
+  const [worshipLists, setWorshipLists] = useState<any[]>([]);
+  const [formSongLink, setFormSongLink] = useState("");
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
@@ -1071,11 +1073,22 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
-  const handleSaveWorshipList = () => {
+  const handleSaveWorshipList = async () => {
     if (!formTitle.trim()) return;
     const newList = createWorshipList(formTitle, formNotes);
-    // TODO: Save worship list to AsyncStorage
-    console.log("Created worship list:", newList);
+    
+    // Save to AsyncStorage
+    try {
+      const existingLists = await AsyncStorage.getItem(WORSHIP_LISTS_KEY);
+      const lists = existingLists ? JSON.parse(existingLists) : [];
+      lists.push(newList);
+      await AsyncStorage.setItem(WORSHIP_LISTS_KEY, JSON.stringify(lists));
+      setWorshipLists(lists);
+      console.log("Saved worship list:", newList);
+    } catch (error) {
+      console.error("Error saving worship list:", error);
+    }
+    
     resetForm();
     setAddType(null);
     setShowAddModal(false);

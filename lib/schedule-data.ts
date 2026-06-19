@@ -38,6 +38,10 @@ export type ScheduleTodo = {
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this todo
   linkedEventId?: string; // ID of event this todo is linked to
   linkedMinistryId?: string; // ID of ministry this todo is linked to
+  linkedEventTitle?: string; // Cached title of linked event (for persistence)
+  linkedMinistryTitle?: string; // Cached title of linked ministry (for persistence)
+  linkedEventColor?: string; // Cached color of linked event
+  linkedMinistryColor?: string; // Cached color of linked ministry
   tag?: string; // Tag for todo (Ministry/Event/Family/Therapy/Personal)
 };
 

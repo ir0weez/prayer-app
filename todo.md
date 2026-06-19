@@ -1286,3 +1286,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Compact ministry creation person selector layout
 - [ ] Change swipe delete to long-press with confirmation modal
 - [x] Fix prospect contact tap to open prayer card
+
+## Phase 5: Bug Fixes and New Features (Current)
+
+- [ ] Fix badge persistence bug: event/ministry badge disappears on app relaunch until switching days
+- [ ] Replace swipe-to-delete with long-press context menu for todos, events, and ministries
+- [ ] Fix available hours calculation: summary shows 13 hours but schedule shows 2 hours (only count actual free blocks, not all-day blocks)
+- [ ] Make free time blocks countdown and disappear after their time passes
+- [ ] Implement worship list feature with standalone reusable playlists
+- [ ] Add ability to paste Spotify/Apple Music links with automatic metadata and artwork fetching
+- [ ] Add manual worship entry option with photo upload capability
+- [ ] Link worship lists to schedule days/events for easy access

@@ -363,10 +363,10 @@ function TodoItem({
           {linkedPeople.length > 0 && (
             <StackedAvatar people={linkedPeople} size={24} />
           )}
-          {(linkedEvent || linkedMinistry || todo.tag) && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || (todo.color || colors.primary), marginLeft: 'auto' }}>
+          {(linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}>
               <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                {linkedEvent?.title || linkedMinistry?.title || todo.tag}
+                {linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}
               </Text>
             </View>
           )}
@@ -973,10 +973,20 @@ export function ScheduleTab({
       newTodo.linkedPeopleIds = formLinkedPeopleIds;
     }
     if (formLinkedEventId) {
+      const linkedEvent = events.find((e) => e.id === formLinkedEventId);
       newTodo.linkedEventId = formLinkedEventId;
+      if (linkedEvent) {
+        newTodo.linkedEventTitle = linkedEvent.title;
+        newTodo.linkedEventColor = linkedEvent.color;
+      }
     }
     if (formLinkedMinistryId) {
+      const linkedMinistry = ministries.find((m) => m.id === formLinkedMinistryId);
       newTodo.linkedMinistryId = formLinkedMinistryId;
+      if (linkedMinistry) {
+        newTodo.linkedMinistryTitle = linkedMinistry.title;
+        newTodo.linkedMinistryColor = linkedMinistry.color;
+      }
     }
     if (formTodoTag) {
       newTodo.tag = formTodoTag;

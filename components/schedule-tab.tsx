@@ -39,6 +39,7 @@ import { TimeBlockCard } from "./time-block-card";
 import { TimeBlockIndicator } from "./time-block-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
+import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
 import {
   addDays,
@@ -296,25 +297,36 @@ function TodoItem({
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
-  const swipeX = useSharedValue(0);
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
-    .onUpdate((e) => {
-      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
-    })
-    .onEnd((e) => {
-      if (e.translationX < -50 && onDelete) {
-        runOnJS(onDelete)();
-      } else if (e.translationX > 50 && onEdit) {
-        runOnJS(onEdit)();
-      }
-      swipeX.value = withTiming(0, { duration: 200 });
+  const handleLongPress = (event: any) => {
+    const { pageX, pageY } = event.nativeEvent;
+    setContextMenuPos({ x: pageX, y: pageY });
+    setContextMenuVisible(true);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = [];
+  if (onEdit) {
+    contextMenuActions.push({
+      label: 'Edit',
+      icon: 'edit',
+      onPress: onEdit,
     });
-
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
-  }));
+  }
+  contextMenuActions.push({
+    label: todo.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
+    icon: todo.isCompleted ? 'close-circle' : 'check-circle',
+    onPress: onToggle,
+  });
+  if (onDelete) {
+    contextMenuActions.push({
+      label: 'Delete',
+      icon: 'delete',
+      onPress: onDelete,
+      isDestructive: true,
+    });
+  }
 
   const linkedPeople = useMemo(() => {
     if (!todo.linkedPeopleIds || todo.linkedPeopleIds.length === 0) return [];
@@ -334,45 +346,52 @@ function TodoItem({
   }, [todo.linkedMinistryId, ministries]);
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <ReAnimated.View style={swipeStyle}>
-        <Pressable
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
-          }}
-          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
+    <>
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggle();
+        }}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
+      >
+        <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }]}>
+          <MaterialIcons
+            name={todo.isCompleted ? "check" : (iconNameStr as any)}
+            size={16}
+            color="#FFFFFF"
+          />
+        </View>
+        <Text
+          style={[
+            todoStyles.title,
+            { color: colors.foreground },
+            todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
+          ]}
+          numberOfLines={1}
         >
-          <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }]}>
-            <MaterialIcons
-              name={todo.isCompleted ? "check" : (iconNameStr as any)}
-              size={16}
-              color="#FFFFFF"
-            />
+          {todo.title}
+        </Text>
+        {linkedPeople.length > 0 && (
+          <StackedAvatar people={linkedPeople} size={24} />
+        )}
+        {(linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
+          <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
+              {linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}
+            </Text>
           </View>
-          <Text
-            style={[
-              todoStyles.title,
-              { color: colors.foreground },
-              todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
-            ]}
-            numberOfLines={1}
-          >
-            {todo.title}
-          </Text>
-          {linkedPeople.length > 0 && (
-            <StackedAvatar people={linkedPeople} size={24} />
-          )}
-          {(linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                {linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}
-              </Text>
-            </View>
-          )}
-        </Pressable>
-      </ReAnimated.View>
-    </GestureDetector>
+        )}
+      </Pressable>
+      <ContextMenu
+        visible={contextMenuVisible}
+        x={contextMenuPos.x}
+        y={contextMenuPos.y}
+        actions={contextMenuActions}
+        onDismiss={() => setContextMenuVisible(false)}
+      />
+    </>
   );
 }
 

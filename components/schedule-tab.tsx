@@ -1471,10 +1471,11 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
+                    // Include ALL items with times (even completed ones) so they still block calendar time
                     const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
-                      ...getEventsForDate(events, selectedDate).filter((e) => !e.isCompleted && e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
                     ];
                     const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
                     const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);

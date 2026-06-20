@@ -10,9 +10,9 @@ import {
 describe("Time Block Helpers", () => {
   describe("timeToMinutes", () => {
     it("should convert time string to minutes", () => {
-      expect(timeToMinutes("06:00")).toBe(360); // 6 * 60
-      expect(timeToMinutes("12:30")).toBe(750); // 12 * 60 + 30
-      expect(timeToMinutes("23:59")).toBe(1439); // 23 * 60 + 59
+      expect(timeToMinutes("06:00")).toBe(360);
+      expect(timeToMinutes("12:30")).toBe(750);
+      expect(timeToMinutes("23:59")).toBe(1439);
       expect(timeToMinutes("00:00")).toBe(0);
     });
   });
@@ -39,10 +39,10 @@ describe("Time Block Helpers", () => {
   describe("calculateAvailableTimeBlocks", () => {
     it("should return no blocks when schedule is empty", () => {
       const blocks = calculateAvailableTimeBlocks([]);
-      expect(blocks.length).toBe(1); // One large block from 6am to 11pm
+      expect(blocks.length).toBe(1);
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("23:00");
-      expect(blocks[0].durationMinutes).toBe(1020); // 17 hours
+      expect(blocks[0].durationMinutes).toBe(1020);
     });
 
     it("should find gap between two events", () => {
@@ -51,19 +51,11 @@ describe("Time Block Helpers", () => {
         { startTime: "14:00", endTime: "15:00" },
       ];
       const blocks = calculateAvailableTimeBlocks(items);
-      
-      // Should have 3 blocks: before first event, between events, after last event
       expect(blocks.length).toBe(3);
-      
-      // First block: 6am to 9am
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("09:00");
-      
-      // Second block: 10am to 2pm
       expect(blocks[1].startTime).toBe("10:00");
       expect(blocks[1].endTime).toBe("14:00");
-      
-      // Third block: 3pm to 11pm
       expect(blocks[2].startTime).toBe("15:00");
       expect(blocks[2].endTime).toBe("23:00");
     });
@@ -71,11 +63,9 @@ describe("Time Block Helpers", () => {
     it("should handle overlapping events", () => {
       const items = [
         { startTime: "09:00", endTime: "11:00" },
-        { startTime: "10:00", endTime: "12:00" }, // Overlaps with first
+        { startTime: "10:00", endTime: "12:00" },
       ];
       const blocks = calculateAvailableTimeBlocks(items);
-      
-      // Should treat as one continuous block from 9am to 12pm
       expect(blocks.length).toBe(2);
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("09:00");
@@ -83,25 +73,30 @@ describe("Time Block Helpers", () => {
       expect(blocks[1].endTime).toBe("23:00");
     });
 
-    it("should ignore completed items", () => {
+    it("should keep same available time regardless of completion status", () => {
       const items = [
-        { startTime: "09:00", endTime: "10:00", isCompleted: true },
-        { startTime: "14:00", endTime: "15:00", isCompleted: false },
+        { startTime: "16:22", endTime: "19:00", isCompleted: true },
+        { startTime: "20:00", endTime: "21:00", isCompleted: false },
       ];
       const blocks = calculateAvailableTimeBlocks(items);
-      
-      // Completed item should be ignored, only one gap
-      expect(blocks.length).toBe(2);
+      expect(blocks.length).toBe(3);
       expect(blocks[0].startTime).toBe("06:00");
-      expect(blocks[0].endTime).toBe("14:00");
+      expect(blocks[0].endTime).toBe("16:22");
+      expect(blocks[1].startTime).toBe("19:00");
+      expect(blocks[1].endTime).toBe("20:00");
+      expect(blocks[1].durationMinutes).toBe(60);
+      expect(blocks[2].startTime).toBe("21:00");
+      expect(blocks[2].endTime).toBe("23:00");
+      expect(blocks[2].durationMinutes).toBe(120);
+      const stats = getTimeBlockStats(blocks);
+      expect(stats.totalAvailableMinutes).toBe(802);
     });
 
     it("should handle items without end time", () => {
       const items = [
-        { startTime: "09:00" }, // No end time, defaults to 1 hour
+        { startTime: "09:00" },
       ];
       const blocks = calculateAvailableTimeBlocks(items);
-      
       expect(blocks.length).toBe(2);
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("09:00");
@@ -114,7 +109,6 @@ describe("Time Block Helpers", () => {
         { startTime: "10:00", endTime: "11:00" },
       ];
       const blocks = calculateAvailableTimeBlocks(items, "08:00", "18:00");
-      
       expect(blocks.length).toBe(2);
       expect(blocks[0].startTime).toBe("08:00");
       expect(blocks[0].endTime).toBe("10:00");
@@ -124,15 +118,36 @@ describe("Time Block Helpers", () => {
 
     it("should skip items without start time", () => {
       const items = [
-        { endTime: "10:00" }, // No start time
+        { endTime: "10:00" },
         { startTime: "14:00", endTime: "15:00" },
       ];
       const blocks = calculateAvailableTimeBlocks(items);
-      
-      // Should only consider the second item
       expect(blocks.length).toBe(2);
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("14:00");
+    });
+
+    it("should handle multiple completed and incomplete events", () => {
+      const items = [
+        { startTime: "09:00", endTime: "10:00", isCompleted: true },
+        { startTime: "12:00", endTime: "13:00", isCompleted: false },
+        { startTime: "15:00", endTime: "16:00", isCompleted: true },
+        { startTime: "18:00", endTime: "19:00", isCompleted: false },
+      ];
+      const blocks = calculateAvailableTimeBlocks(items);
+      expect(blocks.length).toBe(5);
+      expect(blocks[0].startTime).toBe("06:00");
+      expect(blocks[0].endTime).toBe("09:00");
+      expect(blocks[1].startTime).toBe("10:00");
+      expect(blocks[1].endTime).toBe("12:00");
+      expect(blocks[2].startTime).toBe("13:00");
+      expect(blocks[2].endTime).toBe("15:00");
+      expect(blocks[3].startTime).toBe("16:00");
+      expect(blocks[3].endTime).toBe("18:00");
+      expect(blocks[4].startTime).toBe("19:00");
+      expect(blocks[4].endTime).toBe("23:00");
+      const stats = getTimeBlockStats(blocks);
+      expect(stats.totalAvailableMinutes).toBe(780);
     });
   });
 
@@ -168,12 +183,11 @@ describe("Time Block Helpers", () => {
           label: "8h",
         },
       ];
-      
       const stats = getTimeBlockStats(blocks);
       expect(stats.blockCount).toBe(3);
-      expect(stats.totalAvailableMinutes).toBe(780); // 13 hours
-      expect(stats.largestBlockMinutes).toBe(480); // 8 hours
-      expect(stats.smallestBlockMinutes).toBe(120); // 2 hours
+      expect(stats.totalAvailableMinutes).toBe(780);
+      expect(stats.largestBlockMinutes).toBe(480);
+      expect(stats.smallestBlockMinutes).toBe(120);
       expect(stats.totalAvailableLabel).toBe("13h");
       expect(stats.largestBlockLabel).toBe("8h");
     });

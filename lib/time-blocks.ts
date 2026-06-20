@@ -65,8 +65,9 @@ export function calculateAvailableTimeBlocks(
   businessHourEnd: string = "23:00"
 ): TimeBlock[] {
   // Filter items with times and sort by start time
+  // Note: Include completed items so they still block calendar time
   const scheduledItems = items
-    .filter((item) => item.startTime && !item.isCompleted)
+    .filter((item) => item.startTime)
     .map((item) => ({
       start: timeToMinutes(item.startTime!),
       end: item.endTime ? timeToMinutes(item.endTime) : timeToMinutes(item.startTime!) + 60,

@@ -99,6 +99,7 @@ export type EventKeyword = {
   keywords: string[];
   label: string;
   emoji: string;
+  icon: string; // Material Design icon name
   bgColor: string;
   textColor: string;
   accentColor: string;
@@ -106,27 +107,27 @@ export type EventKeyword = {
 };
 
 export const EVENT_KEYWORD_MAP: EventKeyword[] = [
-  { keywords: ["bbq", "barbecue", "grill"], label: "BBQ", emoji: "🍖🔥", bgColor: "#FFF3E0", textColor: "#E65100", accentColor: "#FF6D00", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-bbq-97bqCESdoVbdAzptsewrTq.webp" },
-  { keywords: ["church", "service", "sunday"], label: "Church", emoji: "⛪", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#3F51B5", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-church-WqiT4f26sQR8Hye2vQMv8H.webp" },
-  { keywords: ["worship", "praise"], label: "Worship", emoji: "🎵🙌", bgColor: "#F3E5F5", textColor: "#4A148C", accentColor: "#9C27B0", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-worship-QUx7n49Cz5dTeimaAz3yrf.webp" },
-  { keywords: ["bible study", "bible", "devotion"], label: "Bible Study", emoji: "📖✨", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#4CAF50", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-bible-study-dPfpybpEfcgVz5bYVPRntU.webp" },
-  { keywords: ["doctor", "medical", "appointment", "dentist"], label: "Doctor", emoji: "🏥", bgColor: "#E3F2FD", textColor: "#0D47A1", accentColor: "#2196F3", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-doctor-HQ5bHzL2MSZy2MieuQCwjm.webp" },
-  { keywords: ["baby shower", "shower"], label: "Baby Shower", emoji: "👶🎀", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#E91E63", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-baby-shower-A4jXQnm5YLUXzATALNXisG.webp" },
-  { keywords: ["birthday", "bday"], label: "Birthday", emoji: "🎂🎈", bgColor: "#FFF9C4", textColor: "#F57F17", accentColor: "#FFC107", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-birthday-3PydinwRWdXFCXjkiXxzAE.webp" },
-  { keywords: ["christmas", "xmas"], label: "Christmas", emoji: "🎄🎁", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#C62828", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-christmas-aCYCSVHTwUa5rikTE9wzRW.webp" },
-  { keywords: ["easter"], label: "Easter", emoji: "🐣✝️", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#AB47BC", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-easter-cvgMHagLs23TrgNXA4hJdJ.webp" },
-  { keywords: ["thanksgiving"], label: "Thanksgiving", emoji: "🦃🍂", bgColor: "#FFF3E0", textColor: "#E65100", accentColor: "#FF8F00" },
-  { keywords: ["wedding", "marriage"], label: "Wedding", emoji: "💒💍", bgColor: "#FFFDE7", textColor: "#F57F17", accentColor: "#FFD600" },
-  { keywords: ["funeral", "memorial"], label: "Memorial", emoji: "🕊️", bgColor: "#ECEFF1", textColor: "#37474F", accentColor: "#607D8B" },
-  { keywords: ["lunch", "dinner", "breakfast", "brunch", "meal"], label: "Meal", emoji: "🍽️", bgColor: "#FFF8E1", textColor: "#FF6F00", accentColor: "#FFB300" },
-  { keywords: ["meeting", "conference"], label: "Meeting", emoji: "🤝", bgColor: "#E0F2F1", textColor: "#004D40", accentColor: "#009688" },
-  { keywords: ["workout", "gym", "exercise", "run", "yoga"], label: "Workout", emoji: "💪", bgColor: "#FFEBEE", textColor: "#B71C1C", accentColor: "#F44336" },
-  { keywords: ["prayer", "pray"], label: "Prayer", emoji: "🙏", bgColor: "#EDE7F6", textColor: "#311B92", accentColor: "#673AB7" },
-  { keywords: ["mission", "outreach", "volunteer"], label: "Outreach", emoji: "🌍❤️", bgColor: "#E0F7FA", textColor: "#006064", accentColor: "#00BCD4" },
-  { keywords: ["concert", "music", "band"], label: "Concert", emoji: "🎶", bgColor: "#F9FBE7", textColor: "#33691E", accentColor: "#8BC34A" },
-  { keywords: ["travel", "trip", "vacation", "flight"], label: "Travel", emoji: "✈️🌴", bgColor: "#E1F5FE", textColor: "#01579B", accentColor: "#03A9F4" },
-  { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
-  { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
+  { keywords: ["bbq", "barbecue", "grill"], label: "BBQ", emoji: "🍖🔥", icon: "outdoor-grill", bgColor: "#FFF3E0", textColor: "#E65100", accentColor: "#FF6D00", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-bbq-97bqCESdoVbdAzptsewrTq.webp" },
+  { keywords: ["church", "service", "sunday"], label: "Church", emoji: "⛪", icon: "church", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#3F51B5", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-church-WqiT4f26sQR8Hye2vQMv8H.webp" },
+  { keywords: ["worship", "praise"], label: "Worship", emoji: "🎵🙌", icon: "music-note", bgColor: "#F3E5F5", textColor: "#4A148C", accentColor: "#9C27B0", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-worship-QUx7n49Cz5dTeimaAz3yrf.webp" },
+  { keywords: ["bible study", "bible", "devotion"], label: "Bible Study", emoji: "📖✨", icon: "book", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#4CAF50", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-bible-study-dPfpybpEfcgVz5bYVPRntU.webp" },
+  { keywords: ["doctor", "medical", "appointment", "dentist"], label: "Doctor", emoji: "🏥", icon: "local-hospital", bgColor: "#E3F2FD", textColor: "#0D47A1", accentColor: "#2196F3", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-doctor-HQ5bHzL2MSZy2MieuQCwjm.webp" },
+  { keywords: ["baby shower", "shower"], label: "Baby Shower", emoji: "👶🎀", icon: "child-care", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#E91E63", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-baby-shower-A4jXQnm5YLUXzATALNXisG.webp" },
+  { keywords: ["birthday", "bday"], label: "Birthday", emoji: "🎂🎈", icon: "cake", bgColor: "#FFF9C4", textColor: "#F57F17", accentColor: "#FFC107", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-birthday-3PydinwRWdXFCXjkiXxzAE.webp" },
+  { keywords: ["christmas", "xmas"], label: "Christmas", emoji: "🎄🎁", icon: "card-giftcard", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#C62828", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-christmas-aCYCSVHTwUa5rikTE9wzRW.webp" },
+  { keywords: ["easter"], label: "Easter", emoji: "🐣✝️", icon: "card-giftcard", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#AB47BC", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-easter-cvgMHagLs23TrgNXA4hJdJ.webp" },
+  { keywords: ["thanksgiving"], label: "Thanksgiving", emoji: "🦃🍂", icon: "restaurant", bgColor: "#FFF3E0", textColor: "#E65100", accentColor: "#FF8F00" },
+  { keywords: ["wedding", "marriage"], label: "Wedding", emoji: "💒💍", icon: "favorite", bgColor: "#FFFDE7", textColor: "#F57F17", accentColor: "#FFD600" },
+  { keywords: ["funeral", "memorial"], label: "Memorial", emoji: "🕊️", icon: "sentiment-very-satisfied", bgColor: "#ECEFF1", textColor: "#37474F", accentColor: "#607D8B" },
+  { keywords: ["lunch", "dinner", "breakfast", "brunch", "meal"], label: "Meal", emoji: "🍽️", icon: "restaurant", bgColor: "#FFF8E1", textColor: "#FF6F00", accentColor: "#FFB300" },
+  { keywords: ["meeting", "conference"], label: "Meeting", emoji: "🤝", icon: "people", bgColor: "#E0F2F1", textColor: "#004D40", accentColor: "#009688" },
+  { keywords: ["workout", "gym", "exercise", "run", "yoga"], label: "Workout", emoji: "💪", icon: "fitness-center", bgColor: "#FFEBEE", textColor: "#B71C1C", accentColor: "#F44336" },
+  { keywords: ["prayer", "pray"], label: "Prayer", emoji: "🙏", icon: "pan-tool", bgColor: "#EDE7F6", textColor: "#311B92", accentColor: "#673AB7" },
+  { keywords: ["mission", "outreach", "volunteer"], label: "Outreach", emoji: "🌍❤️", icon: "public", bgColor: "#E0F7FA", textColor: "#006064", accentColor: "#00BCD4" },
+  { keywords: ["concert", "music", "band"], label: "Concert", emoji: "🎶", icon: "music-note", bgColor: "#F9FBE7", textColor: "#33691E", accentColor: "#8BC34A" },
+  { keywords: ["travel", "trip", "vacation", "flight"], label: "Travel", emoji: "✈️🌴", icon: "flight", bgColor: "#E1F5FE", textColor: "#01579B", accentColor: "#03A9F4" },
+  { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", icon: "school", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
+  { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", icon: "home", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

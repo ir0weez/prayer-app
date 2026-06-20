@@ -1309,7 +1309,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Create event/ministry detail card that shows on tap with linked people
 - [ ] Add notes field to ScheduleTodo data model
 - [ ] Display todo notes under todo title in schedule view
-- [ ] Replace emoji event icons with proper Material Design icons
+- [x] Replace emoji event icons with proper Material Design icons
 - [ ] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
 - [ ] Fix available hours calculation (currently showing 14h instead of 5h after completing lunch)
 - [ ] Fix free time blocks to only countdown on today's date (not other days)

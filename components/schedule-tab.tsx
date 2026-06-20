@@ -258,7 +258,7 @@ function EventCard({
                 </Text>
               )}
             </View>
-            <Text style={eventStyles.illustratedEmoji}>{keyword.emoji}</Text>
+            <MaterialIcons name={keyword.icon as any} size={48} color="#FFFFFF" style={{ opacity: 0.9 }} />
           </View>
         </Pressable>
         <ContextMenu

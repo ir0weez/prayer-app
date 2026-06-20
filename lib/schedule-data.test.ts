@@ -11,6 +11,7 @@ import {
   getEventsForDate,
   getMinistriesForDate,
   getShortDayName,
+  getOverdueTodos,
   getTodosForDate,
   getWeekDates,
   toggleEventCompleted,
@@ -237,6 +238,37 @@ describe("schedule-data", () => {
       expect(addDays("2026-05-30", 1)).toBe("2026-05-31");
       expect(addDays("2026-05-30", -1)).toBe("2026-05-29");
       expect(addDays("2026-05-31", 1)).toBe("2026-06-01");
+    });
+  });
+
+  describe("getOverdueTodos", () => {
+    it("returns incomplete todos from before the current date", () => {
+      const todos = [
+        { ...createScheduleTodo({ title: "Overdue", date: "2026-05-28" }, 0), isCompleted: false },
+        { ...createScheduleTodo({ title: "Today", date: "2026-05-30" }, 1), isCompleted: false },
+        { ...createScheduleTodo({ title: "Completed Overdue", date: "2026-05-28" }, 2), isCompleted: true },
+      ];
+      const result = getOverdueTodos(todos, "2026-05-30");
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe("Overdue");
+    });
+
+    it("sorts overdue todos by date (oldest first)", () => {
+      const todos = [
+        { ...createScheduleTodo({ title: "Yesterday", date: "2026-05-29" }, 0), isCompleted: false },
+        { ...createScheduleTodo({ title: "Two days ago", date: "2026-05-28" }, 1), isCompleted: false },
+      ];
+      const result = getOverdueTodos(todos, "2026-05-30");
+      expect(result[0].title).toBe("Two days ago");
+      expect(result[1].title).toBe("Yesterday");
+    });
+
+    it("returns empty array if no overdue todos", () => {
+      const todos = [
+        { ...createScheduleTodo({ title: "Today", date: "2026-05-30" }, 0), isCompleted: false },
+      ];
+      const result = getOverdueTodos(todos, "2026-05-30");
+      expect(result).toHaveLength(0);
     });
   });
 });

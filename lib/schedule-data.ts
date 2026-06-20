@@ -204,6 +204,11 @@ export function getTodosForDate(todos: ScheduleTodo[], date: string): ScheduleTo
   return todos.filter((t) => t.date === date).sort((a, b) => a.order - b.order);
 }
 
+export function getOverdueTodos(todos: ScheduleTodo[], currentDate: string): ScheduleTodo[] {
+  // Get all incomplete todos with dates before the current date
+  return todos.filter((t) => !t.isCompleted && t.date < currentDate).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function getMinistriesForDate(ministries: ScheduleMinistry[], date: string): ScheduleMinistry[] {
   return ministries.filter((m) => m.date === date || m.dueDate === date).sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
 }

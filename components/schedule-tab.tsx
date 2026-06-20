@@ -56,6 +56,7 @@ import {
   getDayNumber,
   getEventsForDate,
   getMinistriesForDate,
+  getOverdueTodos,
   getShortDayName,
   getTodosForDate,
   getWeekDates,
@@ -320,6 +321,7 @@ function TodoItem({
   people = [],
   events = [],
   ministries = [],
+  isOverdue = false,
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
@@ -327,12 +329,14 @@ function TodoItem({
   onDelete?: () => void;
   people?: Person[];
   events?: ScheduleEvent[];
-  ministries?: ScheduleMinistry[]
+  ministries?: ScheduleMinistry[];
+  isOverdue?: boolean;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const overdueBadgeColor = isOverdue ? colors.error : undefined;
 
   const handleLongPress = (event: any) => {
     const { pageX, pageY } = event.nativeEvent;
@@ -410,7 +414,14 @@ function TodoItem({
         {linkedPeople.length > 0 && (
           <StackedAvatar people={linkedPeople} size={24} />
         )}
-        {(linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
+        {isOverdue && (
+          <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
+              Overdue
+            </Text>
+          </View>
+        )}
+        {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
           <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}>
             <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
               {linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}
@@ -1282,7 +1293,7 @@ export function ScheduleTab({
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, activeFast, currentBibleBook, bibleState]);
 
   const renderItem = useCallback(
-    ({ item }: { item: { type: string; id: string; data: any } }) => {
+    ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
       switch (item.type) {
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
@@ -1293,6 +1304,7 @@ export function ScheduleTab({
               people={people}
               events={events}
               ministries={ministries}
+              isOverdue={item.isOverdue}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);

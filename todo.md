@@ -1297,3 +1297,22 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add ability to paste Spotify/Apple Music links with automatic metadata and artwork fetching
 - [ ] Add manual worship entry option with photo upload capability
 - [ ] Link worship lists to schedule days/events for easy access
+
+
+## Phase 6: UX Improvements and Bug Fixes
+
+- [ ] Add long-press context menu to EventCard (delete/edit) to match TodoCard
+- [ ] Add long-press context menu to MinistryCard (delete/edit) to match TodoCard
+- [ ] Implement overdue todos that roll to next day with "Overdue" badge
+- [ ] Add "Back to Today" button in date selector when date is changed
+- [ ] Change date swipe navigation to jump 7 days (week) instead of 1 day
+- [ ] Create event/ministry detail card that shows on tap with linked people
+- [ ] Add notes field to ScheduleTodo data model
+- [ ] Display todo notes under todo title in schedule view
+- [ ] Replace emoji event icons with proper Material Design icons
+- [ ] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
+- [ ] Fix available hours calculation (currently showing 14h instead of 5h after completing lunch)
+- [ ] Fix free time blocks to only countdown on today's date (not other days)
+- [ ] Add progress bar animation to Tasks & Events counter (squiggle when counting, glow when complete)
+- [ ] Test all new features end-to-end
+- [ ] Save final checkpoint with all improvements

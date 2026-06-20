@@ -18,7 +18,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -110,30 +109,36 @@ function EventCard({
 }) {
   const colors = useColors();
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
-  const cardScale = useSharedValue(1);
-  const swipeX = useSharedValue(0);
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
-    .onUpdate((e) => {
-      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
-    })
-    .onEnd((e) => {
-      if (e.translationX < -50 && onDelete) {
-        runOnJS(onDelete)();
-      } else if (e.translationX > 50 && onEdit) {
-        runOnJS(onEdit)();
-      }
-      swipeX.value = withTiming(0, { duration: 200 });
+  const handleLongPress = (eventData: any) => {
+    const { pageX, pageY } = eventData.nativeEvent;
+    setContextMenuPos({ x: pageX, y: pageY });
+    setContextMenuVisible(true);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = [];
+  if (onEdit) {
+    contextMenuActions.push({
+      label: 'Edit',
+      icon: 'edit',
+      onPress: onEdit,
     });
-
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }, { translateX: swipeX.value }],
-  }));
-
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
-  }));
+  }
+  contextMenuActions.push({
+    label: event.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
+    icon: event.isCompleted ? 'close-circle' : 'check-circle',
+    onPress: onToggle,
+  });
+  if (onDelete) {
+    contextMenuActions.push({
+      label: 'Delete',
+      icon: 'delete',
+      onPress: onDelete,
+      isDestructive: true,
+    });
+  }
 
   const linkedPeople = useMemo(() => {
     if (!event.linkedPeopleIds || event.linkedPeopleIds.length === 0) return [];
@@ -146,137 +151,163 @@ function EventCard({
     // Completed: solid color box, smaller
     const completedColor = keyword?.accentColor || colors.muted;
     return (
-      <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={swipeStyle}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onToggle();
-            }}
-            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-          >
-            <ReAnimated.View style={[animatedCardStyle]}>
-              <View style={[eventStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
-                <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
-                <Text style={[eventStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
-                  {event.title}
-                </Text>
-                {event.startTime && (
-                  <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
-                    {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
-                  </Text>
-                )}
-                <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
-              </View>
-            </ReAnimated.View>
-          </Pressable>
-        </ReAnimated.View>
-      </GestureDetector>
+      <>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
+          <View style={[eventStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
+            <View style={[eventStyles.completedDot, { backgroundColor: completedColor }]} />
+            <Text style={[eventStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+              {event.title}
+            </Text>
+            {event.startTime && (
+              <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
+                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+              </Text>
+            )}
+            <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
     );
   }
 
   // Active: illustrated card with full-bleed image if available
   if (keyword && keyword.imageUrl) {
     return (
-      <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={swipeStyle}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onToggle();
-            }}
-            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-          >
-            <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40", backgroundColor: event.color }]}>
-              {/* Full-bleed background image */}
-              <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
-              {/* Content overlay with gradient */}
-              <View style={eventStyles.fullBleedOverlay}>
-                <View style={eventStyles.fullBleedContent}>
-                  <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
-                  {event.startTime && (
-                    <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
-                      {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-                    </Text>
-                  )}
-                  {event.location && (
-                    <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                      📍 {event.location}
-                    </Text>
-                  )}
-                </View>
+      <>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        >
+          <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40", backgroundColor: event.color }]}>
+            {/* Full-bleed background image */}
+            <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
+            {/* Content overlay with gradient */}
+            <View style={eventStyles.fullBleedOverlay}>
+              <View style={eventStyles.fullBleedContent}>
+                <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+                {event.startTime && (
+                  <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
+                    {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                  </Text>
+                )}
+                {event.location && (
+                  <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                    📍 {event.location}
+                  </Text>
+                )}
               </View>
             </View>
-          </Pressable>
-        </ReAnimated.View>
-      </GestureDetector>
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
     );
   }
 
   // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
     return (
-      <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={swipeStyle}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onToggle();
-            }}
-            style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-          >
-            <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
-              <View style={eventStyles.illustratedContent}>
-                <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
-                {event.startTime && (
-                  <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
-                    {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-                  </Text>
-                )}
-                {event.location && (
-                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                    📍 {event.location}
-                  </Text>
-                )}
-              </View>
-              <Text style={eventStyles.illustratedEmoji}>{keyword.emoji}</Text>
-            </View>
-          </Pressable>
-        </ReAnimated.View>
-      </GestureDetector>
-    );
-  }
-
-  // Default event card (no keyword match)
-  return (
-    <GestureDetector gesture={panGesture}>
-      <ReAnimated.View style={swipeStyle}>
+      <>
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onToggle();
           }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border }]}>
-            <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
+            <View style={eventStyles.illustratedContent}>
+              <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.startTime && (
-                <Text style={[eventStyles.defaultTime, { color: event.color ? '#FFFFFFDD' : colors.muted }]}>
+                <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
                   {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
                 </Text>
               )}
+              {event.location && (
+                <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                  📍 {event.location}
+                </Text>
+              )}
             </View>
-            {linkedPeople.length > 0 && (
-              <View style={{ marginLeft: 8 }}>
-                <StackedAvatar people={linkedPeople} size={20} />
-              </View>
-            )}
+            <Text style={eventStyles.illustratedEmoji}>{keyword.emoji}</Text>
           </View>
         </Pressable>
-      </ReAnimated.View>
-    </GestureDetector>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
+    );
+  }
+
+  // Default event card (no keyword match)
+  return (
+    <>
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggle();
+        }}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+      >
+        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border }]}>
+          <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>
+            {event.startTime && (
+              <Text style={[eventStyles.defaultTime, { color: event.color ? '#FFFFFFDD' : colors.muted }]}>
+                {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+              </Text>
+            )}
+          </View>
+          {linkedPeople.length > 0 && (
+            <View style={{ marginLeft: 8 }}>
+              <StackedAvatar people={linkedPeople} size={20} />
+            </View>
+          )}
+        </View>
+      </Pressable>
+      <ContextMenu
+        visible={contextMenuVisible}
+        x={contextMenuPos.x}
+        y={contextMenuPos.y}
+        actions={contextMenuActions}
+        onDismiss={() => setContextMenuVisible(false)}
+      />
+    </>
   );
 }
 
@@ -438,26 +469,39 @@ function MinistryCard({
     // );
   }, []);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
-    .onUpdate((e) => {
-      swipeX.value = Math.max(-80, Math.min(80, e.translationX));
-    })
-    .onEnd((e) => {
-      if (e.translationX < -50 && onDelete) {
-        runOnJS(onDelete)();
-      } else if (e.translationX > 50 && onEdit) {
-        runOnJS(onEdit)();
-      }
-      swipeX.value = withTiming(0, { duration: 200 });
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+
+  const handleLongPress = (eventData: any) => {
+    const { pageX, pageY } = eventData.nativeEvent;
+    setContextMenuPos({ x: pageX, y: pageY });
+    setContextMenuVisible(true);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = [];
+  if (onEdit) {
+    contextMenuActions.push({
+      label: 'Edit',
+      icon: 'edit',
+      onPress: onEdit,
     });
+  }
+  contextMenuActions.push({
+    label: ministry.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
+    icon: ministry.isCompleted ? 'close-circle' : 'check-circle',
+    onPress: onToggle,
+  });
+  if (onDelete) {
+    contextMenuActions.push({
+      label: 'Delete',
+      icon: 'delete',
+      onPress: onDelete,
+      isDestructive: true,
+    });
+  }
 
   const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cardScale.value }, { translateX: swipeX.value }],
-  }));
-
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
+    transform: [{ scale: cardScale.value }],
   }));
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
@@ -479,92 +523,104 @@ function MinistryCard({
     // Completed: solid color box, smaller
     const completedColor = ministry.color || "#7C5CFF";
     return (
-      <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={swipeStyle}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onToggle();
-            }}
-            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-          >
-            <ReAnimated.View style={[animatedCardStyle]}>
-              <View style={[ministryStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
-                <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
-                <Text style={[ministryStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
-                  {ministry.title}
-                </Text>
-                {ministry.startTime && (
-                  <Text style={[ministryStyles.completedTime, { color: completedColor + "99" }]}>
-                    {ministry.startTime}{ministry.endTime ? ` - ${ministry.endTime}` : ""}
-                  </Text>
-                )}
-                <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
-              </View>
-            </ReAnimated.View>
-          </Pressable>
-        </ReAnimated.View>
-      </GestureDetector>
+      <>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+        >
+          <View style={[ministryStyles.completedCard, { backgroundColor: completedColor + "30", borderColor: completedColor + "50" }]}>
+            <View style={[ministryStyles.completedDot, { backgroundColor: completedColor }]} />
+            <Text style={[ministryStyles.completedTitle, { color: completedColor }]} numberOfLines={1}>
+              {ministry.title}
+            </Text>
+            {ministry.startTime && (
+              <Text style={[ministryStyles.completedTime, { color: completedColor + "99" }]}>
+                {ministry.startTime}{ministry.endTime ? ` - ${ministry.endTime}` : ""}
+              </Text>
+            )}
+            <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
     );
   }
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <ReAnimated.View style={swipeStyle}>
-        <Pressable
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            // Animate scale down before toggling
-            cardScale.value = withTiming(0.95, { duration: 150, easing: Easing.inOut(Easing.ease) }, () => {
-              runOnJS(onToggle)();
-              cardScale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
-            });
-          }}
-          style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-        >
-          <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
-            {/* Glow effect now using shadow */}
-            <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-                <Text style={ministryStyles.typeText}>{ministry.type}</Text>
-              </View>
-              <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
-                {ministry.title}
+    <>
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // Animate scale down before toggling
+          cardScale.value = withTiming(0.95, { duration: 150, easing: Easing.inOut(Easing.ease) }, () => {
+            runOnJS(onToggle)();
+            cardScale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+          });
+        }}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+      >
+        <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
+          {/* Glow effect now using shadow */}
+          <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
+            <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
+              <Text style={ministryStyles.typeText}>{ministry.type}</Text>
+            </View>
+            <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
+              {ministry.title}
+            </Text>
+            {ministry.location && (
+              <Text style={[ministryStyles.location, { color: colors.muted }]} numberOfLines={1}>
+                📍 {ministry.location}
               </Text>
-              {ministry.location && (
-                <Text style={[ministryStyles.location, { color: colors.muted }]} numberOfLines={1}>
-                  📍 {ministry.location}
-                </Text>
-              )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
-                <View style={{ flex: 1, justifyContent: 'center' }}>
-                  {ministry.startTime && (
-                    <Text style={[ministryStyles.time, { color: colors.muted }]}>
-                      {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
-                    </Text>
-                  )}
-                  {ministry.bibleBook && (
-                    <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
-                      📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
-                    </Text>
-                  )}
-                </View>
-                {linkedPeople.length > 0 && (
-                  <View style={{ paddingTop: 0 }}>
-                    <StackedAvatar people={linkedPeople} size={28} />
-                  </View>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                {ministry.startTime && (
+                  <Text style={[ministryStyles.time, { color: colors.muted }]}>
+                    {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
+                  </Text>
+                )}
+                {ministry.bibleBook && (
+                  <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
+                    📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                  </Text>
                 )}
               </View>
-              {ministry.isCompleted && (
-                <View style={ministryStyles.checkBadge}>
-                  <MaterialIcons name="check-circle" size={16} color="#22C55E" />
+              {linkedPeople.length > 0 && (
+                <View style={{ paddingTop: 0 }}>
+                  <StackedAvatar people={linkedPeople} size={28} />
                 </View>
               )}
             </View>
-          </ReAnimated.View>
-        </Pressable>
-      </ReAnimated.View>
-    </GestureDetector>
+            {ministry.isCompleted && (
+              <View style={ministryStyles.checkBadge}>
+                <MaterialIcons name="check-circle" size={16} color="#22C55E" />
+              </View>
+            )}
+          </View>
+        </ReAnimated.View>
+      </Pressable>
+      <ContextMenu
+        visible={contextMenuVisible}
+        x={contextMenuPos.x}
+        y={contextMenuPos.y}
+        actions={contextMenuActions}
+        onDismiss={() => setContextMenuVisible(false)}
+      />
+    </>
   );
 }
 
@@ -725,23 +781,7 @@ export function ScheduleTab({
     setSelectedDate((prev) => addDays(prev, -1));
   }, []);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-30, 30])
-    .onUpdate((e) => {
-      swipeTranslateX.value = e.translationX * 0.3;
-    })
-    .onEnd((e) => {
-      if (e.translationX < -80) {
-        runOnJS(handleSwipeLeft)();
-      } else if (e.translationX > 80) {
-        runOnJS(handleSwipeRight)();
-      }
-      swipeTranslateX.value = withTiming(0, { duration: 200 });
-    });
 
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeTranslateX.value }],
-  }));
 
   // Helper function to get last chapter read from completed Read ministries or Bible Study sessions
   const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[]): string => {
@@ -1400,9 +1440,8 @@ export function ScheduleTab({
 
 
 
-      {/* Swipeable content area */}
-      <GestureDetector gesture={panGesture}>
-        <ReAnimated.View style={[{ flex: 1 }, swipeStyle]}>
+      {/* Content area */}
+      <ReAnimated.View style={[{ flex: 1 }]}>
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
@@ -1529,7 +1568,6 @@ export function ScheduleTab({
             }
           />
         </ReAnimated.View>
-      </GestureDetector>
       {/* + FAB Button */}
       {/* + FAB Button with Google Calendar-style popup */}
       <Pressable

@@ -1301,11 +1301,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 ## Phase 6: UX Improvements and Bug Fixes
 
-- [ ] Add long-press context menu to EventCard (delete/edit) to match TodoCard
-- [ ] Add long-press context menu to MinistryCard (delete/edit) to match TodoCard
-- [ ] Implement overdue todos that roll to next day with "Overdue" badge
-- [ ] Add "Back to Today" button in date selector when date is changed
-- [ ] Change date swipe navigation to jump 7 days (week) instead of 1 day
+- [x] Add long-press context menu to EventCard (delete/edit) to match TodoCard
+- [x] Add long-press context menu to MinistryCard (delete/edit) to match TodoCard
+- [x] Implement overdue todos that roll to next day with "Overdue" badge
+- [x] Add "Back to Today" button in date selector when date is changed
+- [x] Change date swipe navigation to jump 7 days (week) instead of 1 day
 - [ ] Create event/ministry detail card that shows on tap with linked people
 - [ ] Add notes field to ScheduleTodo data model
 - [ ] Display todo notes under todo title in schedule view

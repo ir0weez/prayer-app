@@ -785,11 +785,11 @@ export function ScheduleTab({
   const swipeTranslateX = useSharedValue(0);
 
   const handleSwipeLeft = useCallback(() => {
-    setSelectedDate((prev) => addDays(prev, 1));
+    setSelectedDate((prev) => addDays(prev, 7));
   }, []);
 
   const handleSwipeRight = useCallback(() => {
-    setSelectedDate((prev) => addDays(prev, -1));
+    setSelectedDate((prev) => addDays(prev, -7));
   }, []);
 
 
@@ -1540,6 +1540,15 @@ export function ScheduleTab({
                       </Text>
                     </View>
                   </View>
+                  {selectedDate !== today && (
+                    <Pressable
+                      onPress={() => setSelectedDate(today)}
+                      style={({ pressed }) => [scheduleStyles.backToTodayButton, pressed && { opacity: 0.7 }]}
+                    >
+                      <MaterialIcons name="today" size={18} color={colors.primary} />
+                      <Text style={[scheduleStyles.backToTodayText, { color: colors.primary }]}>Back to Today</Text>
+                    </Pressable>
+                  )}
                   <View style={scheduleStyles.dateStrip}>
                     {weekDates.map((date) => {
                       const isSelected = date === selectedDate;
@@ -2338,6 +2347,19 @@ const scheduleStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
     marginTop: 2,
+  },
+  backToTodayButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 6,
+  },
+  backToTodayText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   listContent: {
     paddingHorizontal: 0,

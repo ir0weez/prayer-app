@@ -1117,8 +1117,9 @@ export function ScheduleTab({
       newList = addSongToList(newList, {
         title: song.title,
         artist: song.artist,
-        spotifyUrl: song.spotifyUrl,
-        appleMusicUrl: song.appleMusicUrl,
+        album: song.album,
+        imageUrl: song.imageUrl,
+        orderNumber: song.orderNumber,
       });
     }
     

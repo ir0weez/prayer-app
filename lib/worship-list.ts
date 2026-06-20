@@ -5,13 +5,11 @@
 
 export type WorshipSong = {
   id: string;
-  title: string;
-  artist?: string;
-  album?: string;
-  duration?: string; // e.g., "3:45"
-  imageUrl?: string; // Album artwork or user-uploaded photo
-  spotifyUrl?: string; // Link to Spotify
-  appleMusicUrl?: string; // Link to Apple Music
+  title: string; // Song name
+  artist?: string; // Artist name
+  album?: string; // Album name
+  imageUrl?: string; // User-uploaded album cover photo
+  orderNumber?: number; // Display order in the list
   notes?: string;
 };
 
@@ -24,8 +22,6 @@ export type WorshipList = {
   updatedAt: string; // ISO date
   color?: string; // Hex color for the list
   imageUrl?: string; // Cover image for the list
-  spotifyPlaylistId?: string; // Spotify playlist ID if imported from Spotify
-  spotifyPlaylistUrl?: string; // Original Spotify playlist URL
 };
 
 // Storage key
@@ -97,63 +93,4 @@ export function updateWorshipList(list: WorshipList, updates: Partial<Omit<Worsh
   };
 }
 
-/**
- * Fetch metadata from Spotify URL
- * Returns song info extracted from the URL
- */
-export async function fetchSpotifyMetadata(url: string): Promise<Partial<WorshipSong> | null> {
-  try {
-    // Extract track ID from Spotify URL
-    // Formats: https://open.spotify.com/track/ID or spotify:track:ID
-    const trackIdMatch = url.match(/(?:spotify\.com\/track\/|spotify:track:)([a-zA-Z0-9]+)/);
-    if (!trackIdMatch) return null;
 
-    const trackId = trackIdMatch[1];
-
-    // In a real app, you'd call the Spotify API here
-    // For now, return a placeholder that can be enhanced later
-    return {
-      title: "Spotify Track",
-      spotifyUrl: url,
-      // imageUrl would be fetched from Spotify API
-    };
-  } catch (error) {
-    console.error("Error fetching Spotify metadata:", error);
-    return null;
-  }
-}
-
-/**
- * Fetch metadata from Apple Music URL
- * Returns song info extracted from the URL
- */
-export async function fetchAppleMusicMetadata(url: string): Promise<Partial<WorshipSong> | null> {
-  try {
-    // Extract song info from Apple Music URL
-    // Format: https://music.apple.com/[country]/album/[album]/[id]?i=[track-id]
-    if (!url.includes("music.apple.com")) return null;
-
-    // In a real app, you'd call the Apple Music API here
-    // For now, return a placeholder that can be enhanced later
-    return {
-      title: "Apple Music Track",
-      appleMusicUrl: url,
-      // imageUrl would be fetched from Apple Music API
-    };
-  } catch (error) {
-    console.error("Error fetching Apple Music metadata:", error);
-    return null;
-  }
-}
-
-/**
- * Parse a music link and fetch metadata
- */
-export async function parseMusicLink(url: string): Promise<Partial<WorshipSong> | null> {
-  if (url.includes("spotify")) {
-    return fetchSpotifyMetadata(url);
-  } else if (url.includes("music.apple.com")) {
-    return fetchAppleMusicMetadata(url);
-  }
-  return null;
-}

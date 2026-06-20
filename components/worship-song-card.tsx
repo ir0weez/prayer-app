@@ -17,13 +17,7 @@ export function WorshipSongCard({
 }: WorshipSongCardProps) {
   const colors = useColors();
 
-  const handleOpenLink = () => {
-    if (song.spotifyUrl) {
-      Linking.openURL(song.spotifyUrl);
-    } else if (song.appleMusicUrl) {
-      Linking.openURL(song.appleMusicUrl);
-    }
-  };
+
 
   return (
     <View
@@ -56,25 +50,8 @@ export function WorshipSongCard({
               {song.album}
             </Text>
           )}
-          {song.duration && (
-            <Text style={[styles.duration, { color: colors.muted }]}>
-              {song.duration}
-            </Text>
-          )}
         </View>
         <View style={styles.actions}>
-          {(song.spotifyUrl || song.appleMusicUrl) && (
-            <Pressable
-              onPress={handleOpenLink}
-              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-            >
-              <MaterialIcons
-                name={song.spotifyUrl ? 'music-note' : 'play-circle'}
-                size={20}
-                color={colors.primary}
-              />
-            </Pressable>
-          )}
           {onEdit && (
             <Pressable
               onPress={onEdit}
@@ -130,9 +107,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginBottom: 2,
   },
-  duration: {
-    fontSize: 11,
-  },
+
   actions: {
     flexDirection: 'row',
     gap: 8,

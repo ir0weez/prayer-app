@@ -5,7 +5,6 @@ import {
   removeSongFromList,
   updateSongInList,
   updateWorshipList,
-  parseMusicLink,
 } from "./worship-list";
 
 describe("Worship List Management", () => {
@@ -23,7 +22,6 @@ describe("Worship List Management", () => {
     const updatedList = addSongToList(list, {
       title: "Amazing Grace",
       artist: "John Newton",
-      duration: "3:45",
     });
 
     expect(updatedList.songs).toHaveLength(1);
@@ -55,12 +53,12 @@ describe("Worship List Management", () => {
     const songId = list.songs[0].id;
     const updatedList = updateSongInList(list, songId, {
       title: "Updated Title",
-      duration: "4:30",
+      album: "New Album",
     });
 
     expect(updatedList.songs[0].title).toBe("Updated Title");
     expect(updatedList.songs[0].artist).toBe("Original Artist"); // Should remain unchanged
-    expect(updatedList.songs[0].duration).toBe("4:30");
+    expect(updatedList.songs[0].album).toBe("New Album");
   });
 
   it("should update worship list metadata", () => {
@@ -77,29 +75,6 @@ describe("Worship List Management", () => {
     expect(updatedList.id).toBe(list.id); // ID should not change
   });
 
-  it("should parse Spotify links", async () => {
-    const spotifyUrl = "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp";
-    const metadata = await parseMusicLink(spotifyUrl);
-
-    expect(metadata).not.toBeNull();
-    expect(metadata?.spotifyUrl).toBe(spotifyUrl);
-  });
-
-  it("should parse Apple Music links", async () => {
-    const appleMusicUrl = "https://music.apple.com/us/album/the-story-so-far/1234567890?i=1234567891";
-    const metadata = await parseMusicLink(appleMusicUrl);
-
-    expect(metadata).not.toBeNull();
-    expect(metadata?.appleMusicUrl).toBe(appleMusicUrl);
-  });
-
-  it("should return null for invalid links", async () => {
-    const invalidUrl = "https://example.com/song";
-    const metadata = await parseMusicLink(invalidUrl);
-
-    expect(metadata).toBeNull();
-  });
-
   it("should maintain song order when adding multiple songs", () => {
     let list = createWorshipList("Test List");
     list = addSongToList(list, { title: "Song 1" });
@@ -107,5 +82,25 @@ describe("Worship List Management", () => {
     list = addSongToList(list, { title: "Song 3" });
 
     expect(list.songs.map((s) => s.title)).toEqual(["Song 1", "Song 2", "Song 3"]);
+  });
+
+  it("should support order numbers for songs", () => {
+    let list = createWorshipList("Test List");
+    list = addSongToList(list, { title: "Song 1", orderNumber: 1 });
+    list = addSongToList(list, { title: "Song 2", orderNumber: 2 });
+
+    expect(list.songs[0].orderNumber).toBe(1);
+    expect(list.songs[1].orderNumber).toBe(2);
+  });
+
+  it("should support image URLs for album covers", () => {
+    const list = createWorshipList("Test List");
+    const updatedList = addSongToList(list, {
+      title: "Song with Cover",
+      artist: "Artist",
+      imageUrl: "https://example.com/cover.jpg",
+    });
+
+    expect(updatedList.songs[0].imageUrl).toBe("https://example.com/cover.jpg");
   });
 });

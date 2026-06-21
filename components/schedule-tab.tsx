@@ -68,6 +68,7 @@ import {
   SCHEDULE_TODOS_KEY,
   SCHEDULE_BIBLE_STUDIES_KEY,
   BibleStudySession,
+  WorshipListLink,
   createBibleStudySession,
   getBibleStudiesForDate,
   toggleBibleStudyCompleted,
@@ -220,6 +221,9 @@ function EventCard({
                   </Text>
                 )}
               </View>
+              {keyword && (
+                <MaterialIcons name={keyword.icon as any} size={40} color="#FFFFFF" style={{ opacity: 0.8, position: 'absolute', top: 12, right: 12 }} />
+              )}
             </View>
           </View>
         </Pressable>
@@ -768,6 +772,7 @@ export function ScheduleTab({
   const [formTodoNotes, setFormTodoNotes] = useState(""); // Notes for todo
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
+  const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
@@ -863,13 +868,14 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
           AsyncStorage.getItem(SCHEDULE_BIBLE_STUDIES_KEY),
           AsyncStorage.getItem('SCHEDULE_TIME_BLOCK_COLORS_KEY'),
           AsyncStorage.getItem(WORSHIP_LISTS_KEY),
+          AsyncStorage.getItem('WORSHIP_LIST_LINKS_KEY'),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
@@ -877,6 +883,7 @@ export function ScheduleTab({
         if (bibleStudiesData) setBibleStudies(JSON.parse(bibleStudiesData));
         if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
         if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
+        if (worshipLinksData) setWorshipListLinks(JSON.parse(worshipLinksData));
       } catch (e) {
         // Silent fail
       }
@@ -888,6 +895,10 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(events)).catch(() => undefined);
   }, [events]);
+
+  useEffect(() => {
+    AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);
+  }, [worshipListLinks]);
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(todos)).catch(() => undefined);
   }, [todos]);
@@ -1382,22 +1393,33 @@ export function ScheduleTab({
               }}
             />
           );
-        case "expandable-worship":
+        case "expandable-worship": {
+          const linkedForDate = worshipListLinks.find((link) => link.date === selectedDate);
           return (
             <WorshipListSelector
               selectedDate={selectedDate}
-              linkedWorshipList={item.data?.linkedList}
+              linkedWorshipList={linkedForDate}
               availableWorshipLists={worshipLists}
               onSelectWorshipList={(list: any) => {
-                // Handle worship list selection
-                console.log("Selected worship list:", list.name);
+                const newLink: WorshipListLink = {
+                  id: `${selectedDate}-${list.id}`,
+                  date: selectedDate,
+                  worshipListId: list.id,
+                  worshipListName: list.name,
+                  worshipListImageUrl: list.imageUrl,
+                  createdAt: new Date().toISOString(),
+                };
+                setWorshipListLinks((prev) => {
+                  const filtered = prev.filter((link) => link.date !== selectedDate);
+                  return [...filtered, newLink];
+                });
               }}
               onRemoveWorshipList={() => {
-                // Handle worship list removal
-                console.log("Removed worship list");
+                setWorshipListLinks((prev) => prev.filter((link) => link.date !== selectedDate));
               }}
             />
           );
+        }
         case "expandable-fasting":
           return (
             <ExpandableSection title="Fasting" icon="restaurant">

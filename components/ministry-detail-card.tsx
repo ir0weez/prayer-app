@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   View,
@@ -11,12 +11,14 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
+import { MinistryEditForm } from "./ministry-edit-form";
 
 interface MinistryDetailCardProps {
   ministry: ScheduleMinistry;
   people?: Person[];
   visible: boolean;
   onClose: () => void;
+  onEdit?: (updatedMinistry: ScheduleMinistry) => void;
 }
 
 export function MinistryDetailCard({
@@ -24,8 +26,10 @@ export function MinistryDetailCard({
   people = [],
   visible,
   onClose,
+  onEdit,
 }: MinistryDetailCardProps) {
   const colors = useColors();
+  const [editFormVisible, setEditFormVisible] = useState(false);
 
   const linkedPeople = ministry.linkedPeopleIds
     ? ministry.linkedPeopleIds
@@ -61,7 +65,11 @@ export function MinistryDetailCard({
             <Text style={[styles.title, { color: colors.foreground }]}>
               {ministry.title}
             </Text>
-            <View style={{ width: 28 }} />
+            {onEdit && (
+              <Pressable onPress={() => setEditFormVisible(true)}>
+                <MaterialIcons name="edit" size={24} color={colors.primary} />
+              </Pressable>
+            )}
           </View>
 
           <ScrollView
@@ -270,6 +278,17 @@ export function MinistryDetailCard({
           </ScrollView>
         </Pressable>
       </Pressable>
+      {onEdit && (
+        <MinistryEditForm
+          ministry={ministry}
+          visible={editFormVisible}
+          onClose={() => setEditFormVisible(false)}
+          onSave={(updatedMinistry: ScheduleMinistry) => {
+            onEdit(updatedMinistry);
+            setEditFormVisible(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }

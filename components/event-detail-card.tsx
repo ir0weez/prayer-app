@@ -12,12 +12,14 @@ import { useColors } from "@/hooks/use-colors";
 import { ScheduleEvent } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { StackedAvatar } from "./stacked-avatar";
+import { EventEditForm } from "./event-edit-form";
 
 interface EventDetailCardProps {
   event: ScheduleEvent;
   people?: Person[];
   visible: boolean;
   onClose: () => void;
+  onEdit?: (updatedEvent: ScheduleEvent) => void;
 }
 
 export function EventDetailCard({
@@ -25,8 +27,10 @@ export function EventDetailCard({
   people = [],
   visible,
   onClose,
+  onEdit,
 }: EventDetailCardProps) {
   const colors = useColors();
+  const [editFormVisible, setEditFormVisible] = useState(false);
 
   const linkedPeople = event.linkedPeopleIds
     ? event.linkedPeopleIds
@@ -62,7 +66,11 @@ export function EventDetailCard({
             <Text style={[styles.title, { color: colors.foreground }]}>
               {event.title}
             </Text>
-            <View style={{ width: 28 }} />
+            {onEdit && (
+              <Pressable onPress={() => setEditFormVisible(true)}>
+                <MaterialIcons name="edit" size={24} color={colors.primary} />
+              </Pressable>
+            )}
           </View>
 
           <ScrollView
@@ -203,6 +211,17 @@ export function EventDetailCard({
           </ScrollView>
         </Pressable>
       </Pressable>
+      {onEdit && (
+        <EventEditForm
+          event={event}
+          visible={editFormVisible}
+          onClose={() => setEditFormVisible(false)}
+          onSave={(updatedEvent) => {
+            onEdit(updatedEvent);
+            setEditFormVisible(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }

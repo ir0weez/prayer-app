@@ -1316,3 +1316,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add progress bar animation to Tasks & Events counter (squiggle when counting, glow when complete)
 - [ ] Test all new features end-to-end
 - [ ] Save final checkpoint with all improvements
+
+## Phase 7: Event/Ministry Editing
+
+- [x] Add notes field to ScheduleEvent and ScheduleMinistry models
+- [x] Create EventEditForm component with all editable fields
+- [x] Create MinistryEditForm component with all editable fields
+- [x] Add edit button to EventDetailCard and MinistryDetailCard
+- [x] Integrate edit forms into detail cards
+- [x] Connect edit handlers to update events/ministries in state

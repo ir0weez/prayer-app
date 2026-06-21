@@ -106,7 +106,7 @@ function EventCard({
 }: {
   event: ScheduleEvent;
   onToggle: () => void;
-  onEdit?: () => void;
+  onEdit?: (updatedEvent?: ScheduleEvent) => void;
   onDelete?: () => void;
   people?: Person[];
 }) {
@@ -316,6 +316,7 @@ function EventCard({
         people={people}
         visible={detailCardVisible}
         onClose={() => setDetailCardVisible(false)}
+        onEdit={onEdit as ((updatedEvent: ScheduleEvent) => void) | undefined}
       />
     </>
   );
@@ -473,7 +474,7 @@ function MinistryCard({
 }: {
   ministry: ScheduleMinistry;
   onToggle: () => void;
-  onEdit?: () => void;
+  onEdit?: (updatedMinistry?: ScheduleMinistry) => void;
   onDelete?: () => void;
   people?: Person[];
 }) {
@@ -656,6 +657,7 @@ function MinistryCard({
         people={people}
         visible={detailCardVisible}
         onClose={() => setDetailCardVisible(false)}
+        onEdit={onEdit}
       />
     </>
   );
@@ -1354,12 +1356,10 @@ export function ScheduleTab({
               event={item.data}
               people={people}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
-              onEdit={() => {
-                setFormTitle(item.data.title);
-                setFormDate(item.data.date);
-                setFormStartTime(item.data.startTime || "");
-                setAddType("event");
-                setShowAddModal(true);
+              onEdit={(updatedEvent) => {
+                if (updatedEvent) {
+                  setEvents((prev: ScheduleEvent[]) => prev.map((e: ScheduleEvent) => e.id === updatedEvent.id ? updatedEvent : e));
+                }
               }}
               onDelete={() => {
                 setEvents((prev) => prev.filter(e => e.id !== item.data.id));
@@ -1372,9 +1372,10 @@ export function ScheduleTab({
               ministry={item.data}
               people={people}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
-              onEdit={() => {
-                setEditingMinistry(item.data);
-                setShowMinistryForm(true);
+              onEdit={(updatedMinistry) => {
+                if (updatedMinistry) {
+                  setMinistries((prev: ScheduleMinistry[]) => prev.map((m: ScheduleMinistry) => m.id === updatedMinistry.id ? updatedMinistry : m));
+                }
               }}
               onDelete={() => {
                 setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));

@@ -1307,8 +1307,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add "Back to Today" button in date selector when date is changed
 - [x] Change date swipe navigation to jump 7 days (week) instead of 1 day
 - [ ] Create event/ministry detail card that shows on tap with linked people
-- [ ] Add notes field to ScheduleTodo data model
-- [ ] Display todo notes under todo title in schedule view
+- [x] Add notes field to ScheduleTodo data model
+- [x] Display todo notes under todo title in schedule view
 - [x] Replace emoji event icons with proper Material Design icons
 - [ ] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
 - [ ] Fix available hours calculation (currently showing 14h instead of 5h after completing lunch)

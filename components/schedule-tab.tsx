@@ -401,16 +401,30 @@ function TodoItem({
             color="#FFFFFF"
           />
         </View>
-        <Text
-          style={[
-            todoStyles.title,
-            { color: colors.foreground },
-            todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
-          ]}
-          numberOfLines={1}
-        >
-          {todo.title}
-        </Text>
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <Text
+            style={[
+              todoStyles.title,
+              { color: colors.foreground },
+              todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
+            ]}
+            numberOfLines={1}
+          >
+            {todo.title}
+          </Text>
+          {todo.notes && (
+            <Text
+              style={[
+                todoStyles.notes,
+                { color: colors.muted },
+                todo.isCompleted && { textDecorationLine: "line-through" },
+              ]}
+              numberOfLines={2}
+            >
+              {todo.notes}
+            </Text>
+          )}
+        </View>
         {linkedPeople.length > 0 && (
           <StackedAvatar people={linkedPeople} size={24} />
         )}
@@ -737,6 +751,7 @@ export function ScheduleTab({
   const [formLinkedEventId, setFormLinkedEventId] = useState<string | null>(null); // Event linked to todo
   const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
   const [formTodoTag, setFormTodoTag] = useState<string | null>(null); // Tag for todo (Ministry/Event/Family/Therapy/Personal)
+  const [formTodoNotes, setFormTodoNotes] = useState(""); // Notes for todo
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [formSongLink, setFormSongLink] = useState("");
@@ -1044,7 +1059,7 @@ export function ScheduleTab({
   const handleSaveTodo = () => {
     if (!formTitle.trim()) return;
     const newTodo = createScheduleTodo(
-      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined, color: formColor },
+      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined, color: formColor, notes: formTodoNotes || undefined },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
     if (formLinkedPeopleIds.length > 0) {
@@ -1068,6 +1083,9 @@ export function ScheduleTab({
     }
     if (formTodoTag) {
       newTodo.tag = formTodoTag;
+    }
+    if (formTodoNotes) {
+      newTodo.notes = formTodoNotes;
     }
     setTodos((prev) => {
       const updated = [...prev, newTodo];
@@ -1948,6 +1966,16 @@ export function ScheduleTab({
                   );
                 })()}
               </View>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES (optional)</Text>
+              <TextInput
+                value={formTodoNotes}
+                onChangeText={setFormTodoNotes}
+                placeholder="Add any notes or details for this todo"
+                placeholderTextColor={colors.muted}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, minHeight: 80, textAlignVertical: 'top' }]}
+                multiline
+                numberOfLines={4}
+              />
             </ScrollView>
           </View>
         </View>
@@ -2714,6 +2742,11 @@ const todoStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     flex: 1,
+  },
+  notes: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
   },
 });
 

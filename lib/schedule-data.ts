@@ -36,6 +36,7 @@ export type ScheduleTodo = {
   icon?: string; // MaterialIcons name
   color?: string;
   order: number;
+  notes?: string; // Optional notes for the todo
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this todo
   linkedEventId?: string; // ID of event this todo is linked to
   linkedMinistryId?: string; // ID of ministry this todo is linked to

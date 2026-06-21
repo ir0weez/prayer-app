@@ -39,6 +39,8 @@ import { TimeBlockIndicator } from "./time-block-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
+import { EventDetailCard } from "./event-detail-card";
+import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipListSelector } from "./worship-list-selector";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
 import {
@@ -112,6 +114,7 @@ function EventCard({
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [detailCardVisible, setDetailCardVisible] = useState(false);
 
   const handleLongPress = (eventData: any) => {
     const { pageX, pageY } = eventData.nativeEvent;
@@ -278,7 +281,7 @@ function EventCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          setDetailCardVisible(true);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -307,6 +310,12 @@ function EventCard({
         y={contextMenuPos.y}
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
+      />
+      <EventDetailCard
+        event={event}
+        people={people}
+        visible={detailCardVisible}
+        onClose={() => setDetailCardVisible(false)}
       />
     </>
   );
@@ -496,6 +505,7 @@ function MinistryCard({
 
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [detailCardVisible, setDetailCardVisible] = useState(false);
 
   const handleLongPress = (eventData: any) => {
     const { pageX, pageY } = eventData.nativeEvent;
@@ -587,11 +597,7 @@ function MinistryCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          // Animate scale down before toggling
-          cardScale.value = withTiming(0.95, { duration: 150, easing: Easing.inOut(Easing.ease) }, () => {
-            runOnJS(onToggle)();
-            cardScale.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
-          });
+          setDetailCardVisible(true);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -644,6 +650,12 @@ function MinistryCard({
         y={contextMenuPos.y}
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
+      />
+      <MinistryDetailCard
+        ministry={ministry}
+        people={people}
+        visible={detailCardVisible}
+        onClose={() => setDetailCardVisible(false)}
       />
     </>
   );

@@ -1306,7 +1306,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Implement overdue todos that roll to next day with "Overdue" badge
 - [x] Add "Back to Today" button in date selector when date is changed
 - [x] Change date swipe navigation to jump 7 days (week) instead of 1 day
-- [ ] Create event/ministry detail card that shows on tap with linked people
+- [x] Create event/ministry detail card that shows on tap with linked people
 - [x] Add notes field to ScheduleTodo data model
 - [x] Display todo notes under todo title in schedule view
 - [x] Replace emoji event icons with proper Material Design icons

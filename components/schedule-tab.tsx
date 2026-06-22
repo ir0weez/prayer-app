@@ -1485,10 +1485,11 @@ export function ScheduleTab({
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
                     // Include ALL items with times (even completed ones) so they still block calendar time
+                    // Todos have only startTime, events and ministries have startTime and endTime
                     const allScheduledItems = [
                       ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
                     ];
                     const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
                     const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);

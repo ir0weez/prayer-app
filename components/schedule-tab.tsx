@@ -683,6 +683,8 @@ export function ScheduleTab({
   peopleToReach = 0,
   currentBibleStudy = 'Genesis 1',
   personalTodos = [],
+  showWorshipAlbumForm = false,
+  onShowWorshipAlbumForm,
   onTodoComplete,
 }: {
   people: Person[];
@@ -694,6 +696,8 @@ export function ScheduleTab({
   peopleToReach?: number;
   currentBibleStudy?: string;
   personalTodos?: any[];
+  showWorshipAlbumForm?: boolean;
+  onShowWorshipAlbumForm?: (show: boolean) => void;
   onTodoComplete?: (todoId: string) => void;
 }) {
   const colors = useColors();
@@ -831,6 +835,8 @@ export function ScheduleTab({
         if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
         if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
         if (worshipLinksData) setWorshipListLinks(JSON.parse(worshipLinksData));
+        const worshipAlbumsData = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+        if (worshipAlbumsData) setWorshipAlbums(JSON.parse(worshipAlbumsData));
       } catch (e) {
         // Silent fail
       }
@@ -858,6 +864,10 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
   }, [timeBlockColors]);
+
+  useEffect(() => {
+    AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(worshipAlbums)).catch(() => undefined);
+  }, [worshipAlbums]);
 
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
@@ -1352,6 +1362,8 @@ export function ScheduleTab({
                 coverUrl: a.coverUrl,
                 spotifyUrl: a.spotifyUrl,
               }))}
+              showAddModal={showWorshipAlbumForm}
+              onShowAddModal={onShowWorshipAlbumForm}
               onAddAlbum={(album: WorshipAlbum) => {
                 setWorshipAlbums((prev) => [
                   ...prev,

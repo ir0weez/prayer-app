@@ -311,6 +311,7 @@ export default function HomeScreen() {
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+  const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
 
   // Handle back gesture/button: go to People tab if on another tab
   useEffect(() => {
@@ -1696,6 +1697,8 @@ export default function HomeScreen() {
           peopleToReach={schedulePeopleToReach}
           currentBibleStudy={scheduleCurrentBibleStudy}
           personalTodos={sortedIncompleteTodos}
+          showWorshipAlbumForm={showWorshipAlbumForm}
+          onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {
             const updatedPeople = people.map(p => {
               if (p.isPersonal) {
@@ -1829,15 +1832,19 @@ export default function HomeScreen() {
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
       {renderContent()}
 
-      {activeTab === "people" || activeTab === "home" ? (
+      {activeTab === "people" || activeTab === "home" || activeTab === "schedule" ? (
         <Pressable
           onPress={() => {
-            setActiveTab("people");
-            setShowAddPerson(true);
+            if (activeTab === "schedule") {
+              setShowWorshipAlbumForm(true);
+            } else {
+              setActiveTab("people");
+              setShowAddPerson(true);
+            }
           }}
           style={({ pressed }) => [styles.fab, { backgroundColor: colors.primary }, pressed && styles.fabPressed]}
         >
-          <MaterialIcons name={iconName("add")} size={44} color="#FFFFFF" />
+          <MaterialIcons name={iconName(activeTab === "schedule" ? "music-note" : "add")} size={44} color="#FFFFFF" />
         </Pressable>
       ) : null}
 

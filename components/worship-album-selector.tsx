@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, StyleSheet, Image } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
@@ -11,6 +11,8 @@ interface WorshipAlbumSelectorProps {
   linkedAlbums?: WorshipAlbum[];
   onAddAlbum?: (album: WorshipAlbum) => void;
   onRemoveAlbum?: (albumId: string) => void;
+  showAddModal?: boolean;
+  onShowAddModal?: (show: boolean) => void;
 }
 
 export function WorshipAlbumSelector({
@@ -18,9 +20,16 @@ export function WorshipAlbumSelector({
   linkedAlbums = [],
   onAddAlbum,
   onRemoveAlbum,
+  showAddModal: externalShowAddModal = false,
+  onShowAddModal,
 }: WorshipAlbumSelectorProps) {
   const colors = useColors();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(externalShowAddModal);
+
+  // Sync external showAddModal prop
+  useEffect(() => {
+    setShowAddModal(externalShowAddModal);
+  }, [externalShowAddModal]);
   const [formTitle, setFormTitle] = useState('');
   const [formArtist, setFormArtist] = useState('');
   const [formCoverUrl, setFormCoverUrl] = useState('');

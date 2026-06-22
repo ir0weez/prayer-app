@@ -785,26 +785,18 @@ export function ScheduleTab({
 
   // Helper function to get last chapter read from completed Read ministries or Bible Study sessions
   const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[]): string => {
-    // Filter for completed Read ministries with Bible info
+    // Filter for completed Read ministries with Bible info only
+    // (Bible Study sessions are now tracked separately in Personal Study block)
     const readMinistries = ministriesList.filter(
       (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
     );
     
-    // Combine with Bible Study sessions (they have book and chapter)
-    const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [
-      ...readMinistries.map(m => ({
-        book: m.bibleBook!,
-        chapter: m.bibleChapter!,
-        date: m.date,
-        completedAt: m.completedAt
-      })),
-      ...bibleStudiesList.filter(b => b.isCompleted).map(b => ({
-        book: b.book,
-        chapter: b.chapter.toString(),
-        date: b.date,
-        completedAt: b.completedAt
-      }))
-    ];
+    const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = readMinistries.map(m => ({
+      book: m.bibleBook!,
+      chapter: m.bibleChapter!,
+      date: m.date,
+      completedAt: m.completedAt
+    }));
     
     if (allReadItems.length === 0) return 'No chapters read';
     
@@ -1401,7 +1393,7 @@ export function ScheduleTab({
           );
         case "expandable-bible":
           return (
-            <ExpandableSection title="Bible Reading" icon="menu-book">
+            <ExpandableSection title="Personal Study" icon="menu-book">
               {item.data?.state ? (
                 <View style={{ gap: 12 }}>
                   <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>

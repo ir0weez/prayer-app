@@ -41,7 +41,7 @@ import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
-import { WorshipListSelector } from "./worship-list-selector";
+import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
 import {
   addDays,
@@ -190,53 +190,7 @@ function EventCard({
     );
   }
 
-  // Active: illustrated card with full-bleed image if available
-  if (keyword && keyword.imageUrl) {
-    return (
-      <>
-        <Pressable
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
-          }}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-        >
-          <View style={[eventStyles.fullBleedCard, { borderColor: keyword.accentColor + "40", backgroundColor: event.color }]}>
-            {/* Full-bleed background image */}
-            <Image source={{ uri: keyword.imageUrl }} style={eventStyles.fullBleedImage} />
-            {/* Content overlay with gradient */}
-            <View style={eventStyles.fullBleedOverlay}>
-              <View style={eventStyles.fullBleedContent}>
-                <Text style={[eventStyles.fullBleedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
-                {event.startTime && (
-                  <Text style={[eventStyles.fullBleedTime, { color: '#FFFFFFDD' }]}>
-                    {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
-                  </Text>
-                )}
-                {event.location && (
-                  <Text style={[eventStyles.fullBleedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                    📍 {event.location}
-                  </Text>
-                )}
-              </View>
-              {keyword && (
-                <MaterialIcons name={keyword.icon as any} size={40} color="#FFFFFF" style={{ opacity: 0.8, position: 'absolute', top: 12, right: 12 }} />
-              )}
-            </View>
-          </View>
-        </Pressable>
-        <ContextMenu
-          visible={contextMenuVisible}
-          x={contextMenuPos.x}
-          y={contextMenuPos.y}
-          actions={contextMenuActions}
-          onDismiss={() => setContextMenuVisible(false)}
-        />
-      </>
-    );
-  }
+  // Note: Removed full-bleed image rendering - using keyword card instead
 
   // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
@@ -773,6 +727,7 @@ export function ScheduleTab({
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
+  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
@@ -1394,28 +1349,33 @@ export function ScheduleTab({
             />
           );
         case "expandable-worship": {
-          const linkedForDate = worshipListLinks.find((link) => link.date === selectedDate);
+          const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
           return (
-            <WorshipListSelector
+            <WorshipAlbumSelector
               selectedDate={selectedDate}
-              linkedWorshipList={linkedForDate}
-              availableWorshipLists={worshipLists}
-              onSelectWorshipList={(list: any) => {
-                const newLink: WorshipListLink = {
-                  id: `${selectedDate}-${list.id}`,
-                  date: selectedDate,
-                  worshipListId: list.id,
-                  worshipListName: list.name,
-                  worshipListImageUrl: list.imageUrl,
-                  createdAt: new Date().toISOString(),
-                };
-                setWorshipListLinks((prev) => {
-                  const filtered = prev.filter((link) => link.date !== selectedDate);
-                  return [...filtered, newLink];
-                });
+              linkedAlbums={linkedAlbumsForDate.map((a) => ({
+                id: a.id,
+                title: a.title,
+                artist: a.artist,
+                coverUrl: a.coverUrl,
+                spotifyUrl: a.spotifyUrl,
+              }))}
+              onAddAlbum={(album: WorshipAlbum) => {
+                setWorshipAlbums((prev) => [
+                  ...prev,
+                  {
+                    id: album.id,
+                    date: selectedDate,
+                    title: album.title,
+                    artist: album.artist,
+                    coverUrl: album.coverUrl,
+                    spotifyUrl: album.spotifyUrl,
+                    createdAt: new Date().toISOString(),
+                  },
+                ]);
               }}
-              onRemoveWorshipList={() => {
-                setWorshipListLinks((prev) => prev.filter((link) => link.date !== selectedDate));
+              onRemoveAlbum={(albumId: string) => {
+                setWorshipAlbums((prev) => prev.filter((a) => a.id !== albumId));
               }}
             />
           );
@@ -1585,6 +1545,15 @@ export function ScheduleTab({
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
                     <View style={scheduleStyles.dateRight}>
+                      {selectedDate !== today && (
+                        <Pressable
+                          onPress={() => setSelectedDate(today)}
+                          style={({ pressed }) => [scheduleStyles.backToTodayPill, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                        >
+                          <MaterialIcons name="today" size={12} color="#FFFFFF" />
+                          <Text style={scheduleStyles.backToTodayPillText}>Today</Text>
+                        </Pressable>
+                      )}
                       <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
                         {dateHeader.monthName} {dateHeader.dayNum}
                       </Text>
@@ -1593,15 +1562,6 @@ export function ScheduleTab({
                       </Text>
                     </View>
                   </View>
-                  {selectedDate !== today && (
-                    <Pressable
-                      onPress={() => setSelectedDate(today)}
-                      style={({ pressed }) => [scheduleStyles.backToTodayButton, pressed && { opacity: 0.7 }]}
-                    >
-                      <MaterialIcons name="today" size={18} color={colors.primary} />
-                      <Text style={[scheduleStyles.backToTodayText, { color: colors.primary }]}>Back to Today</Text>
-                    </Pressable>
-                  )}
                   <View style={scheduleStyles.dateStrip}>
                     {weekDates.map((date) => {
                       const isSelected = date === selectedDate;
@@ -2423,6 +2383,20 @@ const scheduleStyles = StyleSheet.create({
   backToTodayText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  backToTodayPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+    marginBottom: 8,
+  },
+  backToTodayPillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   listContent: {
     paddingHorizontal: 0,

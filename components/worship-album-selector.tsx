@@ -52,6 +52,12 @@ export function WorshipAlbumSelector({
     setFormCoverUrl('');
     setFormSpotifyUrl('');
     setShowAddModal(false);
+    onShowAddModal?.(false);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    onShowAddModal?.(false);
   };
 
   return (
@@ -94,12 +100,12 @@ export function WorshipAlbumSelector({
         </ScrollView>
       )}
 
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={handleCloseModal}>
         <View style={[styles.modalOverlay, { backgroundColor: colors.background }]}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setShowAddModal(false)} />
+          <Pressable style={styles.modalBackdrop} onPress={handleCloseModal} />
           <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Pressable onPress={() => setShowAddModal(false)}>
+              <Pressable onPress={handleCloseModal}>
                 <MaterialIcons name="close" size={24} color={colors.foreground} />
               </Pressable>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Album</Text>
@@ -173,7 +179,7 @@ export function WorshipAlbumSelector({
 
               <View style={styles.modalButtons}>
                 <Pressable
-                  onPress={() => setShowAddModal(false)}
+                  onPress={handleCloseModal}
                   style={({ pressed }) => [styles.modalButton, { opacity: pressed ? 0.7 : 1 }]}
                 >
                   <Text style={[styles.modalButtonText, { color: colors.primary }]}>Cancel</Text>

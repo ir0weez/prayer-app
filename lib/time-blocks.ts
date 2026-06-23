@@ -122,9 +122,12 @@ export function calculateAvailableTimeBlocks(
  * Only filters if the selectedDate is today
  */
 export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: string): TimeBlock[] {
-  // Get today's date in ISO format
+  // Get today's date in ISO format (YYYY-MM-DD)
   const today = new Date();
-  const todayISO = today.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayISO = `${year}-${month}-${day}`;
   
   // Only filter if the selected date is today
   if (selectedDate !== todayISO) {

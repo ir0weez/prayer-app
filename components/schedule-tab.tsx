@@ -43,6 +43,7 @@ import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
+import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
 import {
   addDays,
   BirthdayEvent,
@@ -2235,6 +2236,24 @@ export function ScheduleTab({
               </Pressable>
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+              {/* Album Preview */}
+              {(formTitle || formNotes || formSongLink) && (
+                <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: 12 }]}>
+                  {formSongLink && (
+                    <Image
+                      source={{ uri: formSongLink }}
+                      style={{ width: 120, height: 120, borderRadius: 8 }}
+                    />
+                  )}
+                  {formTitle && (
+                    <Text style={[scheduleStyles.formLabel, { color: colors.foreground, fontSize: 14, fontWeight: '600', textAlign: 'center' }]}>{formTitle}</Text>
+                  )}
+                  {formNotes && (
+                    <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 12, textAlign: 'center' }]}>{formNotes}</Text>
+                  )}
+                </View>
+              )}
+              
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Title *</Text>
               <TextInput
                 placeholder="e.g., Hillsong Worship"
@@ -2270,11 +2289,24 @@ export function ScheduleTab({
                 placeholder="https://open.spotify.com/album/..."
                 placeholderTextColor={colors.muted}
                 value={formWorshipSongs.length > 0 ? formWorshipSongs[0].spotifyUrl || '' : ''}
-                onChangeText={(text) => {
+                onChangeText={async (text) => {
                   if (formWorshipSongs.length > 0) {
                     const updated = [...formWorshipSongs];
                     updated[0].spotifyUrl = text;
                     setFormWorshipSongs(updated);
+                  }
+                  
+                  // Auto-fetch album metadata from Spotify link
+                  if (text.includes('spotify.com/album') || text.includes('spotify:album')) {
+                    const { type, id } = parseSpotifyUrl(text);
+                    if (type === 'album' && id) {
+                      const album = await fetchSpotifyAlbum(id);
+                      if (album) {
+                        setFormTitle(album.name);
+                        setFormNotes(album.artist);
+                        setFormSongLink(album.imageUrl || '');
+                      }
+                    }
                   }
                 }}
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}

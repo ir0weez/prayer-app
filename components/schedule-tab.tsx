@@ -79,12 +79,13 @@ import {
   toggleMinistryCompleted,
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
+import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
@@ -706,6 +707,7 @@ export function ScheduleTab({
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
+  const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
@@ -819,7 +821,7 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData, prayersData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
@@ -827,6 +829,7 @@ export function ScheduleTab({
           AsyncStorage.getItem('SCHEDULE_TIME_BLOCK_COLORS_KEY'),
           AsyncStorage.getItem(WORSHIP_LISTS_KEY),
           AsyncStorage.getItem('WORSHIP_LIST_LINKS_KEY'),
+          AsyncStorage.getItem('PRAYERS_KEY'),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
@@ -835,6 +838,7 @@ export function ScheduleTab({
         if (timeBlockColorsData) setTimeBlockColors(JSON.parse(timeBlockColorsData));
         if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
         if (worshipLinksData) setWorshipListLinks(JSON.parse(worshipLinksData));
+        if (prayersData) setPrayers(JSON.parse(prayersData));
         const worshipAlbumsData = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
         if (worshipAlbumsData) setWorshipAlbums(JSON.parse(worshipAlbumsData));
       } catch (e) {
@@ -855,6 +859,10 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_TODOS_KEY, JSON.stringify(todos)).catch(() => undefined);
   }, [todos]);
+
+  useEffect(() => {
+    AsyncStorage.setItem('PRAYERS_KEY', JSON.stringify(prayers)).catch(() => undefined);
+  }, [prayers]);
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_MINISTRIES_KEY, JSON.stringify(ministries)).catch(() => undefined);
   }, [ministries]);
@@ -1549,16 +1557,16 @@ export function ScheduleTab({
                       {dateHeader.dayName}
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
+                    {selectedDate !== today && (
+                      <Pressable
+                        onPress={() => setSelectedDate(today)}
+                        style={({ pressed }) => [scheduleStyles.backToTodayPill, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                      >
+                        <MaterialIcons name="today" size={12} color="#FFFFFF" />
+                        <Text style={scheduleStyles.backToTodayPillText}>Today</Text>
+                      </Pressable>
+                    )}
                     <View style={scheduleStyles.dateRight}>
-                      {selectedDate !== today && (
-                        <Pressable
-                          onPress={() => setSelectedDate(today)}
-                          style={({ pressed }) => [scheduleStyles.backToTodayPill, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-                        >
-                          <MaterialIcons name="today" size={12} color="#FFFFFF" />
-                          <Text style={scheduleStyles.backToTodayPillText}>Today</Text>
-                        </Pressable>
-                      )}
                       <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
                         {dateHeader.monthName} {dateHeader.dayNum}
                       </Text>
@@ -2270,7 +2278,7 @@ const scheduleStyles = StyleSheet.create({
   dayHeaderContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 16,
   },
   dayName: {
@@ -2280,7 +2288,7 @@ const scheduleStyles = StyleSheet.create({
   },
   dateRight: {
     alignItems: "flex-end",
-    paddingTop: 8,
+    paddingTop: 0,
   },
   monthYear: {
     fontSize: 15,
@@ -2331,7 +2339,9 @@ const scheduleStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     gap: 4,
-    marginBottom: 8,
+    marginBottom: 0,
+    flex: 1,
+    justifyContent: "center",
   },
   backToTodayPillText: {
     fontSize: 12,

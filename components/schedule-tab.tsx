@@ -1616,7 +1616,71 @@ export function ScheduleTab({
             }
           />
         </ReAnimated.View>
-      {/* FAB is handled by parent component (index.tsx) */}
+      {/* FAB Button with Google Calendar-style popup menu */}
+      <Pressable
+        onPress={() => setShowAddModal(!showAddModal)}
+        style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }]}
+      >
+        <MaterialIcons name={showAddModal ? "close" : "add"} size={32} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Google Calendar-style popup menu */}
+      {showAddModal && (
+        <>
+          <Pressable style={scheduleStyles.fabOverlay} onPress={() => setShowAddModal(false)} />
+          <View style={[scheduleStyles.fabMenu, { backgroundColor: colors.surface }]}>
+            <Pressable
+              onPress={() => {
+                setAddType("ministry");
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#7C5CFF" }]}>
+                <MaterialIcons name="volunteer-activism" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setAddType("event");
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#3DAA78" }]}>
+                <MaterialIcons name="event" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Event</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setAddType("todo");
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E3B341" }]}>
+                <MaterialIcons name="check-box" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setAddType("worship");
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#9C27B0" }]}>
+                <MaterialIcons name="music-note" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
+            </Pressable>
+
+          </View>
+        </>
+      )}
 
       {/* Add Modal - Event Form */}
       <Modal transparent visible={addType === "event"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>

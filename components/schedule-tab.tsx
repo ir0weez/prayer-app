@@ -2229,72 +2229,57 @@ export function ScheduleTab({
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>New Worship List</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Add Album</Text>
               <Pressable onPress={handleSaveWorshipList} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
+                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Add</Text>
               </Pressable>
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>WORSHIP LIST NAME</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Title *</Text>
               <TextInput
-                placeholder="e.g., Sunday Worship, Prayer & Meditation"
+                placeholder="e.g., Hillsong Worship"
                 placeholderTextColor={colors.muted}
                 value={formTitle}
                 onChangeText={setFormTitle}
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                 returnKeyType="done"
               />
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DESCRIPTION (optional)</Text>
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Artist *</Text>
               <TextInput
-                placeholder="e.g., Songs for Sunday morning service"
+                placeholder="e.g., Hillsong United"
                 placeholderTextColor={colors.muted}
                 value={formNotes}
                 onChangeText={setFormNotes}
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                 returnKeyType="done"
               />
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>ADD SONGS</Text>
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted, fontSize: 12, marginTop: -8 }]}>Paste Spotify or Apple Music links to add songs to this worship list</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  placeholder="Paste a Spotify or Apple Music link..."
-                  placeholderTextColor={colors.muted}
-                  value={formSongLink}
-                  onChangeText={setFormSongLink}
-                  style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, flex: 1 }]}
-                  returnKeyType="done"
-                />
-                <Pressable
-                  onPress={handleAddSongToForm}
-                  style={({ pressed }) => [{
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    justifyContent: 'center',
-                  }, pressed && { opacity: 0.7 }]}
-                >
-                  <MaterialIcons name="add" size={20} color="white" />
-                </Pressable>
-              </View>
-              
-              {formWorshipSongs.length > 0 && (
-                <>
-                  <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 16 }]}>SONGS ({formWorshipSongs.length})</Text>
-                  {formWorshipSongs.map((song) => (
-                    <SpotifySongCard
-                      key={song.id}
-                      title={song.title}
-                      artist={song.artist || 'Unknown Artist'}
-                      album={song.album}
-                      imageUrl={song.imageUrl}
-                      spotifyUrl={song.spotifyUrl || ''}
-                      duration={song.duration}
-                      onRemove={() => setFormWorshipSongs(formWorshipSongs.filter(s => s.id !== song.id))}
-                    />
-                  ))}
-                </>
-              )}
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL</Text>
+              <TextInput
+                placeholder="https://example.com/cover.jpg"
+                placeholderTextColor={colors.muted}
+                value={formSongLink}
+                onChangeText={setFormSongLink}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Spotify Link</Text>
+              <TextInput
+                placeholder="https://open.spotify.com/album/..."
+                placeholderTextColor={colors.muted}
+                value={formWorshipSongs.length > 0 ? formWorshipSongs[0].spotifyUrl || '' : ''}
+                onChangeText={(text) => {
+                  if (formWorshipSongs.length > 0) {
+                    const updated = [...formWorshipSongs];
+                    updated[0].spotifyUrl = text;
+                    setFormWorshipSongs(updated);
+                  }
+                }}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                returnKeyType="done"
+              />
             </ScrollView>
           </View>
         </View>

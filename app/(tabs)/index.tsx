@@ -1832,19 +1832,15 @@ export default function HomeScreen() {
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
       {renderContent()}
 
-      {activeTab === "people" || activeTab === "home" || activeTab === "schedule" ? (
+      {activeTab === "people" || activeTab === "home" ? (
         <Pressable
           onPress={() => {
-            if (activeTab === "schedule") {
-              setShowWorshipAlbumForm(true);
-            } else {
-              setActiveTab("people");
-              setShowAddPerson(true);
-            }
+            setActiveTab("people");
+            setShowAddPerson(true);
           }}
           style={({ pressed }) => [styles.fab, { backgroundColor: colors.primary }, pressed && styles.fabPressed]}
         >
-          <MaterialIcons name={iconName(activeTab === "schedule" ? "music-note" : "add")} size={44} color="#FFFFFF" />
+          <MaterialIcons name="add" size={44} color="#FFFFFF" />
         </Pressable>
       ) : null}
 

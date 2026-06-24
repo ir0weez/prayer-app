@@ -1502,21 +1502,9 @@ export function ScheduleTab({
                   {(() => {
                     // Include ALL items with times (even completed ones) so they still block calendar time
                     // Todos have only startTime, events and ministries have startTime and endTime
-                    const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
-                    ];
-                    const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-                    const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);
-                    
-                    // Calculate total available hours from the time blocks
-                    let totalMinutes = 0;
-                    activeBlocks.forEach(block => {
-                      totalMinutes += block.durationMinutes;
-                    });
-                    
-                    const availableHours = Math.floor(totalMinutes / 60);
+                    // Removed available hours calculation - it was inaccurate
+                    // TODO: Implement proper remaining time calculation based on current time
+                    const availableHours = 0;
                     
                     return (
                       <DailySummaryCard
@@ -1538,7 +1526,7 @@ export function ScheduleTab({
                         eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                         userName={userName}
-                        availableHours={Math.max(0, availableHours)}
+                        availableHours={undefined}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
                       />
@@ -2425,16 +2413,15 @@ const scheduleStyles = StyleSheet.create({
   backToTodayPill: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 3,
     marginBottom: 0,
-    flex: 1,
     justifyContent: "center",
   },
   backToTodayPillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#FFFFFF",
   },

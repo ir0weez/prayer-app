@@ -8,7 +8,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -17,7 +16,9 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -736,7 +737,9 @@ export function ScheduleTab({
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
   const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
   const [formSongLink, setFormSongLink] = useState("");
+  const [formSpotifyLink, setFormSpotifyLink] = useState("");
   const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
+  const [isLoadingSpotify, setIsLoadingSpotify] = useState(false);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
@@ -2239,12 +2242,15 @@ export function ScheduleTab({
               {/* Album Preview */}
               {(formTitle || formNotes || formSongLink) && (
                 <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: 12 }]}>
-                  {formSongLink && (
+                  {formSongLink ? (
                     <Image
                       source={{ uri: formSongLink }}
                       style={{ width: 120, height: 120, borderRadius: 8 }}
+                      contentFit="cover"
                     />
-                  )}
+                  ) : isLoadingSpotify ? (
+                    <ActivityIndicator size="large" color={colors.primary} style={{ width: 120, height: 120 }} />
+                  ) : null}
                   {formTitle && (
                     <Text style={[scheduleStyles.formLabel, { color: colors.foreground, fontSize: 14, fontWeight: '600', textAlign: 'center' }]}>{formTitle}</Text>
                   )}
@@ -2288,24 +2294,27 @@ export function ScheduleTab({
               <TextInput
                 placeholder="https://open.spotify.com/album/..."
                 placeholderTextColor={colors.muted}
-                value={formWorshipSongs.length > 0 ? formWorshipSongs[0].spotifyUrl || '' : ''}
+                value={formSpotifyLink}
                 onChangeText={async (text) => {
-                  if (formWorshipSongs.length > 0) {
-                    const updated = [...formWorshipSongs];
-                    updated[0].spotifyUrl = text;
-                    setFormWorshipSongs(updated);
-                  }
+                  setFormSpotifyLink(text);
                   
                   // Auto-fetch album metadata from Spotify link
                   if (text.includes('spotify.com/album') || text.includes('spotify:album')) {
-                    const { type, id } = parseSpotifyUrl(text);
-                    if (type === 'album' && id) {
-                      const album = await fetchSpotifyAlbum(id);
-                      if (album) {
-                        setFormTitle(album.name);
-                        setFormNotes(album.artist);
-                        setFormSongLink(album.imageUrl || '');
+                    setIsLoadingSpotify(true);
+                    try {
+                      const { type, id } = parseSpotifyUrl(text);
+                      if (type === 'album' && id) {
+                        const album = await fetchSpotifyAlbum(id);
+                        if (album) {
+                          setFormTitle(album.name);
+                          setFormNotes(album.artist);
+                          setFormSongLink(album.imageUrl || '');
+                        }
                       }
+                    } catch (error) {
+                      console.error('Error fetching Spotify album:', error);
+                    } finally {
+                      setIsLoadingSpotify(false);
                     }
                   }
                 }}

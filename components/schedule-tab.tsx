@@ -1029,6 +1029,10 @@ export function ScheduleTab({
     setFormLinkedEventId(null);
     setFormLinkedMinistryId(null);
     setFormTodoTag(null);
+    setFormSongLink("");
+    setFormSpotifyLink("");
+    setFormBibleBook("Genesis");
+    setFormBibleChapter("1");
   };
 
   const handleSaveEvent = () => {
@@ -1186,13 +1190,17 @@ export function ScheduleTab({
       createdAt: new Date().toISOString(),
     };
     
+    console.log('DEBUG: About to save album with date:', selectedDate, 'Album:', newAlbum);
+    
     try {
       const existingAlbums = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
       const albums = existingAlbums ? JSON.parse(existingAlbums) : [];
       albums.push(newAlbum);
       await AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(albums));
       setWorshipAlbums(albums);
-      console.log('Saved worship album:', newAlbum, 'Total albums:', albums.length);
+      console.log('DEBUG: Saved worship album:', newAlbum);
+      console.log('DEBUG: Total albums in state:', albums.length);
+      console.log('DEBUG: All albums:', albums);
     } catch (error) {
       console.error('Error saving worship album:', error);
     }
@@ -1364,6 +1372,7 @@ export function ScheduleTab({
           );
         case "expandable-worship": {
           const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
+          console.log('DEBUG: Filtering albums for date:', selectedDate, 'Found:', linkedAlbumsForDate.length, 'Total albums:', worshipAlbums.length);
           return (
             <WorshipAlbumSelector
               selectedDate={selectedDate}

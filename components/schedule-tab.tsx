@@ -1175,27 +1175,26 @@ export function ScheduleTab({
 
   const handleSaveWorshipList = async () => {
     if (!formTitle.trim()) return;
-    let newList = createWorshipList(formTitle, formNotes);
     
-    for (const song of formWorshipSongs) {
-      newList = addSongToList(newList, {
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        imageUrl: song.imageUrl,
-        orderNumber: song.orderNumber,
-      });
-    }
+    const newAlbum = {
+      id: generateId(),
+      title: formTitle.trim(),
+      artist: formNotes.trim() || 'Unknown Artist',
+      coverUrl: formSongLink.trim() || '',
+      spotifyUrl: formSpotifyLink.trim() || '',
+      date: selectedDate,
+      createdAt: new Date().toISOString(),
+    };
     
     try {
-      const existingLists = await AsyncStorage.getItem(WORSHIP_LISTS_KEY);
-      const lists = existingLists ? JSON.parse(existingLists) : [];
-      lists.push(newList);
-      await AsyncStorage.setItem(WORSHIP_LISTS_KEY, JSON.stringify(lists));
-      setWorshipLists(lists);
-      console.log("Saved worship list:", newList);
+      const existingAlbums = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+      const albums = existingAlbums ? JSON.parse(existingAlbums) : [];
+      albums.push(newAlbum);
+      await AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(albums));
+      setWorshipAlbums(albums);
+      console.log('Saved worship album:', newAlbum, 'Total albums:', albums.length);
     } catch (error) {
-      console.error("Error saving worship list:", error);
+      console.error('Error saving worship album:', error);
     }
     
     resetForm();

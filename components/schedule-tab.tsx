@@ -44,6 +44,7 @@ import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
+import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
 import {
   addDays,
@@ -1500,11 +1501,14 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    // Include ALL items with times (even completed ones) so they still block calendar time
-                    // Todos have only startTime, events and ministries have startTime and endTime
-                    // Removed available hours calculation - it was inaccurate
-                    // TODO: Implement proper remaining time calculation based on current time
-                    const availableHours = 0;
+                    // Calculate remaining free time from now until midnight
+                    const allScheduledItems = [
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
+                    ];
+                    const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
+                    const availableHours = remainingTimeResult.remainingHours;
                     
                     return (
                       <DailySummaryCard
@@ -1526,7 +1530,7 @@ export function ScheduleTab({
                         eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                         userName={userName}
-                        availableHours={undefined}
+                        availableHours={availableHours}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
                       />

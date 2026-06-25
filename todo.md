@@ -1343,3 +1343,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add useEffect to sync currentBibleBook with bibleState changes
 - [x] Ensure Personal Study box displays current book and next unread chapter
 - [x] Verify real-time updates when Bible chapters are marked as read
+
+## Chapter Completion Animation & Reading Progress
+
+- [x] Add spring zoom animation to checkmark when chapter is marked as read
+- [x] Display reading progress (X of Y chapters) in Personal Study box
+- [x] Verify animations work smoothly on all platforms
+- [x] Test progress display updates in real-time

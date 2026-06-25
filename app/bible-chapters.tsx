@@ -5,6 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -90,6 +91,7 @@ export default function BibleChaptersScreen() {
   const [showBookNav, setShowBookNav] = useState(false);
   const bookPositions = useRef<Record<string, number>>({});
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [justMarkedAsRead, setJustMarkedAsRead] = useState<Set<string>>(new Set());
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
@@ -187,6 +189,18 @@ export default function BibleChaptersScreen() {
 
     setReadChapters(newChapters);
     saveReadChapters(newChapters);
+
+    // Add animation trigger for newly marked chapters
+    if (!readChapters.has(chapterId)) {
+      setJustMarkedAsRead(prev => new Set([...prev, chapterId]));
+      setTimeout(() => {
+        setJustMarkedAsRead(prev => {
+          const updated = new Set(prev);
+          updated.delete(chapterId);
+          return updated;
+        });
+      }, 600);
+    }
 
     // Check if all chapters are now read and auto-complete the book
     const bookChapters = getBookChapterCount(bookName);
@@ -358,6 +372,7 @@ export default function BibleChaptersScreen() {
                 {bookChapters.map((chapterNum) => {
                   const chapterId = `${book.name}-${chapterNum}`;
                   const isRead = readChapters.has(chapterId);
+                  const isJustMarked = justMarkedAsRead.has(chapterId);
 
                   return (
                     <Pressable
@@ -376,7 +391,13 @@ export default function BibleChaptersScreen() {
                         {chapterNum}
                       </Text>
                       {isRead && (
-                        <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
+                        isJustMarked ? (
+                          <Animated.View entering={ZoomIn.springify()}>
+                            <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
+                          </Animated.View>
+                        ) : (
+                          <MaterialIcons name="check" size={12} color="#FFFFFF" style={styles.checkmark} />
+                        )
                       )}
                     </Pressable>
                   );

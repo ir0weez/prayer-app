@@ -89,7 +89,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
@@ -1482,9 +1482,23 @@ export function ScheduleTab({
             <ExpandableSection title="Personal Study" icon="menu-book">
               {item.data?.state ? (
                 <View style={{ gap: 12 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>
-                    {item.data.display}
-                  </Text>
+                  <View>
+                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>
+                      {item.data.display}
+                    </Text>
+                    {(() => {
+                      const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                      if (book) {
+                        const progress = getBookProgress(item.data.state, book);
+                        return (
+                          <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
+                            {progress.read} of {progress.total} chapters read
+                          </Text>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </View>
                   <Pressable
                     onPress={async () => {
                       if (item.data?.state) {

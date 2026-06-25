@@ -119,7 +119,9 @@ export async function saveUnifiedBible(state: UnifiedBibleState): Promise<void> 
 }
 
 // Mark a chapter as read
-export async function markChapterAsRead(book: string, chapter: number): Promise<UnifiedBibleState> {
+// updateCurrentBook: if true, auto-update current book when marking first chapter (used by Bible reading UI)
+// if false, just record the read without changing current book (used by events/ministries)
+export async function markChapterAsRead(book: string, chapter: number, updateCurrentBook: boolean = true): Promise<UnifiedBibleState> {
   const state = await loadUnifiedBible();
   const chapterEntry = state.chapters.find((c) => c.book === book && c.chapter === chapter);
   if (chapterEntry) {
@@ -128,12 +130,15 @@ export async function markChapterAsRead(book: string, chapter: number): Promise<
     state.lastReadDate = chapterEntry.readDate;
   }
 
-  // Check if entire book is now complete
-  const bookChapters = state.chapters.filter((c) => c.book === book);
-  if (bookChapters.every((c) => c.isRead)) {
-    state.bookStatuses[book] = 'complete';
-  } else if (state.bookStatuses[book] === 'not-started') {
-    state.bookStatuses[book] = 'current';
+  // Only update current book if explicitly requested (from Bible reading UI, not from events)
+  if (updateCurrentBook) {
+    // Check if entire book is now complete
+    const bookChapters = state.chapters.filter((c) => c.book === book);
+    if (bookChapters.every((c) => c.isRead)) {
+      state.bookStatuses[book] = 'complete';
+    } else if (state.bookStatuses[book] === 'not-started') {
+      state.bookStatuses[book] = 'current';
+    }
   }
 
   await saveUnifiedBible(state);

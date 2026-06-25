@@ -1362,5 +1362,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Bible State Sync Issues
 
 - [x] Fix Personal Study box to show current book from unified Bible state (not completed Bible Study sessions)
-- [ ] Fix summary to update when Bible Study events marked complete (needs investigation)
-- [ ] Ensure Personal Study and summary show the same current book
+- [x] Prevent marking chapters in events from changing the current book
+- [x] Ensure Personal Study shows actual current book (Lamentations) not last completed chapter
+- [x] Summary shows last chapter read from any completed event

@@ -1149,7 +1149,7 @@ export function ScheduleTab({
         try {
           const chapterNum = parseInt(formBibleChapter, 10);
           if (!isNaN(chapterNum)) {
-            const updated = await markChapterAsRead(formBibleBook, chapterNum);
+            const updated = await markChapterAsRead(formBibleBook, chapterNum, false);
             setBibleState(updated);
             // Sync to old systems
             await syncUnifiedBibleToAllOldSystems(updated);
@@ -1509,7 +1509,7 @@ export function ScheduleTab({
                           const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
                           if (nextChapter) {
                             try {
-                              const updated = await markChapterAsRead(book, nextChapter.chapter);
+                              const updated = await markChapterAsRead(book, nextChapter.chapter, false);
                               setBibleState(updated);
                               // Sync to old systems
                               await syncUnifiedBibleToAllOldSystems(updated);

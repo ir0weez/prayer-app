@@ -1350,3 +1350,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Display reading progress (X of Y chapters) in Personal Study box
 - [x] Verify animations work smoothly on all platforms
 - [x] Test progress display updates in real-time
+
+## Modal Removal & Summary Fix
+
+- [x] Remove modal popups from event/ministry item taps
+- [x] Make event/ministry items mark as complete on tap (no modal)
+- [x] Verify summary updates when Bible Study events are marked complete
+- [x] Confirm getLastChapterRead includes completed Bible Study sessions

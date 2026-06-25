@@ -201,15 +201,15 @@ function EventCard({
     return (
       <>
         <Pressable
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
-          }}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
-        >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
+        onPress={() => {
+          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onToggle();
+        }}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+      >
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.startTime && (
@@ -243,7 +243,7 @@ function EventCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setDetailCardVisible(true);
+          onToggle();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -560,7 +560,7 @@ function MinistryCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setDetailCardVisible(true);
+          onToggle();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}

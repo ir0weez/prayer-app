@@ -1337,3 +1337,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Update "last chapter read" summary to include completed Bible Study sessions
 - [x] Ensure Bible Study completion updates the summary in real-time
 - [x] Test Bible Study event completion workflow end-to-end
+
+## Personal Study Box Sync Fix
+
+- [x] Add useEffect to sync currentBibleBook with bibleState changes
+- [x] Ensure Personal Study box displays current book and next unread chapter
+- [x] Verify real-time updates when Bible chapters are marked as read

@@ -910,6 +910,15 @@ export function ScheduleTab({
   // Current Bible book and full state from AsyncStorage
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
+
+  // Sync currentBibleBook whenever bibleState changes
+  useEffect(() => {
+    if (bibleState) {
+      const display = getCurrentBibleDisplay(bibleState);
+      setCurrentBibleBook(display || 'No book marked as current');
+    }
+  }, [bibleState]);
+
   useEffect(() => {
     const loadBibleData = async () => {
       try {

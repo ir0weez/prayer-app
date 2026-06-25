@@ -1347,10 +1347,12 @@ export function ScheduleTab({
     // Expandable sections (worship, fasting, bible)
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
     items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
-    items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleBook || 'No book marked as current', state: bibleState } });
+    // Personal Study should show CURRENT book being read, not last completed chapter
+    const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
+    items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleDisplay, state: bibleState } });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, activeFast, currentBibleBook, bibleState]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, activeFast, bibleState]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {

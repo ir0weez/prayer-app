@@ -1357,3 +1357,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make event/ministry items mark as complete on tap (no modal)
 - [x] Verify summary updates when Bible Study events are marked complete
 - [x] Confirm getLastChapterRead includes completed Bible Study sessions
+
+
+## Bible State Sync Issues
+
+- [x] Fix Personal Study box to show current book from unified Bible state (not completed Bible Study sessions)
+- [ ] Fix summary to update when Bible Study events marked complete (needs investigation)
+- [ ] Ensure Personal Study and summary show the same current book

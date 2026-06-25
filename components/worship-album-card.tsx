@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColors } from '@/hooks/use-colors';
 
@@ -43,6 +44,8 @@ export function WorshipAlbumCard({
           <Image
             source={{ uri: album.coverUrl }}
             style={[styles.cover, { borderColor: colors.primary }]}
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
         )}
         {!album.coverUrl && (

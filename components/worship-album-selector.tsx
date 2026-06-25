@@ -24,41 +24,8 @@ export function WorshipAlbumSelector({
   onShowAddModal,
 }: WorshipAlbumSelectorProps) {
   const colors = useColors();
-  const [showAddModal, setShowAddModal] = useState(externalShowAddModal);
 
-  // Sync external showAddModal prop
-  useEffect(() => {
-    setShowAddModal(externalShowAddModal);
-  }, [externalShowAddModal]);
-  const [formTitle, setFormTitle] = useState('');
-  const [formArtist, setFormArtist] = useState('');
-  const [formCoverUrl, setFormCoverUrl] = useState('');
-  const [formSpotifyUrl, setFormSpotifyUrl] = useState('');
-
-  const handleAddAlbum = () => {
-    if (!formTitle.trim() || !formArtist.trim()) return;
-
-    const newAlbum: WorshipAlbum = {
-      id: `album-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: formTitle,
-      artist: formArtist,
-      coverUrl: formCoverUrl || undefined,
-      spotifyUrl: formSpotifyUrl || undefined,
-    };
-
-    onAddAlbum?.(newAlbum);
-    setFormTitle('');
-    setFormArtist('');
-    setFormCoverUrl('');
-    setFormSpotifyUrl('');
-    setShowAddModal(false);
-    onShowAddModal?.(false);
-  };
-
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    onShowAddModal?.(false);
-  };
+  // Form is handled by parent component, so we don't need local form state
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -68,7 +35,7 @@ export function WorshipAlbumSelector({
           <Text style={[styles.title, { color: colors.foreground }]}>Worship</Text>
         </View>
         <Pressable
-          onPress={() => setShowAddModal(true)}
+          onPress={() => onShowAddModal?.(true)}
           style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.7 : 1 }]}
         >
           <MaterialIcons name="add" size={20} color={colors.primary} />
@@ -100,108 +67,7 @@ export function WorshipAlbumSelector({
         </ScrollView>
       )}
 
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={handleCloseModal}>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.background }]}>
-          <Pressable style={styles.modalBackdrop} onPress={handleCloseModal} />
-          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.modalHeader}>
-              <Pressable onPress={handleCloseModal}>
-                <MaterialIcons name="close" size={24} color={colors.foreground} />
-              </Pressable>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add Album</Text>
-              <View style={{ width: 24 }} />
-            </View>
-
-            <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
-              <Text style={[styles.label, { color: colors.foreground }]}>Album Title *</Text>
-              <TextInput
-                placeholder="e.g., Hillsong Worship"
-                placeholderTextColor={colors.muted}
-                value={formTitle}
-                onChangeText={setFormTitle}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-
-              <Text style={[styles.label, { color: colors.foreground }]}>Artist *</Text>
-              <TextInput
-                placeholder="e.g., Hillsong United"
-                placeholderTextColor={colors.muted}
-                value={formArtist}
-                onChangeText={setFormArtist}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-
-              <Text style={[styles.label, { color: colors.foreground }]}>Album Cover URL</Text>
-              <TextInput
-                placeholder="https://example.com/cover.jpg"
-                placeholderTextColor={colors.muted}
-                value={formCoverUrl}
-                onChangeText={setFormCoverUrl}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-
-              <Text style={[styles.label, { color: colors.foreground }]}>Spotify Link</Text>
-              <TextInput
-                placeholder="https://open.spotify.com/album/..."
-                placeholderTextColor={colors.muted}
-                value={formSpotifyUrl}
-                onChangeText={setFormSpotifyUrl}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.background,
-                    color: colors.foreground,
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-
-              <View style={styles.modalButtons}>
-                <Pressable
-                  onPress={handleCloseModal}
-                  style={({ pressed }) => [styles.modalButton, { opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <Text style={[styles.modalButtonText, { color: colors.primary }]}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleAddAlbum}
-                  disabled={!formTitle.trim() || !formArtist.trim()}
-                  style={({ pressed }) => [
-                    styles.modalButton,
-                    {
-                      backgroundColor: colors.primary,
-                      opacity: !formTitle.trim() || !formArtist.trim() ? 0.5 : pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Add</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* Form is handled by parent component via onShowAddModal callback */}
     </View>
   );
 }

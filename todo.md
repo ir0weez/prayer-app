@@ -1329,3 +1329,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add edit button to EventDetailCard and MinistryDetailCard
 - [x] Integrate edit forms into detail cards
 - [x] Connect edit handlers to update events/ministries in state
+
+## Bible Study Event Completion Fix
+
+- [x] Add Bible Study sessions to schedule list display
+- [x] Make Bible Study events tappable to mark as complete
+- [x] Update "last chapter read" summary to include completed Bible Study sessions
+- [x] Ensure Bible Study completion updates the summary in real-time
+- [x] Test Bible Study event completion workflow end-to-end

@@ -796,18 +796,32 @@ export function ScheduleTab({
 
   // Helper function to get last chapter read from completed Read ministries or Bible Study sessions
   const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[]): string => {
-    // Filter for completed Read ministries with Bible info only
-    // (Bible Study sessions are now tracked separately in Personal Study block)
+    // Collect all completed Bible reading items from both Read ministries and Bible Study sessions
+    const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [];
+    
+    // Add completed Read ministries with Bible info
     const readMinistries = ministriesList.filter(
       (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
     );
+    readMinistries.forEach(m => {
+      allReadItems.push({
+        book: m.bibleBook!,
+        chapter: m.bibleChapter!,
+        date: m.date,
+        completedAt: m.completedAt
+      });
+    });
     
-    const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = readMinistries.map(m => ({
-      book: m.bibleBook!,
-      chapter: m.bibleChapter!,
-      date: m.date,
-      completedAt: m.completedAt
-    }));
+    // Add completed Bible Study sessions
+    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
+    completedStudies.forEach(s => {
+      allReadItems.push({
+        book: s.book,
+        chapter: s.chapter.toString(),
+        date: s.date,
+        completedAt: s.completedAt
+      });
+    });
     
     if (allReadItems.length === 0) return 'No chapters read';
     
@@ -1274,6 +1288,19 @@ export function ScheduleTab({
       });
     }
 
+    // Add Bible Study sessions for the day (only if there are any)
+    const dayBibleStudies = getBibleStudiesForDate(bibleStudies, selectedDate);
+    if (dayBibleStudies.length > 0) {
+      dayBibleStudies.forEach((bs) => {
+        timedItems.push({
+          type: "bible-study",
+          id: bs.id,
+          data: bs,
+          sortTime: bs.startTime || "23:59",
+        });
+      });
+    }
+
     // Calculate available time blocks
     const allScheduledItems = [
       ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
@@ -1304,13 +1331,17 @@ export function ScheduleTab({
     const completedEvents = dayEvents.filter((e) => e.isCompleted);
     completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
 
+    // Add completed Bible Study sessions
+    const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
+    completedBibleStudies.forEach((bs) => items.push({ type: "bible-study", id: bs.id, data: bs }));
+
     // Expandable sections (worship, fasting, bible)
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
     items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
     items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleBook || 'No book marked as current', state: bibleState } });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, activeFast, currentBibleBook, bibleState]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, activeFast, currentBibleBook, bibleState]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -1368,6 +1399,19 @@ export function ScheduleTab({
               onDelete={() => {
                 setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));
               }}
+            />
+          );
+        case "bible-study":
+          return (
+            <EventCard
+              event={{
+                ...item.data,
+                title: `${item.data.book} ${item.data.chapter}`,
+                type: "Bible Study",
+              }}
+              onToggle={() => setBibleStudies((prev) => toggleBibleStudyCompleted(prev, item.data.id))}
+              onEdit={() => {}}
+              onDelete={() => setBibleStudies((prev) => prev.filter((bs) => bs.id !== item.data.id))}
             />
           );
         case "expandable-worship": {

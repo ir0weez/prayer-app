@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
-import { loadUnifiedBible, saveUnifiedBible, UNIFIED_BIBLE_KEY } from '@/lib/bible-unified';
+import { loadUnifiedBible, saveUnifiedBible, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -96,7 +96,20 @@ export default function BibleChaptersScreen() {
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
+      // Save to legacy storage for backward compatibility
       await AsyncStorage.setItem(BIBLE_STORAGE_KEY, JSON.stringify(Array.from(chapters)));
+      
+      // Also save to unified Bible storage so Schedule tab sees the updates
+      const unifiedState = await loadUnifiedBible();
+      const chapterArray = Array.from(chapters);
+      
+      // Update the chapters array in unified state
+      unifiedState.chapters = unifiedState.chapters.map(ch => ({
+        ...ch,
+        isRead: chapterArray.includes(`${ch.book}-${ch.chapter}`)
+      }));
+      
+      await saveUnifiedBible(unifiedState);
     } catch (error) {
       console.error('Error saving read chapters:', error);
     }

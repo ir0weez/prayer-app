@@ -89,6 +89,21 @@ export async function loadUnifiedBible(): Promise<UnifiedBibleState> {
     const data = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
     if (data) {
       const state = JSON.parse(data);
+      
+      // If chapters array is empty, reinitialize it
+      if (!state.chapters || state.chapters.length === 0) {
+        console.log('Reinitializing empty chapters array');
+        const chapters: BibleChapterStatus[] = [];
+        for (const book of BIBLE_BOOKS) {
+          const chapterCount = CHAPTER_COUNTS[book] || 1;
+          for (let ch = 1; ch <= chapterCount; ch++) {
+            chapters.push({ book, chapter: ch, isRead: false });
+          }
+        }
+        state.chapters = chapters;
+        await saveUnifiedBible(state);
+      }
+      
       // Migrate old bookStatuses if they exist
       try {
         const oldBookStatusData = await AsyncStorage.getItem(BIBLE_BOOK_STATUS_KEY);

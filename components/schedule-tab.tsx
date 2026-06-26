@@ -803,6 +803,7 @@ export function ScheduleTab({
     const readMinistries = ministriesList.filter(
       (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
     );
+    console.log('DEBUG getLastChapterRead - found', readMinistries.length, 'completed Read ministries');
     readMinistries.forEach(m => {
       allReadItems.push({
         book: m.bibleBook!,
@@ -825,6 +826,9 @@ export function ScheduleTab({
     
     if (allReadItems.length === 0) return 'No chapters read';
     
+    // Debug: log what we found
+    console.log('DEBUG getLastChapterRead - all read items:', allReadItems);
+    
     // Sort by completedAt (most recent first), with date as fallback
     const sorted = allReadItems.sort((a, b) => {
       const timeA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
@@ -832,7 +836,10 @@ export function ScheduleTab({
       return timeB - timeA; // Most recent first
     });
     
+    console.log('DEBUG getLastChapterRead - sorted items:', sorted);
+    
     const latest = sorted[0];
+    console.log('DEBUG getLastChapterRead - returning:', `${latest.book} ${latest.chapter}`);
     return `${latest.book} ${latest.chapter}`;
   };
 
@@ -1126,43 +1133,67 @@ export function ScheduleTab({
 
   const handleSaveMinistry = async () => {
     if (!formTitle.trim()) return;
-    const newMinistry = createScheduleMinistry({
-      title: formTitle.trim(),
-      type: formMinistryType,
-      date: formDate || selectedDate,
-      dueDate: formDueDate || undefined,
-      color: formColor,
-      startTime: formStartTime || undefined,
-      endTime: formEndTime || undefined,
-      location: formLocation || undefined,
-      notes: formNotes || undefined,
-    });
-    if (formLinkedPeopleIds.length > 0) {
-      newMinistry.linkedPeopleIds = formLinkedPeopleIds;
-    }
-    if (formBibleBook) {
-      newMinistry.bibleBook = formBibleBook;
-      newMinistry.bibleChapter = formBibleChapter;
+    
+    // If editing, update existing ministry; otherwise create new
+    if (editingMinistry) {
+      const updatedMinistry: ScheduleMinistry = {
+        ...editingMinistry,
+        title: formTitle.trim(),
+        type: formMinistryType,
+        date: formDate || selectedDate,
+        dueDate: formDueDate || undefined,
+        color: formColor,
+        startTime: formStartTime || undefined,
+        endTime: formEndTime || undefined,
+        location: formLocation || undefined,
+        notes: formNotes || undefined,
+        linkedPeopleIds: formLinkedPeopleIds.length > 0 ? formLinkedPeopleIds : undefined,
+        bibleBook: formBibleBook || undefined,
+        bibleChapter: formBibleChapter || undefined,
+      };
       
-      // If this is a "Read" or "Bible Study" ministry and Bible info is provided, mark chapters as read
-      if ((formMinistryType === "Read" || formMinistryType === "Bible Study") && formBibleChapter) {
-        try {
-          const chapterNum = parseInt(formBibleChapter, 10);
-          if (!isNaN(chapterNum)) {
-            const updated = await markChapterAsRead(formBibleBook, chapterNum, false);
-            setBibleState(updated);
-            // Sync to old systems
-            await syncUnifiedBibleToAllOldSystems(updated);
-            // Reload display
-            const newDisplay = getCurrentBibleDisplay(updated);
-            setCurrentBibleBook(newDisplay || 'No book marked as current');
-          }
-        } catch (error) {
-          console.error('Error marking Bible chapter as read:', error);
+      setMinistries((prev) => prev.map((m) => m.id === editingMinistry.id ? updatedMinistry : m));
+      setEditingMinistry(null);
+    } else {
+      const newMinistry = createScheduleMinistry({
+        title: formTitle.trim(),
+        type: formMinistryType,
+        date: formDate || selectedDate,
+        dueDate: formDueDate || undefined,
+        color: formColor,
+        startTime: formStartTime || undefined,
+        endTime: formEndTime || undefined,
+        location: formLocation || undefined,
+        notes: formNotes || undefined,
+      });
+      if (formLinkedPeopleIds.length > 0) {
+        newMinistry.linkedPeopleIds = formLinkedPeopleIds;
+      }
+      if (formBibleBook) {
+        newMinistry.bibleBook = formBibleBook;
+        newMinistry.bibleChapter = formBibleChapter;
+      }
+      setMinistries((prev) => [...prev, newMinistry]);
+    }
+    
+    // Mark chapter as read if this is a Read ministry with Bible info
+    if ((formMinistryType === "Read" || formMinistryType === "Bible Study") && formBibleBook && formBibleChapter) {
+      try {
+        const chapterNum = parseInt(formBibleChapter, 10);
+        if (!isNaN(chapterNum)) {
+          const updated = await markChapterAsRead(formBibleBook, chapterNum, false);
+          setBibleState(updated);
+          // Sync to old systems
+          await syncUnifiedBibleToAllOldSystems(updated);
+          // Reload display
+          const newDisplay = getCurrentBibleDisplay(updated);
+          setCurrentBibleBook(newDisplay || 'No book marked as current');
         }
+      } catch (error) {
+        console.error('Error marking Bible chapter as read:', error);
       }
     }
-    setMinistries((prev) => [...prev, newMinistry]);
+    
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -1402,10 +1433,22 @@ export function ScheduleTab({
               ministry={item.data}
               people={people}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
-              onEdit={(updatedMinistry) => {
-                if (updatedMinistry) {
-                  setMinistries((prev: ScheduleMinistry[]) => prev.map((m: ScheduleMinistry) => m.id === updatedMinistry.id ? updatedMinistry : m));
-                }
+              onEdit={() => {
+                // Open ministry form in edit mode
+                setEditingMinistry(item.data);
+                setFormTitle(item.data.title);
+                setFormDate(item.data.date);
+                setFormMinistryType(item.data.type);
+                setFormStartTime(item.data.startTime || "");
+                setFormEndTime(item.data.endTime || "");
+                setFormLocation(item.data.location || "");
+                setFormNotes(item.data.notes || "");
+                setFormBibleBook(item.data.bibleBook || "Genesis");
+                setFormBibleChapter(item.data.bibleChapter || "");
+                setFormColor(item.data.color || "#6366F1");
+                setFormLinkedPeopleIds(item.data.linkedPeopleIds || []);
+                setAddType("ministry");
+                setShowAddModal(true);
               }}
               onDelete={() => {
                 setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));

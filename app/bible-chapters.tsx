@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import { loadUnifiedBible, saveUnifiedBible, UNIFIED_BIBLE_KEY } from '@/lib/bible-unified';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -107,11 +108,9 @@ export default function BibleChaptersScreen() {
       await AsyncStorage.setItem(BIBLE_STATUS_STORAGE_KEY, JSON.stringify(statuses));
       
       // Also save to unified Bible storage so Schedule tab sees the update
-      const unifiedKey = 'unifiedBibleState';
-      const existingUnified = await AsyncStorage.getItem(unifiedKey);
-      let unifiedState = existingUnified ? JSON.parse(existingUnified) : { bookStatuses: {}, chapters: [], lastReadDate: null };
+      const unifiedState = await loadUnifiedBible();
       unifiedState.bookStatuses = statuses;
-      await AsyncStorage.setItem(unifiedKey, JSON.stringify(unifiedState));
+      await saveUnifiedBible(unifiedState);
     } catch (error) {
       console.error('Error saving book statuses:', error);
     }

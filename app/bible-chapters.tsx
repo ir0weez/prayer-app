@@ -103,7 +103,15 @@ export default function BibleChaptersScreen() {
 
   const saveBookStatuses = useCallback(async (statuses: BookStatusData) => {
     try {
+      // Save to old storage for backward compatibility
       await AsyncStorage.setItem(BIBLE_STATUS_STORAGE_KEY, JSON.stringify(statuses));
+      
+      // Also save to unified Bible storage so Schedule tab sees the update
+      const unifiedKey = 'unifiedBibleState';
+      const existingUnified = await AsyncStorage.getItem(unifiedKey);
+      let unifiedState = existingUnified ? JSON.parse(existingUnified) : { bookStatuses: {}, chapters: [], lastReadDate: null };
+      unifiedState.bookStatuses = statuses;
+      await AsyncStorage.setItem(unifiedKey, JSON.stringify(unifiedState));
     } catch (error) {
       console.error('Error saving book statuses:', error);
     }

@@ -1365,3 +1365,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Prevent marking chapters in events from changing the current book
 - [x] Ensure Personal Study shows actual current book (Lamentations) not last completed chapter
 - [x] Summary shows last chapter read from any completed event
+
+
+## Bible State Sync Fix
+
+- [x] Fix Settings tab (bible-chapters.tsx) to save book statuses to unified storage
+- [x] Fix Personal Study box to show current book from Lamentations (not 2 Timothy)
+- [x] Ensure changes in Settings tab sync to Schedule tab immediately
+- [ ] Add floating "Today" pill that pops up from tab bar

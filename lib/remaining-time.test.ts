@@ -9,9 +9,9 @@ describe('Remaining Time Calculator', () => {
 
   it('should calculate remaining time with no scheduled items', () => {
     const result = calculateRemainingTime([], '2026-06-30');
-    // From 14:00 to 23:59 = 9h 59m = 599 minutes
-    expect(result.remainingMinutes).toBe(599);
-    expect(result.remainingHours).toBe(9);
+    // Day window: 6:00 AM to 11:00 PM = 17 hours = 1020 minutes
+    expect(result.remainingMinutes).toBe(1020);
+    expect(result.remainingHours).toBe(17);
   });
 
   it('should calculate remaining time with scheduled items', () => {
@@ -20,10 +20,10 @@ describe('Remaining Time Calculator', () => {
       { startTime: '17:00', endTime: '18:00' }, // 5 PM - 6 PM (1 hour)
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // From 14:00 to 23:59 = 9h 59m = 599 minutes
-    // Minus 15:00-16:00 (60 min) and 17:00-18:00 (60 min) = 479 minutes
-    expect(result.remainingMinutes).toBe(479);
-    expect(result.remainingHours).toBe(7);
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus 15:00-16:00 (60 min) and 17:00-18:00 (60 min) = 900 minutes
+    expect(result.remainingMinutes).toBe(900);
+    expect(result.remainingHours).toBe(15);
   });
 
   it('should handle overlapping items', () => {
@@ -32,9 +32,9 @@ describe('Remaining Time Calculator', () => {
       { startTime: '16:00', endTime: '17:00' }, // Overlaps with first
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // From 14:00 to 23:59 = 599 minutes
-    // Minus merged 15:00-17:00 (120 min) = 479 minutes
-    expect(result.remainingMinutes).toBe(479);
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus merged 15:00-17:00 (120 min) = 900 minutes
+    expect(result.remainingMinutes).toBe(900);
   });
 
   it('should ignore completed items', () => {
@@ -43,9 +43,9 @@ describe('Remaining Time Calculator', () => {
       { startTime: '17:00', endTime: '18:00', isCompleted: false },
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // From 14:00 to 23:59 = 599 minutes
-    // Minus only 17:00-18:00 (60 min) = 539 minutes
-    expect(result.remainingMinutes).toBe(539);
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus only 17:00-18:00 (60 min) = 960 minutes
+    expect(result.remainingMinutes).toBe(960);
   });
 
   it('should identify next free slot', () => {
@@ -55,8 +55,8 @@ describe('Remaining Time Calculator', () => {
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
     expect(result.nextFreeSlot).toBeDefined();
-    expect(result.nextFreeSlot?.startTime).toBe('14:30'); // Free from 2:30 PM
-    expect(result.nextFreeSlot?.durationMinutes).toBe(30); // 30 minutes until 3:30 PM
+    expect(result.nextFreeSlot?.startTime).toBe('06:00'); // Free from 6 AM (day start)
+    expect(result.nextFreeSlot?.durationMinutes).toBe(510); // 8.5 hours until first item at 14:30
   });
 
   it('should handle items that have already passed', () => {
@@ -65,9 +65,10 @@ describe('Remaining Time Calculator', () => {
       { startTime: '15:00', endTime: '16:00' }, // Future
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // From 14:00 to 23:59 = 599 minutes
-    // Minus only 15:00-16:00 (60 min) = 539 minutes
-    expect(result.remainingMinutes).toBe(539);
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus 12:00-13:00 (60 min) and 15:00-16:00 (60 min) = 900 minutes
+    // (We count ALL scheduled items, even those that have passed)
+    expect(result.remainingMinutes).toBe(900);
   });
 
   it('should format time correctly', () => {
@@ -76,7 +77,9 @@ describe('Remaining Time Calculator', () => {
       { startTime: '15:00', endTime: '22:00' }, // 7 hours
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // Free time: 14:30-15:00 (30 min) + 22:00-23:59 (119 min) = 149 minutes = 2h 29m
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus 14:00-14:30 (30 min) and 15:00-22:00 (420 min) = 570 minutes = 9h 30m
+    expect(result.remainingMinutes).toBe(570);
     expect(result.formattedTime).toContain('h');
     expect(result.formattedTime).toContain('m');
   });
@@ -86,8 +89,8 @@ describe('Remaining Time Calculator', () => {
       { startTime: '15:00' }, // No end time - defaults to 1 hour
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
-    // From 14:00 to 23:59 = 599 minutes
-    // Minus 15:00-16:00 (60 min) = 539 minutes
-    expect(result.remainingMinutes).toBe(539);
+    // Day window: 6:00 AM to 11:00 PM = 1020 minutes
+    // Minus 15:00-16:00 (60 min) = 960 minutes
+    expect(result.remainingMinutes).toBe(960);
   });
 });

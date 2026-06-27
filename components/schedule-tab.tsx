@@ -813,9 +813,9 @@ export function ScheduleTab({
     // Collect all completed Bible reading items from Read ministries, Bible Study sessions, and Bible Study events
     const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [];
     
-    // Add completed Read ministries with Bible info
+    // Add completed Read/Bible Study ministries with Bible info
     const readMinistries = ministriesList.filter(
-      (m) => m.isCompleted && m.type === 'Read' && m.bibleBook && m.bibleChapter
+      (m) => m.isCompleted && (m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter
     );
     console.log('DEBUG getLastChapterRead - found', readMinistries.length, 'completed Read ministries');
     readMinistries.forEach(m => {

@@ -794,9 +794,23 @@ export function ScheduleTab({
 
 
 
-  // Helper function to get last chapter read from completed Read ministries or Bible Study sessions
-  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[]): string => {
-    // Collect all completed Bible reading items from both Read ministries and Bible Study sessions
+  // Helper function to parse Bible reference from text (e.g., "1 Corinthians 1" -> {book: "1 Corinthians", chapter: "1"})
+  const parseBibleReference = (text: string): { book: string; chapter: string } | null => {
+    // Match patterns like "1 Corinthians 1", "Genesis 5", "John 3:16", etc.
+    const match = text.match(/^([A-Za-z0-9\s]+?)\s+(\d+)/);
+    if (match) {
+      return { book: match[1].trim(), chapter: match[2] };
+    }
+    return null;
+  };
+
+  // Helper function to get last chapter read from completed Read ministries, Bible Study sessions, or Bible Study events
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
+    console.log('DEBUG getLastChapterRead called with', bibleStudiesList.length, 'Bible studies total');
+    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
+    console.log('DEBUG getLastChapterRead - found', completedStudies.length, 'completed Bible studies:', completedStudies.map(s => ({ book: s.book, chapter: s.chapter, completedAt: s.completedAt })));
+    
+    // Collect all completed Bible reading items from Read ministries, Bible Study sessions, and Bible Study events
     const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [];
     
     // Add completed Read ministries with Bible info
@@ -814,7 +828,6 @@ export function ScheduleTab({
     });
     
     // Add completed Bible Study sessions
-    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
     completedStudies.forEach(s => {
       allReadItems.push({
         book: s.book,
@@ -823,6 +836,22 @@ export function ScheduleTab({
         completedAt: s.completedAt
       });
     });
+    
+    // Add completed Bible Study events (parse title for book/chapter)
+    if (eventsList) {
+      const completedBibleEvents = eventsList.filter((e) => e.isCompleted && e.title && (e.title.includes('Bible') || e.title.includes('Study')));
+      completedBibleEvents.forEach(e => {
+        const parsed = parseBibleReference(e.title);
+        if (parsed) {
+          allReadItems.push({
+            book: parsed.book,
+            chapter: parsed.chapter,
+            date: e.date,
+            completedAt: e.completedAt
+          });
+        }
+      });
+    }
     
     if (allReadItems.length === 0) return 'No chapters read';
     
@@ -1463,7 +1492,14 @@ export function ScheduleTab({
                 title: `${item.data.book} ${item.data.chapter}`,
                 type: "Bible Study",
               }}
-              onToggle={() => setBibleStudies((prev) => toggleBibleStudyCompleted(prev, item.data.id))}
+              onToggle={() => {
+                console.log('DEBUG: Toggling Bible Study', item.data.id, 'currently isCompleted:', item.data.isCompleted);
+                setBibleStudies((prev) => {
+                  const updated = toggleBibleStudyCompleted(prev, item.data.id);
+                  console.log('DEBUG: After toggle, Bible studies:', updated.map(s => ({ id: s.id, book: s.book, chapter: s.chapter, isCompleted: s.isCompleted, completedAt: s.completedAt })));
+                  return updated;
+                });
+              }}
               onEdit={() => {}}
               onDelete={() => setBibleStudies((prev) => prev.filter((bs) => bs.id !== item.data.id))}
             />
@@ -1637,7 +1673,7 @@ export function ScheduleTab({
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies)}
+                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events)}
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {

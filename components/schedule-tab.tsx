@@ -1666,6 +1666,34 @@ export function ScheduleTab({
                     const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
                     const availableHours = remainingTimeResult.remainingHours;
                     
+                    // Build timeline blocks from events, ministries, and todos
+                    const timelineBlocks = [
+                      ...getEventsForDate(events, selectedDate).map(e => ({
+                        id: e.id,
+                        title: e.title,
+                        startTime: e.startTime || "06:00",
+                        endTime: e.endTime || "23:00",
+                        color: e.color || colors.primary,
+                        type: 'event' as const,
+                      })),
+                      ...getMinistriesForDate(ministries, selectedDate).map(m => ({
+                        id: m.id,
+                        title: m.title,
+                        startTime: m.startTime || "06:00",
+                        endTime: m.endTime || "23:00",
+                        color: m.color || colors.primary,
+                        type: 'ministry' as const,
+                      })),
+                      ...getTodosForDate(todos, selectedDate).map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        startTime: "06:00",
+                        endTime: "23:00",
+                        color: colors.warning,
+                        type: 'todo' as const,
+                      })),
+                    ];
+                    
                     return (
                       <DailySummaryCard
                         remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
@@ -1689,6 +1717,7 @@ export function ScheduleTab({
                         availableHours={availableHours}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
+                        timelineBlocks={timelineBlocks}
                       />
                     );
                   })()}

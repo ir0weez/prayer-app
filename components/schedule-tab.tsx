@@ -837,10 +837,10 @@ export function ScheduleTab({
       });
     });
     
-    // Add completed Bible Study events (parse title for book/chapter)
+    // Add completed events that contain Bible references (parse title for book/chapter)
     if (eventsList) {
-      const completedBibleEvents = eventsList.filter((e) => e.isCompleted && e.title && (e.title.includes('Bible') || e.title.includes('Study')));
-      completedBibleEvents.forEach(e => {
+      const completedEvents = eventsList.filter((e) => e.isCompleted && e.title);
+      completedEvents.forEach(e => {
         const parsed = parseBibleReference(e.title);
         if (parsed) {
           allReadItems.push({

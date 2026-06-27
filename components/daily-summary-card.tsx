@@ -3,7 +3,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
-import { TimelineVisualization, type TimeBlock } from "./timeline-visualization";
+
 
 interface DailySummaryCardProps {
   remainingTodos: number;
@@ -21,7 +21,7 @@ interface DailySummaryCardProps {
   userProfilePhoto?: string;
   availableHours?: number;
   prayerStreak?: number;
-  timelineBlocks?: TimeBlock[];
+
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -62,7 +62,7 @@ export function DailySummaryCard({
   userProfilePhoto,
   availableHours = 0,
   prayerStreak = 0,
-  timelineBlocks = [],
+
 }: DailySummaryCardProps) {
   const colors = useColors();
   
@@ -212,12 +212,7 @@ export function DailySummaryCard({
         </Text>
       </View>
 
-      {/* Timeline visualization */}
-      {timelineBlocks.length > 0 && (
-        <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <TimelineVisualization blocks={timelineBlocks} dayStartHour={6} dayEndHour={23} />
-        </View>
-      )}
+
     </Animated.View>
   );
 }

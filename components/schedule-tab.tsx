@@ -1508,7 +1508,8 @@ export function ScheduleTab({
           const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
           console.log('DEBUG: Filtering albums for date:', selectedDate, 'Found:', linkedAlbumsForDate.length, 'Total albums:', worshipAlbums.length);
           return (
-            <WorshipAlbumSelector
+            <ExpandableSection title="Worship" icon="music-note">
+              <WorshipAlbumSelector
               selectedDate={selectedDate}
               linkedAlbums={linkedAlbumsForDate.map((a) => ({
                 id: a.id,
@@ -1536,7 +1537,8 @@ export function ScheduleTab({
               onRemoveAlbum={(albumId: string) => {
                 setWorshipAlbums((prev) => prev.filter((a) => a.id !== albumId));
               }}
-            />
+              />
+            </ExpandableSection>
           );
         }
         case "expandable-fasting":
@@ -1666,33 +1668,7 @@ export function ScheduleTab({
                     const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
                     const availableHours = remainingTimeResult.remainingHours;
                     
-                    // Build timeline blocks from events, ministries, and todos
-                    const timelineBlocks = [
-                      ...getEventsForDate(events, selectedDate).map(e => ({
-                        id: e.id,
-                        title: e.title,
-                        startTime: e.startTime || "06:00",
-                        endTime: e.endTime || "23:00",
-                        color: e.color || colors.primary,
-                        type: 'event' as const,
-                      })),
-                      ...getMinistriesForDate(ministries, selectedDate).map(m => ({
-                        id: m.id,
-                        title: m.title,
-                        startTime: m.startTime || "06:00",
-                        endTime: m.endTime || "23:00",
-                        color: m.color || colors.primary,
-                        type: 'ministry' as const,
-                      })),
-                      ...getTodosForDate(todos, selectedDate).map(t => ({
-                        id: t.id,
-                        title: t.title,
-                        startTime: "06:00",
-                        endTime: "23:00",
-                        color: colors.warning,
-                        type: 'todo' as const,
-                      })),
-                    ];
+
                     
                     return (
                       <DailySummaryCard
@@ -1717,7 +1693,7 @@ export function ScheduleTab({
                         availableHours={availableHours}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
-                        timelineBlocks={timelineBlocks}
+
                       />
                     );
                   })()}

@@ -1404,12 +1404,12 @@ export function ScheduleTab({
     const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
     completedBibleStudies.forEach((bs) => items.push({ type: "bible-study", id: bs.id, data: bs }));
 
-    // Expandable sections (worship, fasting, bible)
-    items.push({ type: "expandable-worship", id: "worship-section", data: null });
-    items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
+    // Expandable sections (bible, fasting, worship) - reordered so Personal Study comes before Worship
     // Personal Study should show CURRENT book being read, not last completed chapter
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
     items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleDisplay, state: bibleState } });
+    items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
+    items.push({ type: "expandable-worship", id: "worship-section", data: null });
 
     return items;
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, activeFast, bibleState]);

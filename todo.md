@@ -1319,6 +1319,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix available hours calculation (already dynamic, subtracts scheduled items correctly)
 - [x] Remove duplicate Worship box in dropdown (was nested header)
 - [x] Change summary label from "last chapter read" to "last bible study"
+- [x] Fix worship album saving (added delay to allow state update before closing modal)
 - [ ] Fix free time blocks to only countdown on today's date (not other days)
 - [ ] Add progress bar animation to Tasks & Events counter (squiggle when counting, glow when complete)
 - [ ] Test all new features end-to-end

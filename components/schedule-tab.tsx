@@ -1304,16 +1304,22 @@ export function ScheduleTab({
     
     try {
       // Update state immediately with the new album
-      setWorshipAlbums((prev) => [...prev, newAlbum]);
-      console.log('DEBUG: Saved worship album:', newAlbum);
+      setWorshipAlbums((prev) => {
+        const updated = [...prev, newAlbum];
+        console.log('DEBUG: State updated with albums:', updated);
+        return updated;
+      });
     } catch (error) {
       console.error('Error saving worship album:', error);
     }
     
-    resetForm();
-    setFormWorshipSongs([]);
-    setAddType(null);
-    setShowAddModal(false);
+    // Close modal and reset form after a brief delay to allow state to update
+    setTimeout(() => {
+      resetForm();
+      setFormWorshipSongs([]);
+      setAddType(null);
+      setShowAddModal(false);
+    }, 100);
   };
 
   const handleSaveBibleStudy = async () => {

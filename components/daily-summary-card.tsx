@@ -195,7 +195,7 @@ export function DailySummaryCard({
         <Text style={{ fontSize: 16, lineHeight: 24, color: colors.foreground, fontWeight: "400" }}>
           You have{' '}
           <Text style={{ fontWeight: "700" }}>✓ {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}</Text>
-          , last chapter read{' '}
+          , last bible study{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy}
           </Text>

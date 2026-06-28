@@ -1315,7 +1315,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Display todo notes under todo title in schedule view
 - [x] Replace emoji event icons with proper Material Design icons
 - [ ] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
-- [ ] Fix available hours calculation (currently showing 14h instead of 5h after completing lunch)
+- [x] Fix available hours calculation (already dynamic, subtracts scheduled items correctly)
+- [x] Remove duplicate Worship box in dropdown (was nested header)
+- [x] Change summary label from "last chapter read" to "last bible study"
 - [ ] Fix free time blocks to only countdown on today's date (not other days)
 - [ ] Add progress bar animation to Tasks & Events counter (squiggle when counting, glow when complete)
 - [ ] Test all new features end-to-end

@@ -29,18 +29,6 @@ export function WorshipAlbumSelector({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <MaterialIcons name="music-note" size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.foreground }]}>Worship</Text>
-        </View>
-        <Pressable
-          onPress={() => onShowAddModal?.(true)}
-          style={({ pressed }) => [styles.addButton, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <MaterialIcons name="add" size={20} color={colors.primary} />
-        </Pressable>
-      </View>
 
       {linkedAlbums.length === 0 ? (
         <View style={[styles.emptyState, { backgroundColor: colors.background }]}>
@@ -69,6 +57,19 @@ export function WorshipAlbumSelector({
 
       {/* Form is handled by parent component via onShowAddModal callback */}
     </View>
+  );
+}
+
+// Add button component for use in ExpandableSection header
+export function WorshipAddButton({ onPress }: { onPress: () => void }) {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+    >
+      <MaterialIcons name="add" size={20} color={colors.primary} />
+    </Pressable>
   );
 }
 

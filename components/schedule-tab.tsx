@@ -642,11 +642,13 @@ function ExpandableSection({
   icon,
   children,
   defaultExpanded = false,
+  rightButton,
 }: {
   title: string;
   icon: string;
   children: React.ReactNode;
   defaultExpanded?: boolean;
+  rightButton?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const colors = useColors();
@@ -658,20 +660,23 @@ function ExpandableSection({
 
   return (
     <View style={[expandStyles.container, { borderColor: colors.border }]}>
-      <Pressable
-        onPress={() => {
-          const next = !expanded;
-          setExpanded(next);
-          rotateAnim.value = withTiming(next ? 1 : 0, { duration: 200 });
-        }}
-        style={({ pressed }) => [expandStyles.header, pressed && { opacity: 0.7 }]}
-      >
-        <MaterialIcons name={iconName(icon)} size={20} color={colors.primary} />
-        <Text style={[expandStyles.title, { color: colors.foreground }]}>{title}</Text>
-        <ReAnimated.View style={chevronStyle}>
-          <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
-        </ReAnimated.View>
-      </Pressable>
+      <View style={[expandStyles.headerContainer, { backgroundColor: colors.surface }]}>
+        <Pressable
+          onPress={() => {
+            const next = !expanded;
+            setExpanded(next);
+            rotateAnim.value = withTiming(next ? 1 : 0, { duration: 200 });
+          }}
+          style={({ pressed }) => [expandStyles.header, pressed && { opacity: 0.7 }, { flex: 1 }]}
+        >
+          <MaterialIcons name={iconName(icon)} size={20} color={colors.primary} />
+          <Text style={[expandStyles.title, { color: colors.foreground }]}>{title}</Text>
+          <ReAnimated.View style={chevronStyle}>
+            <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
+          </ReAnimated.View>
+        </Pressable>
+        {rightButton && <View style={{ paddingRight: 8 }}>{rightButton}</View>}
+      </View>
       {expanded && <View style={expandStyles.content}>{children}</View>}
     </View>
   );
@@ -1524,7 +1529,18 @@ export function ScheduleTab({
           const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
           console.log('DEBUG: Filtering albums for date:', selectedDate, 'Found:', linkedAlbumsForDate.length, 'Total albums:', worshipAlbums.length);
           return (
-            <ExpandableSection title="Worship" icon="music-note">
+            <ExpandableSection 
+              title="Worship" 
+              icon="music-note"
+              rightButton={
+                <Pressable
+                  onPress={() => onShowWorshipAlbumForm?.(true)}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <MaterialIcons name="add" size={20} color={colors.primary} />
+                </Pressable>
+              }
+            >
               <WorshipAlbumSelector
               selectedDate={selectedDate}
               linkedAlbums={linkedAlbumsForDate.map((a) => ({
@@ -3094,11 +3110,16 @@ const expandStyles = StyleSheet.create({
     marginBottom: 10,
     overflow: "hidden",
   },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 14,
     gap: 10,
   },
   title: {

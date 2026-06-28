@@ -67,6 +67,7 @@ import {
   getTodosForDate,
   getWeekDates,
   MINISTRY_TYPES,
+  getMinistryTypeIcon,
   SCHEDULE_EVENTS_KEY,
   SCHEDULE_MINISTRIES_KEY,
   SCHEDULE_TODOS_KEY,
@@ -571,7 +572,7 @@ function MinistryCard({
           {/* Glow effect now using shadow */}
           <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
             <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-              <Text style={ministryStyles.typeText}>{ministry.type}</Text>
+              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={16} color="#FFFFFF" />
             </View>
             <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
               {ministry.title}

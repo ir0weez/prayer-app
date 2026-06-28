@@ -303,6 +303,27 @@ export const MINISTRY_TYPES = [
 
 export type MinistryType = (typeof MINISTRY_TYPES)[number];
 
+// Ministry type to icon mapping
+export const MINISTRY_TYPE_ICONS: Record<MinistryType, string> = {
+  "Outreach": "public",
+  "Teaching": "school",
+  "Worship": "music-note",
+  "Service": "volunteer-activism",
+  "Prayer": "pan-tool",
+  "Youth": "child-care",
+  "Missions": "flight",
+  "Hospitality": "restaurant",
+  "Counseling": "people",
+  "Bible Study": "book",
+  "Read": "library-books",
+  "Other": "event-note",
+};
+
+// Helper function to get icon for ministry type
+export function getMinistryTypeIcon(type: MinistryType): string {
+  return MINISTRY_TYPE_ICONS[type] || "event-note";
+}
+
 
 // ─── Bible Study Helpers ─────────────────────────────────────────────────────
 

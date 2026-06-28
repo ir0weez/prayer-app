@@ -1314,7 +1314,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add notes field to ScheduleTodo data model
 - [x] Display todo notes under todo title in schedule view
 - [x] Replace emoji event icons with proper Material Design icons
-- [ ] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
+- [x] Map event types to icons: Lunch, Dinner, Doctor, Baby, Pray, Meeting, Reach Out, Write, Study, Read, BBQ, Visit, Soccer, Basketball, Baseball, Music, Concert, Worship
+- [x] Add ministry type icons (Outreach, Teaching, Worship, Service, Prayer, Youth, Missions, Hospitality, Counseling, Bible Study, Read, Other)
 - [x] Fix available hours calculation (already dynamic, subtracts scheduled items correctly)
 - [x] Remove duplicate Worship box in dropdown (was nested header)
 - [x] Change summary label from "last chapter read" to "last bible study"

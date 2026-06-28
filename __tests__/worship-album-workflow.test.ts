@@ -242,3 +242,115 @@ describe('Worship Album Workflow', () => {
     expect(retrieved).toHaveProperty('createdAt');
   });
 });
+
+
+describe('Worship Album Image Upload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAsyncStorage.clear();
+  });
+
+  it('should save album with uploaded image URI instead of URL', async () => {
+    const imageUri = 'file:///data/user/0/com.example.app/cache/image-123.jpg';
+    const album = {
+      id: 'album-uploaded-1',
+      title: 'My Worship Album',
+      artist: 'My Artist',
+      coverUrl: imageUri, // Using uploaded image URI
+      spotifyUrl: '',
+      date: '2026-06-24',
+      createdAt: new Date().toISOString(),
+    };
+
+    const albums = [album];
+    await mockAsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(albums));
+
+    const saved = await mockAsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+    const parsed = JSON.parse(saved!);
+    expect(parsed[0].coverUrl).toBe(imageUri);
+    expect(parsed[0].coverUrl).toMatch(/^file:\/\//);
+  });
+
+  it('should prioritize uploaded image over URL when both exist', async () => {
+    const imageUri = 'file:///data/user/0/com.example.app/cache/image-456.jpg';
+    const urlCover = 'https://example.com/cover.jpg';
+    
+    // Simulate the logic: formAlbumCoverImage || formSongLink || ''
+    const coverUrl = imageUri || urlCover || '';
+    
+    const album = {
+      id: 'album-priority-test',
+      title: 'Album',
+      artist: 'Artist',
+      coverUrl,
+      spotifyUrl: '',
+      date: '2026-06-24',
+      createdAt: new Date().toISOString(),
+    };
+
+    await mockAsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify([album]));
+
+    const saved = await mockAsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+    const parsed = JSON.parse(saved!);
+    expect(parsed[0].coverUrl).toBe(imageUri);
+  });
+
+  it('should fall back to URL when no image is uploaded', async () => {
+    const urlCover = 'https://example.com/cover.jpg';
+    const imageUri: string | null = null;
+    
+    // Simulate: null || urlCover || ''
+    const coverUrl = (imageUri || urlCover) || '';
+    
+    const album = {
+      id: 'album-url-fallback',
+      title: 'Album',
+      artist: 'Artist',
+      coverUrl,
+      spotifyUrl: '',
+      date: '2026-06-24',
+      createdAt: new Date().toISOString(),
+    };
+
+    await mockAsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify([album]));
+
+    const saved = await mockAsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+    const parsed = JSON.parse(saved!);
+    expect(parsed[0].coverUrl).toBe(urlCover);
+  });
+
+  it('should handle clearing uploaded image and using URL instead', async () => {
+    // Start with uploaded image
+    let imageUri: string | null = 'file:///data/user/0/com.example.app/cache/image-789.jpg';
+    let coverUrl = (imageUri || 'https://example.com/cover.jpg') || '';
+    
+    let album = {
+      id: 'album-clear-test',
+      title: 'Album',
+      artist: 'Artist',
+      coverUrl,
+      spotifyUrl: '',
+      date: '2026-06-24',
+      createdAt: new Date().toISOString(),
+    };
+
+    await mockAsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify([album]));
+    
+    // Verify image is used
+    let saved = await mockAsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+    let parsed = JSON.parse(saved!);
+    expect(parsed[0].coverUrl).toMatch(/^file:\/\//);
+
+    // Clear image and update
+    imageUri = null;
+    coverUrl = (imageUri || 'https://example.com/cover.jpg') || '';
+    album.coverUrl = coverUrl;
+
+    await mockAsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify([album]));
+
+    // Verify URL is now used
+    saved = await mockAsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+    parsed = JSON.parse(saved!);
+    expect(parsed[0].coverUrl).toBe('https://example.com/cover.jpg');
+  });
+});

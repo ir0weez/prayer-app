@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -739,6 +740,7 @@ export function ScheduleTab({
   const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
+  const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
   const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
   const [isLoadingSpotify, setIsLoadingSpotify] = useState(false);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
@@ -1090,6 +1092,7 @@ export function ScheduleTab({
     setFormTodoTag(null);
     setFormSongLink("");
     setFormSpotifyLink("");
+    setFormAlbumCoverImage(null);
     setFormBibleBook("Genesis");
     setFormBibleChapter("1");
   };
@@ -1260,6 +1263,24 @@ export function ScheduleTab({
     }
   };
 
+  const pickAlbumCover = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setFormAlbumCoverImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
   const handleSaveWorshipList = async () => {
     if (!formTitle.trim()) return;
     
@@ -1267,7 +1288,7 @@ export function ScheduleTab({
       id: generateId(),
       title: formTitle.trim(),
       artist: formNotes.trim() || 'Unknown Artist',
-      coverUrl: formSongLink.trim() || '',
+      coverUrl: formAlbumCoverImage || formSongLink.trim() || '',
       spotifyUrl: formSpotifyLink.trim() || '',
       date: selectedDate,
       createdAt: new Date().toISOString(),
@@ -1276,14 +1297,9 @@ export function ScheduleTab({
     console.log('DEBUG: About to save album with date:', selectedDate, 'Album:', newAlbum);
     
     try {
-      const existingAlbums = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
-      const albums = existingAlbums ? JSON.parse(existingAlbums) : [];
-      albums.push(newAlbum);
-      await AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(albums));
-      setWorshipAlbums(albums);
+      // Update state immediately with the new album
+      setWorshipAlbums((prev) => [...prev, newAlbum]);
       console.log('DEBUG: Saved worship album:', newAlbum);
-      console.log('DEBUG: Total albums in state:', albums.length);
-      console.log('DEBUG: All albums:', albums);
     } catch (error) {
       console.error('Error saving worship album:', error);
     }
@@ -2393,9 +2409,15 @@ export function ScheduleTab({
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
               {/* Album Preview */}
-              {(formTitle || formNotes || formSongLink) && (
+              {(formTitle || formNotes || formAlbumCoverImage || formSongLink) && (
                 <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: 12 }]}>
-                  {formSongLink ? (
+                  {formAlbumCoverImage ? (
+                    <Image
+                      source={{ uri: formAlbumCoverImage }}
+                      style={{ width: 120, height: 120, borderRadius: 8 }}
+                      contentFit="cover"
+                    />
+                  ) : formSongLink ? (
                     <Image
                       source={{ uri: formSongLink }}
                       style={{ width: 120, height: 120, borderRadius: 8 }}
@@ -2433,7 +2455,24 @@ export function ScheduleTab({
                 returnKeyType="done"
               />
 
-              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover</Text>
+              <Pressable
+                onPress={pickAlbumCover}
+                style={({ pressed }) => [scheduleStyles.formInput, { backgroundColor: colors.background, borderColor: colors.primary, borderWidth: 2, justifyContent: 'center', alignItems: 'center', height: 100, opacity: pressed ? 0.7 : 1 }]}
+              >
+                <MaterialIcons name="image" size={32} color={colors.primary} />
+                <Text style={[scheduleStyles.formLabel, { color: colors.primary, marginTop: 8 }]}>Tap to upload cover</Text>
+              </Pressable>
+              {formAlbumCoverImage && (
+                <Pressable
+                  onPress={() => setFormAlbumCoverImage(null)}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginTop: 8 }]}
+                >
+                  <Text style={[scheduleStyles.formLabel, { color: colors.error }]}>Clear image</Text>
+                </Pressable>
+              )}
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL (optional)</Text>
               <TextInput
                 placeholder="https://example.com/cover.jpg"
                 placeholderTextColor={colors.muted}

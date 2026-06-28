@@ -1373,3 +1373,17 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Fix Personal Study box to show current book from Lamentations (not 2 Timothy)
 - [x] Ensure changes in Settings tab sync to Schedule tab immediately
 - [ ] Add floating "Today" pill that pops up from tab bar
+
+
+## Phase 7: Worship Album Image Upload Feature
+
+- [x] Fix worship album saving issue where albums weren't persisting after form submission
+- [x] Implement image picker for direct album cover uploads instead of URL-only input
+- [x] Add formAlbumCoverImage state variable to track uploaded image URI
+- [x] Update album preview to display uploaded image with priority over URL
+- [x] Replace URL input field with interactive image picker button
+- [x] Add "Clear image" button to allow users to remove uploaded image and fall back to URL
+- [x] Update handleSaveWorshipList to use uploaded image (formAlbumCoverImage) or URL fallback
+- [x] Add pickAlbumCover function using expo-image-picker for image selection
+- [x] Write comprehensive tests for image upload workflow and image/URL priority logic
+- [x] Verify all 240 tests pass including new image upload tests

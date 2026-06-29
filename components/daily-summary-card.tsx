@@ -3,6 +3,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
+import { BibleStudyDaySelector } from './bible-study-day-selector';
 
 
 interface DailySummaryCardProps {
@@ -202,9 +203,12 @@ export function DailySummaryCard({
           You have{' '}
           <Text style={{ fontWeight: "700" }}>✓ {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}</Text>
           , last bible study{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy}
-          </Text>
+          <BibleStudyDaySelector
+            days={bibleStudyDays}
+            selectedDay={selectedBibleStudyDay}
+            onDaySelect={onBibleStudyDayChange || (() => {})}
+            currentStudy={currentBibleStudy}
+          />
           , have{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}

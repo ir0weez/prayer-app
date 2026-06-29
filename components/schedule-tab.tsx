@@ -814,8 +814,6 @@ export function ScheduleTab({
     return null;
   };
 
-  // Helper function to get last chapter read from completed Read ministries, Bible Study sessions, or Bible Study events
-  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
   // Get all unique days with completed Bible studies, sorted by most recent
   const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
     const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
@@ -861,6 +859,8 @@ export function ScheduleTab({
     return `${latest.book} ${latest.chapter}`;
   };
 
+  // Helper function to get last chapter read from completed Read ministries, Bible Study sessions, or Bible Study events
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
     console.log('DEBUG getLastChapterRead called with', bibleStudiesList.length, 'Bible studies total');
     const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
     console.log('DEBUG getLastChapterRead - found', completedStudies.length, 'completed Bible studies:', completedStudies.map(s => ({ book: s.book, chapter: s.chapter, completedAt: s.completedAt })));
@@ -1757,6 +1757,9 @@ export function ScheduleTab({
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
                         currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events)}
+                        bibleStudyDays={getUniqueBibleStudyDays(bibleStudies)}
+                        selectedBibleStudyDay={selectedBibleStudyDay}
+                        onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {

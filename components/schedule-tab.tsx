@@ -572,7 +572,8 @@ function MinistryCard({
           {/* Glow effect now using shadow */}
           <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
             <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={16} color="#FFFFFF" />
+              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={14} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "600", marginLeft: 4 }}>{ministry.type}</Text>
             </View>
             <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
               {ministry.title}
@@ -752,6 +753,7 @@ export function ScheduleTab({
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
+  const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
 
   // Color palette for todos, events, and ministries
   const COLOR_PALETTE = [
@@ -814,6 +816,51 @@ export function ScheduleTab({
 
   // Helper function to get last chapter read from completed Read ministries, Bible Study sessions, or Bible Study events
   const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
+  // Get all unique days with completed Bible studies, sorted by most recent
+  const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
+    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
+    const dayMap = new Map<string, { date: string; book: string; chapter: number }>();
+    
+    // Group by day of week, keep the most recent for each day
+    completedStudies.forEach(study => {
+      const date = new Date(study.date);
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      const existing = dayMap.get(dayName);
+      if (!existing) {
+        dayMap.set(dayName, { date: study.date, book: study.book, chapter: study.chapter });
+      } else {
+        // Keep the most recent
+        const existingDate = new Date(existing.date).getTime();
+        const newDate = new Date(study.date).getTime();
+        if (newDate > existingDate) {
+          dayMap.set(dayName, { date: study.date, book: study.book, chapter: study.chapter });
+        }
+      }
+    });
+    
+    // Convert to array and sort by most recent date
+    return Array.from(dayMap.entries())
+      .map(([dayName, data]) => ({ dayName, ...data }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  // Get the Bible study for a specific day
+  const getBibleStudyForDay = (bibleStudiesList: BibleStudySession[], dayName: string): string => {
+    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
+    const dayStudies = completedStudies.filter(study => {
+      const date = new Date(study.date);
+      return date.toLocaleDateString('en-US', { weekday: 'long' }) === dayName;
+    });
+    
+    if (dayStudies.length === 0) return 'No studies';
+    
+    // Return the most recent study for this day
+    const sorted = dayStudies.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latest = sorted[0];
+    return `${latest.book} ${latest.chapter}`;
+  };
+
     console.log('DEBUG getLastChapterRead called with', bibleStudiesList.length, 'Bible studies total');
     const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
     console.log('DEBUG getLastChapterRead - found', completedStudies.length, 'completed Bible studies:', completedStudies.map(s => ({ book: s.book, chapter: s.chapter, completedAt: s.completedAt })));
@@ -1693,9 +1740,9 @@ export function ScheduleTab({
                   {(() => {
                     // Calculate remaining free time from now until midnight
                     const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime && !e.isCompleted),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime && !m.isCompleted),
                     ];
                     const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
                     const availableHours = remainingTimeResult.remainingHours;
@@ -3009,19 +3056,21 @@ const todoStyles = StyleSheet.create({
 const ministryStyles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
     marginHorizontal: 12,
     borderWidth: 1,
     position: "relative",
   },
   typeTag: {
     alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
-    marginBottom: 6,
+    marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
   },
   typeText: {
     color: "#FFFFFF",

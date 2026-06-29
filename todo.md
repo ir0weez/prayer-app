@@ -1391,3 +1391,16 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add pickAlbumCover function using expo-image-picker for image selection
 - [x] Write comprehensive tests for image upload workflow and image/URL priority logic
 - [x] Verify all 240 tests pass including new image upload tests
+
+
+## Phase 8: UI Polish & Multi-Day Bible Study Tracker
+
+- [x] Restore ministry badge text labels (show both icon and type name)
+- [x] Compact ministry cards (reduced padding and margins for better space efficiency)
+- [x] Fix available hours countdown to match free time blocks (exclude completed items from calculation)
+- [ ] Implement multi-day Bible study tracker with day selector
+  - [ ] Create day selector UI component with tappable day names
+  - [ ] Show only days with completed Bible studies (not all 7 days)
+  - [ ] Add dashed underline to selected day name
+  - [ ] Auto-update summary when day is selected
+  - [ ] Show "last {DayName} bible study {book chapter}" format in summary

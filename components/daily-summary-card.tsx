@@ -22,6 +22,9 @@ interface DailySummaryCardProps {
   availableHours?: number;
   prayerStreak?: number;
 
+  bibleStudyDays?: Array<{ dayName: string; date: string; book: string; chapter: number }>;
+  selectedBibleStudyDay?: string | null;
+  onBibleStudyDayChange?: (dayName: string) => void;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -53,6 +56,9 @@ export function DailySummaryCard({
   budgetAmount,
   peopleToReach,
   currentBibleStudy,
+  bibleStudyDays = [],
+  selectedBibleStudyDay = null,
+  onBibleStudyDayChange,
   personalTodos = [],
   onTodoComplete,
   onAvatarPress,

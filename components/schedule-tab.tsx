@@ -1287,9 +1287,11 @@ export function ScheduleTab({
     }
   };
 
-  const handleSaveWorshipList = async () => {
-    if (!formTitle.trim()) return;
-    
+    const handleSaveWorshipList = async () => {
+    if (!formTitle.trim()) {
+      Alert.alert('Error', 'Please enter an album title');
+      return;
+    }
     const newAlbum = {
       id: generateId(),
       title: formTitle.trim(),
@@ -1299,10 +1301,13 @@ export function ScheduleTab({
       date: selectedDate,
       createdAt: new Date().toISOString(),
     };
-    
+    Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     // Update state with new album
-    setWorshipAlbums((prev) => [...prev, newAlbum]);
-    
+    setWorshipAlbums((prev) => {
+      const updated = [...prev, newAlbum];
+      console.log('Worship albums after save:', updated.length);
+      return updated;
+    });
     // Close modal and reset form
     resetForm();
     setFormWorshipSongs([]);

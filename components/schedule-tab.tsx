@@ -959,7 +959,7 @@ export function ScheduleTab({
     });
     
     const latest = sorted[0];
-    return `${latest.dayName}`
+    return `${latest.book} ${latest.chapter}`
   };
 
   // Load data

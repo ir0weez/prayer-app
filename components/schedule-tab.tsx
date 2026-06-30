@@ -572,42 +572,40 @@ function MinistryCard({
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
           {/* Glow effect now using shadow */}
           <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 2 }]}>
-            <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={14} color="#FFFFFF" />
-              <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "600", marginLeft: 4 }}>{ministry.type}</Text>
-            </View>
-            <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]}>
-              {ministry.title}
-            </Text>
-            {ministry.location && (
-              <Text style={[ministryStyles.location, { color: colors.muted }]} numberOfLines={1}>
-                📍 {ministry.location}
-              </Text>
-            )}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
-              <View style={{ flex: 1, justifyContent: 'center' }}>
-                {ministry.startTime && (
-                  <Text style={[ministryStyles.time, { color: colors.muted }]}>
-                    {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
-                  </Text>
-                )}
-                {ministry.bibleBook && (
-                  <Text style={[ministryStyles.bibleRef, { color: colors.primary, marginTop: 2 }]}>
-                    📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
-                  </Text>
-                )}
+            {/* Row 1: Type tag + Title + Avatar */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 0 }]}>
+                <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={12} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "600", marginLeft: 3 }}>{ministry.type}</Text>
               </View>
+              <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, flex: 1 }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>
+                {ministry.title}
+              </Text>
               {linkedPeople.length > 0 && (
-                <View style={{ paddingTop: 0 }}>
-                  <StackedAvatar people={linkedPeople} size={28} />
-                </View>
+                <StackedAvatar people={linkedPeople} size={24} />
+              )}
+              {ministry.isCompleted && (
+                <MaterialIcons name="check-circle" size={14} color="#22C55E" />
               )}
             </View>
-            {ministry.isCompleted && (
-              <View style={ministryStyles.checkBadge}>
-                <MaterialIcons name="check-circle" size={16} color="#22C55E" />
-              </View>
-            )}
+            {/* Row 2: Time + Location + Bible ref */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 8, flexWrap: 'wrap' }}>
+              {ministry.startTime && (
+                <Text style={{ fontSize: 11, color: colors.muted }}>
+                  {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
+                </Text>
+              )}
+              {ministry.location && (
+                <Text style={{ fontSize: 11, color: colors.muted }} numberOfLines={1}>
+                  📍 {ministry.location}
+                </Text>
+              )}
+              {ministry.bibleBook && (
+                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "500" }}>
+                  📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                </Text>
+              )}
+            </View>
           </View>
         </ReAnimated.View>
       </Pressable>
@@ -1806,15 +1804,18 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    // Calculate remaining free time from now until midnight
-                    // Include ALL items (completed and incomplete) to match time blocks display
+                    // Calculate available hours matching the free time blocks shown in schedule
+                    // Use same filter as time blocks: only incomplete items with start times
                     const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter((e) => !e.isCompleted && e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
                     ];
-                    const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
-                    const availableHours = remainingTimeResult.remainingHours;
+                    // Calculate time blocks and filter expired ones (same as schedule display)
+                    const summaryBlocks = calculateAvailableTimeBlocks(allScheduledItems);
+                    const activeSummaryBlocks = filterExpiredTimeBlocks(summaryBlocks, selectedDate);
+                    const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
+                    const availableHours = Math.floor(totalAvailableMinutes / 60);
                     
 
                     
@@ -3145,10 +3146,10 @@ const todoStyles = StyleSheet.create({
 
 const ministryStyles = StyleSheet.create({
   card: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 6,
+    paddingVertical: 6,
+    marginBottom: 4,
     marginHorizontal: 12,
     borderWidth: 1,
     position: "relative",

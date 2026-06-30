@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TimeBlock, timeToMinutes } from "@/lib/time-blocks";
+import { format12HourTime } from "@/lib/utils";
 
 interface TimeBlockIndicatorProps {
   block: TimeBlock;
@@ -107,16 +108,16 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
       <View style={styles.timeRange}>
         <MaterialIcons name="schedule" size={14} color={colorScheme.text} />
         <Text style={[styles.time, { color: colorScheme.text }]}>
-          {displayBlock!.startTime}
+          {format12HourTime(displayBlock!.startTime)}
         </Text>
         <Text style={[styles.arrow, { color: colorScheme.text }]}>→</Text>
         <Text style={[styles.time, { color: colorScheme.text }]}>
-          {displayBlock!.endTime}
+          {format12HourTime(displayBlock!.endTime)}
         </Text>
       </View>
 
       <View style={[styles.badge, { backgroundColor: colorScheme.border }]}>
-        <Text style={styles.badgeText}>{remainingHours}h</Text>
+        <Text style={styles.badgeText}>{displayBlock!.label || `${remainingHours}h`}</Text>
       </View>
     </View>
   );

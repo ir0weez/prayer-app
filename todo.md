@@ -1461,3 +1461,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Summary always shows current calendar day name (e.g., "Tuesday" on Tuesday)
   - [x] Shows "none" if no completed Bible study exists for that day of week
   - [x] Day selector dropdown still allows switching to other days with completed studies
+
+## Phase 16: Ministry Card Compactness + Available Hours Fix
+
+- [x] Make ministry cards more compact (reduce padding/spacing)
+- [x] Fix available hours in summary to match/countdown with free time blocks in schedule
+- [x] Fix free time block indicators to show 12-hour AM/PM format (currently showing 24-hour like "14:00 → 18:00")

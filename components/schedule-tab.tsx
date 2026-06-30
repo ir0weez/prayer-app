@@ -617,40 +617,32 @@ function MinistryCard({
         style={({ pressed }) => [pressed && { opacity: 0.7 }]}
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
-          {/* Glow effect now using shadow */}
           <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 1.5 }]}>
-            {/* Header row: type tag + avatar */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF" }]}>
-                <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={12} color="#FFFFFF" />
-                <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "600", marginLeft: 3 }}>{ministry.type}</Text>
+            {/* Single compact layout: tag + title + time on tight rows */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 0 }]}>
+                <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={11} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "600", marginLeft: 2 }}>{ministry.type}</Text>
               </View>
+              <Text style={[{ fontSize: 14, fontWeight: "600", color: colors.foreground, flex: 1 }]} numberOfLines={1}>
+                {ministry.title}
+              </Text>
               {linkedPeople.length > 0 && (
-                <StackedAvatar people={linkedPeople} size={26} />
+                <StackedAvatar people={linkedPeople} size={22} />
               )}
             </View>
-            {/* Title */}
-            <Text style={[ministryStyles.title, { color: colors.foreground }, ministry.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>
-              {ministry.title}
-            </Text>
-            {/* Time and details */}
             {(ministry.startTime || ministry.bibleBook) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, paddingLeft: 0 }}>
                 {ministry.startTime && (
-                  <Text style={[ministryStyles.time, { color: colors.muted }]}>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>
                     {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
                   </Text>
                 )}
                 {ministry.bibleBook && (
-                  <Text style={[ministryStyles.bibleRef, { color: colors.primary }]}>
+                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "500" }}>
                     📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
                   </Text>
                 )}
-              </View>
-            )}
-            {ministry.isCompleted && (
-              <View style={ministryStyles.checkBadge}>
-                <MaterialIcons name="check-circle" size={14} color="#22C55E" />
               </View>
             )}
           </View>
@@ -3203,9 +3195,9 @@ const todoStyles = StyleSheet.create({
 
 const ministryStyles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     marginBottom: 6,
     marginHorizontal: 12,
     borderWidth: 1,
@@ -3213,10 +3205,10 @@ const ministryStyles = StyleSheet.create({
   },
   typeTag: {
     alignSelf: "flex-start",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginBottom: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    marginBottom: 0,
     flexDirection: "row",
     alignItems: "center",
   },

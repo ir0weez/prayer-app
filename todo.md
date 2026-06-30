@@ -1487,3 +1487,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Todos with a startTime glow with a pulsing shadow during their scheduled hour
 - [x] Glow uses the todo's color (or default purple) and fades after the hour passes
 - [x] Completed todos don't glow
+
+## Phase 21: Compact Ministry Cards + Glow Until Complete
+
+- [x] Ministry cards made thinner - type tag and title on same row, time/bible ref on second row
+- [x] Reduced card padding for a more compact look
+- [x] Glow effect pulses based on card color, stops when marked complete

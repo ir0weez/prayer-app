@@ -1477,3 +1477,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Free time blocks show on today and future days, hidden on past days only
 - [x] Today's blocks still count down (expired ones removed), future days show all blocks
 - [x] Ministry cards reverted to cleaner multi-line layout (type tag, title, time/bible ref on separate lines)
+
+## Phase 19: Todo Time Indicator
+
+- [x] Show scheduled time below todo title (in primary color, 12-hour format) when startTime is set

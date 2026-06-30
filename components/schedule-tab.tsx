@@ -387,17 +387,26 @@ function TodoItem({
           >
             {todo.title}
           </Text>
-          {todo.notes && (
-            <Text
-              style={[
-                todoStyles.notes,
-                { color: colors.muted },
-                todo.isCompleted && { textDecorationLine: "line-through" },
-              ]}
-              numberOfLines={2}
-            >
-              {todo.notes}
-            </Text>
+          {(todo.startTime || todo.notes) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
+              {todo.startTime && (
+                <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>
+                  {format12HourTime(todo.startTime)}
+                </Text>
+              )}
+              {todo.notes && (
+                <Text
+                  style={[
+                    todoStyles.notes,
+                    { color: colors.muted, marginTop: 0 },
+                    todo.isCompleted && { textDecorationLine: "line-through" },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {todo.notes}
+                </Text>
+              )}
+            </View>
           )}
         </View>
         {linkedPeople.length > 0 && (

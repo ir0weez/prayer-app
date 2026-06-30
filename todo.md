@@ -1444,3 +1444,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Fix day selector to auto-default to current calendar day when scrolling (not persist previous selection)
 - [x] Add delete button in day selector dropdown to remove Bible studies no longer attending
+- [x] Fix "No Monday chapters read" error by reverting getLastChapterRead to show most recent study overall
+  - [x] Removed date-aware filtering that was causing "No {Day} chapters read" fallback
+  - [x] Now returns day name of most recent study, not filtered by current calendar day
+  - [x] Day selector still works independently to navigate between available days

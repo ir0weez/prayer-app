@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
+import { format12HourTime, formatDecimalTo12Hour } from '@/lib/utils';
 
 export interface TimeBlock {
   id: string;
@@ -58,11 +59,9 @@ export function TimelineVisualization({
       .filter((b) => b !== null);
   }, [blocks, dayStartHour, dayEndHour, totalHours]);
 
-  // Format time for display
+  // Format time for display (convert to 12-hour AM/PM)
   const formatTime = (hours: number): string => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}:${m.toString().padStart(2, '0')}`;
+    return formatDecimalTo12Hour(hours);
   };
 
   return (
@@ -72,6 +71,9 @@ export function TimelineVisualization({
         {Array.from({ length: totalHours + 1 }).map((_, i) => {
           const hour = dayStartHour + i;
           const leftPercent = (i / totalHours) * 100;
+          // Convert to 12-hour format
+          const period = hour >= 12 ? 'PM' : 'AM';
+          const displayHour = hour % 12 || 12;
           return (
             <Text
               key={`hour-${i}`}
@@ -83,7 +85,7 @@ export function TimelineVisualization({
                 transform: [{ translateX: -12 }], // Center text
               }}
             >
-              {hour}
+              {displayHour}{period.charAt(0)}
             </Text>
           );
         })}

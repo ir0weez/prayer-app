@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
+import { format12HourTime } from "@/lib/utils";
 
 interface DateTimePickerProps {
   value: string; // ISO date string or time string (HH:mm)
@@ -36,7 +37,7 @@ export function DateTimePicker({
         year: "numeric",
       });
     } else {
-      return value || "Select time";
+      return value ? format12HourTime(value) : "Select time";
     }
   };
 
@@ -182,27 +183,31 @@ export function DateTimePicker({
 
         <View style={pickerStyles.pickerRow}>
           <ScrollView style={pickerStyles.column}>
-            {hours.map((h) => (
-              <Pressable
-                key={h}
-                onPress={() => {
-                  const currentMinute = value
-                    ? parseInt(value.split(":")[1] || "0")
-                    : 0;
-                  handleTimeChange(h, currentMinute);
-                }}
-                style={pickerStyles.pickerItem}
-              >
-                <Text
-                  style={[
-                    pickerStyles.pickerItemText,
-                    { color: colors.foreground },
-                  ]}
+            {hours.map((h) => {
+              const period = h >= 12 ? 'PM' : 'AM';
+              const displayHour = h % 12 || 12;
+              return (
+                <Pressable
+                  key={h}
+                  onPress={() => {
+                    const currentMinute = value
+                      ? parseInt(value.split(":")[1] || "0")
+                      : 0;
+                    handleTimeChange(h, currentMinute);
+                  }}
+                  style={pickerStyles.pickerItem}
                 >
-                  {String(h).padStart(2, "0")}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      pickerStyles.pickerItemText,
+                      { color: colors.foreground },
+                    ]}
+                  >
+                    {displayHour} {period}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
 
           <Text style={[pickerStyles.separator, { color: colors.foreground }]}>

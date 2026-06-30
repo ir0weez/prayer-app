@@ -85,6 +85,7 @@ import {
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
+import { format12HourTime } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -179,7 +180,7 @@ function EventCard({
             </Text>
             {event.startTime && (
               <Text style={[eventStyles.completedTime, { color: completedColor + "99" }]}>
-                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+                {format12HourTime(event.startTime)}{event.endTime ? ` - ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}
             <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
@@ -216,7 +217,7 @@ function EventCard({
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.startTime && (
                 <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
-                  {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                  {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
                 </Text>
               )}
               {event.location && (
@@ -257,7 +258,7 @@ function EventCard({
             <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>
             {event.startTime && (
               <Text style={[eventStyles.defaultTime, { color: event.color ? '#FFFFFFDD' : colors.muted }]}>
-                {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}
           </View>
@@ -540,7 +541,7 @@ function MinistryCard({
             </Text>
             {ministry.startTime && (
               <Text style={[ministryStyles.completedTime, { color: completedColor + "99" }]}>
-                {ministry.startTime}{ministry.endTime ? ` - ${ministry.endTime}` : ""}
+                {format12HourTime(ministry.startTime)}{ministry.endTime ? ` - ${format12HourTime(ministry.endTime)}` : ""}
               </Text>
             )}
             <MaterialIcons name="check-circle" size={18} color={completedColor} style={{ marginLeft: "auto" }} />
@@ -587,7 +588,7 @@ function MinistryCard({
               <View style={{ flex: 1, justifyContent: 'center' }}>
                 {ministry.startTime && (
                   <Text style={[ministryStyles.time, { color: colors.muted }]}>
-                    {ministry.startTime}{ministry.endTime ? ` – ${ministry.endTime}` : ""}
+                    {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
                   </Text>
                 )}
                 {ministry.bibleBook && (

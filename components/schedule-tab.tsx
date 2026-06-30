@@ -861,20 +861,35 @@ export function ScheduleTab({
     return `${latest.book} ${latest.chapter}`;
   };
 
-  // Helper function to get last chapter read from completed Read ministries, Bible Study sessions, or Bible Study events
-  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
-    console.log('DEBUG getLastChapterRead called with', bibleStudiesList.length, 'Bible studies total');
-    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
-    console.log('DEBUG getLastChapterRead - found', completedStudies.length, 'completed Bible studies:', completedStudies.map(s => ({ book: s.book, chapter: s.chapter, completedAt: s.completedAt })));
+  // Helper function to get last chapter read for a specific date's day of week
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[], dateForDayOfWeek?: Date): string => {
+    // Get the day of week for the selected date (or today if not specified)
+    const targetDate = dateForDayOfWeek || new Date();
+    const targetDayName = targetDate.toLocaleDateString('en-US', { weekday: 'long' });
+    console.log('DEBUG getLastChapterRead called for day:', targetDayName, 'with', bibleStudiesList.length, 'Bible studies total');
+    
+    // Filter completed studies to only those matching the target day of week
+    const completedStudies = bibleStudiesList.filter((s) => {
+      if (!s.isCompleted) return false;
+      const studyDate = new Date(s.date);
+      const studyDayName = studyDate.toLocaleDateString('en-US', { weekday: 'long' });
+      return studyDayName === targetDayName;
+    });
+    console.log('DEBUG getLastChapterRead - found', completedStudies.length, 'completed Bible studies for', targetDayName);
     
     // Collect all completed Bible reading items from Read ministries, Bible Study sessions, and Bible Study events
     const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string }> = [];
     
-    // Add completed Read/Bible Study ministries with Bible info
+    // Add completed Read/Bible Study ministries with Bible info (matching target day of week)
     const readMinistries = ministriesList.filter(
-      (m) => m.isCompleted && (m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter
+      (m) => {
+        if (!m.isCompleted || (m.type !== 'Read' && m.type !== 'Bible Study') || !m.bibleBook || !m.bibleChapter) return false;
+        const ministryDate = new Date(m.date);
+        const ministryDayName = ministryDate.toLocaleDateString('en-US', { weekday: 'long' });
+        return ministryDayName === targetDayName;
+      }
     );
-    console.log('DEBUG getLastChapterRead - found', readMinistries.length, 'completed Read ministries');
+    console.log('DEBUG getLastChapterRead - found', readMinistries.length, 'completed Read ministries for', targetDayName);
     readMinistries.forEach(m => {
       allReadItems.push({
         book: m.bibleBook!,
@@ -894,9 +909,14 @@ export function ScheduleTab({
       });
     });
     
-    // Add completed events that contain Bible references (parse title for book/chapter)
+    // Add completed events that contain Bible references (matching target day of week)
     if (eventsList) {
-      const completedEvents = eventsList.filter((e) => e.isCompleted && e.title);
+      const completedEvents = eventsList.filter((e) => {
+        if (!e.isCompleted || !e.title) return false;
+        const eventDate = new Date(e.date);
+        const eventDayName = eventDate.toLocaleDateString('en-US', { weekday: 'long' });
+        return eventDayName === targetDayName;
+      });
       completedEvents.forEach(e => {
         const parsed = parseBibleReference(e.title);
         if (parsed) {
@@ -910,10 +930,10 @@ export function ScheduleTab({
       });
     }
     
-    if (allReadItems.length === 0) return 'No chapters read';
+    if (allReadItems.length === 0) return `No ${targetDayName} chapters read`;
     
     // Debug: log what we found
-    console.log('DEBUG getLastChapterRead - all read items:', allReadItems);
+    console.log('DEBUG getLastChapterRead - all read items for', targetDayName, ':', allReadItems);
     
     // Sort by completedAt (most recent first), with date as fallback
     const sorted = allReadItems.sort((a, b) => {
@@ -922,10 +942,10 @@ export function ScheduleTab({
       return timeB - timeA; // Most recent first
     });
     
-    console.log('DEBUG getLastChapterRead - sorted items:', sorted);
+    console.log('DEBUG getLastChapterRead - sorted items for', targetDayName, ':', sorted);
     
     const latest = sorted[0];
-    console.log('DEBUG getLastChapterRead - returning:', `${latest.book} ${latest.chapter}`);
+    console.log('DEBUG getLastChapterRead - returning for', targetDayName, ':', `${latest.book} ${latest.chapter}`);
     return `${latest.book} ${latest.chapter}`;
   };
 
@@ -1759,7 +1779,7 @@ export function ScheduleTab({
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events)}
+                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, new Date(selectedDate))}
                         bibleStudyDays={getUniqueBibleStudyDays(bibleStudies)}
                         selectedBibleStudyDay={selectedBibleStudyDay}
                         onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}

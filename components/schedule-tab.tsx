@@ -1737,10 +1737,11 @@ export function ScheduleTab({
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
                     // Calculate remaining free time from now until midnight
+                    // Include ALL items (completed and incomplete) to match time blocks display
                     const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime && !e.isCompleted),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime && !m.isCompleted),
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && e.endTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && m.endTime),
                     ];
                     const remainingTimeResult = calculateRemainingTime(allScheduledItems, selectedDate);
                     const availableHours = remainingTimeResult.remainingHours;

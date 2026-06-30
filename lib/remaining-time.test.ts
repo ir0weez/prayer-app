@@ -37,15 +37,16 @@ describe('Remaining Time Calculator', () => {
     expect(result.remainingMinutes).toBe(900);
   });
 
-  it('should ignore completed items', () => {
+  it('should include completed items in time calculation', () => {
     const items = [
-      { startTime: '15:00', endTime: '16:00', isCompleted: true }, // Should be ignored
+      { startTime: '15:00', endTime: '16:00', isCompleted: true }, // Still blocks time
       { startTime: '17:00', endTime: '18:00', isCompleted: false },
     ];
     const result = calculateRemainingTime(items, '2026-06-30');
     // Day window: 6:00 AM to 11:00 PM = 1020 minutes
-    // Minus only 17:00-18:00 (60 min) = 960 minutes
-    expect(result.remainingMinutes).toBe(960);
+    // Minus 15:00-16:00 (60 min) and 17:00-18:00 (60 min) = 900 minutes
+    // (Completed items still block calendar time)
+    expect(result.remainingMinutes).toBe(900);
   });
 
   it('should identify next free slot', () => {

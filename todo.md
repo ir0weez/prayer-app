@@ -1419,3 +1419,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Test: Handle multiple Bible studies with mixed completion states
   - [x] Test: Preserve all Bible study fields during persistence (notes, times, etc.)
 - [x] Verify all tests pass with persistence logic (244 tests passing, 1 skipped)
+
+## Phase 10: Fix Available Hours Calculation
+
+- [x] Fixed available hours mismatch with free time blocks
+  - [x] Identified root cause: summary was excluding completed items, but time blocks included them
+  - [x] Updated calculateRemainingTime to include completed items (they still block calendar time)
+  - [x] Updated schedule-tab.tsx to pass all items (not just incomplete) to calculateRemainingTime
+  - [x] Updated test expectations to reflect new behavior
+  - [x] All 244 tests passing
+  - [x] Available hours in summary now matches free time blocks display

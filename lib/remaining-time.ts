@@ -28,16 +28,19 @@ export function calculateRemainingTime(
   currentDate: string
 ): { remainingMinutes: number; remainingHours: number; formattedTime: string; nextFreeSlot?: { startTime: string; durationMinutes: number } } {
   // Filter scheduled items with times and only count those within the day window
+  // Note: Include completed items so they still block calendar time (matching time blocks display)
   const scheduledItems = items
-    .filter((item) => item.startTime && !item.isCompleted)
+    .filter((item) => item.startTime)
     .map((item) => {
       const start = timeToMinutes(item.startTime!);
       const end = item.endTime ? timeToMinutes(item.endTime) : start + 60;
       
-      // Clamp to day window
+      // Clamp to day window (but don't clamp if item is outside the window entirely)
+      const clampedStart = Math.max(start, DAY_START_MINUTES);
+      const clampedEnd = Math.min(end, DAY_END_MINUTES);
       return {
-        start: Math.max(start, DAY_START_MINUTES),
-        end: Math.min(end, DAY_END_MINUTES),
+        start: clampedStart,
+        end: clampedEnd,
       };
     })
     .filter((item) => item.start < item.end) // Only keep valid items within day window

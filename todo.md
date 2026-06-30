@@ -1448,3 +1448,16 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Removed date-aware filtering that was causing "No {Day} chapters read" fallback
   - [x] Now returns day name of most recent study, not filtered by current calendar day
   - [x] Day selector still works independently to navigate between available days
+
+## Phase 15: Bible Study Summary Shows Selected Day Only + 12-Hour Time
+
+- [x] Convert 24-hour military time to 12-hour AM/PM format throughout schedule
+  - [x] Added format12HourTime() and formatDecimalTo12Hour() helpers to lib/utils.ts
+  - [x] Updated DateTimePicker to show "2 PM" instead of "14"
+  - [x] Updated TimelineVisualization hour labels to "6A", "9A", "1P" etc.
+  - [x] Updated event and ministry time displays in schedule list
+- [x] Bible study summary now shows study for selected day only (not global most recent)
+  - [x] getLastChapterRead() now accepts forDate parameter and filters by day of week
+  - [x] Summary always shows current calendar day name (e.g., "Tuesday" on Tuesday)
+  - [x] Shows "none" if no completed Bible study exists for that day of week
+  - [x] Day selector dropdown still allows switching to other days with completed studies

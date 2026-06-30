@@ -148,7 +148,7 @@ export function DailySummaryCard({
   };
 
   // Get the display day name for Bible study selector
-  // Auto-default to the day of week matching selectedDate when no manual selection
+  // Always show the day of week matching selectedDate (the currently viewed day)
   const getDefaultDay = () => {
     if (selectedBibleStudyDay) return selectedBibleStudyDay;
     if (selectedDate) {
@@ -157,10 +157,7 @@ export function DailySummaryCard({
       const date = parts.length === 3
         ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
         : new Date(selectedDate);
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-      // Check if we have a study for this day
-      const matchingDay = bibleStudyDays.find(d => d.dayName === dayOfWeek);
-      if (matchingDay) return matchingDay.dayName;
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
     }
     return bibleStudyDays[0]?.dayName || "";
   };
@@ -239,11 +236,12 @@ export function DailySummaryCard({
             >
               {displayDay}
             </Text>
-          ) : null}
-          {bibleStudyDays.length > 0 ? ' ' : ''}
-          bible study{' '}
+          ) : (
+            <Text style={{ fontWeight: "700" }}>{displayDay}</Text>
+          )}
+          {' '}bible study{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy}
+            <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy || 'none'}
           </Text>
           , have{' '}
           <Text style={{ fontWeight: "700" }}>

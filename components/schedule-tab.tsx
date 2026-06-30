@@ -894,8 +894,17 @@ export function ScheduleTab({
     return `${latest.book} ${latest.chapter}`;
   };
 
-  // Helper function to get last chapter read (most recent overall, not filtered by day)
-  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[]): string => {
+  // Helper function to get last chapter read for the selected day of week
+  const getLastChapterRead = (ministriesList: ScheduleMinistry[], bibleStudiesList: BibleStudySession[], eventsList?: ScheduleEvent[], forDate?: string): string => {
+    // Determine the target day of week from forDate
+    let targetDayName: string | null = null;
+    if (forDate) {
+      const parts = forDate.split('T')[0].split('-');
+      const date = parts.length === 3
+        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        : new Date(forDate);
+      targetDayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    }
     // Collect all completed Bible reading items from Read ministries, Bible Study sessions, and Bible Study events
     const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string; dayName: string }> = [];
     
@@ -966,10 +975,17 @@ export function ScheduleTab({
       });
     }
     
-    if (allReadItems.length === 0) return 'No Bible studies yet';
+    if (allReadItems.length === 0) return '';
+    
+    // Filter by target day of week if specified
+    const filtered = targetDayName
+      ? allReadItems.filter(item => item.dayName === targetDayName)
+      : allReadItems;
+    
+    if (filtered.length === 0) return '';
     
     // Sort by completedAt (most recent first), with date as fallback
-    const sorted = allReadItems.sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       const timeA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
       const timeB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
       return timeB - timeA; // Most recent first
@@ -1809,7 +1825,7 @@ export function ScheduleTab({
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events)}
+                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, selectedDate)}
                         bibleStudyDays={getUniqueBibleStudyDays(bibleStudies, ministries, events)}
                         selectedBibleStudyDay={selectedBibleStudyDay}
                         selectedDate={selectedDate}

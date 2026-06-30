@@ -1,9 +1,8 @@
-import { Animated, Image, Text, View } from "react-native";
+import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
-import { BibleStudyDaySelector } from './bible-study-day-selector';
 
 
 interface DailySummaryCardProps {
@@ -72,6 +71,7 @@ export function DailySummaryCard({
 
 }: DailySummaryCardProps) {
   const colors = useColors();
+  const [showDayDropdown, setShowDayDropdown] = useState(false);
   
   // Format fasting status for display
   const getFastingStatusDisplay = () => {
@@ -143,6 +143,9 @@ export function DailySummaryCard({
     }
   };
 
+  // Get the display day name for Bible study selector
+  const displayDay = selectedBibleStudyDay || bibleStudyDays[0]?.dayName || "";
+
   return (
     <Animated.View
       style={{
@@ -202,13 +205,26 @@ export function DailySummaryCard({
         <Text style={{ fontSize: 16, lineHeight: 24, color: colors.foreground, fontWeight: "400" }}>
           You have{' '}
           <Text style={{ fontWeight: "700" }}>✓ {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}</Text>
-          , last bible study{' '}
-          <BibleStudyDaySelector
-            days={bibleStudyDays}
-            selectedDay={selectedBibleStudyDay}
-            onDaySelect={onBibleStudyDayChange || (() => {})}
-            currentStudy={currentBibleStudy}
-          />
+          , last{' '}
+          {bibleStudyDays.length > 0 ? (
+            <Text
+              onPress={() => setShowDayDropdown(true)}
+              style={{
+                fontWeight: "700",
+                color: colors.foreground,
+                textDecorationLine: "underline",
+                textDecorationStyle: "dashed",
+                textDecorationColor: colors.primary,
+              }}
+            >
+              {displayDay}
+            </Text>
+          ) : null}
+          {bibleStudyDays.length > 0 ? ' ' : ''}
+          bible study{' '}
+          <Text style={{ fontWeight: "700" }}>
+            <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentBibleStudy}
+          </Text>
           , have{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
@@ -222,6 +238,91 @@ export function DailySummaryCard({
         </Text>
       </View>
 
+      {/* Bible Study Day Selector Modal - rendered OUTSIDE the Text element */}
+      {bibleStudyDays.length > 0 && (
+        <Modal
+          visible={showDayDropdown}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDayDropdown(false)}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            onPress={() => setShowDayDropdown(false)}
+          >
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                padding: 16,
+                maxWidth: "80%",
+                maxHeight: "60%",
+                borderColor: colors.border,
+                borderWidth: 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: colors.foreground,
+                  marginBottom: 12,
+                }}
+              >
+                Select Bible Study Day
+              </Text>
+
+              <ScrollView
+                style={{ maxHeight: 300 }}
+                showsVerticalScrollIndicator={true}
+              >
+                {bibleStudyDays.map((day) => (
+                  <Pressable
+                    key={day.dayName}
+                    onPress={() => {
+                      if (onBibleStudyDayChange) {
+                        onBibleStudyDayChange(day.dayName);
+                      }
+                      setShowDayDropdown(false);
+                    }}
+                    style={({ pressed }) => [
+                      {
+                        paddingVertical: 12,
+                        paddingHorizontal: 12,
+                        marginVertical: 4,
+                        borderRadius: 8,
+                        backgroundColor:
+                          selectedBibleStudyDay === day.dayName
+                            ? colors.primary + "20"
+                            : "transparent",
+                        borderWidth: selectedBibleStudyDay === day.dayName ? 1 : 0,
+                        borderColor:
+                          selectedBibleStudyDay === day.dayName ? colors.primary : "transparent",
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: colors.foreground,
+                        fontWeight: selectedBibleStudyDay === day.dayName ? "600" : "400",
+                        fontSize: 14,
+                      }}
+                    >
+                      {day.dayName}: {day.book} {day.chapter}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
 
     </Animated.View>
   );

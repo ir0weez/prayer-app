@@ -814,15 +814,15 @@ export function ScheduleTab({
     return null;
   };
 
-  // Get all unique days with completed Bible studies, sorted by most recent
+  // Get all unique days with Bible studies (both completed and incomplete), sorted by most recent
   const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
     const dayMap = new Map<string, { date: string; book: string; chapter: number }>();
     
-    // Filter for completed studies only (matching getLastChapterRead logic)
-    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
+    // Include all Bible studies (both completed and incomplete) so day selector shows up
+    // The day selector is for navigation, not filtering by completion status
     
     // Group by day of week, keep the most recent for each day
-    completedStudies.forEach(study => {
+    bibleStudiesList.forEach(study => {
       const date = new Date(study.date);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       
@@ -847,9 +847,8 @@ export function ScheduleTab({
 
   // Get the Bible study for a specific day
   const getBibleStudyForDay = (bibleStudiesList: BibleStudySession[], dayName: string): string => {
-    // Filter for completed studies only (matching getLastChapterRead logic)
-    const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
-    const dayStudies = completedStudies.filter(study => {
+    // Include all Bible studies (both completed and incomplete) for day selector navigation
+    const dayStudies = bibleStudiesList.filter(study => {
       const date = new Date(study.date);
       return date.toLocaleDateString('en-US', { weekday: 'long' }) === dayName;
     });

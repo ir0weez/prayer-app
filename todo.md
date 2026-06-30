@@ -1429,3 +1429,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Updated test expectations to reflect new behavior
   - [x] All 244 tests passing
   - [x] Available hours in summary now matches free time blocks display
+
+## Phase 11: Fix Bible Study Day Selector Visibility
+
+- [x] Fixed day selector not showing in summary
+  - [x] Identified root cause: getUniqueBibleStudyDays included ALL studies, but getLastChapterRead only showed COMPLETED studies
+  - [x] Updated getUniqueBibleStudyDays to filter for completed studies only
+  - [x] Updated getBibleStudyForDay to filter for completed studies only
+  - [x] Day selector now only shows days with completed Bible studies (matching display logic)
+  - [x] All 244 tests passing
+  - [x] Day selector now visible when user completes a Bible study

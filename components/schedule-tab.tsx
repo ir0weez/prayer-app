@@ -814,30 +814,53 @@ export function ScheduleTab({
     return null;
   };
 
-  // Get all unique days with Bible studies (both completed and incomplete), sorted by most recent
-  const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
+  // Get all unique days with Bible studies from ALL sources (bibleStudies, ministries, events)
+  const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[], ministriesList?: ScheduleMinistry[], eventsList?: ScheduleEvent[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
     const dayMap = new Map<string, { date: string; book: string; chapter: number }>();
     
-    // Include all Bible studies (both completed and incomplete) so day selector shows up
-    // The day selector is for navigation, not filtering by completion status
-    
-    // Group by day of week, keep the most recent for each day
-    bibleStudiesList.forEach(study => {
-      const date = new Date(study.date);
+    // Helper to add an item to the day map
+    const addToMap = (dateStr: string, book: string, chapter: number | string) => {
+      const date = new Date(dateStr);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const chapterNum = typeof chapter === 'string' ? parseInt(chapter, 10) || 0 : chapter;
       
       const existing = dayMap.get(dayName);
       if (!existing) {
-        dayMap.set(dayName, { date: study.date, book: study.book, chapter: study.chapter });
+        dayMap.set(dayName, { date: dateStr, book, chapter: chapterNum });
       } else {
-        // Keep the most recent
         const existingDate = new Date(existing.date).getTime();
-        const newDate = new Date(study.date).getTime();
+        const newDate = date.getTime();
         if (newDate > existingDate) {
-          dayMap.set(dayName, { date: study.date, book: study.book, chapter: study.chapter });
+          dayMap.set(dayName, { date: dateStr, book, chapter: chapterNum });
         }
       }
+    };
+    
+    // Add from Bible Study sessions
+    bibleStudiesList.forEach(study => {
+      addToMap(study.date, study.book, study.chapter);
     });
+    
+    // Add from Read/Bible Study ministries with Bible info
+    if (ministriesList) {
+      ministriesList.forEach(m => {
+        if ((m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
+          addToMap(m.date, m.bibleBook, m.bibleChapter);
+        }
+      });
+    }
+    
+    // Add from events with Bible references in title
+    if (eventsList) {
+      eventsList.forEach(e => {
+        if (e.title) {
+          const parsed = parseBibleReference(e.title);
+          if (parsed) {
+            addToMap(e.date, parsed.book, parsed.chapter);
+          }
+        }
+      });
+    }
     
     // Convert to array and sort by most recent date
     return Array.from(dayMap.entries())
@@ -1780,7 +1803,7 @@ export function ScheduleTab({
                         budgetAmount={memoizedSummaryData.budgetAmount}
                         peopleToReach={memoizedSummaryData.peopleToReach}
                         currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, new Date(selectedDate))}
-                        bibleStudyDays={getUniqueBibleStudyDays(bibleStudies)}
+                        bibleStudyDays={getUniqueBibleStudyDays(bibleStudies, ministries, events)}
                         selectedBibleStudyDay={selectedBibleStudyDay}
                         onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}
                         personalTodos={memoizedSummaryData.personalTodos}

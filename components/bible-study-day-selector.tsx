@@ -29,7 +29,7 @@ export function BibleStudyDaySelector({
   if (days.length === 0) {
     return (
       <Text style={{ fontWeight: "700" }}>
-        <MaterialIcons name="school" size={16} color={colors.foreground} /> {currentStudy}
+        📖 {currentStudy}
       </Text>
     );
   }
@@ -39,35 +39,25 @@ export function BibleStudyDaySelector({
 
   return (
     <>
-      <Pressable
+      {/* Inline day selector - renders within Text element */}
+      <Text
         onPress={() => setShowDropdown(true)}
-        style={({ pressed }) => [
-          {
-            opacity: pressed ? 0.7 : 1,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-          },
-        ]}
+        style={{
+          fontWeight: "700",
+          color: colors.foreground,
+          borderBottomWidth: 2,
+          borderBottomColor: colors.primary,
+          borderStyle: "dashed",
+          paddingBottom: 2,
+        }}
       >
-        <MaterialIcons name="school" size={16} color={colors.foreground} />
-        <Text
-          style={{
-            fontWeight: "700",
-            color: colors.foreground,
-            borderBottomWidth: 1,
-            
-            borderBottomColor: colors.primary,
-            paddingBottom: 2,
-          }}
-        >
-          {displayDay}
-        </Text>
-        <Text style={{ fontWeight: "700", color: colors.foreground, marginLeft: 4 }}>
-          {currentStudy}
-        </Text>
-      </Pressable>
+        {displayDay}
+      </Text>
+      <Text style={{ fontWeight: "700", color: colors.foreground, marginLeft: 4, marginRight: 4 }}>
+        📖 {currentStudy}
+      </Text>
 
+      {/* Modal dropdown for selecting different days */}
       <Modal
         visible={showDropdown}
         transparent

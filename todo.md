@@ -1467,3 +1467,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make ministry cards more compact (reduce padding/spacing)
 - [x] Fix available hours in summary to match/countdown with free time blocks in schedule
 - [x] Fix free time block indicators to show 12-hour AM/PM format (currently showing 24-hour like "14:00 → 18:00")
+
+## Phase 17: Time Blocks Only Show on Today
+
+- [x] Free time blocks only appear on today's schedule (not past or future days)

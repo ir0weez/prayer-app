@@ -1504,14 +1504,21 @@ export function ScheduleTab({
       });
     }
 
-    // Calculate available time blocks
-    const allScheduledItems = [
-      ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
-      ...dayEvents.filter((e) => !e.isCompleted && e.startTime),
-      ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
-    ];
-    const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-    const activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);
+    // Calculate available time blocks - only show on today's schedule
+    const now = new Date();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isToday = selectedDate === todayISO;
+
+    let activeBlocks: ReturnType<typeof calculateAvailableTimeBlocks> = [];
+    if (isToday) {
+      const allScheduledItems = [
+        ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
+        ...dayEvents.filter((e) => !e.isCompleted && e.startTime),
+        ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
+      ];
+      const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
+      activeBlocks = filterExpiredTimeBlocks(availableBlocks, selectedDate);
+    }
 
     // Merge time blocks with timed items for chronological intertwining
     const allTimedItems = [

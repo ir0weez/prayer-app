@@ -1404,3 +1404,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Add dashed underline to selected day name
   - [x] Auto-update summary when day is selected
   - [x] Show "last {DayName} bible study {book chapter}" format in summary
+
+## Phase 9: Bible Study Completion Persistence
+
+- [x] Implement AsyncStorage persistence for Bible studies
+  - [x] Verified existing useEffect hook auto-saves when bibleStudies state changes (line 977-979 in schedule-tab.tsx)
+  - [x] Verified loadData function restores state on app load (line 945 in schedule-tab.tsx)
+  - [x] Verified completion state (isCompleted, completedAt) is preserved in AsyncStorage
+- [x] Test persistence across app restarts
+  - [x] Created comprehensive persistence test suite (bible-study-persistence.test.ts)
+  - [x] Test: Persist Bible studies to AsyncStorage when created
+  - [x] Test: Preserve completion state when persisting Bible studies
+  - [x] Test: Load Bible studies from AsyncStorage with completion state intact
+  - [x] Test: Handle multiple Bible studies with mixed completion states
+  - [x] Test: Preserve all Bible study fields during persistence (notes, times, etc.)
+- [x] Verify all tests pass with persistence logic (244 tests passing, 1 skipped)

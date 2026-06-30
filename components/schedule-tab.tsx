@@ -755,6 +755,11 @@ export function ScheduleTab({
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
 
+  // Reset selectedBibleStudyDay when selectedDate changes so it auto-defaults to the current day
+  useEffect(() => {
+    setSelectedBibleStudyDay(null);
+  }, [selectedDate]);
+
   // Color palette for todos, events, and ministries
   const COLOR_PALETTE = [
     { name: "Gray", hex: "#6B7280" },
@@ -1805,7 +1810,25 @@ export function ScheduleTab({
                         currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, new Date(selectedDate))}
                         bibleStudyDays={getUniqueBibleStudyDays(bibleStudies, ministries, events)}
                         selectedBibleStudyDay={selectedBibleStudyDay}
+                        selectedDate={selectedDate}
                         onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}
+                        onDeleteBibleStudyDay={(dayName) => {
+                          // Remove all Bible studies, ministries, and events for this day of week
+                          setBibleStudies(prev => prev.filter(s => {
+                            const d = new Date(s.date);
+                            return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
+                          }));
+                          // Remove Read/Bible Study ministries for this day
+                          setMinistries(prev => prev.filter(m => {
+                            if ((m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
+                              const d = new Date(m.date);
+                              return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
+                            }
+                            return true;
+                          }));
+                          // Reset selection
+                          setSelectedBibleStudyDay(null);
+                        }}
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {

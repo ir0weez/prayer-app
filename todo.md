@@ -1439,3 +1439,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [x] Day selector now only shows days with completed Bible studies (matching display logic)
   - [x] All 244 tests passing
   - [x] Day selector now visible when user completes a Bible study
+
+## Phase 14: Bible Study Day Selector Fixes
+
+- [x] Fix day selector to auto-default to current calendar day when scrolling (not persist previous selection)
+- [x] Add delete button in day selector dropdown to remove Bible studies no longer attending

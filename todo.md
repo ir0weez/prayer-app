@@ -1493,3 +1493,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Ministry cards made thinner - type tag and title on same row, time/bible ref on second row
 - [x] Reduced card padding for a more compact look
 - [x] Glow effect pulses based on card color, stops when marked complete
+
+## Phase 22: Glow on Icon Only + Auto-Activate
+
+- [x] Move glow effect from whole row to just the icon/checkbox circle
+- [x] Add 1-minute interval timer so glow activates/deactivates without app restart

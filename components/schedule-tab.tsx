@@ -359,44 +359,54 @@ function TodoItem({
   }, [todo.linkedMinistryId, ministries]);
 
   // Determine if this todo is in its active hour (glow effect)
+  // Re-check every minute so it activates/deactivates without restart
+  const [currentMinute, setCurrentMinute] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const n = new Date();
+      setCurrentMinute(n.getHours() * 60 + n.getMinutes());
+    }, 60000); // check every minute
+    return () => clearInterval(interval);
+  }, []);
+
   const isActiveHour = useMemo(() => {
     if (!todo.startTime || todo.isCompleted) return false;
-    const now = new Date();
     const [h, m] = todo.startTime.split(':').map(Number);
     const todoMinutes = h * 60 + m;
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    // Active during the scheduled hour (from startTime to startTime + 60 min)
-    return currentMinutes >= todoMinutes && currentMinutes < todoMinutes + 60;
-  }, [todo.startTime, todo.isCompleted]);
+    return currentMinute >= todoMinutes && currentMinute < todoMinutes + 60;
+  }, [todo.startTime, todo.isCompleted, currentMinute]);
 
-  // Glow animation
-  const glowOpacity = useSharedValue(0);
+  // Glow animation on the icon only
+  const iconGlowOpacity = useSharedValue(0);
   useEffect(() => {
     if (isActiveHour) {
-      glowOpacity.value = withRepeat(
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      iconGlowOpacity.value = withRepeat(
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     } else {
-      glowOpacity.value = withTiming(0, { duration: 300 });
+      iconGlowOpacity.value = withTiming(0, { duration: 300 });
     }
   }, [isActiveHour]);
 
-  const glowStyle = useAnimatedStyle(() => {
+  const iconGlowStyle = useAnimatedStyle(() => {
     if (!isActiveHour) return {};
+    const color = todo.color || '#7C5CFF';
     return {
-      shadowColor: todo.color || '#7C5CFF',
+      shadowColor: color,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: interpolate(glowOpacity.value, [0, 1], [0.2, 0.6]),
-      shadowRadius: interpolate(glowOpacity.value, [0, 1], [4, 12]),
-      elevation: interpolate(glowOpacity.value, [0, 1], [2, 8]),
+      shadowOpacity: interpolate(iconGlowOpacity.value, [0, 1], [0.3, 0.9]),
+      shadowRadius: interpolate(iconGlowOpacity.value, [0, 1], [3, 10]),
+      elevation: interpolate(iconGlowOpacity.value, [0, 1], [2, 8]),
     };
   });
 
   return (
     <>
-      <ReAnimated.View style={[isActiveHour && glowStyle, isActiveHour && { borderRadius: 10, marginHorizontal: 8, marginVertical: 2, backgroundColor: colors.surface }]}>
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -406,13 +416,13 @@ function TodoItem({
         delayLongPress={500}
         style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
       >
-        <View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }]}>
+        <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
           <MaterialIcons
             name={todo.isCompleted ? "check" : (iconNameStr as any)}
             size={16}
             color="#FFFFFF"
           />
-        </View>
+        </ReAnimated.View>
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
           <Text
             style={[
@@ -464,7 +474,6 @@ function TodoItem({
           </View>
         )}
       </Pressable>
-      </ReAnimated.View>
       <ContextMenu
         visible={contextMenuVisible}
         x={contextMenuPos.x}

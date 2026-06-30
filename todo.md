@@ -1481,3 +1481,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Phase 19: Todo Time Indicator
 
 - [x] Show scheduled time below todo title (in primary color, 12-hour format) when startTime is set
+
+## Phase 20: Todo Glow Effect During Active Hour
+
+- [x] Todos with a startTime glow with a pulsing shadow during their scheduled hour
+- [x] Glow uses the todo's color (or default purple) and fades after the hour passes
+- [x] Completed todos don't glow

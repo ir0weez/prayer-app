@@ -1471,3 +1471,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Phase 17: Time Blocks Only Show on Today
 
 - [x] Free time blocks only appear on today's schedule (not past or future days)
+
+## Phase 18: Time Blocks Today+Future + Ministry Card Fix
+
+- [x] Free time blocks show on today and future days, hidden on past days only
+- [x] Today's blocks still count down (expired ones removed), future days show all blocks
+- [x] Ministry cards reverted to cleaner multi-line layout (type tag, title, time/bible ref on separate lines)

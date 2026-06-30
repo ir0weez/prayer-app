@@ -152,7 +152,11 @@ export function DailySummaryCard({
   const getDefaultDay = () => {
     if (selectedBibleStudyDay) return selectedBibleStudyDay;
     if (selectedDate) {
-      const date = new Date(selectedDate);
+      // Fix timezone: parse YYYY-MM-DD as local date, not UTC
+      const parts = selectedDate.split('T')[0].split('-');
+      const date = parts.length === 3
+        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        : new Date(selectedDate);
       const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
       // Check if we have a study for this day
       const matchingDay = bibleStudyDays.find(d => d.dayName === dayOfWeek);

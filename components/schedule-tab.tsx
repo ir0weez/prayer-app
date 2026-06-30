@@ -825,7 +825,11 @@ export function ScheduleTab({
     
     // Helper to add an item to the day map
     const addToMap = (dateStr: string, book: string, chapter: number | string) => {
-      const date = new Date(dateStr);
+      // Fix timezone: parse YYYY-MM-DD as local date, not UTC
+      const parts = dateStr.split('T')[0].split('-');
+      const date = parts.length === 3 
+        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        : new Date(dateStr);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       const chapterNum = typeof chapter === 'string' ? parseInt(chapter, 10) || 0 : chapter;
       
@@ -841,24 +845,24 @@ export function ScheduleTab({
       }
     };
     
-    // Add from Bible Study sessions
-    bibleStudiesList.forEach(study => {
+    // Add from COMPLETED Bible Study sessions only
+    bibleStudiesList.filter(s => s.isCompleted).forEach(study => {
       addToMap(study.date, study.book, study.chapter);
     });
     
-    // Add from Read/Bible Study ministries with Bible info
+    // Add from COMPLETED Read/Bible Study ministries with Bible info
     if (ministriesList) {
       ministriesList.forEach(m => {
-        if ((m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
+        if (m.isCompleted && (m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
           addToMap(m.date, m.bibleBook, m.bibleChapter);
         }
       });
     }
     
-    // Add from events with Bible references in title
+    // Add from COMPLETED events with Bible references in title
     if (eventsList) {
       eventsList.forEach(e => {
-        if (e.title) {
+        if (e.isCompleted && e.title) {
           const parsed = parseBibleReference(e.title);
           if (parsed) {
             addToMap(e.date, parsed.book, parsed.chapter);
@@ -902,7 +906,11 @@ export function ScheduleTab({
       }
     );
     readMinistries.forEach(m => {
-      const date = new Date(m.date);
+      // Fix timezone: parse YYYY-MM-DD as local date
+      const mParts = m.date.split('T')[0].split('-');
+      const date = mParts.length === 3 
+        ? new Date(parseInt(mParts[0]), parseInt(mParts[1]) - 1, parseInt(mParts[2]))
+        : new Date(m.date);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       allReadItems.push({
         book: m.bibleBook!,
@@ -916,7 +924,11 @@ export function ScheduleTab({
     // Add completed Bible Study sessions
     const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
     completedStudies.forEach(s => {
-      const date = new Date(s.date);
+      // Fix timezone: parse YYYY-MM-DD as local date
+      const sParts = s.date.split('T')[0].split('-');
+      const date = sParts.length === 3 
+        ? new Date(parseInt(sParts[0]), parseInt(sParts[1]) - 1, parseInt(sParts[2]))
+        : new Date(s.date);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       allReadItems.push({
         book: s.book,
@@ -936,7 +948,11 @@ export function ScheduleTab({
       completedEvents.forEach(e => {
         const parsed = parseBibleReference(e.title);
         if (parsed) {
-          const date = new Date(e.date);
+          // Fix timezone: parse YYYY-MM-DD as local date
+          const eParts = e.date.split('T')[0].split('-');
+          const date = eParts.length === 3 
+            ? new Date(parseInt(eParts[0]), parseInt(eParts[1]) - 1, parseInt(eParts[2]))
+            : new Date(e.date);
           const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
           allReadItems.push({
             book: parsed.book,

@@ -17,7 +17,7 @@ interface TimeBlockIndicatorProps {
 export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
   const colors = useColors();
   const [displayBlock, setDisplayBlock] = useState<TimeBlock | null>(block);
-  const [remainingHours, setRemainingHours] = useState(0);
+  const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number }>({ hours: 0, minutes: 0 });
 
   // Update block display and remaining hours every minute
   useEffect(() => {
@@ -42,17 +42,17 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
         const newStartTime = `${String(newStartHours).padStart(2, "0")}:${String(currentMinutes).padStart(2, "0")}`;
         setDisplayBlock({ ...block, startTime: newStartTime });
 
-        // Calculate remaining hours
+        // Calculate remaining time (actual, not rounded up)
         const remainingMinutes = endMinutes - currentTimeInMinutes;
         const hours = Math.floor(remainingMinutes / 60);
         const mins = remainingMinutes % 60;
-        setRemainingHours(hours + (mins > 0 ? 1 : 0)); // Round up
+        setRemainingTime({ hours, minutes: mins });
       } else {
         setDisplayBlock(block);
         const totalMinutes = endMinutes - startMinutes;
         const hours = Math.floor(totalMinutes / 60);
         const mins = totalMinutes % 60;
-        setRemainingHours(hours + (mins > 0 ? 1 : 0));
+        setRemainingTime({ hours, minutes: mins });
       }
     };
 
@@ -117,16 +117,23 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
       </View>
 
       <View style={[styles.badge, { backgroundColor: colorScheme.border }]}>
-        <Text style={styles.badgeText}>{displayBlock!.label || `${remainingHours}h`}</Text>
+        <Text style={styles.badgeText}>
+          {displayBlock!.label || formatTimeRemaining(remainingTime.hours, remainingTime.minutes)}
+        </Text>
       </View>
     </View>
   );
 }
 
-// Helper function to format hours remaining
-function formatHoursRemaining(hours: number): string {
-  if (hours === 0) return "<1h";
-  return `${hours}h`;
+// Helper function to format time remaining
+function formatTimeRemaining(hours: number, minutes: number): string {
+  if (hours === 0) {
+    return minutes === 0 ? "<1m" : `${minutes}m`;
+  }
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${minutes}m`;
 }
 
 const styles = StyleSheet.create({

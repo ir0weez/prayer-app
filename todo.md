@@ -1509,3 +1509,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Add a "NOW" indicator line that shows current time in the schedule (today only)
 - [x] Insert the line at the chronologically correct position between items
+
+## Phase 25: Fix Time Block Duration Display
+
+- [x] Show actual remaining time (not rounded up) in time block badges (e.g., "9m" instead of "1h")
+- [x] Display hours + minutes when both are present (e.g., "1h 15m")

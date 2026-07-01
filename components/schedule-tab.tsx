@@ -1615,10 +1615,43 @@ export function ScheduleTab({
     // Sort all items chronologically
     allTimedItems.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
-    // Add sorted items
-    allTimedItems.forEach((item) => items.push(item));
+    // Add sorted items and insert current-time indicator if it's today
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    if (selectedDate === todayISO) {
+      // Insert current-time-indicator at the right chronological position
+      let inserted = false;
+      for (let i = 0; i < allTimedItems.length; i++) {
+        if (allTimedItems[i].sortTime.localeCompare(currentTimeStr) > 0) {
+          items.push(allTimedItems[i]);
+          if (!inserted) {
+            items.push({
+              type: "current-time-indicator",
+              id: "current-time",
+              data: { currentTime: currentTimeStr },
+              sortTime: currentTimeStr,
+            });
+            inserted = true;
+          }
+        } else {
+          items.push(allTimedItems[i]);
+        }
+      }
+      if (!inserted) {
+        // If we haven't inserted yet, add at the end
+        items.push({
+          type: "current-time-indicator",
+          id: "current-time",
+          data: { currentTime: currentTimeStr },
+          sortTime: currentTimeStr,
+        });
+      }
+    } else {
+      allTimedItems.forEach((item) => items.push(item));
+    }
 
-    // Add completed events at the end
+    // Add completed events at the end (after current-time-indicator if present)
     const completedEvents = dayEvents.filter((e) => e.isCompleted);
     completedEvents.forEach((e) => items.push({ type: "event", id: e.id, data: e }));
 
@@ -1858,11 +1891,20 @@ export function ScheduleTab({
           return (
             <TimeBlockIndicator block={item.data.block} />
           );
+        case "current-time-indicator":
+          return (
+            <View style={{ marginVertical: 8, marginHorizontal: 16, alignItems: 'center' }}>
+              <View style={{ width: '100%', height: 2, backgroundColor: colors.primary, borderRadius: 1 }} />
+              <View style={{ position: 'absolute', top: -6, backgroundColor: colors.background, paddingHorizontal: 8 }}>
+                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>NOW</Text>
+              </View>
+            </View>
+          );
         default:
           return null;
       }
     },
-    [colors, selectedDate, people]
+    [colors, selectedDate, people, currentTodoId]
   );
 
   return (

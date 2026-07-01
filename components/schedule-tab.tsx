@@ -297,6 +297,7 @@ function TodoItem({
   events = [],
   ministries = [],
   isOverdue = false,
+  isCurrentTodo = false,
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
@@ -306,6 +307,7 @@ function TodoItem({
   events?: ScheduleEvent[];
   ministries?: ScheduleMinistry[];
   isOverdue?: boolean;
+  isCurrentTodo?: boolean;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -379,29 +381,29 @@ function TodoItem({
     return currentMinute >= todoMinutes && currentMinute < todoMinutes + 60;
   }, [todo.startTime, todo.isCompleted, currentMinute]);
 
-  // Glow animation on the icon only
+  // Prominent glow animation on the icon - much stronger when it's the current todo
   const iconGlowOpacity = useSharedValue(0);
   useEffect(() => {
-    if (isActiveHour) {
+    if (isCurrentTodo && !todo.isCompleted) {
       iconGlowOpacity.value = withRepeat(
-        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
     } else {
       iconGlowOpacity.value = withTiming(0, { duration: 300 });
     }
-  }, [isActiveHour]);
+  }, [isCurrentTodo, todo.isCompleted, currentMinute]);
 
   const iconGlowStyle = useAnimatedStyle(() => {
-    if (!isActiveHour) return {};
+    if (!isCurrentTodo || todo.isCompleted) return {};
     const color = todo.color || '#7C5CFF';
     return {
       shadowColor: color,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: interpolate(iconGlowOpacity.value, [0, 1], [0.3, 0.9]),
-      shadowRadius: interpolate(iconGlowOpacity.value, [0, 1], [3, 10]),
-      elevation: interpolate(iconGlowOpacity.value, [0, 1], [2, 8]),
+      shadowOpacity: interpolate(iconGlowOpacity.value, [0, 1], [0.5, 1.0]),
+      shadowRadius: interpolate(iconGlowOpacity.value, [0, 1], [8, 20]),
+      elevation: interpolate(iconGlowOpacity.value, [0, 1], [4, 12]),
     };
   });
 
@@ -1495,6 +1497,31 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
+  // Determine the "current" todo (next incomplete one based on time)
+  const currentTodoId = useMemo(() => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    // Only calculate current todo for today
+    if (selectedDate !== todayISO) return null;
+    
+    // Find the first incomplete todo whose time has passed or is current
+    const incompleteTodos = dayTodos.filter(t => !t.isCompleted);
+    for (const todo of incompleteTodos) {
+      if (todo.startTime) {
+        const [h, m] = todo.startTime.split(':').map(Number);
+        const todoMinutes = h * 60 + m;
+        // If this todo's time has arrived or is in progress, it's current
+        if (currentMinutes >= todoMinutes) {
+          return todo.id;
+        }
+      }
+    }
+    // If no todo time has arrived yet, highlight the first one
+    return incompleteTodos.length > 0 ? incompleteTodos[0].id : null;
+  }, [dayTodos, selectedDate]);
+
   // Build flat list data
   const listData = useMemo(() => {
     const items: Array<{ type: string; id: string; data: any; sortTime?: string }> = [];
@@ -1622,6 +1649,7 @@ export function ScheduleTab({
               events={events}
               ministries={ministries}
               isOverdue={item.isOverdue}
+              isCurrentTodo={item.data.id === currentTodoId}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);

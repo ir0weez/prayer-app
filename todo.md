@@ -1498,3 +1498,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Move glow effect from whole row to just the icon/checkbox circle
 - [x] Add 1-minute interval timer so glow activates/deactivates without app restart
+
+## Phase 23: Prominent Glow on Current Todo
+
+- [x] Calculate "current todo" as the first incomplete todo whose time has arrived (or next if none have)
+- [x] Apply prominent pulsing glow (like fasting image) to the current todo's icon
+- [x] Glow disappears when todo is completed or time passes

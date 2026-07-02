@@ -118,7 +118,7 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
 
       <View style={[styles.badge, { backgroundColor: colorScheme.border }]}>
         <Text style={styles.badgeText}>
-          {displayBlock!.label || formatTimeRemaining(remainingTime.hours, remainingTime.minutes)}
+          {displayBlock!.label}
         </Text>
       </View>
     </View>

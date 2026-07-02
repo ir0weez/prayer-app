@@ -1518,3 +1518,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Phase 26: NOW Indicator Pill Shape
 
 - [x] Move NOW label to the left of the line as a pill-shaped badge
+
+## Phase 27: Fix Time Block Duration Calculation
+
+- [x] Use pre-calculated block label instead of recalculating duration (was causing incorrect hours display)

@@ -1893,11 +1893,11 @@ export function ScheduleTab({
           );
         case "current-time-indicator":
           return (
-            <View style={{ marginVertical: 8, marginHorizontal: 16, alignItems: 'center' }}>
-              <View style={{ width: '100%', height: 2, backgroundColor: colors.primary, borderRadius: 1 }} />
-              <View style={{ position: 'absolute', top: -6, backgroundColor: colors.background, paddingHorizontal: 8 }}>
-                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>NOW</Text>
+            <View style={{ marginVertical: 12, marginHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ color: colors.background, fontSize: 11, fontWeight: '600' }}>NOW</Text>
               </View>
+              <View style={{ flex: 1, height: 2, backgroundColor: colors.primary, borderRadius: 1 }} />
             </View>
           );
         default:

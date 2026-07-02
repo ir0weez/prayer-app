@@ -1514,3 +1514,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Show actual remaining time (not rounded up) in time block badges (e.g., "9m" instead of "1h")
 - [x] Display hours + minutes when both are present (e.g., "1h 15m")
+
+## Phase 26: NOW Indicator Pill Shape
+
+- [x] Move NOW label to the left of the line as a pill-shaped badge

@@ -38,6 +38,7 @@ import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
 import { TimeBlockCard } from "./time-block-card";
 import { TimeBlockIndicator } from "./time-block-indicator";
+import { NowIndicator } from "./now-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
@@ -1892,14 +1893,7 @@ export function ScheduleTab({
             <TimeBlockIndicator block={item.data.block} />
           );
         case "current-time-indicator":
-          return (
-            <View style={{ marginVertical: 12, marginHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                <Text style={{ color: colors.background, fontSize: 11, fontWeight: '600' }}>NOW</Text>
-              </View>
-              <View style={{ flex: 1, height: 2, backgroundColor: colors.primary, borderRadius: 1 }} />
-            </View>
-          );
+          return <NowIndicator />;
         default:
           return null;
       }

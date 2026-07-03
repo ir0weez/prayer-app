@@ -1522,3 +1522,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Phase 27: Fix Time Block Duration Calculation
 
 - [x] Use pre-calculated block label instead of recalculating duration (was causing incorrect hours display)
+
+## Phase 28 (Retry): Pulsing Red Dot on NOW Indicator (Fixed)
+
+- [x] Create separate NowIndicator component to avoid hooks in renderItem
+- [x] Add pulsing red dot to NOW pill with proper component structure

@@ -1522,7 +1522,3 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Phase 27: Fix Time Block Duration Calculation
 
 - [x] Use pre-calculated block label instead of recalculating duration (was causing incorrect hours display)
-
-## Phase 28: Pulsing Red Dot on NOW Indicator
-
-- [x] Add pulsing red dot to the right of NOW pill (like live recording indicator)

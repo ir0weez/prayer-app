@@ -1830,21 +1830,32 @@ export function ScheduleTab({
           );
         case "expandable-bible":
           return (
-            <ExpandableSection title="Personal Study" icon="menu-book">
+            <ExpandableSection title="Personal Study" icon="menu-book" defaultExpanded={true}>
               {item.data?.state ? (
                 <View style={{ gap: 12 }}>
-                  <View>
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>
+                  <View style={{ paddingHorizontal: 4 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
                     {(() => {
                       const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                       if (book) {
                         const progress = getBookProgress(item.data.state, book);
+                        const percentage = Math.round((progress.read / progress.total) * 100);
                         return (
-                          <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
-                            {progress.read} of {progress.total} chapters read
-                          </Text>
+                          <View style={{ marginTop: 8, gap: 6 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
+                                {progress.read} of {progress.total} chapters
+                              </Text>
+                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                                {percentage}%
+                              </Text>
+                            </View>
+                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
+                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                            </View>
+                          </View>
                         );
                       }
                       return null;
@@ -1875,9 +1886,9 @@ export function ScheduleTab({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                      <MaterialIcons name="check" size={18} color="#FFFFFF" />
-                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
+                      <MaterialIcons name="check" size={20} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Mark as Read</Text>
                     </View>
                   </Pressable>
                 </View>

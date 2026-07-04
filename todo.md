@@ -1537,6 +1537,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 ## Current Session Fixes
 
-- [ ] Add Personal Study collapsible section to schedule tab (like Fasting/Worship sections)
+- [x] Add Personal Study collapsible section to schedule tab (like Fasting/Worship sections) - Enhanced with progress bar, percentage, and improved button styling. Now defaults to expanded for quick access.
 - [x] Debug and fix free time block duration calculation (showing wrong hours) - Now shows "Xh Ym" format instead of just hours
 - [x] Add icons for Gardening and Water todos (grass and water-drop icons)

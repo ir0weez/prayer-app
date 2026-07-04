@@ -1660,10 +1660,13 @@ export function ScheduleTab({
     const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
     completedBibleStudies.forEach((bs) => items.push({ type: "bible-study", id: bs.id, data: bs }));
 
-    // Expandable sections (bible, fasting, worship) - reordered so Personal Study comes before Worship
-    // Personal Study should show CURRENT book being read, not last completed chapter
+    // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
-    items.push({ type: "expandable-bible", id: "bible-section", data: { display: currentBibleDisplay, state: bibleState } });
+    if (bibleState) {
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState } });
+    }
+
+    // Expandable sections (fasting, worship)
     items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
 
@@ -1673,6 +1676,71 @@ export function ScheduleTab({
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
       switch (item.type) {
+        case "personal-study-card":
+          return (
+            <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+                <View style={{ padding: 16, gap: 12 }}>
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
+                      {item.data.display}
+                    </Text>
+                    {(() => {
+                      const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                      if (book) {
+                        const progress = getBookProgress(item.data.state, book);
+                        const percentage = Math.round((progress.read / progress.total) * 100);
+                        return (
+                          <View style={{ gap: 6 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
+                                {progress.read} of {progress.total} chapters
+                              </Text>
+                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                                {percentage}%
+                              </Text>
+                            </View>
+                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
+                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                            </View>
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </View>
+                  <Pressable
+                    onPress={async () => {
+                      if (item.data?.state) {
+                        const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                        if (book) {
+                          const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
+                          if (nextChapter) {
+                            try {
+                              const updated = await markChapterAsRead(book, nextChapter.chapter, false);
+                              setBibleState(updated);
+                              await syncUnifiedBibleToAllOldSystems(updated);
+                              const newDisplay = getCurrentBibleDisplay(updated);
+                              setCurrentBibleBook(newDisplay || 'No book marked as current');
+                              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } catch (error) {
+                              console.error('Error marking chapter as read:', error);
+                            }
+                          }
+                        }
+                      }
+                    }}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
+                      <MaterialIcons name="check" size={18} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
         case "todo":

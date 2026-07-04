@@ -252,8 +252,9 @@ export function DailySummaryCard({
           , <Text style={{ fontWeight: "700" }}>$ {budgetAmount.toFixed(2)}</Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
-          </Text> to reach, <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
-          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>          , <Text style={{ fontWeight: "700" }}>{availableTimeString}</Text>{' '}available, and your fasting is{' '}
+          </Text> to reach,           <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>, and{' '}
+          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text> to lead. You have{' '}
+          <Text style={{ fontWeight: "700" }}>{availableTimeString}</Text>{' '}available, and your fasting is{' '}
           <Text style={{ fontWeight: "700" }}>{getFastingStatusDisplay()}</Text> today.
         </Text>
       </View>

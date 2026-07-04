@@ -255,8 +255,7 @@ export function DailySummaryCard({
           </Text> to reach, {' '}
           <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>, and{' '}
           <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text> to lead. You have{' '}
-          <Text style={{ fontWeight: "700" }}>{availableTimeString}</Text>{' '}available, and your fasting is{' '}
-          <Text style={{ fontWeight: "700" }}>{getFastingStatusDisplay()}</Text> today.
+          <Text style={{ fontWeight: "700" }}>{availableTimeString}</Text>{' '}available.
         </Text>
       </View>
 

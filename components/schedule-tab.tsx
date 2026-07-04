@@ -136,7 +136,7 @@ function EventCard({
     contextMenuActions.push({
       label: 'Edit',
       icon: 'edit',
-      onPress: onEdit,
+      onPress: () => setDetailCardVisible(true),
     });
   }
   contextMenuActions.push({
@@ -207,7 +207,7 @@ function EventCard({
         <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          setDetailCardVisible(true);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -247,7 +247,7 @@ function EventCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          setDetailCardVisible(true);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -543,7 +543,7 @@ function MinistryCard({
     contextMenuActions.push({
       label: 'Edit',
       icon: 'edit',
-      onPress: onEdit,
+      onPress: () => setDetailCardVisible(true),
     });
   }
   contextMenuActions.push({
@@ -622,7 +622,7 @@ function MinistryCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          setDetailCardVisible(true);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}

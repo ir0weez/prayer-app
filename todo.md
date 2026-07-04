@@ -1527,3 +1527,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 
 - [x] Create separate NowIndicator component to avoid hooks in renderItem
 - [x] Add pulsing red dot to NOW pill with proper component structure
+
+
+## Phase 29: Fix Edit Button on Event and Ministry Cards
+
+- [x] Event cards now open detail modal on tap (instead of toggling completion)
+- [x] Ministry cards now open detail modal on tap (instead of toggling completion)
+- [x] Context menu edit action opens detail modal for both event and ministry cards

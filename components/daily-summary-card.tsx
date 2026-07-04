@@ -20,6 +20,7 @@ interface DailySummaryCardProps {
   userName?: string;
   userProfilePhoto?: string;
   availableHours?: number;
+  availableTimeString?: string;
   prayerStreak?: number;
 
   bibleStudyDays?: Array<{ dayName: string; date: string; book: string; chapter: number }>;
@@ -71,6 +72,7 @@ export function DailySummaryCard({
   userName = "Friend",
   userProfilePhoto,
   availableHours = 0,
+  availableTimeString = "0h",
   prayerStreak = 0,
 
 }: DailySummaryCardProps) {
@@ -251,7 +253,7 @@ export function DailySummaryCard({
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
           </Text> to reach, <Text style={{ fontWeight: "700" }}>{eventCount} event{eventCount !== 1 ? "s" : ""}</Text>,{' '}
-          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>, <Text style={{ fontWeight: "700" }}>{availableHours} hours</Text>{' '}available, and your fasting is{' '}
+          <Text style={{ fontWeight: "700" }}>{ministryCount} ministries</Text>          , <Text style={{ fontWeight: "700" }}>{availableTimeString}</Text>{' '}available, and your fasting is{' '}
           <Text style={{ fontWeight: "700" }}>{getFastingStatusDisplay()}</Text> today.
         </Text>
       </View>

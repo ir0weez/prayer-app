@@ -948,6 +948,12 @@ export function getIconForTodo(title: string): string {
   // Health/Doctor
   if (lower.includes("doctor") || lower.includes("health") || lower.includes("medicine") || lower.includes("appointment")) return "local-hospital";
   
+  // Gardening/Plants-related
+  if (lower.includes("garden") || lower.includes("plant") || lower.includes("yard") || lower.includes("grass")) return "grass";
+  
+  // Water/Hydration-related
+  if (lower.includes("water") || lower.includes("drink") || lower.includes("hydrate")) return "water-drop";
+  
   // Default icon
   return "task-alt";
 }

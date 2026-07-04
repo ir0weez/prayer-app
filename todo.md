@@ -1534,3 +1534,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Event cards now open detail modal on tap (instead of toggling completion)
 - [x] Ministry cards now open detail modal on tap (instead of toggling completion)
 - [x] Context menu edit action opens detail modal for both event and ministry cards
+
+## Current Session Fixes
+
+- [ ] Add Personal Study collapsible section to schedule tab (like Fasting/Worship sections)
+- [x] Debug and fix free time block duration calculation (showing wrong hours) - Now shows "Xh Ym" format instead of just hours
+- [x] Add icons for Gardening and Water todos (grass and water-drop icons)

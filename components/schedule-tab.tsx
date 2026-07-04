@@ -1940,7 +1940,10 @@ export function ScheduleTab({
                     const summaryBlocks = calculateAvailableTimeBlocks(allScheduledItems);
                     const activeSummaryBlocks = filterExpiredTimeBlocks(summaryBlocks, selectedDate);
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
+                    // Format as "Xh Ym" instead of just hours
                     const availableHours = Math.floor(totalAvailableMinutes / 60);
+                    const availableMinutes = totalAvailableMinutes % 60;
+                    const availableTimeString = availableMinutes > 0 ? `${availableHours}h ${availableMinutes}m` : `${availableHours}h`;
                     
 
                     
@@ -1986,6 +1989,7 @@ export function ScheduleTab({
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
                         userName={userName}
                         availableHours={availableHours}
+                        availableTimeString={availableTimeString}
                         userProfilePhoto={userProfilePhoto}
                         prayerStreak={prayerStreak}
 

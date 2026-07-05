@@ -1129,6 +1129,20 @@ export function ScheduleTab({
         if (book) {
           const nextChapter = bibleState.chapters.find((c: any) => c.book === book && !c.isRead);
           if (nextChapter) {
+            const cacheKey = `chapter-summary-${book}-${nextChapter.chapter}`;
+            
+            // Try to load from cache first
+            try {
+              const cached = await AsyncStorage.getItem(cacheKey);
+              if (cached) {
+                setChapterSummary(cached);
+                return;
+              }
+            } catch (e) {
+              console.error('Error reading cache:', e);
+            }
+            
+            // Fetch from server if not cached
             setIsLoadingSummary(true);
             try {
               const res = await fetch('/api/trpc/bible.getChapterSummary', {
@@ -1136,8 +1150,19 @@ export function ScheduleTab({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ input: { book, chapter: String(nextChapter.chapter) } }),
               });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
               const data = await res.json();
-              setChapterSummary(data.result?.data?.summary || '');
+              const summary = data.result?.data?.summary || '';
+              setChapterSummary(summary);
+              
+              // Cache the result
+              if (summary) {
+                try {
+                  await AsyncStorage.setItem(cacheKey, summary);
+                } catch (e) {
+                  console.error('Error caching summary:', e);
+                }
+              }
             } catch (error) {
               console.error('Error fetching summary:', error);
               setChapterSummary('');

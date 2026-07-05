@@ -1760,7 +1760,20 @@ export function ScheduleTab({
                 setShowAddModal(true);
               }}
               onDelete={() => {
-                setTodos((prev) => prev.filter(t => t.id !== item.data.id));
+                Alert.alert(
+                  'Delete Todo',
+                  `Are you sure you want to delete "${item.data.title}"?`,
+                  [
+                    { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      onPress: () => {
+                        setTodos((prev) => prev.filter(t => t.id !== item.data.id));
+                      },
+                      style: 'destructive',
+                    },
+                  ]
+                );
               }}
             />
           );
@@ -1776,7 +1789,20 @@ export function ScheduleTab({
                 }
               }}
               onDelete={() => {
-                setEvents((prev) => prev.filter(e => e.id !== item.data.id));
+                Alert.alert(
+                  'Delete Event',
+                  `Are you sure you want to delete "${item.data.title}"?`,
+                  [
+                    { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      onPress: () => {
+                        setEvents((prev) => prev.filter(e => e.id !== item.data.id));
+                      },
+                      style: 'destructive',
+                    },
+                  ]
+                );
               }}
             />
           );
@@ -1804,7 +1830,20 @@ export function ScheduleTab({
                 setShowAddModal(true);
               }}
               onDelete={() => {
-                setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));
+                Alert.alert(
+                  'Delete Ministry',
+                  `Are you sure you want to delete "${item.data.title}"?`,
+                  [
+                    { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      onPress: () => {
+                        setMinistries((prev) => prev.filter((m) => m.id !== item.data.id));
+                      },
+                      style: 'destructive',
+                    },
+                  ]
+                );
               }}
             />
           );
@@ -1825,7 +1864,22 @@ export function ScheduleTab({
                 });
               }}
               onEdit={() => {}}
-              onDelete={() => setBibleStudies((prev) => prev.filter((bs) => bs.id !== item.data.id))}
+              onDelete={() => {
+                Alert.alert(
+                  'Delete Bible Study',
+                  `Are you sure you want to delete "${item.data.book} ${item.data.chapter}"?`,
+                  [
+                    { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      onPress: () => {
+                        setBibleStudies((prev) => prev.filter((bs) => bs.id !== item.data.id));
+                      },
+                      style: 'destructive',
+                    },
+                  ]
+                );
+              }}
             />
           );
         case "expandable-worship": {

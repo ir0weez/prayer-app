@@ -237,6 +237,13 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
+        <EventDetailCard
+          event={event}
+          people={people}
+          visible={detailCardVisible}
+          onClose={() => setDetailCardVisible(false)}
+          onEdit={onEdit as ((updatedEvent: ScheduleEvent) => void) | undefined}
+        />
       </>
     );
   }

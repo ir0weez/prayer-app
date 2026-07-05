@@ -129,6 +129,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["travel", "trip", "vacation", "flight"], label: "Travel", emoji: "✈️🌴", icon: "flight", bgColor: "#E1F5FE", textColor: "#01579B", accentColor: "#03A9F4" },
   { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", icon: "school", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
   { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", icon: "home", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
+  { keywords: ["amusement park", "six flags", "knott's", "disneyland", "universal", "theme park"], label: "Amusement Park", emoji: "🎢🎡", icon: "attractions", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#E91E63" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

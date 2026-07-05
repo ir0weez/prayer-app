@@ -33,6 +33,7 @@ import ReAnimated, {
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
+import { createTRPCClient } from "@/lib/trpc";
 import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
@@ -1145,14 +1146,13 @@ export function ScheduleTab({
             // Fetch from server if not cached
             setIsLoadingSummary(true);
             try {
-              const res = await fetch('/api/trpc/bible.getChapterSummary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ input: { book, chapter: String(nextChapter.chapter) } }),
+              const client = createTRPCClient();
+              const result = await client.bible.getChapterSummary.mutate({
+                book,
+                chapter: String(nextChapter.chapter),
               });
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              const data = await res.json();
-              const summary = data.result?.data?.summary || '';
+              const summaryData = result?.summary;
+              const summary = typeof summaryData === 'string' ? summaryData : '';
               setChapterSummary(summary);
               
               // Cache the result

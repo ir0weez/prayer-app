@@ -5,7 +5,7 @@ import { invokeLLM } from "../_core/llm";
 export const bibleRouter = router({
   getChapterSummary: publicProcedure
     .input(z.object({ book: z.string(), chapter: z.string() }))
-    .query(async ({ input }) => {
+    .mutation(async ({ input }) => {
       const { book, chapter } = input;
 
       try {

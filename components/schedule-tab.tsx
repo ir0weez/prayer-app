@@ -207,7 +207,7 @@ function EventCard({
         <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setDetailCardVisible(true);
+          onToggle();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -237,13 +237,6 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
-        <EventDetailCard
-          event={event}
-          people={people}
-          visible={detailCardVisible}
-          onClose={() => setDetailCardVisible(false)}
-          onEdit={onEdit as ((updatedEvent: ScheduleEvent) => void) | undefined}
-        />
       </>
     );
   }
@@ -254,7 +247,7 @@ function EventCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setDetailCardVisible(true);
+          onToggle();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -283,13 +276,6 @@ function EventCard({
         y={contextMenuPos.y}
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
-      />
-      <EventDetailCard
-        event={event}
-        people={people}
-        visible={detailCardVisible}
-        onClose={() => setDetailCardVisible(false)}
-        onEdit={onEdit as ((updatedEvent: ScheduleEvent) => void) | undefined}
       />
     </>
   );

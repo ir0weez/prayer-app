@@ -800,6 +800,8 @@ export function ScheduleTab({
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
   const [timeBlockColors, setTimeBlockColors] = useState<Record<string, string>>({}); // Map of time block ID to color
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
+  const [chapterSummary, setChapterSummary] = useState<string>("");
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   // Reset selectedBibleStudyDay when selectedDate changes so it auto-defaults to the current day
   useEffect(() => {
@@ -1120,6 +1122,32 @@ export function ScheduleTab({
     if (bibleState) {
       const display = getCurrentBibleDisplay(bibleState);
       setCurrentBibleBook(display || 'No book marked as current');
+      
+      // Fetch chapter summary
+      const fetchSummary = async () => {
+        const book = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+        if (book) {
+          const nextChapter = bibleState.chapters.find((c: any) => c.book === book && !c.isRead);
+          if (nextChapter) {
+            setIsLoadingSummary(true);
+            try {
+              const res = await fetch('/api/trpc/bible.getChapterSummary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: { book, chapter: String(nextChapter.chapter) } }),
+              });
+              const data = await res.json();
+              setChapterSummary(data.result?.data?.summary || '');
+            } catch (error) {
+              console.error('Error fetching summary:', error);
+              setChapterSummary('');
+            } finally {
+              setIsLoadingSummary(false);
+            }
+          }
+        }
+      };
+      fetchSummary();
     }
   }, [bibleState]);
 
@@ -1656,7 +1684,7 @@ export function ScheduleTab({
     // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
     if (bibleState) {
-      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState } });
+      items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState, chapterSummary: chapterSummary } });
     }
 
     // Expandable sections (fasting, worship)
@@ -1683,6 +1711,11 @@ export function ScheduleTab({
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
+                    {item.data.chapterSummary && (
+                      <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
+                        {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                      </Text>
+                    )}
                     {(() => {
                       const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                       if (book) {

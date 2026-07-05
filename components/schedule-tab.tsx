@@ -1711,11 +1711,11 @@ export function ScheduleTab({
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
-                    {item.data.chapterSummary && (
+                    {isLoadingSummary || item.data.chapterSummary ? (
                       <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
                         {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
                       </Text>
-                    )}
+                    ) : null}
                     {(() => {
                       const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                       if (book) {

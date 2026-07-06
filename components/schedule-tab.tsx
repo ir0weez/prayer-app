@@ -1733,11 +1733,14 @@ export function ScheduleTab({
         case "personal-study-card":
           return (
             <Pressable
-              onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
+              onPress={() => {
+                console.log('Personal Study card tapped, expanding:', !isPersonalStudyExpanded);
+                setIsPersonalStudyExpanded(!isPersonalStudyExpanded);
+              }}
               style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
             >
-              <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-                <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+              <View style={{ marginBottom: 12, marginHorizontal: 12, pointerEvents: 'box-none' }}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', pointerEvents: 'box-none' }}>
                   <View style={{ padding: 16, gap: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <MaterialIcons name="book" size={20} color={colors.primary} />

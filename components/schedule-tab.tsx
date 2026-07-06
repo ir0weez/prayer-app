@@ -1768,7 +1768,7 @@ export function ScheduleTab({
                       return null;
                     })()}
                     {isLoadingSummary || item.data.chapterSummary ? (
-                      <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
+                      <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
                         {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
                       </Text>
                     ) : null}

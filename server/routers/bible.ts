@@ -16,11 +16,11 @@ export const bibleRouter = router({
             {
               role: "system",
               content:
-                "You are a biblical storyteller creating dramatic chapter previews. Generate exactly 3 lines:\n1. 'Last time in [Book] [Previous Chapter]:' followed by a 1-sentence recap of the previous chapter's key event.\n2. 'This time in [Book] [Current Chapter]:' followed by a 1-sentence preview of this chapter's main action/conflict.\n3. A cliffhanger question (e.g., 'Will so-and-so survive?' or 'What will happen next?')\n\nKeep each line punchy and exciting. Make it sound like a TV show recap and preview.",
+                "You are a biblical storyteller creating dramatic chapter previews. Generate exactly 3 sections separated by blank lines:\n\n1. 'Last time in [Book] [Previous Chapter]:' followed by a 1-sentence recap of the previous chapter's key event.\n\n2. 'This time in [Book] [Current Chapter]:' followed by a 1-sentence preview of this chapter's main action/conflict.\n\n3. A cliffhanger question (e.g., 'Will so-and-so survive?' or 'What will happen next?')\n\nFormat with blank lines between each section for readability. Keep each section punchy and exciting. Make it sound like a TV show recap and preview.",
             },
             {
               role: "user",
-              content: `Create a dramatic preview for ${book} chapter ${chapter}. Format it as:\nLast time in ${book} ${prevChapter}: [recap of previous chapter]\nThis time in ${book} ${chapter}: [preview of this chapter]\n[Cliffhanger question]`,
+              content: `Create a dramatic preview for ${book} chapter ${chapter}. Format it with blank lines between sections:\n\nLast time in ${book} ${prevChapter}: [recap of previous chapter]\n\nThis time in ${book} ${chapter}: [preview of this chapter]\n\n[Cliffhanger question]`,
             },
           ],
         });

@@ -1732,121 +1732,121 @@ export function ScheduleTab({
       switch (item.type) {
         case "personal-study-card":
           return (
-            <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-              <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
-                <View style={{ padding: 16, gap: 12 }}>
-                  <Pressable
-                    onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                  >
+            <Pressable
+              onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+                  <View style={{ padding: 16, gap: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       <View style={{ flex: 1 }} />
                       <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
                     </View>
-                  </Pressable>
 
-                  <View style={{ gap: 8 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
-                      {item.data.display}
-                    </Text>
-                    {(() => {
-                      const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                      if (book) {
-                        const progress = getBookProgress(item.data.state, book);
-                        const percentage = Math.round((progress.read / progress.total) * 100);
-                        return (
-                          <View style={{ gap: 6 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
-                                {progress.read} of {progress.total} chapters
-                              </Text>
-                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
-                                {percentage}%
-                              </Text>
+                    <View style={{ gap: 8 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
+                        {item.data.display}
+                      </Text>
+                      {(() => {
+                        const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                        if (book) {
+                          const progress = getBookProgress(item.data.state, book);
+                          const percentage = Math.round((progress.read / progress.total) * 100);
+                          return (
+                            <View style={{ gap: 6 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
+                                  {progress.read} of {progress.total} chapters
+                                </Text>
+                                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                                  {percentage}%
+                                </Text>
+                              </View>
+                              <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
+                                <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                              </View>
                             </View>
-                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
-                            </View>
-                          </View>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </View>
-
-                  {isPersonalStudyExpanded && (
-                    <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                      {isLoadingSummary || item.data.chapterSummary ? (
-                        <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
-                          {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
-                        </Text>
-                      ) : null}
-
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Pressable
-                          onPress={async () => {
-                            if (item.data?.state) {
-                              const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                              if (book) {
-                                const currentChapterNum = item.data.state.chapters.find((c: any) => c.book === book && c.isRead)?.chapter || 0;
-                                if (currentChapterNum > 1) {
-                                  try {
-                                    const updated = await markChapterAsRead(book, currentChapterNum, true);
-                                    setBibleState(updated);
-                                    await syncUnifiedBibleToAllOldSystems(updated);
-                                    const newDisplay = getCurrentBibleDisplay(updated);
-                                    setCurrentBibleBook(newDisplay || 'No book marked as current');
-                                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                  } catch (error) {
-                                    console.error('Error marking chapter as unread:', error);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                        >
-                          <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
-                            <MaterialIcons name="arrow-back" size={18} color={colors.foreground} />
-                          </View>
-                        </Pressable>
-
-                        <Pressable
-                          onPress={async () => {
-                            if (item.data?.state) {
-                              const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                              if (book) {
-                                const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
-                                if (nextChapter) {
-                                  try {
-                                    const updated = await markChapterAsRead(book, nextChapter.chapter, false);
-                                    setBibleState(updated);
-                                    await syncUnifiedBibleToAllOldSystems(updated);
-                                    const newDisplay = getCurrentBibleDisplay(updated);
-                                    setCurrentBibleBook(newDisplay || 'No book marked as current');
-                                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                  } catch (error) {
-                                    console.error('Error marking chapter as read:', error);
-                                  }
-                                }
-                              }
-                            }
-                          }}
-                          style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
-                        >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                            <MaterialIcons name="check" size={18} color="#FFFFFF" />
-                            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
-                          </View>
-                        </Pressable>
-                      </View>
+                          );
+                        }
+                        return null;
+                      })()}
                     </View>
-                  )}
+
+                    {isPersonalStudyExpanded && (
+                      <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                        {isLoadingSummary || item.data.chapterSummary ? (
+                          <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
+                            {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                          </Text>
+                        ) : null}
+
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable
+                            onPress={async () => {
+                              if (item.data?.state) {
+                                const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                                if (book) {
+                                  const currentChapterNum = item.data.state.chapters.find((c: any) => c.book === book && c.isRead)?.chapter || 0;
+                                  if (currentChapterNum > 1) {
+                                    try {
+                                      const updated = await markChapterAsRead(book, currentChapterNum, true);
+                                      setBibleState(updated);
+                                      await syncUnifiedBibleToAllOldSystems(updated);
+                                      const newDisplay = getCurrentBibleDisplay(updated);
+                                      setCurrentBibleBook(newDisplay || 'No book marked as current');
+                                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    } catch (error) {
+                                      console.error('Error marking chapter as unread:', error);
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                              <MaterialIcons name="arrow-back" size={18} color={colors.foreground} />
+                            </View>
+                          </Pressable>
+
+                          <Pressable
+                            onPress={async () => {
+                              if (item.data?.state) {
+                                const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                                if (book) {
+                                  const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
+                                  if (nextChapter) {
+                                    try {
+                                      const updated = await markChapterAsRead(book, nextChapter.chapter, false);
+                                      setBibleState(updated);
+                                      await syncUnifiedBibleToAllOldSystems(updated);
+                                      const newDisplay = getCurrentBibleDisplay(updated);
+                                      setCurrentBibleBook(newDisplay || 'No book marked as current');
+                                      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    } catch (error) {
+                                      console.error('Error marking chapter as read:', error);
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                            style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
+                              <MaterialIcons name="check" size={18} color="#FFFFFF" />
+                              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                            </View>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;

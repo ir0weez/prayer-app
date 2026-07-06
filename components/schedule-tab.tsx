@@ -803,6 +803,7 @@ export function ScheduleTab({
   const [selectedBibleStudyDay, setSelectedBibleStudyDay] = useState<string | null>(null); // Day name for multi-day Bible study tracker
   const [chapterSummary, setChapterSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
 
   // Reset selectedBibleStudyDay when selectedDate changes so it auto-defaults to the current day
   useEffect(() => {
@@ -1712,91 +1713,140 @@ export function ScheduleTab({
       items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState, chapterSummary: chapterSummary } });
     }
 
-    // Expandable sections (fasting, worship)
-    items.push({ type: "expandable-fasting", id: "fasting-section", data: activeFast });
+    // Get missed todos from previous days
+    const missedTodos = todos.filter(t => {
+      const todoDate = new Date(t.date).toISOString().split('T')[0];
+      const selectedDateStr = new Date(selectedDate).toISOString().split('T')[0];
+      return todoDate < selectedDateStr && !t.isCompleted;
+    });
+
+    // Expandable sections (missed todos, worship)
+    items.push({ type: "expandable-missed-todos", id: "missed-todos-section", data: missedTodos });
     items.push({ type: "expandable-worship", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, activeFast, bibleState, chapterSummary]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, todos]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
       switch (item.type) {
         case "personal-study-card":
           return (
-            <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
-              <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
-                <View style={{ padding: 16, gap: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <MaterialIcons name="book" size={20} color={colors.primary} />
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
-                  </View>
+            <Pressable
+              onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+                  <View style={{ padding: 16, gap: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <MaterialIcons name="book" size={20} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
+                      <View style={{ flex: 1 }} />
+                      <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
+                    </View>
 
-                  <View style={{ gap: 8 }}>
-                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
-                      {item.data.display}
-                    </Text>
-                    {isLoadingSummary || item.data.chapterSummary ? (
-                      <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
-                        {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                    <View style={{ gap: 8 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
+                        {item.data.display}
                       </Text>
-                    ) : null}
-                    {(() => {
-                      const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                      if (book) {
-                        const progress = getBookProgress(item.data.state, book);
-                        const percentage = Math.round((progress.read / progress.total) * 100);
-                        return (
-                          <View style={{ gap: 6 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
-                                {progress.read} of {progress.total} chapters
-                              </Text>
-                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
-                                {percentage}%
-                              </Text>
-                            </View>
-                            <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
-                              <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
-                            </View>
-                          </View>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </View>
-
-                  <Pressable
-                    onPress={async () => {
-                      if (item.data?.state) {
+                      {(() => {
                         const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                         if (book) {
-                          const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
-                          if (nextChapter) {
-                            try {
-                              const updated = await markChapterAsRead(book, nextChapter.chapter, false);
-                              setBibleState(updated);
-                              await syncUnifiedBibleToAllOldSystems(updated);
-                              const newDisplay = getCurrentBibleDisplay(updated);
-                              setCurrentBibleBook(newDisplay || 'No book marked as current');
-                              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                            } catch (error) {
-                              console.error('Error marking chapter as read:', error);
-                            }
-                          }
+                          const progress = getBookProgress(item.data.state, book);
+                          const percentage = Math.round((progress.read / progress.total) * 100);
+                          return (
+                            <View style={{ gap: 6 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '500' }}>
+                                  {progress.read} of {progress.total} chapters
+                                </Text>
+                                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                                  {percentage}%
+                                </Text>
+                              </View>
+                              <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' }}>
+                                <View style={{ height: '100%', width: `${percentage}%`, backgroundColor: colors.primary, borderRadius: 3 }} />
+                              </View>
+                            </View>
+                          );
                         }
-                      }
-                    }}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-                      <MaterialIcons name="check" size={18} color="#FFFFFF" />
-                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                        return null;
+                      })()}
                     </View>
-                  </Pressable>
+
+                    {isPersonalStudyExpanded && (
+                      <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                        {isLoadingSummary || item.data.chapterSummary ? (
+                          <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
+                            {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                          </Text>
+                        ) : null}
+
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable
+                            onPress={async () => {
+                              if (item.data?.state) {
+                                const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                                if (book) {
+                                  const currentChapterNum = item.data.state.chapters.find((c: any) => c.book === book && c.isRead)?.chapter || 0;
+                                  if (currentChapterNum > 1) {
+                                    try {
+                                      const updated = await markChapterAsRead(book, currentChapterNum, true);
+                                      setBibleState(updated);
+                                      await syncUnifiedBibleToAllOldSystems(updated);
+                                      const newDisplay = getCurrentBibleDisplay(updated);
+                                      setCurrentBibleBook(newDisplay || 'No book marked as current');
+                                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    } catch (error) {
+                                      console.error('Error marking chapter as unread:', error);
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                              <MaterialIcons name="arrow-back" size={18} color={colors.foreground} />
+                            </View>
+                          </Pressable>
+
+                          <Pressable
+                            onPress={async () => {
+                              if (item.data?.state) {
+                                const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                                if (book) {
+                                  const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
+                                  if (nextChapter) {
+                                    try {
+                                      const updated = await markChapterAsRead(book, nextChapter.chapter, false);
+                                      setBibleState(updated);
+                                      await syncUnifiedBibleToAllOldSystems(updated);
+                                      const newDisplay = getCurrentBibleDisplay(updated);
+                                      setCurrentBibleBook(newDisplay || 'No book marked as current');
+                                      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    } catch (error) {
+                                      console.error('Error marking chapter as read:', error);
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                            style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
+                              <MaterialIcons name="check" size={18} color="#FFFFFF" />
+                              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
+                            </View>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
@@ -1988,6 +2038,45 @@ export function ScheduleTab({
             </ExpandableSection>
           );
         }
+        case "expandable-missed-todos":
+          return (
+            <ExpandableSection title={`Missed Todos (${item.data?.length || 0})`} icon="assignment">
+              {item.data && item.data.length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  {item.data.map((todo: any) => (
+                    <View key={todo.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }}>
+                          {todo.title}
+                        </Text>
+                        <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+                          {new Date(todo.date).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Pressable
+                          onPress={() => setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, isCompleted: true } : t))}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.success, borderRadius: 6 }]}
+                        >
+                          <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>✓</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setTodos(prev => prev.filter(t => t.id !== todo.id))}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.error, borderRadius: 6 }]}
+                        >
+                          <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={{ color: colors.muted, fontSize: 14 }}>
+                  No missed todos. Great job!
+                </Text>
+              )}
+            </ExpandableSection>
+          );
         case "expandable-fasting":
           return (
             <ExpandableSection title="Fasting" icon="restaurant">
@@ -2120,15 +2209,16 @@ export function ScheduleTab({
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
                     // Calculate available hours matching the free time blocks shown in schedule
-                    // Use same filter as time blocks: only incomplete items with start times
+                    // Include ALL items (completed and incomplete) because they all block time on the calendar
                     const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
-                      ...getEventsForDate(events, selectedDate).filter((e) => !e.isCompleted && e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
                     ];
-                    // Calculate time blocks and filter expired ones (same as schedule display)
+                    // Calculate time blocks (don't filter expired for summary - show total available for the day)
                     const summaryBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-                    const activeSummaryBlocks = filterExpiredTimeBlocks(summaryBlocks, selectedDate);
+                    // Use all blocks for summary (not filtered by expiration) to show total day availability
+                    const activeSummaryBlocks = summaryBlocks;
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours
                     const availableHours = Math.floor(totalAvailableMinutes / 60);

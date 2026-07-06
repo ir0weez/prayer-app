@@ -7,6 +7,8 @@ export const bibleRouter = router({
     .input(z.object({ book: z.string(), chapter: z.string() }))
     .mutation(async ({ input }) => {
       const { book, chapter } = input;
+      const chapterNum = parseInt(chapter, 10);
+      const prevChapter = Math.max(1, chapterNum - 1);
 
       try {
         const res = await invokeLLM({
@@ -14,16 +16,17 @@ export const bibleRouter = router({
             {
               role: "system",
               content:
-                "You are a biblical storyteller. Generate a dramatic, enticing 1-2 sentence preview of the given Bible chapter that makes the reader excited to dive in. Use a 'Coming up in [Book] Chapter [Number]...' style. Focus on the most compelling action, conflict, or revelation. Keep it short and punchy.",
+                "You are a biblical storyteller creating dramatic chapter previews. Generate exactly 3 lines:\n1. 'Last time in [Book] [Previous Chapter]:' followed by a 1-sentence recap of the previous chapter's key event.\n2. 'This time in [Book] [Current Chapter]:' followed by a 1-sentence preview of this chapter's main action/conflict.\n3. A cliffhanger question (e.g., 'Will so-and-so survive?' or 'What will happen next?')\n\nKeep each line punchy and exciting. Make it sound like a TV show recap and preview.",
             },
             {
               role: "user",
-              content: `Create a dramatic preview for ${book} chapter ${chapter}. Start with 'Coming up in ${book} ${chapter}:' and make it sound exciting and compelling.`,
+              content: `Create a dramatic preview for ${book} chapter ${chapter}. Format it as:\nLast time in ${book} ${prevChapter}: [recap of previous chapter]\nThis time in ${book} ${chapter}: [preview of this chapter]\n[Cliffhanger question]`,
             },
           ],
         });
 
         const summary = res.choices[0].message.content || "";
+        // Clear old cache entries for this book to force regeneration
         return { summary };
       } catch (error) {
         console.error("Error generating chapter summary:", error);

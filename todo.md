@@ -1540,3 +1540,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add Personal Study collapsible section to schedule tab (like Fasting/Worship sections) - Enhanced with progress bar, percentage, and improved button styling. Now defaults to expanded for quick access.
 - [x] Debug and fix free time block duration calculation (showing wrong hours) - Now shows "Xh Ym" format instead of just hours
 - [x] Add icons for Gardening and Water todos (grass and water-drop icons)
+
+
+## Current Session - Major Updates
+
+- [x] Update chapter summary format to dramatic cliffhanger style ("Last time in..." + "This time in..." + question)
+- [x] Clear AsyncStorage cache for old summaries
+- [x] Debug and fix free time hour block duration calculation (still showing wrong hours)
+- [x] Create missed todos tracker to replace Fasting section
+- [x] Make Personal Study card expandable (hide Mark as Read + summary on tap, always show book/chapter/progress)
+- [x] Add back arrow button next to Mark as Read button

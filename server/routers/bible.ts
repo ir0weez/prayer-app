@@ -14,11 +14,11 @@ export const bibleRouter = router({
             {
               role: "system",
               content:
-                "You are a biblical scholar. Provide a brief, 1-2 sentence summary of the main themes and events in the given Bible chapter. Be concise and accessible.",
+                "You are a biblical storyteller. Generate a dramatic, enticing 1-2 sentence preview of the given Bible chapter that makes the reader excited to dive in. Use a 'Coming up in [Book] Chapter [Number]...' style. Focus on the most compelling action, conflict, or revelation. Keep it short and punchy.",
             },
             {
               role: "user",
-              content: `Summarize ${book} ${chapter} from the Bible.`,
+              content: `Create a dramatic preview for ${book} chapter ${chapter}. Start with 'Coming up in ${book} ${chapter}:' and make it sound exciting and compelling.`,
             },
           ],
         });

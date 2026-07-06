@@ -1767,15 +1767,14 @@ export function ScheduleTab({
                       }
                       return null;
                     })()}
-                  </View>
-
-                  <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                     {isLoadingSummary || item.data.chapterSummary ? (
                       <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 }}>
                         {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
                       </Text>
                     ) : null}
+                  </View>
 
+                  <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable
                         onPress={async () => {

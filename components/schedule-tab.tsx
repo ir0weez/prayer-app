@@ -1767,15 +1767,14 @@ export function ScheduleTab({
                       }
                       return null;
                     })()}
+                    {isLoadingSummary || item.data.chapterSummary ? (
+                      <View style={{ gap: 8, marginTop: 8 }}>
+                        <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
+                          {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
-
-                  {isLoadingSummary || item.data.chapterSummary ? (
-                    <View style={{ gap: 8, marginTop: 8 }}>
-                      <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
-                        {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
-                      </Text>
-                    </View>
-                  ) : null}
 
                   <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                     <View style={{ flexDirection: 'row', gap: 8 }}>

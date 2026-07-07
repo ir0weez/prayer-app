@@ -19,6 +19,7 @@ interface MinistryDetailCardProps {
   visible: boolean;
   onClose: () => void;
   onEdit?: (updatedMinistry: ScheduleMinistry) => void;
+  onToggle?: () => void;
 }
 
 export function MinistryDetailCard({
@@ -27,6 +28,7 @@ export function MinistryDetailCard({
   visible,
   onClose,
   onEdit,
+  onToggle,
 }: MinistryDetailCardProps) {
   const colors = useColors();
   const [editFormVisible, setEditFormVisible] = useState(false);
@@ -65,11 +67,30 @@ export function MinistryDetailCard({
             <Text style={[styles.title, { color: colors.foreground }]}>
               {ministry.title}
             </Text>
-            {onEdit && (
-              <Pressable onPress={() => setEditFormVisible(true)}>
-                <MaterialIcons name="edit" size={24} color={colors.primary} />
-              </Pressable>
-            )}
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              {onToggle && (
+                <Pressable
+                  onPress={() => {
+                    onToggle();
+                    onClose();
+                  }}
+                  style={({ pressed }) => [{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 6,
+                    opacity: pressed ? 0.8 : 1,
+                  }]}
+                >
+                  <MaterialIcons name="check" size={20} color="#FFFFFF" />
+                </Pressable>
+              )}
+              {onEdit && (
+                <Pressable onPress={() => setEditFormVisible(true)}>
+                  <MaterialIcons name="edit" size={24} color={colors.primary} />
+                </Pressable>
+              )}
+            </View>
           </View>
 
           <ScrollView

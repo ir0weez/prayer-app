@@ -670,6 +670,7 @@ function MinistryCard({
         visible={detailCardVisible}
         onClose={() => setDetailCardVisible(false)}
         onEdit={onEdit}
+        onToggle={onToggle}
       />
     </>
   );

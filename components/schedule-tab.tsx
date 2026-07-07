@@ -2337,6 +2337,7 @@ export function ScheduleTab({
             }
           />
         </ReAnimated.View>
+
       {/* FAB Button with Google Calendar-style popup menu */}
       <Pressable
         onPress={() => setShowAddModal(!showAddModal)}
@@ -2344,6 +2345,23 @@ export function ScheduleTab({
       >
         <MaterialIcons name={showAddModal ? "close" : "add"} size={32} color="#FFFFFF" />
       </Pressable>
+
+      {/* Floating Today Button - Over Tab Bar */}
+      {selectedDate !== today && (
+        <Pressable
+          onPress={() => setSelectedDate(today)}
+          style={({ pressed }) => [
+            scheduleStyles.floatingTodayButton,
+            {
+              backgroundColor: 'rgba(123, 92, 255, 0.85)',
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <MaterialIcons name="today" size={14} color="#FFFFFF" />
+          <Text style={scheduleStyles.floatingTodayButtonText}>Today</Text>
+        </Pressable>
+      )}
 
       {/* Google Calendar-style popup menu */}
       {showAddModal && (
@@ -3066,22 +3084,6 @@ export function ScheduleTab({
         </View>
       </Modal>
 
-      {/* Floating Today Button - Over Tab Bar */}
-      {selectedDate !== today && (
-        <Pressable
-          onPress={() => setSelectedDate(today)}
-          style={({ pressed }) => [
-            scheduleStyles.floatingTodayButton,
-            {
-              backgroundColor: 'rgba(123, 92, 255, 0.85)',
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-        >
-          <MaterialIcons name="today" size={14} color="#FFFFFF" />
-          <Text style={scheduleStyles.floatingTodayButtonText}>Today</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -3195,7 +3197,7 @@ const scheduleStyles = StyleSheet.create({
   },
   floatingTodayButton: {
     position: "absolute",
-    bottom: 72,
+    bottom: 68,
     right: 16,
     flexDirection: "row",
     alignItems: "center",

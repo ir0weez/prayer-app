@@ -2286,15 +2286,7 @@ export function ScheduleTab({
                       {dateHeader.dayName}
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
-                    {selectedDate !== today && (
-                      <Pressable
-                        onPress={() => setSelectedDate(today)}
-                        style={({ pressed }) => [scheduleStyles.backToTodayPill, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-                      >
-                        <MaterialIcons name="today" size={12} color="#FFFFFF" />
-                        <Text style={scheduleStyles.backToTodayPillText}>Today</Text>
-                      </Pressable>
-                    )}
+                    {/* Today button moved to bottom - see renderItem */}
                     <View style={scheduleStyles.dateRight}>
                       <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
                         {dateHeader.monthName} {dateHeader.dayNum}
@@ -3074,6 +3066,22 @@ export function ScheduleTab({
         </View>
       </Modal>
 
+      {/* Floating Today Button - Over Tab Bar */}
+      {selectedDate !== today && (
+        <Pressable
+          onPress={() => setSelectedDate(today)}
+          style={({ pressed }) => [
+            scheduleStyles.floatingTodayButton,
+            {
+              backgroundColor: 'rgba(123, 92, 255, 0.85)',
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <MaterialIcons name="today" size={14} color="#FFFFFF" />
+          <Text style={scheduleStyles.floatingTodayButtonText}>Today</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -3182,6 +3190,29 @@ const scheduleStyles = StyleSheet.create({
   },
   backToTodayPillText: {
     fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  floatingTodayButton: {
+    position: "absolute",
+    bottom: 72,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 10,
+  },
+  floatingTodayButtonText: {
+    fontSize: 13,
     fontWeight: "600",
     color: "#FFFFFF",
   },

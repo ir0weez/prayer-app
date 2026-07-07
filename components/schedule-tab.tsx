@@ -1744,6 +1744,13 @@ export function ScheduleTab({
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
+                    {isLoadingSummary || item.data.chapterSummary ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
+                          {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                        </Text>
+                      </View>
+                    ) : null}
                     {(() => {
                       const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                       if (book) {
@@ -1767,13 +1774,6 @@ export function ScheduleTab({
                       }
                       return null;
                     })()}
-                    {isLoadingSummary || item.data.chapterSummary ? (
-                      <View style={{ gap: 8, marginTop: 8 }}>
-                        <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
-                          {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
 
                   <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>

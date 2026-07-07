@@ -1550,3 +1550,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Create missed todos tracker to replace Fasting section
 - [x] Make Personal Study card expandable (hide Mark as Read + summary on tap, always show book/chapter/progress)
 - [x] Add back arrow button next to Mark as Read button
+
+
+## Current Session - Bug Fixes & Improvements
+
+- [ ] Make Personal Study card collapsible (hide summary/buttons, show on tap)
+- [ ] Remove ministry card completion modal popup
+- [ ] Mark ministry cards as done directly without modal
+- [ ] Update chapter summary to show completed chapter info
+- [ ] Change free time block from dynamic to fixed 6am-6pm
+- [ ] Fix available time calculation to update in real-time when tasks complete

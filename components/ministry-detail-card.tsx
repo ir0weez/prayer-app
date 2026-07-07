@@ -52,8 +52,8 @@ export function MinistryDetailCard({
           style={[
             styles.card,
             {
-              backgroundColor: ministry.color || colors.surface,
-              borderColor: ministry.color ? ministry.color + "40" : colors.border,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             },
           ]}
           onPress={(e) => e.stopPropagation()}
@@ -92,7 +92,7 @@ export function MinistryDetailCard({
                     Type
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {ministry.type}
                 </Text>
               </View>
@@ -113,7 +113,7 @@ export function MinistryDetailCard({
                     Date
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {new Date(ministry.date).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
@@ -139,7 +139,7 @@ export function MinistryDetailCard({
                     Due Date
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {new Date(ministry.dueDate).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
@@ -165,7 +165,7 @@ export function MinistryDetailCard({
                     Time
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {ministry.startTime}
                   {ministry.endTime ? ` – ${ministry.endTime}` : ""}
                 </Text>
@@ -187,7 +187,7 @@ export function MinistryDetailCard({
                     Location
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {ministry.location}
                 </Text>
               </View>
@@ -208,7 +208,7 @@ export function MinistryDetailCard({
                     Notes
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {ministry.notes}
                 </Text>
               </View>
@@ -229,7 +229,7 @@ export function MinistryDetailCard({
                     Bible Book
                   </Text>
                 </View>
-                <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                <Text style={[styles.sectionContent, { color: colors.foreground }]}>
                   {ministry.bibleBook}
                 </Text>
               </View>
@@ -301,16 +301,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    maxHeight: "80%",
+    maxHeight: "85%",
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 420,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 16,
   },
   header: {
     flexDirection: "row",
@@ -318,60 +318,68 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "rgba(0,0,0,0.1)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.15)",
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     flex: 1,
     textAlign: "center",
     marginHorizontal: 8,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   sectionContent: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "500",
   },
   peopleList: {
-    gap: 12,
+    gap: 14,
+    marginTop: 4,
   },
   personItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
+    paddingVertical: 4,
   },
   personAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
   personInitial: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
   },
   personName: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
     flex: 1,
   },
 });

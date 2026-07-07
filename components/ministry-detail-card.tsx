@@ -67,7 +67,7 @@ export function MinistryDetailCard({
             <Text style={[styles.title, { color: colors.foreground }]}>
               {ministry.title}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
               {onToggle && (
                 <Pressable
                   onPress={() => {
@@ -76,18 +76,18 @@ export function MinistryDetailCard({
                   }}
                   style={({ pressed }) => [{
                     backgroundColor: colors.primary,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 6,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 8,
                     opacity: pressed ? 0.8 : 1,
                   }]}
                 >
-                  <MaterialIcons name="check" size={20} color="#FFFFFF" />
+                  <MaterialIcons name="check" size={18} color="#FFFFFF" />
                 </Pressable>
               )}
               {onEdit && (
-                <Pressable onPress={() => setEditFormVisible(true)}>
-                  <MaterialIcons name="edit" size={24} color={colors.primary} />
+                <Pressable onPress={() => setEditFormVisible(true)} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+                  <MaterialIcons name="edit" size={22} color={colors.primary} />
                 </Pressable>
               )}
             </View>
@@ -95,7 +95,7 @@ export function MinistryDetailCard({
 
           <ScrollView
             style={styles.content}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
           >
             {/* Type */}
@@ -322,84 +322,83 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
     maxHeight: "85%",
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 440,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 16,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 20,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.15)",
+    paddingVertical: 12,
+    borderBottomWidth: 0,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "900",
     flex: 1,
-    textAlign: "center",
-    marginHorizontal: 8,
+    textAlign: "left",
+    marginHorizontal: 12,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 8,
   },
   section: {
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.08)",
+    marginBottom: 20,
+    paddingBottom: 0,
+    borderBottomWidth: 0,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    opacity: 0.7,
   },
   sectionContent: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     fontWeight: "500",
   },
   peopleList: {
-    gap: 14,
-    marginTop: 4,
+    gap: 12,
+    marginTop: 8,
   },
   personItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   personAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
   },
   personInitial: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
   },
   personName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     flex: 1,
   },

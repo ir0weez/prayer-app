@@ -2290,8 +2290,29 @@ export function ScheduleTab({
                     ];
                     // Calculate time blocks based on incomplete items only
                     const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems);
-                    // Use blocks for summary to show available time after incomplete items
-                    const activeSummaryBlocks = summaryBlocks;
+                    
+                    // Filter blocks to only include time from now onwards (for today)
+                    const now = new Date();
+                    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+                    const selectedDateObj = new Date(selectedDate);
+                    const isToday = selectedDateObj.toDateString() === now.toDateString();
+                    
+                    const activeSummaryBlocks = isToday 
+                      ? summaryBlocks.filter((block) => {
+                          const blockEndMinutes = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
+                          return blockEndMinutes > currentTimeMinutes; // Only include blocks that haven't ended
+                        }).map((block) => {
+                          const blockStartMinutes = parseInt(block.startTime.split(':')[0]) * 60 + parseInt(block.startTime.split(':')[1]);
+                          // If block starts before now, adjust duration to start from now
+                          if (blockStartMinutes < currentTimeMinutes) {
+                            const blockEndMinutes = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
+                            const adjustedDuration = blockEndMinutes - currentTimeMinutes;
+                            return { ...block, durationMinutes: adjustedDuration };
+                          }
+                          return block;
+                        })
+                      : summaryBlocks;
+                    
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours
                     const availableHours = Math.floor(totalAvailableMinutes / 60);

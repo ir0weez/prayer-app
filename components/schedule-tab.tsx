@@ -94,7 +94,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
@@ -1828,7 +1828,7 @@ export function ScheduleTab({
                               if (lastReadChapter && lastReadChapter.chapter > 1) {
                                 try {
                                   // Mark the last read chapter as unread to go back
-                                  const updated = await markChapterAsRead(book, lastReadChapter.chapter, true);
+                                  const updated = await markChapterAsUnread(book, lastReadChapter.chapter);
                                   setBibleState(updated);
                                   await syncUnifiedBibleToAllOldSystems(updated);
                                   const newDisplay = getCurrentBibleDisplay(updated);
@@ -1873,9 +1873,19 @@ export function ScheduleTab({
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
-                          <MaterialIcons name="bookmark" size={18} color={colors.primary} />
-                        </View>
+                        {(() => {
+                          const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                          const lastReadChapter = book ? item.data.state.chapters
+                            .filter((c: any) => c.book === book && c.isRead)
+                            .sort((a: any, b: any) => b.chapter - a.chapter)[0] : null;
+                          const isBookmarked = lastReadChapter ? lastReadChapter.isBookmarked : false;
+                          
+                          return (
+                            <View style={{ width: 44, height: 44, backgroundColor: isBookmarked ? colors.primary + '20' : colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: isBookmarked ? 2 : 0, borderColor: isBookmarked ? colors.primary : 'transparent' }}>
+                              <MaterialIcons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={18} color={colors.primary} />
+                            </View>
+                          );
+                        })()}
                       </Pressable>
 
                       <Pressable

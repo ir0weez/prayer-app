@@ -258,3 +258,15 @@ export function calculateReadingStreak(state: UnifiedBibleState): { streak: numb
   
   return { streak, startDate: streakStartDate.toISOString().split('T')[0] };
 }
+
+// Mark a chapter as unread (for going back)
+export async function markChapterAsUnread(book: string, chapter: number): Promise<UnifiedBibleState> {
+  const state = await loadUnifiedBible();
+  const chapterEntry = state.chapters.find((c) => c.book === book && c.chapter === chapter);
+  if (chapterEntry) {
+    chapterEntry.isRead = false;
+    chapterEntry.readDate = undefined;
+  }
+  await saveUnifiedBible(state);
+  return state;
+}

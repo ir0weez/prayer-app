@@ -2201,16 +2201,16 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    // Calculate available hours matching the free time blocks shown in schedule
-                    // Include ALL items (completed and incomplete) because they all block time on the calendar
-                    const allScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
+                    // Calculate available hours based on INCOMPLETE items only
+                    // This way, as you mark items complete, available time increases
+                    const incompleteScheduledItems = [
+                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
                     ];
-                    // Calculate time blocks (don't filter expired for summary - show total available for the day)
-                    const summaryBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-                    // Use all blocks for summary (not filtered by expiration) to show total day availability
+                    // Calculate time blocks based on incomplete items only
+                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems);
+                    // Use blocks for summary to show available time after incomplete items
                     const activeSummaryBlocks = summaryBlocks;
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours
@@ -3197,7 +3197,7 @@ const scheduleStyles = StyleSheet.create({
   },
   floatingTodayButton: {
     position: "absolute",
-    bottom: 68,
+    bottom: 130,
     left: "50%",
     marginLeft: -60,
     flexDirection: "row",

@@ -93,6 +93,8 @@ export default function BibleChaptersScreen() {
   const bookPositions = useRef<Record<string, number>>({});
   const [hasScrolled, setHasScrolled] = useState(false);
   const [justMarkedAsRead, setJustMarkedAsRead] = useState<Set<string>>(new Set());
+  const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
+  const [bookmarkedChapters, setBookmarkedChapters] = useState<Set<string>>(new Set());
 
   const saveReadChapters = useCallback(async (chapters: Set<string>) => {
     try {
@@ -142,6 +144,16 @@ export default function BibleChaptersScreen() {
       if (statusesStored) {
         setBookStatuses(JSON.parse(statusesStored));
       }
+      
+      // Load bookmarks from unified Bible state
+      const unifiedState = await loadUnifiedBible();
+      const bookmarked = new Set<string>();
+      unifiedState.chapters.forEach(ch => {
+        if (ch.isBookmarked) {
+          bookmarked.add(`${ch.book}-${ch.chapter}`);
+        }
+      });
+      setBookmarkedChapters(bookmarked);
     } catch (error) {
       console.error('Error loading Bible data:', error);
     }
@@ -348,6 +360,9 @@ export default function BibleChaptersScreen() {
               <Pressable onPress={() => setShowBookNav(true)} style={[styles.navButton, { backgroundColor: colors.surface }]}>
                 <MaterialIcons name="list" size={20} color={colors.foreground} />
               </Pressable>
+              <Pressable onPress={() => setShowOnlyBookmarks(!showOnlyBookmarks)} style={[styles.navButton, { backgroundColor: showOnlyBookmarks ? colors.primary : colors.surface }]}>
+                <MaterialIcons name={showOnlyBookmarks ? 'bookmark' : 'bookmark-border'} size={20} color={showOnlyBookmarks ? '#FFFFFF' : colors.foreground} />
+              </Pressable>
               <Pressable onPress={resetAllData} style={styles.resetButton}>
                 <Text style={styles.resetButtonText}>Reset</Text>
               </Pressable>
@@ -361,7 +376,12 @@ export default function BibleChaptersScreen() {
 
         {/* Bible books and chapters grid */}
         {BIBLE_BOOKS.map((book) => {
-          const bookChapters = Array.from({ length: book.chapters }, (_, i) => i + 1);
+          let bookChapters = Array.from({ length: book.chapters }, (_, i) => i + 1);
+          if (showOnlyBookmarks) {
+            bookChapters = bookChapters.filter(ch => bookmarkedChapters.has(`${book.name}-${ch}`));
+          }
+          if (bookChapters.length === 0 && showOnlyBookmarks) return null;
+          
           const bookStatus = bookStatuses[book.name] || 'not-started';
           const statusColor = getStatusColor(bookStatus);
 
@@ -393,16 +413,32 @@ export default function BibleChaptersScreen() {
                   const chapterId = `${book.name}-${chapterNum}`;
                   const isRead = readChapters.has(chapterId);
                   const isJustMarked = justMarkedAsRead.has(chapterId);
+                  const isBookmarked = bookmarkedChapters.has(chapterId);
 
                   return (
                     <Pressable
                       key={chapterId}
+                      onLongPress={async () => {
+                        try {
+                          const { toggleChapterBookmark } = await import('@/lib/bible-unified');
+                          await toggleChapterBookmark(book.name, chapterNum);
+                          const newBookmarked = new Set(bookmarkedChapters);
+                          if (isBookmarked) {
+                            newBookmarked.delete(chapterId);
+                          } else {
+                            newBookmarked.add(chapterId);
+                          }
+                          setBookmarkedChapters(newBookmarked);
+                        } catch (error) {
+                          console.error('Error toggling bookmark:', error);
+                        }
+                      }}
                       onPress={() => toggleChapter(book.name, chapterNum)}
                       style={({ pressed }) => [
                         styles.chapterButton,
                         {
-                          borderColor: isRead ? '#22C55E' : colors.muted,
-                          backgroundColor: isRead ? '#22C55E' : 'transparent',
+                          borderColor: isRead ? '#22C55E' : isBookmarked ? colors.primary : colors.muted,
+                          backgroundColor: isRead ? '#22C55E' : isBookmarked ? colors.primary + '20' : 'transparent',
                           opacity: pressed ? 0.8 : 1,
                         },
                       ]}
@@ -410,6 +446,9 @@ export default function BibleChaptersScreen() {
                       <Text style={[styles.chapterText, { color: isRead ? '#FFFFFF' : colors.foreground }]}>
                         {chapterNum}
                       </Text>
+                      {isBookmarked && !isRead && (
+                        <MaterialIcons name="bookmark" size={10} color={colors.primary} style={styles.checkmark} />
+                      )}
                       {isRead && (
                         isJustMarked ? (
                           <Animated.View entering={ZoomIn.springify()}>

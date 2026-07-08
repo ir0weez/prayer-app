@@ -11,6 +11,7 @@ export type BibleChapterStatus = {
   chapter: number;
   isRead: boolean;
   readDate?: string; // ISO date string
+  isBookmarked?: boolean; // Whether chapter is bookmarked for later review
 };
 
 export type BibleBookStatus = 'not-started' | 'current' | 'complete';
@@ -193,4 +194,25 @@ export function getBookProgress(state: UnifiedBibleState, book: string): { read:
   const bookChapters = state.chapters.filter((c) => c.book === book);
   const read = bookChapters.filter((c) => c.isRead).length;
   return { read, total: bookChapters.length };
+}
+
+// Toggle bookmark for a chapter
+export async function toggleChapterBookmark(book: string, chapter: number): Promise<UnifiedBibleState> {
+  const state = await loadUnifiedBible();
+  const chapterEntry = state.chapters.find((c) => c.book === book && c.chapter === chapter);
+  if (chapterEntry) {
+    chapterEntry.isBookmarked = !chapterEntry.isBookmarked;
+  }
+  await saveUnifiedBible(state);
+  return state;
+}
+
+// Get all bookmarked chapters
+export function getBookmarkedChapters(state: UnifiedBibleState): BibleChapterStatus[] {
+  return state.chapters.filter((c) => c.isBookmarked);
+}
+
+// Get bookmarked chapters for a specific book
+export function getBookmarkedChaptersForBook(state: UnifiedBibleState, book: string): BibleChapterStatus[] {
+  return state.chapters.filter((c) => c.book === book && c.isBookmarked);
 }

@@ -2181,7 +2181,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded]
   );
 
   return (

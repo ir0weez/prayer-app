@@ -1733,25 +1733,24 @@ export function ScheduleTab({
       switch (item.type) {
         case "personal-study-card":
           return (
-            <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
+            <Pressable
+              onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
+              style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
+            >
               <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
                 <View style={{ padding: 16, gap: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <MaterialIcons name="book" size={20} color={colors.primary} />
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <MaterialIcons name="book" size={20} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
+                    </View>
+                    <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
                   </View>
 
                   <View style={{ gap: 8 }}>
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
-                    {isLoadingSummary || item.data.chapterSummary ? (
-                      <View style={{ gap: 8 }}>
-                        <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
-                          {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
-                        </Text>
-                      </View>
-                    ) : null}
                     {(() => {
                       const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                       if (book) {
@@ -1777,8 +1776,18 @@ export function ScheduleTab({
                     })()}
                   </View>
 
-                  <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {isPersonalStudyExpanded && (
+                    <>
+                      {isLoadingSummary || item.data.chapterSummary ? (
+                        <View style={{ gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                          <Text style={{ color: colors.muted, fontSize: 13, fontStyle: 'italic', lineHeight: 20 }}>
+                            {isLoadingSummary ? 'Loading summary...' : item.data.chapterSummary}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable
                         onPress={async () => {
                           if (item.data?.state) {
@@ -1835,11 +1844,13 @@ export function ScheduleTab({
                           <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Read</Text>
                         </View>
                       </Pressable>
-                    </View>
-                  </View>
+                        </View>
+                      </View>
+                    </>
+                  )}
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;

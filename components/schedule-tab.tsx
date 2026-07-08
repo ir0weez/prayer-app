@@ -94,7 +94,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
@@ -1743,6 +1743,33 @@ export function ScheduleTab({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
+                      {(() => {
+                        const streakData = calculateReadingStreak(item.data.state);
+                        if (streakData.streak > 0) {
+                          return (
+                            <View style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              backgroundColor: colors.primary + '15',
+                              borderRadius: 16,
+                              borderWidth: 1,
+                              borderColor: colors.primary + '40',
+                              marginLeft: 'auto',
+                              marginRight: 8,
+                              shadowColor: colors.primary,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.3,
+                              shadowRadius: 8,
+                              elevation: 3,
+                            }}>
+                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+                                {streakData.streak} days of devotion
+                              </Text>
+                            </View>
+                          );
+                        }
+                        return null;
+                      })()}
                     </View>
                     <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
                   </View>

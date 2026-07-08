@@ -20,6 +20,8 @@ export type UnifiedBibleState = {
   chapters: BibleChapterStatus[]; // All chapters with read status
   bookStatuses: Record<string, BibleBookStatus>; // Track book-level status
   lastReadDate?: string; // ISO date of last chapter read
+  readingStreak?: number; // Consecutive days of reading
+  streakStartDate?: string; // ISO date when current streak started
 };
 
 export const BIBLE_BOOKS = [
@@ -215,4 +217,44 @@ export function getBookmarkedChapters(state: UnifiedBibleState): BibleChapterSta
 // Get bookmarked chapters for a specific book
 export function getBookmarkedChaptersForBook(state: UnifiedBibleState, book: string): BibleChapterStatus[] {
   return state.chapters.filter((c) => c.book === book && c.isBookmarked);
+}
+
+// Calculate reading streak based on read dates
+export function calculateReadingStreak(state: UnifiedBibleState): { streak: number; startDate: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const readDates = new Set<string>();
+  state.chapters.forEach(ch => {
+    if (ch.isRead && ch.readDate) {
+      readDates.add(ch.readDate);
+    }
+  });
+  
+  if (readDates.size === 0) {
+    return { streak: 0, startDate: '' };
+  }
+  
+  const sortedDates = Array.from(readDates).sort().reverse();
+  let streak = 0;
+  let currentDate = new Date(today);
+  
+  for (const dateStr of sortedDates) {
+    const date = new Date(dateStr);
+    date.setHours(0, 0, 0, 0);
+    
+    const dayDiff = Math.floor((currentDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (dayDiff === 0 || dayDiff === streak) {
+      streak++;
+      currentDate = new Date(date);
+    } else {
+      break;
+    }
+  }
+  
+  const streakStartDate = new Date(today);
+  streakStartDate.setDate(streakStartDate.getDate() - (streak - 1));
+  
+  return { streak, startDate: streakStartDate.toISOString().split('T')[0] };
 }

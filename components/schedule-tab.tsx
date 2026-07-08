@@ -1853,14 +1853,13 @@ export function ScheduleTab({
                           if (item.data?.state) {
                             const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                             if (book) {
-                              const lastReadChapter = item.data.state.chapters
-                                .filter((c: any) => c.book === book && c.isRead)
-                                .sort((a: any, b: any) => b.chapter - a.chapter)[0];
+                              // Get the next unread chapter (the one currently being displayed)
+                              const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
                               
-                              if (lastReadChapter) {
+                              if (nextChapter) {
                                 try {
                                   const { toggleChapterBookmark } = await import('@/lib/bible-unified');
-                                  await toggleChapterBookmark(book, lastReadChapter.chapter);
+                                  await toggleChapterBookmark(book, nextChapter.chapter);
                                   const updated = await loadUnifiedBible();
                                   setBibleState(updated);
                                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1875,10 +1874,8 @@ export function ScheduleTab({
                       >
                         {(() => {
                           const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                          const lastReadChapter = book ? item.data.state.chapters
-                            .filter((c: any) => c.book === book && c.isRead)
-                            .sort((a: any, b: any) => b.chapter - a.chapter)[0] : null;
-                          const isBookmarked = lastReadChapter ? lastReadChapter.isBookmarked : false;
+                          const nextChapter = book ? item.data.state.chapters.find((c: any) => c.book === book && !c.isRead) : null;
+                          const isBookmarked = nextChapter ? nextChapter.isBookmarked : false;
                           
                           return (
                             <View style={{ width: 44, height: 44, backgroundColor: isBookmarked ? colors.primary + '20' : colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: isBookmarked ? 2 : 0, borderColor: isBookmarked ? colors.primary : 'transparent' }}>

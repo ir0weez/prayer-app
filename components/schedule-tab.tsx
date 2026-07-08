@@ -94,7 +94,7 @@ import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
@@ -1820,17 +1820,22 @@ export function ScheduleTab({
                           if (item.data?.state) {
                             const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                             if (book) {
-                              const currentChapterNum = item.data.state.chapters.find((c: any) => c.book === book && c.isRead)?.chapter || 0;
-                              if (currentChapterNum > 1) {
+                              // Find the last read chapter
+                              const lastReadChapter = item.data.state.chapters
+                                .filter((c: any) => c.book === book && c.isRead)
+                                .sort((a: any, b: any) => b.chapter - a.chapter)[0];
+                              
+                              if (lastReadChapter && lastReadChapter.chapter > 1) {
                                 try {
-                                  const updated = await markChapterAsRead(book, currentChapterNum, true);
+                                  // Mark the last read chapter as unread to go back
+                                  const updated = await markChapterAsRead(book, lastReadChapter.chapter, true);
                                   setBibleState(updated);
                                   await syncUnifiedBibleToAllOldSystems(updated);
                                   const newDisplay = getCurrentBibleDisplay(updated);
                                   setCurrentBibleBook(newDisplay || 'No book marked as current');
                                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 } catch (error) {
-                                  console.error('Error marking chapter as unread:', error);
+                                  console.error('Error going back chapter:', error);
                                 }
                               }
                             }
@@ -1840,6 +1845,36 @@ export function ScheduleTab({
                       >
                         <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
                           <MaterialIcons name="arrow-back" size={18} color={colors.foreground} />
+                        </View>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={async () => {
+                          if (item.data?.state) {
+                            const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                            if (book) {
+                              const lastReadChapter = item.data.state.chapters
+                                .filter((c: any) => c.book === book && c.isRead)
+                                .sort((a: any, b: any) => b.chapter - a.chapter)[0];
+                              
+                              if (lastReadChapter) {
+                                try {
+                                  const { toggleChapterBookmark } = await import('@/lib/bible-unified');
+                                  await toggleChapterBookmark(book, lastReadChapter.chapter);
+                                  const updated = await loadUnifiedBible();
+                                  setBibleState(updated);
+                                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                } catch (error) {
+                                  console.error('Error toggling bookmark:', error);
+                                }
+                              }
+                            }
+                          }
+                        }}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                          <MaterialIcons name="bookmark" size={18} color={colors.primary} />
                         </View>
                       </Pressable>
 

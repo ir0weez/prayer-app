@@ -1189,15 +1189,27 @@ export function ScheduleTab({
           state = JSON.parse(unifiedData);
           if (state) console.log('Unified Bible data loaded:', { display: getCurrentBibleDisplay(state), bookStatuses: state.bookStatuses });
         } else {
-          // Fallback: check for legacy book status
+          // Fallback: check for legacy book status and chapters
           const legacyBookStatus = await AsyncStorage.getItem('bibleBookStatus');
-          if (legacyBookStatus) {
-            const legacyStatuses = JSON.parse(legacyBookStatus);
-            console.log('Found legacy book status, migrating:', legacyStatuses);
+          const legacyChapters = await AsyncStorage.getItem('bibleChapters');
+          
+          if (legacyBookStatus || legacyChapters) {
+            const legacyStatuses = legacyBookStatus ? JSON.parse(legacyBookStatus) : {};
+            const legacyChapterData = legacyChapters ? JSON.parse(legacyChapters) : [];
+            console.log('Found legacy data, migrating:', { legacyStatuses, chapterCount: legacyChapterData.length });
             
-            // Create a new unified state with the legacy book statuses
+            // Convert legacy chapters to new format with readDate
+            const migratedChapters = legacyChapterData.map((ch: any) => ({
+              book: ch.book,
+              chapter: ch.chapter,
+              isRead: ch.isRead || false,
+              readDate: ch.isRead ? new Date().toISOString().split('T')[0] : undefined,
+              isBookmarked: ch.isBookmarked || false,
+            }));
+            
+            // Create a new unified state with the legacy data
             state = {
-              chapters: [],
+              chapters: migratedChapters,
               bookStatuses: legacyStatuses,
             };
             

@@ -46,7 +46,7 @@ import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
-import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks } from "@/lib/time-blocks";
+import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
 import {
@@ -2318,7 +2318,13 @@ export function ScheduleTab({
                     // Calculate available hours based on INCOMPLETE items only
                     // This way, as you mark items complete, available time increases
                     const incompleteScheduledItems = [
-                      ...getTodosForDate(todos, selectedDate).filter((t) => t.startTime && !t.isCompleted),
+                      ...getTodosForDate(todos, selectedDate)
+                        .filter((t) => t.startTime && !t.isCompleted)
+                        .map((t) => ({
+                          ...t,
+                          // Todos without end time default to 30 minutes
+                          endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime!) + 30),
+                        })),
                       ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
                       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
                     ];

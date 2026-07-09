@@ -31,6 +31,7 @@ export type ScheduleTodo = {
   title: string;
   date: string; // ISO YYYY-MM-DD
   startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
   isCompleted: boolean;
   completedAt?: string;
   icon?: string; // MaterialIcons name

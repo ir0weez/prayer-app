@@ -1221,11 +1221,15 @@ export function ScheduleTab({
             console.log('Found legacy data, migrating:', { legacyStatuses, chapterCount: legacyChapterData.length });
             
             // Convert legacy chapters to new format with readDate
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            
             const migratedChapters = legacyChapterData.map((ch: any) => ({
               book: ch.book,
               chapter: ch.chapter,
               isRead: ch.isRead || false,
-              readDate: ch.isRead ? new Date().toISOString().split('T')[0] : undefined,
+              readDate: ch.isRead ? yesterdayStr : undefined,
               isBookmarked: ch.isBookmarked || false,
             }));
             

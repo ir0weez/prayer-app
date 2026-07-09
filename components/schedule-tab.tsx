@@ -805,6 +805,28 @@ export function ScheduleTab({
   const [chapterSummary, setChapterSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
+  
+  // Persist Personal Study expanded state
+  useEffect(() => {
+    const loadExpandedState = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('personalStudyExpanded');
+        if (saved !== null) {
+          setIsPersonalStudyExpanded(saved === 'true');
+        }
+      } catch (e) {
+        console.error('Error loading Personal Study expanded state:', e);
+      }
+    };
+    loadExpandedState();
+  }, []);
+  
+  const togglePersonalStudyExpanded = (newState: boolean) => {
+    setIsPersonalStudyExpanded(newState);
+    AsyncStorage.setItem('personalStudyExpanded', newState ? 'true' : 'false').catch(e => 
+      console.error('Error saving Personal Study expanded state:', e)
+    );
+  };
 
   // Reset selectedBibleStudyDay when selectedDate changes so it auto-defaults to the current day
   useEffect(() => {
@@ -1746,7 +1768,7 @@ export function ScheduleTab({
         case "personal-study-card":
           return (
             <Pressable
-              onPress={() => setIsPersonalStudyExpanded(!isPersonalStudyExpanded)}
+              onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
             >
               <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>

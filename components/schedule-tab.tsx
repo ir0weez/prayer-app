@@ -2289,7 +2289,8 @@ export function ScheduleTab({
                       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
                     ];
                     // Calculate time blocks based on incomplete items only
-                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems);
+                    // Use 6am-6pm business hours (06:00 to 18:00)
+                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems, '06:00', '18:00');
                     
                     // Filter blocks to only include time from now onwards (for today)
                     const now = new Date();

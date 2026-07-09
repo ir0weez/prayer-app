@@ -87,6 +87,8 @@ import {
   toggleTodoCompleted,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
+import { WeeklyCalendarView } from "./weekly-calendar-view";
+import { MonthlyCalendarView } from "./monthly-calendar-view";
 import { format12HourTime } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
@@ -805,6 +807,7 @@ export function ScheduleTab({
   const [chapterSummary, setChapterSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   
   // Persist Personal Study expanded state
   useEffect(() => {
@@ -2293,15 +2296,40 @@ export function ScheduleTab({
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Fixed Schedule Title */}
-      <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border }]}>
+      {/* Fixed Schedule Title with View Mode Toggle */}
+      <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={[scheduleStyles.scheduleTitleText, { color: colors.foreground }]}>Schedule</Text>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {(['day', 'week', 'month'] as const).map((mode) => (
+            <Pressable
+              key={mode}
+              onPress={() => setViewMode(mode)}
+              style={({ pressed }) => [{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: viewMode === mode ? colors.primary : colors.surface,
+                opacity: pressed ? 0.7 : 1,
+              }]}
+            >
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: viewMode === mode ? '#FFFFFF' : colors.muted,
+                textTransform: 'capitalize',
+              }}>
+                {mode}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
 
 
       {/* Content area */}
       <ReAnimated.View style={[{ flex: 1 }]}>
+        {viewMode === 'day' ? (
           <Animated.FlatList
             data={listData}
             keyExtractor={(item) => item.id}
@@ -2482,6 +2510,44 @@ export function ScheduleTab({
               </View>
             }
           />
+        ) : viewMode === 'week' ? (
+          <WeeklyCalendarView
+            selectedDate={new Date(selectedDate)}
+            timeBlocks={[
+              ...getTodosForDate(todos, selectedDate).map(t => ({
+                id: t.id,
+                title: t.title,
+                startTime: t.startTime || '09:00',
+                endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime || '09:00') + 30),
+                color: t.color || colors.primary,
+                isCompleted: t.isCompleted,
+              })),
+              ...getEventsForDate(events, selectedDate).map(e => ({
+                id: e.id,
+                title: e.title,
+                startTime: e.startTime || '09:00',
+                endTime: e.endTime || minutesToTime(timeToMinutes(e.startTime || '09:00') + 60),
+                color: e.color || colors.primary,
+                isCompleted: e.isCompleted,
+              })),
+              ...getMinistriesForDate(ministries, selectedDate).map(m => ({
+                id: m.id,
+                title: m.title,
+                startTime: m.startTime || '09:00',
+                endTime: m.endTime || minutesToTime(timeToMinutes(m.startTime || '09:00') + 60),
+                color: m.color || colors.primary,
+                isCompleted: m.isCompleted,
+              })),
+            ]}
+            onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
+          />
+        ) : (
+          <MonthlyCalendarView
+            selectedDate={new Date(selectedDate)}
+            events={new Map()}
+            onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
+          />
+        )}
         </ReAnimated.View>
 
       {/* FAB Button with Google Calendar-style popup menu */}

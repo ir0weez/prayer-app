@@ -1560,3 +1560,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Update chapter summary to show completed chapter info
 - [ ] Change free time block from dynamic to fixed 6am-6pm
 - [ ] Fix available time calculation to update in real-time when tasks complete
+
+## Phase 30: Weekly and Monthly Calendar Views
+
+- [x] Create date utility functions (addDays, getWeekStart, getMonthStart, getWeeksInMonth, etc.)
+- [x] Write comprehensive unit tests for date utilities (15 tests, all passing)
+- [x] Create WeeklyCalendarView component with hourly time slots (6 AM - 10 PM)
+- [x] Create MonthlyCalendarView component with event badges and month grid
+- [x] Add view mode toggle (Day/Week/Month) to Schedule tab header
+- [x] Integrate weekly and monthly views into Schedule tab with conditional rendering
+- [ ] Implement current time indicator in weekly view (vertical line showing now)
+- [ ] Add free-time depletion visualization to weekly view (show available blocks)
+- [ ] Populate monthly view with actual event/todo data from schedule
+- [ ] Add navigation between weeks/months with prev/next buttons
+- [ ] Test all calendar views end-to-end
+- [ ] Save checkpoint after calendar views implementation

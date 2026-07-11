@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import { addDays, getWeekStart } from '@/lib/date-utils';
+import { useMemo } from 'react';
 
 interface TimeBlock {
   id: string;
@@ -10,6 +10,7 @@ interface TimeBlock {
   endTime: string;
   color: string;
   isCompleted?: boolean;
+  type?: 'todo' | 'event' | 'ministry';
 }
 
 interface DayColumn {
@@ -47,6 +48,10 @@ function getBlockPosition(startTime: string, endTime: string) {
   return { top: Math.max(0, top), height: Math.max(20, height) };
 }
 
+function isTodo(block: TimeBlock): boolean {
+  return block.type === 'todo';
+}
+
 export function WeeklyCalendarView({
   selectedDate,
   timeBlocks,
@@ -63,7 +68,6 @@ export function WeeklyCalendarView({
       const date = addDays(weekStart, i);
       const dateStr = date.toISOString().split('T')[0];
       const dayBlocks = timeBlocks.filter(block => {
-        // Assuming timeBlocks have a date property
         return block.id.includes(dateStr);
       });
       
@@ -118,8 +122,9 @@ export function WeeklyCalendarView({
                   position: 'relative',
                 }}
               >
-                {/* Render time blocks for this hour */}
+                {/* Render events and ministries as full time blocks */}
                 {day.timeBlocks
+                  .filter(block => !isTodo(block))
                   .filter(block => {
                     const blockStart = timeToMinutes(block.startTime);
                     const blockEnd = timeToMinutes(block.endTime);
@@ -135,8 +140,8 @@ export function WeeklyCalendarView({
                         onPress={() => onBlockPress?.(block)}
                         style={{
                           position: 'absolute',
-                          left: 2,
-                          right: 2,
+                          left: 4,
+                          right: 4,
                           top: top % HOUR_HEIGHT,
                           height,
                           backgroundColor: block.color,
@@ -145,10 +150,42 @@ export function WeeklyCalendarView({
                           opacity: block.isCompleted ? 0.6 : 1,
                         }}
                       >
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#fff' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#fff', lineHeight: 12 }}>
                           {block.title}
                         </Text>
                       </Pressable>
+                    );
+                  })}
+                
+                {/* Render todos as thin left indicators */}
+                {day.timeBlocks
+                  .filter(block => isTodo(block))
+                  .filter(block => {
+                    const blockStart = timeToMinutes(block.startTime);
+                    const blockEnd = timeToMinutes(block.endTime);
+                    const hourStart = hour * 60;
+                    const hourEnd = (hour + 1) * 60;
+                    return blockStart < hourEnd && blockEnd > hourStart;
+                  })
+                  .map((block, idx) => {
+                    const { top, height } = getBlockPosition(block.startTime, block.endTime);
+                    const todoWidth = 3;
+                    const offset = idx * 4;
+                    return (
+                      <Pressable
+                        key={block.id}
+                        onPress={() => onBlockPress?.(block)}
+                        style={{
+                          position: 'absolute',
+                          left: 2 + offset,
+                          width: todoWidth,
+                          top: top % HOUR_HEIGHT,
+                          height,
+                          backgroundColor: block.color,
+                          borderRadius: 1,
+                          opacity: block.isCompleted ? 0.5 : 1,
+                        }}
+                      />
                     );
                   })}
               </View>

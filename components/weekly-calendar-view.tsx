@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import { addDays, getWeekStart } from '@/lib/date-utils';
+import { useMemo } from 'react';
 
 interface TimeBlock {
   id: string;
@@ -10,6 +10,7 @@ interface TimeBlock {
   endTime: string;
   color: string;
   isCompleted?: boolean;
+  type?: 'todo' | 'event' | 'ministry';
 }
 
 interface DayColumn {
@@ -36,15 +37,22 @@ function timeToMinutes(time: string): number {
   return hours * 60 + mins;
 }
 
-function getBlockPosition(startTime: string, endTime: string) {
+function isTodo(block: TimeBlock): boolean {
+  return block.type === 'todo';
+}
+
+function getStartHourIndex(startTime: string): number {
+  const startMins = timeToMinutes(startTime);
+  const startHourOffset = START_HOUR * 60;
+  const hourIndex = Math.floor((startMins - startHourOffset) / 60);
+  return Math.max(0, hourIndex);
+}
+
+function getBlockHeightInHours(startTime: string, endTime: string): number {
   const startMins = timeToMinutes(startTime);
   const endMins = timeToMinutes(endTime);
-  const startHourOffset = START_HOUR * 60;
-  
-  const top = ((startMins - startHourOffset) / 60) * HOUR_HEIGHT;
-  const height = ((endMins - startMins) / 60) * HOUR_HEIGHT;
-  
-  return { top: Math.max(0, top), height: Math.max(20, height) };
+  const durationMins = endMins - startMins;
+  return durationMins / 60;
 }
 
 export function WeeklyCalendarView({
@@ -63,7 +71,6 @@ export function WeeklyCalendarView({
       const date = addDays(weekStart, i);
       const dateStr = date.toISOString().split('T')[0];
       const dayBlocks = timeBlocks.filter(block => {
-        // Assuming timeBlocks have a date property
         return block.id.includes(dateStr);
       });
       
@@ -97,8 +104,8 @@ export function WeeklyCalendarView({
       
       {/* Time grid */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {HOURS.map((hour) => (
-          <View key={hour} style={{ flexDirection: 'row', height: HOUR_HEIGHT, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {HOURS.map((hour, hourIdx) => (
+          <View key={hour} style={{ flexDirection: 'row', minHeight: HOUR_HEIGHT, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             {/* Hour label */}
             <View style={{ width: 60, justifyContent: 'flex-start', paddingHorizontal: 8 }}>
               <Text style={{ fontSize: 11, color: colors.muted }}>
@@ -118,37 +125,69 @@ export function WeeklyCalendarView({
                   position: 'relative',
                 }}
               >
-                {/* Render time blocks for this hour */}
+                {/* Render events and ministries */}
                 {day.timeBlocks
-                  .filter(block => {
-                    const blockStart = timeToMinutes(block.startTime);
-                    const blockEnd = timeToMinutes(block.endTime);
-                    const hourStart = hour * 60;
-                    const hourEnd = (hour + 1) * 60;
-                    return blockStart < hourEnd && blockEnd > hourStart;
-                  })
+                  .filter(block => !isTodo(block))
+                  .filter(block => getStartHourIndex(block.startTime) === hourIdx)
                   .map((block) => {
-                    const { top, height } = getBlockPosition(block.startTime, block.endTime);
+                    const heightInHours = getBlockHeightInHours(block.startTime, block.endTime);
+                    const blockHeight = heightInHours * HOUR_HEIGHT;
                     return (
                       <Pressable
                         key={block.id}
                         onPress={() => onBlockPress?.(block)}
                         style={{
                           position: 'absolute',
-                          left: 2,
-                          right: 2,
-                          top: top % HOUR_HEIGHT,
-                          height,
+                          left: 4,
+                          right: 4,
+                          top: 0,
+                          height: blockHeight,
                           backgroundColor: block.color,
                           borderRadius: 4,
                           padding: 4,
                           opacity: block.isCompleted ? 0.6 : 1,
+                          zIndex: 10,
                         }}
                       >
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#fff' }}>
+                        <Text 
+                          style={{ 
+                            fontSize: 10, 
+                            fontWeight: '600', 
+                            color: '#fff', 
+                            lineHeight: 12,
+                            textDecorationLine: block.isCompleted ? 'line-through' : 'none',
+                          }}
+                          numberOfLines={3}
+                        >
                           {block.title}
                         </Text>
                       </Pressable>
+                    );
+                  })}
+                
+                {/* Render todos as thin left indicators */}
+                {day.timeBlocks
+                  .filter(block => isTodo(block))
+                  .map((block, idx) => {
+                    const heightInHours = getBlockHeightInHours(block.startTime, block.endTime);
+                    const blockHeight = heightInHours * HOUR_HEIGHT;
+                    const todoWidth = 3;
+                    const offset = idx * 4;
+                    return (
+                      <Pressable
+                        key={block.id}
+                        onPress={() => onBlockPress?.(block)}
+                        style={{
+                          position: 'absolute',
+                          left: 2 + offset,
+                          width: todoWidth,
+                          top: 0,
+                          height: blockHeight,
+                          backgroundColor: block.color,
+                          borderRadius: 1,
+                          opacity: block.isCompleted ? 0.5 : 1,
+                        }}
+                      />
                     );
                   })}
               </View>

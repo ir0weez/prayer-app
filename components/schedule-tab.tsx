@@ -2578,6 +2578,7 @@ export function ScheduleTab({
                     endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime || '09:00') + 30),
                     color: t.color || colors.primary,
                     isCompleted: t.isCompleted,
+                    type: 'todo',
                   });
                 });
                 // Add events
@@ -2589,6 +2590,7 @@ export function ScheduleTab({
                     endTime: e.endTime || minutesToTime(timeToMinutes(e.startTime || '09:00') + 60),
                     color: e.color || colors.primary,
                     isCompleted: e.isCompleted,
+                    type: 'event',
                   });
                 });
                 // Add ministries
@@ -2600,6 +2602,7 @@ export function ScheduleTab({
                     endTime: m.endTime || minutesToTime(timeToMinutes(m.startTime || '09:00') + 60),
                     color: m.color || colors.primary,
                     isCompleted: m.isCompleted,
+                    type: 'ministry',
                   });
                 });
               }
@@ -2618,7 +2621,7 @@ export function ScheduleTab({
                   const dateStr = t.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: t.title, color: t.color || colors.primary, type: 'todo' });
+                  eventMap.get(key)!.push({ title: t.title, color: t.color || colors.primary, type: 'todo', isCompleted: t.isCompleted });
                 }
               });
               // Add events
@@ -2627,7 +2630,7 @@ export function ScheduleTab({
                   const dateStr = e.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: e.title, color: e.color || colors.primary, type: 'event' });
+                  eventMap.get(key)!.push({ title: e.title, color: e.color || colors.primary, type: 'event', isCompleted: e.isCompleted });
                 }
               });
               // Add ministries
@@ -2636,7 +2639,7 @@ export function ScheduleTab({
                   const dateStr = m.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: m.title, color: m.color || colors.primary, type: 'ministry' });
+                  eventMap.get(key)!.push({ title: m.title, color: m.color || colors.primary, type: 'ministry', isCompleted: m.isCompleted });
                 }
               });
               return eventMap;

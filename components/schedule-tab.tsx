@@ -808,6 +808,7 @@ export function ScheduleTab({
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
+  const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   
   // Persist Personal Study expanded state
   useEffect(() => {
@@ -2299,29 +2300,75 @@ export function ScheduleTab({
       {/* Fixed Schedule Title with View Mode Toggle */}
       <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={[scheduleStyles.scheduleTitleText, { color: colors.foreground }]}>Schedule</Text>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
-          {(['day', 'week', 'month'] as const).map((mode) => (
-            <Pressable
-              key={mode}
-              onPress={() => setViewMode(mode)}
-              style={({ pressed }) => [{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: viewMode === mode ? colors.primary : colors.surface,
-                opacity: pressed ? 0.7 : 1,
-              }]}
-            >
-              <Text style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: viewMode === mode ? '#FFFFFF' : colors.muted,
-                textTransform: 'capitalize',
-              }}>
-                {mode}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={{ position: 'relative' }}>
+          <Pressable
+            onPress={() => setShowViewMenu(!showViewMenu)}
+            style={({ pressed }) => [{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.7 : 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }]}
+          >
+            <Text style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: '#FFFFFF',
+              textTransform: 'capitalize',
+            }}>
+              {viewMode}
+            </Text>
+            <MaterialIcons name={showViewMenu ? 'expand-less' : 'expand-more'} size={16} color="#FFFFFF" />
+          </Pressable>
+          {showViewMenu && (
+            <View style={{
+              position: 'absolute',
+              top: 36,
+              right: 0,
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.border,
+              zIndex: 1000,
+              minWidth: 100,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 5,
+            }}>
+              {(['day', 'week', 'month'] as const).map((mode, index) => (
+                <Pressable
+                  key={mode}
+                  onPress={() => {
+                    setViewMode(mode);
+                    setShowViewMenu(false);
+                  }}
+                  style={({ pressed }) => [{
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    backgroundColor: viewMode === mode ? colors.primary + '20' : 'transparent',
+                    opacity: pressed ? 0.7 : 1,
+                    borderBottomWidth: index < 2 ? 1 : 0,
+                    borderBottomColor: colors.border,
+                  }]}
+                >
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: viewMode === mode ? '600' : '400',
+                    color: viewMode === mode ? colors.primary : colors.foreground,
+                    textTransform: 'capitalize',
+                  }}>
+                    {mode}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       </View>
 
@@ -2544,7 +2591,37 @@ export function ScheduleTab({
         ) : (
           <MonthlyCalendarView
             selectedDate={new Date(selectedDate)}
-            events={new Map()}
+            events={(() => {
+              const eventMap = new Map<string, any[]>();
+              // Add todos
+              todos.forEach(t => {
+                if (t.startTime) {
+                  const dateStr = t.date || selectedDate;
+                  const key = dateStr;
+                  if (!eventMap.has(key)) eventMap.set(key, []);
+                  eventMap.get(key)!.push({ title: t.title, color: t.color || colors.primary, type: 'todo' });
+                }
+              });
+              // Add events
+              events.forEach(e => {
+                if (e.startTime) {
+                  const dateStr = e.date || selectedDate;
+                  const key = dateStr;
+                  if (!eventMap.has(key)) eventMap.set(key, []);
+                  eventMap.get(key)!.push({ title: e.title, color: e.color || colors.primary, type: 'event' });
+                }
+              });
+              // Add ministries
+              ministries.forEach(m => {
+                if (m.startTime) {
+                  const dateStr = m.date || selectedDate;
+                  const key = dateStr;
+                  if (!eventMap.has(key)) eventMap.set(key, []);
+                  eventMap.get(key)!.push({ title: m.title, color: m.color || colors.primary, type: 'ministry' });
+                }
+              });
+              return eventMap;
+            })()}
             onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
           />
         )}

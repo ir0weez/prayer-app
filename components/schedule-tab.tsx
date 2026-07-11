@@ -2618,7 +2618,7 @@ export function ScheduleTab({
                   const dateStr = t.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: t.title, color: t.color || colors.primary, type: 'todo' });
+                  eventMap.get(key)!.push({ id: t.id, title: t.title, color: t.color || colors.primary, type: 'todo', isCompleted: t.isCompleted });
                 }
               });
               // Add events
@@ -2627,7 +2627,7 @@ export function ScheduleTab({
                   const dateStr = e.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: e.title, color: e.color || colors.primary, type: 'event' });
+                  eventMap.get(key)!.push({ id: e.id, title: e.title, color: e.color || colors.primary, type: 'event', isCompleted: e.isCompleted });
                 }
               });
               // Add ministries
@@ -2636,7 +2636,7 @@ export function ScheduleTab({
                   const dateStr = m.date || selectedDate;
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
-                  eventMap.get(key)!.push({ title: m.title, color: m.color || colors.primary, type: 'ministry' });
+                  eventMap.get(key)!.push({ id: m.id, title: m.title, color: m.color || colors.primary, type: 'ministry', isCompleted: m.isCompleted });
                 }
               });
               return eventMap;

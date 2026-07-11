@@ -88,6 +88,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
+import { getWeekStart, formatDateISO } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
 import { format12HourTime } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -2560,32 +2561,50 @@ export function ScheduleTab({
         ) : viewMode === 'week' ? (
           <WeeklyCalendarView
             selectedDate={new Date(selectedDate)}
-            timeBlocks={[
-              ...getTodosForDate(todos, selectedDate).map(t => ({
-                id: t.id,
-                title: t.title,
-                startTime: t.startTime || '09:00',
-                endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime || '09:00') + 30),
-                color: t.color || colors.primary,
-                isCompleted: t.isCompleted,
-              })),
-              ...getEventsForDate(events, selectedDate).map(e => ({
-                id: e.id,
-                title: e.title,
-                startTime: e.startTime || '09:00',
-                endTime: e.endTime || minutesToTime(timeToMinutes(e.startTime || '09:00') + 60),
-                color: e.color || colors.primary,
-                isCompleted: e.isCompleted,
-              })),
-              ...getMinistriesForDate(ministries, selectedDate).map(m => ({
-                id: m.id,
-                title: m.title,
-                startTime: m.startTime || '09:00',
-                endTime: m.endTime || minutesToTime(timeToMinutes(m.startTime || '09:00') + 60),
-                color: m.color || colors.primary,
-                isCompleted: m.isCompleted,
-              })),
-            ]}
+            timeBlocks={(() => {
+              const blocks: any[] = [];
+              // Get all items for the entire week
+              const weekStart = getWeekStart(new Date(selectedDate));
+              for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                // Add todos
+                getTodosForDate(todos, dateStr).forEach((t: any) => {
+                  blocks.push({
+                    id: `${dateStr}-${t.id}`,
+                    title: t.title,
+                    startTime: t.startTime || '09:00',
+                    endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime || '09:00') + 30),
+                    color: t.color || colors.primary,
+                    isCompleted: t.isCompleted,
+                  });
+                });
+                // Add events
+                getEventsForDate(events, dateStr).forEach(e => {
+                  blocks.push({
+                    id: `${dateStr}-${e.id}`,
+                    title: e.title,
+                    startTime: e.startTime || '09:00',
+                    endTime: e.endTime || minutesToTime(timeToMinutes(e.startTime || '09:00') + 60),
+                    color: e.color || colors.primary,
+                    isCompleted: e.isCompleted,
+                  });
+                });
+                // Add ministries
+                getMinistriesForDate(ministries, dateStr).forEach(m => {
+                  blocks.push({
+                    id: `${dateStr}-${m.id}`,
+                    title: m.title,
+                    startTime: m.startTime || '09:00',
+                    endTime: m.endTime || minutesToTime(timeToMinutes(m.startTime || '09:00') + 60),
+                    color: m.color || colors.primary,
+                    isCompleted: m.isCompleted,
+                  });
+                });
+              }
+              return blocks;
+            })()}
             onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
           />
         ) : (

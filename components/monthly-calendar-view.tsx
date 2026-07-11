@@ -125,6 +125,8 @@ export function MonthlyCalendarView({
                             fontSize: 9,
                             fontWeight: '500',
                             color: '#fff',
+                            textDecorationLine: event.isCompleted ? 'line-through' : 'none',
+                            opacity: event.isCompleted ? 0.7 : 1,
                           }}
                           numberOfLines={1}
                         >

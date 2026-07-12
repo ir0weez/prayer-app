@@ -1597,3 +1597,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Integrate completion animation into ScheduleProgressBar component
 - [x] Ensure animation loops continuously throughout the day once complete
 - [x] Test animation performance and visual polish
+- [x] Refine animation: change sparkles to blue/purple color
+- [x] Implement two-phase animation: reward pulse+shimmer on completion, then continuous particles
+- [x] Verify all tests pass with animation refinements

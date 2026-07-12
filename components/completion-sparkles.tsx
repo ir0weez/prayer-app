@@ -25,6 +25,7 @@ interface CompletionSparklesProps {
   isComplete: boolean;
   barWidth: number;
   barHeight: number;
+  animationProgress?: any; // Optional external animation progress
 }
 
 /**
@@ -35,8 +36,10 @@ export function CompletionSparkles({
   isComplete,
   barWidth,
   barHeight,
+  animationProgress: externalProgress,
 }: CompletionSparklesProps) {
-  const animationProgress = useSharedValue(0);
+  const internalProgress = useSharedValue(0);
+  const animationProgress = externalProgress || internalProgress;
 
   // Generate random sparkles that animate around the bar
   const sparkles = useMemo(() => {
@@ -85,13 +88,16 @@ export function CompletionSparkles({
   }, [isComplete, barWidth, barHeight]);
 
   useEffect(() => {
+    // Only handle internal animation if no external progress is provided
+    if (externalProgress) return;
+    
     if (!isComplete) {
-      animationProgress.value = 0;
+      internalProgress.value = 0;
       return;
     }
 
     // Loop the animation continuously
-    animationProgress.value = withRepeat(
+    internalProgress.value = withRepeat(
       withTiming(1, {
         duration: 1600,
         easing: Easing.linear,
@@ -99,7 +105,7 @@ export function CompletionSparkles({
       -1,
       true
     );
-  }, [isComplete, animationProgress]);
+  }, [isComplete, externalProgress, internalProgress]);
 
   if (!isComplete || sparkles.length === 0) {
     return null;
@@ -120,7 +126,7 @@ export function CompletionSparkles({
         <Sparkle
           key={sparkle.id}
           sparkle={sparkle}
-          animationProgress={animationProgress}
+          animationProgress={animationProgress as any}
         />
       ))}
     </View>
@@ -205,8 +211,8 @@ function Sparkle({ sparkle, animationProgress }: SparkleProps) {
           width: sparkle.size,
           height: sparkle.size,
           borderRadius: sparkle.size / 2,
-          backgroundColor: "#22C55E", // Green color
-          shadowColor: "#22C55E",
+              backgroundColor: "#8B5CF6", // Purple color
+          shadowColor: "#8B5CF6",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: 0.8,
           shadowRadius: 4,

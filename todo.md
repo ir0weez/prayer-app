@@ -1600,3 +1600,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Refine animation: change sparkles to blue/purple color
 - [x] Implement two-phase animation: reward pulse+shimmer on completion, then continuous particles
 - [x] Verify all tests pass with animation refinements
+- [x] Redesign with subtle, organic approach: smooth glow fade + random sparkles
+- [x] Create SubtleCompletionSparkles component with organic random timing
+- [x] Remove looping animation - sparkles appear randomly without obvious pattern
+- [x] Implement smooth glow that fades in/out naturally on completion

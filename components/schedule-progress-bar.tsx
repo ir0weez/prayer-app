@@ -3,15 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
   withTiming,
-  withSequence,
   Easing,
   interpolate,
   Extrapolation,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
-import { CompletionSparkles } from "./completion-sparkles";
+import { SubtleCompletionSparkles } from "./subtle-completion-sparkles";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -24,78 +22,42 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = percentage === 100;
   
-  const rewardAnimation = useSharedValue(0);
-  const particleAnimation = useSharedValue(0);
-  const hasPlayedReward = useRef(false);
+  const glowAnimation = useSharedValue(0);
+  const hasPlayedGlow = useRef(false);
   const [barWidth, setBarWidth] = useState(0);
 
-  // Play reward animation once when completion is reached
+  // Play glow animation once when completion is reached
   useEffect(() => {
-    if (isComplete && !hasPlayedReward.current) {
-      hasPlayedReward.current = true;
-      // Play the reward animation (pulse + shimmer)
-      rewardAnimation.value = withSequence(
-        withTiming(1, {
-          duration: 600,
-          easing: Easing.out(Easing.cubic),
-        }),
-        withTiming(0, {
-          duration: 200,
-          easing: Easing.in(Easing.cubic),
-        })
-      );
+    if (isComplete && !hasPlayedGlow.current) {
+      hasPlayedGlow.current = true;
+      // Smooth glow fade in and out
+      glowAnimation.value = withTiming(1, {
+        duration: 2000,
+        easing: Easing.inOut(Easing.sin),
+      });
     }
-  }, [isComplete, rewardAnimation]);
+  }, [isComplete, glowAnimation]);
 
-  // Start particle animation after reward completes
-  useEffect(() => {
-    if (isComplete) {
-      // Delay particle animation to start after reward animation
-      const timer = setTimeout(() => {
-        particleAnimation.value = withRepeat(
-          withTiming(1, {
-            duration: 1600,
-            easing: Easing.linear,
-          }),
-          -1,
-          true
-        );
-      }, 800);
-
-      return () => clearTimeout(timer);
-    } else {
-      particleAnimation.value = 0;
-      hasPlayedReward.current = false;
-    }
-  }, [isComplete, particleAnimation]);
-
-  // Animated style for the reward effect (pulse + shimmer)
-  const rewardStyle = useAnimatedStyle(() => {
-    // Scale pulse
-    const scale = interpolate(
-      rewardAnimation.value,
-      [0, 0.4, 1],
-      [1, 1.15, 1],
+  // Animated style for the smooth glow effect
+  const glowStyle = useAnimatedStyle(() => {
+    // Smooth glow that fades in and out
+    const shadowOpacity = interpolate(
+      glowAnimation.value,
+      [0, 0.3, 0.7, 1],
+      [0, 0.6, 0.6, 0],
       Extrapolation.CLAMP
     );
 
-    // Shimmer effect (brightness)
-    const shimmerOpacity = interpolate(
-      rewardAnimation.value,
-      [0, 0.2, 0.5, 1],
-      [0, 1, 0.3, 0],
+    const shadowRadius = interpolate(
+      glowAnimation.value,
+      [0, 0.5, 1],
+      [2, 10, 2],
       Extrapolation.CLAMP
     );
 
     return {
-      transform: [{ scale }],
-      shadowOpacity: shimmerOpacity,
-      shadowRadius: interpolate(
-        rewardAnimation.value,
-        [0, 0.5, 1],
-        [0, 8, 0],
-        Extrapolation.CLAMP
-      ),
+      shadowOpacity,
+      shadowRadius,
     };
   });
 
@@ -122,7 +84,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           overflow: "visible",
         }}
       >
-        {/* Animated reward effect (pulse + shimmer) - plays once on completion */}
+        {/* Animated smooth glow (only when complete) */}
         {isComplete && (
           <Animated.View
             style={[
@@ -138,7 +100,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                 shadowOffset: { width: 0, height: 0 },
                 zIndex: 2,
               },
-              rewardStyle,
+              glowStyle,
             ]}
           />
         )}
@@ -155,10 +117,9 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           }}
         />
 
-        {/* Continuous particle animation (after reward completes) */}
-        <CompletionSparkles
+        {/* Subtle organic sparkles */}
+        <SubtleCompletionSparkles
           isComplete={isComplete}
-          animationProgress={particleAnimation}
           barWidth={barWidth}
           barHeight={6}
         />

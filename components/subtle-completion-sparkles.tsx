@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -33,42 +33,39 @@ export function SubtleCompletionSparkles({
   barWidth,
   barHeight,
 }: SubtleCompletionSparklesProps) {
-  const sparklesRef = useRef<Sparkle[]>([]);
-  const nextSparkleTimeRef = useRef(0);
+  const [sparkles, setSparkles] = useState<Sparkle[]>([]);
+  const nextSparkleTimeRef = { current: 0 };
 
-  // Generate initial random sparkles
-  const initialSparkles = useMemo(() => {
-    if (!isComplete) return [];
+  // Generate initial sparkles when completion is reached and barWidth is known
+  useEffect(() => {
+    if (!isComplete || barWidth === 0) {
+      setSparkles([]);
+      return;
+    }
 
-    const sparkles: Sparkle[] = [];
     // Create 3-5 initial sparkles at random times
     const count = 3 + Math.floor(Math.random() * 3);
+    const initialSparkles: Sparkle[] = [];
 
     for (let i = 0; i < count; i++) {
-      sparkles.push({
+      initialSparkles.push({
         id: `sparkle-${i}`,
         x: Math.random() * barWidth,
         y: barHeight / 2 + (Math.random() - 0.5) * barHeight * 2,
         size: 2 + Math.random() * 3,
-        delay: Math.random() * 2000, // Spread out over 2 seconds
+        delay: Math.random() * 2000,
         duration: 800 + Math.random() * 400,
       });
     }
 
-    return sparkles;
+    setSparkles(initialSparkles);
+    nextSparkleTimeRef.current = Date.now() + 3000;
   }, [isComplete, barWidth, barHeight]);
 
+  // Periodically add new random sparkles
   useEffect(() => {
-    if (!isComplete) {
-      sparklesRef.current = [];
-      nextSparkleTimeRef.current = 0;
-      return;
-    }
+    if (!isComplete || barWidth === 0) return;
 
-    sparklesRef.current = initialSparkles;
-    nextSparkleTimeRef.current = Date.now() + 3000; // Wait 3 seconds before adding random ones
-
-    // Periodically add new random sparkles
     const interval = setInterval(() => {
       const now = Date.now();
       if (now >= nextSparkleTimeRef.current) {
@@ -83,18 +80,16 @@ export function SubtleCompletionSparkles({
             duration: 600 + Math.random() * 600,
           };
 
-          sparklesRef.current.push(newSparkle);
-
-          // Schedule next potential sparkle (2-5 seconds from now)
+          setSparkles((prev) => [...prev, newSparkle]);
           nextSparkleTimeRef.current = now + 2000 + Math.random() * 3000;
         }
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isComplete, initialSparkles]);
+  }, [isComplete, barWidth, barHeight]);
 
-  if (!isComplete) {
+  if (!isComplete || barWidth === 0 || sparkles.length === 0) {
     return null;
   }
 
@@ -109,7 +104,7 @@ export function SubtleCompletionSparkles({
         pointerEvents: "none",
       }}
     >
-      {sparklesRef.current.map((sparkle) => (
+      {sparkles.map((sparkle) => (
         <SubtleSparkle key={sparkle.id} sparkle={sparkle} />
       ))}
     </View>

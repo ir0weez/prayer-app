@@ -20,7 +20,7 @@ interface ScheduleProgressBarProps {
 export function ScheduleProgressBar({ completed, total, label = "Progress" }: ScheduleProgressBarProps) {
   const colors = useColors();
   const percentage = total > 0 ? (completed / total) * 100 : 0;
-  const isComplete = percentage === 100;
+  const isComplete = total > 0 && completed >= total;
   
   const glowAnimation = useSharedValue(0);
   const hasPlayedGlow = useRef(false);
@@ -38,26 +38,26 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     }
   }, [isComplete, glowAnimation]);
 
-  // Animated style for the smooth glow effect
+  // Animated style for the smooth glow effect (using opacity and scale for cross-platform support)
   const glowStyle = useAnimatedStyle(() => {
     // Smooth glow that fades in and out
-    const shadowOpacity = interpolate(
+    const opacity = interpolate(
       glowAnimation.value,
       [0, 0.3, 0.7, 1],
-      [0, 0.6, 0.6, 0],
+      [0, 0.8, 0.8, 0],
       Extrapolation.CLAMP
     );
 
-    const shadowRadius = interpolate(
+    const scaleY = interpolate(
       glowAnimation.value,
       [0, 0.5, 1],
-      [2, 10, 2],
+      [1, 1.5, 1],
       Extrapolation.CLAMP
     );
 
     return {
-      shadowOpacity,
-      shadowRadius,
+      opacity,
+      transform: [{ scaleY }],
     };
   });
 
@@ -84,7 +84,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           overflow: "visible",
         }}
       >
-        {/* Animated smooth glow (only when complete) */}
+        {/* Animated smooth glow overlay (only when complete) */}
         {isComplete && (
           <Animated.View
             style={[
@@ -96,8 +96,6 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                 height: "100%",
                 backgroundColor: "#8B5CF6", // Purple
                 borderRadius: 3,
-                shadowColor: "#8B5CF6",
-                shadowOffset: { width: 0, height: 0 },
                 zIndex: 2,
               },
               glowStyle,
@@ -118,11 +116,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
         />
 
         {/* Subtle organic sparkles */}
-        <SubtleCompletionSparkles
-          isComplete={isComplete}
-          barWidth={barWidth}
-          barHeight={6}
-        />
+        {barWidth > 0 && (
+          <SubtleCompletionSparkles
+            isComplete={isComplete}
+            barWidth={barWidth}
+            barHeight={6}
+          />
+        )}
       </View>
     </View>
   );

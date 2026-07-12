@@ -15,6 +15,19 @@ describe("Time Block Helpers", () => {
       expect(timeToMinutes("23:59")).toBe(1439);
       expect(timeToMinutes("00:00")).toBe(0);
     });
+
+    it("should handle invalid time formats gracefully", () => {
+      expect(timeToMinutes("")).toBe(0);
+      expect(timeToMinutes("invalid")).toBe(0);
+      expect(timeToMinutes("25:00")).toBe(0);
+      expect(timeToMinutes("12:60")).toBe(0);
+      expect(timeToMinutes("-1:30")).toBe(0);
+    });
+
+    it("should handle times with whitespace", () => {
+      expect(timeToMinutes(" 06:00 ")).toBe(360);
+      expect(timeToMinutes(" 12:30")).toBe(750);
+    });
   });
 
   describe("minutesToTime", () => {
@@ -125,6 +138,23 @@ describe("Time Block Helpers", () => {
       expect(blocks.length).toBe(2);
       expect(blocks[0].startTime).toBe("06:00");
       expect(blocks[0].endTime).toBe("14:00");
+    });
+
+    it("should correctly calculate duration for afternoon event (4:44 PM to 7:00 PM)", () => {
+      // Bug report: 4:44 PM to 7:00 PM was showing as 13h instead of 2h 16m
+      // 4:44 PM = 16:44 in 24-hour format
+      // 7:00 PM = 19:00 in 24-hour format
+      // Duration should be 2 hours 16 minutes (136 minutes)
+      const items = [
+        { startTime: "16:44", endTime: "19:00" },
+      ];
+      const blocks = calculateAvailableTimeBlocks(items);
+      expect(blocks.length).toBe(2);
+      expect(blocks[0].startTime).toBe("06:00");
+      expect(blocks[0].endTime).toBe("16:44");
+      expect(blocks[1].startTime).toBe("19:00");
+      expect(blocks[1].endTime).toBe("23:00");
+      expect(blocks[1].durationMinutes).toBe(240); // 4 hours
     });
 
     it("should handle multiple completed and incomplete events", () => {

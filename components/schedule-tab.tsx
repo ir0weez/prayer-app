@@ -90,7 +90,7 @@ import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPr
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
-import { format12HourTime } from "@/lib/utils";
+import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -1363,11 +1363,25 @@ export function ScheduleTab({
 
   const handleSaveEvent = () => {
     if (!formTitle.trim()) return;
+    
+    // Validate and normalize times to ensure they're in 24-hour HH:mm format
+    const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
+    const normalizedEndTime = formEndTime ? normalizeTimeFormat(formEndTime) : undefined;
+    
+    if (formStartTime && !normalizedStartTime) {
+      Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
+      return;
+    }
+    if (formEndTime && !normalizedEndTime) {
+      Alert.alert("Invalid Time", "End time must be in HH:mm format (24-hour)");
+      return;
+    }
+    
     const newEvent = createScheduleEvent({
       title: formTitle.trim(),
       date: formDate || selectedDate,
-      startTime: formStartTime || undefined,
-      endTime: formEndTime || undefined,
+      startTime: normalizedStartTime || undefined,
+      endTime: normalizedEndTime || undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
@@ -1383,8 +1397,17 @@ export function ScheduleTab({
 
   const handleSaveTodo = () => {
     if (!formTitle.trim()) return;
+    
+    // Validate and normalize times to ensure they're in 24-hour HH:mm format
+    const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
+    
+    if (formStartTime && !normalizedStartTime) {
+      Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
+      return;
+    }
+    
     const newTodo = createScheduleTodo(
-      { title: formTitle.trim(), date: formDate || selectedDate, startTime: formStartTime || undefined, color: formColor, notes: formTodoNotes || undefined },
+      { title: formTitle.trim(), date: formDate || selectedDate, startTime: normalizedStartTime || undefined, color: formColor, notes: formTodoNotes || undefined },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
     if (formLinkedPeopleIds.length > 0) {
@@ -1430,6 +1453,19 @@ export function ScheduleTab({
   const handleSaveMinistry = async () => {
     if (!formTitle.trim()) return;
     
+    // Validate and normalize times to ensure they're in 24-hour HH:mm format
+    const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
+    const normalizedEndTime = formEndTime ? normalizeTimeFormat(formEndTime) : undefined;
+    
+    if (formStartTime && !normalizedStartTime) {
+      Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
+      return;
+    }
+    if (formEndTime && !normalizedEndTime) {
+      Alert.alert("Invalid Time", "End time must be in HH:mm format (24-hour)");
+      return;
+    }
+    
     // If editing, update existing ministry; otherwise create new
     if (editingMinistry) {
       const updatedMinistry: ScheduleMinistry = {
@@ -1439,8 +1475,8 @@ export function ScheduleTab({
         date: formDate || selectedDate,
         dueDate: formDueDate || undefined,
         color: formColor,
-        startTime: formStartTime || undefined,
-        endTime: formEndTime || undefined,
+        startTime: normalizedStartTime || undefined,
+        endTime: normalizedEndTime || undefined,
         location: formLocation || undefined,
         notes: formNotes || undefined,
         linkedPeopleIds: formLinkedPeopleIds.length > 0 ? formLinkedPeopleIds : undefined,
@@ -1457,8 +1493,8 @@ export function ScheduleTab({
         date: formDate || selectedDate,
         dueDate: formDueDate || undefined,
         color: formColor,
-        startTime: formStartTime || undefined,
-        endTime: formEndTime || undefined,
+        startTime: normalizedStartTime || undefined,
+        endTime: normalizedEndTime || undefined,
         location: formLocation || undefined,
         notes: formNotes || undefined,
       });

@@ -15,9 +15,31 @@ export type TimeBlock = {
 
 /**
  * Convert time string (HH:mm) to minutes since midnight
+ * Ensures the time is in valid 24-hour format before conversion
  */
 export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
+  if (!time || typeof time !== 'string') {
+    console.warn(`Invalid time input: ${time}`);
+    return 0;
+  }
+  
+  const trimmed = time.trim();
+  const parts = trimmed.split(":");
+  
+  if (parts.length !== 2) {
+    console.warn(`Invalid time format: ${time}. Expected HH:mm`);
+    return 0;
+  }
+  
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  
+  // Validate ranges
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    console.warn(`Invalid time values: hours=${hours}, minutes=${minutes}`);
+    return 0;
+  }
+  
   return hours * 60 + minutes;
 }
 

@@ -1575,3 +1575,15 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add navigation between weeks/months with prev/next buttons
 - [ ] Test all calendar views end-to-end
 - [ ] Save checkpoint after calendar views implementation
+
+
+## Phase 31: Fix Duration Calculation Bug
+
+- [x] Add time format validation and conversion functions to utils.ts (ensureValidTimeFormat, normalizeTimeFormat)
+- [x] Enhance timeToMinutes function to validate time format and handle edge cases gracefully
+- [x] Add comprehensive test cases for time validation (invalid formats, whitespace handling, edge cases)
+- [x] Add time validation to handleSaveEvent function to ensure times are in 24-hour HH:mm format
+- [x] Add time validation to handleSaveTodo function to ensure times are in 24-hour HH:mm format
+- [x] Add time validation to handleSaveMinistry function to ensure times are in 24-hour HH:mm format
+- [x] Verify all 262 tests pass with new validation logic
+- [x] Document the duration bug investigation and root cause analysis

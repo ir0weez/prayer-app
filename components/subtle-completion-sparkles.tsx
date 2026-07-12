@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -25,8 +25,8 @@ interface SubtleCompletionSparklesProps {
 }
 
 /**
- * Subtle, organic sparkles that appear randomly around a completed progress bar
- * Creates a quiet, elegant celebration without feeling like a loop
+ * Prominent sparkles that celebrate when a progress bar is completed
+ * Creates a noticeable, satisfying celebration effect
  */
 export function SubtleCompletionSparkles({
   isComplete,
@@ -43,48 +43,48 @@ export function SubtleCompletionSparkles({
       return;
     }
 
-    // Create 3-5 initial sparkles at random times
-    const count = 3 + Math.floor(Math.random() * 3);
+    // Create 6-8 prominent initial sparkles
+    const count = 6 + Math.floor(Math.random() * 3);
     const initialSparkles: Sparkle[] = [];
 
     for (let i = 0; i < count; i++) {
       initialSparkles.push({
         id: `sparkle-${i}`,
         x: Math.random() * barWidth,
-        y: barHeight / 2 + (Math.random() - 0.5) * barHeight * 2,
-        size: 2 + Math.random() * 3,
-        delay: Math.random() * 2000,
-        duration: 800 + Math.random() * 400,
+        y: barHeight / 2 + (Math.random() - 0.5) * barHeight * 3,
+        size: 4 + Math.random() * 4, // Bigger sparkles (4-8px)
+        delay: Math.random() * 1500,
+        duration: 1200 + Math.random() * 600, // Longer animation
       });
     }
 
     setSparkles(initialSparkles);
-    nextSparkleTimeRef.current = Date.now() + 3000;
+    nextSparkleTimeRef.current = Date.now() + 2000;
   }, [isComplete, barWidth, barHeight]);
 
-  // Periodically add new random sparkles
+  // Periodically add new sparkles
   useEffect(() => {
     if (!isComplete || barWidth === 0) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
       if (now >= nextSparkleTimeRef.current) {
-        // Randomly decide whether to add a sparkle (60% chance)
-        if (Math.random() < 0.6) {
+        // 80% chance to add a sparkle (more frequent)
+        if (Math.random() < 0.8) {
           const newSparkle: Sparkle = {
             id: `sparkle-${Date.now()}`,
             x: Math.random() * barWidth,
-            y: barHeight / 2 + (Math.random() - 0.5) * barHeight * 3,
-            size: 1.5 + Math.random() * 2.5,
+            y: barHeight / 2 + (Math.random() - 0.5) * barHeight * 4,
+            size: 3 + Math.random() * 3.5, // Bigger sparkles
             delay: 0,
-            duration: 600 + Math.random() * 600,
+            duration: 1000 + Math.random() * 800,
           };
 
           setSparkles((prev) => [...prev, newSparkle]);
-          nextSparkleTimeRef.current = now + 2000 + Math.random() * 3000;
+          nextSparkleTimeRef.current = now + 1500 + Math.random() * 2000; // More frequent
         }
       }
-    }, 500);
+    }, 300); // Check more often
 
     return () => clearInterval(interval);
   }, [isComplete, barWidth, barHeight]);
@@ -97,25 +97,25 @@ export function SubtleCompletionSparkles({
     <View
       style={{
         position: "absolute",
-        top: -30,
+        top: -40,
         left: 0,
         width: barWidth,
-        height: barHeight + 60,
+        height: barHeight + 80,
         pointerEvents: "none",
       }}
     >
       {sparkles.map((sparkle) => (
-        <SubtleSparkle key={sparkle.id} sparkle={sparkle} />
+        <ProminentSparkle key={sparkle.id} sparkle={sparkle} />
       ))}
     </View>
   );
 }
 
-interface SubtleSparkleProps {
+interface ProminentSparkleProps {
   sparkle: Sparkle;
 }
 
-function SubtleSparkle({ sparkle }: SubtleSparkleProps) {
+function ProminentSparkle({ sparkle }: ProminentSparkleProps) {
   const animationProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ function SubtleSparkle({ sparkle }: SubtleSparkleProps) {
     const timer = setTimeout(() => {
       animationProgress.value = withTiming(1, {
         duration: sparkle.duration,
-        easing: Easing.inOut(Easing.cubic),
+        easing: Easing.out(Easing.cubic),
       });
     }, sparkle.delay);
 
@@ -131,32 +131,39 @@ function SubtleSparkle({ sparkle }: SubtleSparkleProps) {
   }, [animationProgress, sparkle.delay, sparkle.duration]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    // Fade in quickly, stay bright, fade out slowly
+    // Quick fade in, stay bright longer, fade out
     const opacity = interpolate(
       animationProgress.value,
-      [0, 0.1, 0.8, 1],
+      [0, 0.05, 0.85, 1],
       [0, 1, 1, 0],
       Extrapolation.CLAMP
     );
 
-    // Subtle scale: start small, grow slightly, shrink
+    // Scale: start small, grow to full size, shrink
     const scale = interpolate(
       animationProgress.value,
-      [0, 0.2, 1],
-      [0.2, 1, 0.3],
+      [0, 0.15, 1],
+      [0, 1.2, 0.1],
       Extrapolation.CLAMP
     );
 
-    // Gentle upward drift
+    // Upward and outward drift
     const y = interpolate(
       animationProgress.value,
       [0, 1],
-      [0, -20 - Math.random() * 20],
+      [0, -40 - Math.random() * 30],
+      Extrapolation.CLAMP
+    );
+
+    const x = interpolate(
+      animationProgress.value,
+      [0, 1],
+      [0, (Math.random() - 0.5) * 40],
       Extrapolation.CLAMP
     );
 
     return {
-      transform: [{ translateY: y }, { scale }],
+      transform: [{ translateY: y }, { translateX: x }, { scale }],
       opacity,
     };
   });
@@ -174,8 +181,8 @@ function SubtleSparkle({ sparkle }: SubtleSparkleProps) {
           backgroundColor: "#8B5CF6", // Purple
           shadowColor: "#8B5CF6",
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.6,
-          shadowRadius: 3,
+          shadowOpacity: 0.8,
+          shadowRadius: 6,
         },
         animatedStyle,
       ]}

@@ -12,7 +12,6 @@ import Animated, {
 interface Sprout {
   id: string;
   x: number;
-  angle: number;
   delay: number;
   duration: number;
 }
@@ -24,8 +23,8 @@ interface SproutingLeavesProps {
 }
 
 /**
- * Sprouting leaves animation that grows from the progress bar when complete
- * Creates an organic, celebratory "growth" effect
+ * Tiny sprouting leaves animation that grow from the progress bar when complete
+ * Creates an organic, subtle "growth" effect with small pointed leaves
  */
 export function SproutingLeaves({
   isComplete,
@@ -42,46 +41,44 @@ export function SproutingLeaves({
       return;
     }
 
-    // Create 6-8 initial sprouts spread across the bar
-    const count = 6 + Math.floor(Math.random() * 3);
+    // Create 3-4 initial sprouts spread across the bar
+    const count = 3 + Math.floor(Math.random() * 2);
     const initialSprouts: Sprout[] = [];
 
     for (let i = 0; i < count; i++) {
       initialSprouts.push({
         id: `sprout-${i}`,
         x: (barWidth / (count + 1)) * (i + 1), // Spread evenly across bar
-        angle: -45 + Math.random() * 90, // Angles from -45 to 45 degrees
-        delay: Math.random() * 800,
-        duration: 1200 + Math.random() * 600,
+        delay: Math.random() * 200,
+        duration: 600 + Math.random() * 300,
       });
     }
 
     setSprouts(initialSprouts);
-    nextSproutTimeRef.current = Date.now() + 2000;
+    nextSproutTimeRef.current = Date.now() + 1000;
   }, [isComplete, barWidth]);
 
-  // Periodically add new sprouts
+  // Periodically add new sprouts more frequently
   useEffect(() => {
     if (!isComplete || barWidth === 0) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
       if (now >= nextSproutTimeRef.current) {
-        // 70% chance to add a sprout
-        if (Math.random() < 0.7) {
+        // 60% chance to add a sprout
+        if (Math.random() < 0.6) {
           const newSprout: Sprout = {
             id: `sprout-${Date.now()}`,
             x: Math.random() * barWidth,
-            angle: -45 + Math.random() * 90,
             delay: 0,
-            duration: 1000 + Math.random() * 800,
+            duration: 500 + Math.random() * 400,
           };
 
           setSprouts((prev) => [...prev, newSprout]);
-          nextSproutTimeRef.current = now + 1500 + Math.random() * 2000;
+          nextSproutTimeRef.current = now + 800 + Math.random() * 1200;
         }
       }
-    }, 300);
+    }, 200);
 
     return () => clearInterval(interval);
   }, [isComplete, barWidth]);
@@ -94,10 +91,10 @@ export function SproutingLeaves({
     <View
       style={{
         position: "absolute",
-        top: -80,
+        top: -30,
         left: 0,
         width: barWidth,
-        height: barHeight + 100,
+        height: barHeight + 40,
         pointerEvents: "none",
       }}
     >
@@ -129,29 +126,29 @@ function SproutLeaf({ sprout }: SproutLeafProps) {
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       animationProgress.value,
-      [0, 0.1, 0.7, 1],
+      [0, 0.05, 0.6, 1],
       [0, 1, 1, 0],
       Extrapolation.CLAMP
     );
 
-    // Grow from 0 to full size
+    // Grow from 0 to full size quickly
     const scale = interpolate(
       animationProgress.value,
-      [0, 0.15, 1],
-      [0, 1.2, 0.8],
+      [0, 0.2, 1],
+      [0, 1.1, 0.9],
       Extrapolation.CLAMP
     );
 
-    // Move upward
+    // Move upward slightly (only 20-30px)
     const translateY = interpolate(
       animationProgress.value,
       [0, 1],
-      [0, -70 - Math.random() * 30],
+      [0, -25 - Math.random() * 10],
       Extrapolation.CLAMP
     );
 
-    // Slight horizontal drift based on angle
-    const driftX = Math.sin((sprout.angle * Math.PI) / 180) * 40;
+    // Slight horizontal drift
+    const driftX = (Math.random() - 0.5) * 15;
     const translateX = interpolate(
       animationProgress.value,
       [0, 1],
@@ -159,21 +156,8 @@ function SproutLeaf({ sprout }: SproutLeafProps) {
       Extrapolation.CLAMP
     );
 
-    // Rotate leaf
-    const rotation = interpolate(
-      animationProgress.value,
-      [0, 1],
-      [sprout.angle, sprout.angle + 180],
-      Extrapolation.CLAMP
-    );
-
     return {
-      transform: [
-        { translateY },
-        { translateX },
-        { scale },
-        { rotate: `${rotation}deg` },
-      ],
+      transform: [{ translateY }, { translateX }, { scale }],
       opacity,
     };
   });
@@ -185,49 +169,39 @@ function SproutLeaf({ sprout }: SproutLeafProps) {
           position: "absolute",
           left: sprout.x,
           top: 0,
-          width: 24,
-          height: 24,
+          width: 8,
+          height: 8,
         },
         animatedStyle,
       ]}
     >
-      <LeafIcon />
+      <TinyLeafIcon />
     </Animated.View>
   );
 }
 
-function LeafIcon() {
-  // Create a simple leaf shape using Views
+function TinyLeafIcon() {
+  // Create a tiny pointed leaf shape
   return (
     <View
       style={{
-        width: 24,
-        height: 24,
+        width: 8,
+        height: 8,
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      {/* Leaf shape - using a rotated ellipse effect */}
+      {/* Pointed leaf shape - using rotated diamond effect */}
       <View
         style={{
-          width: 12,
-          height: 18,
+          width: 4,
+          height: 7,
           backgroundColor: "#10B981", // Green
-          borderRadius: 50,
+          borderRadius: 2,
           shadowColor: "#059669",
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: 3,
-        }}
-      />
-      {/* Leaf vein detail */}
-      <View
-        style={{
-          position: "absolute",
-          width: 1.5,
-          height: 14,
-          backgroundColor: "#059669",
-          opacity: 0.6,
+          shadowOpacity: 0.6,
+          shadowRadius: 1,
         }}
       />
     </View>

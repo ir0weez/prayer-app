@@ -30,12 +30,17 @@ export function DateTimePicker({
   const formatDisplay = () => {
     if (mode === "date") {
       if (!value) return "Select date";
-      const date = new Date(value);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      // Parse ISO date string (YYYY-MM-DD) without timezone conversion
+      const [year, month, day] = value.split('-');
+      if (year && month && day) {
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+      return "Select date";
     } else {
       return value ? format12HourTime(value) : "Select time";
     }
@@ -79,7 +84,14 @@ export function DateTimePicker({
               <Pressable
                 key={m}
                 onPress={() => {
-                  const selectedDate = value ? new Date(value) : new Date();
+                  // Parse ISO date string (YYYY-MM-DD) without timezone conversion
+                  let selectedDate;
+                  if (value && value.includes('-')) {
+                    const [year, month, day] = value.split('-');
+                    selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  } else {
+                    selectedDate = new Date();
+                  }
                   handleDateChange(
                     selectedDate.getDate(),
                     m,
@@ -105,7 +117,14 @@ export function DateTimePicker({
               <Pressable
                 key={d}
                 onPress={() => {
-                  const selectedDate = value ? new Date(value) : new Date();
+                  // Parse ISO date string (YYYY-MM-DD) without timezone conversion
+                  let selectedDate;
+                  if (value && value.includes('-')) {
+                    const [year, month, day] = value.split('-');
+                    selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  } else {
+                    selectedDate = new Date();
+                  }
                   handleDateChange(
                     d,
                     selectedDate.getMonth(),
@@ -131,7 +150,14 @@ export function DateTimePicker({
               <Pressable
                 key={y}
                 onPress={() => {
-                  const selectedDate = value ? new Date(value) : new Date();
+                  // Parse ISO date string (YYYY-MM-DD) without timezone conversion
+                  let selectedDate;
+                  if (value && value.includes('-')) {
+                    const [year, month, day] = value.split('-');
+                    selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  } else {
+                    selectedDate = new Date();
+                  }
                   handleDateChange(
                     selectedDate.getDate(),
                     selectedDate.getMonth(),

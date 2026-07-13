@@ -174,6 +174,7 @@
 
 - [x] Fix avatar ring colors in Pray Today section to match relationship-type colors (not just avatar fill).
 - [x] Fix date timezone issue: "Last Reached" button marks next day instead of today (device date mismatch).
+- [x] Fix date picker display showing wrong date when opening modal (was showing previous day)
 
 - [x] Add fast editing modal to allow users to modify fast details (name, start date, duration, type, focus items).
 - [x] Allow custom start date input for fasts (not just today).

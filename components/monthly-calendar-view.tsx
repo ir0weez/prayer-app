@@ -83,7 +83,7 @@ export function MonthlyCalendarView({
                     opacity: isInCurrentMonth ? 1 : 0.5,
                   }}
                 >
-                  {/* Day number */}
+                  {/* Day number in top-left */}
                   <View
                     style={{
                       width: 28,
@@ -92,7 +92,6 @@ export function MonthlyCalendarView({
                       justifyContent: 'center',
                       alignItems: 'center',
                       backgroundColor: isToday ? colors.primary : 'transparent',
-                      marginBottom: 8,
                     }}
                   >
                     <Text
@@ -106,18 +105,37 @@ export function MonthlyCalendarView({
                     </Text>
                   </View>
                   
-                  {/* Total count number only */}
+                  {/* Total count centered in cell with circle */}
                   {dayEvents.length > 0 && (
-                    <Text
+                    <View
                       style={{
-                        fontSize: 18,
-                        fontWeight: '600',
-                        color: colors.foreground,
-                        opacity: date < new Date() && !isToday ? 0.4 : 1,
+                        flex: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
                       }}
                     >
-                      {dayEvents.length}
-                    </Text>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          backgroundColor: colors.primary,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          opacity: date < new Date() && !isToday ? 0.4 : 1,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: '600',
+                            color: '#fff',
+                          }}
+                        >
+                          {dayEvents.length}
+                        </Text>
+                      </View>
+                    </View>
                   )}
                 </Pressable>
               );

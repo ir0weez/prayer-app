@@ -88,7 +88,7 @@ import {
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
-import { getWeekStart, formatDateISO } from "@/lib/date-utils";
+import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
 import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -1795,8 +1795,8 @@ export function ScheduleTab({
 
     // Get missed todos from previous days
     const missedTodos = todos.filter(t => {
-      const todoDate = new Date(t.date).toISOString().split('T')[0];
-      const selectedDateStr = new Date(selectedDate).toISOString().split('T')[0];
+      const todoDate = formatDateLocal(new Date(t.date));
+      const selectedDateStr = formatDateLocal(new Date(selectedDate));
       return todoDate < selectedDateStr && !t.isCompleted;
     });
 
@@ -2604,7 +2604,7 @@ export function ScheduleTab({
               for (let i = 0; i < 7; i++) {
                 const date = new Date(weekStart);
                 date.setDate(date.getDate() + i);
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = formatDateLocal(date);
                 // Add todos
                 getTodosForDate(todos, dateStr).forEach((t: any) => {
                   blocks.push({
@@ -2641,7 +2641,7 @@ export function ScheduleTab({
               }
               return blocks;
             })()}
-            onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
+            onDayPress={(date) => setSelectedDate(formatDateLocal(date))}
           />
         ) : (
           <MonthlyCalendarView
@@ -2677,7 +2677,7 @@ export function ScheduleTab({
               });
               return eventMap;
             })()}
-            onDayPress={(date) => setSelectedDate(date.toISOString().split('T')[0])}
+            onDayPress={(date) => setSelectedDate(formatDateLocal(date))}
           />
         )}
         </ReAnimated.View>

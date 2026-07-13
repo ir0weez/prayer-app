@@ -41,12 +41,28 @@ export function getMonthEnd(date: Date): Date {
 }
 
 /**
- * Format a date as YYYY-MM-DD
+ * Format a date as YYYY-MM-DD in LOCAL timezone (not UTC)
  * @param date - The date to format
- * @returns Formatted date string
+ * @returns Formatted date string in YYYY-MM-DD format using local timezone
  */
 export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Format a date as YYYY-MM-DD using local timezone (same as formatDateISO)
+ * Use this instead of date.toISOString().split('T')[0] to avoid UTC conversion
+ * @param date - The date to format
+ * @returns Formatted date string in YYYY-MM-DD format
+ */
+export function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**

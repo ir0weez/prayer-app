@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
-import { addDays, getWeekStart } from '@/lib/date-utils';
+import { addDays, getWeekStart, formatDateLocal } from '@/lib/date-utils';
 import { useMemo } from 'react';
 
 interface TimeBlock {
@@ -28,8 +28,8 @@ interface WeeklyCalendarViewProps {
 }
 
 const HOUR_HEIGHT = 60;
-const START_HOUR = 6;
-const END_HOUR = 22;
+const START_HOUR = 0; // Allow scrolling from midnight
+const END_HOUR = 24; // Show full 24-hour day
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
 function timeToMinutes(time: string): number {
@@ -69,7 +69,7 @@ export function WeeklyCalendarView({
     
     for (let i = 0; i < 7; i++) {
       const date = addDays(weekStart, i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatDateLocal(date);
       const dayBlocks = timeBlocks.filter(block => {
         return block.id.includes(dateStr);
       });

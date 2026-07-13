@@ -1604,3 +1604,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Create SubtleCompletionSparkles component with organic random timing
 - [x] Remove looping animation - sparkles appear randomly without obvious pattern
 - [x] Implement smooth glow that fades in/out naturally on completion
+
+
+## Phase 33: Critical Date/Timezone Bugs
+
+- [x] Fix week view scroll limitation - can't scroll above 9 AM (changed START_HOUR from 6 to 0)
+- [x] Fix events showing a day behind in week view (replaced toISOString with formatDateLocal)
+- [x] Fix date picker showing wrong date (replaced all toISOString with formatDateLocal)
+- [x] Investigate and fix timezone handling in date calculations (created formatDateLocal function)
+- [x] Test date/time functionality across day and week views (all 262 tests pass)
+- [x] Verify events display on correct dates after fixes

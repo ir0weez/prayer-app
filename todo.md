@@ -1627,3 +1627,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Grey out count for past days (opacity 0.5)
 - [x] Keep count visible and prominent for current/future days
 - [x] Test all 262 tests pass
+
+## Phase 35: Month View Simplification
+
+- [x] Remove individual event/todo/ministry tiles from month view
+- [x] Replace with single large count number per day
+- [x] Grey out count for past days (opacity 0.4)
+- [x] Keep count visible for current/future days
+- [x] Verify all 262 tests pass

@@ -4,12 +4,12 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
   Easing,
   interpolate,
   Extrapolation,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
-import { SproutingLeaves } from "./sprouting-leaves";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -22,47 +22,38 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const percentage = total > 0 ? (completed / total) * 100 : 0;
   const isComplete = total > 0 && completed >= total;
   
-  const glowAnimation = useSharedValue(0);
+  const shimmerAnimation = useSharedValue(0);
   const [barWidth, setBarWidth] = useState(0);
 
-  // Trigger glow animation every time completion status changes
+  // Trigger shimmer animation when completion status changes
   useEffect(() => {
-    if (isComplete) {
-      // Reset and play animation
-      glowAnimation.value = 0;
-      glowAnimation.value = withTiming(1, {
-        duration: 1500,
-        easing: Easing.out(Easing.cubic),
-      });
+    if (isComplete && barWidth > 0) {
+      // Start continuous shimmer loop
+      shimmerAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
+    } else {
+      shimmerAnimation.value = 0;
     }
-  }, [isComplete, glowAnimation]);
+  }, [isComplete, barWidth, shimmerAnimation]);
 
-  // Animated style for the prominent glow effect
-  const glowStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      glowAnimation.value,
-      [0, 0.2, 0.6, 1],
-      [0, 1, 0.8, 0],
-      Extrapolation.CLAMP
-    );
-
-    const scaleY = interpolate(
-      glowAnimation.value,
-      [0, 0.3, 1],
-      [1, 2.5, 1],
-      Extrapolation.CLAMP
-    );
-
-    const scaleX = interpolate(
-      glowAnimation.value,
-      [0, 0.3, 1],
-      [1, 1.1, 1],
+  // Animated style for the shimmer effect
+  const shimmerStyle = useAnimatedStyle(() => {
+    // Create a moving highlight position
+    const highlightPosition = interpolate(
+      shimmerAnimation.value,
+      [0, 1],
+      [-barWidth, barWidth * 2],
       Extrapolation.CLAMP
     );
 
     return {
-      opacity,
-      transform: [{ scaleY }, { scaleX }],
+      transform: [{ translateX: highlightPosition }],
     };
   });
 
@@ -86,48 +77,38 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           height: 6,
           backgroundColor: colors.border,
           borderRadius: 3,
-          overflow: "visible",
+          overflow: "hidden",
         }}
       >
-        {/* Animated prominent glow overlay (only when complete) */}
-        {isComplete && (
-          <Animated.View
-            style={[
-              {
-                position: "absolute",
-                top: -8,
-                left: -4,
-                right: -4,
-                height: 22,
-                backgroundColor: "#10B981", // Green for growth/completion
-                borderRadius: 11,
-                zIndex: 2,
-              },
-              glowStyle,
-            ]}
-          />
-        )}
-
         {/* Regular progress bar fill */}
         <View
           style={{
             height: "100%",
             width: `${percentage}%`,
-            backgroundColor: isComplete ? "#10B981" : colors.primary, // Green when complete
+            backgroundColor: isComplete ? "#10B981" : colors.primary,
             borderRadius: 3,
             position: "relative",
-            zIndex: 1,
+            overflow: "hidden",
           }}
-        />
-
-        {/* Sprouting leaves animation */}
-        {barWidth > 0 && (
-          <SproutingLeaves
-            isComplete={isComplete}
-            barWidth={barWidth}
-            barHeight={6}
-          />
-        )}
+        >
+          {/* Shimmer highlight overlay (only when complete) */}
+          {isComplete && barWidth > 0 && (
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: barWidth * 0.3,
+                  height: "100%",
+                  backgroundColor: "rgba(255,255,255,0.3)",
+                  borderRadius: 3,
+                },
+                shimmerStyle,
+              ]}
+            />
+          )}
+        </View>
       </View>
     </View>
   );

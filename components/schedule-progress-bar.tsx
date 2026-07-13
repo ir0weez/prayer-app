@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,7 +9,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
-import { SubtleCompletionSparkles } from "./subtle-completion-sparkles";
+import { SproutingLeaves } from "./sprouting-leaves";
 
 interface ScheduleProgressBarProps {
   completed: number;
@@ -23,14 +23,13 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const isComplete = total > 0 && completed >= total;
   
   const glowAnimation = useSharedValue(0);
-  const hasPlayedGlow = useRef(false);
   const [barWidth, setBarWidth] = useState(0);
 
-  // Play glow animation once when completion is reached
+  // Trigger glow animation every time completion status changes
   useEffect(() => {
-    if (isComplete && !hasPlayedGlow.current) {
-      hasPlayedGlow.current = true;
-      // Prominent glow animation
+    if (isComplete) {
+      // Reset and play animation
+      glowAnimation.value = 0;
       glowAnimation.value = withTiming(1, {
         duration: 1500,
         easing: Easing.out(Easing.cubic),
@@ -40,7 +39,6 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
 
   // Animated style for the prominent glow effect
   const glowStyle = useAnimatedStyle(() => {
-    // Prominent glow that pulses outward
     const opacity = interpolate(
       glowAnimation.value,
       [0, 0.2, 0.6, 1],
@@ -48,7 +46,6 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
       Extrapolation.CLAMP
     );
 
-    // Scale up for glow effect
     const scaleY = interpolate(
       glowAnimation.value,
       [0, 0.3, 1],
@@ -102,7 +99,7 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
                 left: -4,
                 right: -4,
                 height: 22,
-                backgroundColor: "#8B5CF6", // Purple
+                backgroundColor: "#10B981", // Green for growth/completion
                 borderRadius: 11,
                 zIndex: 2,
               },
@@ -116,16 +113,16 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
           style={{
             height: "100%",
             width: `${percentage}%`,
-            backgroundColor: isComplete ? "#8B5CF6" : colors.primary, // Purple when complete
+            backgroundColor: isComplete ? "#10B981" : colors.primary, // Green when complete
             borderRadius: 3,
             position: "relative",
             zIndex: 1,
           }}
         />
 
-        {/* Prominent sparkles */}
+        {/* Sprouting leaves animation */}
         {barWidth > 0 && (
-          <SubtleCompletionSparkles
+          <SproutingLeaves
             isComplete={isComplete}
             barWidth={barWidth}
             barHeight={6}

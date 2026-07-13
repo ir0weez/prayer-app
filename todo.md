@@ -1600,6 +1600,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Refine animation: change sparkles to blue/purple color
 - [x] Implement two-phase animation: reward pulse+shimmer on completion, then continuous particles
 - [x] Verify all tests pass with animation refinements
+- [x] Replace sparkles with sprouting leaves animation
+- [x] Implement organic "growth" effect with leaves growing upward from bar
+- [x] Change bar color to green (#10B981) when complete to match growth theme
+- [x] Add leaf rotation and drift for natural sprouting effect
 - [x] Redesign with subtle, organic approach: smooth glow fade + random sparkles
 - [x] Create SubtleCompletionSparkles component with organic random timing
 - [x] Remove looping animation - sparkles appear randomly without obvious pattern

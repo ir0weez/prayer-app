@@ -1176,7 +1176,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] FEATURE: Display colored badges/indicators on todos, events, and ministries
 - [ ] FEATURE: Add swipe-right-to-edit and swipe-left-to-delete to ministry items
 - [ ] FEATURE: Hide empty todo/event/ministry sections when count is 0
-- [ ] FIX: Add missing icons for stats in summary
+- [x] FIX: Add missing icons for stats in summary
 - [x] FIX: Sticky todo scroll bug - top todo scrolls with page when scrolling down
 
 ## People Linking to Schedule Items (Current)

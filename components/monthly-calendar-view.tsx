@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
-import { getWeeksInMonth, isSameDay, formatDateISO } from '@/lib/date-utils';
+import { getWeeksInMonth, isSameDay, formatDateISO, formatDateLocal } from '@/lib/date-utils';
 
 interface EventBadge {
   id: string;
@@ -83,31 +83,65 @@ export function MonthlyCalendarView({
                     opacity: isInCurrentMonth ? 1 : 0.5,
                   }}
                 >
-                  {/* Day number */}
+                  {/* Day number and count badge */}
                   <View
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      justifyContent: 'center',
-                      alignItems: 'center',
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
                       marginBottom: 4,
-                      backgroundColor: isToday ? colors.primary : 'transparent',
                     }}
                   >
-                    <Text
+                    <View
                       style={{
-                        fontSize: 14,
-                        fontWeight: isToday ? '700' : '600',
-                        color: isToday ? '#fff' : colors.foreground,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: isToday ? colors.primary : 'transparent',
                       }}
                     >
-                      {date.getDate()}
-                    </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: isToday ? '700' : '600',
+                          color: isToday ? '#fff' : colors.foreground,
+                        }}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </View>
+                    
+                    {/* Count badge */}
+                    {dayEvents.length > 0 && (
+                      <View
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: colors.primary,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          opacity: date < new Date() && !isToday ? 0.5 : 1,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '600',
+                            color: '#fff',
+                            opacity: date < new Date() && !isToday ? 0.6 : 1,
+                          }}
+                        >
+                          {dayEvents.length}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   
                   {/* Event badges */}
-                  <View style={{ gap: 2 }}>
+                  <View style={{ gap: 2, flex: 1 }}>
                     {dayEvents.slice(0, 3).map((event) => (
                       <Pressable
                         key={event.id}

@@ -1618,3 +1618,12 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Investigate and fix timezone handling in date calculations (created formatDateLocal function)
 - [x] Test date/time functionality across day and week views (all 262 tests pass)
 - [x] Verify events display on correct dates after fixes
+
+
+## Phase 34: Month View Count Badge
+
+- [x] Add count badge to each day showing total todos/events/ministries
+- [x] Display count in small circle in top-right of day cell
+- [x] Grey out count for past days (opacity 0.5)
+- [x] Keep count visible and prominent for current/future days
+- [x] Test all 262 tests pass

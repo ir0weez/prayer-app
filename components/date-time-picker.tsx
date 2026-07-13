@@ -42,8 +42,9 @@ export function DateTimePicker({
   };
 
   const handleDateChange = (day: number, month: number, year: number) => {
+    // Use local timezone instead of UTC to avoid date shift
     const date = new Date(year, month, day);
-    const isoString = date.toISOString().split("T")[0];
+    const isoString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     onChange(isoString);
     setShowPicker(false);
   };

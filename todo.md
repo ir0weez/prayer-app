@@ -1173,6 +1173,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 ## Current Sprint - Bible & UI Improvements
 
 - [ ] FIX: Bible display shows Genesis 1 instead of 2 Timothy 2 (currently marked as current)
+- [x] FIX: Add date picker to worship album form so users can select which day to add the album to
 - [ ] FEATURE: Add color picker (5 colors) to todo/event/ministry creation forms
 - [ ] FEATURE: Display colored badges/indicators on todos, events, and ministries
 - [ ] FEATURE: Add swipe-right-to-edit and swipe-left-to-delete to ministry items

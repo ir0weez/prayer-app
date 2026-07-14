@@ -1592,7 +1592,7 @@ export function ScheduleTab({
       artist: formNotes.trim() || 'Unknown Artist',
       coverUrl: formAlbumCoverImage || formSongLink.trim() || '',
       spotifyUrl: formSpotifyLink.trim() || '',
-      date: selectedDate,
+      date: formDate || selectedDate,
       createdAt: new Date().toISOString(),
     };
     Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
@@ -3381,6 +3381,14 @@ export function ScheduleTab({
                   <Text style={[scheduleStyles.formLabel, { color: colors.error }]}>Clear image</Text>
                 </Pressable>
               )}
+
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
+              <DateTimePicker
+                value={formDate || selectedDate}
+                onChange={setFormDate}
+                mode="date"
+                label="Select Date"
+              />
 
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL (optional)</Text>
               <TextInput

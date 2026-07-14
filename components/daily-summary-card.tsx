@@ -324,19 +324,20 @@ export function DailySummaryCard({
                   <View
                     key={day.dayName}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      marginVertical: 4,
-                      borderRadius: 8,
-                      backgroundColor:
-                        displayDay === day.dayName
-                          ? colors.primary + "20"
-                          : "transparent",
-                      borderWidth: displayDay === day.dayName ? 1 : 0,
-                      borderColor:
-                        displayDay === day.dayName ? colors.primary : "transparent",
+                      marginVertical: 8,
+                      borderRadius: 12,
+                      backgroundColor: colors.background,
+                      borderWidth: displayDay === day.dayName ? 2 : 1,
+                      borderColor: displayDay === day.dayName ? colors.primary : colors.border,
+                      overflow: 'hidden',
                     }}
                   >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}
+                    >
                     <Pressable
                       onPress={() => {
                         if (onBibleStudyDayChange) {
@@ -393,9 +394,10 @@ export function DailySummaryCard({
                           opacity: pressed ? 0.5 : 1,
                         }]}
                       >
-                        <MaterialIcons name="delete" size={18} color="#EF4444" />
+                        <MaterialIcons name="delete" size={18} color={colors.error} />
                       </Pressable>
                     )}
+                    </View>
                   </View>
                 ))}
               </ScrollView>

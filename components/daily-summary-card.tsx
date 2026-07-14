@@ -274,29 +274,36 @@ export function DailySummaryCard({
         <Modal
           visible={showDayDropdown}
           transparent
-          animationType="fade"
+          animationType="slide"
           onRequestClose={() => setShowDayDropdown(false)}
         >
           <Pressable
             style={{
               flex: 1,
               backgroundColor: "rgba(0, 0, 0, 0.5)",
-              justifyContent: "center",
-              alignItems: "center",
+              justifyContent: "flex-end",
             }}
             onPress={() => setShowDayDropdown(false)}
           >
             <View
               style={{
                 backgroundColor: colors.surface,
-                borderRadius: 12,
-                padding: 16,
-                maxWidth: "80%",
-                maxHeight: "60%",
-                borderColor: colors.border,
-                borderWidth: 1,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                padding: 20,
+                paddingBottom: 40,
               }}
+              onStartShouldSetResponder={() => true}
             >
+              {/* Handle bar */}
+              <View style={{
+                width: 40,
+                height: 4,
+                backgroundColor: colors.border,
+                borderRadius: 2,
+                alignSelf: 'center',
+                marginBottom: 16,
+              }} />
               <Text
                 style={{
                   fontSize: 16,

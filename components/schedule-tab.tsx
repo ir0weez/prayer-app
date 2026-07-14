@@ -507,7 +507,7 @@ function MinistryCard({
 
   useEffect(() => {
     glowOpacity.value = withRepeat(
-      withTiming(0.4, {
+      withTiming(1, {
         duration: 1500,
         easing: Easing.inOut(Easing.ease),
       }),
@@ -564,9 +564,9 @@ function MinistryCard({
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     shadowColor: ministry.color || "#7C5CFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: glowOpacity.value * 0.6,
-    shadowRadius: 12 + glowOpacity.value * 8,
-    elevation: 8 + glowOpacity.value * 4,
+    shadowOpacity: glowOpacity.value * 0.8,
+    shadowRadius: 16 + glowOpacity.value * 12,
+    elevation: 12 + glowOpacity.value * 8,
   }));
 
   const linkedPeople = useMemo(() => {

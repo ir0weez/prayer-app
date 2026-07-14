@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Image,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
@@ -199,16 +200,23 @@ export function MinistryDetailCard({
                 <View style={styles.peopleList}>
                   {linkedPeople.map((person) => (
                     <View key={person.id} style={styles.personItem}>
-                      <View
-                        style={[
-                          styles.personAvatar,
-                          { backgroundColor: colors.primary },
-                        ]}
-                      >
-                        <Text style={styles.personInitial}>
-                          {person.name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
+                      {person.photoUri ? (
+                        <Image
+                          source={{ uri: person.photoUri }}
+                          style={[styles.personAvatar, { borderRadius: 20 }]}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.personAvatar,
+                            { backgroundColor: colors.primary },
+                          ]}
+                        >
+                          <Text style={styles.personInitial}>
+                            {person.name.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={[styles.personName, { color: colors.foreground }]}>
                         {person.name}
                       </Text>

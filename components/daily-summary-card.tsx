@@ -174,6 +174,17 @@ export function DailySummaryCard({
         paddingBottom: 24,
         transform: [{ translateY: slideAnim }],
         opacity: opacityAnim,
+        marginHorizontal: 12,
+        marginVertical: 8,
+        borderRadius: 16,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 6,
       }}
     >
       {/* Summary with greeting and profile badge */}
@@ -330,6 +341,11 @@ export function DailySummaryCard({
                       borderWidth: displayDay === day.dayName ? 2 : 1,
                       borderColor: displayDay === day.dayName ? colors.primary : colors.border,
                       overflow: 'hidden',
+                      shadowColor: displayDay === day.dayName ? colors.primary : 'transparent',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: displayDay === day.dayName ? 0.3 : 0,
+                      shadowRadius: displayDay === day.dayName ? 12 : 0,
+                      elevation: displayDay === day.dayName ? 8 : 0,
                     }}
                   >
                     <View

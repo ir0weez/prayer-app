@@ -3,6 +3,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
+import { getChapterCount } from "@/lib/bible-books";
 
 
 interface DailySummaryCardProps {
@@ -49,7 +50,7 @@ function iconName(icon: string | null | undefined): any {
     "local-hospital": "local-hospital",
     "task-alt": "task-alt",
   };
-  return iconMap[icon || ""] || "task-alt";
+  return iconMap[icon as string] || "circle";
 }
 
 export function DailySummaryCard({
@@ -82,83 +83,52 @@ export function DailySummaryCard({
   // Format fasting status for display
   const getFastingStatusDisplay = () => {
     switch (fastingStatus) {
-      case 'complete':
-        return 'Complete';
-      case 'missed':
-        return 'Missed';
-      case 'skipped':
-        return 'Skipped';
+      case "fasting":
+        return "fasting";
+      case "feasting":
+        return "feasting";
       default:
-        return 'Not selected';
+        return "not fasting";
     }
   };
-  
-  // Scroll-up animation
-  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Animation setup
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 400,
+        duration: 600,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
   }, [slideAnim, opacityAnim]);
 
-  // Get today's date in PST
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    weekday: 'short',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  const parts = formatter.formatToParts(now);
-  const dayName = parts.find(p => p.type === 'weekday')?.value || '';
-  const monthName = parts.find(p => p.type === 'month')?.value || '';
-  const dayNum = parts.find(p => p.type === 'day')?.value || '';
-  const yearNum = parts.find(p => p.type === 'year')?.value || '';
-  
   // Get time-based greeting
   const getTimeBasedGreeting = () => {
-    const hour = now.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-  
-  // Get badge color based on fasting status
-  const getBadgeColor = () => {
-    switch (fastingStatus) {
-      case 'complete':
-        return '#22C55E'; // Green
-      case 'missed':
-        return '#EF4444'; // Red
-      case 'skipped':
-        return '#F59E0B'; // Yellow
-      default:
-        return colors.primary; // Primary color
-    }
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
   };
 
-  // Get the display day name for Bible study selector
-  // Always show the day of week matching selectedDate (the currently viewed day)
+  // Get default day from selectedBibleStudyDay or selectedDate or first bibleStudyDay
   const getDefaultDay = () => {
-    if (selectedBibleStudyDay) return selectedBibleStudyDay;
+    if (selectedBibleStudyDay) {
+      return selectedBibleStudyDay;
+    }
     if (selectedDate) {
-      // Fix timezone: parse YYYY-MM-DD as local date, not UTC
-      const parts = selectedDate.split('T')[0].split('-');
-      const date = parts.length === 3
-        ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
-        : new Date(selectedDate);
+      const date =
+        typeof selectedDate === "string"
+          ? new Date(selectedDate)
+          : new Date(selectedDate);
       return date.toLocaleDateString('en-US', { weekday: 'long' });
     }
     return bibleStudyDays[0]?.dayName || "";
@@ -182,50 +152,26 @@ export function DailySummaryCard({
             {getTimeBasedGreeting()}, 
           </Text>
           
-          {/* Profile Badge */}
           <View
             style={{
+              backgroundColor: colors.primary,
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: 12,
-              backgroundColor: getBadgeColor(),
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              marginLeft: 4,
+              borderRadius: 20,
+              marginLeft: 8,
             }}
           >
-            <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 16 }}>
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
               {userName}
             </Text>
-            {prayerStreak > 0 && (
-              <View
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  backgroundColor: "#EF4444",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 2,
-                  borderColor: "#FFFFFF",
-                }}
-              >
-                <Text style={{ fontWeight: "700", color: "#FFFFFF", fontSize: 11 }}>
-                  {prayerStreak}
-                </Text>
-              </View>
-            )}
           </View>
-          <Text style={{ fontSize: 18, color: colors.muted, fontWeight: "500", marginLeft: 4 }}>.</Text>
+          <Text style={{ fontSize: 18, color: colors.muted, fontWeight: "500" }}>
+            .
+          </Text>
         </View>
 
-        {/* Summary text */}
-        <Text style={{ fontSize: 16, lineHeight: 24, color: colors.foreground, fontWeight: "400" }}>
-          You have{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="task-alt" size={16} color={colors.foreground} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
-          </Text>
+        <Text style={{ fontSize: 14, color: colors.muted, lineHeight: 22 }}>
+          You have <MaterialIcons name="task-alt" size={16} color={colors.foreground} /> {remainingTodos} todo{remainingTodos !== 1 ? "s" : ""}
           , last{' '}
           {bibleStudyDays.length > 0 ? (
             <Text
@@ -249,27 +195,13 @@ export function DailySummaryCard({
           </Text>
           , have{' '}
           <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
+            <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayers
           </Text>
-          , <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="account-balance-wallet" size={16} color={colors.foreground} /> ${budgetAmount.toFixed(2)}
-          </Text> to budget,{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people
-          </Text> to reach, {' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="event" size={16} color={colors.foreground} /> {eventCount} event{eventCount !== 1 ? "s" : ""}
-          </Text>, and{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="volunteer-activism" size={16} color={colors.foreground} /> {ministryCount} ministries
-          </Text> to lead. You have{' '}
-          <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="schedule" size={16} color={colors.foreground} /> {availableTimeString}
-          </Text>{' '}available.
+          , <MaterialIcons name="credit-card" size={16} color={colors.foreground} /> ${budgetAmount.toFixed(2)} to budget, <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people to reach, <MaterialIcons name="event" size={16} color={colors.foreground} /> {eventCount} events, and <MaterialIcons name="volunteer-activism" size={16} color={colors.foreground} /> {ministryCount} ministries to lead. You have <MaterialIcons name="schedule" size={16} color={colors.foreground} /> {availableTimeString} available.
         </Text>
       </View>
 
-      {/* Bible Study Day Selector Modal - rendered OUTSIDE the Text element */}
+      {/* Bible Study Day Selector Modal - Bottom Sheet */}
       {bibleStudyDays.length > 0 && (
         <Modal
           visible={showDayDropdown}
@@ -309,14 +241,14 @@ export function DailySummaryCard({
                   fontSize: 16,
                   fontWeight: "600",
                   color: colors.foreground,
-                  marginBottom: 12,
+                  marginBottom: 16,
                 }}
               >
                 Select Bible Study Day
               </Text>
 
               <ScrollView
-                style={{ maxHeight: 300 }}
+                style={{ maxHeight: 400 }}
                 showsVerticalScrollIndicator={true}
               >
                 {bibleStudyDays.map((day) => (
@@ -325,15 +257,16 @@ export function DailySummaryCard({
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      marginVertical: 4,
-                      borderRadius: 8,
+                      marginVertical: 8,
+                      borderRadius: 12,
                       backgroundColor:
                         displayDay === day.dayName
                           ? colors.primary + "20"
-                          : "transparent",
+                          : colors.background,
                       borderWidth: displayDay === day.dayName ? 1 : 0,
                       borderColor:
                         displayDay === day.dayName ? colors.primary : "transparent",
+                      overflow: 'hidden',
                     }}
                   >
                     <Pressable
@@ -345,20 +278,40 @@ export function DailySummaryCard({
                       }}
                       style={({ pressed }) => [{
                         flex: 1,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
                         opacity: pressed ? 0.7 : 1,
                       }]}
                     >
-                      <Text
-                        style={{
-                          color: colors.foreground,
-                          fontWeight: displayDay === day.dayName ? "600" : "400",
-                          fontSize: 14,
-                        }}
-                      >
-                        {day.dayName}: {day.book} {day.chapter}
-                      </Text>
+                      <View>
+                        <Text
+                          style={{
+                            color: colors.foreground,
+                            fontWeight: displayDay === day.dayName ? "700" : "600",
+                            fontSize: 15,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {day.dayName}: {day.book}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <Text style={{ fontSize: 13, color: colors.muted }}>
+                            Chapter {day.chapter} of {getChapterCount(day.book)}
+                          </Text>
+                          <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
+                            {Math.round((day.chapter / getChapterCount(day.book)) * 100)}%
+                          </Text>
+                        </View>
+                        <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' }}>
+                          <View
+                            style={{
+                              height: '100%',
+                              width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
+                              backgroundColor: colors.primary,
+                            }}
+                          />
+                        </View>
+                      </View>
                     </Pressable>
                     {onDeleteBibleStudyDay && (
                       <Pressable
@@ -372,7 +325,7 @@ export function DailySummaryCard({
                           opacity: pressed ? 0.5 : 1,
                         }]}
                       >
-                        <MaterialIcons name="delete" size={18} color="#EF4444" />
+                        <MaterialIcons name="delete" size={20} color={colors.error} />
                       </Pressable>
                     )}
                   </View>

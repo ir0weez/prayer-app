@@ -3,6 +3,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { getIconForTodo } from "@/lib/prayercircle-data";
+import { getChapterCount } from "@/lib/bible-books";
 
 
 interface DailySummaryCardProps {
@@ -350,15 +351,35 @@ export function DailySummaryCard({
                         opacity: pressed ? 0.7 : 1,
                       }]}
                     >
-                      <Text
-                        style={{
-                          color: colors.foreground,
-                          fontWeight: displayDay === day.dayName ? "600" : "400",
-                          fontSize: 14,
-                        }}
-                      >
-                        {day.dayName}: {day.book} {day.chapter}
-                      </Text>
+                      <View>
+                        <Text
+                          style={{
+                            color: colors.foreground,
+                            fontWeight: displayDay === day.dayName ? "600" : "400",
+                            fontSize: 14,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {day.dayName}: {day.book} {day.chapter}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={{ fontSize: 12, color: colors.muted }}>
+                            {day.chapter} of {getChapterCount(day.book)} chapters
+                          </Text>
+                          <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
+                            {Math.round((day.chapter / getChapterCount(day.book)) * 100)}%
+                          </Text>
+                        </View>
+                        <View style={{ height: 3, backgroundColor: colors.border, borderRadius: 1.5, overflow: 'hidden' }}>
+                          <View
+                            style={{
+                              height: '100%',
+                              width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
+                              backgroundColor: colors.primary,
+                            }}
+                          />
+                        </View>
+                      </View>
                     </Pressable>
                     {onDeleteBibleStudyDay && (
                       <Pressable

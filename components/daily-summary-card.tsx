@@ -347,31 +347,66 @@ export function DailySummaryCard({
                       }}
                       style={({ pressed }) => [{
                         flex: 1,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
+                        paddingVertical: 16,
+                        paddingHorizontal: 16,
                         opacity: pressed ? 0.7 : 1,
                       }]}
                     >
                       <View>
+                        {/* Title */}
                         <Text
                           style={{
                             color: colors.foreground,
-                            fontWeight: displayDay === day.dayName ? "600" : "400",
-                            fontSize: 14,
-                            marginBottom: 6,
+                            fontWeight: "600",
+                            fontSize: 16,
+                            marginBottom: 12,
                           }}
                         >
-                          {day.dayName}: {day.book} {day.chapter}
+                          {day.dayName}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ fontSize: 12, color: colors.muted }}>
+                        
+                        {/* Book */}
+                        <Text
+                          style={{
+                            color: colors.muted,
+                            fontSize: 12,
+                            fontWeight: '500',
+                            marginBottom: 2,
+                          }}
+                        >
+                          BOOK
+                        </Text>
+                        <Text
+                          style={{
+                            color: colors.foreground,
+                            fontSize: 14,
+                            fontWeight: '500',
+                            marginBottom: 12,
+                          }}
+                        >
+                          {day.book}
+                        </Text>
+                        
+                        {/* Chapter Progress */}
+                        <Text
+                          style={{
+                            color: colors.muted,
+                            fontSize: 12,
+                            fontWeight: '500',
+                            marginBottom: 2,
+                          }}
+                        >
+                          PROGRESS
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: '500' }}>
                             {day.chapter} of {getChapterCount(day.book)} chapters
                           </Text>
-                          <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
+                          <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
                             {Math.round((day.chapter / getChapterCount(day.book)) * 100)}%
                           </Text>
                         </View>
-                        <View style={{ height: 3, backgroundColor: colors.border, borderRadius: 1.5, overflow: 'hidden' }}>
+                        <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' }}>
                           <View
                             style={{
                               height: '100%',

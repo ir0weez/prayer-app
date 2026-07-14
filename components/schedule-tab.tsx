@@ -2941,6 +2941,16 @@ export function ScheduleTab({
                   />
                 ))}
               </View>
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES (optional)</Text>
+              <TextInput
+                value={formTodoNotes}
+                onChangeText={setFormTodoNotes}
+                placeholder="Add any notes or details for this todo"
+                placeholderTextColor={colors.muted}
+                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, minHeight: 80, textAlignVertical: 'top' }]}
+                multiline
+                numberOfLines={4}
+              />
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TAG (optional)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {['Ministry', 'Event', 'Family', 'Therapy', 'Personal'].map((tag) => (
@@ -3056,16 +3066,6 @@ export function ScheduleTab({
                   );
                 })()}
               </View>
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES (optional)</Text>
-              <TextInput
-                value={formTodoNotes}
-                onChangeText={setFormTodoNotes}
-                placeholder="Add any notes or details for this todo"
-                placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, minHeight: 80, textAlignVertical: 'top' }]}
-                multiline
-                numberOfLines={4}
-              />
             </ScrollView>
           </View>
         </View>

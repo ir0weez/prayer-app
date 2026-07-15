@@ -46,6 +46,7 @@ import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
+import { VinylRecord } from "./vinyl-record";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
@@ -1810,7 +1811,8 @@ export function ScheduleTab({
 
     // Expandable sections (missed todos, worship)
     items.push({ type: "expandable-missed-todos", id: "missed-todos-section", data: missedTodos });
-    items.push({ type: "expandable-worship", id: "worship-section", data: null });
+    // Add worship section as a direct display (not expandable)
+    items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, todos]);
@@ -2150,53 +2152,48 @@ export function ScheduleTab({
               }}
             />
           );
-        case "expandable-worship": {
+        case "worship-display": {
           const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
-          console.log('DEBUG: Filtering albums for date:', selectedDate, 'Found:', linkedAlbumsForDate.length, 'Total albums:', worshipAlbums.length);
+          const currentAlbum = linkedAlbumsForDate.length > 0 ? linkedAlbumsForDate[0] : null;
+          
           return (
-            <ExpandableSection 
-              title="Worship" 
-              icon="music-note"
-              defaultExpanded={true}
-              rightButton={
+            <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>
+              {/* Worship Header */}
+              <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                  <MaterialIcons name="music-note" size={20} color={colors.primary} />
+                  <Text style={[{ fontSize: 16, fontWeight: '600', color: colors.foreground }]}>Worship</Text>
+                </View>
                 <Pressable
-                  onPress={() => onShowWorshipAlbumForm?.(true)}
+                  onPress={() => setAddType('worship')}
                   style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                 >
                   <MaterialIcons name="add" size={20} color={colors.primary} />
                 </Pressable>
-              }
-            >
-              <WorshipAlbumSelector
-              selectedDate={selectedDate}
-              linkedAlbums={linkedAlbumsForDate.map((a) => ({
-                id: a.id,
-                title: a.title,
-                artist: a.artist,
-                coverUrl: a.coverUrl,
-                spotifyUrl: a.spotifyUrl,
-              }))}
-              showAddModal={showWorshipAlbumForm}
-              onShowAddModal={onShowWorshipAlbumForm}
-              onAddAlbum={(album: WorshipAlbum) => {
-                setWorshipAlbums((prev) => [
-                  ...prev,
-                  {
-                    id: album.id,
-                    date: selectedDate,
-                    title: album.title,
-                    artist: album.artist,
-                    coverUrl: album.coverUrl,
-                    spotifyUrl: album.spotifyUrl,
-                    createdAt: new Date().toISOString(),
-                  },
-                ]);
-              }}
-              onRemoveAlbum={(albumId: string) => {
-                setWorshipAlbums((prev) => prev.filter((a) => a.id !== albumId));
-              }}
-              />
-            </ExpandableSection>
+              </View>
+              
+              {/* Worship Album Display */}
+              {currentAlbum ? (
+                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }]}>
+                  <VinylRecord albumArtUrl={currentAlbum.coverUrl} size={80} isPlaying={true} />
+                  <View style={[{ flex: 1, gap: 4 }]}>
+                    <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{currentAlbum.title}</Text>
+                    <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{currentAlbum.artist}</Text>
+                    <Pressable
+                      onPress={() => setWorshipAlbums((prev) => prev.filter((a) => a.id !== currentAlbum.id))}
+                      style={[{ marginTop: 4 }]}
+                    >
+                      <MaterialIcons name="close" size={18} color={colors.error} />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
+                  <MaterialIcons name="music-note" size={32} color={colors.muted} />
+                  <Text style={[{ fontSize: 14, color: colors.muted }]}>No worship album for today</Text>
+                </View>
+              )}
+            </View>
           );
         }
         case "expandable-missed-todos":

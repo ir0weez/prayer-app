@@ -320,103 +320,46 @@ export function DailySummaryCard({
                 style={{ maxHeight: 300 }}
                 showsVerticalScrollIndicator={true}
               >
-                {bibleStudyDays.map((day) => (
-                  <View
+{bibleStudyDays.map((day) => (
+                  <Pressable
                     key={day.dayName}
-                    style={{
-                      marginVertical: 8,
+                    onPress={() => {
+                      if (onBibleStudyDayChange) {
+                        onBibleStudyDayChange(day.dayName);
+                      }
+                      setShowDayDropdown(false);
+                    }}
+                    style={({ pressed }) => [{
+                      marginVertical: 10,
+                      paddingVertical: 16,
+                      paddingHorizontal: 16,
                       borderRadius: 12,
                       backgroundColor: colors.background,
-                      borderWidth: displayDay === day.dayName ? 2 : 1,
+                      borderWidth: 2,
                       borderColor: displayDay === day.dayName ? colors.primary : colors.border,
-                      overflow: 'hidden',
-                    }}
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      opacity: pressed ? 0.7 : 1,
+                    }]}
                   >
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                      }}
-                    >
-                    <Pressable
-                      onPress={() => {
-                        if (onBibleStudyDayChange) {
-                          onBibleStudyDayChange(day.dayName);
-                        }
-                        setShowDayDropdown(false);
-                      }}
-                      style={({ pressed }) => [{
-                        flex: 1,
-                        paddingVertical: 16,
-                        paddingHorizontal: 16,
-                        opacity: pressed ? 0.7 : 1,
-                      }]}
-                    >
-                      <View>
-                        {/* Title */}
-                        <Text
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: 16, marginBottom: 8 }}>
+                        {day.dayName}: {day.book}
+                      </Text>
+                      <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>
+                        {day.chapter} of {getChapterCount(day.book)} chapters
+                      </Text>
+                      <View style={{ height: 3, backgroundColor: colors.border, borderRadius: 1.5, overflow: 'hidden' }}>
+                        <View
                           style={{
-                            color: colors.foreground,
-                            fontWeight: "600",
-                            fontSize: 16,
-                            marginBottom: 12,
+                            height: '100%',
+                            width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
+                            backgroundColor: colors.primary,
                           }}
-                        >
-                          {day.dayName}
-                        </Text>
-                        
-                        {/* Book */}
-                        <Text
-                          style={{
-                            color: colors.muted,
-                            fontSize: 12,
-                            fontWeight: '500',
-                            marginBottom: 2,
-                          }}
-                        >
-                          BOOK
-                        </Text>
-                        <Text
-                          style={{
-                            color: colors.foreground,
-                            fontSize: 14,
-                            fontWeight: '500',
-                            marginBottom: 12,
-                          }}
-                        >
-                          {day.book}
-                        </Text>
-                        
-                        {/* Chapter Progress */}
-                        <Text
-                          style={{
-                            color: colors.muted,
-                            fontSize: 12,
-                            fontWeight: '500',
-                            marginBottom: 2,
-                          }}
-                        >
-                          PROGRESS
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: '500' }}>
-                            {day.chapter} of {getChapterCount(day.book)} chapters
-                          </Text>
-                          <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
-                            {Math.round((day.chapter / getChapterCount(day.book)) * 100)}%
-                          </Text>
-                        </View>
-                        <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' }}>
-                          <View
-                            style={{
-                              height: '100%',
-                              width: `${(day.chapter / getChapterCount(day.book)) * 100}%`,
-                              backgroundColor: colors.primary,
-                            }}
-                          />
-                        </View>
+                        />
                       </View>
-                    </Pressable>
+                    </View>
                     {onDeleteBibleStudyDay && (
                       <Pressable
                         onPress={() => {
@@ -424,16 +367,14 @@ export function DailySummaryCard({
                           setShowDayDropdown(false);
                         }}
                         style={({ pressed }) => [{
-                          paddingVertical: 8,
-                          paddingHorizontal: 12,
+                          marginLeft: 12,
                           opacity: pressed ? 0.5 : 1,
                         }]}
                       >
-                        <MaterialIcons name="delete" size={18} color={colors.error} />
+                        <MaterialIcons name="delete" size={20} color={colors.error} />
                       </Pressable>
                     )}
-                    </View>
-                  </View>
+                  </Pressable>
                 ))}
               </ScrollView>
             </View>

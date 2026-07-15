@@ -1614,19 +1614,23 @@ export function ScheduleTab({
     
     console.log('DEBUG: New album object:', newAlbum);
     
-    Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
-    // Update state with new album
+    // Update state with new album FIRST
     setWorshipAlbums((prev) => {
       const updated = [...prev, newAlbum];
       console.log('Worship albums after save:', updated.length);
       console.log('All albums:', updated.map(a => ({ title: a.title, date: a.date })));
       return updated;
     });
-    // Close modal and reset form
-    resetForm();
-    setFormWorshipSongs([]);
-    setAddType(null);
-    setShowAddModal(false);
+    
+    Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
+    
+    // Close modal and reset form AFTER state update
+    setTimeout(() => {
+      resetForm();
+      setFormWorshipSongs([]);
+      setAddType(null);
+      setShowAddModal(false);
+    }, 100);
   };
 
   const handleSaveBibleStudy = async () => {

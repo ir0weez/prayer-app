@@ -1595,6 +1595,13 @@ export function ScheduleTab({
       Alert.alert('Error', 'Please enter an album title');
       return;
     }
+    console.log('DEBUG: Saving worship album');
+    console.log('  formTitle:', formTitle);
+    console.log('  formNotes (artist):', formNotes);
+    console.log('  formDate:', formDate);
+    console.log('  selectedDate:', selectedDate);
+    console.log('  formAlbumCoverImage:', formAlbumCoverImage ? 'set' : 'not set');
+    
     const newAlbum = {
       id: generateId(),
       title: formTitle.trim(),
@@ -1604,11 +1611,15 @@ export function ScheduleTab({
       date: formDate || selectedDate,
       createdAt: new Date().toISOString(),
     };
+    
+    console.log('DEBUG: New album object:', newAlbum);
+    
     Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     // Update state with new album
     setWorshipAlbums((prev) => {
       const updated = [...prev, newAlbum];
       console.log('Worship albums after save:', updated.length);
+      console.log('All albums:', updated.map(a => ({ title: a.title, date: a.date })));
       return updated;
     });
     // Close modal and reset form
@@ -2153,8 +2164,9 @@ export function ScheduleTab({
             />
           );
         case "worship-display": {
-          const linkedAlbumsForDate = worshipAlbums.filter((album) => album.date === selectedDate);
-          const currentAlbum = linkedAlbumsForDate.length > 0 ? linkedAlbumsForDate[0] : null;
+          // Show the most recent album (sorted by createdAt)
+          const sortedAlbums = [...worshipAlbums].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          const currentAlbum = sortedAlbums.length > 0 ? sortedAlbums[0] : null;
           
           return (
             <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>

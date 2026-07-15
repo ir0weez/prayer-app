@@ -795,7 +795,15 @@ export function ScheduleTab({
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
-  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
+  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([{
+    id: 'sample-album-1',
+    title: 'Hillsong Worship',
+    artist: 'Hillsong United',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/album/sample',
+    date: getTodayISOString(),
+    createdAt: new Date().toISOString(),
+  }]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
   const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
@@ -2149,6 +2157,7 @@ export function ScheduleTab({
             <ExpandableSection 
               title="Worship" 
               icon="music-note"
+              defaultExpanded={true}
               rightButton={
                 <Pressable
                   onPress={() => onShowWorshipAlbumForm?.(true)}

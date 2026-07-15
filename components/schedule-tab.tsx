@@ -796,15 +796,7 @@ export function ScheduleTab({
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
-  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([{
-    id: 'sample-album-1',
-    title: 'Hillsong Worship',
-    artist: 'Hillsong United',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop',
-    spotifyUrl: 'https://open.spotify.com/album/sample',
-    date: getTodayISOString(),
-    createdAt: new Date().toISOString(),
-  }]);
+  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
   const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
@@ -819,6 +811,32 @@ export function ScheduleTab({
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
+  
+  // Load and persist worship albums
+  useEffect(() => {
+    const loadWorshipAlbums = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
+        if (saved) {
+          const albums = JSON.parse(saved);
+          console.log('Loaded worship albums from storage:', albums.length);
+          setWorshipAlbums(albums);
+        }
+      } catch (e) {
+        console.error('Error loading worship albums:', e);
+      }
+    };
+    loadWorshipAlbums();
+  }, []);
+  
+  // Persist worship albums whenever they change
+  useEffect(() => {
+    if (worshipAlbums.length > 0) {
+      AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(worshipAlbums)).catch(e => 
+        console.error('Error saving worship albums:', e)
+      );
+    }
+  }, [worshipAlbums]);
   
   // Persist Personal Study expanded state
   useEffect(() => {

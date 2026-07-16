@@ -1677,25 +1677,23 @@ export function ScheduleTab({
     
     console.log('DEBUG: New album object:', newAlbum);
     
-    // Add to album history and save immediately
+    // Add to album history
     const albumWithMetadata = { ...newAlbum, id: newAlbum.id, addedAt: new Date().toISOString() };
-    setAlbumHistory((prev) => {
-      const exists = prev.some(a => a.id === newAlbum.id);
-      if (exists) return prev;
-      const updated = [...prev, albumWithMetadata];
-      // Save to AsyncStorage immediately
-      AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updated)).catch(e => 
-        console.error('Error saving album history:', e)
-      );
-      return updated;
-    });
+    const updatedHistory = [...albumHistory, albumWithMetadata];
     
-    // Set as current display album immediately
+    // Update state
+    setAlbumHistory(updatedHistory);
     setCurrentDisplayAlbumId(newAlbum.id);
-    // Also save current display album ID immediately
+    
+    // Save to AsyncStorage
+    AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory)).catch(e => 
+      console.error('Error saving album history:', e)
+    );
     AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id).catch(e => 
       console.error('Error saving current display album:', e)
     );
+    
+    console.log('DEBUG: Album saved', { albumId: newAlbum.id, title: newAlbum.title, historyLength: updatedHistory.length });
     
     Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     
@@ -2244,7 +2242,15 @@ export function ScheduleTab({
           );
         case "worship-display": {
           // Get current album from history by ID
-          const currentAlbum = currentDisplayAlbumId && albumHistory.find(a => a.id === currentDisplayAlbumId) || null;
+          const currentAlbum = currentDisplayAlbumId 
+            ? albumHistory.find(a => a.id === currentDisplayAlbumId) 
+            : null;
+          
+          console.log('DEBUG: Rendering worship display', {
+            currentDisplayAlbumId,
+            albumHistoryLength: albumHistory.length,
+            currentAlbum: currentAlbum ? { id: currentAlbum.id, title: currentAlbum.title } : null
+          });
           
           const handleDeleteAlbum = () => {
             setCurrentDisplayAlbumId(null);

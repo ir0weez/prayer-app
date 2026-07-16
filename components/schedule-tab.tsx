@@ -1677,15 +1677,25 @@ export function ScheduleTab({
     
     console.log('DEBUG: New album object:', newAlbum);
     
-    // Add to album history
+    // Add to album history and save immediately
+    const albumWithMetadata = { ...newAlbum, id: newAlbum.id, addedAt: new Date().toISOString() };
     setAlbumHistory((prev) => {
       const exists = prev.some(a => a.id === newAlbum.id);
       if (exists) return prev;
-      return [...prev, { ...newAlbum, id: newAlbum.id, addedAt: new Date().toISOString() }];
+      const updated = [...prev, albumWithMetadata];
+      // Save to AsyncStorage immediately
+      AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updated)).catch(e => 
+        console.error('Error saving album history:', e)
+      );
+      return updated;
     });
     
-    // Set as current display album immediately - this triggers real-time update
+    // Set as current display album immediately
     setCurrentDisplayAlbumId(newAlbum.id);
+    // Also save current display album ID immediately
+    AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id).catch(e => 
+      console.error('Error saving current display album:', e)
+    );
     
     Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     

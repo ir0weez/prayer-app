@@ -1654,43 +1654,48 @@ export function ScheduleTab({
   };
 
     const handleSaveWorshipList = async () => {
-    try {
-      if (!formTitle.trim()) {
-        Alert.alert('Error', 'Please enter an album title');
-        return;
-      }
-      console.log('DEBUG: Saving worship album');
-      console.log('  formTitle:', formTitle);
-      console.log('  formNotes (artist):', formNotes);
-      console.log('  albumHistory.length:', albumHistory.length);
-      
-      const newAlbum = {
-        id: generateId(),
-        title: formTitle.trim(),
-        artist: formNotes.trim() || 'Unknown Artist',
-        coverUrl: formAlbumCoverImage || formSongLink.trim() || '',
-        spotifyUrl: formSpotifyLink.trim() || '',
-        date: formDate || selectedDate,
-        createdAt: new Date().toISOString(),
-      };
-      
-      console.log('DEBUG: New album:', newAlbum);
-      
-      const updatedHistory: typeof albumHistory = [...albumHistory, { ...newAlbum, addedAt: new Date().toISOString() }];
-      setAlbumHistory(updatedHistory);
-      setCurrentDisplayAlbumId(newAlbum.id);
-      
-      console.log('DEBUG: State updated - history length:', updatedHistory.length);
-      
-      await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
-      await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id);
-      
-      console.log('DEBUG: Saved to AsyncStorage');
-      Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
-    } catch (error) {
-      console.error('ERROR in handleSaveWorshipList:', error);
-      Alert.alert('Error', `Failed to save album: ${String(error)}`);
+    if (!formTitle.trim()) {
+      Alert.alert('Error', 'Please enter an album title');
+      return;
     }
+    console.log('DEBUG: Saving worship album');
+    console.log('  formTitle:', formTitle);
+    console.log('  formNotes (artist):', formNotes);
+    console.log('  formDate:', formDate);
+    console.log('  selectedDate:', selectedDate);
+    console.log('  formAlbumCoverImage:', formAlbumCoverImage ? 'set' : 'not set');
+    
+    const newAlbum = {
+      id: generateId(),
+      title: formTitle.trim(),
+      artist: formNotes.trim() || 'Unknown Artist',
+      coverUrl: formAlbumCoverImage || formSongLink.trim() || '',
+      spotifyUrl: formSpotifyLink.trim() || '',
+      date: formDate || selectedDate,
+      createdAt: new Date().toISOString(),
+    };
+    
+    console.log('DEBUG: New album object:', newAlbum);
+    
+    // Add to album history
+    const albumWithMetadata = { ...newAlbum, id: newAlbum.id, addedAt: new Date().toISOString() };
+    const updatedHistory = [...albumHistory, albumWithMetadata];
+    
+    // Update state
+    setAlbumHistory(updatedHistory);
+    setCurrentDisplayAlbumId(newAlbum.id);
+    
+    // Save to AsyncStorage
+    AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory)).catch(e => 
+      console.error('Error saving album history:', e)
+    );
+    AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id).catch(e => 
+      console.error('Error saving current display album:', e)
+    );
+    
+    console.log('DEBUG: Album saved', { albumId: newAlbum.id, title: newAlbum.title, historyLength: updatedHistory.length });
+    
+    Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     
     // Close modal and reset form
     setTimeout(() => {

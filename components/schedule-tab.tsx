@@ -813,6 +813,7 @@ export function ScheduleTab({
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
   // Load album history and current display album on mount
   useEffect(() => {
@@ -2251,12 +2252,22 @@ export function ScheduleTab({
                   <MaterialIcons name="music-note" size={20} color={colors.primary} />
                   <Text style={[{ fontSize: 16, fontWeight: '600', color: colors.foreground }]}>Worship</Text>
                 </View>
-                <Pressable
-                  onPress={() => setAddType('worship')}
-                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <MaterialIcons name="add" size={20} color={colors.primary} />
-                </Pressable>
+                <View style={[{ flexDirection: 'row', gap: 8 }]}>
+                  {albumHistory.length > 0 && (
+                    <Pressable
+                      onPress={() => setShowAlbumLibrary(true)}
+                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                    >
+                      <MaterialIcons name="library-music" size={20} color={colors.primary} />
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => setAddType('worship')}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <MaterialIcons name="add" size={20} color={colors.primary} />
+                  </Pressable>
+                </View>
               </View>
               
               {/* Worship Album Display with Overlapping Pill */}
@@ -2297,46 +2308,11 @@ export function ScheduleTab({
                 <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
                   <MaterialIcons name="music-note" size={40} color={colors.muted} />
                   <Text style={[{ fontSize: 14, fontWeight: '500', color: colors.foreground }]}>Nothing chosen yet</Text>
-                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap + to add an album or select from your history</Text>
+                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap + to add an album</Text>
                 </View>
               )}
               
-              {/* Album History Selector */}
-              {albumHistory.length > 0 && (
-                <View style={[{ gap: 8 }]}>
-                  <Text style={[{ fontSize: 12, fontWeight: '600', color: colors.muted, paddingHorizontal: 4 }]}>Recent Albums</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[{ marginHorizontal: -16, paddingHorizontal: 16 }]}>
-                    <View style={[{ flexDirection: 'row', gap: 8 }]}>
-                      {albumHistory.slice(-5).reverse().map((album) => (
-                        <Pressable
-                          key={album.id}
-                          onPress={() => handleSelectAlbum(album.id)}
-                          style={({ pressed }) => [{
-                            opacity: pressed ? 0.7 : 1,
-                            backgroundColor: currentDisplayAlbumId === album.id ? colors.primary : colors.surface,
-                            borderRadius: 8,
-                            padding: 8,
-                            borderWidth: 1,
-                            borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border,
-                            minWidth: 80,
-                            alignItems: 'center',
-                            gap: 4,
-                          }]}
-                        >
-                          {album.coverUrl ? (
-                            <Image source={{ uri: album.coverUrl }} style={[{ width: 50, height: 50, borderRadius: 4 }]} />
-                          ) : (
-                            <View style={[{ width: 50, height: 50, borderRadius: 4, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}>
-                              <MaterialIcons name="music-note" size={24} color={colors.muted} />
-                            </View>
-                          )}
-                          <Text style={[{ fontSize: 10, color: currentDisplayAlbumId === album.id ? colors.background : colors.foreground, fontWeight: '500', textAlign: 'center' }]} numberOfLines={1}>{album.title}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
+
             </View>
           );
         }
@@ -3581,6 +3557,63 @@ export function ScheduleTab({
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
                 returnKeyType="done"
               />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Album Library Modal */}
+      <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
+        <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, maxHeight: '80%' }]}>
+            <View style={scheduleStyles.formHeader}>
+              <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                <MaterialIcons name="close" size={28} color={colors.foreground} />
+              </Pressable>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Album Library</Text>
+              <View style={{ width: 28 }} />
+            </View>
+            <ScrollView style={[{ flex: 1, paddingHorizontal: 16 }]} showsVerticalScrollIndicator={false}>
+              <View style={[{ gap: 12, paddingVertical: 16 }]}>
+                {albumHistory.length === 0 ? (
+                  <Text style={[{ color: colors.muted, textAlign: 'center', marginTop: 24 }]}>No albums saved yet</Text>
+                ) : (
+                  albumHistory.map((album) => (
+                    <Pressable
+                      key={album.id}
+                      onPress={() => {
+                        setCurrentDisplayAlbumId(album.id);
+                        setShowAlbumLibrary(false);
+                      }}
+                      style={({ pressed }) => [{
+                        flexDirection: 'row',
+                        gap: 12,
+                        padding: 12,
+                        borderRadius: 12,
+                        backgroundColor: currentDisplayAlbumId === album.id ? colors.primary + '20' : colors.background,
+                        borderWidth: 1,
+                        borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border,
+                        opacity: pressed ? 0.7 : 1,
+                      }]}
+                    >
+                      {album.coverUrl ? (
+                        <Image source={{ uri: album.coverUrl }} style={[{ width: 60, height: 60, borderRadius: 8 }]} />
+                      ) : (
+                        <View style={[{ width: 60, height: 60, borderRadius: 8, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}>
+                          <MaterialIcons name="music-note" size={28} color={colors.muted} />
+                        </View>
+                      )}
+                      <View style={[{ flex: 1, justifyContent: 'center', gap: 2 }]}>
+                        <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{album.title}</Text>
+                        <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{album.artist}</Text>
+                      </View>
+                      {currentDisplayAlbumId === album.id && (
+                        <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+                      )}
+                    </Pressable>
+                  ))
+                )}
+              </View>
             </ScrollView>
           </View>
         </View>

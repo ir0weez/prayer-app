@@ -811,8 +811,17 @@ export function ScheduleTab({
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
-  const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
-  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>('test-album-1');
+  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([
+    {
+      id: 'test-album-1',
+      title: 'Test Album',
+      artist: 'Test Artist',
+      coverUrl: 'https://via.placeholder.com/200?text=Test+Album',
+      spotifyUrl: '',
+      addedAt: new Date().toISOString(),
+    }
+  ]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
   // Load album history and current display album on mount
@@ -1659,10 +1668,6 @@ export function ScheduleTab({
         Alert.alert('Error', 'Please enter an album title');
         return;
       }
-      console.log('DEBUG: Saving worship album');
-      console.log('  formTitle:', formTitle);
-      console.log('  formNotes (artist):', formNotes);
-      console.log('  albumHistory.length:', albumHistory.length);
       
       const newAlbum = {
         id: generateId(),
@@ -1674,22 +1679,25 @@ export function ScheduleTab({
         createdAt: new Date().toISOString(),
       };
       
-      console.log('DEBUG: New album:', newAlbum);
+      const albumWithMetadata = { ...newAlbum, addedAt: new Date().toISOString() };
+      const updatedHistory = [...albumHistory, albumWithMetadata];
       
-      const updatedHistory: typeof albumHistory = [...albumHistory, { ...newAlbum, addedAt: new Date().toISOString() }];
+      console.log('SAVE: newAlbum =', newAlbum);
+      console.log('SAVE: updatedHistory length =', updatedHistory.length);
+      console.log('SAVE: setting currentDisplayAlbumId =', newAlbum.id);
+      
+      // Update state synchronously
       setAlbumHistory(updatedHistory);
       setCurrentDisplayAlbumId(newAlbum.id);
       
-      console.log('DEBUG: State updated - history length:', updatedHistory.length);
-      
+      // Save to storage
       await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
       await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id);
       
-      console.log('DEBUG: Saved to AsyncStorage');
       Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     } catch (error) {
-      console.error('ERROR in handleSaveWorshipList:', error);
-      Alert.alert('Error', `Failed to save album: ${String(error)}`);
+      console.error('ERROR:', error);
+      Alert.alert('Error', `Failed: ${String(error)}`);
     }
     
     // Close modal and reset form

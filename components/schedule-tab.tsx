@@ -811,8 +811,52 @@ export function ScheduleTab({
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
+  const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
+  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
   
-  // Load and persist worship albums
+  // Load album history and current display album on mount
+  useEffect(() => {
+    const loadAlbumData = async () => {
+      try {
+        const savedHistory = await AsyncStorage.getItem('ALBUM_HISTORY_KEY');
+        if (savedHistory) {
+          const history = JSON.parse(savedHistory);
+          setAlbumHistory(history);
+          console.log('Loaded album history:', history.length);
+        }
+        const savedCurrentId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
+        if (savedCurrentId) {
+          setCurrentDisplayAlbumId(savedCurrentId);
+          console.log('Loaded current display album:', savedCurrentId);
+        }
+      } catch (e) {
+        console.error('Error loading album data:', e);
+      }
+    };
+    loadAlbumData();
+  }, []);
+  
+  // Persist album history whenever it changes
+  useEffect(() => {
+    if (albumHistory.length > 0) {
+      AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e => 
+        console.error('Error saving album history:', e)
+      );
+    }
+  }, [albumHistory]);
+  
+  // Persist current display album ID
+  useEffect(() => {
+    if (currentDisplayAlbumId) {
+      AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', currentDisplayAlbumId).catch(e => 
+        console.error('Error saving current display album:', e)
+      );
+    } else {
+      AsyncStorage.removeItem('CURRENT_DISPLAY_ALBUM_ID').catch(() => undefined);
+    }
+  }, [currentDisplayAlbumId]);
+  
+  // Load and persist worship albums (deprecated - keeping for backward compatibility)
   useEffect(() => {
     const loadWorshipAlbums = async () => {
       try {
@@ -1632,23 +1676,25 @@ export function ScheduleTab({
     
     console.log('DEBUG: New album object:', newAlbum);
     
-    // Update state with new album FIRST
-    setWorshipAlbums((prev) => {
-      const updated = [...prev, newAlbum];
-      console.log('Worship albums after save:', updated.length);
-      console.log('All albums:', updated.map(a => ({ title: a.title, date: a.date })));
-      return updated;
+    // Add to album history
+    setAlbumHistory((prev) => {
+      const exists = prev.some(a => a.id === newAlbum.id);
+      if (exists) return prev;
+      return [...prev, { ...newAlbum, id: newAlbum.id, addedAt: new Date().toISOString() }];
     });
+    
+    // Set as current display album immediately - this triggers real-time update
+    setCurrentDisplayAlbumId(newAlbum.id);
     
     Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     
-    // Close modal and reset form AFTER state update
+    // Close modal and reset form
     setTimeout(() => {
       resetForm();
       setFormWorshipSongs([]);
       setAddType(null);
       setShowAddModal(false);
-    }, 100);
+    }, 50);
   };
 
   const handleSaveBibleStudy = async () => {
@@ -2186,9 +2232,16 @@ export function ScheduleTab({
             />
           );
         case "worship-display": {
-          // Show the most recent album (sorted by createdAt)
-          const sortedAlbums = [...worshipAlbums].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          const currentAlbum = sortedAlbums.length > 0 ? sortedAlbums[0] : null;
+          // Get current album from history by ID
+          const currentAlbum = currentDisplayAlbumId && albumHistory.find(a => a.id === currentDisplayAlbumId) || null;
+          
+          const handleDeleteAlbum = () => {
+            setCurrentDisplayAlbumId(null);
+          };
+          
+          const handleSelectAlbum = (albumId: string) => {
+            setCurrentDisplayAlbumId(albumId);
+          };
           
           return (
             <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>
@@ -2206,25 +2259,82 @@ export function ScheduleTab({
                 </Pressable>
               </View>
               
-              {/* Worship Album Display */}
+              {/* Worship Album Display with Overlapping Pill */}
               {currentAlbum ? (
-                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }]}>
-                  <VinylRecord albumArtUrl={currentAlbum.coverUrl} size={80} isPlaying={true} />
-                  <View style={[{ flex: 1, gap: 4 }]}>
-                    <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{currentAlbum.title}</Text>
-                    <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{currentAlbum.artist}</Text>
+                <View style={[{ position: 'relative', alignItems: 'center', justifyContent: 'center', paddingBottom: 20 }]}>
+                  {/* Vinyl Record */}
+                  <VinylRecord albumArtUrl={currentAlbum.coverUrl} size={120} isPlaying={true} />
+                  
+                  {/* Overlapping Pill with Album Info and Delete Button */}
+                  <View style={[{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 16,
+                    right: 16,
+                    backgroundColor: colors.primary + '15',
+                    borderRadius: 20,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderWidth: 1,
+                    borderColor: colors.primary + '40',
+                  }]}>
+                    <View style={[{ flex: 1, gap: 2 }]}>
+                      <Text style={[{ fontSize: 13, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{currentAlbum.title}</Text>
+                      <Text style={[{ fontSize: 11, color: colors.muted }]} numberOfLines={1}>{currentAlbum.artist}</Text>
+                    </View>
                     <Pressable
-                      onPress={() => setWorshipAlbums((prev) => prev.filter((a) => a.id !== currentAlbum.id))}
-                      style={[{ marginTop: 4 }]}
+                      onPress={handleDeleteAlbum}
+                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
                     >
-                      <MaterialIcons name="close" size={18} color={colors.error} />
+                      <MaterialIcons name="close" size={20} color={colors.error} />
                     </Pressable>
                   </View>
                 </View>
               ) : (
-                <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
-                  <MaterialIcons name="music-note" size={32} color={colors.muted} />
-                  <Text style={[{ fontSize: 14, color: colors.muted }]}>No worship album for today</Text>
+                <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
+                  <MaterialIcons name="music-note" size={40} color={colors.muted} />
+                  <Text style={[{ fontSize: 14, fontWeight: '500', color: colors.foreground }]}>Nothing chosen yet</Text>
+                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap + to add an album or select from your history</Text>
+                </View>
+              )}
+              
+              {/* Album History Selector */}
+              {albumHistory.length > 0 && (
+                <View style={[{ gap: 8 }]}>
+                  <Text style={[{ fontSize: 12, fontWeight: '600', color: colors.muted, paddingHorizontal: 4 }]}>Recent Albums</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[{ marginHorizontal: -16, paddingHorizontal: 16 }]}>
+                    <View style={[{ flexDirection: 'row', gap: 8 }]}>
+                      {albumHistory.slice(-5).reverse().map((album) => (
+                        <Pressable
+                          key={album.id}
+                          onPress={() => handleSelectAlbum(album.id)}
+                          style={({ pressed }) => [{
+                            opacity: pressed ? 0.7 : 1,
+                            backgroundColor: currentDisplayAlbumId === album.id ? colors.primary : colors.surface,
+                            borderRadius: 8,
+                            padding: 8,
+                            borderWidth: 1,
+                            borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border,
+                            minWidth: 80,
+                            alignItems: 'center',
+                            gap: 4,
+                          }]}
+                        >
+                          {album.coverUrl ? (
+                            <Image source={{ uri: album.coverUrl }} style={[{ width: 50, height: 50, borderRadius: 4 }]} />
+                          ) : (
+                            <View style={[{ width: 50, height: 50, borderRadius: 4, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}>
+                              <MaterialIcons name="music-note" size={24} color={colors.muted} />
+                            </View>
+                          )}
+                          <Text style={[{ fontSize: 10, color: currentDisplayAlbumId === album.id ? colors.background : colors.foreground, fontWeight: '500', textAlign: 'center' }]} numberOfLines={1}>{album.title}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
                 </View>
               )}
             </View>

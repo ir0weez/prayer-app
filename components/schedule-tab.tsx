@@ -832,21 +832,36 @@ export function ScheduleTab({
         if (savedHistory) {
           const history = JSON.parse(savedHistory);
           setAlbumHistory(history);
-          console.log('Loaded album history from storage:', history.length);
+          console.log('[ALBUM_LOAD] Loaded album history from storage:', history.length);
         } else {
-          // If no saved history, keep the initial state (which includes test album)
-          console.log('No saved album history, keeping initial state');
+          // If no saved history, initialize with test album and save it
+          console.log('[ALBUM_LOAD] No saved album history, initializing with test album');
+          const testAlbum = {
+            id: 'test-album-1',
+            title: 'Test Album',
+            artist: 'Test Artist',
+            coverUrl: 'https://via.placeholder.com/200?text=Test+Album',
+            spotifyUrl: '',
+            addedAt: new Date().toISOString(),
+          };
+          setAlbumHistory([testAlbum]);
+          // Save to AsyncStorage so it persists on next mount
+          await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify([testAlbum]));
         }
+        
         const savedCurrentId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
         if (savedCurrentId) {
           setCurrentDisplayAlbumId(savedCurrentId);
-          console.log('Loaded current display album from storage:', savedCurrentId);
+          console.log('[ALBUM_LOAD] Loaded current display album from storage:', savedCurrentId);
         } else {
-          // If no saved ID, keep the initial state (which is 'test-album-1')
-          console.log('No saved current album ID, keeping initial state');
+          // If no saved ID, initialize with test album and save it
+          console.log('[ALBUM_LOAD] No saved current album ID, initializing with test-album-1');
+          setCurrentDisplayAlbumId('test-album-1');
+          // Save to AsyncStorage so it persists on next mount
+          await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', 'test-album-1');
         }
       } catch (e) {
-        console.error('Error loading album data:', e);
+        console.error('[ALBUM_LOAD] Error loading album data:', e);
       }
     };
     loadAlbumData();

@@ -832,12 +832,18 @@ export function ScheduleTab({
         if (savedHistory) {
           const history = JSON.parse(savedHistory);
           setAlbumHistory(history);
-          console.log('Loaded album history:', history.length);
+          console.log('Loaded album history from storage:', history.length);
+        } else {
+          // If no saved history, keep the initial state (which includes test album)
+          console.log('No saved album history, keeping initial state');
         }
         const savedCurrentId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
         if (savedCurrentId) {
           setCurrentDisplayAlbumId(savedCurrentId);
-          console.log('Loaded current display album:', savedCurrentId);
+          console.log('Loaded current display album from storage:', savedCurrentId);
+        } else {
+          // If no saved ID, keep the initial state (which is 'test-album-1')
+          console.log('No saved current album ID, keeping initial state');
         }
       } catch (e) {
         console.error('Error loading album data:', e);

@@ -812,16 +812,8 @@ export function ScheduleTab({
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>('test-album-1');
-  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([
-    {
-      id: 'test-album-1',
-      title: 'Test Album',
-      artist: 'Test Artist',
-      coverUrl: 'https://via.placeholder.com/200?text=Test+Album',
-      spotifyUrl: '',
-      addedAt: new Date().toISOString(),
-    }
-  ]);
+  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(null);
+  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
   // Load album history and current display album on mount
@@ -845,20 +837,17 @@ export function ScheduleTab({
             addedAt: new Date().toISOString(),
           };
           setAlbumHistory([testAlbum]);
+          setCurrentAlbum(testAlbum);
           // Save to AsyncStorage so it persists on next mount
           await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify([testAlbum]));
+          await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(testAlbum));
         }
         
-        const savedCurrentId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
-        if (savedCurrentId) {
-          setCurrentDisplayAlbumId(savedCurrentId);
-          console.log('[ALBUM_LOAD] Loaded current display album from storage:', savedCurrentId);
-        } else {
-          // If no saved ID, initialize with test album and save it
-          console.log('[ALBUM_LOAD] No saved current album ID, initializing with test-album-1');
-          setCurrentDisplayAlbumId('test-album-1');
-          // Save to AsyncStorage so it persists on next mount
-          await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', 'test-album-1');
+        const savedCurrentAlbumJson = await AsyncStorage.getItem('CURRENT_ALBUM_JSON');
+        if (savedCurrentAlbumJson) {
+          const savedAlbum = JSON.parse(savedCurrentAlbumJson);
+          setCurrentAlbum(savedAlbum);
+          console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);
@@ -1703,9 +1692,10 @@ export function ScheduleTab({
       const albumWithMetadata = { ...newAlbum, addedAt: new Date().toISOString() };
       const updatedHistory = [...albumHistory, albumWithMetadata];
       
-      console.log('SAVE: newAlbum =', newAlbum);
-      console.log('SAVE: updatedHistory length =', updatedHistory.length);
-      console.log('SAVE: setting currentDisplayAlbumId =', newAlbum.id);
+      console.log('[ALBUM_SAVE] Current albumHistory before save:', albumHistory.length, albumHistory.map(a => a.id));
+      console.log('[ALBUM_SAVE] New album:', newAlbum.id, newAlbum.title);
+      console.log('[ALBUM_SAVE] Updated history:', updatedHistory.length, updatedHistory.map(a => a.id));
+      console.log('[ALBUM_SAVE] Setting currentDisplayAlbumId to:', newAlbum.id);
       
       // Update state synchronously
       setAlbumHistory(updatedHistory);
@@ -1715,6 +1705,7 @@ export function ScheduleTab({
       await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
       await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id);
       
+      console.log('[ALBUM_SAVE] Saved to AsyncStorage');
       Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
     } catch (error) {
       console.error('ERROR:', error);
@@ -1927,7 +1918,7 @@ export function ScheduleTab({
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, todos, currentDisplayAlbumId, albumHistory]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, todos,currentAlbum]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -2265,15 +2256,10 @@ export function ScheduleTab({
             />
           );
         case "worship-display": {
-          // Get current album from history by ID
-          const currentAlbum = currentDisplayAlbumId 
-            ? albumHistory.find(a => a.id === currentDisplayAlbumId) 
-            : null;
-          
-          console.log('DEBUG: Rendering worship display', {
-            currentDisplayAlbumId,
-            albumHistoryLength: albumHistory.length,
-            currentAlbum: currentAlbum ? { id: currentAlbum.id, title: currentAlbum.title } : null
+          // currentAlbum is now directly managed, no need to find it
+          console.log('[WORSHIP_DEBUG] Rendering worship display', {
+            hasAlbum: !!currentAlbum,
+            album: currentAlbum ? { id: currentAlbum.id, title: currentAlbum.title } : null
           });
           
           const handleDeleteAlbum = () => {

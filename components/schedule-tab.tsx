@@ -1692,18 +1692,15 @@ export function ScheduleTab({
       const albumWithMetadata = { ...newAlbum, addedAt: new Date().toISOString() };
       const updatedHistory = [...albumHistory, albumWithMetadata];
       
-      console.log('[ALBUM_SAVE] Current albumHistory before save:', albumHistory.length, albumHistory.map(a => a.id));
-      console.log('[ALBUM_SAVE] New album:', newAlbum.id, newAlbum.title);
-      console.log('[ALBUM_SAVE] Updated history:', updatedHistory.length, updatedHistory.map(a => a.id));
-      console.log('[ALBUM_SAVE] Setting currentDisplayAlbumId to:', newAlbum.id);
+      console.log('[ALBUM_SAVE] Saving new album:', newAlbum.id, newAlbum.title);
       
-      // Update state synchronously
+      // Update state - set currentAlbum directly
       setAlbumHistory(updatedHistory);
-      setCurrentDisplayAlbumId(newAlbum.id);
+      setCurrentAlbum(albumWithMetadata);
       
       // Save to storage
       await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
-      await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', newAlbum.id);
+      await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(albumWithMetadata));
       
       console.log('[ALBUM_SAVE] Saved to AsyncStorage');
       Alert.alert('Saved', `Album saved: ${newAlbum.title}`);

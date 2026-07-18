@@ -813,7 +813,15 @@ export function ScheduleTab({
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>('test-album-1');
-  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(null);
+  const testAlbum = {
+    id: 'test-album-1',
+    title: 'Breach',
+    artist: 'twenty one pilots',
+    coverUrl: 'https://via.placeholder.com/200?text=Breach',
+    spotifyUrl: '',
+    addedAt: new Date().toISOString(),
+  };
+  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(testAlbum);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
@@ -821,27 +829,17 @@ export function ScheduleTab({
   useEffect(() => {
     const loadAlbumData = async () => {
       try {
+        console.log('[ALBUM_LOAD] Starting to load album data...');
         const savedHistory = await AsyncStorage.getItem('ALBUM_HISTORY_KEY');
         if (savedHistory) {
           const history = JSON.parse(savedHistory);
           setAlbumHistory(history);
-          console.log('[ALBUM_LOAD] Loaded album history from storage:', history.length);
+          console.log('[ALBUM_LOAD] Loaded album history from storage:', history.length, history);
         } else {
-          // If no saved history, initialize with test album and save it
-          console.log('[ALBUM_LOAD] No saved album history, initializing with test album');
-          const testAlbum = {
-            id: 'test-album-1',
-            title: 'Test Album',
-            artist: 'Test Artist',
-            coverUrl: 'https://via.placeholder.com/200?text=Test+Album',
-            spotifyUrl: '',
-            addedAt: new Date().toISOString(),
-          };
+          console.log('[ALBUM_LOAD] No saved album history, keeping initial test album');
           setAlbumHistory([testAlbum]);
-          setCurrentAlbum(testAlbum);
           // Save to AsyncStorage so it persists on next mount
           await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify([testAlbum]));
-          await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(testAlbum));
         }
         
         const savedCurrentAlbumJson = await AsyncStorage.getItem('CURRENT_ALBUM_JSON');
@@ -854,9 +852,11 @@ export function ScheduleTab({
             console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
           } catch (parseError) {
             console.error('[ALBUM_LOAD] Failed to parse album JSON:', parseError);
+            // If parsing fails, keep the test album
+            console.log('[ALBUM_LOAD] Keeping test album due to parse error');
           }
         } else {
-          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage');
+          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage, keeping test album');
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);

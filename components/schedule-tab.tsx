@@ -821,7 +821,7 @@ export function ScheduleTab({
     spotifyUrl: '',
     addedAt: new Date().toISOString(),
   };
-  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(testAlbum);
+  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(null);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
@@ -852,11 +852,13 @@ export function ScheduleTab({
             console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
           } catch (parseError) {
             console.error('[ALBUM_LOAD] Failed to parse album JSON:', parseError);
-            // If parsing fails, keep the test album
-            console.log('[ALBUM_LOAD] Keeping test album due to parse error');
+            // If parsing fails, use test album
+            console.log('[ALBUM_LOAD] Parse error, using test album');
+            setCurrentAlbum(testAlbum);
           }
         } else {
-          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage, keeping test album');
+          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage, using test album');
+          setCurrentAlbum(testAlbum);
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);

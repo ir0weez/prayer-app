@@ -1698,6 +1698,7 @@ export function ScheduleTab({
       // Update state - set currentAlbum directly
       setAlbumHistory(updatedHistory);
       setCurrentAlbum(albumWithMetadata);
+      console.log('[ALBUM_SAVE] setCurrentAlbum called with:', albumWithMetadata);
       
       // Save to storage
       await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));

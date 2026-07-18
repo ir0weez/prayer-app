@@ -11,34 +11,7 @@ export interface AlbumCardProps {
 }
 
 /**
- * Get a nice color based on album title for visual variety
- */
-function getColorForAlbum(title: string): string {
-  const colors = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Teal
-    '#FFE66D', // Orange
-    '#95E1D3', // Mint
-    '#F38181', // Pink
-    '#AA96DA', // Purple
-    '#FFD3B6', // Peach
-    '#FFAAA5', // Salmon
-  ];
-  
-  // Use title to pick a consistent color
-  let hash = 0;
-  for (let i = 0; i < title.length; i++) {
-    hash = ((hash << 5) - hash) + title.charCodeAt(i);
-    hash = hash & hash;
-  }
-  
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
-}
-
-/**
  * Material Design album card with image on left, text on right
- * Uses a solid background color for visual appeal
  */
 export function AlbumCard({ 
   title, 
@@ -48,14 +21,15 @@ export function AlbumCard({
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
-  const [backgroundColor] = useState(() => getColorForAlbum(title));
   
   return (
     <View
       style={{
-        backgroundColor,
+        backgroundColor: colors.surface,
         borderRadius: 12,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.border,
         marginBottom: 12,
       }}
     >
@@ -74,9 +48,9 @@ export function AlbumCard({
             height: 80,
             borderRadius: 8,
             overflow: 'hidden',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: colors.muted,
             borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.3)',
+            borderColor: colors.border,
           }}
         >
           {!imageError && coverUrl ? (
@@ -92,10 +66,10 @@ export function AlbumCard({
                 height: '100%',
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backgroundColor: colors.muted,
               }}
             >
-              <MaterialIcons name="music-note" size={32} color="#FFFFFF" />
+              <MaterialIcons name="music-note" size={32} color={colors.foreground} />
             </View>
           )}
         </View>
@@ -106,7 +80,7 @@ export function AlbumCard({
             style={{
               fontSize: 15,
               fontWeight: '600',
-              color: '#FFFFFF',
+              color: colors.foreground,
             }}
             numberOfLines={2}
           >
@@ -115,7 +89,7 @@ export function AlbumCard({
           <Text
             style={{
               fontSize: 13,
-              color: 'rgba(255, 255, 255, 0.9)',
+              color: colors.muted,
             }}
             numberOfLines={1}
           >
@@ -134,7 +108,7 @@ export function AlbumCard({
               },
             ]}
           >
-            <MaterialIcons name="close" size={20} color="#FFFFFF" />
+            <MaterialIcons name="close" size={20} color={colors.error} />
           </Pressable>
         )}
       </View>

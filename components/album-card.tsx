@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -11,7 +11,31 @@ export interface AlbumCardProps {
 }
 
 /**
+ * Extract dominant color from image URL using a simple hash-based approach
+ * This creates a consistent color based on the URL without loading the full image
+ */
+function getDominantColorFromUrl(url: string): string {
+  if (!url) return '#7C5CFF'; // Default purple
+  
+  // Simple hash function to generate a color from URL
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Convert hash to hex color
+  const hue = Math.abs(hash) % 360;
+  const saturation = 65 + (Math.abs(hash) % 20); // 65-85%
+  const lightness = 55 + (Math.abs(hash) % 15); // 55-70%
+  
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+/**
  * Material Design album card with image on left, text on right
+ * Background color matches the album cover
  */
 export function AlbumCard({ 
   title, 
@@ -21,15 +45,19 @@ export function AlbumCard({
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
+  const [dominantColor, setDominantColor] = useState(getDominantColorFromUrl(coverUrl || ''));
+  
+  useEffect(() => {
+    // Update dominant color when coverUrl changes
+    setDominantColor(getDominantColorFromUrl(coverUrl || ''));
+  }, [coverUrl]);
   
   return (
     <View
       style={{
-        backgroundColor: colors.surface,
+        backgroundColor: dominantColor,
         borderRadius: 12,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: colors.border,
         marginBottom: 12,
       }}
     >
@@ -50,7 +78,7 @@ export function AlbumCard({
             overflow: 'hidden',
             backgroundColor: colors.muted,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: 'rgba(255, 255, 255, 0.2)',
           }}
         >
           {!imageError && coverUrl ? (
@@ -80,7 +108,7 @@ export function AlbumCard({
             style={{
               fontSize: 15,
               fontWeight: '600',
-              color: colors.foreground,
+              color: '#FFFFFF',
             }}
             numberOfLines={2}
           >
@@ -89,7 +117,7 @@ export function AlbumCard({
           <Text
             style={{
               fontSize: 13,
-              color: colors.muted,
+              color: 'rgba(255, 255, 255, 0.8)',
             }}
             numberOfLines={1}
           >
@@ -108,7 +136,7 @@ export function AlbumCard({
               },
             ]}
           >
-            <MaterialIcons name="close" size={20} color={colors.error} />
+            <MaterialIcons name="close" size={20} color="#FFFFFF" />
           </Pressable>
         )}
       </View>

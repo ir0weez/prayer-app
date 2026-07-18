@@ -821,7 +821,7 @@ export function ScheduleTab({
     spotifyUrl: '',
     addedAt: new Date().toISOString(),
   };
-  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(null);
+  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(testAlbum);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   

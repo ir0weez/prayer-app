@@ -2551,7 +2551,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            extraData={[selectedDate, listData, colors]}
+            extraData={[selectedDate, listData, colors, currentAlbum]}
             contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0, backgroundColor: colors.surface }]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(

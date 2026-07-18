@@ -3450,7 +3450,7 @@ export function ScheduleTab({
         <View style={scheduleStyles.formOverlay}>
           <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface }]}>
             <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
+              <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Add Album</Text>

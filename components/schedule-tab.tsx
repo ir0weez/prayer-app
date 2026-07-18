@@ -845,10 +845,18 @@ export function ScheduleTab({
         }
         
         const savedCurrentAlbumJson = await AsyncStorage.getItem('CURRENT_ALBUM_JSON');
+        console.log('[ALBUM_LOAD] savedCurrentAlbumJson from storage:', savedCurrentAlbumJson);
         if (savedCurrentAlbumJson) {
-          const savedAlbum = JSON.parse(savedCurrentAlbumJson);
-          setCurrentAlbum(savedAlbum);
-          console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
+          try {
+            const savedAlbum = JSON.parse(savedCurrentAlbumJson);
+            console.log('[ALBUM_LOAD] Parsed album:', savedAlbum);
+            setCurrentAlbum(savedAlbum);
+            console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
+          } catch (parseError) {
+            console.error('[ALBUM_LOAD] Failed to parse album JSON:', parseError);
+          }
+        } else {
+          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage');
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);

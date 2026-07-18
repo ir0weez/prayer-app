@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -11,31 +11,34 @@ export interface AlbumCardProps {
 }
 
 /**
- * Extract dominant color from image URL using a simple hash-based approach
- * This creates a consistent color based on the URL without loading the full image
+ * Get a nice color based on album title for visual variety
  */
-function getDominantColorFromUrl(url: string): string {
-  if (!url) return '#7C5CFF'; // Default purple
+function getColorForAlbum(title: string): string {
+  const colors = [
+    '#FF6B6B', // Red
+    '#4ECDC4', // Teal
+    '#FFE66D', // Orange
+    '#95E1D3', // Mint
+    '#F38181', // Pink
+    '#AA96DA', // Purple
+    '#FFD3B6', // Peach
+    '#FFAAA5', // Salmon
+  ];
   
-  // Simple hash function to generate a color from URL
+  // Use title to pick a consistent color
   let hash = 0;
-  for (let i = 0; i < url.length; i++) {
-    const char = url.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+  for (let i = 0; i < title.length; i++) {
+    hash = ((hash << 5) - hash) + title.charCodeAt(i);
+    hash = hash & hash;
   }
   
-  // Convert hash to hex color
-  const hue = Math.abs(hash) % 360;
-  const saturation = 65 + (Math.abs(hash) % 20); // 65-85%
-  const lightness = 55 + (Math.abs(hash) % 15); // 55-70%
-  
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
 }
 
 /**
  * Material Design album card with image on left, text on right
- * Background color matches the album cover
+ * Uses a solid background color for visual appeal
  */
 export function AlbumCard({ 
   title, 
@@ -45,17 +48,12 @@ export function AlbumCard({
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
-  const [dominantColor, setDominantColor] = useState(getDominantColorFromUrl(coverUrl || ''));
-  
-  useEffect(() => {
-    // Update dominant color when coverUrl changes
-    setDominantColor(getDominantColorFromUrl(coverUrl || ''));
-  }, [coverUrl]);
+  const [backgroundColor] = useState(() => getColorForAlbum(title));
   
   return (
     <View
       style={{
-        backgroundColor: dominantColor,
+        backgroundColor,
         borderRadius: 12,
         overflow: 'hidden',
         marginBottom: 12,
@@ -76,9 +74,9 @@ export function AlbumCard({
             height: 80,
             borderRadius: 8,
             overflow: 'hidden',
-            backgroundColor: colors.muted,
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
             borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderColor: 'rgba(255, 255, 255, 0.3)',
           }}
         >
           {!imageError && coverUrl ? (
@@ -94,10 +92,10 @@ export function AlbumCard({
                 height: '100%',
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: colors.muted,
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
               }}
             >
-              <MaterialIcons name="music-note" size={32} color={colors.foreground} />
+              <MaterialIcons name="music-note" size={32} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -117,7 +115,7 @@ export function AlbumCard({
           <Text
             style={{
               fontSize: 13,
-              color: 'rgba(255, 255, 255, 0.8)',
+              color: 'rgba(255, 255, 255, 0.9)',
             }}
             numberOfLines={1}
           >

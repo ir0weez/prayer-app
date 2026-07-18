@@ -1714,18 +1714,26 @@ export function ScheduleTab({
       
       console.log('[ALBUM_SAVE] Saved to AsyncStorage');
       Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
+      
+      // Close modal and reset form AFTER alert is dismissed
+      // This ensures state updates are processed before modal closes
+      setTimeout(() => {
+        resetForm();
+        setFormWorshipSongs([]);
+        setAddType(null);
+        setShowAddModal(false);
+      }, 100);
     } catch (error) {
       console.error('ERROR:', error);
       Alert.alert('Error', `Failed: ${String(error)}`);
+      // Still close modal on error
+      setTimeout(() => {
+        resetForm();
+        setFormWorshipSongs([]);
+        setAddType(null);
+        setShowAddModal(false);
+      }, 100);
     }
-    
-    // Close modal and reset form
-    setTimeout(() => {
-      resetForm();
-      setFormWorshipSongs([]);
-      setAddType(null);
-      setShowAddModal(false);
-    }, 50);
   };
 
   const handleSaveBibleStudy = async () => {

@@ -47,6 +47,7 @@ import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
 import { VinylRecord } from "./vinyl-record";
+import { AlbumCard } from "./album-card";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
@@ -2293,40 +2294,14 @@ export function ScheduleTab({
                 </View>
               </View>
               
-              {/* Worship Album Display with Overlapping Pill */}
+              {/* Worship Album Display - Material Design Card */}
               {currentAlbum ? (
-                <View style={[{ position: 'relative', alignItems: 'center', justifyContent: 'center', paddingBottom: 20 }]}>
-                  {/* Vinyl Record */}
-                  <VinylRecord albumArtUrl={currentAlbum.coverUrl} size={120} isPlaying={true} />
-                  
-                  {/* Overlapping Pill with Album Info and Delete Button */}
-                  <View style={[{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 16,
-                    right: 16,
-                    backgroundColor: colors.primary + '15',
-                    borderRadius: 20,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderWidth: 1,
-                    borderColor: colors.primary + '40',
-                  }]}>
-                    <View style={[{ flex: 1, gap: 2 }]}>
-                      <Text style={[{ fontSize: 13, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{currentAlbum.title}</Text>
-                      <Text style={[{ fontSize: 11, color: colors.muted }]} numberOfLines={1}>{currentAlbum.artist}</Text>
-                    </View>
-                    <Pressable
-                      onPress={handleDeleteAlbum}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
-                    >
-                      <MaterialIcons name="close" size={20} color={colors.error} />
-                    </Pressable>
-                  </View>
-                </View>
+                <AlbumCard
+                  title={currentAlbum.title}
+                  artist={currentAlbum.artist}
+                  coverUrl={currentAlbum.coverUrl}
+                  onDelete={handleDeleteAlbum}
+                />
               ) : (
                 <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
                   <MaterialIcons name="music-note" size={40} color={colors.muted} />

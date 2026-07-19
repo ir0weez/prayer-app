@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   Animated,
   Dimensions,
@@ -768,6 +768,7 @@ export function ScheduleTab({
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
+  const router = useRouter();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
@@ -1952,33 +1953,24 @@ export function ScheduleTab({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
-                      {(() => {
-                        const streakData = calculateReadingStreak(item.data.state);
-                        if (streakData.streak > 0) {
-                          return (
-                            <View style={{
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                              backgroundColor: colors.primary + '15',
-                              borderRadius: 16,
-                              borderWidth: 1,
-                              borderColor: colors.primary + '40',
-                              marginLeft: 'auto',
-                              marginRight: 8,
-                              shadowColor: colors.primary,
-                              shadowOffset: { width: 0, height: 0 },
-                              shadowOpacity: 0.3,
-                              shadowRadius: 8,
-                              elevation: 3,
-                            }}>
-                              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
-                                {streakData.streak} days of devotion
-                              </Text>
-                            </View>
-                          );
-                        }
-                        return null;
-                      })()}
+                      <Pressable
+                        onPress={() => {
+                          router.push('/bible-tracker');
+                        }}
+                        style={({ pressed }) => [{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          backgroundColor: colors.primary,
+                          borderRadius: 8,
+                          marginLeft: 'auto',
+                          marginRight: 8,
+                          opacity: pressed ? 0.8 : 1,
+                        }]}
+                      >
+                        <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>
+                          Read Chapter
+                        </Text>
+                      </Pressable>
                     </View>
                     <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
                   </View>

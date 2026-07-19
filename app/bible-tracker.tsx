@@ -1,4 +1,3 @@
-import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { BibleChapterViewer } from '@/components/bible-chapter-viewer';
@@ -6,6 +5,8 @@ import { BIBLE_BOOKS, CHAPTER_COUNTS, loadUnifiedBible, markChapterAsRead, getCu
 import { useCallback, useEffect, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from 'expo-router';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { MenuView } from '@react-native-menu/menu';
 
 export default function BibleTrackerScreen() {
   const colors = useColors();
@@ -14,6 +15,7 @@ export default function BibleTrackerScreen() {
   const [showChapters, setShowChapters] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
 
   const loadBibleState = useCallback(async () => {
     try {
@@ -32,13 +34,32 @@ export default function BibleTrackerScreen() {
 
   const handleToggleChapterComplete = async (chapter: number) => {
     try {
-      const isCurrentlyRead = bibleState?.chapters.some(c => c.book === selectedBook && c.chapter === chapter && c.isRead);
       const updated = await markChapterAsRead(selectedBook, chapter);
       setBibleState(updated);
     } catch (error) {
       console.error('Error toggling chapter:', error);
       Alert.alert('Error', 'Failed to save Bible progress');
     }
+  };
+
+  const handleReadChapter = (chapter: number) => {
+    setSelectedChapter(chapter);
+    setViewerVisible(true);
+  };
+
+  const handleBookmarkChapter = (chapter: number) => {
+    const key = `${selectedBook}-${chapter}`;
+    const newBookmarks = new Set(bookmarks);
+    if (newBookmarks.has(key)) {
+      newBookmarks.delete(key);
+    } else {
+      newBookmarks.add(key);
+    }
+    setBookmarks(newBookmarks);
+  };
+
+  const isBookmarked = (chapter: number) => {
+    return bookmarks.has(`${selectedBook}-${chapter}`);
   };
 
   if (!bibleState) {
@@ -100,24 +121,40 @@ export default function BibleTrackerScreen() {
               {bookChapters.map(chapter => {
                 const isRead = bibleState.chapters.some(c => c.book === selectedBook && c.chapter === chapter && c.isRead);
                 return (
-                  <Pressable
+                  <MenuView
                     key={chapter}
-                    onLongPress={() => handleToggleChapterComplete(chapter)}
-                    delayLongPress={500}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                    onPressAction={(e: any) => {
+                      const actionId = e.nativeEvent.name || e.nativeEvent.id;
+                      if (actionId === 'read') {
+                        handleReadChapter(chapter);
+                      } else if (actionId === 'bookmark') {
+                        handleBookmarkChapter(chapter);
+                      } else if (actionId === 'complete') {
+                        handleToggleChapterComplete(chapter);
+                      }
+                    }}
+                    actions={[
+                      { id: 'read', title: 'Read Chapter' },
+                      { id: 'bookmark', title: isBookmarked(chapter) ? 'Remove Bookmark' : 'Bookmark' },
+                      { id: 'complete', title: isRead ? 'Mark Incomplete' : 'Mark Complete' },
+                    ]}
                   >
-                    <View
-                      className={`w-12 h-12 rounded-lg items-center justify-center mr-2 mb-2 ${
-                        isRead ? 'bg-success' : 'bg-surface border border-border'
-                      }`}
-                    >
-                      {isRead ? (
-                        <MaterialIcons name="check" size={20} color={colors.background} />
-                      ) : (
-                        <Text className="text-foreground font-semibold">{chapter}</Text>
-                      )}
-                    </View>
-                  </Pressable>
+                    <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
+                      <View
+                        className={`w-12 h-12 rounded-lg items-center justify-center mr-2 mb-2 ${
+                          isRead ? 'bg-success' : 'bg-surface border border-border'
+                        }`}
+                      >
+                        {isRead ? (
+                          <MaterialIcons name="check" size={20} color={colors.background} />
+                        ) : isBookmarked(chapter) ? (
+                          <MaterialIcons name="bookmark" size={20} color={colors.primary} />
+                        ) : (
+                          <Text className="text-foreground font-semibold">{chapter}</Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  </MenuView>
                 );
               })}
             </View>

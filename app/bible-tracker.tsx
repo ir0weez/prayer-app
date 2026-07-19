@@ -30,20 +30,13 @@ export default function BibleTrackerScreen() {
     }, [loadBibleState])
   );
 
-  const handleChapterPress = (chapter: number) => {
-    console.log('handleChapterPress called for chapter:', chapter);
-    setSelectedChapter(chapter);
-    setViewerVisible(true);
-    console.log('viewerVisible set to true');
-  };
-
-  const handleMarkChapterRead = async (chapter: number) => {
-    console.log('handleMarkChapterRead called for chapter:', chapter);
+  const handleToggleChapterComplete = async (chapter: number) => {
     try {
+      const isCurrentlyRead = bibleState?.chapters.some(c => c.book === selectedBook && c.chapter === chapter && c.isRead);
       const updated = await markChapterAsRead(selectedBook, chapter);
       setBibleState(updated);
     } catch (error) {
-      console.error('Error marking chapter as read:', error);
+      console.error('Error toggling chapter:', error);
       Alert.alert('Error', 'Failed to save Bible progress');
     }
   };
@@ -109,7 +102,8 @@ export default function BibleTrackerScreen() {
                 return (
                   <Pressable
                     key={chapter}
-                    onPress={() => handleChapterPress(chapter)}
+                    onLongPress={() => handleToggleChapterComplete(chapter)}
+                    delayLongPress={500}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <View
@@ -137,7 +131,7 @@ export default function BibleTrackerScreen() {
         chapter={selectedChapter}
         onClose={() => setViewerVisible(false)}
         onMarkComplete={() => {
-          handleMarkChapterRead(selectedChapter);
+          handleToggleChapterComplete(selectedChapter);
           setViewerVisible(false);
         }}
       />

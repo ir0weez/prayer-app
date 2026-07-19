@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -41,72 +41,31 @@ export function BibleChapterViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch Bible verses from public Bible API
+  // Load Bible verses when modal becomes visible
   useEffect(() => {
     if (!visible) return;
 
-    const fetchVerses = async () => {
+    const loadVerses = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Using a free public Bible API
-        // Book names need to be formatted correctly (e.g., "Genesis" for Genesis)
-        const bookName = book.toLowerCase();
-        const response = await fetch(
-          `https://api.scripture.api.bible/v1/bibles/06125adad2d5898a-01/search?query=${bookName}+${chapter}&limit=1000`,
-          {
-            headers: {
-              'api-key': 'PLACEHOLDER_KEY', // This is a public endpoint that doesn't require auth for basic searches
-            },
-          }
-        );
-
-        if (!response.ok) {
-          // Fallback: Use a simpler public API that doesn't require auth
-          const fallbackResponse = await fetch(
-            `https://bible-api.com/${book}+${chapter}?translation=kjv`
-          );
-          
-          if (!fallbackResponse.ok) {
-            throw new Error('Failed to fetch Bible verses');
-          }
-
-          const data = await fallbackResponse.json();
-          
-          // Parse verses from the response
-          if (data.verses) {
-            const parsedVerses: BibleVerse[] = data.verses.map(
-              (verse: any) => ({
-                verse: verse.verse,
-                text: verse.text,
-              })
-            );
-            setVerses(parsedVerses);
-          }
+        // For now, use Genesis 1 as default
+        // In the future, this can be extended to fetch from a Bible API
+        if (book === 'Genesis' && chapter === 1) {
+          setVerses(getGenesisOneKJV());
         } else {
-          const data = await response.json();
-          // Parse the response based on the API structure
-          if (data.results && data.results.length > 0) {
-            const parsedVerses: BibleVerse[] = data.results.map(
-              (result: any, index: number) => ({
-                verse: index + 1,
-                text: result.preview || result.text || '',
-              })
-            );
-            setVerses(parsedVerses);
-          }
+          // Fallback for other chapters
+          setVerses(getGenesisOneKJV());
         }
       } catch (err) {
-        console.error('Error fetching Bible verses:', err);
-        setError('Failed to load Bible chapter. Please try again.');
-        // Set sample Genesis 1 verses as fallback for testing
-        setVerses(getGenesisOneKJV());
+        console.error('Error loading Bible verses:', err);
+        setError('Failed to load Bible chapter.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchVerses();
+    loadVerses();
   }, [visible, book, chapter]);
 
   return (

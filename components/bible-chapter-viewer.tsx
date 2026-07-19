@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -18,46 +19,14 @@ export interface BibleChapterViewerProps {
   onMarkComplete?: () => void;
 }
 
-interface ChapterVerse {
+interface Verse {
   verse: number;
   text: string;
 }
 
-// Map book names to their API IDs
-const BOOK_ID_MAP: Record<string, string> = {
-  'Genesis': 'GEN',
-  '1 Thessalonians': '1TH',
-  '2 Thessalonians': '2TH',
-  '1 Corinthians': '1CO',
-  '2 Corinthians': '2CO',
-  'Romans': 'ROM',
-  'Galatians': 'GAL',
-  'Ephesians': 'EPH',
-  'Philippians': 'PHP',
-  'Colossians': 'COL',
-  '1 Timothy': '1TI',
-  '2 Timothy': '2TI',
-  'Titus': 'TIT',
-  'Philemon': 'PHM',
-  'Hebrews': 'HEB',
-  'James': 'JAS',
-  '1 Peter': '1PE',
-  '2 Peter': '2PE',
-  '1 John': '1JO',
-  '2 John': '2JO',
-  '3 John': '3JO',
-  'Jude': 'JUD',
-  'Revelation': 'REV',
-  'Matthew': 'MAT',
-  'Mark': 'MRK',
-  'Luke': 'LUK',
-  'John': 'JHN',
-  'Acts': 'ACT',
-};
-
 /**
  * Bible Chapter Viewer Modal
- * Displays KJV Bible text for a given book and chapter using the Free Bible API
+ * Displays Bible text for a given book and chapter using bible-api.com
  */
 export function BibleChapterViewer({
   visible,
@@ -67,7 +36,7 @@ export function BibleChapterViewer({
   onMarkComplete,
 }: BibleChapterViewerProps) {
   const colors = useColors();
-  const [verses, setVerses] = useState<ChapterVerse[]>([]);
+  const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,15 +50,9 @@ export function BibleChapterViewer({
       setVerses([]);
 
       try {
-        // Get the book ID from the map
-        const bookId = BOOK_ID_MAP[book];
-        if (!bookId) {
-          throw new Error(`Book "${book}" not found in database`);
-        }
-
-        // Fetch from the Free Bible API using KJV translation
+        // Fetch from bible-api.com using the passage format: "Book Chapter"
         const response = await fetch(
-          `https://bible.helloao.org/api/kjv/${bookId}/${chapter}.json`
+          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}`
         );
 
         if (!response.ok) {
@@ -98,25 +61,15 @@ export function BibleChapterViewer({
 
         const data = await response.json();
 
-        // Parse verses from the chapter content
-        if (data.chapter?.content) {
-          const parsedVerses: ChapterVerse[] = [];
-          
-          for (const content of data.chapter.content) {
-            if (content.type === 'verse') {
-              // Concatenate verse text if it's an array
-              const verseText = Array.isArray(content.content)
-                ? content.content.join('')
-                : content.content;
-              
-              parsedVerses.push({
-                verse: content.number,
-                text: verseText,
-              });
-            }
-          }
-
+        // Parse verses from the API response
+        if (data.verses && Array.isArray(data.verses)) {
+          const parsedVerses: Verse[] = data.verses.map((v: any) => ({
+            verse: v.verse,
+            text: v.text.trim(),
+          }));
           setVerses(parsedVerses);
+        } else {
+          throw new Error('No verses found in response');
         }
       } catch (err) {
         console.error('Error loading Bible chapter:', err);
@@ -136,7 +89,7 @@ export function BibleChapterViewer({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: 12 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
           style={{
@@ -241,7 +194,7 @@ export function BibleChapterViewer({
             </Text>
           </View>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

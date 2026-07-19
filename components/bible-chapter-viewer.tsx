@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -19,10 +18,42 @@ export interface BibleChapterViewerProps {
   onMarkComplete?: () => void;
 }
 
-interface BibleVerse {
+interface ChapterVerse {
   verse: number;
   text: string;
 }
+
+// Map book names to their API IDs
+const BOOK_ID_MAP: Record<string, string> = {
+  'Genesis': 'GEN',
+  '1 Thessalonians': '1TH',
+  '2 Thessalonians': '2TH',
+  '1 Corinthians': '1CO',
+  '2 Corinthians': '2CO',
+  'Romans': 'ROM',
+  'Galatians': 'GAL',
+  'Ephesians': 'EPH',
+  'Philippians': 'PHP',
+  'Colossians': 'COL',
+  '1 Timothy': '1TI',
+  '2 Timothy': '2TI',
+  'Titus': 'TIT',
+  'Philemon': 'PHM',
+  'Hebrews': 'HEB',
+  'James': 'JAS',
+  '1 Peter': '1PE',
+  '2 Peter': '2PE',
+  '1 John': '1JO',
+  '2 John': '2JO',
+  '3 John': '3JO',
+  'Jude': 'JUD',
+  'Revelation': 'REV',
+  'Matthew': 'MAT',
+  'Mark': 'MRK',
+  'Luke': 'LUK',
+  'John': 'JHN',
+  'Acts': 'ACT',
+};
 
 /**
  * Bible Chapter Viewer Modal
@@ -36,7 +67,7 @@ export function BibleChapterViewer({
   onMarkComplete,
 }: BibleChapterViewerProps) {
   const colors = useColors();
-  const [verses, setVerses] = useState<BibleVerse[]>([]);
+  const [verses, setVerses] = useState<ChapterVerse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,66 +78,49 @@ export function BibleChapterViewer({
     const loadVerses = async () => {
       setLoading(true);
       setError(null);
+      setVerses([]);
 
       try {
-        // Use the Free Bible API to fetch KJV verses
-        // Format: GET /v1/bible/chapters/{book}_{chapter}?translation=kjv
-        const bookSlug = book
-          .toLowerCase()
-          .replace(/\s+/g, '_')
-          .replace(/[^a-z0-9_]/g, '')
-          .replace(/_+/g, '_')
-          .replace(/^_|_$/g, '');
-        
+        // Get the book ID from the map
+        const bookId = BOOK_ID_MAP[book];
+        if (!bookId) {
+          throw new Error(`Book "${book}" not found in database`);
+        }
+
+        // Fetch from the Free Bible API using KJV translation
         const response = await fetch(
-          `https://api.bible.com/v1/bibles/9879dbb7cd5bcbfda-01/chapters/${bookSlug}_${chapter}?include-notes=false&include-titles=false`,
-          {
-            headers: {
-              'api-key': 'test', // The free API doesn't require a real key
-            },
-          }
+          `https://bible.helloao.org/api/kjv/${bookId}/${chapter}.json`
         );
 
         if (!response.ok) {
-          // Fallback to the simpler free API
-          const fallbackResponse = await fetch(
-            `https://bible.helloao.org/api/bible/kjv/${bookSlug}/${chapter}`
-          );
+          throw new Error(`Failed to load ${book} ${chapter}`);
+        }
+
+        const data = await response.json();
+
+        // Parse verses from the chapter content
+        if (data.chapter?.content) {
+          const parsedVerses: ChapterVerse[] = [];
           
-          if (!fallbackResponse.ok) {
-            throw new Error('Failed to load chapter');
+          for (const content of data.chapter.content) {
+            if (content.type === 'verse') {
+              // Concatenate verse text if it's an array
+              const verseText = Array.isArray(content.content)
+                ? content.content.join('')
+                : content.content;
+              
+              parsedVerses.push({
+                verse: content.number,
+                text: verseText,
+              });
+            }
           }
 
-          const data = await fallbackResponse.json();
-          
-          // Parse verses from the response
-          if (data.verses) {
-            const parsedVerses = data.verses.map((v: any) => ({
-              verse: v.verse,
-              text: v.text,
-            }));
-            setVerses(parsedVerses);
-          }
-        } else {
-          const data = await response.json();
-          
-          // Parse verses from the response
-          if (data.data?.content) {
-            // Extract verses from the content
-            const verseRegex = /\[(\d+)\]\s*(.+?)(?=\[\d+\]|$)/gs;
-            const matches = [...data.data.content.matchAll(verseRegex)];
-            
-            const parsedVerses = matches.map(match => ({
-              verse: parseInt(match[1]),
-              text: match[2].trim(),
-            }));
-            
-            setVerses(parsedVerses);
-          }
+          setVerses(parsedVerses);
         }
       } catch (err) {
         console.error('Error loading Bible chapter:', err);
-        setError('Failed to load chapter. Please try again.');
+        setError(err instanceof Error ? err.message : 'Failed to load chapter');
       } finally {
         setLoading(false);
       }
@@ -122,7 +136,7 @@ export function BibleChapterViewer({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: 12 }}>
         {/* Header */}
         <View
           style={{
@@ -131,7 +145,6 @@ export function BibleChapterViewer({
             justifyContent: 'space-between',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            paddingTop: 8,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}
@@ -150,7 +163,7 @@ export function BibleChapterViewer({
               marginHorizontal: 12,
             }}
           >
-            {book} {chapter}
+            {book} {chapter} (KJV)
           </Text>
 
           <Pressable
@@ -185,42 +198,48 @@ export function BibleChapterViewer({
               {error}
             </Text>
           </View>
-        ) : (
+        ) : verses.length > 0 ? (
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={true}
           >
-            {verses.length > 0 ? (
-              verses.map((verse) => (
-                <View key={verse.verse} style={{ marginBottom: 16 }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: '700',
-                      color: colors.primary,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {verse.verse}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      lineHeight: 28,
-                      color: colors.foreground,
-                    }}
-                  >
-                    {verse.text}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text style={{ color: colors.muted, fontSize: 16, textAlign: 'center' }}>
-                No verses found for {book} {chapter}
-              </Text>
-            )}
+            {verses.map((verse) => (
+              <View key={verse.verse} style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: colors.primary,
+                    marginBottom: 4,
+                  }}
+                >
+                  {verse.verse}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 28,
+                    color: colors.foreground,
+                  }}
+                >
+                  {verse.text}
+                </Text>
+              </View>
+            ))}
           </ScrollView>
+        ) : (
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: colors.muted, fontSize: 16 }}>
+              No verses found
+            </Text>
+          </View>
         )}
       </View>
     </Modal>

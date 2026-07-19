@@ -31,11 +31,14 @@ export default function BibleTrackerScreen() {
   );
 
   const handleChapterPress = (chapter: number) => {
+    console.log('handleChapterPress called for chapter:', chapter);
     setSelectedChapter(chapter);
     setViewerVisible(true);
+    console.log('viewerVisible set to true');
   };
 
   const handleMarkChapterRead = async (chapter: number) => {
+    console.log('handleMarkChapterRead called for chapter:', chapter);
     try {
       const updated = await markChapterAsRead(selectedBook, chapter);
       setBibleState(updated);
@@ -107,8 +110,6 @@ export default function BibleTrackerScreen() {
                   <Pressable
                     key={chapter}
                     onPress={() => handleChapterPress(chapter)}
-                    onLongPress={() => handleMarkChapterRead(chapter)}
-                    delayLongPress={500}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <View

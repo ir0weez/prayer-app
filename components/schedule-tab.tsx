@@ -48,6 +48,7 @@ import { MinistryDetailCard } from "./ministry-detail-card";
 import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
 import { VinylRecord } from "./vinyl-record";
 import { AlbumCard } from "./album-card";
+import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
@@ -769,6 +770,9 @@ export function ScheduleTab({
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
   const router = useRouter();
+  const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
+  const [bibleBook, setBibleBook] = useState('1 Thessalonians');
+  const [bibleChapter, setBibleChapter] = useState(1);
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
@@ -1955,7 +1959,7 @@ export function ScheduleTab({
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       <Pressable
                         onPress={() => {
-                          router.push('/bible-tracker');
+                          setBibleViewerVisible(true);
                         }}
                         style={({ pressed }) => [{
                           paddingHorizontal: 12,
@@ -3627,6 +3631,14 @@ export function ScheduleTab({
           </View>
         </View>
       </Modal>
+
+      {/* Bible Chapter Viewer */}
+      <BibleChapterViewer
+        visible={bibleViewerVisible}
+        book={bibleBook}
+        chapter={bibleChapter}
+        onClose={() => setBibleViewerVisible(false)}
+      />
 
     </View>
   );

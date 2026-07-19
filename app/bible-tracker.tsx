@@ -11,8 +11,8 @@ import { MenuView } from '@react-native-menu/menu';
 export default function BibleTrackerScreen() {
   const colors = useColors();
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
-  const [selectedBook, setSelectedBook] = useState<string>('Genesis');
-  const [showChapters, setShowChapters] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<string>('1 Thessalonians');
+  const [showChapters, setShowChapters] = useState(true);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());

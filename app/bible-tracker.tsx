@@ -108,6 +108,7 @@ export default function BibleTrackerScreen() {
                     key={chapter}
                     onPress={() => handleChapterPress(chapter)}
                     onLongPress={() => handleMarkChapterRead(chapter)}
+                    delayLongPress={500}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <View

@@ -3638,6 +3638,24 @@ export function ScheduleTab({
         book={bibleBook}
         chapter={bibleChapter}
         onClose={() => setBibleViewerVisible(false)}
+        onMarkComplete={async () => {
+          try {
+            // Mark the chapter as read in the unified Bible system
+            const updated = await markChapterAsRead(bibleBook, bibleChapter, false);
+            setBibleState(updated);
+            // Sync to old systems (Bible tracker, etc.)
+            await syncUnifiedBibleToAllOldSystems(updated);
+            // Update Personal Study display
+            const newDisplay = getCurrentBibleDisplay(updated);
+            setCurrentBibleBook(newDisplay || 'No book marked as current');
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Close the viewer
+            setBibleViewerVisible(false);
+          } catch (error) {
+            console.error('Error marking chapter as read:', error);
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          }
+        }}
       />
 
     </View>

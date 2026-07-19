@@ -54,7 +54,9 @@ export function BibleChapterViewer({
         const bookSlug = book
           .toLowerCase()
           .replace(/\s+/g, '_')
-          .replace(/[^a-z0-9_]/g, '');
+          .replace(/[^a-z0-9_]/g, '')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '');
         
         const response = await fetch(
           `https://api.bible.com/v1/bibles/9879dbb7cd5bcbfda-01/chapters/${bookSlug}_${chapter}?include-notes=false&include-titles=false`,
@@ -120,7 +122,7 @@ export function BibleChapterViewer({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
           style={{
@@ -129,6 +131,7 @@ export function BibleChapterViewer({
             justifyContent: 'space-between',
             paddingHorizontal: 16,
             paddingVertical: 12,
+            paddingTop: 8,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}
@@ -219,7 +222,7 @@ export function BibleChapterViewer({
             )}
           </ScrollView>
         )}
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

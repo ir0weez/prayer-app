@@ -1637,3 +1637,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Grey out count for past days (opacity 0.4)
 - [x] Keep count visible for current/future days
 - [x] Verify all 262 tests pass
+
+
+## Bible Chapter Viewer (NEW)
+- [ ] Create Bible chapter viewer modal component
+- [ ] Fetch KJV Bible text from API (Genesis 1 first)
+- [ ] Display chapter text in modal on tap
+- [ ] Implement hold-to-check gesture for marking chapters complete
+- [ ] Style chapter viewer for readability
+
+## Schedule "Off" Blocks (NEW)
+- [ ] Add "Off" option to FAB menu (Vacation/Sabbatical/Personal)
+- [ ] Create time-off creation modal
+- [ ] Store time-off periods in database
+- [ ] Display grey "Off" blocks on calendar for time-off dates
+- [ ] Style off-blocks to distinguish from regular events

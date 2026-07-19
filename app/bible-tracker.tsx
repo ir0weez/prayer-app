@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { BibleChapterViewer } from '@/components/bible-chapter-viewer';
 import { BIBLE_BOOKS, CHAPTER_COUNTS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, getBookProgress, UnifiedBibleState } from '@/lib/bible-unified';
 import { useCallback, useEffect, useState } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -11,6 +12,8 @@ export default function BibleTrackerScreen() {
   const [bibleState, setBibleState] = useState<UnifiedBibleState | null>(null);
   const [selectedBook, setSelectedBook] = useState<string>('Genesis');
   const [showChapters, setShowChapters] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState<number>(1);
 
   const loadBibleState = useCallback(async () => {
     try {
@@ -26,6 +29,11 @@ export default function BibleTrackerScreen() {
       loadBibleState();
     }, [loadBibleState])
   );
+
+  const handleChapterPress = (chapter: number) => {
+    setSelectedChapter(chapter);
+    setViewerVisible(true);
+  };
 
   const handleMarkChapterRead = async (chapter: number) => {
     try {
@@ -98,7 +106,8 @@ export default function BibleTrackerScreen() {
                 return (
                   <Pressable
                     key={chapter}
-                    onPress={() => handleMarkChapterRead(chapter)}
+                    onPress={() => handleChapterPress(chapter)}
+                    onLongPress={() => handleMarkChapterRead(chapter)}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <View
@@ -119,6 +128,17 @@ export default function BibleTrackerScreen() {
           </View>
         </ScrollView>
       )}
+
+      <BibleChapterViewer
+        visible={viewerVisible}
+        book={selectedBook}
+        chapter={selectedChapter}
+        onClose={() => setViewerVisible(false)}
+        onMarkComplete={() => {
+          handleMarkChapterRead(selectedChapter);
+          setViewerVisible(false);
+        }}
+      />
     </ScreenContainer>
   );
 }

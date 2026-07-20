@@ -1959,7 +1959,19 @@ export function ScheduleTab({
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       <Pressable
                         onPress={() => {
-                          setBibleViewerVisible(true);
+                          if (bibleState?.chapters && bibleState.chapters.length > 0) {
+                            // Find the current book
+                            const currentBook = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                            if (currentBook) {
+                              // Find the next unread chapter
+                              const nextChapter = bibleState.chapters.find((c: any) => c.book === currentBook && !c.isRead);
+                              if (nextChapter) {
+                                setBibleBook(currentBook);
+                                setBibleChapter(nextChapter.chapter);
+                                setBibleViewerVisible(true);
+                              }
+                            }
+                          }
                         }}
                         style={({ pressed }) => [{
                           paddingHorizontal: 12,

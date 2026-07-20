@@ -97,7 +97,8 @@ export function BibleChapterViewer({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 16,
-            paddingVertical: 12,
+            paddingVertical: 16,
+            paddingTop: 20,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}

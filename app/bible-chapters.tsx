@@ -317,6 +317,18 @@ export default function BibleChaptersScreen() {
     newStatuses[bookName] = nextStatus;
     setBookStatuses(newStatuses);
     saveBookStatuses(newStatuses);
+    
+    // Sync to unified Bible state when marking as current
+    if (nextStatus === 'current') {
+      (async () => {
+        try {
+          const { setCurrentBook } = await import('@/lib/bible-unified');
+          await setCurrentBook(bookName);
+        } catch (error) {
+          console.error('Error syncing to unified Bible state:', error);
+        }
+      })();
+    }
   };
 
   const resetAllData = () => {

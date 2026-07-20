@@ -3699,7 +3699,7 @@ export function ScheduleTab({
             setBibleChapter(bibleChapter + 1);
           }
         }}
-        canGoPrevious={bibleChapter >= 1}
+        canGoPrevious={bibleChapter > 1}
         canGoNext={bibleChapter < 50}
       />
 

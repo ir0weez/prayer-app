@@ -1976,13 +1976,16 @@ export function ScheduleTab({
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       <Pressable
-                        onPress={() => {
-                          if (bibleState?.chapters && bibleState.chapters.length > 0) {
+                        onPress={async () => {
+                          // Reload fresh state from storage to ensure we have latest chapter read status
+                          const { loadUnifiedBible } = await import('@/lib/bible-unified');
+                          const freshState = await loadUnifiedBible();
+                          if (freshState?.chapters && freshState.chapters.length > 0) {
                             // Find the current book
-                            const currentBook = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
+                            const currentBook = Object.entries(freshState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                             if (currentBook) {
                               // Find the next unread chapter
-                              const nextChapter = bibleState.chapters.find((c: any) => c.book === currentBook && !c.isRead);
+                              const nextChapter = freshState.chapters.find((c: any) => c.book === currentBook && !c.isRead);
                               if (nextChapter) {
                                 setBibleBook(currentBook);
                                 setBibleChapter(nextChapter.chapter);

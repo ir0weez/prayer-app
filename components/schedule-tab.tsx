@@ -3689,6 +3689,18 @@ export function ScheduleTab({
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
           }
         }}
+        onPreviousChapter={() => {
+          if (bibleChapter > 1) {
+            setBibleChapter(bibleChapter - 1);
+          }
+        }}
+        onNextChapter={() => {
+          if (bibleChapter < 50) {
+            setBibleChapter(bibleChapter + 1);
+          }
+        }}
+        canGoPrevious={bibleChapter > 1}
+        canGoNext={bibleChapter < 50}
       />
 
     </View>

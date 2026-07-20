@@ -17,6 +17,10 @@ export interface BibleChapterViewerProps {
   chapter: number;
   onClose: () => void;
   onMarkComplete?: () => void;
+  onPreviousChapter?: () => void;
+  onNextChapter?: () => void;
+  canGoPrevious?: boolean;
+  canGoNext?: boolean;
 }
 
 interface Verse {
@@ -34,6 +38,10 @@ export function BibleChapterViewer({
   chapter,
   onClose,
   onMarkComplete,
+  onPreviousChapter,
+  onNextChapter,
+  canGoPrevious = false,
+  canGoNext = false,
 }: BibleChapterViewerProps) {
   const colors = useColors();
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -97,19 +105,19 @@ export function BibleChapterViewer({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 16,
-            paddingVertical: 16,
-            paddingTop: 20,
+            paddingVertical: 12,
+            paddingTop: 8,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}
         >
           <Pressable onPress={onClose} style={{ padding: 8 }}>
-            <MaterialIcons name="close" size={28} color={colors.foreground} />
+            <MaterialIcons name="close" size={24} color={colors.foreground} />
           </Pressable>
           
           <Text
             style={{
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: '700',
               color: colors.foreground,
               flex: 1,
@@ -125,7 +133,44 @@ export function BibleChapterViewer({
             onPress={onMarkComplete}
             style={{ padding: 8 }}
           >
-            <MaterialIcons name="check-circle" size={28} color={colors.primary} />
+            <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        {/* Navigation Buttons */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            backgroundColor: colors.surface,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <Pressable
+            onPress={onPreviousChapter}
+            disabled={!canGoPrevious}
+            style={{
+              padding: 8,
+              opacity: canGoPrevious ? 1 : 0.3,
+            }}
+          >
+            <MaterialIcons name="chevron-left" size={24} color={colors.primary} />
+          </Pressable>
+          <Text style={{ color: colors.muted, fontSize: 12, alignSelf: 'center' }}>
+            Chapter {chapter}
+          </Text>
+          <Pressable
+            onPress={onNextChapter}
+            disabled={!canGoNext}
+            style={{
+              padding: 8,
+              opacity: canGoNext ? 1 : 0.3,
+            }}
+          >
+            <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
           </Pressable>
         </View>
 

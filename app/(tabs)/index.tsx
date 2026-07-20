@@ -1051,10 +1051,24 @@ export default function HomeScreen() {
                 const todoDate = todo.date.split('T')[0];
                 const todayDate = getTodayISOString();
                 return todoDate === todayDate;
-              }).map((todo) => (
+              }).map((todo) => {
+                const todoTime = todo.startTime ? (() => {
+                  const [h, m] = todo.startTime.split(':').map(Number);
+                  const ampm = h >= 12 ? 'PM' : 'AM';
+                  const displayH = h % 12 || 12;
+                  return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+                })() : null;
+                return (
                 <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
                   <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
-                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
+                      {todoTime && (
+                        <View style={[{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' }, { backgroundColor: todo.color || colors.primary }]}>
+                          <Text style={[{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }]}>{todoTime}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <Pressable
                     onPress={() => {
@@ -1074,7 +1088,8 @@ export default function HomeScreen() {
                     </View>
                   </Pressable>
                 </View>
-              ))}
+              );
+              })}
               {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
                 <View key="completion-celebration" style={styles.storyItem}>
                   <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>

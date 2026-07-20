@@ -108,15 +108,16 @@ export function BibleChapterViewer({
           
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: '700',
               color: colors.foreground,
               flex: 1,
               textAlign: 'center',
               marginHorizontal: 12,
             }}
+            numberOfLines={1}
           >
-            {book} {chapter} (KJV)
+            {book} {chapter}
           </Text>
 
           <Pressable
@@ -158,24 +159,24 @@ export function BibleChapterViewer({
             showsVerticalScrollIndicator={true}
           >
             {verses.map((verse) => (
-              <View key={verse.verse} style={{ marginBottom: 16 }}>
+              <View key={verse.verse} style={{ marginBottom: 12 }}>
                 <Text
                   style={{
-                    fontSize: 18,
-                    fontWeight: '700',
-                    color: colors.primary,
-                    marginBottom: 4,
-                  }}
-                >
-                  {verse.verse}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    lineHeight: 28,
+                    fontSize: 17,
+                    lineHeight: 26,
                     color: colors.foreground,
                   }}
                 >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '700',
+                      color: colors.primary,
+                      marginRight: 4,
+                    }}
+                  >
+                    {verse.verse}
+                  </Text>
                   {verse.text}
                 </Text>
               </View>

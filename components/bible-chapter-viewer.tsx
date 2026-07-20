@@ -106,7 +106,7 @@ export function BibleChapterViewer({
             justifyContent: 'space-between',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            paddingTop: 8,
+            paddingTop: 0,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}
@@ -134,43 +134,6 @@ export function BibleChapterViewer({
             style={{ padding: 8 }}
           >
             <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-          </Pressable>
-        </View>
-
-        {/* Navigation Buttons */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            backgroundColor: colors.surface,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Pressable
-            onPress={onPreviousChapter}
-            disabled={!canGoPrevious}
-            style={{
-              padding: 8,
-              opacity: canGoPrevious ? 1 : 0.3,
-            }}
-          >
-            <MaterialIcons name="chevron-left" size={24} color={colors.primary} />
-          </Pressable>
-          <Text style={{ color: colors.muted, fontSize: 12, alignSelf: 'center' }}>
-            Chapter {chapter}
-          </Text>
-          <Pressable
-            onPress={onNextChapter}
-            disabled={!canGoNext}
-            style={{
-              padding: 8,
-              opacity: canGoNext ? 1 : 0.3,
-            }}
-          >
-            <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
           </Pressable>
         </View>
 
@@ -241,6 +204,55 @@ export function BibleChapterViewer({
             </Text>
           </View>
         )}
+
+        {/* Navigation Pill at Bottom */}
+        <View
+          style={{
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            paddingBottom: 24,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 16,
+              backgroundColor: colors.surface,
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Pressable
+              onPress={onPreviousChapter}
+              disabled={!canGoPrevious}
+              style={{
+                padding: 8,
+                opacity: canGoPrevious ? 1 : 0.3,
+              }}
+            >
+              <MaterialIcons name="chevron-left" size={20} color={colors.primary} />
+            </Pressable>
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
+              Chapter {chapter}
+            </Text>
+            <Pressable
+              onPress={onNextChapter}
+              disabled={!canGoNext}
+              style={{
+                padding: 8,
+                opacity: canGoNext ? 1 : 0.3,
+              }}
+            >
+              <MaterialIcons name="chevron-right" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
+        </View>
       </SafeAreaView>
     </Modal>
   );

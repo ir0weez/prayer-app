@@ -1754,6 +1754,18 @@ export function ScheduleTab({
       notes: formNotes || undefined,
     });
     setBibleStudies((prev) => [...prev, newStudy]);
+    
+    // Update the unified Bible state to mark this book as current
+    try {
+      const { setCurrentBook } = await import('@/lib/bible-unified');
+      const updated = await setCurrentBook(formBibleBook);
+      setBibleState(updated);
+      const newDisplay = getCurrentBibleDisplay(updated);
+      setCurrentBibleBook(newDisplay || 'No book marked as current');
+    } catch (error) {
+      console.error('Error setting current Bible book:', error);
+    }
+    
     resetForm();
     setAddType(null);
     setShowAddModal(false);

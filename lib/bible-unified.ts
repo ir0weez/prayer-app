@@ -219,6 +219,27 @@ export function getBookmarkedChaptersForBook(state: UnifiedBibleState, book: str
   return state.chapters.filter((c) => c.book === book && c.isBookmarked);
 }
 
+// Set a book as the current book being studied
+export async function setCurrentBook(book: string): Promise<UnifiedBibleState> {
+  const state = await loadUnifiedBible();
+  // Mark all books as not-started except the selected one
+  for (const b of Object.keys(state.bookStatuses)) {
+    if (b === book) {
+      // Only set to current if not already complete
+      if (state.bookStatuses[b] !== 'complete') {
+        state.bookStatuses[b] = 'current';
+      }
+    } else {
+      // Don't change complete books, only reset current ones
+      if (state.bookStatuses[b] === 'current') {
+        state.bookStatuses[b] = 'not-started';
+      }
+    }
+  }
+  await saveUnifiedBible(state);
+  return state;
+}
+
 // Calculate reading streak based on read dates
 export function calculateReadingStreak(state: UnifiedBibleState): { streak: number; startDate: string } {
   const today = new Date();

@@ -1357,6 +1357,12 @@ export function ScheduleTab({
         }
         
         if (state && state.bookStatuses) {
+          // Ensure chapters array is initialized
+          if (!state.chapters || state.chapters.length === 0) {
+            console.log('Initializing chapters array in schedule-tab');
+            const { initializeUnifiedBible } = await import('@/lib/bible-unified');
+            state = await initializeUnifiedBible();
+          }
           setBibleState(state);
           const display = getCurrentBibleDisplay(state);
           if (display) setCurrentBibleBook(display);

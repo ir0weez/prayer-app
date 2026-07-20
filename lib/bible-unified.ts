@@ -107,6 +107,18 @@ export async function loadUnifiedBible(): Promise<UnifiedBibleState> {
         await saveUnifiedBible(state);
       }
       
+      // Ensure bookStatuses is initialized with all books
+      if (!state.bookStatuses || Object.keys(state.bookStatuses).length === 0) {
+        console.log('Initializing empty bookStatuses');
+        state.bookStatuses = {};
+        for (const book of BIBLE_BOOKS) {
+          if (!state.bookStatuses[book]) {
+            state.bookStatuses[book] = 'not-started';
+          }
+        }
+        await saveUnifiedBible(state);
+      }
+      
       // Migrate old bookStatuses if they exist
       try {
         const oldBookStatusData = await AsyncStorage.getItem(BIBLE_BOOK_STATUS_KEY);

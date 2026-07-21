@@ -52,7 +52,7 @@ export function BibleChapterViewer({
   useEffect(() => {
     if (!visible) return;
 
-        const loadVerses = async () => {
+    const loadVerses = async () => {
       setLoading(true);
       setError(null);
       setVerses([]);

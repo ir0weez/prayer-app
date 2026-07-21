@@ -773,6 +773,11 @@ export function ScheduleTab({
   const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
   const [bibleBook, setBibleBook] = useState('1 Thessalonians');
   const [bibleChapter, setBibleChapter] = useState(1);
+  
+  // Debug: log chapter changes
+  useEffect(() => {
+    console.log(`[ScheduleTab] bibleChapter changed to ${bibleChapter}`);
+  }, [bibleChapter]);
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
@@ -3670,7 +3675,11 @@ export function ScheduleTab({
         visible={bibleViewerVisible}
         book={bibleBook}
         chapter={bibleChapter}
-        onClose={() => setBibleViewerVisible(false)}
+        onClose={() => {
+          setBibleViewerVisible(false);
+          // Reset chapter to 1 when closing the viewer to ensure clean state for next open
+          setBibleChapter(1);
+        }}
         onMarkComplete={async () => {
           try {
             // Mark the chapter as read in the unified Bible system

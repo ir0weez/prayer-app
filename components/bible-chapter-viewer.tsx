@@ -10,17 +10,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
+import { parseVerseForChristWords } from '@/lib/christ-words';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
   book: string;
   chapter: number;
   onClose: () => void;
-  onMarkComplete?: () => void;
-  onPreviousChapter?: () => void;
-  onNextChapter?: () => void;
-  canGoPrevious?: boolean;
-  canGoNext?: boolean;
+  onMarkComplete: () => Promise<void>;
+  onPreviousChapter: () => void;
+  onNextChapter: () => void;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
 }
 
 interface Verse {
@@ -28,10 +29,6 @@ interface Verse {
   text: string;
 }
 
-/**
- * Bible Chapter Viewer Modal
- * Displays Bible text for a given book and chapter using bible-api.com
- */
 export function BibleChapterViewer({
   visible,
   book,
@@ -40,8 +37,8 @@ export function BibleChapterViewer({
   onMarkComplete,
   onPreviousChapter,
   onNextChapter,
-  canGoPrevious = false,
-  canGoNext = false,
+  canGoPrevious,
+  canGoNext,
 }: BibleChapterViewerProps) {
   const colors = useColors();
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -139,126 +136,109 @@ export function BibleChapterViewer({
 
         {/* Content */}
         {loading ? (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : error ? (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 16,
-            }}
-          >
-            <Text style={{ color: colors.error, fontSize: 16, textAlign: 'center' }}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+            <Text style={{ color: colors.error, textAlign: 'center' }}>
               {error}
             </Text>
           </View>
-        ) : verses.length > 0 ? (
+        ) : (
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={true}
           >
-            {verses.map((verse) => (
-              <View key={verse.verse} style={{ marginBottom: 12 }}>
-                <Text
-                  style={{
-                    fontSize: 17,
-                    lineHeight: 26,
-                    color: colors.foreground,
-                  }}
-                >
+            {verses.map((verse) => {
+              const segments = parseVerseForChristWords(verse.text);
+              return (
+                <View key={verse.verse} style={{ marginBottom: 18 }}>
                   <Text
                     style={{
-                      fontSize: 14,
-                      fontWeight: '700',
-                      color: colors.primary,
-                      marginRight: 4,
+                      fontSize: 18,
+                      lineHeight: 30,
+                      color: colors.foreground,
+                      fontFamily: 'Georgia',
+                      letterSpacing: 0.3,
                     }}
                   >
-                    {verse.verse}
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: colors.primary,
+                        marginRight: 6,
+                        fontFamily: 'Georgia',
+                      }}
+                    >
+                      {verse.verse}
+                    </Text>
+                    {segments.map((segment, idx) => (
+                      <Text
+                        key={idx}
+                        style={{
+                          color: segment.isChristWords ? '#4A90E2' : colors.foreground,
+                          fontFamily: 'Georgia',
+                        }}
+                      >
+                        {segment.text}
+                      </Text>
+                    ))}
                   </Text>
-                  {verse.text}
-                </Text>
-              </View>
-            ))}
+                </View>
+              );
+            })}
           </ScrollView>
-        ) : (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ color: colors.muted, fontSize: 16 }}>
-              No verses found
-            </Text>
-          </View>
         )}
 
-        {/* Floating Navigation Pill */}
+        {/* Footer Navigation */}
         <View
           style={{
-            position: 'absolute',
-            bottom: 32,
-            left: 0,
-            right: 0,
+            flexDirection: 'row',
+            justifyContent: 'center',
             alignItems: 'center',
-            pointerEvents: 'box-none',
+            paddingVertical: 12,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            backgroundColor: colors.background,
           }}
         >
-          <View
+          <Pressable
+            onPress={onPreviousChapter}
+            disabled={!canGoPrevious}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              backgroundColor: colors.surface,
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 24,
-              borderWidth: 1,
-              borderColor: colors.border,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-              elevation: 5,
+              padding: 8,
+              opacity: canGoPrevious ? 1 : 0.3,
             }}
           >
-            <Pressable
-              onPress={onPreviousChapter}
-              disabled={!canGoPrevious}
-              style={{
-                padding: 8,
-                opacity: canGoPrevious ? 1 : 0.3,
-              }}
-            >
-              <MaterialIcons name="chevron-left" size={20} color={colors.primary} />
-            </Pressable>
-            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>
-              Chapter {chapter}
-            </Text>
-            <Pressable
-              onPress={onNextChapter}
-              disabled={!canGoNext}
-              style={{
-                padding: 8,
-                opacity: canGoNext ? 1 : 0.3,
-              }}
-            >
-              <MaterialIcons name="chevron-right" size={20} color={colors.primary} />
-            </Pressable>
-          </View>
+            <MaterialIcons name="chevron-left" size={28} color={colors.foreground} />
+          </Pressable>
+
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: colors.foreground,
+              marginHorizontal: 16,
+              minWidth: 80,
+              textAlign: 'center',
+            }}
+          >
+            Chapter {chapter}
+          </Text>
+
+          <Pressable
+            onPress={onNextChapter}
+            disabled={!canGoNext}
+            style={{
+              padding: 8,
+              opacity: canGoNext ? 1 : 0.3,
+            }}
+          >
+            <MaterialIcons name="chevron-right" size={28} color={colors.foreground} />
+          </Pressable>
         </View>
       </SafeAreaView>
     </Modal>

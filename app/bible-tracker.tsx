@@ -167,10 +167,14 @@ export default function BibleTrackerScreen() {
         book={selectedBook}
         chapter={selectedChapter}
         onClose={() => setViewerVisible(false)}
-        onMarkComplete={() => {
-          handleToggleChapterComplete(selectedChapter);
+        onMarkComplete={async () => {
+          await handleToggleChapterComplete(selectedChapter);
           setViewerVisible(false);
         }}
+        onPreviousChapter={() => {}}
+        onNextChapter={() => {}}
+        canGoPrevious={false}
+        canGoNext={false}
       />
     </ScreenContainer>
   );

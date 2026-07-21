@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseVerseForChristWords } from '@/lib/christ-words';
 
 export interface BibleChapterViewerProps {
@@ -45,6 +46,31 @@ export function BibleChapterViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
+
+  // Load saved version preference on mount
+  useEffect(() => {
+    const loadVersionPreference = async () => {
+      try {
+        const savedVersion = await AsyncStorage.getItem('bibleVersion');
+        if (savedVersion === 'kjv' || savedVersion === 'csb') {
+          setVersion(savedVersion);
+        }
+      } catch (err) {
+        console.error('Error loading version preference:', err);
+      }
+    };
+    loadVersionPreference();
+  }, []);
+
+  // Save version preference when it changes
+  const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
+    setVersion(newVersion);
+    try {
+      await AsyncStorage.setItem('bibleVersion', newVersion);
+    } catch (err) {
+      console.error('Error saving version preference:', err);
+    }
+  };
 
   // Load Bible verses when modal becomes visible
   useEffect(() => {
@@ -126,7 +152,7 @@ export function BibleChapterViewer({
             </Text>
             <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
               <Pressable
-                onPress={() => setVersion('kjv')}
+                onPress={() => handleVersionChange('kjv')}
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 2,
@@ -145,7 +171,7 @@ export function BibleChapterViewer({
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setVersion('csb')}
+                onPress={() => handleVersionChange('csb')}
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 2,

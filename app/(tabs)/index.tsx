@@ -1061,14 +1061,7 @@ export default function HomeScreen() {
                 return (
                 <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
                   <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
-                    <View style={{ flex: 1, gap: 6 }}>
-                      <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
-                      {todoTime && (
-                        <View style={[{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' }, { backgroundColor: todo.color || colors.primary }]}>
-                          <Text style={[{ fontSize: 11, fontWeight: '600', color: '#FFFFFF' }]}>{todoTime}</Text>
-                        </View>
-                      )}
-                    </View>
+                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
                   </View>
                   <Pressable
                     onPress={() => {
@@ -1086,6 +1079,11 @@ export default function HomeScreen() {
                         <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
                       </View>
                     </View>
+                    {todoTime && (
+                      <View style={[{ position: 'absolute', bottom: -8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: todo.color || colors.primary }]}>
+                        <Text style={[{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }]}>{todoTime}</Text>
+                      </View>
+                    )}
                   </Pressable>
                 </View>
               );

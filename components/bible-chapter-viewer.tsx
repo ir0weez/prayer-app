@@ -52,15 +52,15 @@ export function BibleChapterViewer({
   useEffect(() => {
     if (!visible) return;
 
-    const loadVerses = async () => {
+        const loadVerses = async () => {
       setLoading(true);
       setError(null);
       setVerses([]);
 
       try {
-        // Fetch from bible-api.com using the passage format: "Book Chapter"
+        // Fetch from bible-api.com using KJV translation
         const response = await fetch(
-          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}`
+          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=kjv`
         );
 
         if (!response.ok) {

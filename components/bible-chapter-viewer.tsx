@@ -205,13 +205,15 @@ export function BibleChapterViewer({
           </View>
         )}
 
-        {/* Navigation Pill at Bottom */}
+        {/* Floating Navigation Pill */}
         <View
           style={{
+            position: 'absolute',
+            bottom: 32,
+            left: 0,
+            right: 0,
             alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 16,
-            paddingBottom: 24,
+            pointerEvents: 'box-none',
           }}
         >
           <View
@@ -219,13 +221,18 @@ export function BibleChapterViewer({
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 16,
+              gap: 12,
               backgroundColor: colors.surface,
               paddingHorizontal: 16,
               paddingVertical: 10,
               borderRadius: 24,
               borderWidth: 1,
               borderColor: colors.border,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 5,
             }}
           >
             <Pressable

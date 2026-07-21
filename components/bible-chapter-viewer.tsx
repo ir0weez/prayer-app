@@ -5,8 +5,8 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
@@ -97,7 +97,7 @@ export function BibleChapterViewer({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
           style={{
@@ -106,7 +106,7 @@ export function BibleChapterViewer({
             justifyContent: 'space-between',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            paddingTop: 32,
+            paddingTop: 48,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}

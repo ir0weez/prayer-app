@@ -151,63 +151,42 @@ export function BibleChapterViewer({
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={true}
           >
-            {verses.map((verse, idx) => {
+            {verses.map((verse) => {
               const segments = parseVerseForChristWords(verse.text);
-              const isFirstVerse = idx === 0;
-              const firstChar = verse.text.charAt(0);
-              const restOfText = verse.text.slice(1);
-              
               return (
-                <View key={verse.verse} style={{ marginBottom: 24, flexDirection: isFirstVerse ? 'row' : 'column' }}>
-                  {isFirstVerse && (
+                <View key={verse.verse} style={{ marginBottom: 18 }}>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      lineHeight: 30,
+                      color: colors.foreground,
+                      fontFamily: 'Georgia',
+                      letterSpacing: 0.3,
+                    }}
+                  >
                     <Text
                       style={{
-                        fontSize: 72,
-                        fontWeight: '300',
+                        fontSize: 13,
+                        fontWeight: '600',
                         color: colors.primary,
+                        marginRight: 6,
                         fontFamily: 'Georgia',
-                        lineHeight: 60,
-                        marginRight: 8,
-                        marginTop: -4,
                       }}
                     >
-                      {firstChar}
+                      {verse.verse}
                     </Text>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        lineHeight: 28,
-                        color: colors.foreground,
-                        fontFamily: 'Georgia',
-                      }}
-                    >
+                    {segments.map((segment, idx) => (
                       <Text
+                        key={idx}
                         style={{
-                          fontSize: 13,
-                          fontWeight: '600',
-                          color: colors.primary,
-                          marginRight: 6,
+                          color: segment.isChristWords ? '#4A90E2' : colors.foreground,
                           fontFamily: 'Georgia',
                         }}
                       >
-                        {verse.verse}
+                        {segment.text}
                       </Text>
-                      {isFirstVerse ? restOfText : verse.text}
-                      {segments.map((segment, segIdx) => (
-                        <Text
-                          key={segIdx}
-                          style={{
-                            color: segment.isChristWords ? '#4A90E2' : colors.foreground,
-                            fontFamily: 'Georgia',
-                          }}
-                        >
-                          {segment.text}
-                        </Text>
-                      ))}
-                    </Text>
-                  </View>
+                    ))}
+                  </Text>
                 </View>
               );
             })}

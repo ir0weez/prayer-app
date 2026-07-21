@@ -44,6 +44,7 @@ export function BibleChapterViewer({
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
 
   // Load Bible verses when modal becomes visible
   useEffect(() => {
@@ -55,9 +56,9 @@ export function BibleChapterViewer({
       setVerses([]);
 
       try {
-        // Fetch from bible-api.com using KJV translation
+        // Fetch from bible-api.com using selected translation
         const response = await fetch(
-          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=kjv`
+          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=${version}`
         );
 
         if (!response.ok) {
@@ -85,7 +86,7 @@ export function BibleChapterViewer({
     };
 
     loadVerses();
-  }, [visible, book, chapter]);
+  }, [visible, book, chapter, version]);
 
   return (
     <Modal
@@ -112,19 +113,58 @@ export function BibleChapterViewer({
             <MaterialIcons name="close" size={24} color={colors.foreground} />
           </Pressable>
           
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '700',
-              color: colors.foreground,
-              flex: 1,
-              textAlign: 'center',
-              marginHorizontal: 12,
-            }}
-            numberOfLines={1}
-          >
-            {book} {chapter}
-          </Text>
+          <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 12 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '700',
+                color: colors.foreground,
+              }}
+              numberOfLines={1}
+            >
+              {book} {chapter}
+            </Text>
+            <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
+              <Pressable
+                onPress={() => setVersion('kjv')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  backgroundColor: version === 'kjv' ? colors.primary : 'transparent',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: version === 'kjv' ? '#fff' : colors.muted,
+                  }}
+                >
+                  KJV
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setVersion('csb')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  backgroundColor: version === 'csb' ? colors.primary : 'transparent',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: version === 'csb' ? '#fff' : colors.muted,
+                  }}
+                >
+                  CSB
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
           <Pressable
             onPress={onMarkComplete}
@@ -148,7 +188,7 @@ export function BibleChapterViewer({
         ) : (
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
             showsVerticalScrollIndicator={true}
           >
             {verses.map((verse) => {

@@ -45,32 +45,7 @@ export function BibleChapterViewer({
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
-
-  // Load saved version preference on mount
-  useEffect(() => {
-    const loadVersionPreference = async () => {
-      try {
-        const savedVersion = await AsyncStorage.getItem('bibleVersion');
-        if (savedVersion === 'kjv' || savedVersion === 'csb') {
-          setVersion(savedVersion);
-        }
-      } catch (err) {
-        console.error('Error loading version preference:', err);
-      }
-    };
-    loadVersionPreference();
-  }, []);
-
-  // Save version preference when it changes
-  const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
-    setVersion(newVersion);
-    try {
-      await AsyncStorage.setItem('bibleVersion', newVersion);
-    } catch (err) {
-      console.error('Error saving version preference:', err);
-    }
-  };
+  // Note: bible-api.com only supports KJV. CSB support would require a different API.
 
   // Load Bible verses when modal becomes visible
   useEffect(() => {
@@ -82,9 +57,9 @@ export function BibleChapterViewer({
       setVerses([]);
 
       try {
-        // Fetch from bible-api.com using selected translation
+        // Fetch from bible-api.com using KJV (only supported translation)
         const response = await fetch(
-          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=${version}`
+          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=kjv`
         );
 
         if (!response.ok) {
@@ -112,7 +87,7 @@ export function BibleChapterViewer({
     };
 
     loadVerses();
-  }, [visible, book, chapter, version]);
+  }, [visible, book, chapter]);
 
   return (
     <Modal
@@ -150,46 +125,7 @@ export function BibleChapterViewer({
             >
               {book} {chapter}
             </Text>
-            <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
-              <Pressable
-                onPress={() => handleVersionChange('kjv')}
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 4,
-                  backgroundColor: version === 'kjv' ? colors.primary : 'transparent',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '600',
-                    color: version === 'kjv' ? '#fff' : colors.muted,
-                  }}
-                >
-                  KJV
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleVersionChange('csb')}
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 4,
-                  backgroundColor: version === 'csb' ? colors.primary : 'transparent',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '600',
-                    color: version === 'csb' ? '#fff' : colors.muted,
-                  }}
-                >
-                  CSB
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>KJV</Text>
           </View>
 
           <Pressable
@@ -218,39 +154,29 @@ export function BibleChapterViewer({
             showsVerticalScrollIndicator={true}
           >
             {verses.map((verse) => {
-              const segments = parseVerseForChristWords(verse.text);
+              const verseText = verse.text;
               return (
-                <View key={verse.verse} style={{ marginBottom: 18 }}>
+                <View key={verse.verse} style={{ marginBottom: 20 }}>
                   <Text
                     style={{
                       fontSize: 17,
-                      lineHeight: 26,
+                      lineHeight: 27,
                       color: colors.foreground,
                       fontFamily: 'Georgia',
                     }}
                   >
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: '600',
                         color: colors.primary,
-                        marginRight: 6,
-                        fontFamily: 'Georgia',
+                        marginRight: 4,
                       }}
                     >
                       {verse.verse}
                     </Text>
-                    {segments.map((segment, idx) => (
-                      <Text
-                        key={idx}
-                        style={{
-                          color: segment.isChristWords ? '#4A90E2' : colors.foreground,
-                          fontFamily: 'Georgia',
-                        }}
-                      >
-                        {segment.text}
-                      </Text>
-                    ))}
+                    {' '}
+                    {verseText}
                   </Text>
                 </View>
               );

@@ -157,11 +157,10 @@ export function BibleChapterViewer({
                 <View key={verse.verse} style={{ marginBottom: 18 }}>
                   <Text
                     style={{
-                      fontSize: 18,
-                      lineHeight: 30,
+                      fontSize: 17,
+                      lineHeight: 26,
                       color: colors.foreground,
                       fontFamily: 'Georgia',
-                      letterSpacing: 0.3,
                     }}
                   >
                     <Text

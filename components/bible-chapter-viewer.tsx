@@ -84,7 +84,7 @@ export function BibleChapterViewer({
       try {
         // Map version to API.Bible bible ID
         const bibleIds: { [key: string]: string } = {
-          'kjv': '9879dbb7cfe39e4d-04',
+          'kjv': 'de4e12af7f28f599-02',
           'csb': 'a556c5305ee15c3f-01',
         };
         const bibleId = bibleIds[version];

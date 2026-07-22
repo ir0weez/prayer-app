@@ -109,10 +109,14 @@ export function BibleChapterViewer({
   // Handle highlighting a verse
   const handleHighlightVerse = async (verseNumber: number, color: HighlightColor) => {
     const verse = verses.find((v) => v.verse === verseNumber);
-    if (!verse) return;
+    if (!verse) {
+      console.error('Verse not found:', verseNumber);
+      return;
+    }
 
     try {
-      await createHighlight.mutateAsync({
+      console.log('Creating highlight for verse:', verseNumber, 'color:', color);
+      const result = await createHighlight.mutateAsync({
         book,
         chapter,
         verse: verseNumber,
@@ -120,11 +124,14 @@ export function BibleChapterViewer({
         highlightedText: verse.text,
         color,
       });
+      console.log('Highlight created:', result);
 
       // Refresh highlights
-      await getHighlights.refetch();
+      const refreshed = await getHighlights.refetch();
+      console.log('Highlights refreshed:', refreshed.data);
     } catch (err) {
       console.error('Error creating highlight:', err);
+      alert('Failed to create highlight: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -353,6 +360,8 @@ export function BibleChapterViewer({
                     <Pressable
                       onPress={() => {
                         if (highlight) {
+                          // Show remove option
+                          alert('Remove this highlight?');
                           handleRemoveHighlight(highlight.id);
                         } else {
                           setSelectedVerseForHighlight(verse.verse);
@@ -369,8 +378,9 @@ export function BibleChapterViewer({
                         style={{
                           fontSize: 14,
                           fontWeight: '600',
-                          color: colors.primary,
+                          color: highlight ? colors.primary : colors.primary,
                           minWidth: 24,
+                          textDecorationLine: highlight ? 'underline' : 'none',
                         }}
                       >
                         {verse.verse}

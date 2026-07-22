@@ -11,7 +11,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { parseVerseForChristWords } from '@/lib/christ-words';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -45,14 +44,14 @@ export function BibleChapterViewer({
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [version, setVersion] = useState<'kjv' | 'asv'>('kjv');
+  const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
 
   // Load saved version preference on mount
   useEffect(() => {
     const loadVersionPreference = async () => {
       try {
         const savedVersion = await AsyncStorage.getItem('bibleVersion');
-        if (savedVersion === 'kjv' || savedVersion === 'asv') {
+        if (savedVersion === 'kjv' || savedVersion === 'csb') {
           setVersion(savedVersion);
         }
       } catch (err) {
@@ -63,7 +62,7 @@ export function BibleChapterViewer({
   }, []);
 
   // Save version preference when it changes
-  const handleVersionChange = async (newVersion: 'kjv' | 'asv') => {
+  const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
     setVersion(newVersion);
     try {
       await AsyncStorage.setItem('bibleVersion', newVersion);
@@ -82,9 +81,26 @@ export function BibleChapterViewer({
       setVerses([]);
 
       try {
-        // Fetch from bible-api.com using selected translation
+        // Map version to API.Bible bible ID
+        const bibleIds: { [key: string]: string } = {
+          'kjv': '9879dbb7cfe39e4d-04',
+          'csb': 'a556c5305ee15c3f-01',
+        };
+        const bibleId = bibleIds[version];
+        const apiKey = process.env.EXPO_PUBLIC_APIBIBLE_KEY;
+
+        if (!apiKey) {
+          throw new Error('API.Bible key not configured');
+        }
+
+        // Fetch from API.Bible
         const response = await fetch(
-          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=${version}`
+          `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${encodeURIComponent(`${book} ${chapter}`)}?content-type=text&include-notes=false`,
+          {
+            headers: {
+              'api-key': apiKey,
+            },
+          }
         );
 
         if (!response.ok) {
@@ -94,14 +110,28 @@ export function BibleChapterViewer({
         const data = await response.json();
 
         // Parse verses from the API response
-        if (data.verses && Array.isArray(data.verses)) {
-          const parsedVerses: Verse[] = data.verses.map((v: any) => ({
-            verse: v.verse,
-            text: v.text.trim().replace(/\n/g, ' ').replace(/\s+/g, ' '),
-          }));
+        if (data.passages && Array.isArray(data.passages)) {
+          const passageText = data.passages[0]?.content || '';
+          
+          // Parse verse numbers and text from the passage
+          const versePattern = /(\d+)\s+(.+?)(?=\d+\s+|$)/gs;
+          const parsedVerses: Verse[] = [];
+          let match;
+          
+          while ((match = versePattern.exec(passageText)) !== null) {
+            parsedVerses.push({
+              verse: parseInt(match[1]),
+              text: match[2].trim().replace(/\n/g, ' ').replace(/\s+/g, ' '),
+            });
+          }
+          
+          if (parsedVerses.length === 0) {
+            throw new Error('No verses found in passage');
+          }
+          
           setVerses(parsedVerses);
         } else {
-          throw new Error('No verses found in response');
+          throw new Error('No passages found in response');
         }
       } catch (err) {
         console.error('Error loading Bible chapter:', err);
@@ -126,11 +156,11 @@ export function BibleChapterViewer({
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
             justifyContent: 'space-between',
+            alignItems: 'center',
             paddingHorizontal: 16,
-            paddingVertical: 12,
             paddingTop: 48,
+            paddingBottom: 16,
             borderBottomWidth: 1,
             borderBottomColor: colors.border,
           }}
@@ -138,11 +168,11 @@ export function BibleChapterViewer({
           <Pressable onPress={onClose} style={{ padding: 8 }}>
             <MaterialIcons name="close" size={24} color={colors.foreground} />
           </Pressable>
-          
-          <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 12 }}>
+
+          <View style={{ alignItems: 'center' }}>
             <Text
               style={{
-                fontSize: 14,
+                fontSize: 18,
                 fontWeight: '700',
                 color: colors.foreground,
               }}
@@ -171,22 +201,22 @@ export function BibleChapterViewer({
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => handleVersionChange('asv')}
+                onPress={() => handleVersionChange('csb')}
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderRadius: 4,
-                  backgroundColor: version === 'asv' ? colors.primary : 'transparent',
+                  backgroundColor: version === 'csb' ? colors.primary : 'transparent',
                 }}
               >
                 <Text
                   style={{
                     fontSize: 11,
                     fontWeight: '600',
-                    color: version === 'asv' ? '#fff' : colors.muted,
+                    color: version === 'csb' ? '#fff' : colors.muted,
                   }}
                 >
-                  ASV
+                  CSB
                 </Text>
               </Pressable>
             </View>
@@ -208,7 +238,7 @@ export function BibleChapterViewer({
         ) : error ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
             <Text style={{ color: colors.error, textAlign: 'center' }}>
-              {error}
+              Failed to load {book} {chapter}
             </Text>
           </View>
         ) : (
@@ -272,30 +302,31 @@ export function BibleChapterViewer({
               borderColor: colors.border,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
+              shadowOpacity: 0.15,
               shadowRadius: 8,
-              elevation: 8,
+              elevation: 5,
             }}
           >
             <Pressable
               onPress={onPreviousChapter}
               disabled={!canGoPrevious}
-              style={{
-                padding: 8,
-                opacity: canGoPrevious ? 1 : 0.3,
-              }}
+              style={({ pressed }) => [
+                { padding: 8, opacity: !canGoPrevious ? 0.3 : pressed ? 0.6 : 1 },
+              ]}
             >
-              <MaterialIcons name="chevron-left" size={24} color={colors.foreground} />
+              <MaterialIcons
+                name="chevron-left"
+                size={24}
+                color={colors.foreground}
+              />
             </Pressable>
 
             <Text
               style={{
-                fontSize: 13,
+                marginHorizontal: 16,
+                fontSize: 14,
                 fontWeight: '600',
                 color: colors.foreground,
-                marginHorizontal: 12,
-                minWidth: 70,
-                textAlign: 'center',
               }}
             >
               Chapter {chapter}
@@ -304,12 +335,15 @@ export function BibleChapterViewer({
             <Pressable
               onPress={onNextChapter}
               disabled={!canGoNext}
-              style={{
-                padding: 8,
-                opacity: canGoNext ? 1 : 0.3,
-              }}
+              style={({ pressed }) => [
+                { padding: 8, opacity: !canGoNext ? 0.3 : pressed ? 0.6 : 1 },
+              ]}
             >
-              <MaterialIcons name="chevron-right" size={24} color={colors.foreground} />
+              <MaterialIcons
+                name="chevron-right"
+                size={24}
+                color={colors.foreground}
+              />
             </Pressable>
           </View>
         </View>

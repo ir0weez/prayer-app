@@ -11,6 +11,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BOOK_IDS } from '@/lib/book-ids';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -93,9 +94,15 @@ export function BibleChapterViewer({
           throw new Error('API.Bible key not configured');
         }
 
-        // Fetch from API.Bible
+        // Get book ID from mapping
+        const bookId = BOOK_IDS[book];
+        if (!bookId) {
+          throw new Error(`Book "${book}" not found`);
+        }
+
+        // Fetch from API.Bible using chapters endpoint
         const response = await fetch(
-          `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${encodeURIComponent(`${book} ${chapter}`)}?content-type=text&include-notes=false`,
+          `https://api.scripture.api.bible/v1/bibles/${bibleId}/chapters/${bookId}.${chapter}?content-type=text&include-notes=false`,
           {
             headers: {
               'api-key': apiKey,
@@ -110,18 +117,25 @@ export function BibleChapterViewer({
         const data = await response.json();
 
         // Parse verses from the API response
-        if (data.passages && Array.isArray(data.passages)) {
-          const passageText = data.passages[0]?.content || '';
+        if (data.data && data.data.content) {
+          const passageText = data.data.content;
           
           // Parse verse numbers and text from the passage
-          const versePattern = /(\d+)\s+(.+?)(?=\d+\s+|$)/gs;
+          // Format: [1] Verse text [2] More text [3] Another verse
+          const versePattern = /\[(\d+)\]\s+(.+?)(?=\[\d+\]|$)/gs;
           const parsedVerses: Verse[] = [];
           let match;
           
           while ((match = versePattern.exec(passageText)) !== null) {
+            const verseText = match[2]
+              .trim()
+              .replace(/\n/g, ' ')
+              .replace(/\s+/g, ' ')
+              .replace(/[\u00A0]/g, ' '); // Replace non-breaking spaces
+            
             parsedVerses.push({
               verse: parseInt(match[1]),
-              text: match[2].trim().replace(/\n/g, ' ').replace(/\s+/g, ' '),
+              text: verseText,
             });
           }
           

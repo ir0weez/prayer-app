@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { bibleRouter } from "./routers/bible";
+import { highlightsRouter } from "./routers/highlights";
 import { publicProcedure, router } from "./_core/trpc";
 
 export const appRouter = router({
@@ -18,6 +19,7 @@ export const appRouter = router({
     }),
   }),
   bible: bibleRouter,
+  highlights: highlightsRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({

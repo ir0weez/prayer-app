@@ -25,4 +25,19 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const verseHighlights = mysqlTable("verseHighlights", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  book: varchar("book", { length: 64 }).notNull(),
+  chapter: int("chapter").notNull(),
+  verse: int("verse").notNull(),
+  version: varchar("version", { length: 10 }).notNull().default("kjv"),
+  highlightedText: text("highlightedText").notNull(),
+  color: mysqlEnum("color", ["yellow", "green", "blue", "pink", "orange"]).notNull().default("yellow"),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VerseHighlight = typeof verseHighlights.$inferSelect;
+export type InsertVerseHighlight = typeof verseHighlights.$inferInsert;

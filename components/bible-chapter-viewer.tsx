@@ -12,6 +12,8 @@ import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
+import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
+import { trpc } from '@/lib/trpc';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -30,6 +32,13 @@ interface Verse {
   text: string;
 }
 
+interface VerseHighlight {
+  id: number;
+  verse: number;
+  color: HighlightColor;
+  highlightedText: string;
+}
+
 export function BibleChapterViewer({
   visible,
   book,
@@ -46,6 +55,18 @@ export function BibleChapterViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
+  const [highlights, setHighlights] = useState<VerseHighlight[]>([]);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [selectedVerseForHighlight, setSelectedVerseForHighlight] = useState<number | null>(null);
+
+  // API calls
+  const getHighlights = trpc.highlights.getChapterHighlights.useQuery(
+    { book, chapter, version },
+    { enabled: visible }
+  );
+
+  const createHighlight = trpc.highlights.create.useMutation();
+  const deleteHighlight = trpc.highlights.delete.useMutation();
 
   // Load saved version preference on mount
   useEffect(() => {
@@ -62,6 +83,19 @@ export function BibleChapterViewer({
     loadVersionPreference();
   }, []);
 
+  // Load highlights when chapter changes
+  useEffect(() => {
+    if (getHighlights.data) {
+      const formattedHighlights: VerseHighlight[] = getHighlights.data.map((h: any) => ({
+        id: h.id,
+        verse: h.verse,
+        color: h.color as HighlightColor,
+        highlightedText: h.highlightedText,
+      }));
+      setHighlights(formattedHighlights);
+    }
+  }, [getHighlights.data]);
+
   // Save version preference when it changes
   const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
     setVersion(newVersion);
@@ -69,6 +103,39 @@ export function BibleChapterViewer({
       await AsyncStorage.setItem('bibleVersion', newVersion);
     } catch (err) {
       console.error('Error saving version preference:', err);
+    }
+  };
+
+  // Handle highlighting a verse
+  const handleHighlightVerse = async (verseNumber: number, color: HighlightColor) => {
+    const verse = verses.find((v) => v.verse === verseNumber);
+    if (!verse) return;
+
+    try {
+      await createHighlight.mutateAsync({
+        book,
+        chapter,
+        verse: verseNumber,
+        version,
+        highlightedText: verse.text,
+        color,
+      });
+
+      // Refresh highlights
+      getHighlights.refetch();
+    } catch (err) {
+      console.error('Error creating highlight:', err);
+    }
+  };
+
+  // Handle removing a highlight
+  const handleRemoveHighlight = async (highlightId: number) => {
+    try {
+      await deleteHighlight.mutateAsync({ id: highlightId });
+      // Refresh highlights
+      getHighlights.refetch();
+    } catch (err) {
+      console.error('Error deleting highlight:', err);
     }
   };
 
@@ -158,210 +225,250 @@ export function BibleChapterViewer({
     loadVerses();
   }, [visible, book, chapter, version]);
 
+  const getVerseHighlight = (verseNumber: number) => {
+    return highlights.find((h) => h.verse === verseNumber);
+  };
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingTop: 48,
-            paddingBottom: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Pressable onPress={onClose} style={{ padding: 8 }}>
-            <MaterialIcons name="close" size={24} color={colors.foreground} />
-          </Pressable>
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingTop: 48,
+              paddingBottom: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <Pressable onPress={onClose} style={{ padding: 8 }}>
+              <MaterialIcons name="close" size={24} color={colors.foreground} />
+            </Pressable>
 
-          <View style={{ alignItems: 'center' }}>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '700',
-                color: colors.foreground,
-              }}
-              numberOfLines={1}
-            >
-              {book} {chapter}
-            </Text>
-            <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
-              <Pressable
-                onPress={() => handleVersionChange('kjv')}
+            <View style={{ alignItems: 'center' }}>
+              <Text
                 style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 4,
-                  backgroundColor: version === 'kjv' ? colors.primary : 'transparent',
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: colors.foreground,
                 }}
+                numberOfLines={1}
               >
-                <Text
+                {book} {chapter}
+              </Text>
+              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
+                <Pressable
+                  onPress={() => handleVersionChange('kjv')}
                   style={{
-                    fontSize: 11,
-                    fontWeight: '600',
-                    color: version === 'kjv' ? '#fff' : colors.muted,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    backgroundColor: version === 'kjv' ? colors.primary : 'transparent',
                   }}
                 >
-                  KJV
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleVersionChange('csb')}
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 4,
-                  backgroundColor: version === 'csb' ? colors.primary : 'transparent',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '600',
-                    color: version === 'csb' ? '#fff' : colors.muted,
-                  }}
-                >
-                  CSB
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <Pressable
-            onPress={onMarkComplete}
-            style={{ padding: 8 }}
-          >
-            <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-          </Pressable>
-        </View>
-
-        {/* Content */}
-        {loading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : error ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-            <Text style={{ color: colors.error, textAlign: 'center' }}>
-              Failed to load {book} {chapter}
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-            showsVerticalScrollIndicator={true}
-          >
-            {verses.map((verse) => {
-              const verseText = verse.text;
-              return (
-                <View key={verse.verse} style={{ marginBottom: 20 }}>
                   <Text
                     style={{
-                      fontSize: 17,
-                      lineHeight: 27,
-                      color: colors.foreground,
-                      fontFamily: 'Georgia',
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: version === 'kjv' ? '#fff' : colors.muted,
+                    }}
+                  >
+                    KJV
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleVersionChange('csb')}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    backgroundColor: version === 'csb' ? colors.primary : 'transparent',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: version === 'csb' ? '#fff' : colors.muted,
+                    }}
+                  >
+                    CSB
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={onMarkComplete}
+              style={{ padding: 8 }}
+            >
+              <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+            </Pressable>
+          </View>
+
+          {/* Content */}
+          {loading ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : error ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+              <Text style={{ color: colors.error, textAlign: 'center' }}>
+                Failed to load {book} {chapter}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={true}
+            >
+              {verses.map((verse) => {
+                const highlight = getVerseHighlight(verse.verse);
+                const highlightBgColor = highlight ? HIGHLIGHT_COLORS[highlight.color].bg : 'transparent';
+
+                return (
+                  <Pressable
+                    key={verse.verse}
+                    onLongPress={() => {
+                      setSelectedVerseForHighlight(verse.verse);
+                      setColorPickerVisible(true);
+                    }}
+                    onPress={() => {
+                      if (highlight) {
+                        handleRemoveHighlight(highlight.id);
+                      }
+                    }}
+                    style={{
+                      marginBottom: 20,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor: highlightBgColor,
                     }}
                   >
                     <Text
                       style={{
-                        fontSize: 14,
-                        fontWeight: '600',
-                        color: colors.primary,
-                        marginRight: 4,
+                        fontSize: 17,
+                        lineHeight: 27,
+                        color: colors.foreground,
+                        fontFamily: 'Georgia',
                       }}
                     >
-                      {verse.verse}
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: colors.primary,
+                          marginRight: 4,
+                        }}
+                      >
+                        {verse.verse}
+                      </Text>
+                      {' '}
+                      {verse.text}
                     </Text>
-                    {' '}
-                    {verseText}
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
 
-        {/* Floating Pill Navigation */}
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 24,
-            left: 0,
-            right: 0,
-            alignItems: 'center',
-            pointerEvents: 'box-none',
-          }}
-        >
+          {/* Floating Pill Navigation */}
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
+              position: 'absolute',
+              bottom: 24,
+              left: 0,
+              right: 0,
               alignItems: 'center',
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              backgroundColor: colors.surface,
-              borderRadius: 32,
-              borderWidth: 1,
-              borderColor: colors.border,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-              elevation: 5,
+              pointerEvents: 'box-none',
             }}
           >
-            <Pressable
-              onPress={onPreviousChapter}
-              disabled={!canGoPrevious}
-              style={({ pressed }) => [
-                { padding: 8, opacity: !canGoPrevious ? 0.3 : pressed ? 0.6 : 1 },
-              ]}
-            >
-              <MaterialIcons
-                name="chevron-left"
-                size={24}
-                color={colors.foreground}
-              />
-            </Pressable>
-
-            <Text
+            <View
               style={{
-                marginHorizontal: 16,
-                fontSize: 14,
-                fontWeight: '600',
-                color: colors.foreground,
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                backgroundColor: colors.surface,
+                borderRadius: 32,
+                borderWidth: 1,
+                borderColor: colors.border,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 5,
               }}
             >
-              Chapter {chapter}
-            </Text>
+              <Pressable
+                onPress={onPreviousChapter}
+                disabled={!canGoPrevious}
+                style={({ pressed }) => [
+                  { padding: 8, opacity: !canGoPrevious ? 0.3 : pressed ? 0.6 : 1 },
+                ]}
+              >
+                <MaterialIcons
+                  name="chevron-left"
+                  size={24}
+                  color={colors.foreground}
+                />
+              </Pressable>
 
-            <Pressable
-              onPress={onNextChapter}
-              disabled={!canGoNext}
-              style={({ pressed }) => [
-                { padding: 8, opacity: !canGoNext ? 0.3 : pressed ? 0.6 : 1 },
-              ]}
-            >
-              <MaterialIcons
-                name="chevron-right"
-                size={24}
-                color={colors.foreground}
-              />
-            </Pressable>
+              <Text
+                style={{
+                  marginHorizontal: 16,
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: colors.foreground,
+                }}
+              >
+                Chapter {chapter}
+              </Text>
+
+              <Pressable
+                onPress={onNextChapter}
+                disabled={!canGoNext}
+                style={({ pressed }) => [
+                  { padding: 8, opacity: !canGoNext ? 0.3 : pressed ? 0.6 : 1 },
+                ]}
+              >
+                <MaterialIcons
+                  name="chevron-right"
+                  size={24}
+                  color={colors.foreground}
+                />
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </SafeAreaView>
-    </Modal>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Color Picker Modal */}
+      <HighlightColorPicker
+        visible={colorPickerVisible}
+        onSelectColor={(color) => {
+          if (selectedVerseForHighlight !== null) {
+            handleHighlightVerse(selectedVerseForHighlight, color);
+          }
+        }}
+        onClose={() => {
+          setColorPickerVisible(false);
+          setSelectedVerseForHighlight(null);
+        }}
+      />
+    </>
   );
 }

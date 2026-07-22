@@ -45,7 +45,32 @@ export function BibleChapterViewer({
   const [verses, setVerses] = useState<Verse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Note: bible-api.com only supports KJV. CSB support would require a different API.
+  const [version, setVersion] = useState<'kjv' | 'asv'>('kjv');
+
+  // Load saved version preference on mount
+  useEffect(() => {
+    const loadVersionPreference = async () => {
+      try {
+        const savedVersion = await AsyncStorage.getItem('bibleVersion');
+        if (savedVersion === 'kjv' || savedVersion === 'asv') {
+          setVersion(savedVersion);
+        }
+      } catch (err) {
+        console.error('Error loading version preference:', err);
+      }
+    };
+    loadVersionPreference();
+  }, []);
+
+  // Save version preference when it changes
+  const handleVersionChange = async (newVersion: 'kjv' | 'asv') => {
+    setVersion(newVersion);
+    try {
+      await AsyncStorage.setItem('bibleVersion', newVersion);
+    } catch (err) {
+      console.error('Error saving version preference:', err);
+    }
+  };
 
   // Load Bible verses when modal becomes visible
   useEffect(() => {
@@ -57,9 +82,9 @@ export function BibleChapterViewer({
       setVerses([]);
 
       try {
-        // Fetch from bible-api.com using KJV (only supported translation)
+        // Fetch from bible-api.com using selected translation
         const response = await fetch(
-          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=kjv`
+          `https://bible-api.com/${encodeURIComponent(`${book} ${chapter}`)}?translation=${version}`
         );
 
         if (!response.ok) {
@@ -72,7 +97,7 @@ export function BibleChapterViewer({
         if (data.verses && Array.isArray(data.verses)) {
           const parsedVerses: Verse[] = data.verses.map((v: any) => ({
             verse: v.verse,
-            text: v.text.trim(),
+            text: v.text.trim().replace(/\n/g, ' ').replace(/\s+/g, ' '),
           }));
           setVerses(parsedVerses);
         } else {
@@ -87,7 +112,7 @@ export function BibleChapterViewer({
     };
 
     loadVerses();
-  }, [visible, book, chapter]);
+  }, [visible, book, chapter, version]);
 
   return (
     <Modal
@@ -125,7 +150,46 @@ export function BibleChapterViewer({
             >
               {book} {chapter}
             </Text>
-            <Text style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>KJV</Text>
+            <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
+              <Pressable
+                onPress={() => handleVersionChange('kjv')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  backgroundColor: version === 'kjv' ? colors.primary : 'transparent',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: version === 'kjv' ? '#fff' : colors.muted,
+                  }}
+                >
+                  KJV
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleVersionChange('asv')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  backgroundColor: version === 'asv' ? colors.primary : 'transparent',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: version === 'asv' ? '#fff' : colors.muted,
+                  }}
+                >
+                  ASV
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <Pressable

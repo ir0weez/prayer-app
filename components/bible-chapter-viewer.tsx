@@ -122,7 +122,7 @@ export function BibleChapterViewer({
       });
 
       // Refresh highlights
-      getHighlights.refetch();
+      await getHighlights.refetch();
     } catch (err) {
       console.error('Error creating highlight:', err);
     }
@@ -133,7 +133,7 @@ export function BibleChapterViewer({
     try {
       await deleteHighlight.mutateAsync({ id: highlightId });
       // Refresh highlights
-      getHighlights.refetch();
+      await getHighlights.refetch();
     } catch (err) {
       console.error('Error deleting highlight:', err);
     }
@@ -338,47 +338,57 @@ export function BibleChapterViewer({
                 const highlightBgColor = highlight ? HIGHLIGHT_COLORS[highlight.color].bg : 'transparent';
 
                 return (
-                  <Pressable
+                  <View
                     key={verse.verse}
-                    onLongPress={() => {
-                      setSelectedVerseForHighlight(verse.verse);
-                      setColorPickerVisible(true);
-                    }}
-                    onPress={() => {
-                      if (highlight) {
-                        handleRemoveHighlight(highlight.id);
-                      }
-                    }}
                     style={{
                       marginBottom: 20,
                       paddingHorizontal: 12,
                       paddingVertical: 10,
                       borderRadius: 8,
                       backgroundColor: highlightBgColor,
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        lineHeight: 27,
-                        color: colors.foreground,
-                        fontFamily: 'Georgia',
+                    <Pressable
+                      onPress={() => {
+                        if (highlight) {
+                          handleRemoveHighlight(highlight.id);
+                        } else {
+                          setSelectedVerseForHighlight(verse.verse);
+                          setColorPickerVisible(true);
+                        }
                       }}
+                      style={({ pressed }) => [{
+                        marginRight: 8,
+                        marginTop: 2,
+                        opacity: pressed ? 0.6 : 1,
+                      }]}
                     >
                       <Text
                         style={{
                           fontSize: 14,
                           fontWeight: '600',
                           color: colors.primary,
-                          marginRight: 4,
+                          minWidth: 24,
                         }}
                       >
                         {verse.verse}
                       </Text>
-                      {' '}
+                    </Pressable>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        lineHeight: 27,
+                        color: colors.foreground,
+                        fontFamily: 'Georgia',
+                        flex: 1,
+                      }}
+                      selectable
+                    >
                       {verse.text}
                     </Text>
-                  </Pressable>
+                  </View>
                 );
               })}
             </ScrollView>
@@ -462,6 +472,8 @@ export function BibleChapterViewer({
         onSelectColor={(color) => {
           if (selectedVerseForHighlight !== null) {
             handleHighlightVerse(selectedVerseForHighlight, color);
+            setColorPickerVisible(false);
+            setSelectedVerseForHighlight(null);
           }
         }}
         onClose={() => {

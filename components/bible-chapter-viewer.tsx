@@ -13,7 +13,6 @@ import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
-import { trpc } from '@/lib/trpc';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -59,14 +58,8 @@ export function BibleChapterViewer({
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [selectedVerseForHighlight, setSelectedVerseForHighlight] = useState<number | null>(null);
 
-  // API calls
-  const getHighlights = trpc.highlights.getChapterHighlights.useQuery(
-    { book, chapter, version },
-    { enabled: visible }
-  );
-
-  const createHighlight = trpc.highlights.create.useMutation();
-  const deleteHighlight = trpc.highlights.delete.useMutation();
+  // Local highlights storage key
+  const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
 
   // Load saved version preference on mount
   useEffect(() => {
@@ -83,18 +76,23 @@ export function BibleChapterViewer({
     loadVersionPreference();
   }, []);
 
-  // Load highlights when chapter changes
+  // Load highlights from AsyncStorage when chapter changes
   useEffect(() => {
-    if (getHighlights.data) {
-      const formattedHighlights: VerseHighlight[] = getHighlights.data.map((h: any) => ({
-        id: h.id,
-        verse: h.verse,
-        color: h.color as HighlightColor,
-        highlightedText: h.highlightedText,
-      }));
-      setHighlights(formattedHighlights);
-    }
-  }, [getHighlights.data]);
+    const loadHighlights = async () => {
+      try {
+        const key = getHighlightsKey();
+        const saved = await AsyncStorage.getItem(key);
+        if (saved) {
+          setHighlights(JSON.parse(saved));
+        } else {
+          setHighlights([]);
+        }
+      } catch (err) {
+        console.error('Error loading highlights:', err);
+      }
+    };
+    loadHighlights();
+  }, [book, chapter, version]);
 
   // Save version preference when it changes
   const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
@@ -115,20 +113,21 @@ export function BibleChapterViewer({
     }
 
     try {
-      console.log('Creating highlight for verse:', verseNumber, 'color:', color);
-      const result = await createHighlight.mutateAsync({
-        book,
-        chapter,
+      const newHighlight: VerseHighlight = {
+        id: Date.now(),
         verse: verseNumber,
-        version,
-        highlightedText: verse.text,
         color,
-      });
-      console.log('Highlight created:', result);
+        highlightedText: verse.text,
+      };
 
-      // Refresh highlights
-      const refreshed = await getHighlights.refetch();
-      console.log('Highlights refreshed:', refreshed.data);
+      // Remove existing highlight for this verse if any
+      const updated = highlights.filter((h) => h.verse !== verseNumber);
+      updated.push(newHighlight);
+
+      // Save to AsyncStorage
+      const key = getHighlightsKey();
+      await AsyncStorage.setItem(key, JSON.stringify(updated));
+      setHighlights(updated);
     } catch (err) {
       console.error('Error creating highlight:', err);
       alert('Failed to create highlight: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -138,9 +137,10 @@ export function BibleChapterViewer({
   // Handle removing a highlight
   const handleRemoveHighlight = async (highlightId: number) => {
     try {
-      await deleteHighlight.mutateAsync({ id: highlightId });
-      // Refresh highlights
-      await getHighlights.refetch();
+      const updated = highlights.filter((h) => h.id !== highlightId);
+      const key = getHighlightsKey();
+      await AsyncStorage.setItem(key, JSON.stringify(updated));
+      setHighlights(updated);
     } catch (err) {
       console.error('Error deleting highlight:', err);
     }

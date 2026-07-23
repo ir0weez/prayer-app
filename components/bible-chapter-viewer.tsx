@@ -15,6 +15,7 @@ import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
 import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
 import { BibleStoryViewer } from './bible-story-viewer';
+import { saveBookmark } from '@/lib/bible-bookmark';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -32,6 +33,9 @@ interface Verse {
   verse: number;
   text: string;
 }
+
+// Type alias for compatibility
+type BibleVerse = Verse;
 
 interface VerseHighlight {
   id: number;
@@ -62,6 +66,7 @@ export function BibleChapterViewer({
   const [sections, setSections] = useState<BibleSection[]>([]);
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [selectedSection, setSelectedSection] = useState<BibleSection | null>(null);
+  const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -119,10 +124,33 @@ export function BibleChapterViewer({
   // Parse sections when verses load
   useEffect(() => {
     if (verses.length > 0) {
-      const parsed = parseBibleSections(verses);
+      // Convert Verse[] to BibleVerse[] for parser
+      const bibleVerses = verses.map(v => ({
+        verse: v.verse,
+        text: v.text,
+      }));
+      const parsed = parseBibleSections(bibleVerses);
       setSections(parsed);
     }
   }, [verses]);
+
+  // Load saved bookmark when chapter changes
+  useEffect(() => {
+    const loadBookmark = async () => {
+      try {
+        const { loadBookmark: loadSavedBookmark } = await import('@/lib/bible-bookmark');
+        const saved = await loadSavedBookmark();
+        if (saved && saved.book === book && saved.chapter === chapter) {
+          setBookmarkedVerse(saved.verse);
+        } else {
+          setBookmarkedVerse(null);
+        }
+      } catch (err) {
+        console.error('Error loading bookmark:', err);
+      }
+    };
+    loadBookmark();
+  }, [book, chapter]);
 
   // Save version preference when it changes
   const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
@@ -237,15 +265,24 @@ export function BibleChapterViewer({
               .replace(/\s+/g, ' ')
               .replace(/[\u00A0]/g, ' '); // Replace non-breaking spaces
             
-            parsedVerses.push({
-              verse: parseInt(match[1]),
-              text: verseText,
-            });
+            // Only add if it's not empty and doesn't look like a heading
+            if (verseText.length > 0) {
+              parsedVerses.push({
+                verse: parseInt(match[1]),
+                text: verseText,
+              });
+            }
           }
           
           if (parsedVerses.length === 0) {
             throw new Error('No verses found in passage');
           }
+          
+          // Convert to BibleVerse format for section parser
+          const bibleVerses = parsedVerses.map(v => ({
+            verse: v.verse,
+            text: v.text,
+          }));
           
           setVerses(parsedVerses);
         } else {
@@ -274,6 +311,15 @@ export function BibleChapterViewer({
   const handleSectionComplete = async () => {
     if (selectedSection) {
       await markSectionComplete(selectedSection.id);
+    }
+  };
+
+  const handleBookmarkVerse = async () => {
+    if (selectedVerseForHighlight !== null) {
+      await saveBookmark(book, chapter, selectedVerseForHighlight, version);
+      setBookmarkedVerse(selectedVerseForHighlight);
+      // Reset after 1 second
+      setTimeout(() => setBookmarkedVerse(null), 1000);
     }
   };
 
@@ -574,6 +620,8 @@ export function BibleChapterViewer({
           setColorPickerVisible(false);
           setSelectedVerseForHighlight(null);
         }}
+        onBookmark={handleBookmarkVerse}
+        isBookmarked={bookmarkedVerse === selectedVerseForHighlight}
       />
 
       {/* Story Viewer Modal */}

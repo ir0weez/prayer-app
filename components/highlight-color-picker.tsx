@@ -7,8 +7,6 @@ interface HighlightColorPickerProps {
   visible: boolean;
   onSelectColor: (color: HighlightColor) => void;
   onClose: () => void;
-  onBookmark?: () => void;
-  isBookmarked?: boolean;
 }
 
 const HIGHLIGHT_COLORS: Record<HighlightColor, { bg: string; label: string }> = {
@@ -23,8 +21,6 @@ export function HighlightColorPicker({
   visible,
   onSelectColor,
   onClose,
-  onBookmark,
-  isBookmarked,
 }: HighlightColorPickerProps) {
   const colors = useColors();
 
@@ -111,41 +107,12 @@ export function HighlightColorPicker({
             )}
           </View>
 
-          {/* Bookmark button */}
-          {onBookmark && (
-            <Pressable
-              onPress={() => {
-                onBookmark();
-                onClose();
-              }}
-              style={({ pressed }) => ([
-                {
-                  marginTop: 12,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  backgroundColor: isBookmarked ? 'rgba(34, 197, 94, 0.2)' : colors.border,
-                  alignItems: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ])}
-            >
-              <Text
-                style={{
-                  color: isBookmarked ? colors.success : colors.foreground,
-                  fontWeight: '600',
-                  fontSize: 14,
-                }}
-              >
-                {isBookmarked ? '✓ Bookmarked' : 'Bookmark This Verse'}
-              </Text>
-            </Pressable>
-          )}
+
 
           <Pressable
             onPress={onClose}
             style={{
-              marginTop: onBookmark ? 8 : 16,
+              marginTop: 16,
               paddingVertical: 10,
               paddingHorizontal: 16,
               borderRadius: 8,

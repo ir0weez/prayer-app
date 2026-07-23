@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView, LongPressGestureHandler } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
@@ -485,37 +486,61 @@ export function BibleChapterViewer({
                       backgroundColor: highlightBgColor,
                       flexDirection: 'row',
                       alignItems: 'flex-start',
+                      position: 'relative',
                     }}
                   >
-                    <Pressable
-                      onPress={() => {
-                        if (highlight) {
-                          // Show remove option
-                          alert('Remove this highlight?');
-                          handleRemoveHighlight(highlight.id);
-                        } else {
-                          setSelectedVerseForHighlight(verse.verse);
-                          setColorPickerVisible(true);
-                        }
-                      }}
-                      style={({ pressed }) => [{
-                        marginRight: 8,
-                        marginTop: 2,
-                        opacity: pressed ? 0.6 : 1,
-                      }]}
-                    >
-                      <Text
+                    {/* Bookmark line indicator */}
+                    {bookmarkedVerse === verse.verse && (
+                      <View
                         style={{
-                          fontSize: 14,
-                          fontWeight: '600',
-                          color: highlight ? colors.primary : colors.primary,
-                          minWidth: 24,
-                          textDecorationLine: highlight ? 'underline' : 'none',
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: 3,
+                          backgroundColor: colors.primary,
+                          borderRadius: 2,
                         }}
+                      />
+                    )}
+
+                    <LongPressGestureHandler
+                      onActivated={() => {
+                        handleBookmarkVerse();
+                        setSelectedVerseForHighlight(verse.verse);
+                      }}
+                      minDurationMs={500}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          if (highlight) {
+                            // Show remove option
+                            alert('Remove this highlight?');
+                            handleRemoveHighlight(highlight.id);
+                          } else {
+                            setSelectedVerseForHighlight(verse.verse);
+                            setColorPickerVisible(true);
+                          }
+                        }}
+                        style={({ pressed }) => [{
+                          marginRight: 8,
+                          marginTop: 2,
+                          opacity: pressed ? 0.6 : 1,
+                        }]}
                       >
-                        {verse.verse}
-                      </Text>
-                    </Pressable>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: bookmarkedVerse === verse.verse ? colors.primary : colors.primary,
+                            minWidth: 24,
+                            textDecorationLine: bookmarkedVerse === verse.verse ? 'underline' : 'none',
+                            fontWeight: bookmarkedVerse === verse.verse ? '700' : '600',
+                          }}
+                        >
+                          {verse.verse}
+                        </Text>
+                      </Pressable>
+                    </LongPressGestureHandler>
                     <Text
                       style={{
                         fontSize: 17,
@@ -523,6 +548,7 @@ export function BibleChapterViewer({
                         color: colors.foreground,
                         fontFamily: 'Georgia',
                         flex: 1,
+                        marginLeft: 8,
                       }}
                       selectable
                     >
@@ -620,8 +646,6 @@ export function BibleChapterViewer({
           setColorPickerVisible(false);
           setSelectedVerseForHighlight(null);
         }}
-        onBookmark={handleBookmarkVerse}
-        isBookmarked={bookmarkedVerse === selectedVerseForHighlight}
       />
 
       {/* Story Viewer Modal */}

@@ -13,6 +13,8 @@ import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
+import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
+import { BibleStoryViewer } from './bible-story-viewer';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -57,9 +59,29 @@ export function BibleChapterViewer({
   const [highlights, setHighlights] = useState<VerseHighlight[]>([]);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [selectedVerseForHighlight, setSelectedVerseForHighlight] = useState<number | null>(null);
+  const [sections, setSections] = useState<BibleSection[]>([]);
+  const [storyViewerVisible, setStoryViewerVisible] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<BibleSection | null>(null);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
+
+  // Section completion tracking
+  const getSectionCompletionKey = () => `section_completion_${book}_${chapter}`;
+
+  const markSectionComplete = async (sectionId: string) => {
+    try {
+      const key = getSectionCompletionKey();
+      const saved = await AsyncStorage.getItem(key);
+      const completed = saved ? JSON.parse(saved) : [];
+      if (!completed.includes(sectionId)) {
+        completed.push(sectionId);
+        await AsyncStorage.setItem(key, JSON.stringify(completed));
+      }
+    } catch (err) {
+      console.error('Error marking section complete:', err);
+    }
+  };
 
   // Load saved version preference on mount
   useEffect(() => {
@@ -93,6 +115,14 @@ export function BibleChapterViewer({
     };
     loadHighlights();
   }, [book, chapter, version]);
+
+  // Parse sections when verses load
+  useEffect(() => {
+    if (verses.length > 0) {
+      const parsed = parseBibleSections(verses);
+      setSections(parsed);
+    }
+  }, [verses]);
 
   // Save version preference when it changes
   const handleVersionChange = async (newVersion: 'kjv' | 'csb') => {
@@ -236,6 +266,17 @@ export function BibleChapterViewer({
     return highlights.find((h) => h.verse === verseNumber);
   };
 
+  const handleOpenStory = (section: BibleSection) => {
+    setSelectedSection(section);
+    setStoryViewerVisible(true);
+  };
+
+  const handleSectionComplete = async () => {
+    if (selectedSection) {
+      await markSectionComplete(selectedSection.id);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -322,6 +363,49 @@ export function BibleChapterViewer({
               <MaterialIcons name="check-circle" size={24} color={colors.primary} />
             </Pressable>
           </View>
+
+          {/* Section Indicators */}
+          {sections.length > 1 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                gap: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                flexWrap: 'wrap',
+              }}
+            >
+              {sections.map((section, index) => (
+                <Pressable
+                  key={section.id}
+                  onPress={() => handleOpenStory(section)}
+                  style={({ pressed }) => [{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: colors.surface,
+                    borderWidth: 2,
+                    borderColor: colors.border,
+                    opacity: pressed ? 0.7 : 1,
+                  }]}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: colors.primary,
+                    }}
+                  >
+                    {index + 1}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {/* Content */}
           {loading ? (
@@ -489,6 +573,17 @@ export function BibleChapterViewer({
         onClose={() => {
           setColorPickerVisible(false);
           setSelectedVerseForHighlight(null);
+        }}
+      />
+
+      {/* Story Viewer Modal */}
+      <BibleStoryViewer
+        visible={storyViewerVisible}
+        section={selectedSection}
+        onClose={() => setStoryViewerVisible(false)}
+        onComplete={() => {
+          handleSectionComplete();
+          setStoryViewerVisible(false);
         }}
       />
     </>

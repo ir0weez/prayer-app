@@ -1652,3 +1652,17 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Store time-off periods in database
 - [ ] Display grey "Off" blocks on calendar for time-off dates
 - [ ] Style off-blocks to distinguish from regular events
+
+## Bible Stories Feature (Current)
+
+- [x] Create bible-section-parser.ts utility to auto-detect section headings
+- [x] Implement parseBibleSections function to group verses by sections
+- [x] Create BibleStoryViewer component for fullscreen story-style reading
+- [x] Implement tap navigation (left/right) between verses in a section
+- [x] Add circle avatars showing section indicators in chapter view
+- [x] Implement section completion tracking with AsyncStorage
+- [x] Write comprehensive unit tests for section parser (8 tests passing)
+- [ ] Integrate section completion into overall chapter progress tracking
+- [ ] Add visual indicators for completed sections
+- [ ] Test end-to-end Bible reading flow with stories
+- [ ] Save checkpoint after Bible Stories implementation

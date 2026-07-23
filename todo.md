@@ -1666,3 +1666,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [ ] Add visual indicators for completed sections
 - [ ] Test end-to-end Bible reading flow with stories
 - [ ] Save checkpoint after Bible Stories implementation
+
+## Bible Stories Feature - Phase 2 (Current)
+
+- [x] Fix section heading detection to be more lenient
+- [x] Add bookmark/last-read feature for verses
+- [x] Create bible-bookmark.ts utility for persistence
+- [x] Add bookmark button to story viewer
+- [x] Add bookmark indicator line (like Schedule NOW line)
+- [x] Persist bookmarks to AsyncStorage
+- [x] All tests passing (262 tests)
+- [x] TypeScript checks clean

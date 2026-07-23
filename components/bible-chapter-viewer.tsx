@@ -585,6 +585,9 @@ export function BibleChapterViewer({
           handleSectionComplete();
           setStoryViewerVisible(false);
         }}
+        book={book}
+        chapter={chapter}
+        version="kjv"
       />
     </>
   );

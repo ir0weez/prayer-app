@@ -10,12 +10,16 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
+import { saveBookmark } from '@/lib/bible-bookmark';
 
 interface BibleStoryViewerProps {
   visible: boolean;
   section: BibleSection | null;
   onClose: () => void;
   onComplete?: () => void;
+  book: string;
+  chapter: number;
+  version?: 'kjv' | 'csb';
 }
 
 const STORY_COLORS = [
@@ -33,9 +37,13 @@ export function BibleStoryViewer({
   section,
   onClose,
   onComplete,
+  book,
+  chapter,
+  version = 'kjv',
 }: BibleStoryViewerProps) {
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
@@ -43,6 +51,15 @@ export function BibleStoryViewer({
       setCurrentVerseIndex(0);
     }
   }, [visible, section]);
+
+  const handleBookmark = async () => {
+    if (section && currentVerse) {
+      await saveBookmark(book, chapter, currentVerse.verse, version);
+      setIsBookmarked(true);
+      // Reset bookmark indicator after 1 second
+      setTimeout(() => setIsBookmarked(false), 1000);
+    }
+  };
 
   if (!section || section.verses.length === 0) {
     return null;
@@ -58,12 +75,14 @@ export function BibleStoryViewer({
       onClose();
     } else {
       setCurrentVerseIndex(currentVerseIndex + 1);
+      setIsBookmarked(false);
     }
   };
 
   const handlePrevious = () => {
     if (currentVerseIndex > 0) {
       setCurrentVerseIndex(currentVerseIndex - 1);
+      setIsBookmarked(false);
     }
   };
 
@@ -165,6 +184,24 @@ export function BibleStoryViewer({
           >
             {currentVerse.text}
           </Text>
+
+          {/* Bookmark button */}
+          <Pressable
+            onPress={handleBookmark}
+            style={{
+              marginTop: 32,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              backgroundColor: isBookmarked ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)',
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: isBookmarked ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
+              {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Navigation areas */}
@@ -187,6 +224,36 @@ export function BibleStoryViewer({
             }}
           />
         </View>
+
+        {/* Bookmark indicator line (like Schedule NOW line) */}
+        {isBookmarked && (
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              height: 3,
+              backgroundColor: 'rgba(255,255,255,0.6)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 12,
+                marginLeft: 0,
+              }}
+            >
+              <Text style={{ color: backgroundColor, fontSize: 11, fontWeight: '700' }}>
+                BOOKMARK
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Verse counter at bottom */}
         <View

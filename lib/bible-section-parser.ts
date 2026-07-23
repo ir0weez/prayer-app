@@ -16,29 +16,40 @@ export interface BibleSection {
 }
 
 /**
- * Detects if a line is a section heading (all caps or title case, short, no verse numbers)
+ * Detects if a line is a section heading
+ * Looks for: short text (< 80 chars), no verse numbers, no ending punctuation
  */
 function isSectionHeading(text: string): boolean {
   // Remove extra whitespace
   const trimmed = text.trim();
   
+  // Skip empty lines
+  if (trimmed.length === 0) return false;
+  
   // Skip if too long (likely a verse)
-  if (trimmed.length > 100) return false;
+  if (trimmed.length > 80) return false;
   
   // Skip if contains verse numbers or common verse patterns
   if (/^\d+:|[0-9]/.test(trimmed)) return false;
   
-  // Skip if it looks like a regular sentence (ends with period or contains lowercase at start)
-  if (trimmed.endsWith('.') || trimmed.endsWith(',')) return false;
+  // Skip if it looks like a regular sentence (ends with period, comma, or question mark)
+  if (trimmed.endsWith('.') || trimmed.endsWith(',') || trimmed.endsWith('?') || trimmed.endsWith('!')) return false;
   
   // Check if it looks like a heading (all caps)
   const isAllCaps = /^[A-Z\s'-]+$/.test(trimmed);
+  if (isAllCaps) return true;
   
-  // For title case, require multiple words and all words start with capital
+  // For title case, require at least 2 words where each starts with capital
   const words = trimmed.split(/\s+/);
-  const isTitleCase = words.length >= 2 && words.every(word => /^[A-Z]/.test(word));
+  if (words.length >= 2) {
+    const isTitleCase = words.every(word => /^[A-Z]/.test(word));
+    if (isTitleCase) return true;
+  }
   
-  return isAllCaps || isTitleCase;
+  // Single word all caps (like "JERUSALEM" or "JUDAH")
+  if (words.length === 1 && /^[A-Z]+$/.test(trimmed)) return true;
+  
+  return false;
 }
 
 /**

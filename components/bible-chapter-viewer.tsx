@@ -15,6 +15,7 @@ import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
 import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
 import { BibleStoryViewer } from './bible-story-viewer';
+import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
 
 export interface BibleChapterViewerProps {
@@ -67,12 +68,28 @@ export function BibleChapterViewer({
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [selectedSection, setSelectedSection] = useState<BibleSection | null>(null);
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
+  const [completedSections, setCompletedSections] = useState<number[]>([]);
+  const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
 
   // Section completion tracking
   const getSectionCompletionKey = () => `section_completion_${book}_${chapter}`;
+
+  const handleSectionComplete = async () => {
+    // Mark section as complete in AsyncStorage
+    if (selectedSection) {
+      const sectionIndex = sections.findIndex(
+        (s) => s.title === selectedSection.title && s.startVerse === selectedSection.startVerse
+      );
+      if (sectionIndex >= 0 && !completedSections.includes(sectionIndex)) {
+        setCompletedSections([...completedSections, sectionIndex]);
+        const key = `section-complete-${book}-${chapter}-${sectionIndex}`;
+        await AsyncStorage.setItem(key, 'true');
+      }
+    }
+  };
 
   const markSectionComplete = async (sectionId: string) => {
     try {
@@ -132,8 +149,22 @@ export function BibleChapterViewer({
       const parsed = parseBibleSections(bibleVerses);
       setSections(parsed);
       console.log(`Parsed ${parsed.length} sections from ${verses.length} verses`);
+      
+      // Load completed sections for this chapter
+      const loadCompletedSections = async () => {
+        const completed: number[] = [];
+        for (let i = 0; i < parsed.length; i++) {
+          const key = `section-complete-${book}-${chapter}-${i}`;
+          const isComplete = await AsyncStorage.getItem(key);
+          if (isComplete) {
+            completed.push(i);
+          }
+        }
+        setCompletedSections(completed);
+      };
+      loadCompletedSections();
     }
-  }, [verses]);
+  }, [verses, book, chapter]);
 
   // Load saved bookmark when chapter changes
   useEffect(() => {
@@ -338,16 +369,9 @@ export function BibleChapterViewer({
     return highlights.find((h) => h.verse === verseNumber);
   };
 
-  const handleOpenStory = (section: BibleSection) => {
-    setSelectedSection(section);
-    setStoryViewerVisible(true);
-  };
 
-  const handleSectionComplete = async () => {
-    if (selectedSection) {
-      await markSectionComplete(selectedSection.id);
-    }
-  };
+
+
 
   const handleBookmarkVerse = async () => {
     if (selectedVerseForHighlight !== null) {
@@ -444,48 +468,15 @@ export function BibleChapterViewer({
             </Pressable>
           </View>
 
-          {/* Section Indicators */}
-          {sections.length > 1 && (
-            <View
-              style={{
-                flexDirection: 'row',
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-                gap: 8,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-                flexWrap: 'wrap',
-              }}
-            >
-              {sections.map((section, index) => (
-                <Pressable
-                  key={section.id}
-                  onPress={() => handleOpenStory(section)}
-                  style={({ pressed }) => [{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: colors.surface,
-                    borderWidth: 2,
-                    borderColor: colors.border,
-                    opacity: pressed ? 0.7 : 1,
-                  }]}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '700',
-                      color: colors.primary,
-                    }}
-                  >
-                    {index + 1}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+          {/* Bible Stories Bar */}
+          <BibleStoriesBar
+            sections={sections}
+            onSectionPress={(section) => {
+              setSelectedSection(section);
+              setStoryViewerVisible(true);
+            }}
+            completedSections={completedSections}
+          />
 
           {/* Content */}
           {loading ? (
@@ -538,13 +529,25 @@ export function BibleChapterViewer({
 
                     <Pressable
                       onPress={() => {
-                        if (highlight) {
-                          // Show remove option
-                          alert('Remove this highlight?');
-                          handleRemoveHighlight(highlight.id);
+                        // Check for double-tap to remove bookmark
+                        const now = Date.now();
+                        const lastTap = lastTapTime[verse.verse] || 0;
+                        
+                        if (now - lastTap < 300 && bookmarkedVerse === verse.verse) {
+                          // Double-tap on bookmarked verse - remove bookmark
+                          setBookmarkedVerse(null);
+                          setLastTapTime({ ...lastTapTime, [verse.verse]: 0 });
                         } else {
-                          setSelectedVerseForHighlight(verse.verse);
-                          setColorPickerVisible(true);
+                          // Single tap
+                          if (highlight) {
+                            // Show remove option
+                            alert('Remove this highlight?');
+                            handleRemoveHighlight(highlight.id);
+                          } else {
+                            setSelectedVerseForHighlight(verse.verse);
+                            setColorPickerVisible(true);
+                          }
+                          setLastTapTime({ ...lastTapTime, [verse.verse]: now });
                         }
                       }}
                       onLongPress={() => {

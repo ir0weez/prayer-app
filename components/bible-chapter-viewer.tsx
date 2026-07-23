@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
-import { GestureHandlerRootView, LongPressGestureHandler } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
@@ -132,6 +131,7 @@ export function BibleChapterViewer({
       }));
       const parsed = parseBibleSections(bibleVerses);
       setSections(parsed);
+      console.log(`Parsed ${parsed.length} sections from ${verses.length} verses`);
     }
   }, [verses]);
 
@@ -253,39 +253,73 @@ export function BibleChapterViewer({
         if (data.data && data.data.content) {
           const passageText = data.data.content;
           
-          // Parse verse numbers and text from the passage
-          // Format: [1] Verse text [2] More text [3] Another verse
-          const versePattern = /\[(\d+)\]\s+(.+?)(?=\[\d+\]|$)/gs;
+          // First, extract section headings (lines before verses that look like headings)
+          // Headings are typically: all caps, title case, or short lines without verse numbers
+          const lines = passageText.split('\n');
           const parsedVerses: Verse[] = [];
-          let match;
+          let currentHeading = '';
+          let verseCounter = 0;
           
-          while ((match = versePattern.exec(passageText)) !== null) {
-            const verseText = match[2]
-              .trim()
-              .replace(/\n/g, ' ')
-              .replace(/\s+/g, ' ')
-              .replace(/[\u00A0]/g, ' '); // Replace non-breaking spaces
+          for (const line of lines) {
+            const trimmed = line.trim();
             
-            // Only add if it's not empty and doesn't look like a heading
-            if (verseText.length > 0) {
-              parsedVerses.push({
-                verse: parseInt(match[1]),
-                text: verseText,
-              });
+            // Skip empty lines
+            if (!trimmed) continue;
+            
+            // Check if line contains verse numbers [n]
+            const verseMatches = trimmed.match(/\[(\d+)\]\s+(.+?)(?=\[\d+\]|$)/g);
+            
+            if (verseMatches) {
+              // This line contains verses
+              for (const verseMatch of verseMatches) {
+                const bracketMatch = verseMatch.match(/\[(\d+)\]\s+(.+)/);
+                if (bracketMatch) {
+                  const verseNum = parseInt(bracketMatch[1]);
+                  const verseText = bracketMatch[2]
+                    .trim()
+                    .replace(/\n/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .replace(/[\u00A0]/g, ' ');
+                  
+                  // Add heading as a special verse if we have one
+                  if (currentHeading && verseCounter === 0) {
+                    parsedVerses.push({
+                      verse: 0, // Special marker for heading
+                      text: currentHeading,
+                    });
+                    currentHeading = '';
+                  }
+                  
+                  if (verseText.length > 0) {
+                    parsedVerses.push({
+                      verse: verseNum,
+                      text: verseText,
+                    });
+                    verseCounter++;
+                  }
+                }
+              }
+            } else if (trimmed.length > 0 && trimmed.length < 80 && !trimmed.match(/^\d+/)) {
+              // This might be a heading (short text, no verse numbers, doesn't start with digit)
+              // Check if it looks like a heading (all caps, title case, or common heading patterns)
+              const isAllCaps = /^[A-Z\s'-]+$/.test(trimmed);
+              const isTitleCase = trimmed.split(/\s+/).every((w: string) => /^[A-Z]/.test(w));
+              const isCommonHeading = /^(The|A|An|And|Or|But|In|At|By|For|From|Of|To|With)\s+/i.test(trimmed);
+              
+              if (isAllCaps || isTitleCase || isCommonHeading) {
+                currentHeading = trimmed;
+              }
             }
           }
           
-          if (parsedVerses.length === 0) {
+          // Filter out heading markers (verse 0) and use them for section parsing
+          const versesOnly = parsedVerses.filter((v: Verse) => v.verse > 0);
+          
+          if (versesOnly.length === 0) {
             throw new Error('No verses found in passage');
           }
           
-          // Convert to BibleVerse format for section parser
-          const bibleVerses = parsedVerses.map(v => ({
-            verse: v.verse,
-            text: v.text,
-          }));
-          
-          setVerses(parsedVerses);
+          setVerses(versesOnly);
         } else {
           throw new Error('No passages found in response');
         }
@@ -319,8 +353,7 @@ export function BibleChapterViewer({
     if (selectedVerseForHighlight !== null) {
       await saveBookmark(book, chapter, selectedVerseForHighlight, version);
       setBookmarkedVerse(selectedVerseForHighlight);
-      // Reset after 1 second
-      setTimeout(() => setBookmarkedVerse(null), 1000);
+      // Don't reset - keep the bookmark visible
     }
   };
 
@@ -489,58 +522,54 @@ export function BibleChapterViewer({
                       position: 'relative',
                     }}
                   >
-                    {/* Bookmark line indicator */}
-                    {bookmarkedVerse === verse.verse && (
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 3,
-                          backgroundColor: colors.primary,
-                          borderRadius: 2,
-                        }}
-                      />
-                    )}
+          {/* Bookmark line indicator - appears on left side */}
+          {bookmarkedVerse === verse.verse && (
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 4,
+                backgroundColor: colors.primary,
+              }}
+            />
+          )}
 
-                    <LongPressGestureHandler
-                      onActivated={() => {
+                    <Pressable
+                      onPress={() => {
+                        if (highlight) {
+                          // Show remove option
+                          alert('Remove this highlight?');
+                          handleRemoveHighlight(highlight.id);
+                        } else {
+                          setSelectedVerseForHighlight(verse.verse);
+                          setColorPickerVisible(true);
+                        }
+                      }}
+                      onLongPress={() => {
                         handleBookmarkVerse();
                         setSelectedVerseForHighlight(verse.verse);
                       }}
-                      minDurationMs={500}
+                      delayLongPress={400}
+                      style={({ pressed }) => [{
+                        marginRight: 8,
+                        marginTop: 2,
+                        opacity: pressed ? 0.6 : 1,
+                      }]}
                     >
-                      <Pressable
-                        onPress={() => {
-                          if (highlight) {
-                            // Show remove option
-                            alert('Remove this highlight?');
-                            handleRemoveHighlight(highlight.id);
-                          } else {
-                            setSelectedVerseForHighlight(verse.verse);
-                            setColorPickerVisible(true);
-                          }
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: bookmarkedVerse === verse.verse ? colors.primary : colors.primary,
+                          minWidth: 24,
+                          textDecorationLine: bookmarkedVerse === verse.verse ? 'underline' : 'none',
+                          fontWeight: bookmarkedVerse === verse.verse ? '700' : '600',
                         }}
-                        style={({ pressed }) => [{
-                          marginRight: 8,
-                          marginTop: 2,
-                          opacity: pressed ? 0.6 : 1,
-                        }]}
                       >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: bookmarkedVerse === verse.verse ? colors.primary : colors.primary,
-                            minWidth: 24,
-                            textDecorationLine: bookmarkedVerse === verse.verse ? 'underline' : 'none',
-                            fontWeight: bookmarkedVerse === verse.verse ? '700' : '600',
-                          }}
-                        >
-                          {verse.verse}
-                        </Text>
-                      </Pressable>
-                    </LongPressGestureHandler>
+                        {verse.verse}
+                      </Text>
+                    </Pressable>
                     <Text
                       style={{
                         fontSize: 17,

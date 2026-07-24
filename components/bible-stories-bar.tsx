@@ -13,6 +13,7 @@ interface BibleStoriesBarProps {
 
 // Green color matching the commentary style
 const SECTION_COLOR = '#2D8659';
+const COMPLETED_COLOR = '#666666';
 
 export function BibleStoriesBar({
   sections,
@@ -26,6 +27,18 @@ export function BibleStoriesBar({
   if (sections.length <= 1) {
     return null; // Don't show bar if only one section
   }
+
+  // Separate active and completed sections
+  const activeSections = sections
+    .map((section, index) => ({ section, index, isCompleted: false }))
+    .filter((item) => !completedSections.includes(item.index));
+
+  const completedSectionsList = sections
+    .map((section, index) => ({ section, index, isCompleted: true }))
+    .filter((item) => completedSections.includes(item.index));
+
+  // Combine: active first, then completed at end
+  const orderedSections = [...activeSections, ...completedSectionsList];
 
   return (
     <View
@@ -44,34 +57,36 @@ export function BibleStoriesBar({
           gap: 12,
         }}
       >
-        {sections.map((section, index) => {
-          const isCompleted = completedSections.includes(index);
-
+        {orderedSections.map(({ section, index, isCompleted }) => {
           return (
             <Pressable
               key={section.id || `${section.title}-${section.startVerse}`}
-              onPress={() => onSectionPress(section)}
+              onPress={() => !isCompleted && onSectionPress(section)}
+              disabled={isCompleted}
               style={({ pressed }) => [
                 {
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: SECTION_COLOR,
+                  backgroundColor: isCompleted ? COMPLETED_COLOR : SECTION_COLOR,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  opacity: pressed ? 0.8 : 1,
-                  borderWidth: isCompleted ? 3 : 0,
-                  borderColor: isCompleted ? '#fff' : 'transparent',
+                  opacity: isCompleted ? 0.5 : pressed ? 0.8 : 1,
                 },
               ]}
             >
               <View style={{ alignItems: 'center', gap: 2 }}>
-                <MaterialIcons name={bookIcon as any} size={32} color="white" />
+                <MaterialIcons
+                  name={bookIcon as any}
+                  size={32}
+                  color={isCompleted ? '#999' : 'white'}
+                />
                 <Text
                   style={{
                     fontSize: 11,
                     fontWeight: '700',
-                    color: '#fff',
+                    color: isCompleted ? '#999' : '#fff',
+                    textDecorationLine: isCompleted ? 'line-through' : 'none',
                   }}
                 >
                   {section.startVerse}

@@ -17,6 +17,7 @@ import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
 import { BibleStoryViewer } from './bible-story-viewer';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
+import { createDefaultParagraphs, loadCustomParagraphs, parseCustomParagraphs } from '@/lib/paragraph-sections';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -141,19 +142,34 @@ export function BibleChapterViewer({
   // Parse sections when verses load
   useEffect(() => {
     if (verses.length > 0) {
-      // Convert Verse[] to BibleVerse[] for parser
-      const bibleVerses = verses.map(v => ({
-        verse: v.verse,
-        text: v.text,
-      }));
-      const parsed = parseBibleSections(bibleVerses);
-      setSections(parsed);
-      console.log(`Parsed ${parsed.length} sections from ${verses.length} verses`);
-      
-      // Load completed sections for this chapter
-      const loadCompletedSections = async () => {
+      const loadSections = async () => {
+        // First try to load custom paragraphs
+        const customDefs = await loadCustomParagraphs(book, chapter);
+        
+        let parsedSections: any[];
+        if (customDefs) {
+          // Parse custom paragraph definitions
+          const bibleVerses = verses.map(v => ({
+            verse: v.verse,
+            text: v.text,
+          }));
+          parsedSections = parseCustomParagraphs(customDefs, bibleVerses);
+          console.log(`Loaded ${parsedSections.length} custom paragraphs`);
+        } else {
+          // Use default paragraph grouping
+          const bibleVerses = verses.map(v => ({
+            verse: v.verse,
+            text: v.text,
+          }));
+          parsedSections = createDefaultParagraphs(bibleVerses);
+          console.log(`Created ${parsedSections.length} default paragraphs`);
+        }
+        
+        setSections(parsedSections);
+        
+        // Load completed sections for this chapter
         const completed: number[] = [];
-        for (let i = 0; i < parsed.length; i++) {
+        for (let i = 0; i < parsedSections.length; i++) {
           const key = `section-complete-${book}-${chapter}-${i}`;
           const isComplete = await AsyncStorage.getItem(key);
           if (isComplete) {
@@ -162,7 +178,8 @@ export function BibleChapterViewer({
         }
         setCompletedSections(completed);
       };
-      loadCompletedSections();
+      
+      loadSections();
     }
   }, [verses, book, chapter]);
 
@@ -283,74 +300,35 @@ export function BibleChapterViewer({
         // Parse verses from the API response
         if (data.data && data.data.content) {
           const passageText = data.data.content;
+          console.log('API Response (first 500 chars):', passageText.substring(0, 500));
           
-          // First, extract section headings (lines before verses that look like headings)
-          // Headings are typically: all caps, title case, or short lines without verse numbers
-          const lines = passageText.split('\n');
+          // Simple regex to extract all verses
+          const versePattern = /\[(\d+)\]\s+(.+?)(?=\[\d+\]|$)/gs;
           const parsedVerses: Verse[] = [];
-          let currentHeading = '';
-          let verseCounter = 0;
+          let match;
           
-          for (const line of lines) {
-            const trimmed = line.trim();
+          while ((match = versePattern.exec(passageText)) !== null) {
+            const verseNum = parseInt(match[1]);
+            const verseText = match[2]
+              .trim()
+              .replace(/\n/g, ' ')
+              .replace(/\s+/g, ' ')
+              .replace(/[\u00A0]/g, ' ');
             
-            // Skip empty lines
-            if (!trimmed) continue;
-            
-            // Check if line contains verse numbers [n]
-            const verseMatches = trimmed.match(/\[(\d+)\]\s+(.+?)(?=\[\d+\]|$)/g);
-            
-            if (verseMatches) {
-              // This line contains verses
-              for (const verseMatch of verseMatches) {
-                const bracketMatch = verseMatch.match(/\[(\d+)\]\s+(.+)/);
-                if (bracketMatch) {
-                  const verseNum = parseInt(bracketMatch[1]);
-                  const verseText = bracketMatch[2]
-                    .trim()
-                    .replace(/\n/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .replace(/[\u00A0]/g, ' ');
-                  
-                  // Add heading as a special verse if we have one
-                  if (currentHeading && verseCounter === 0) {
-                    parsedVerses.push({
-                      verse: 0, // Special marker for heading
-                      text: currentHeading,
-                    });
-                    currentHeading = '';
-                  }
-                  
-                  if (verseText.length > 0) {
-                    parsedVerses.push({
-                      verse: verseNum,
-                      text: verseText,
-                    });
-                    verseCounter++;
-                  }
-                }
-              }
-            } else if (trimmed.length > 0 && trimmed.length < 80 && !trimmed.match(/^\d+/)) {
-              // This might be a heading (short text, no verse numbers, doesn't start with digit)
-              // Check if it looks like a heading (all caps, title case, or common heading patterns)
-              const isAllCaps = /^[A-Z\s'-]+$/.test(trimmed);
-              const isTitleCase = trimmed.split(/\s+/).every((w: string) => /^[A-Z]/.test(w));
-              const isCommonHeading = /^(The|A|An|And|Or|But|In|At|By|For|From|Of|To|With)\s+/i.test(trimmed);
-              
-              if (isAllCaps || isTitleCase || isCommonHeading) {
-                currentHeading = trimmed;
-              }
+            if (verseText.length > 0) {
+              parsedVerses.push({
+                verse: verseNum,
+                text: verseText,
+              });
             }
           }
           
-          // Filter out heading markers (verse 0) and use them for section parsing
-          const versesOnly = parsedVerses.filter((v: Verse) => v.verse > 0);
-          
-          if (versesOnly.length === 0) {
+          if (parsedVerses.length === 0) {
             throw new Error('No verses found in passage');
           }
           
-          setVerses(versesOnly);
+          console.log(`Parsed ${parsedVerses.length} verses from ${book} ${chapter}`);
+          setVerses(parsedVerses);
         } else {
           throw new Error('No passages found in response');
         }
@@ -468,6 +446,15 @@ export function BibleChapterViewer({
             </Pressable>
           </View>
 
+          {/* Bible Stories Bar - Debug */}
+          {sections.length > 0 && (
+            <View style={{ padding: 8, backgroundColor: colors.surface }}>
+              <Text style={{ color: colors.foreground, fontSize: 12 }}>
+                {sections.length} sections found
+              </Text>
+            </View>
+          )}
+          
           {/* Bible Stories Bar */}
           <BibleStoriesBar
             sections={sections}

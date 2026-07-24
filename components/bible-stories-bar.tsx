@@ -1,33 +1,26 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection } from '@/lib/bible-section-parser';
+import { getBookIcon } from '@/lib/book-icons';
 
 interface BibleStoriesBarProps {
   sections: BibleSection[];
   onSectionPress: (section: BibleSection) => void;
   completedSections?: number[];
+  book?: string;
 }
 
-// Color palette for section circles (similar to Instagram Stories)
-const SECTION_COLORS = [
-  '#FF6B6B', // Red
-  '#4ECDC4', // Teal
-  '#45B7D1', // Blue
-  '#FFA07A', // Light Salmon
-  '#98D8C8', // Mint
-  '#F7DC6F', // Yellow
-  '#BB8FCE', // Purple
-  '#85C1E2', // Sky Blue
-  '#F8B88B', // Peach
-  '#A8D5BA', // Sage
-];
+// Green color matching the commentary style
+const SECTION_COLOR = '#2D8659';
 
 export function BibleStoriesBar({
   sections,
   onSectionPress,
   completedSections = [],
+  book = '',
 }: BibleStoriesBarProps) {
   const colors = useColors();
+  const bookIcon = getBookIcon(book);
 
   if (sections.length <= 1) {
     return null; // Don't show bar if only one section
@@ -51,7 +44,6 @@ export function BibleStoriesBar({
         }}
       >
         {sections.map((section, index) => {
-          const backgroundColor = SECTION_COLORS[index % SECTION_COLORS.length];
           const isCompleted = completedSections.includes(index);
 
           return (
@@ -63,43 +55,38 @@ export function BibleStoriesBar({
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor,
+                  backgroundColor: SECTION_COLOR,
                   justifyContent: 'center',
                   alignItems: 'center',
                   opacity: pressed ? 0.8 : 1,
-                  borderWidth: isCompleted ? 2 : 0,
-                  borderColor: isCompleted ? colors.foreground : 'transparent',
+                  borderWidth: isCompleted ? 3 : 0,
+                  borderColor: isCompleted ? '#fff' : 'transparent',
                 },
               ]}
             >
-              <View style={{ alignItems: 'center', gap: 4 }}>
+              <View style={{ alignItems: 'center', gap: 2 }}>
                 <Text
                   style={{
-                    fontSize: 24,
+                    fontSize: 28,
+                    lineHeight: 32,
+                  }}
+                >
+                  {bookIcon}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
                     fontWeight: '700',
                     color: '#fff',
                   }}
                 >
                   {section.startVerse}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: '600',
-                    color: '#fff',
-                    textAlign: 'center',
-                    maxWidth: 70,
-                  }}
-                  numberOfLines={1}
-                >
-                  {section.title.substring(0, 10)}
-                </Text>
               </View>
             </Pressable>
           );
-                })}
+        })}
       </ScrollView>
     </View>
   );
 }
-

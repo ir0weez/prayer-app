@@ -71,6 +71,9 @@ export function BibleChapterViewer({
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [storiesBarVisible, setStoriesBarVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -455,15 +458,18 @@ export function BibleChapterViewer({
             </View>
           )}
           
-          {/* Bible Stories Bar */}
-          <BibleStoriesBar
-            sections={sections}
-            onSectionPress={(section) => {
-              setSelectedSection(section);
-              setStoryViewerVisible(true);
-            }}
-            completedSections={completedSections}
-          />
+          {/* Bible Stories Bar - Sticky with scroll animation */}
+          {storiesBarVisible && (
+            <BibleStoriesBar
+              sections={sections}
+              onSectionPress={(section) => {
+                setSelectedSection(section);
+                setStoryViewerVisible(true);
+              }}
+              completedSections={completedSections}
+              book={book}
+            />
+          )}
 
           {/* Content */}
           {loading ? (
@@ -481,6 +487,22 @@ export function BibleChapterViewer({
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
               showsVerticalScrollIndicator={true}
+              onScroll={(event) => {
+                const currentScrollY = event.nativeEvent.contentOffset.y;
+                const delta = currentScrollY - lastScrollY;
+                
+                // Show bar when scrolling up, hide when scrolling down
+                if (delta < -10) {
+                  // Scrolling up
+                  setStoriesBarVisible(true);
+                } else if (delta > 10) {
+                  // Scrolling down
+                  setStoriesBarVisible(false);
+                }
+                
+                setLastScrollY(currentScrollY);
+              }}
+              scrollEventThrottle={16}
             >
               {verses.map((verse) => {
                 const highlight = getVerseHighlight(verse.verse);

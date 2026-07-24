@@ -698,6 +698,15 @@ export function BibleChapterViewer({
           handleSectionComplete();
           setStoryViewerVisible(false);
         }}
+        onReset={async () => {
+          // Reset all completed sections for this chapter
+          setCompletedSections([]);
+          // Clear all section completion keys from AsyncStorage
+          for (let i = 0; i < sections.length; i++) {
+            const key = `section-complete-${book}-${chapter}-${i}`;
+            await AsyncStorage.removeItem(key);
+          }
+        }}
         book={book}
         chapter={chapter}
         version="kjv"

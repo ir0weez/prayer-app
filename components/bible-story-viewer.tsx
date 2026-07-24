@@ -19,6 +19,7 @@ interface BibleStoryViewerProps {
   section: BibleSection | null;
   onClose: () => void;
   onComplete?: () => void;
+  onReset?: () => void;
   book: string;
   chapter: number;
   version?: 'kjv' | 'csb';
@@ -29,6 +30,7 @@ export function BibleStoryViewer({
   section,
   onClose,
   onComplete,
+  onReset,
   book,
   chapter,
   version = 'kjv',
@@ -39,18 +41,16 @@ export function BibleStoryViewer({
   const { width, height } = Dimensions.get('window');
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
-  const parallaxAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       setCurrentVerseIndex(0);
       scaleAnim.setValue(1);
       opacityAnim.setValue(1);
-      parallaxAnim.setValue(0);
     }
   }, [visible, section]);
 
-  // Trigger parallax animation when verse changes
+  // Trigger animation when verse changes
   useEffect(() => {
     Animated.parallel([
       Animated.sequence([
@@ -77,11 +77,6 @@ export function BibleStoryViewer({
           useNativeDriver: false,
         }),
       ]),
-      Animated.timing(parallaxAnim, {
-        toValue: currentVerseIndex * 20,
-        duration: 400,
-        useNativeDriver: false,
-      }),
     ]).start();
   }, [currentVerseIndex]);
 
@@ -118,13 +113,6 @@ export function BibleStoryViewer({
     }
   };
 
-  // Parallax background movement
-  const parallaxTranslate = parallaxAnim.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 30],
-    extrapolate: 'clamp',
-  });
-
   return (
     <Modal
       visible={visible}
@@ -136,23 +124,9 @@ export function BibleStoryViewer({
         style={{
           flex: 1,
           backgroundColor,
-          overflow: 'hidden',
         }}
       >
-        {/* Parallax background layers */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: backgroundColor,
-            transform: [{ translateY: parallaxTranslate }],
-          }}
-        />
-
-        {/* Subtle gradient overlay */}
+        {/* Apple Music-style gradient background */}
         <View
           style={{
             position: 'absolute',
@@ -160,9 +134,31 @@ export function BibleStoryViewer({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(45, 134, 89, 0.1)',
+            backgroundColor: backgroundColor,
           }}
-        />
+        >
+          {/* Radial-like gradient effect: darker edges, lighter center */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '50%',
+              backgroundColor: 'rgba(45, 134, 89, 0.3)',
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '50%',
+              backgroundColor: 'rgba(20, 80, 50, 0.4)',
+            }}
+          />
+        </View>
 
         {/* Progress bar */}
         <View
@@ -185,7 +181,7 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Section title */}
+        {/* Section title - top */}
         <Text
           style={{
             position: 'absolute',
@@ -202,14 +198,14 @@ export function BibleStoryViewer({
           {section.title}
         </Text>
 
-        {/* Main content area - FULLY CENTERED VERTICALLY */}
+        {/* Main content area - FLEXBOX CENTERED */}
         <Animated.View
           style={{
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 24,
-            paddingVertical: 40,
+            paddingVertical: 60,
             transform: [{ scale: scaleAnim }],
             opacity: opacityAnim,
             zIndex: 5,
@@ -218,10 +214,10 @@ export function BibleStoryViewer({
           {/* Verse number */}
           <Text
             style={{
-              fontSize: 48,
+              fontSize: 56,
               fontWeight: '700',
-              color: 'rgba(255,255,255,0.9)',
-              marginBottom: 24,
+              color: 'rgba(255,255,255,0.95)',
+              marginBottom: 20,
               textAlign: 'center',
             }}
           >
@@ -231,13 +227,13 @@ export function BibleStoryViewer({
           {/* Verse text - FULLY CENTERED */}
           <Text
             style={{
-              fontSize: 26,
-              lineHeight: 40,
+              fontSize: 24,
+              lineHeight: 38,
               color: 'white',
               textAlign: 'center',
               fontFamily: 'Georgia',
               fontWeight: '500',
-              marginBottom: 32,
+              marginBottom: 40,
             }}
           >
             {currentVerse.text}
@@ -297,6 +293,29 @@ export function BibleStoryViewer({
         >
           <MaterialIcons name="close" size={28} color="white" />
         </Pressable>
+
+        {/* Reset button - BOTTOM CENTER (only show if not last verse) */}
+        {!isLastVerse && onReset && (
+          <Pressable
+            onPress={onReset}
+            style={{
+              position: 'absolute',
+              bottom: 24,
+              alignSelf: 'center',
+              zIndex: 20,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.4)',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
+              Reset Chapter
+            </Text>
+          </Pressable>
+        )}
 
         {/* Verse counter - BOTTOM RIGHT */}
         <View

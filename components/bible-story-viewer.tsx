@@ -6,7 +6,9 @@ import {
   Pressable,
   Dimensions,
   SafeAreaView,
+  Animated,
 } from 'react-native';
+import { useRef } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
@@ -22,16 +24,6 @@ interface BibleStoryViewerProps {
   version?: 'kjv' | 'csb';
 }
 
-const STORY_COLORS = [
-  '#6366F1', // Indigo
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-  '#F59E0B', // Amber
-  '#10B981', // Emerald
-  '#06B6D4', // Cyan
-  '#3B82F6', // Blue
-];
-
 export function BibleStoryViewer({
   visible,
   section,
@@ -45,18 +37,51 @@ export function BibleStoryViewer({
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { width, height } = Dimensions.get('window');
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
       setCurrentVerseIndex(0);
+      scaleAnim.setValue(1);
+      opacityAnim.setValue(1);
     }
   }, [visible, section]);
+
+  // Trigger parallax animation when verse changes
+  useEffect(() => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.05,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(opacityAnim, {
+          toValue: 0.8,
+          duration: 150,
+          useNativeDriver: false,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: false,
+        }),
+      ]),
+    ]).start();
+  }, [currentVerseIndex]);
 
   const handleBookmark = async () => {
     if (section && currentVerse) {
       await saveBookmark(book, chapter, currentVerse.verse, version);
       setIsBookmarked(true);
-      // Reset bookmark indicator after 1 second
       setTimeout(() => setIsBookmarked(false), 1000);
     }
   };
@@ -67,7 +92,7 @@ export function BibleStoryViewer({
 
   const currentVerse = section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
-  const backgroundColor = STORY_COLORS[section.startVerse % STORY_COLORS.length];
+  const backgroundColor = '#2D8659';
 
   const handleNext = () => {
     if (isLastVerse) {
@@ -150,14 +175,16 @@ export function BibleStoryViewer({
           {section.title}
         </Text>
 
-        {/* Main content area */}
-        <View
+        {/* Main content area with animation */}
+        <Animated.View
           style={{
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 24,
             paddingVertical: 40,
+            transform: [{ scale: scaleAnim }],
+            opacity: opacityAnim,
           }}
         >
           {/* Verse number */}
@@ -167,12 +194,13 @@ export function BibleStoryViewer({
               fontWeight: '700',
               color: 'rgba(255,255,255,0.9)',
               marginBottom: 24,
+              textAlign: 'center',
             }}
           >
             {currentVerse.verse}
           </Text>
 
-          {/* Verse text */}
+          {/* Verse text - centered */}
           <Text
             style={{
               fontSize: 24,
@@ -202,7 +230,7 @@ export function BibleStoryViewer({
               {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
 
         {/* Navigation areas */}
         <View style={{ flexDirection: 'row', flex: 1, width: '100%' }}>
@@ -225,7 +253,7 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Bookmark indicator line (like Schedule NOW line) */}
+        {/* Bookmark indicator line */}
         {isBookmarked && (
           <View
             style={{

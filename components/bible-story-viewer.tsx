@@ -7,7 +7,6 @@ import {
   Dimensions,
   SafeAreaView,
   Animated,
-  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -39,31 +38,49 @@ export function BibleStoryViewer({
   const { width, height } = Dimensions.get('window');
   
   // Animation values for Material Design background
-  const bgOpacity = useRef(new Animated.Value(0.3)).current;
+  const bgOpacity = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && section) {
       setCurrentVerseIndex(0);
+      // Reset animation to start state
+      bgOpacity.setValue(0);
       // Start background animation loop
       startBackgroundAnimation();
+    } else {
+      // Stop animation when modal closes
+      if (loopRef.current) {
+        loopRef.current.stop();
+        loopRef.current = null;
+      }
     }
+
+    return () => {
+      if (loopRef.current) {
+        loopRef.current.stop();
+        loopRef.current = null;
+      }
+    };
   }, [visible, section]);
 
   const startBackgroundAnimation = () => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(bgOpacity, {
-          toValue: 0.5,
-          duration: 2500,
-          useNativeDriver: false,
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
         }),
         Animated.timing(bgOpacity, {
-          toValue: 0.3,
-          duration: 2500,
-          useNativeDriver: false,
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    loopRef.current = animation;
+    animation.start();
   };
 
   const handleBookmark = async () => {
@@ -124,7 +141,7 @@ export function BibleStoryViewer({
           }}
         />
 
-        {/* Animated background overlay */}
+        {/* Animated background overlay - more visible */}
         <Animated.View
           style={{
             position: 'absolute',
@@ -132,7 +149,7 @@ export function BibleStoryViewer({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.1)',
+            backgroundColor: 'rgba(255,255,255,0.25)',
             opacity: bgOpacity,
           }}
         />
@@ -146,7 +163,7 @@ export function BibleStoryViewer({
             right: 0,
             height: 3,
             backgroundColor: 'rgba(255,255,255,0.2)',
-            zIndex: 10,
+            zIndex: 100,
           }}
         >
           <View
@@ -158,7 +175,7 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Main content area - centered */}
+        {/* Main content area - centered, pointer-events none so taps pass through */}
         <View
           style={{
             flex: 1,
@@ -167,6 +184,7 @@ export function BibleStoryViewer({
             paddingHorizontal: 24,
             paddingVertical: 40,
             zIndex: 5,
+            pointerEvents: 'none',
           }}
         >
           {/* Verse number - Large and centered */}
@@ -198,9 +216,10 @@ export function BibleStoryViewer({
             {currentVerse.text}
           </Text>
 
-          {/* Bookmark button */}
+          {/* Bookmark button - re-enable pointer events */}
           <Pressable
             onPress={handleBookmark}
+            pointerEvents="auto"
             style={{
               paddingHorizontal: 20,
               paddingVertical: 10,
@@ -216,48 +235,37 @@ export function BibleStoryViewer({
           </Pressable>
         </View>
 
-        {/* Navigation - Left and Right tap areas */}
-        <View
+        {/* Navigation - Left tap area */}
+        <Pressable
+          onPress={handlePrevious}
+          disabled={currentVerseIndex === 0}
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             bottom: 0,
             width: '50%',
-            zIndex: 4,
+            zIndex: 10,
           }}
-        >
-          <Pressable
-            onPress={handlePrevious}
-            disabled={currentVerseIndex === 0}
-            style={{
-              flex: 1,
-              opacity: currentVerseIndex === 0 ? 0.2 : 1,
-            }}
-          />
-        </View>
+        />
 
-        <View
+        {/* Navigation - Right tap area */}
+        <Pressable
+          onPress={handleNext}
           style={{
             position: 'absolute',
             top: 0,
             right: 0,
             bottom: 0,
             width: '50%',
-            zIndex: 4,
+            zIndex: 10,
           }}
-        >
-          <Pressable
-            onPress={handleNext}
-            style={{
-              flex: 1,
-            }}
-          />
-        </View>
+        />
 
         {/* Close button - BOTTOM LEFT */}
         <Pressable
           onPress={onClose}
+          pointerEvents="auto"
           style={{
             position: 'absolute',
             bottom: 28,
@@ -273,6 +281,7 @@ export function BibleStoryViewer({
 
         {/* Verse counter - BOTTOM RIGHT */}
         <View
+          pointerEvents="auto"
           style={{
             position: 'absolute',
             bottom: 28,
@@ -292,6 +301,7 @@ export function BibleStoryViewer({
         {/* Completion indicator */}
         {isLastVerse && (
           <View
+            pointerEvents="none"
             style={{
               position: 'absolute',
               bottom: 90,

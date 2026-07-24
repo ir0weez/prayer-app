@@ -1,4 +1,5 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection } from '@/lib/bible-section-parser';
 import { getBookIcon } from '@/lib/book-icons';
@@ -65,14 +66,7 @@ export function BibleStoriesBar({
               ]}
             >
               <View style={{ alignItems: 'center', gap: 2 }}>
-                <Text
-                  style={{
-                    fontSize: 28,
-                    lineHeight: 32,
-                  }}
-                >
-                  {bookIcon}
-                </Text>
+                <MaterialIcons name={bookIcon as any} size={32} color="white" />
                 <Text
                   style={{
                     fontSize: 11,

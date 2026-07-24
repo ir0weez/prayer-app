@@ -7,6 +7,7 @@ import {
   Dimensions,
   SafeAreaView,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useRef } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -39,12 +40,14 @@ export function BibleStoryViewer({
   const { width, height } = Dimensions.get('window');
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const scrollAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       setCurrentVerseIndex(0);
       scaleAnim.setValue(1);
       opacityAnim.setValue(1);
+      scrollAnim.setValue(0);
     }
   }, [visible, section]);
 
@@ -111,6 +114,13 @@ export function BibleStoryViewer({
     }
   };
 
+  // Parallax background gradient
+  const backgroundScale = scrollAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 1.1],
+    extrapolate: 'clamp',
+  });
+
   return (
     <Modal
       visible={visible}
@@ -126,6 +136,19 @@ export function BibleStoryViewer({
           alignItems: 'center',
         }}
       >
+        {/* Parallax background gradient */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: backgroundColor,
+            transform: [{ scale: backgroundScale }],
+          }}
+        />
+
         {/* Progress bar */}
         <View
           style={{
@@ -135,6 +158,7 @@ export function BibleStoryViewer({
             right: 0,
             height: 4,
             backgroundColor: 'rgba(255,255,255,0.3)',
+            zIndex: 10,
           }}
         >
           <View
@@ -146,36 +170,23 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Close button */}
-        <Pressable
-          onPress={onClose}
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            zIndex: 10,
-            padding: 8,
-          }}
-        >
-          <MaterialIcons name="close" size={28} color="white" />
-        </Pressable>
-
         {/* Section title */}
         <Text
           style={{
             position: 'absolute',
-            top: 60,
+            top: 16,
             fontSize: 14,
             color: 'rgba(255,255,255,0.7)',
             fontWeight: '500',
             paddingHorizontal: 16,
+            zIndex: 10,
           }}
           numberOfLines={1}
         >
           {section.title}
         </Text>
 
-        {/* Main content area with animation */}
+        {/* Main content area with animation - FULLY CENTERED */}
         <Animated.View
           style={{
             flex: 1,
@@ -185,29 +196,31 @@ export function BibleStoryViewer({
             paddingVertical: 40,
             transform: [{ scale: scaleAnim }],
             opacity: opacityAnim,
+            zIndex: 5,
           }}
         >
           {/* Verse number */}
           <Text
             style={{
-              fontSize: 32,
+              fontSize: 48,
               fontWeight: '700',
               color: 'rgba(255,255,255,0.9)',
-              marginBottom: 24,
+              marginBottom: 32,
               textAlign: 'center',
             }}
           >
             {currentVerse.verse}
           </Text>
 
-          {/* Verse text - centered */}
+          {/* Verse text - fully centered */}
           <Text
             style={{
-              fontSize: 24,
-              lineHeight: 36,
+              fontSize: 26,
+              lineHeight: 40,
               color: 'white',
               textAlign: 'center',
               fontFamily: 'Georgia',
+              fontWeight: '500',
             }}
           >
             {currentVerse.text}
@@ -233,7 +246,7 @@ export function BibleStoryViewer({
         </Animated.View>
 
         {/* Navigation areas */}
-        <View style={{ flexDirection: 'row', flex: 1, width: '100%' }}>
+        <View style={{ flexDirection: 'row', flex: 1, width: '100%', zIndex: 5 }}>
           {/* Previous button */}
           <Pressable
             onPress={handlePrevious}
@@ -253,46 +266,33 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Bookmark indicator line */}
-        {isBookmarked && (
-          <View
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              height: 3,
-              backgroundColor: 'rgba(255,255,255,0.6)',
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 16,
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.8)',
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 12,
-                marginLeft: 0,
-              }}
-            >
-              <Text style={{ color: backgroundColor, fontSize: 11, fontWeight: '700' }}>
-                BOOKMARK
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* Close button - REPOSITIONED TO BOTTOM */}
+        <Pressable
+          onPress={onClose}
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            left: 24,
+            zIndex: 20,
+            padding: 12,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: 24,
+          }}
+        >
+          <MaterialIcons name="close" size={28} color="white" />
+        </Pressable>
 
-        {/* Verse counter at bottom */}
+        {/* Verse counter at bottom right */}
         <View
           style={{
             position: 'absolute',
             bottom: 24,
-            alignSelf: 'center',
+            right: 24,
             backgroundColor: 'rgba(0,0,0,0.3)',
             paddingHorizontal: 16,
             paddingVertical: 8,
             borderRadius: 20,
+            zIndex: 20,
           }}
         >
           <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
@@ -311,6 +311,7 @@ export function BibleStoryViewer({
               paddingHorizontal: 16,
               paddingVertical: 8,
               borderRadius: 20,
+              zIndex: 20,
             }}
           >
             <Text style={{ color: 'white', fontSize: 12 }}>

@@ -441,12 +441,28 @@ export function BibleChapterViewer({
               </View>
             </View>
 
-            <Pressable
-              onPress={onMarkComplete}
-              style={{ padding: 8 }}
-            >
-              <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={async () => {
+                  // Reset all completed sections for this chapter
+                  setCompletedSections([]);
+                  // Clear all section completion keys from AsyncStorage
+                  for (let i = 0; i < sections.length; i++) {
+                    const key = `section-complete-${book}-${chapter}-${i}`;
+                    await AsyncStorage.removeItem(key);
+                  }
+                }}
+                style={{ padding: 8 }}
+              >
+                <MaterialIcons name="refresh" size={24} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                onPress={onMarkComplete}
+                style={{ padding: 8 }}
+              >
+                <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Bible Stories Bar - Debug */}
@@ -697,15 +713,6 @@ export function BibleChapterViewer({
         onComplete={() => {
           handleSectionComplete();
           setStoryViewerVisible(false);
-        }}
-        onReset={async () => {
-          // Reset all completed sections for this chapter
-          setCompletedSections([]);
-          // Clear all section completion keys from AsyncStorage
-          for (let i = 0; i < sections.length; i++) {
-            const key = `section-complete-${book}-${chapter}-${i}`;
-            await AsyncStorage.removeItem(key);
-          }
         }}
         book={book}
         chapter={chapter}

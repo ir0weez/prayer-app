@@ -40,7 +40,6 @@ export function BibleStoryViewer({
   
   // Animation values for Material Design background
   const bgOpacity = useRef(new Animated.Value(0.3)).current;
-  const bgScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
@@ -53,30 +52,16 @@ export function BibleStoryViewer({
   const startBackgroundAnimation = () => {
     Animated.loop(
       Animated.sequence([
-        Animated.parallel([
-          Animated.timing(bgOpacity, {
-            toValue: 0.6,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-          Animated.timing(bgScale, {
-            toValue: 1.1,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(bgOpacity, {
-            toValue: 0.3,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-          Animated.timing(bgScale, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: false,
-          }),
-        ]),
+        Animated.timing(bgOpacity, {
+          toValue: 0.5,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(bgOpacity, {
+          toValue: 0.3,
+          duration: 2500,
+          useNativeDriver: false,
+        }),
       ])
     ).start();
   };
@@ -127,20 +112,6 @@ export function BibleStoryViewer({
           backgroundColor,
         }}
       >
-        {/* Animated Material Design Background */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor,
-            opacity: bgOpacity,
-            transform: [{ scale: bgScale }],
-          }}
-        />
-
         {/* Static background layer */}
         <View
           style={{
@@ -150,6 +121,19 @@ export function BibleStoryViewer({
             right: 0,
             bottom: 0,
             backgroundColor,
+          }}
+        />
+
+        {/* Animated background overlay */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            opacity: bgOpacity,
           }}
         />
 
@@ -174,17 +158,16 @@ export function BibleStoryViewer({
           />
         </View>
 
-        {/* Main scrollable content area */}
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
+        {/* Main content area - centered */}
+        <View
+          style={{
+            flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 24,
             paddingVertical: 40,
+            zIndex: 5,
           }}
-          scrollEnabled={false}
-          style={{ flex: 1, zIndex: 5 }}
         >
           {/* Verse number - Large and centered */}
           <Text
@@ -231,11 +214,19 @@ export function BibleStoryViewer({
               {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
             </Text>
           </Pressable>
-        </ScrollView>
+        </View>
 
-        {/* Navigation areas - tap left/right to navigate */}
-        <View style={{ flexDirection: 'row', flex: 0.15, width: '100%', zIndex: 5 }}>
-          {/* Previous button */}
+        {/* Navigation - Left and Right tap areas */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: '50%',
+            zIndex: 4,
+          }}
+        >
           <Pressable
             onPress={handlePrevious}
             disabled={currentVerseIndex === 0}
@@ -244,8 +235,18 @@ export function BibleStoryViewer({
               opacity: currentVerseIndex === 0 ? 0.2 : 1,
             }}
           />
+        </View>
 
-          {/* Next button */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '50%',
+            zIndex: 4,
+          }}
+        >
           <Pressable
             onPress={handleNext}
             style={{

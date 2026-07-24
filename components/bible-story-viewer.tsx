@@ -37,15 +37,20 @@ export function BibleStoryViewer({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { width, height } = Dimensions.get('window');
   
-  // Animation values for Material Design background
-  const bgOpacity = useRef(new Animated.Value(0)).current;
+  // Multiple animation values for layered Material Design effect
+  const wave1Opacity = useRef(new Animated.Value(0.15)).current;
+  const wave2Opacity = useRef(new Animated.Value(0.08)).current;
+  const wave3Opacity = useRef(new Animated.Value(0.12)).current;
+  
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     if (visible && section) {
       setCurrentVerseIndex(0);
-      // Reset animation to start state
-      bgOpacity.setValue(0);
+      // Reset animations to start state
+      wave1Opacity.setValue(0.15);
+      wave2Opacity.setValue(0.08);
+      wave3Opacity.setValue(0.12);
       // Start background animation loop
       startBackgroundAnimation();
     } else {
@@ -66,17 +71,46 @@ export function BibleStoryViewer({
 
   const startBackgroundAnimation = () => {
     const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgOpacity, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bgOpacity, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
+      Animated.parallel([
+        // Wave 1: slow, long cycle
+        Animated.sequence([
+          Animated.timing(wave1Opacity, {
+            toValue: 0.35,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(wave1Opacity, {
+            toValue: 0.15,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Wave 2: medium speed, offset
+        Animated.sequence([
+          Animated.timing(wave2Opacity, {
+            toValue: 0.25,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(wave2Opacity, {
+            toValue: 0.08,
+            duration: 3000,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Wave 3: faster, different offset
+        Animated.sequence([
+          Animated.timing(wave3Opacity, {
+            toValue: 0.28,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(wave3Opacity, {
+            toValue: 0.12,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+        ]),
       ])
     );
     loopRef.current = animation;
@@ -129,7 +163,7 @@ export function BibleStoryViewer({
           backgroundColor,
         }}
       >
-        {/* Static background layer */}
+        {/* Static base background */}
         <View
           style={{
             position: 'absolute',
@@ -141,7 +175,7 @@ export function BibleStoryViewer({
           }}
         />
 
-        {/* Animated background overlay - more visible */}
+        {/* Animated wave layer 1 - slow, subtle */}
         <Animated.View
           style={{
             position: 'absolute',
@@ -149,8 +183,34 @@ export function BibleStoryViewer({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.25)',
-            opacity: bgOpacity,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            opacity: wave1Opacity,
+          }}
+        />
+
+        {/* Animated wave layer 2 - medium speed */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            opacity: wave2Opacity,
+          }}
+        />
+
+        {/* Animated wave layer 3 - faster, more visible */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            opacity: wave3Opacity,
           }}
         />
 

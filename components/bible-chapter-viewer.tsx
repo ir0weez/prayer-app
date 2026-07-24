@@ -71,9 +71,6 @@ export function BibleChapterViewer({
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
-  const [scrollOffset, setScrollOffset] = useState(0);
-  const [storiesBarVisible, setStoriesBarVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -441,28 +438,12 @@ export function BibleChapterViewer({
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={async () => {
-                  // Reset all completed sections for this chapter
-                  setCompletedSections([]);
-                  // Clear all section completion keys from AsyncStorage
-                  for (let i = 0; i < sections.length; i++) {
-                    const key = `section-complete-${book}-${chapter}-${i}`;
-                    await AsyncStorage.removeItem(key);
-                  }
-                }}
-                style={{ padding: 8 }}
-              >
-                <MaterialIcons name="refresh" size={24} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                onPress={onMarkComplete}
-                style={{ padding: 8 }}
-              >
-                <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={onMarkComplete}
+              style={{ padding: 8 }}
+            >
+              <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+            </Pressable>
           </View>
 
           {/* Bible Stories Bar - Debug */}
@@ -474,18 +455,15 @@ export function BibleChapterViewer({
             </View>
           )}
           
-          {/* Bible Stories Bar - Sticky with scroll animation */}
-          {storiesBarVisible && (
-            <BibleStoriesBar
-              sections={sections}
-              onSectionPress={(section) => {
-                setSelectedSection(section);
-                setStoryViewerVisible(true);
-              }}
-              completedSections={completedSections}
-              book={book}
-            />
-          )}
+          {/* Bible Stories Bar */}
+          <BibleStoriesBar
+            sections={sections}
+            onSectionPress={(section) => {
+              setSelectedSection(section);
+              setStoryViewerVisible(true);
+            }}
+            completedSections={completedSections}
+          />
 
           {/* Content */}
           {loading ? (
@@ -503,22 +481,6 @@ export function BibleChapterViewer({
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
               showsVerticalScrollIndicator={true}
-              onScroll={(event) => {
-                const currentScrollY = event.nativeEvent.contentOffset.y;
-                const delta = currentScrollY - lastScrollY;
-                
-                // Show bar when scrolling up, hide when scrolling down
-                if (delta < -10) {
-                  // Scrolling up
-                  setStoriesBarVisible(true);
-                } else if (delta > 10) {
-                  // Scrolling down
-                  setStoriesBarVisible(false);
-                }
-                
-                setLastScrollY(currentScrollY);
-              }}
-              scrollEventThrottle={16}
             >
               {verses.map((verse) => {
                 const highlight = getVerseHighlight(verse.verse);

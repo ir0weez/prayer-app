@@ -1,44 +1,37 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection } from '@/lib/bible-section-parser';
-import { getBookIcon } from '@/lib/book-icons';
 
 interface BibleStoriesBarProps {
   sections: BibleSection[];
   onSectionPress: (section: BibleSection) => void;
   completedSections?: number[];
-  book?: string;
 }
 
-// Green color matching the commentary style
-const SECTION_COLOR = '#2D8659';
-const COMPLETED_COLOR = '#666666';
+// Color palette for section circles (similar to Instagram Stories)
+const SECTION_COLORS = [
+  '#FF6B6B', // Red
+  '#4ECDC4', // Teal
+  '#45B7D1', // Blue
+  '#FFA07A', // Light Salmon
+  '#98D8C8', // Mint
+  '#F7DC6F', // Yellow
+  '#BB8FCE', // Purple
+  '#85C1E2', // Sky Blue
+  '#F8B88B', // Peach
+  '#A8D5BA', // Sage
+];
 
 export function BibleStoriesBar({
   sections,
   onSectionPress,
   completedSections = [],
-  book = '',
 }: BibleStoriesBarProps) {
   const colors = useColors();
-  const bookIcon = getBookIcon(book);
 
   if (sections.length <= 1) {
     return null; // Don't show bar if only one section
   }
-
-  // Separate active and completed sections
-  const activeSections = sections
-    .map((section, index) => ({ section, index, isCompleted: false }))
-    .filter((item) => !completedSections.includes(item.index));
-
-  const completedSectionsList = sections
-    .map((section, index) => ({ section, index, isCompleted: true }))
-    .filter((item) => completedSections.includes(item.index));
-
-  // Combine: active first, then completed at end
-  const orderedSections = [...activeSections, ...completedSectionsList];
 
   return (
     <View
@@ -57,45 +50,56 @@ export function BibleStoriesBar({
           gap: 12,
         }}
       >
-        {orderedSections.map(({ section, index, isCompleted }) => {
+        {sections.map((section, index) => {
+          const backgroundColor = SECTION_COLORS[index % SECTION_COLORS.length];
+          const isCompleted = completedSections.includes(index);
+
           return (
             <Pressable
               key={section.id || `${section.title}-${section.startVerse}`}
-              onPress={() => !isCompleted && onSectionPress(section)}
-              disabled={isCompleted}
+              onPress={() => onSectionPress(section)}
               style={({ pressed }) => [
                 {
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: isCompleted ? COMPLETED_COLOR : SECTION_COLOR,
+                  backgroundColor,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  opacity: isCompleted ? 0.5 : pressed ? 0.8 : 1,
+                  opacity: pressed ? 0.8 : 1,
+                  borderWidth: isCompleted ? 2 : 0,
+                  borderColor: isCompleted ? colors.foreground : 'transparent',
                 },
               ]}
             >
-              <View style={{ alignItems: 'center', gap: 2 }}>
-                <MaterialIcons
-                  name={bookIcon as any}
-                  size={32}
-                  color={isCompleted ? '#999' : 'white'}
-                />
+              <View style={{ alignItems: 'center', gap: 4 }}>
                 <Text
                   style={{
-                    fontSize: 11,
+                    fontSize: 24,
                     fontWeight: '700',
-                    color: isCompleted ? '#999' : '#fff',
-                    textDecorationLine: isCompleted ? 'line-through' : 'none',
+                    color: '#fff',
                   }}
                 >
                   {section.startVerse}
                 </Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '600',
+                    color: '#fff',
+                    textAlign: 'center',
+                    maxWidth: 70,
+                  }}
+                  numberOfLines={1}
+                >
+                  {section.title.substring(0, 10)}
+                </Text>
               </View>
             </Pressable>
           );
-        })}
+                })}
       </ScrollView>
     </View>
   );
 }
+

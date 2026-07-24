@@ -446,26 +446,7 @@ export function BibleChapterViewer({
             </Pressable>
           </View>
 
-          {/* Bible Stories Bar - Debug */}
-          {sections.length > 0 && (
-            <View style={{ padding: 8, backgroundColor: colors.surface }}>
-              <Text style={{ color: colors.foreground, fontSize: 12 }}>
-                {sections.length} sections found
-              </Text>
-            </View>
-          )}
-          
-          {/* Bible Stories Bar */}
-          <BibleStoriesBar
-            sections={sections}
-            onSectionPress={(section) => {
-              setSelectedSection(section);
-              setStoryViewerVisible(true);
-            }}
-            completedSections={completedSections}
-          />
-
-          {/* Content */}
+          {/* Content with Stories Bar at top */}
           {loading ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -479,9 +460,21 @@ export function BibleChapterViewer({
           ) : (
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              contentContainerStyle={{ paddingBottom: 100 }}
               showsVerticalScrollIndicator={true}
             >
+              {/* Bible Stories Bar - scrolls with content */}
+              <BibleStoriesBar
+                sections={sections}
+                onSectionPress={(section) => {
+                  setSelectedSection(section);
+                  setStoryViewerVisible(true);
+                }}
+                completedSections={completedSections}
+              />
+
+              {/* Verses */}
+              <View style={{ padding: 16 }}>
               {verses.map((verse) => {
                 const highlight = getVerseHighlight(verse.verse);
                 const highlightBgColor = highlight ? HIGHLIGHT_COLORS[highlight.color].bg : 'transparent';
@@ -576,6 +569,7 @@ export function BibleChapterViewer({
                   </View>
                 );
               })}
+              </View>
             </ScrollView>
           )}
 

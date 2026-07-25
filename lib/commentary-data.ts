@@ -41,6 +41,20 @@ God was with His people every single second of every single day. If a thousand y
     isBookmarkedByUser: false,
     createdAt: new Date().toISOString(),
   },
+  'genesis_1_2': {
+    id: 'genesis_1_2',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 2,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `Because of the way in which verse two is structured, we have the notion to believe that either God created the Heaven and the Earth without form and void on purpose, leaving it in darkness (meaning His presence was not there, for the Lord is light), and He had still a purpose for building what was there, OR (as many scholars believe) there was some sort of catastrophe that took place between verses 1&2.\n\nThough not a surprise by God, the fact that the earth was without form and void gives credence to the idea that maybe God allowed a catastrophe to take place so He could start the Earth with something new. There are a lot of theories that can go into this (that I won't get into), but I think it's safe to say that the creation of the Earth that will be taking place in the next few verses will display the importance that God took to create a universe that is self-sustaining yet reliant upon Him.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
 };
 
 /**

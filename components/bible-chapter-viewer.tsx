@@ -129,35 +129,33 @@ export function BibleChapterViewer({
   useEffect(() => {
     if (verses.length > 0) {
       const loadSections = async () => {
+        // Convert verses to the format needed
+        const bibleVerses = verses.map(v => ({
+          verse: v.verse,
+          text: v.text,
+        }));
+        
         // First try to load custom paragraphs
-        const customDefs = await loadCustomParagraphs(book, chapter);
+        const customDefs = await loadCustomParagraphs(book, chapter, bibleVerses);
         
         let parsedSections: any[];
         if (customDefs) {
-          // Parse custom paragraph definitions
-          const bibleVerses = verses.map(v => ({
-            verse: v.verse,
-            text: v.text,
-          }));
-          parsedSections = parseCustomParagraphs(customDefs, bibleVerses);
+          parsedSections = customDefs;
           console.log(`Loaded ${parsedSections.length} custom paragraphs`);
         } else {
           // Use default paragraph grouping
-          const bibleVerses = verses.map(v => ({
-            verse: v.verse,
-            text: v.text,
-          }));
-          parsedSections = createDefaultParagraphs(bibleVerses);
+          parsedSections = createDefaultParagraphs(bibleVerses, book, chapter);
           console.log(`Created ${parsedSections.length} default paragraphs`);
         }
         
         setSections(parsedSections);
         
         // Load completed sections for this chapter
-        const completedIds = await loadCompletedSections(book, chapter);
+        const completedIds = await loadCompletedSections();
         const completed: number[] = [];
         for (let i = 0; i < parsedSections.length; i++) {
-          if (completedIds.has(parsedSections[i].id)) {
+          const key = getSectionCompletionKey(book, chapter, parsedSections[i].id);
+          if (completedIds.has(key)) {
             completed.push(i);
           }
         }

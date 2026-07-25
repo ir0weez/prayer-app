@@ -6,8 +6,6 @@ import {
   Pressable,
   Dimensions,
   SafeAreaView,
-  Animated,
-  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -37,49 +35,12 @@ export function BibleStoryViewer({
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { width, height } = Dimensions.get('window');
-  
-  // Animated value for radial glow effect (like Apple Music)
-  const glowScale = useRef(new Animated.Value(1)).current;
-  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     if (visible && section) {
       setCurrentVerseIndex(0);
-      glowScale.setValue(1);
-      startGlowAnimation();
-    } else {
-      if (loopRef.current) {
-        loopRef.current.stop();
-        loopRef.current = null;
-      }
     }
-
-    return () => {
-      if (loopRef.current) {
-        loopRef.current.stop();
-        loopRef.current = null;
-      }
-    };
   }, [visible, section]);
-
-  const startGlowAnimation = () => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowScale, {
-          toValue: 1.3,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowScale, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loopRef.current = animation;
-    animation.start();
-  };
 
   if (!section) return null;
 
@@ -115,65 +76,14 @@ export function BibleStoryViewer({
           backgroundColor: '#2D8659',
         }}
       >
-        {/* Animated radial gradient background (green sun effect) */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#2D8659',
-          }}
-        >
-          {/* Static gradient base */}
-          <View
-            style={{
-              position: 'absolute',
-              top: '30%',
-              left: '50%',
-              width: 400,
-              height: 400,
-              marginLeft: -200,
-              borderRadius: 200,
-              backgroundColor: 'rgba(255,255,255,0.08)',
-            }}
-          />
-
-          {/* Animated glow layer */}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: '30%',
-              left: '50%',
-              width: 400,
-              height: 400,
-              marginLeft: -200,
-              borderRadius: 200,
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              transform: [{ scale: glowScale }],
-            }}
-          />
-
-          {/* Darker overlay for depth */}
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: '40%',
-              backgroundColor: 'rgba(0,0,0,0.2)',
-            }}
-          />
-        </View>
-
-        {/* Content container */}
+        {/* Main content container */}
         <View
           style={{
             flex: 1,
             justifyContent: 'space-between',
-            zIndex: 10,
+            alignItems: 'center',
+            paddingHorizontal: 24,
+            paddingVertical: 40,
           }}
         >
           {/* Top section - verse content */}
@@ -182,9 +92,7 @@ export function BibleStoryViewer({
               flex: 1,
               justifyContent: 'center',
               alignItems: 'center',
-              paddingHorizontal: 24,
-              paddingVertical: 40,
-              pointerEvents: 'none',
+              width: '100%',
             }}
           >
             {/* Verse number */}
@@ -192,7 +100,7 @@ export function BibleStoryViewer({
               style={{
                 fontSize: 64,
                 fontWeight: '700',
-                color: 'rgba(255,255,255,0.95)',
+                color: 'white',
                 marginBottom: 24,
                 textAlign: 'center',
               }}
@@ -236,67 +144,29 @@ export function BibleStoryViewer({
             </Pressable>
           </View>
 
-          {/* Bottom section - commentary card */}
-          <View
-            style={{
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255,255,255,0.1)',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-            }}
+          {/* Bottom section - commentary pill button */}
+          <Pressable
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderRadius: 28,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-              >
-                <MaterialIcons name="person" size={16} color="white" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: 'white' }}>
-                  Commentary
-                </Text>
-              </View>
-            </View>
-            <Text
-              style={{
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.8)',
-                lineHeight: 18,
-              }}
-              numberOfLines={2}
-            >
-              Future notes will be here
+            <MaterialIcons name="comment" size={18} color="white" />
+            <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
+              Commentary
             </Text>
-          </View>
+          </Pressable>
         </View>
-
-        {/* Close button - TOP LEFT */}
-        <Pressable
-          onPress={onClose}
-          style={({ pressed }) => [
-            {
-              position: 'absolute',
-              top: 28,
-              left: 28,
-              zIndex: 20,
-              padding: 14,
-              backgroundColor: 'rgba(0,0,0,0.25)',
-              borderRadius: 28,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-        >
-          <MaterialIcons name="close" size={32} color="white" />
-        </Pressable>
 
         {/* Verse counter - BOTTOM RIGHT */}
         <View
@@ -305,7 +175,7 @@ export function BibleStoryViewer({
             position: 'absolute',
             bottom: 28,
             right: 28,
-            backgroundColor: 'rgba(0,0,0,0.25)',
+            backgroundColor: 'rgba(0,0,0,0.2)',
             paddingHorizontal: 18,
             paddingVertical: 10,
             borderRadius: 24,
@@ -343,26 +213,18 @@ export function BibleStoryViewer({
           }}
         />
 
-        {/* Completion indicator */}
-        {isLastVerse && (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              bottom: 90,
-              alignSelf: 'center',
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              paddingHorizontal: 18,
-              paddingVertical: 10,
-              borderRadius: 24,
-              zIndex: 20,
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
-              Tap to complete
-            </Text>
-          </View>
-        )}
+        {/* Close on tap outside (center area is for content only) */}
+        <Pressable
+          onPress={onClose}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '30%',
+            right: '30%',
+            height: 60,
+            zIndex: 5,
+          }}
+        />
       </SafeAreaView>
     </Modal>
   );

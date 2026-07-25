@@ -13,7 +13,8 @@ export interface ParagraphSection {
 
 /**
  * Create default paragraph sections by grouping verses
- * Default: 3-4 verses per paragraph, adjusted for natural breaks
+ * Uses DETERMINISTIC grouping: 3 verses per section (no randomness)
+ * This ensures verse counts stay consistent across app refreshes
  */
 export function createDefaultParagraphs(
   verses: Array<{ verse: number; text: string }>
@@ -21,39 +22,24 @@ export function createDefaultParagraphs(
   if (verses.length === 0) return [];
 
   const sections: ParagraphSection[] = [];
-  let currentSection: Array<{ verse: number; text: string }> = [];
-  let sectionStart = verses[0].verse;
+  const VERSES_PER_SECTION = 3; // Fixed: deterministic grouping
 
-  // Group verses into paragraphs (3-4 verses per paragraph)
-  for (let i = 0; i < verses.length; i++) {
-    const verse = verses[i];
-    currentSection.push(verse);
+  for (let i = 0; i < verses.length; i += VERSES_PER_SECTION) {
+    const sectionVerses = verses.slice(i, i + VERSES_PER_SECTION);
+    if (sectionVerses.length === 0) break;
 
-    // Start new section after 3-4 verses, or at the end
-    const shouldBreak = currentSection.length >= 3 && (i === verses.length - 1 || Math.random() > 0.6);
-    const isLastVerse = i === verses.length - 1;
+    const sectionStart = sectionVerses[0].verse;
+    const sectionEnd = sectionVerses[sectionVerses.length - 1].verse;
+    const sectionId = `para-${sectionStart}-${sectionEnd}`;
+    const title = `Verses ${sectionStart}-${sectionEnd}`;
 
-    if (shouldBreak || isLastVerse) {
-      const sectionEnd = verse.verse;
-      const sectionId = `para-${sectionStart}-${sectionEnd}`;
-      
-      // Create a title based on verse range and first few words
-      const firstText = currentSection[0].text.substring(0, 30);
-      const title = `Verses ${sectionStart}-${sectionEnd}`;
-
-      sections.push({
-        id: sectionId,
-        title,
-        startVerse: sectionStart,
-        endVerse: sectionEnd,
-        verses: [...currentSection],
-      });
-
-      currentSection = [];
-      if (i < verses.length - 1) {
-        sectionStart = verses[i + 1].verse;
-      }
-    }
+    sections.push({
+      id: sectionId,
+      title,
+      startVerse: sectionStart,
+      endVerse: sectionEnd,
+      verses: sectionVerses,
+    });
   }
 
   return sections;
@@ -136,5 +122,64 @@ export async function saveCustomParagraphs(
     await AsyncStorage.setItem(key, definitions);
   } catch (err) {
     console.error('Error saving custom paragraphs:', err);
+  }
+}
+
+/**
+ * Get completion key for a section
+ */
+export function getSectionCompletionKey(book: string, chapter: number, sectionId: string): string {
+  return `section-complete-${book}-${chapter}-${sectionId}`;
+}
+
+/**
+ * Load completed sections from AsyncStorage
+ */
+export async function loadCompletedSections(
+  book: string,
+  chapter: number
+): Promise<Set<string>> {
+  try {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
+    const key = `completed-sections-${book}-${chapter}`;
+    const data = await AsyncStorage.getItem(key);
+    return data ? new Set(JSON.parse(data)) : new Set();
+  } catch (err) {
+    console.error('Error loading completed sections:', err);
+    return new Set();
+  }
+}
+
+/**
+ * Save completed sections to AsyncStorage
+ */
+export async function saveCompletedSections(
+  book: string,
+  chapter: number,
+  completedIds: Set<string>
+): Promise<void> {
+  try {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
+    const key = `completed-sections-${book}-${chapter}`;
+    await AsyncStorage.setItem(key, JSON.stringify(Array.from(completedIds)));
+  } catch (err) {
+    console.error('Error saving completed sections:', err);
+  }
+}
+
+/**
+ * Mark a section as complete and move it to the end
+ */
+export async function markSectionComplete(
+  book: string,
+  chapter: number,
+  sectionId: string
+): Promise<void> {
+  try {
+    const completed = await loadCompletedSections(book, chapter);
+    completed.add(sectionId);
+    await saveCompletedSections(book, chapter, completed);
+  } catch (err) {
+    console.error('Error marking section complete:', err);
   }
 }

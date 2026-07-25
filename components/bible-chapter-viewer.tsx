@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
 import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
+import { loadCompletedSections, getSectionCompletionKey } from '@/lib/paragraph-sections';
 import { BibleStoryViewer } from './bible-story-viewer';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
@@ -75,36 +76,21 @@ export function BibleChapterViewer({
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
 
-  // Section completion tracking
-  const getSectionCompletionKey = () => `section_completion_${book}_${chapter}`;
-
   const handleSectionComplete = async () => {
     // Mark section as complete in AsyncStorage
     if (selectedSection) {
       const sectionIndex = sections.findIndex(
-        (s) => s.title === selectedSection.title && s.startVerse === selectedSection.startVerse
+        (s) => s.id === selectedSection.id
       );
       if (sectionIndex >= 0 && !completedSections.includes(sectionIndex)) {
         setCompletedSections([...completedSections, sectionIndex]);
-        const key = `section-complete-${book}-${chapter}-${sectionIndex}`;
-        await AsyncStorage.setItem(key, 'true');
+        const completionKey = getSectionCompletionKey(book, chapter, selectedSection.id);
+        await AsyncStorage.setItem(completionKey, 'true');
       }
     }
   };
 
-  const markSectionComplete = async (sectionId: string) => {
-    try {
-      const key = getSectionCompletionKey();
-      const saved = await AsyncStorage.getItem(key);
-      const completed = saved ? JSON.parse(saved) : [];
-      if (!completed.includes(sectionId)) {
-        completed.push(sectionId);
-        await AsyncStorage.setItem(key, JSON.stringify(completed));
-      }
-    } catch (err) {
-      console.error('Error marking section complete:', err);
-    }
-  };
+  // Note: markSectionComplete is no longer used; use handleSectionComplete instead
 
   // Load saved version preference on mount
   useEffect(() => {
@@ -168,11 +154,10 @@ export function BibleChapterViewer({
         setSections(parsedSections);
         
         // Load completed sections for this chapter
+        const completedIds = await loadCompletedSections(book, chapter);
         const completed: number[] = [];
         for (let i = 0; i < parsedSections.length; i++) {
-          const key = `section-complete-${book}-${chapter}-${i}`;
-          const isComplete = await AsyncStorage.getItem(key);
-          if (isComplete) {
+          if (completedIds.has(parsedSections[i].id)) {
             completed.push(i);
           }
         }

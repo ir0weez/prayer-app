@@ -1,37 +1,46 @@
 import { ScrollView, View, Text, Pressable } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection } from '@/lib/bible-section-parser';
+import { getBookIcon } from '@/lib/book-icons';
 
 interface BibleStoriesBarProps {
   sections: BibleSection[];
   onSectionPress: (section: BibleSection) => void;
   completedSections?: number[];
+  book?: string;
 }
 
-// Color palette for section circles (similar to Instagram Stories)
-const SECTION_COLORS = [
-  '#FF6B6B', // Red
-  '#4ECDC4', // Teal
-  '#45B7D1', // Blue
-  '#FFA07A', // Light Salmon
-  '#98D8C8', // Mint
-  '#F7DC6F', // Yellow
-  '#BB8FCE', // Purple
-  '#85C1E2', // Sky Blue
-  '#F8B88B', // Peach
-  '#A8D5BA', // Sage
-];
+// Green color matching the story viewer
+const AVATAR_GREEN = '#2D8659';
+const AVATAR_GREY = '#A0A0A0';
 
 export function BibleStoriesBar({
   sections,
   onSectionPress,
   completedSections = [],
+  book = '',
 }: BibleStoriesBarProps) {
   const colors = useColors();
 
   if (sections.length <= 1) {
     return null; // Don't show bar if only one section
   }
+
+  const bookIcon = getBookIcon(book);
+
+  // Sort sections: active first, completed at end
+  const sortedSections = sections
+    .map((section, index) => ({
+      section,
+      index,
+      isCompleted: completedSections.includes(index),
+    }))
+    .sort((a, b) => {
+      // Active sections first, completed sections at end
+      if (a.isCompleted === b.isCompleted) return 0;
+      return a.isCompleted ? 1 : -1;
+    });
 
   return (
     <View
@@ -50,14 +59,14 @@ export function BibleStoriesBar({
           gap: 12,
         }}
       >
-        {sections.map((section, index) => {
-          const backgroundColor = SECTION_COLORS[index % SECTION_COLORS.length];
-          const isCompleted = completedSections.includes(index);
+        {sortedSections.map(({ section, index, isCompleted }) => {
+          const backgroundColor = isCompleted ? AVATAR_GREY : AVATAR_GREEN;
 
           return (
             <Pressable
               key={section.id || `${section.title}-${section.startVerse}`}
-              onPress={() => onSectionPress(section)}
+              onPress={() => !isCompleted && onSectionPress(section)}
+              disabled={isCompleted}
               style={({ pressed }) => [
                 {
                   width: 80,
@@ -66,40 +75,36 @@ export function BibleStoriesBar({
                   backgroundColor,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  opacity: pressed ? 0.8 : 1,
+                  opacity: pressed && !isCompleted ? 0.8 : isCompleted ? 0.5 : 1,
                   borderWidth: isCompleted ? 2 : 0,
-                  borderColor: isCompleted ? colors.foreground : 'transparent',
+                  borderColor: isCompleted ? 'rgba(255,255,255,0.4)' : 'transparent',
                 },
               ]}
             >
-              <View style={{ alignItems: 'center', gap: 4 }}>
+              <View style={{ alignItems: 'center', gap: 2 }}>
+                {/* Icon */}
+                <MaterialIcons
+                  name={bookIcon as any}
+                  size={24}
+                  color="#fff"
+                />
+                {/* Verse number */}
                 <Text
                   style={{
-                    fontSize: 24,
+                    fontSize: 9,
                     fontWeight: '700',
                     color: '#fff',
-                  }}
-                >
-                  {section.startVerse}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: '600',
-                    color: '#fff',
                     textAlign: 'center',
-                    maxWidth: 70,
                   }}
                   numberOfLines={1}
                 >
-                  {section.title.substring(0, 10)}
+                  v{section.startVerse}
                 </Text>
               </View>
             </Pressable>
           );
-                })}
+        })}
       </ScrollView>
     </View>
   );
 }
-

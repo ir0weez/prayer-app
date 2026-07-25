@@ -1677,3 +1677,18 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Persist bookmarks to AsyncStorage
 - [x] All tests passing (262 tests)
 - [x] TypeScript checks clean
+
+
+## Bible Stories Critical Bugs & Features (Current Priority)
+
+- [x] Fix: Completed Bible story sections should grey out and move to end of stories bar
+- [x] Fix: Bible story verse count should persist (cache parsed sections to AsyncStorage)
+- [x] Fix: App crashes when switching between different Bible stories (caused by non-deterministic verse parsing)
+- [ ] Add: Commentary/Notes feature with Instagram-style card UI
+  - [ ] Create commentary data model with commentator name, profile picture, commentary text, likes/bookmarks
+  - [ ] Add commentary card at bottom of story viewer (shows first line, tap to expand)
+  - [ ] Implement full-screen expandable commentary sheet with swipe-up gesture
+  - [ ] Add like/bookmark feature for commentary with persistence
+  - [ ] Show "Future notes will be here" placeholder for chapters without commentary
+  - [ ] Create commentary management screen to add/edit notes for each chapter
+  - [ ] Support multiple commentators (Spurgeon, Moody, McGhee, etc.) with profile pictures

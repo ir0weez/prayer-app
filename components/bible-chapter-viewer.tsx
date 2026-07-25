@@ -456,6 +456,7 @@ export function BibleChapterViewer({
                   setStoryViewerVisible(true);
                 }}
                 completedSections={completedSections}
+                book={book}
               />
 
               {/* Verses */}

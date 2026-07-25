@@ -14,6 +14,7 @@ import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import {
   getCommentary,
+  getAllCommentariesForVerse,
   toggleLikeCommentary,
   toggleBookmarkCommentary,
   CommentaryNote,
@@ -43,7 +44,7 @@ export function BibleStoryViewer({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
-  const [commentary, setCommentary] = useState<CommentaryNote | null>(null);
+  const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
   const [isLoadingCommentary, setIsLoadingCommentary] = useState(false);
   const { width, height } = Dimensions.get('window');
 
@@ -62,22 +63,22 @@ export function BibleStoryViewer({
     if (!section) return;
     setIsLoadingCommentary(true);
     const verse = section.verses[currentVerseIndex];
-    const data = await getCommentary(book, chapter, verse.verse);
-    setCommentary(data);
-    setIsCommentaryLiked(data?.isLikedByUser ?? false);
+    const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
+    setCommentaries(data);
+    setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
     setIsLoadingCommentary(false);
   };
 
   const handleToggleLike = async () => {
-    if (!commentary) return;
-    await toggleLikeCommentary(commentary.id);
+    if (commentaries.length === 0) return;
+    await toggleLikeCommentary(commentaries[0].id);
     setIsCommentaryLiked(!isCommentaryLiked);
     await loadCommentary();
   };
 
   const handleToggleBookmark = async () => {
-    if (!commentary) return;
-    await toggleBookmarkCommentary(commentary.id);
+    if (commentaries.length === 0) return;
+    await toggleBookmarkCommentary(commentaries[0].id);
     await loadCommentary();
   };
 
@@ -204,7 +205,7 @@ export function BibleStoryViewer({
             >
               <MaterialIcons name="comment" size={18} color="white" />
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-                {commentary ? 'View' : 'No'} Commentary
+                {commentaries.length > 0 ? 'View' : 'No'} Commentary
               </Text>
             </Pressable>
           </View>
@@ -354,53 +355,57 @@ export function BibleStoryViewer({
               style={{ marginBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {commentary ? (
+              {commentaries.length > 0 ? (
                 <>
-                  {/* Commentator info */}
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      marginBottom: 16,
-                      paddingBottom: 16,
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#E0E0E0',
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: '#E8F5E9',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <MaterialIcons name="person" size={24} color="#2D8659" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
-                        {commentary.author}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                        {commentary.authorHandle}
-                      </Text>
-                    </View>
-                  </View>
+                  {commentaries.map((comment, idx) => (
+                    <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
+                      {/* Commentator info */}
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          marginBottom: 16,
+                          paddingBottom: 16,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#E0E0E0',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: '#E8F5E9',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <MaterialIcons name="person" size={24} color="#2D8659" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
+                            {comment.author}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                            {comment.authorHandle}
+                          </Text>
+                        </View>
+                      </View>
 
-                  {/* Commentary text */}
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      lineHeight: 24,
-                      color: '#333',
-                      marginBottom: 20,
-                    }}
-                  >
-                    {commentary.text}
-                  </Text>
+                      {/* Commentary text */}
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          lineHeight: 24,
+                          color: '#333',
+                          marginBottom: 20,
+                        }}
+                      >
+                        {comment.text}
+                      </Text>
+                    </View>
+                  ))}
                 </>
               ) : (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
@@ -420,7 +425,7 @@ export function BibleStoryViewer({
             </ScrollView>
 
             {/* Action buttons */}
-            {commentary && (
+            {commentaries.length > 0 && (
               <View
                 style={{
                   flexDirection: 'row',

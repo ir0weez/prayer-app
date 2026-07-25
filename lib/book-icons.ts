@@ -32,7 +32,7 @@ export const BOOK_ICONS: { [key: string]: string } = {
   'Isaiah': 'visibility',
   'Jeremiah': 'warning',
   'Lamentations': 'sentiment-very-dissatisfied',
-  'Ezekiel': 'eye',
+  'Ezekiel': 'visibility',
   'Daniel': 'school',
 
   // Minor Prophets

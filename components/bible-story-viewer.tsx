@@ -7,6 +7,7 @@ import {
   Dimensions,
   SafeAreaView,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -37,24 +38,16 @@ export function BibleStoryViewer({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const { width, height } = Dimensions.get('window');
   
-  // Multiple animation values for layered Material Design effect
-  const wave1Opacity = useRef(new Animated.Value(0.15)).current;
-  const wave2Opacity = useRef(new Animated.Value(0.08)).current;
-  const wave3Opacity = useRef(new Animated.Value(0.12)).current;
-  
+  // Animated value for radial glow effect (like Apple Music)
+  const glowScale = useRef(new Animated.Value(1)).current;
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     if (visible && section) {
       setCurrentVerseIndex(0);
-      // Reset animations to start state
-      wave1Opacity.setValue(0.15);
-      wave2Opacity.setValue(0.08);
-      wave3Opacity.setValue(0.12);
-      // Start background animation loop
-      startBackgroundAnimation();
+      glowScale.setValue(1);
+      startGlowAnimation();
     } else {
-      // Stop animation when modal closes
       if (loopRef.current) {
         loopRef.current.stop();
         loopRef.current = null;
@@ -69,101 +62,60 @@ export function BibleStoryViewer({
     };
   }, [visible, section]);
 
-  const startBackgroundAnimation = () => {
+  const startGlowAnimation = () => {
     const animation = Animated.loop(
-      Animated.parallel([
-        // Wave 1: slow, long cycle
-        Animated.sequence([
-          Animated.timing(wave1Opacity, {
-            toValue: 0.35,
-            duration: 4000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(wave1Opacity, {
-            toValue: 0.15,
-            duration: 4000,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Wave 2: medium speed, offset
-        Animated.sequence([
-          Animated.timing(wave2Opacity, {
-            toValue: 0.25,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(wave2Opacity, {
-            toValue: 0.08,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Wave 3: faster, different offset
-        Animated.sequence([
-          Animated.timing(wave3Opacity, {
-            toValue: 0.28,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(wave3Opacity, {
-            toValue: 0.12,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-        ]),
+      Animated.sequence([
+        Animated.timing(glowScale, {
+          toValue: 1.3,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowScale, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
       ])
     );
     loopRef.current = animation;
     animation.start();
   };
 
-  const handleBookmark = async () => {
-    if (section && currentVerse) {
-      await saveBookmark(book, chapter, currentVerse.verse, version);
-      setIsBookmarked(true);
-      setTimeout(() => setIsBookmarked(false), 1000);
-    }
-  };
-
-  if (!section || section.verses.length === 0) {
-    return null;
-  }
+  if (!section) return null;
 
   const currentVerse = section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
-  const backgroundColor = '#2D8659';
 
-  const handleNext = () => {
-    if (isLastVerse) {
-      onComplete?.();
-      onClose();
-    } else {
+  const handleNextVerse = () => {
+    if (currentVerseIndex < section.verses.length - 1) {
       setCurrentVerseIndex(currentVerseIndex + 1);
-      setIsBookmarked(false);
+    } else if (isLastVerse && onComplete) {
+      onComplete();
     }
   };
 
-  const handlePrevious = () => {
+  const handlePreviousVerse = () => {
     if (currentVerseIndex > 0) {
       setCurrentVerseIndex(currentVerseIndex - 1);
-      setIsBookmarked(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (currentVerse) {
+      await saveBookmark(book, chapter, currentVerse.verse, version);
+      setIsBookmarked(!isBookmarked);
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={false}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor,
+          backgroundColor: '#2D8659',
         }}
       >
-        {/* Static base background */}
+        {/* Animated radial gradient background (green sun effect) */}
         <View
           style={{
             position: 'absolute',
@@ -171,170 +123,177 @@ export function BibleStoryViewer({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor,
-          }}
-        />
-
-        {/* Animated wave layer 1 - slow, subtle */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            opacity: wave1Opacity,
-          }}
-        />
-
-        {/* Animated wave layer 2 - medium speed */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.12)',
-            opacity: wave2Opacity,
-          }}
-        />
-
-        {/* Animated wave layer 3 - faster, more visible */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            opacity: wave3Opacity,
-          }}
-        />
-
-        {/* Progress bar */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            zIndex: 100,
+            backgroundColor: '#2D8659',
           }}
         >
+          {/* Static gradient base */}
           <View
             style={{
-              height: '100%',
-              width: `${((currentVerseIndex + 1) / section.verses.length) * 100}%`,
-              backgroundColor: 'rgba(255,255,255,0.9)',
+              position: 'absolute',
+              top: '30%',
+              left: '50%',
+              width: 400,
+              height: 400,
+              marginLeft: -200,
+              borderRadius: 200,
+              backgroundColor: 'rgba(255,255,255,0.08)',
+            }}
+          />
+
+          {/* Animated glow layer */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: '30%',
+              left: '50%',
+              width: 400,
+              height: 400,
+              marginLeft: -200,
+              borderRadius: 200,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              transform: [{ scale: glowScale }],
+            }}
+          />
+
+          {/* Darker overlay for depth */}
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '40%',
+              backgroundColor: 'rgba(0,0,0,0.2)',
             }}
           />
         </View>
 
-        {/* Main content area - centered, pointer-events none so taps pass through */}
+        {/* Content container */}
         <View
           style={{
             flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingHorizontal: 24,
-            paddingVertical: 40,
-            zIndex: 5,
-            pointerEvents: 'none',
+            justifyContent: 'space-between',
+            zIndex: 10,
           }}
         >
-          {/* Verse number - Large and centered */}
-          <Text
+          {/* Top section - verse content */}
+          <View
             style={{
-              fontSize: 64,
-              fontWeight: '700',
-              color: 'rgba(255,255,255,0.95)',
-              marginBottom: 24,
-              textAlign: 'center',
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 24,
+              paddingVertical: 40,
+              pointerEvents: 'none',
             }}
           >
-            {currentVerse.verse}
-          </Text>
-
-          {/* Verse text - Fully centered and readable */}
-          <Text
-            style={{
-              fontSize: 22,
-              lineHeight: 36,
-              color: 'white',
-              textAlign: 'center',
-              fontFamily: 'Georgia',
-              fontWeight: '500',
-              marginBottom: 40,
-              letterSpacing: 0.3,
-            }}
-          >
-            {currentVerse.text}
-          </Text>
-
-          {/* Bookmark button - re-enable pointer events */}
-          <Pressable
-            onPress={handleBookmark}
-            pointerEvents="auto"
-            style={{
-              paddingHorizontal: 20,
-              paddingVertical: 10,
-              backgroundColor: isBookmarked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)',
-              borderRadius: 24,
-              borderWidth: 1.5,
-              borderColor: isBookmarked ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
-              {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+            {/* Verse number */}
+            <Text
+              style={{
+                fontSize: 64,
+                fontWeight: '700',
+                color: 'rgba(255,255,255,0.95)',
+                marginBottom: 24,
+                textAlign: 'center',
+              }}
+            >
+              {currentVerse.verse}
             </Text>
-          </Pressable>
+
+            {/* Verse text */}
+            <Text
+              style={{
+                fontSize: 22,
+                lineHeight: 36,
+                color: 'white',
+                textAlign: 'center',
+                fontFamily: 'Georgia',
+                fontWeight: '500',
+                marginBottom: 40,
+                letterSpacing: 0.3,
+              }}
+            >
+              {currentVerse.text}
+            </Text>
+
+            {/* Bookmark button */}
+            <Pressable
+              onPress={handleBookmark}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 24,
+                  borderWidth: 1.5,
+                  borderColor: 'rgba(255,255,255,0.6)',
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Bottom section - commentary card */}
+          <View
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255,255,255,0.1)',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialIcons name="person" size={16} color="white" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: 'white' }}>
+                  Commentary
+                </Text>
+              </View>
+            </View>
+            <Text
+              style={{
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.8)',
+                lineHeight: 18,
+              }}
+              numberOfLines={2}
+            >
+              Future notes will be here
+            </Text>
+          </View>
         </View>
 
-        {/* Navigation - Left tap area */}
-        <Pressable
-          onPress={handlePrevious}
-          disabled={currentVerseIndex === 0}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: '50%',
-            zIndex: 10,
-          }}
-        />
-
-        {/* Navigation - Right tap area */}
-        <Pressable
-          onPress={handleNext}
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: '50%',
-            zIndex: 10,
-          }}
-        />
-
-        {/* Close button - BOTTOM LEFT */}
+        {/* Close button - TOP LEFT */}
         <Pressable
           onPress={onClose}
-          pointerEvents="auto"
-          style={{
-            position: 'absolute',
-            bottom: 28,
-            left: 28,
-            zIndex: 20,
-            padding: 14,
-            backgroundColor: 'rgba(0,0,0,0.25)',
-            borderRadius: 28,
-          }}
+          style={({ pressed }) => [
+            {
+              position: 'absolute',
+              top: 28,
+              left: 28,
+              zIndex: 20,
+              padding: 14,
+              backgroundColor: 'rgba(0,0,0,0.25)',
+              borderRadius: 28,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
         >
           <MaterialIcons name="close" size={32} color="white" />
         </Pressable>
@@ -357,6 +316,32 @@ export function BibleStoryViewer({
             {currentVerseIndex + 1} / {section.verses.length}
           </Text>
         </View>
+
+        {/* Left tap area - previous verse */}
+        <Pressable
+          onPress={handlePreviousVerse}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '30%',
+            zIndex: 15,
+          }}
+        />
+
+        {/* Right tap area - next verse */}
+        <Pressable
+          onPress={handleNextVerse}
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '30%',
+            zIndex: 15,
+          }}
+        />
 
         {/* Completion indicator */}
         {isLastVerse && (

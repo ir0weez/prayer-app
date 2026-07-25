@@ -12,6 +12,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
 import { saveBookmark } from '@/lib/bible-bookmark';
+import {
+  getCommentary,
+  toggleCommentaryLike,
+  toggleCommentaryBookmark,
+  CommentaryNote,
+} from '@/lib/commentary-data';
 
 interface BibleStoryViewerProps {
   visible: boolean;
@@ -37,13 +43,45 @@ export function BibleStoryViewer({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
+  const [commentary, setCommentary] = useState<CommentaryNote | null>(null);
+  const [isLoadingCommentary, setIsLoadingCommentary] = useState(false);
   const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
     if (visible && section) {
       setCurrentVerseIndex(0);
+      loadCommentary();
     }
   }, [visible, section]);
+
+  useEffect(() => {
+    loadCommentary();
+  }, [currentVerseIndex]);
+
+  const loadCommentary = async () => {
+    if (!section) return;
+    setIsLoadingCommentary(true);
+    const verse = section.verses[currentVerseIndex];
+    const data = await getCommentary(book, chapter, verse.verse);
+    setCommentary(data);
+    setIsCommentaryLiked(data?.isLikedByUser ?? false);
+    setIsLoadingCommentary(false);
+  };
+
+  const handleToggleLike = async () => {
+    if (!section) return;
+    const verse = section.verses[currentVerseIndex];
+    const liked = await toggleCommentaryLike(book, chapter, verse.verse);
+    setIsCommentaryLiked(liked);
+    await loadCommentary();
+  };
+
+  const handleToggleBookmark = async () => {
+    if (!section) return;
+    const verse = section.verses[currentVerseIndex];
+    await toggleCommentaryBookmark(book, chapter, verse.verse);
+    await loadCommentary();
+  };
 
   if (!section) return null;
 
@@ -168,7 +206,7 @@ export function BibleStoryViewer({
             >
               <MaterialIcons name="comment" size={18} color="white" />
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-                Commentary
+                {commentary ? 'View' : 'No'} Commentary
               </Text>
             </Pressable>
           </View>
@@ -318,100 +356,121 @@ export function BibleStoryViewer({
               style={{ marginBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {/* Commentator info */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  marginBottom: 16,
-                  paddingBottom: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: '#E0E0E0',
-                }}
-              >
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: '#E8F5E9',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <MaterialIcons name="person" size={24} color="#2D8659" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
-                    Your Commentary
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                    {book} {chapter}:{currentVerse.verse}
-                  </Text>
-                </View>
-              </View>
+              {commentary ? (
+                <>
+                  {/* Commentator info */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginBottom: 16,
+                      paddingBottom: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#E0E0E0',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: '#E8F5E9',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <MaterialIcons name="person" size={24} color="#2D8659" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
+                        {commentary.author}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                        {commentary.authorHandle}
+                      </Text>
+                    </View>
+                  </View>
 
-              {/* Commentary text */}
-              <Text
-                style={{
-                  fontSize: 15,
-                  lineHeight: 24,
-                  color: '#333',
-                  marginBottom: 20,
-                }}
-              >
-                Future notes will be here
-              </Text>
+                  {/* Commentary text */}
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 24,
+                      color: '#333',
+                      marginBottom: 20,
+                    }}
+                  >
+                    {commentary.text}
+                  </Text>
+                </>
+              ) : (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <MaterialIcons name="comment" size={48} color="#CCC" />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: '#999',
+                      marginTop: 12,
+                      textAlign: 'center',
+                    }}
+                  >
+                    No commentary available for this verse yet
+                  </Text>
+                </View>
+              )}
             </ScrollView>
 
             {/* Action buttons */}
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 12,
-                justifyContent: 'center',
-              }}
-            >
-              <Pressable
-                onPress={() => setIsCommentaryLiked(!isCommentaryLiked)}
-                style={({ pressed }) => [
-                  {
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: isCommentaryLiked ? '#FFE0E0' : '#F5F5F5',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
+            {commentary && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 12,
+                  justifyContent: 'center',
+                }}
               >
-                <MaterialIcons
-                  name={isCommentaryLiked ? 'favorite' : 'favorite-border'}
-                  size={24}
-                  color={isCommentaryLiked ? '#E91E63' : '#999'}
-                />
-              </Pressable>
+                <Pressable
+                  onPress={handleToggleLike}
+                  style={({ pressed }) => [
+                    {
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: isCommentaryLiked ? '#FFE0E0' : '#F5F5F5',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={isCommentaryLiked ? 'favorite' : 'favorite-border'}
+                    size={24}
+                    color={isCommentaryLiked ? '#E91E63' : '#999'}
+                  />
+                </Pressable>
 
-              <Pressable
-                style={({ pressed }) => [
-                  {
-                    flex: 1,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: '#2D8659',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                  Bookmark
-                </Text>
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={handleToggleBookmark}
+                  style={({ pressed }) => [
+                    {
+                      flex: 1,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#2D8659',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: pressed ? 0.8 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                    Bookmark
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         </SafeAreaView>
       </Modal>

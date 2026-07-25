@@ -49,7 +49,79 @@ God was with His people every single second of every single day. If a thousand y
     author: 'Tried By Fire',
     authorHandle: '@TriedByFire',
     profileImageUrl: undefined,
-    text: `Because of the way in which verse two is structured, we have the notion to believe that either God created the Heaven and the Earth without form and void on purpose, leaving it in darkness (meaning His presence was not there, for the Lord is light), and He had still a purpose for building what was there, OR (as many scholars believe) there was some sort of catastrophe that took place between verses 1&2.\n\nThough not a surprise by God, the fact that the earth was without form and void gives credence to the idea that maybe God allowed a catastrophe to take place so He could start the Earth with something new. There are a lot of theories that can go into this (that I won't get into), but I think it's safe to say that the creation of the Earth that will be taking place in the next few verses will display the importance that God took to create a universe that is self-sustaining yet reliant upon Him.`,
+    text: `Because of the way in which verse two is structured, we have the notion to believe that either God created the Heaven and the Earth without form and void on purpose, leaving it in darkness (meaning His presence was not there, for the Lord is light), and He had still a purpose for building what was there, OR (as many scholars believe) there was some sort of catastrophe that took place between verses 1&2.
+
+Though not a surprise by God, the fact that the earth was without form and void gives credence to the idea that maybe God allowed a catastrophe to take place so He could start the Earth with something new. There are a lot of theories that can go into this (that I won't get into), but I think it's safe to say that the creation of the Earth that will be taking place in the next few verses will display the importance that God took to create a universe that is self-sustaining yet reliant upon Him.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
+  'genesis_1_5_para1': {
+    id: 'genesis_1_5_para1',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 5,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `In the first day of creation, God starts with light. He spoke light into existence, and not only did He just speak it and it was so, He also allowed it by saying, "Let there be..." This indication suggests that all of the things in which we see here on Earth to this day prove that it was created and made available to us because of a divine authority who provided it and allowed it.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
+  'genesis_1_5_para2': {
+    id: 'genesis_1_5_para2',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 5,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `The fact that the sun has not yet burned out, exploded, or gotten closer to the Earth gives acceptable proof that there is a divine creator holding it all together. Though, this scripture does not talk about the sun. This light is a self-sustaining light without a source. The light, here, was granted access to this Earth because of God's authority to allow light in a dark and void place. Though, some scholars are under the impression that this is speaking about the sun specifically, and it won't be in its proper place until a later day.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
+  'genesis_1_8_para1': {
+    id: 'genesis_1_8_para1',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 8,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `A "firmament" is an air space. It's what gave separation between the water and the sky. God allows the sky to be divided from the water, and the water from the sky. When God divides the waters by the waters, it is speaking about the water being taken into the sky, and being above the water of the earth. Then He makes the water that was above the sky into the sky, and the water that was on the earth was kept as the water of the Earth.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
+  'genesis_1_8_para2': {
+    id: 'genesis_1_8_para2',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 8,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `It was gathered together into the sky and is now a source of dew, rain, and providence. The scripture speaks of three heavens. When verse 8 speaks about the "heaven" it is speaking about the sky we see here. There is then the heaven above the sky (where the stars and planets dwell) and then there's a third Heaven where God dwells. The Heaven spoken about here is the first layer, the one in which the waters (clouds or otherwise) are layered.`,
+    likes: 0,
+    isLikedByUser: false,
+    isBookmarkedByUser: false,
+    createdAt: new Date().toISOString(),
+  },
+  'genesis_1_13': {
+    id: 'genesis_1_13',
+    book: 'Genesis',
+    chapter: 1,
+    verse: 13,
+    author: 'Tried By Fire',
+    authorHandle: '@TriedByFire',
+    profileImageUrl: undefined,
+    text: `God is now finishing His creation with the fulfilling things that it needs from the last three days, and He starts by fulfilling day one on day four, day two on day five, and day three on day six. He starts by making two large lights that will give source to the light that was already there on Earth. Of course, these sources may have already been here since day one if scholars are correct, but they will not be positioned into their proper places to give off their proper purposes of light. One for day, and one for night. The moon itself not even giving off its own light! I believe the sources of these lights were created on this day. I think light was existing without a source before, and God gave that source right here on this day to COMPLETE His creation for it. That is what we will see in these six accounts. God is going to complete His creation.`,
     likes: 0,
     isLikedByUser: false,
     isBookmarkedByUser: false,
@@ -88,60 +160,85 @@ export async function getCommentary(
 }
 
 /**
- * Save or update commentary
+ * Get all commentaries for a verse (including multi-paragraph notes)
  */
-export async function saveCommentary(note: CommentaryNote): Promise<void> {
+export async function getAllCommentariesForVerse(
+  book: string,
+  chapter: number,
+  verse: number
+): Promise<CommentaryNote[]> {
+  try {
+    const versePrefix = `${book.toLowerCase().replace(/\s+/g, '_')}_${chapter}_${verse}`;
+    const commentaries: CommentaryNote[] = [];
+
+    // Check default commentary
+    for (const [key, commentary] of Object.entries(DEFAULT_COMMENTARY)) {
+      if (key.startsWith(versePrefix)) {
+        commentaries.push(commentary);
+      }
+    }
+
+    // Check AsyncStorage for user-added commentary
+    const stored = await AsyncStorage.getItem(COMMENTARY_STORAGE_KEY);
+    if (stored) {
+      const userCommentary = JSON.parse(stored) as Record<string, CommentaryNote>;
+      for (const [key, commentary] of Object.entries(userCommentary)) {
+        if (key.startsWith(versePrefix)) {
+          commentaries.push(commentary);
+        }
+      }
+    }
+
+    return commentaries;
+  } catch (error) {
+    console.error('Error getting all commentaries:', error);
+    return [];
+  }
+}
+
+/**
+ * Toggle like on a commentary
+ */
+export async function toggleLikeCommentary(
+  commentaryId: string
+): Promise<void> {
   try {
     const stored = await AsyncStorage.getItem(COMMENTARY_STORAGE_KEY);
     const commentary = stored ? JSON.parse(stored) : {};
-    commentary[note.id] = note;
+    
+    if (DEFAULT_COMMENTARY[commentaryId]) {
+      const note = DEFAULT_COMMENTARY[commentaryId];
+      note.isLikedByUser = !note.isLikedByUser;
+      note.likes += note.isLikedByUser ? 1 : -1;
+    } else if (commentary[commentaryId]) {
+      commentary[commentaryId].isLikedByUser = !commentary[commentaryId].isLikedByUser;
+      commentary[commentaryId].likes += commentary[commentaryId].isLikedByUser ? 1 : -1;
+    }
+
     await AsyncStorage.setItem(COMMENTARY_STORAGE_KEY, JSON.stringify(commentary));
   } catch (error) {
-    console.error('Error saving commentary:', error);
-  }
-}
-
-/**
- * Toggle like on commentary
- */
-export async function toggleCommentaryLike(
-  book: string,
-  chapter: number,
-  verse: number
-): Promise<boolean> {
-  try {
-    const commentary = await getCommentary(book, chapter, verse);
-    if (commentary) {
-      commentary.isLikedByUser = !commentary.isLikedByUser;
-      commentary.likes += commentary.isLikedByUser ? 1 : -1;
-      await saveCommentary(commentary);
-      return commentary.isLikedByUser;
-    }
-    return false;
-  } catch (error) {
     console.error('Error toggling like:', error);
-    return false;
   }
 }
 
 /**
- * Toggle bookmark on commentary
+ * Toggle bookmark on a commentary
  */
-export async function toggleCommentaryBookmark(
-  book: string,
-  chapter: number,
-  verse: number
-): Promise<boolean> {
+export async function toggleBookmarkCommentary(
+  commentaryId: string
+): Promise<void> {
   try {
-    const commentary = await getCommentary(book, chapter, verse);
-    if (commentary) {
-      commentary.isBookmarkedByUser = !commentary.isBookmarkedByUser;
-      await saveCommentary(commentary);
-      return commentary.isBookmarkedByUser;
+    const stored = await AsyncStorage.getItem(COMMENTARY_STORAGE_KEY);
+    const commentary = stored ? JSON.parse(stored) : {};
+    
+    if (DEFAULT_COMMENTARY[commentaryId]) {
+      DEFAULT_COMMENTARY[commentaryId].isBookmarkedByUser = !DEFAULT_COMMENTARY[commentaryId].isBookmarkedByUser;
+    } else if (commentary[commentaryId]) {
+      commentary[commentaryId].isBookmarkedByUser = !commentary[commentaryId].isBookmarkedByUser;
     }
-    return false;
+
+    await AsyncStorage.setItem(COMMENTARY_STORAGE_KEY, JSON.stringify(commentary));
   } catch (error) {
     console.error('Error toggling bookmark:', error);
-    return false;
   }
 }

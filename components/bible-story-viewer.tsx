@@ -14,8 +14,8 @@ import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import {
   getCommentary,
-  toggleCommentaryLike,
-  toggleCommentaryBookmark,
+  toggleLikeCommentary,
+  toggleBookmarkCommentary,
   CommentaryNote,
 } from '@/lib/commentary-data';
 
@@ -69,17 +69,15 @@ export function BibleStoryViewer({
   };
 
   const handleToggleLike = async () => {
-    if (!section) return;
-    const verse = section.verses[currentVerseIndex];
-    const liked = await toggleCommentaryLike(book, chapter, verse.verse);
-    setIsCommentaryLiked(liked);
+    if (!commentary) return;
+    await toggleLikeCommentary(commentary.id);
+    setIsCommentaryLiked(!isCommentaryLiked);
     await loadCommentary();
   };
 
   const handleToggleBookmark = async () => {
-    if (!section) return;
-    const verse = section.verses[currentVerseIndex];
-    await toggleCommentaryBookmark(book, chapter, verse.verse);
+    if (!commentary) return;
+    await toggleBookmarkCommentary(commentary.id);
     await loadCommentary();
   };
 

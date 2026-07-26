@@ -94,6 +94,37 @@ export function createDefaultParagraphs(
     return sections;
   }
 
+  // Custom grouping for Genesis 2
+  if (book === 'Genesis' && chapter === 2) {
+    const customGroups = [
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9, 10, 11, 12, 13, 14, 15],
+      [16, 17, 18, 19, 20],
+      [21, 22, 23, 24, 25],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
   // Default grouping: 3 verses per section (deterministic)
   const sections: ParagraphSection[] = [];
   const VERSES_PER_SECTION = 3;

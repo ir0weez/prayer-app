@@ -166,7 +166,7 @@ export function BibleStoryViewer({
                   letterSpacing: 0.3,
                 }}
               >
-                {currentVerse.text}
+                {currentVerse?.text ?? 'Verse text not available'}
               </Text>
 
               {/* Bookmark button */}

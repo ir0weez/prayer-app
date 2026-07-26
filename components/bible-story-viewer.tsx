@@ -60,9 +60,13 @@ export function BibleStoryViewer({
   }, [currentVerseIndex]);
 
   const loadCommentary = async () => {
-    if (!section) return;
+    if (!section || !section.verses || section.verses.length === 0) return;
     setIsLoadingCommentary(true);
     const verse = section.verses[currentVerseIndex];
+    if (!verse || !verse.verse) {
+      setIsLoadingCommentary(false);
+      return;
+    }
     const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
     setCommentaries(data);
     setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
@@ -146,7 +150,7 @@ export function BibleStoryViewer({
                   textAlign: 'center',
                 }}
               >
-                {currentVerse.verse}
+                {section?.verses?.[currentVerseIndex]?.verse ?? 'N/A'}
               </Text>
 
               {/* Verse text */}

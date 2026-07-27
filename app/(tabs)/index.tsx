@@ -8,9 +8,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated as RNAnimated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import Animated, { FadeIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
@@ -219,11 +219,11 @@ function parseStoredProfile(value: string | null): PersonalProfile {
 }
 
 function AnimatedWavyProgressBar({ progress, color }: { progress: number; color: string }) {
-  const waveOffset = useRef(new RNAnimated.Value(0)).current;
+  const waveOffset = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const animation = RNAnimated.loop(
-      RNAnimated.timing(waveOffset, {
+    const animation = Animated.loop(
+      Animated.timing(waveOffset, {
         toValue: -60,
         duration: 2000,
         useNativeDriver: true,
@@ -241,7 +241,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
         overflow: "hidden",
       }}
     >
-      <RNAnimated.View
+      <Animated.View
         style={{
           transform: [{ translateX: waveOffset }],
         }}
@@ -255,7 +255,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
             strokeLinecap="round"
           />
         </Svg>
-      </RNAnimated.View>
+      </Animated.View>
       <View
         style={{
           position: "absolute",
@@ -372,7 +372,7 @@ export default function HomeScreen() {
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const fastAvatarPulse = useRef(new RNAnimated.Value(1)).current;
+  const fastAvatarPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -571,14 +571,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (fastAvatarColorFromStatus) {
-      const animation = RNAnimated.loop(
-        RNAnimated.sequence([
-          RNAnimated.timing(fastAvatarPulse, {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(fastAvatarPulse, {
             toValue: 1.1,
             duration: 600,
             useNativeDriver: true,
           }),
-          RNAnimated.timing(fastAvatarPulse, {
+          Animated.timing(fastAvatarPulse, {
             toValue: 1,
             duration: 600,
             useNativeDriver: true,
@@ -870,7 +870,7 @@ export default function HomeScreen() {
     const familyIndex = index ?? 0;
 
     return (
-      <Animated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
+      <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
         <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 12 }}>
           <StackedAvatar people={familyMembers} size={44} />
@@ -893,7 +893,7 @@ export default function HomeScreen() {
           <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
         </View>
         </Pressable>
-      </Animated.View>
+      </ReAnimated.View>
     );
   };
 
@@ -913,7 +913,7 @@ export default function HomeScreen() {
     const totalCount = array?.length ?? 1;
 
     return (
-      <Animated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
+      <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
         <Pressable
           onLongPress={() => {
             setDraggedPersonId(person.id);
@@ -959,9 +959,9 @@ export default function HomeScreen() {
           </View>
         </Pressable>
         {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
-          <Animated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2, borderColor: getLastReachedAccentColor(person), paddingHorizontal: 12, paddingVertical: 8 }}>
+          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2, borderColor: getLastReachedAccentColor(person), paddingHorizontal: 12, paddingVertical: 8 }}>
             {person.prayerItems.map((item, idx) => (
-              <Animated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
+              <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
                 <View style={{ paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Pressable onPress={() => setPeople((previousPeople) => togglePrayerItemDone(previousPeople, person.id, item.id))} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.6 }]}>
                     <Text style={[{ color: colors.foreground, fontSize: 14 }, item.isDone && { textDecorationLine: "line-through", color: colors.muted }]}>{item.title}</Text>
@@ -970,11 +970,11 @@ export default function HomeScreen() {
                     <MaterialIcons name={item.isUrgent ? "priority-high" : "low-priority"} size={16} color={item.isUrgent ? "#EF4444" : colors.muted} />
                   </Pressable>
                 </View>
-              </Animated.View>
+              </ReAnimated.View>
             ))}
-          </Animated.View>
+          </ReAnimated.View>
         )}
-      </Animated.View>
+      </ReAnimated.View>
     );
   };
 
@@ -1135,7 +1135,7 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers, undefined, isExpanded)}
                       {isExpanded && (
-                        <Animated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 24, marginTop: -12, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+                        <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 24, marginTop: -12, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
                           {familyMembers.map((member, memberIdx) => {
                             const isLast = memberIdx === familyMembers.length - 1;
                             const activeEmergencies = getAllActiveEmergencyPrayers(people);
@@ -1176,7 +1176,7 @@ export default function HomeScreen() {
                               </Pressable>
                             );
                           })}
-                        </Animated.View>
+                        </ReAnimated.View>
                       )}
                     </View>
                   );
@@ -1511,16 +1511,6 @@ export default function HomeScreen() {
           ]);
         }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("delete-forever", "Clear All Data", "Delete all people, families, and prayer items", "danger")}
-        </Pressable>
-      </View>
-
-      <Text style={styles.settingsSectionLabel}>COMMENTARY</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
-        <Pressable onPress={() => router.push("/commentary-profiles")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("person", "Commentary Profiles", "Manage author personas and avatars")}
-        </Pressable>
-        <Pressable onPress={() => router.push("/export-comments")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("file-download", "Export Notes", "Generate TypeScript code for your notes")}
         </Pressable>
       </View>
 

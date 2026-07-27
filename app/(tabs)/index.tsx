@@ -1514,6 +1514,16 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      <Text style={styles.settingsSectionLabel}>COMMENTARY</Text>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+        <Pressable onPress={() => router.push("/commentary-profiles")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("person", "Commentary Profiles", "Manage author personas and avatars")}
+        </Pressable>
+        <Pressable onPress={() => router.push("/export-comments")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("file-download", "Export Notes", "Generate TypeScript code for your notes")}
+        </Pressable>
+      </View>
+
       <Text style={styles.settingsSectionLabel}>ABOUT</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}

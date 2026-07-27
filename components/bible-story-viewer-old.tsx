@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -92,23 +92,21 @@ export function BibleStoryViewer({
   };
 
   const handleToggleBookmark = async () => {
-    if (!currentVerse) return;
-    await toggleBookmark(commentaries[0]?.id || '', book, chapter, currentVerse.verse);
-    setIsBookmarked(!isBookmarked);
+    if (commentaries.length === 0 || !currentVerse) return;
+    await toggleBookmark(commentaries[0].id, book, chapter, currentVerse.verse);
+    await loadCommentary();
   };
 
-  const handleBookmark = async () => {
-    if (!currentVerse) return;
-    await saveBookmark(book, chapter, currentVerse.verse, version);
-    setIsBookmarked(true);
-  };
+  if (!section) return null;
+
+  const currentVerse = section.verses[currentVerseIndex];
+  const isLastVerse = currentVerseIndex === section.verses.length - 1;
 
   const handleNextVerse = () => {
-    if (section && currentVerseIndex < section.verses.length - 1) {
+    if (currentVerseIndex < section.verses.length - 1) {
       setCurrentVerseIndex(currentVerseIndex + 1);
-    } else {
-      onComplete?.();
-      onClose();
+    } else if (isLastVerse && onComplete) {
+      onComplete();
     }
   };
 
@@ -118,34 +116,39 @@ export function BibleStoryViewer({
     }
   };
 
-  const currentVerse = section?.verses?.[currentVerseIndex];
+  const handleBookmark = async () => {
+    if (currentVerse) {
+      await saveBookmark(book, chapter, currentVerse.verse, version);
+      setIsBookmarked(!isBookmarked);
+    }
+  };
 
   return (
     <>
-      {/* Main Story Modal */}
-      <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <SafeAreaView
           style={{
             flex: 1,
-            backgroundColor: '#1a1a1a',
-            justifyContent: 'space-between',
-            paddingVertical: 20,
+            backgroundColor: '#2D8659',
           }}
         >
-          {/* Center - Verse Display */}
+          {/* Main content container */}
           <View
             style={{
               flex: 1,
-              justifyContent: 'center',
+              justifyContent: 'space-between',
               alignItems: 'center',
               paddingHorizontal: 24,
+              paddingVertical: 40,
             }}
           >
+            {/* Top section - verse content */}
             <View
               style={{
+                flex: 1,
                 justifyContent: 'center',
                 alignItems: 'center',
-                gap: 24,
+                width: '100%',
               }}
             >
               {/* Verse number */}
@@ -217,7 +220,7 @@ export function BibleStoryViewer({
             >
               <MaterialIcons name="comment" size={18} color="white" />
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
-                {commentaries.length + userNotes.length > 0 ? 'View' : 'No'} Commentary
+                {commentaries.length > 0 ? 'View' : 'No'} Commentary
               </Text>
             </Pressable>
           </View>
@@ -230,16 +233,18 @@ export function BibleStoryViewer({
                 position: 'absolute',
                 bottom: 28,
                 left: 28,
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                paddingHorizontal: 18,
-                paddingVertical: 10,
-                borderRadius: 24,
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                justifyContent: 'center',
+                alignItems: 'center',
                 zIndex: 20,
                 opacity: pressed ? 0.7 : 1,
               },
             ]}
           >
-            <MaterialIcons name="close" size={24} color="white" />
+            <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
           {/* Verse counter - BOTTOM RIGHT */}
@@ -257,7 +262,7 @@ export function BibleStoryViewer({
             }}
           >
             <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-              {currentVerseIndex + 1} / {section?.verses?.length ?? 0}
+              {currentVerseIndex + 1} / {section.verses.length}
             </Text>
           </View>
 
@@ -289,7 +294,7 @@ export function BibleStoryViewer({
         </SafeAreaView>
       </Modal>
 
-      {/* Commentary Modal - DUAL DISPLAY */}
+      {/* Commentary Modal */}
       <Modal visible={showCommentaryModal} transparent animationType="slide" onRequestClose={() => setShowCommentaryModal(false)}>
         <SafeAreaView
           style={{
@@ -360,82 +365,13 @@ export function BibleStoryViewer({
               </Pressable>
             </View>
 
-            {/* Scrollable content - DUAL DISPLAY */}
+            {/* Scrollable content */}
             <ScrollView
               style={{ marginBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {/* User Notes Section (shown first) */}
-              {userNotes.length > 0 && (
-                <View style={{ marginBottom: 24 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#666', marginBottom: 12 }}>
-                    Your Notes
-                  </Text>
-                  {userNotes.map((note, idx) => {
-                    const profile = profiles[note.profileId];
-                    return (
-                      <View key={note.id} style={{ marginBottom: idx < userNotes.length - 1 ? 16 : 0 }}>
-                        {/* User note author info */}
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 12,
-                            marginBottom: 12,
-                            paddingBottom: 12,
-                            borderBottomWidth: 1,
-                            borderBottomColor: '#F0F0F0',
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 20,
-                              backgroundColor: profile?.color || '#E8F5E9',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Text style={{ fontSize: 16, fontWeight: '600', color: 'white' }}>
-                              {profile?.name?.[0] || 'U'}
-                            </Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#111' }}>
-                              {profile?.name || 'Unknown'}
-                            </Text>
-                            <Text style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-                              {profile?.handle || '@unknown'}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* User note text */}
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            lineHeight: 22,
-                            color: '#444',
-                            marginBottom: 12,
-                          }}
-                        >
-                          {note.text}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Curated Commentary Section */}
-              {commentaries.length > 0 && (
-                <View>
-                  {userNotes.length > 0 && (
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#666', marginBottom: 12 }}>
-                      Official Commentary
-                    </Text>
-                  )}
+              {commentaries.length > 0 ? (
+                <>
                   {commentaries.map((comment, idx) => (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
                       {/* Commentator info */}
@@ -485,11 +421,8 @@ export function BibleStoryViewer({
                       </Text>
                     </View>
                   ))}
-                </View>
-              )}
-
-              {/* Empty state */}
-              {commentaries.length === 0 && userNotes.length === 0 && (
+                </>
+              ) : (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                   <MaterialIcons name="comment" size={48} color="#CCC" />
                   <Text
@@ -507,82 +440,58 @@ export function BibleStoryViewer({
             </ScrollView>
 
             {/* Action buttons */}
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 12,
-                justifyContent: 'center',
-              }}
-            >
-              <Pressable
-                onPress={() => setShowAddCommentModal(true)}
-                style={({ pressed }) => [
-                  {
-                    flex: 1,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    backgroundColor: '#6200EA',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
+            {commentaries.length > 0 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 12,
+                  justifyContent: 'center',
+                }}
               >
-                <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>+ Add Note</Text>
-              </Pressable>
+                <Pressable
+                  onPress={handleToggleLike}
+                  style={({ pressed }) => [
+                    {
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: isCommentaryLiked ? '#FFE0E0' : '#F5F5F5',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={isCommentaryLiked ? 'favorite' : 'favorite-border'}
+                    size={24}
+                    color={isCommentaryLiked ? '#E91E63' : '#999'}
+                  />
+                </Pressable>
 
-              {commentaries.length > 0 && (
-                <>
-                  <Pressable
-                    onPress={handleToggleLike}
-                    style={({ pressed }) => [
-                      {
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: isCommentaryLiked ? '#FFE0E0' : '#F5F5F5',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons name={isCommentaryLiked ? 'favorite' : 'favorite-outline'} size={20} color={isCommentaryLiked ? '#E53935' : '#999'} />
-                  </Pressable>
-
-                  <Pressable
-                    onPress={handleToggleBookmark}
-                    style={({ pressed }) => [
-                      {
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        backgroundColor: isBookmarked ? '#E3F2FD' : '#F5F5F5',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <MaterialIcons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={20} color={isBookmarked ? '#1976D2' : '#999'} />
-                  </Pressable>
-                </>
-              )}
-            </View>
+                <Pressable
+                  onPress={handleToggleBookmark}
+                  style={({ pressed }) => [
+                    {
+                      flex: 1,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#2D8659',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: pressed ? 0.8 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                    Bookmark
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         </SafeAreaView>
       </Modal>
-
-      {/* Add Comment Modal */}
-      <AddCommentModal
-        visible={showAddCommentModal}
-        book={book}
-        chapter={chapter}
-        verse={currentVerse?.verse ?? 0}
-        onClose={() => setShowAddCommentModal(false)}
-        onCommentAdded={loadCommentary}
-      />
     </>
   );
 }

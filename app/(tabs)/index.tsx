@@ -241,7 +241,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
         overflow: "hidden",
       }}
     >
-      <Animated.View
+      <RNAnimated.View
         style={{
           transform: [{ translateX: waveOffset }],
         }}
@@ -255,7 +255,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
             strokeLinecap="round"
           />
         </Svg>
-      </Animated.View>
+      </RNAnimated.View>
       <View
         style={{
           position: "absolute",

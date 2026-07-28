@@ -293,6 +293,301 @@ export function createDefaultParagraphs(
     return sections;
   }
 
+  // Custom grouping for Genesis 11
+  if (book === 'Genesis' && chapter === 11) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 12
+  if (book === 'Genesis' && chapter === 12) {
+    const customGroups = [
+      [1, 2, 3],
+      [4, 5, 6, 7, 8, 9],
+      [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 13
+  if (book === 'Genesis' && chapter === 13) {
+    const customGroups = [
+      [1, 2, 3, 4],
+      [5, 6, 7, 8, 9, 10, 11, 12, 13],
+      [14, 15, 16, 17, 18],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 14
+  if (book === 'Genesis' && chapter === 14) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      [13, 14, 15, 16],
+      [17, 18, 19, 20, 21, 22, 23, 24],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 15
+  if (book === 'Genesis' && chapter === 15) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 16
+  if (book === 'Genesis' && chapter === 16) {
+    const customGroups = [
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9, 10, 11, 12, 13, 14],
+      [15, 16],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 17
+  if (book === 'Genesis' && chapter === 17) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8],
+      [9, 10, 11, 12, 13, 14],
+      [15, 16, 17, 18, 19, 20, 21, 22],
+      [23, 24, 25, 26, 27],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 18
+  if (book === 'Genesis' && chapter === 18) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8],
+      [9, 10, 11, 12, 13, 14, 15],
+      [16, 17, 18, 19, 20, 21, 22],
+      [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 19
+  if (book === 'Genesis' && chapter === 19) {
+    const customGroups = [
+      [1, 2, 3],
+      [4, 5, 6, 7, 8, 9, 10, 11],
+      [12, 13, 14],
+      [15, 16],
+      [17, 18, 19, 20, 21, 22],
+      [23, 24, 25, 26, 27, 28],
+      [29, 30, 31, 32, 33, 34, 35, 36, 37, 38],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 20
+  if (book === 'Genesis' && chapter === 20) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7],
+      [8, 9, 10, 11, 12, 13, 14, 15, 16],
+      [17, 18],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
   // Default grouping: 3 verses per section (deterministic)
   const sections: ParagraphSection[] = [];
   const VERSES_PER_SECTION = 3;

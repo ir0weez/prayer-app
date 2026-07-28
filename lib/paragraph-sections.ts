@@ -94,6 +94,205 @@ export function createDefaultParagraphs(
     return sections;
   }
 
+  // Custom grouping for Genesis 4
+  if (book === 'Genesis' && chapter === 4) {
+    const customGroups = [
+      [1, 2, 3, 4, 5],
+      [6, 7],
+      [8, 9, 10, 11, 12, 13, 14, 15],
+      [16, 17, 18, 19, 20, 21, 22, 23, 24],
+      [25, 26],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 5
+  if (book === 'Genesis' && chapter === 5) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 6
+  if (book === 'Genesis' && chapter === 6) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8],
+      [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 7
+  if (book === 'Genesis' && chapter === 7) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 8
+  if (book === 'Genesis' && chapter === 8) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      [13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 9
+  if (book === 'Genesis' && chapter === 9) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
+  // Custom grouping for Genesis 10
+  if (book === 'Genesis' && chapter === 10) {
+    const customGroups = [
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+    ];
+
+    const sections: ParagraphSection[] = [];
+    for (const verseNumbers of customGroups) {
+      const sectionVerses = verses.filter(v => verseNumbers.includes(v.verse));
+      if (sectionVerses.length === 0) continue;
+
+      const sectionStart = verseNumbers[0];
+      const sectionEnd = verseNumbers[verseNumbers.length - 1];
+      const sectionId = `para-${sectionStart}-${sectionEnd}`;
+      const title = `Verses ${sectionStart}-${sectionEnd}`;
+
+      sections.push({
+        id: sectionId,
+        title,
+        startVerse: sectionStart,
+        endVerse: sectionEnd,
+        verses: sectionVerses,
+      });
+    }
+    return sections;
+  }
+
   // Default grouping: 3 verses per section (deterministic)
   const sections: ParagraphSection[] = [];
   const VERSES_PER_SECTION = 3;

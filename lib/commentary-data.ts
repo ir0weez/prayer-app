@@ -727,7 +727,6 @@ const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
       createdAt: new Date().toISOString(),
     },
   ],
-,
   'genesis_4_1': [
     {
       id: 'genesis_4_1_para1',

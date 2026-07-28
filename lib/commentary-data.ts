@@ -3814,3 +3814,44 @@ const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
     },
   ],
 };
+
+// Export the default commentary data
+export { DEFAULT_COMMENTARY };
+
+// Get all commentaries for a specific verse
+export function getAllCommentariesForVerse(book: string, chapter: number, verse: number): CommentaryNote[] {
+  const key = `${book.toLowerCase()}_${chapter}_${verse}`;
+  return DEFAULT_COMMENTARY[key] || [];
+}
+
+// Get commentary by ID
+export function getCommentary(id: string): CommentaryNote | undefined {
+  for (const notes of Object.values(DEFAULT_COMMENTARY)) {
+    const found = notes.find(n => n.id === id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+// Toggle like on a commentary
+export function toggleLike(id: string): void {
+  for (const notes of Object.values(DEFAULT_COMMENTARY)) {
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      note.likes = note.likes > 0 ? 0 : 1;
+      note.isLikedByUser = !note.isLikedByUser;
+      break;
+    }
+  }
+}
+
+// Toggle bookmark on a commentary
+export function toggleBookmark(id: string): void {
+  for (const notes of Object.values(DEFAULT_COMMENTARY)) {
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      note.isBookmarkedByUser = !note.isBookmarkedByUser;
+      break;
+    }
+  }
+}

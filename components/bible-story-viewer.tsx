@@ -7,6 +7,7 @@ import {
   Dimensions,
   SafeAreaView,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -99,7 +100,7 @@ export function BibleStoryViewer({
     await loadCommentary();
   };
 
-  if (!section) return null;
+  if (!section || !section.verses || section.verses.length === 0) return null;
 
   const currentVerse = isBibleStudyMode 
     ? section.verses[section.verses.length - 1] 
@@ -186,17 +187,19 @@ export function BibleStoryViewer({
               {isBibleStudyMode ? (
                 <ScrollView
                   style={{ flex: 1, width: '100%', marginBottom: 40 }}
-                  contentContainerStyle={{ paddingHorizontal: 8 }}
+                  contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8 }}
+                  showsVerticalScrollIndicator={true}
                 >
                   {versesToDisplay.map((verse, idx) => (
-                    <View key={verse.verse}>
-                      <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                    <View key={`${verse.verse}-${idx}`} style={{ marginBottom: 20 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                         <Text
                           style={{
                             fontSize: 14,
                             fontWeight: '600',
                             color: 'rgba(255,255,255,0.7)',
                             marginRight: 12,
+                            marginTop: 4,
                             minWidth: 40,
                           }}
                         >
@@ -303,7 +306,7 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Verse counter - BOTTOM RIGHT */}
+          {/* Verse counter / Study mode indicator - BOTTOM RIGHT */}
           <View
             pointerEvents="auto"
             style={{

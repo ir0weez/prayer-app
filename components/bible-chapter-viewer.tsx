@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -419,26 +420,16 @@ export function BibleChapterViewer({
                     CSB
                   </Text>
                 </Pressable>
-                <View style={{ width: 1, height: 16, backgroundColor: colors.border, marginHorizontal: 4 }} />
-                <Pressable
-                  onPress={() => setIsBibleStudyMode(!isBibleStudyMode)}
-                  style={{
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                    backgroundColor: isBibleStudyMode ? colors.primary : 'transparent',
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: '600',
-                      color: isBibleStudyMode ? '#fff' : colors.muted,
-                    }}
-                  >
-                    Study
-                  </Text>
-                </Pressable>
+                <View style={{ width: 1, height: 16, backgroundColor: colors.border, marginHorizontal: 8 }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
+                  <Switch
+                    value={isBibleStudyMode}
+                    onValueChange={setIsBibleStudyMode}
+                    trackColor={{ false: '#ccc', true: colors.primary }}
+                    thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
+                  />
+                </View>
               </View>
             </View>
 

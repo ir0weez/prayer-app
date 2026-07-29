@@ -65,24 +65,28 @@ export function BibleStoryViewer({
     if (!section || !section.verses || section.verses.length === 0) return;
     setIsLoadingCommentary(true);
     
-    let verseToLoad: BibleVerse | undefined;
-    
     if (isBibleStudyMode) {
-      // In study mode, load commentary for the LAST verse in the group
-      verseToLoad = section.verses[section.verses.length - 1];
+      // In study mode, load commentary for ALL verses and combine them
+      const allComments: CommentaryNote[] = [];
+      for (const verse of section.verses) {
+        if (verse.verse) {
+          const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
+          allComments.push(...data);
+        }
+      }
+      setCommentaries(allComments);
+      setIsCommentaryLiked(allComments.length > 0 ? (allComments[0]?.isLikedByUser ?? false) : false);
     } else {
       // In normal mode, load commentary for the current verse
-      verseToLoad = section.verses[currentVerseIndex];
+      const verseToLoad = section.verses[currentVerseIndex];
+      if (!verseToLoad || !verseToLoad.verse) {
+        setIsLoadingCommentary(false);
+        return;
+      }
+      const data = await getAllCommentariesForVerse(book, chapter, verseToLoad.verse);
+      setCommentaries(data);
+      setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
     }
-    
-    if (!verseToLoad || !verseToLoad.verse) {
-      setIsLoadingCommentary(false);
-      return;
-    }
-    
-    const data = await getAllCommentariesForVerse(book, chapter, verseToLoad.verse);
-    setCommentaries(data);
-    setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
     setIsLoadingCommentary(false);
   };
 
@@ -191,12 +195,12 @@ export function BibleStoryViewer({
               {isBibleStudyMode ? (
                 <ScrollView
                   style={{ flex: 1, width: '100%', marginBottom: 40 }}
-                  contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8 }}
+                  contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center' }}
                   showsVerticalScrollIndicator={true}
                 >
                   {section.verses.map((verse, idx) => (
-                    <View key={`verse-${verse.verse}-${idx}`} style={{ marginBottom: 20 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <View key={`verse-${verse.verse}-${idx}`} style={{ marginBottom: 20, maxWidth: 300, alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
                         <Text
                           style={{
                             fontSize: 14,
@@ -204,7 +208,8 @@ export function BibleStoryViewer({
                             color: 'rgba(255,255,255,0.7)',
                             marginRight: 12,
                             marginTop: 4,
-                            minWidth: 40,
+                            minWidth: 24,
+                            textAlign: 'right',
                           }}
                         >
                           {verse.verse}
@@ -216,7 +221,7 @@ export function BibleStoryViewer({
                             color: 'white',
                             fontFamily: 'Georgia',
                             fontWeight: '500',
-                            flex: 1,
+                            textAlign: 'center',
                             letterSpacing: 0.3,
                           }}
                         >
@@ -243,24 +248,26 @@ export function BibleStoryViewer({
                 </Text>
               )}
 
-              {/* Bookmark button */}
-              <Pressable
-                onPress={handleBookmark}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: 24,
-                    paddingVertical: 12,
-                    borderRadius: 24,
-                    borderWidth: 1.5,
-                    borderColor: 'rgba(255,255,255,0.6)',
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                  {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
-                </Text>
-              </Pressable>
+              {/* Bookmark button - hidden in Study mode */}
+              {!isBibleStudyMode && (
+                <Pressable
+                  onPress={handleBookmark}
+                  style={({ pressed }) => [
+                    {
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 24,
+                      borderWidth: 1.5,
+                      borderColor: 'rgba(255,255,255,0.6)',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                    {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Bottom section - commentary pill button */}

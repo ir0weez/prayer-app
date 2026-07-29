@@ -171,10 +171,16 @@ export default function BibleTrackerScreen() {
           await handleToggleChapterComplete(selectedChapter);
           setViewerVisible(false);
         }}
-        onPreviousChapter={() => {}}
-        onNextChapter={() => {}}
-        canGoPrevious={false}
-        canGoNext={false}
+        onPreviousChapter={async () => {
+          // Undo: mark current chapter as incomplete
+          await handleToggleChapterComplete(selectedChapter);
+        }}
+        onNextChapter={async () => {
+          // Check: mark current chapter as complete
+          await handleToggleChapterComplete(selectedChapter);
+        }}
+        canGoPrevious={selectedChapter > 1}
+        canGoNext={selectedChapter < totalChapters}
       />
     </ScreenContainer>
   );

@@ -7,7 +7,6 @@ import {
   Dimensions,
   SafeAreaView,
   ScrollView,
-  Switch,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
@@ -101,27 +100,12 @@ export function BibleStoryViewer({
   };
 
   if (!section) {
-    console.warn('[BibleStoryViewer] No section provided');
     return null;
   }
   
-  if (!section.verses) {
-    console.warn('[BibleStoryViewer] Section has no verses array', { sectionId: section.id, sectionTitle: section.title });
+  if (!section.verses || section.verses.length === 0) {
     return null;
   }
-  
-  if (section.verses.length === 0) {
-    console.warn('[BibleStoryViewer] Section verses array is empty', { sectionId: section.id });
-    return null;
-  }
-  
-  console.log('[BibleStoryViewer] Rendering section with verses:', { 
-    sectionId: section.id, 
-    verseCount: section.verses.length,
-    isBibleStudyMode,
-    firstVerse: section.verses[0],
-    lastVerse: section.verses[section.verses.length - 1]
-  });
 
   const currentVerse = isBibleStudyMode 
     ? section.verses[section.verses.length - 1] 
@@ -158,7 +142,6 @@ export function BibleStoryViewer({
   };
 
   // In study mode, show all verses; in normal mode, show just current verse
-  const versesToDisplay = isBibleStudyMode ? section.verses : [currentVerse];
   const verseRange = isBibleStudyMode 
     ? `${section.verses[0].verse}-${section.verses[section.verses.length - 1].verse}`
     : `${currentVerse?.verse}`;
@@ -211,8 +194,8 @@ export function BibleStoryViewer({
                   contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8 }}
                   showsVerticalScrollIndicator={true}
                 >
-                  {versesToDisplay.map((verse, idx) => (
-                    <View key={`${verse.verse}-${idx}`} style={{ marginBottom: 20 }}>
+                  {section.verses.map((verse, idx) => (
+                    <View key={`verse-${verse.verse}-${idx}`} style={{ marginBottom: 20 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                         <Text
                           style={{
@@ -327,7 +310,7 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Verse counter / Study mode indicator - BOTTOM RIGHT */}
+          {/* Verse counter - BOTTOM RIGHT */}
           <View
             pointerEvents="auto"
             style={{

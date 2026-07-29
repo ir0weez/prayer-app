@@ -366,17 +366,9 @@ export function BibleChapterViewer({
               borderBottomColor: colors.border,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Pressable
-                onPress={onPreviousChapter}
-                style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.6 : 1 }]}
-              >
-                <MaterialIcons name="undo" size={24} color={canGoPrevious ? colors.foreground : colors.muted} />
-              </Pressable>
-              <Pressable onPress={onClose} style={{ padding: 8 }}>
-                <MaterialIcons name="close" size={24} color={colors.foreground} />
-              </Pressable>
-            </View>
+            <Pressable onPress={onClose} style={{ padding: 8 }}>
+              <MaterialIcons name="close" size={24} color={colors.foreground} />
+            </Pressable>
 
             <View style={{ alignItems: 'center' }}>
               <Text
@@ -432,22 +424,14 @@ export function BibleChapterViewer({
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
-                <Switch
-                  value={isBibleStudyMode}
-                  onValueChange={setIsBibleStudyMode}
-                  trackColor={{ false: '#ccc', true: colors.primary }}
-                  thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
-                />
-              </View>
-              <Pressable
-                onPress={onNextChapter}
-                style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.6 : 1 }]}
-              >
-                <MaterialIcons name="check-circle" size={24} color={canGoNext ? colors.primary : colors.muted} />
-              </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
+              <Switch
+                value={isBibleStudyMode}
+                onValueChange={setIsBibleStudyMode}
+                trackColor={{ false: '#ccc', true: colors.primary }}
+                thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
+              />
             </View>
           </View>
 

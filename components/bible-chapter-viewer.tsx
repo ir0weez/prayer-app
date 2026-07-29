@@ -154,14 +154,13 @@ export function BibleChapterViewer({
         
         setSections(parsedSections);
         
-        // Load commentaries for each section
+        // Load commentaries for each verse in each section
         const commentaryMap: Record<string, any[]> = {};
         for (const section of parsedSections) {
-          const lastVerse = section.verses[section.verses.length - 1];
-          if (lastVerse) {
-            const comments = await getAllCommentariesForVerse(book, chapter, lastVerse.verse);
+          for (const verse of section.verses) {
+            const comments = await getAllCommentariesForVerse(book, chapter, verse.verse);
             if (comments.length > 0) {
-              commentaryMap[section.id] = comments;
+              commentaryMap[`${book}-${chapter}-${verse.verse}`] = comments;
             }
           }
         }
@@ -481,16 +480,43 @@ export function BibleChapterViewer({
               {/* Verses */}
               <View style={{ padding: 16 }}>
               {isBibleStudyMode ? (
-                // Study Mode: Show grouped verses with commentary - CENTERED
+                // Study Mode: Show verses grouped by commentary - CENTERED
                 <View style={{ alignItems: 'center', paddingHorizontal: 24 }}>
-                  {sections.map((section) => (
-                    <View key={section.id} style={{ marginBottom: 32, width: '100%', alignItems: 'center' }}>
-                      {/* Verse group - centered */}
-                      <View style={{ alignItems: 'center', marginBottom: 16, width: '100%' }}>
-                        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
-                          {section.startVerse}-{section.endVerse}
+                  {sections.map((section) => {
+                    // Dynamically split section based on which verses have commentary
+                    const subGroups: Array<{ verses: typeof section.verses; lastVerseNum: number }> = [];
+                    let currentGroup: typeof section.verses = [];
+                    
+                    section.verses.forEach((verse) => {
+                      currentGroup.push(verse);
+                      
+                      // Check if this verse has commentary
+                      const verseCommentary = commentariesBySection[`${book}-${chapter}-${verse.verse}`];
+                      if (verseCommentary && verseCommentary.length > 0) {
+                        // This verse has notes - end the group here
+                        subGroups.push({ verses: currentGroup, lastVerseNum: verse.verse });
+                        currentGroup = [];
+                      }
+                    });
+                    
+                    // If there are remaining verses without notes, group them with the last verse
+                    if (currentGroup.length > 0 && subGroups.length > 0) {
+                      const lastGroup = subGroups[subGroups.length - 1];
+                      lastGroup.verses = [...lastGroup.verses, ...currentGroup];
+                    } else if (currentGroup.length > 0) {
+                      // No commentary at all in this section
+                      subGroups.push({ verses: currentGroup, lastVerseNum: currentGroup[currentGroup.length - 1].verse });
+                    }
+                    
+                    return subGroups.map((subGroup, idx) => (
+                      <View key={`${section.id}-${idx}`} style={{ marginBottom: 24, width: '100%', alignItems: 'center' }}>
+                        {/* Verse range */}
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.muted, marginBottom: 12 }}>
+                          {subGroup.verses[0].verse}-{subGroup.verses[subGroup.verses.length - 1].verse}
                         </Text>
-                        {section.verses.map((verse) => (
+                        
+                        {/* Verses */}
+                        {subGroup.verses.map((verse) => (
                           <View key={`study-${verse.verse}`} style={{ marginBottom: 12, alignItems: 'center', width: '100%' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
                               <Text style={{ fontSize: 13, color: colors.muted, marginRight: 8, fontWeight: '600', minWidth: 24, textAlign: 'right' }}>
@@ -512,25 +538,28 @@ export function BibleChapterViewer({
                             </View>
                           </View>
                         ))}
-                      </View>
-                      
-                      {/* Commentary for this group */}
-                      {commentariesBySection[section.id] && commentariesBySection[section.id].length > 0 && (
-                        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16, width: '100%' }}>
-                          {commentariesBySection[section.id].map((comment, idx) => (
-                            <View key={comment.id} style={{ marginBottom: idx < commentariesBySection[section.id].length - 1 ? 12 : 0 }}>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
-                                {comment.author}
-                              </Text>
-                              <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
-                                {comment.text}
-                              </Text>
+                        
+                        {/* Commentary for this sub-group */}
+                        {(() => {
+                          const verseCommentary = commentariesBySection[`${book}-${chapter}-${subGroup.lastVerseNum}`];
+                          return verseCommentary && verseCommentary.length > 0 ? (
+                            <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16, width: '100%' }}>
+                              {verseCommentary.map((comment, cidx) => (
+                                <View key={comment.id} style={{ marginBottom: cidx < verseCommentary.length - 1 ? 12 : 0 }}>
+                                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
+                                    {comment.author}
+                                  </Text>
+                                  <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
+                                    {comment.text}
+                                  </Text>
+                                </View>
+                              ))}
                             </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  ))}
+                          ) : null;
+                        })()}
+                      </View>
+                    ));
+                  })}
                 </View>
               ) : (
                 // Normal Mode: Show verses one by one

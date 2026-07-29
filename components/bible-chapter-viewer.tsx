@@ -366,9 +366,17 @@ export function BibleChapterViewer({
               borderBottomColor: colors.border,
             }}
           >
-            <Pressable onPress={onClose} style={{ padding: 8 }}>
-              <MaterialIcons name="close" size={24} color={colors.foreground} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Pressable
+                onPress={onPreviousChapter}
+                style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <MaterialIcons name="undo" size={24} color={canGoPrevious ? colors.foreground : colors.muted} />
+              </Pressable>
+              <Pressable onPress={onClose} style={{ padding: 8 }}>
+                <MaterialIcons name="close" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
 
             <View style={{ alignItems: 'center' }}>
               <Text
@@ -420,25 +428,27 @@ export function BibleChapterViewer({
                     CSB
                   </Text>
                 </Pressable>
-                <View style={{ width: 1, height: 16, backgroundColor: colors.border, marginHorizontal: 8 }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
-                  <Switch
-                    value={isBibleStudyMode}
-                    onValueChange={setIsBibleStudyMode}
-                    trackColor={{ false: '#ccc', true: colors.primary }}
-                    thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
-                  />
-                </View>
+
               </View>
             </View>
 
-            <Pressable
-              onPress={onMarkComplete}
-              style={{ padding: 8 }}
-            >
-              <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
+                <Switch
+                  value={isBibleStudyMode}
+                  onValueChange={setIsBibleStudyMode}
+                  trackColor={{ false: '#ccc', true: colors.primary }}
+                  thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
+                />
+              </View>
+              <Pressable
+                onPress={onNextChapter}
+                style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <MaterialIcons name="check-circle" size={24} color={canGoNext ? colors.primary : colors.muted} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Content with Stories Bar at top */}

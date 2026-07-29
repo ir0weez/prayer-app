@@ -100,7 +100,28 @@ export function BibleStoryViewer({
     await loadCommentary();
   };
 
-  if (!section || !section.verses || section.verses.length === 0) return null;
+  if (!section) {
+    console.warn('[BibleStoryViewer] No section provided');
+    return null;
+  }
+  
+  if (!section.verses) {
+    console.warn('[BibleStoryViewer] Section has no verses array', { sectionId: section.id, sectionTitle: section.title });
+    return null;
+  }
+  
+  if (section.verses.length === 0) {
+    console.warn('[BibleStoryViewer] Section verses array is empty', { sectionId: section.id });
+    return null;
+  }
+  
+  console.log('[BibleStoryViewer] Rendering section with verses:', { 
+    sectionId: section.id, 
+    verseCount: section.verses.length,
+    isBibleStudyMode,
+    firstVerse: section.verses[0],
+    lastVerse: section.verses[section.verses.length - 1]
+  });
 
   const currentVerse = isBibleStudyMode 
     ? section.verses[section.verses.length - 1] 

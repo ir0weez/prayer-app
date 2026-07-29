@@ -72,6 +72,7 @@ export function BibleChapterViewer({
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
+  const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -379,7 +380,7 @@ export function BibleChapterViewer({
               >
                 {book} {chapter}
               </Text>
-              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
+              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8, alignItems: 'center' }}>
                 <Pressable
                   onPress={() => handleVersionChange('kjv')}
                   style={{
@@ -416,6 +417,26 @@ export function BibleChapterViewer({
                     }}
                   >
                     CSB
+                  </Text>
+                </Pressable>
+                <View style={{ width: 1, height: 16, backgroundColor: colors.border, marginHorizontal: 4 }} />
+                <Pressable
+                  onPress={() => setIsBibleStudyMode(!isBibleStudyMode)}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    backgroundColor: isBibleStudyMode ? colors.primary : 'transparent',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: isBibleStudyMode ? '#fff' : colors.muted,
+                    }}
+                  >
+                    Study
                   </Text>
                 </Pressable>
               </View>
@@ -657,6 +678,7 @@ export function BibleChapterViewer({
         book={book}
         chapter={chapter}
         version="kjv"
+        isBibleStudyMode={isBibleStudyMode}
       />
     </>
   );

@@ -176,6 +176,7 @@ export function BibleStoryViewer({
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
+                paddingVertical: 40,
               }}
             >
               {/* Verse number(s) */}
@@ -444,6 +445,13 @@ export function BibleStoryViewer({
                 <>
                   {commentaries.map((comment, idx) => (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
+                      {/* Verse reference in Study mode */}
+                      {isBibleStudyMode && (
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#2D8659', marginBottom: 8 }}>
+                          Verse {comment.verse}
+                        </Text>
+                      )}
+                      
                       {/* Commentator info */}
                       <View
                         style={{

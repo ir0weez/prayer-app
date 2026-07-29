@@ -20,6 +20,7 @@ import { BibleStoryViewer } from './bible-story-viewer';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import { createDefaultParagraphs, loadCustomParagraphs, parseCustomParagraphs } from '@/lib/paragraph-sections';
+import { getAllCommentariesForVerse } from '@/lib/commentary-data';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -74,6 +75,7 @@ export function BibleChapterViewer({
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
   const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
+  const [commentariesBySection, setCommentariesBySection] = useState<Record<string, any[]>>({});
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -151,6 +153,19 @@ export function BibleChapterViewer({
         }
         
         setSections(parsedSections);
+        
+        // Load commentaries for each section
+        const commentaryMap: Record<string, any[]> = {};
+        for (const section of parsedSections) {
+          const lastVerse = section.verses[section.verses.length - 1];
+          if (lastVerse) {
+            const comments = await getAllCommentariesForVerse(book, chapter, lastVerse.verse);
+            if (comments.length > 0) {
+              commentaryMap[section.id] = comments;
+            }
+          }
+        }
+        setCommentariesBySection(commentaryMap);
         
         // Load completed sections for this chapter
         const completedIds = await loadCompletedSections();
@@ -465,100 +480,153 @@ export function BibleChapterViewer({
 
               {/* Verses */}
               <View style={{ padding: 16 }}>
-              {verses.map((verse) => {
-                const highlight = getVerseHighlight(verse.verse);
-                const highlightBgColor = highlight ? HIGHLIGHT_COLORS[highlight.color].bg : 'transparent';
+              {isBibleStudyMode ? (
+                // Study Mode: Show grouped verses with commentary
+                sections.map((section) => (
+                  <View key={section.id} style={{ marginBottom: 32 }}>
+                    {/* Verse group - centered */}
+                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
+                        {section.startVerse}-{section.endVerse}
+                      </Text>
+                      {section.verses.map((verse) => (
+                        <View key={`study-${verse.verse}`} style={{ marginBottom: 12, alignItems: 'center' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 13, color: colors.muted, marginRight: 8, fontWeight: '600', minWidth: 20, textAlign: 'right' }}>
+                              {verse.verse}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 16,
+                                lineHeight: 26,
+                                color: colors.foreground,
+                                fontFamily: 'Georgia',
+                                maxWidth: 280,
+                                textAlign: 'center',
+                              }}
+                              selectable
+                            >
+                              {verse.text}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                    
+                    {/* Commentary for this group */}
+                    {commentariesBySection[section.id] && commentariesBySection[section.id].length > 0 && (
+                      <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16 }}>
+                        {commentariesBySection[section.id].map((comment, idx) => (
+                          <View key={comment.id} style={{ marginBottom: idx < commentariesBySection[section.id].length - 1 ? 12 : 0 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
+                              {comment.author}
+                            </Text>
+                            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
+                              {comment.text}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))
+              ) : (
+                // Normal Mode: Show verses one by one
+                verses.map((verse) => {
+                  const highlight = getVerseHighlight(verse.verse);
+                  const highlightBgColor = highlight ? HIGHLIGHT_COLORS[highlight.color].bg : 'transparent';
 
-                return (
-                  <View
-                    key={verse.verse}
-                    style={{
-                      marginBottom: 20,
-                      paddingHorizontal: 12,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: highlightBgColor,
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      position: 'relative',
-                    }}
-                  >
-          {/* Bookmark line indicator - appears on left side */}
-          {bookmarkedVerse === verse.verse && (
-            <View
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 4,
-                backgroundColor: colors.primary,
-              }}
-            />
-          )}
-
-                    <Pressable
-                      onPress={() => {
-                        // Check for double-tap to remove bookmark
-                        const now = Date.now();
-                        const lastTap = lastTapTime[verse.verse] || 0;
-                        
-                        if (now - lastTap < 300 && bookmarkedVerse === verse.verse) {
-                          // Double-tap on bookmarked verse - remove bookmark
-                          setBookmarkedVerse(null);
-                          setLastTapTime({ ...lastTapTime, [verse.verse]: 0 });
-                        } else {
-                          // Single tap
-                          if (highlight) {
-                            // Show remove option
-                            alert('Remove this highlight?');
-                            handleRemoveHighlight(highlight.id);
-                          } else {
-                            setSelectedVerseForHighlight(verse.verse);
-                            setColorPickerVisible(true);
-                          }
-                          setLastTapTime({ ...lastTapTime, [verse.verse]: now });
-                        }
+                  return (
+                    <View
+                      key={verse.verse}
+                      style={{
+                        marginBottom: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        borderRadius: 8,
+                        backgroundColor: highlightBgColor,
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        position: 'relative',
                       }}
-                      onLongPress={() => {
-                        handleBookmarkVerse();
-                        setSelectedVerseForHighlight(verse.verse);
-                      }}
-                      delayLongPress={400}
-                      style={({ pressed }) => [{
-                        marginRight: 8,
-                        marginTop: 2,
-                        opacity: pressed ? 0.6 : 1,
-                      }]}
                     >
+            {/* Bookmark line indicator - appears on left side */}
+            {bookmarkedVerse === verse.verse && (
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 4,
+                  backgroundColor: colors.primary,
+                }}
+              />
+            )}
+
+                      <Pressable
+                        onPress={() => {
+                          // Check for double-tap to remove bookmark
+                          const now = Date.now();
+                          const lastTap = lastTapTime[verse.verse] || 0;
+                          
+                          if (now - lastTap < 300 && bookmarkedVerse === verse.verse) {
+                            // Double-tap on bookmarked verse - remove bookmark
+                            setBookmarkedVerse(null);
+                            setLastTapTime({ ...lastTapTime, [verse.verse]: 0 });
+                          } else {
+                            // Single tap
+                            if (highlight) {
+                              // Show remove option
+                              alert('Remove this highlight?');
+                              handleRemoveHighlight(highlight.id);
+                            } else {
+                              setSelectedVerseForHighlight(verse.verse);
+                              setColorPickerVisible(true);
+                            }
+                            setLastTapTime({ ...lastTapTime, [verse.verse]: now });
+                          }
+                        }}
+                        onLongPress={() => {
+                          handleBookmarkVerse();
+                          setSelectedVerseForHighlight(verse.verse);
+                        }}
+                        delayLongPress={400}
+                        style={({ pressed }) => [{
+                          marginRight: 8,
+                          marginTop: 2,
+                          opacity: pressed ? 0.6 : 1,
+                        }]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: bookmarkedVerse === verse.verse ? colors.primary : colors.primary,
+                            minWidth: 24,
+                            textDecorationLine: bookmarkedVerse === verse.verse ? 'underline' : 'none',
+                            fontWeight: bookmarkedVerse === verse.verse ? '700' : '600',
+                          }}
+                        >
+                          {verse.verse}
+                        </Text>
+                      </Pressable>
                       <Text
                         style={{
-                          fontSize: 14,
-                          color: bookmarkedVerse === verse.verse ? colors.primary : colors.primary,
-                          minWidth: 24,
-                          textDecorationLine: bookmarkedVerse === verse.verse ? 'underline' : 'none',
-                          fontWeight: bookmarkedVerse === verse.verse ? '700' : '600',
+                          fontSize: 17,
+                          lineHeight: 27,
+                          color: colors.foreground,
+                          fontFamily: 'Georgia',
+                          flex: 1,
+                          marginLeft: 8,
                         }}
+                        selectable
                       >
-                        {verse.verse}
+                        {verse.text}
                       </Text>
-                    </Pressable>
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        lineHeight: 27,
-                        color: colors.foreground,
-                        fontFamily: 'Georgia',
-                        flex: 1,
-                        marginLeft: 8,
-                      }}
-                      selectable
-                    >
-                      {verse.text}
-                    </Text>
-                  </View>
-                );
-              })}
+                    </View>
+                  );
+                })
+              )}
               </View>
             </ScrollView>
           )}

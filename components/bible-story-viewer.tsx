@@ -166,7 +166,7 @@ export function BibleStoryViewer({
               justifyContent: 'center',
               alignItems: 'center',
               paddingHorizontal: 24,
-              paddingVertical: 20,
+              paddingVertical: 0,
             }}
           >
             {/* Top section - verse content */}
@@ -184,7 +184,7 @@ export function BibleStoryViewer({
                   fontSize: 64,
                   fontWeight: '700',
                   color: 'white',
-                  marginBottom: 24,
+                  marginBottom: 16,
                   textAlign: 'center',
                 }}
               >

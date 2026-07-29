@@ -9322,7 +9322,7 @@ export { DEFAULT_COMMENTARY };
 
 // Get all commentaries for a specific verse
 export function getAllCommentariesForVerse(book: string, chapter: number, verse: number): CommentaryNote[] {
-  const key = `${book.toLowerCase().replace(/\s+/g, '')}_${chapter}_${verse}`;
+  const key = `${book.toLowerCase()}_${chapter}_${verse}`;
   return DEFAULT_COMMENTARY[key] || [];
 }
 

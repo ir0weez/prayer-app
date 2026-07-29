@@ -163,18 +163,16 @@ export function BibleStoryViewer({
           <View
             style={{
               flex: 1,
-              justifyContent: 'flex-start',
+              justifyContent: 'space-between',
               alignItems: 'center',
               paddingHorizontal: 24,
-              paddingVertical: 0,
+              paddingVertical: 40,
             }}
           >
-            {/* Spacer - push content down */}
-            <View style={{ flex: 0.8 }} />
-            
             {/* Top section - verse content */}
             <View
               style={{
+                flex: 1,
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
@@ -186,7 +184,7 @@ export function BibleStoryViewer({
                   fontSize: 64,
                   fontWeight: '700',
                   color: 'white',
-                  marginBottom: 16,
+                  marginBottom: 24,
                   textAlign: 'center',
                 }}
               >
@@ -271,9 +269,6 @@ export function BibleStoryViewer({
                 </Pressable>
               )}
             </View>
-            
-            {/* Spacer - push content up from bottom */}
-            <View style={{ flex: 1 }} />
 
             {/* Bottom section - commentary pill button */}
             <Pressable
@@ -322,47 +317,24 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Study Mode indicator - TOP RIGHT */}
-          {isBibleStudyMode && (
-            <View
-              pointerEvents="auto"
-              style={{
-                position: 'absolute',
-                top: 28,
-                right: 28,
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 20,
-                zIndex: 20,
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
-                Study Mode
-              </Text>
-            </View>
-          )}
-          
-          {/* Verse counter - BOTTOM RIGHT (only in normal mode) */}
-          {!isBibleStudyMode && (
-            <View
-              pointerEvents="auto"
-              style={{
-                position: 'absolute',
-                bottom: 28,
-                right: 28,
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                paddingHorizontal: 18,
-                paddingVertical: 10,
-                borderRadius: 24,
-                zIndex: 20,
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                {`${currentVerseIndex + 1} / ${section.verses.length}`}
-              </Text>
-            </View>
-          )}
+          {/* Verse counter - BOTTOM RIGHT */}
+          <View
+            pointerEvents="auto"
+            style={{
+              position: 'absolute',
+              bottom: 28,
+              right: 28,
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              paddingHorizontal: 18,
+              paddingVertical: 10,
+              borderRadius: 24,
+              zIndex: 20,
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+              {isBibleStudyMode ? 'Study Mode' : `${currentVerseIndex + 1} / ${section.verses.length}`}
+            </Text>
+          </View>
 
           {/* Left tap area - previous verse */}
           <Pressable
@@ -472,13 +444,6 @@ export function BibleStoryViewer({
                 <>
                   {commentaries.map((comment, idx) => (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
-                      {/* Verse reference in Study mode */}
-                      {isBibleStudyMode && (
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#2D8659', marginBottom: 8 }}>
-                          Verse {comment.verse}
-                        </Text>
-                      )}
-                      
                       {/* Commentator info */}
                       <View
                         style={{

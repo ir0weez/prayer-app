@@ -163,16 +163,18 @@ export function BibleStoryViewer({
           <View
             style={{
               flex: 1,
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignItems: 'center',
               paddingHorizontal: 24,
               paddingVertical: 0,
             }}
           >
+            {/* Spacer - push content down */}
+            <View style={{ flex: 0.8 }} />
+            
             {/* Top section - verse content */}
             <View
               style={{
-                flex: 1,
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
@@ -269,6 +271,9 @@ export function BibleStoryViewer({
                 </Pressable>
               )}
             </View>
+            
+            {/* Spacer - push content up from bottom */}
+            <View style={{ flex: 1 }} />
 
             {/* Bottom section - commentary pill button */}
             <Pressable

@@ -163,10 +163,10 @@ export function BibleStoryViewer({
           <View
             style={{
               flex: 1,
-              justifyContent: 'space-between',
+              justifyContent: 'center',
               alignItems: 'center',
               paddingHorizontal: 24,
-              paddingVertical: 40,
+              paddingVertical: 20,
             }}
           >
             {/* Top section - verse content */}
@@ -176,7 +176,6 @@ export function BibleStoryViewer({
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
-                paddingVertical: 40,
               }}
             >
               {/* Verse number(s) */}
@@ -318,24 +317,47 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Verse counter - BOTTOM RIGHT */}
-          <View
-            pointerEvents="auto"
-            style={{
-              position: 'absolute',
-              bottom: 28,
-              right: 28,
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              paddingHorizontal: 18,
-              paddingVertical: 10,
-              borderRadius: 24,
-              zIndex: 20,
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-              {isBibleStudyMode ? 'Study Mode' : `${currentVerseIndex + 1} / ${section.verses.length}`}
-            </Text>
-          </View>
+          {/* Study Mode indicator - TOP RIGHT */}
+          {isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                top: 28,
+                right: 28,
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
+                Study Mode
+              </Text>
+            </View>
+          )}
+          
+          {/* Verse counter - BOTTOM RIGHT (only in normal mode) */}
+          {!isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                bottom: 28,
+                right: 28,
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                paddingHorizontal: 18,
+                paddingVertical: 10,
+                borderRadius: 24,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                {`${currentVerseIndex + 1} / ${section.verses.length}`}
+              </Text>
+            </View>
+          )}
 
           {/* Left tap area - previous verse */}
           <Pressable

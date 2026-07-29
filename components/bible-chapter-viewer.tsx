@@ -481,55 +481,57 @@ export function BibleChapterViewer({
               {/* Verses */}
               <View style={{ padding: 16 }}>
               {isBibleStudyMode ? (
-                // Study Mode: Show grouped verses with commentary
-                sections.map((section) => (
-                  <View key={section.id} style={{ marginBottom: 32 }}>
-                    {/* Verse group - centered */}
-                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
-                        {section.startVerse}-{section.endVerse}
-                      </Text>
-                      {section.verses.map((verse) => (
-                        <View key={`study-${verse.verse}`} style={{ marginBottom: 12, alignItems: 'center' }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 13, color: colors.muted, marginRight: 8, fontWeight: '600', minWidth: 20, textAlign: 'right' }}>
-                              {verse.verse}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 16,
-                                lineHeight: 26,
-                                color: colors.foreground,
-                                fontFamily: 'Georgia',
-                                maxWidth: 280,
-                                textAlign: 'center',
-                              }}
-                              selectable
-                            >
-                              {verse.text}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                    
-                    {/* Commentary for this group */}
-                    {commentariesBySection[section.id] && commentariesBySection[section.id].length > 0 && (
-                      <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16 }}>
-                        {commentariesBySection[section.id].map((comment, idx) => (
-                          <View key={comment.id} style={{ marginBottom: idx < commentariesBySection[section.id].length - 1 ? 12 : 0 }}>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
-                              {comment.author}
-                            </Text>
-                            <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
-                              {comment.text}
-                            </Text>
+                // Study Mode: Show grouped verses with commentary - CENTERED
+                <View style={{ alignItems: 'center', paddingHorizontal: 24 }}>
+                  {sections.map((section) => (
+                    <View key={section.id} style={{ marginBottom: 32, width: '100%', alignItems: 'center' }}>
+                      {/* Verse group - centered */}
+                      <View style={{ alignItems: 'center', marginBottom: 16, width: '100%' }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
+                          {section.startVerse}-{section.endVerse}
+                        </Text>
+                        {section.verses.map((verse) => (
+                          <View key={`study-${verse.verse}`} style={{ marginBottom: 12, alignItems: 'center', width: '100%' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 13, color: colors.muted, marginRight: 8, fontWeight: '600', minWidth: 24, textAlign: 'right' }}>
+                                {verse.verse}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  lineHeight: 26,
+                                  color: colors.foreground,
+                                  fontFamily: 'Georgia',
+                                  maxWidth: 300,
+                                  textAlign: 'center',
+                                }}
+                                selectable
+                              >
+                                {verse.text}
+                              </Text>
+                            </View>
                           </View>
                         ))}
                       </View>
-                    )}
-                  </View>
-                ))
+                      
+                      {/* Commentary for this group */}
+                      {commentariesBySection[section.id] && commentariesBySection[section.id].length > 0 && (
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16, width: '100%' }}>
+                          {commentariesBySection[section.id].map((comment, idx) => (
+                            <View key={comment.id} style={{ marginBottom: idx < commentariesBySection[section.id].length - 1 ? 12 : 0 }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
+                                {comment.author}
+                              </Text>
+                              <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
+                                {comment.text}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
               ) : (
                 // Normal Mode: Show verses one by one
                 verses.map((verse) => {

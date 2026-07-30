@@ -124,8 +124,10 @@ export function BibleStoryViewer({
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
         setCurrentVerseIndex(currentVerseIndex + 1);
+      } else if (isLastVerse && onComplete) {
+        // At end of story, auto-advance to next story
+        onComplete();
       }
-      // Don't close on last verse - user can close with X button
     }
   };
 
@@ -421,7 +423,7 @@ export function BibleStoryViewer({
               }}
             >
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
-                Commentary {isBibleStudyMode && `(${verseRange})`}
+                Commentary ({verseRange})
               </Text>
               <Pressable
                 onPress={() => setShowCommentaryModal(false)}

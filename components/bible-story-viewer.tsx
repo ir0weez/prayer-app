@@ -194,7 +194,7 @@ export function BibleStoryViewer({
               {/* Verse text(s) - scrollable in study mode */}
               {isBibleStudyMode ? (
                 <ScrollView
-                  style={{ flex: 1, width: '100%', marginBottom: 40 }}
+                  style={{ width: '100%', marginBottom: 40 }}
                   contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center' }}
                   showsVerticalScrollIndicator={true}
                 >

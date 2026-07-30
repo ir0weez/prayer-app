@@ -777,9 +777,16 @@ export function BibleChapterViewer({
         visible={storyViewerVisible}
         section={selectedSection}
         onClose={() => setStoryViewerVisible(false)}
-        onComplete={() => {
-          handleSectionComplete();
-          setStoryViewerVisible(false);
+        onComplete={async () => {
+          await handleSectionComplete();
+          const currentIndex = sections.findIndex(
+            (s) => s.id === selectedSection?.id
+          );
+          if (currentIndex >= 0 && currentIndex < sections.length - 1) {
+            setSelectedSection(sections[currentIndex + 1]);
+          } else {
+            setStoryViewerVisible(false);
+          }
         }}
         book={book}
         chapter={chapter}

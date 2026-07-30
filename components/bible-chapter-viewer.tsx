@@ -380,7 +380,7 @@ export function BibleChapterViewer({
               >
                 {book} {chapter}
               </Text>
-              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
                 <Pressable
                   onPress={() => handleVersionChange('kjv')}
                   style={{
@@ -417,26 +417,6 @@ export function BibleChapterViewer({
                     }}
                   >
                     CSB
-                  </Text>
-                </Pressable>
-                <View style={{ width: 1, height: 16, backgroundColor: colors.border, marginHorizontal: 4 }} />
-                <Pressable
-                  onPress={() => setIsBibleStudyMode(!isBibleStudyMode)}
-                  style={{
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                    backgroundColor: isBibleStudyMode ? colors.primary : 'transparent',
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: '600',
-                      color: isBibleStudyMode ? '#fff' : colors.muted,
-                    }}
-                  >
-                    Study
                   </Text>
                 </Pressable>
               </View>

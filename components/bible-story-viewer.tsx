@@ -64,45 +64,76 @@ export function BibleStoryViewer({
   const loadCommentary = async () => {
     if (!section || !section.verses || section.verses.length === 0) return;
     setIsLoadingCommentary(true);
-    const verse = section.verses[currentVerseIndex];
-    if (!verse || !verse.verse) {
-      setIsLoadingCommentary(false);
-      return;
+    
+    if (isBibleStudyMode) {
+      // In study mode, load commentary for ALL verses and combine them
+      const allComments: CommentaryNote[] = [];
+      for (const verse of section.verses) {
+        if (verse.verse) {
+          const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
+          allComments.push(...data);
+        }
+      }
+      setCommentaries(allComments);
+      setIsCommentaryLiked(allComments.length > 0 ? (allComments[0]?.isLikedByUser ?? false) : false);
+    } else {
+      // In normal mode, load commentary for the current verse
+      const verseToLoad = section.verses[currentVerseIndex];
+      if (!verseToLoad || !verseToLoad.verse) {
+        setIsLoadingCommentary(false);
+        return;
+      }
+      const data = await getAllCommentariesForVerse(book, chapter, verseToLoad.verse);
+      setCommentaries(data);
+      setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
     }
-    const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
-    setCommentaries(data);
-    setIsCommentaryLiked(data.length > 0 ? (data[0]?.isLikedByUser ?? false) : false);
     setIsLoadingCommentary(false);
   };
 
   const handleToggleLike = async () => {
-    if (commentaries.length === 0 || !currentVerse) return;
+    if (commentaries.length === 0) return;
     await toggleLike(commentaries[0].id);
     setIsCommentaryLiked(!isCommentaryLiked);
     await loadCommentary();
   };
 
   const handleToggleBookmark = async () => {
-    if (commentaries.length === 0 || !currentVerse) return;
+    if (commentaries.length === 0) return;
     await toggleBookmark(commentaries[0].id);
     await loadCommentary();
   };
 
-  if (!section) return null;
+  if (!section) {
+    return null;
+  }
+  
+  if (!section.verses || section.verses.length === 0) {
+    return null;
+  }
 
-  const currentVerse = section.verses[currentVerseIndex];
+  const currentVerse = isBibleStudyMode 
+    ? section.verses[section.verses.length - 1] 
+    : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
 
   const handleNextVerse = () => {
-    if (currentVerseIndex < section.verses.length - 1) {
-      setCurrentVerseIndex(currentVerseIndex + 1);
-    } else if (isLastVerse && onComplete) {
-      onComplete();
+    if (isBibleStudyMode) {
+      // In study mode, this completes the section
+      if (onComplete) {
+        onComplete();
+      }
+    } else {
+      // In normal mode, go to next verse
+      if (currentVerseIndex < section.verses.length - 1) {
+        setCurrentVerseIndex(currentVerseIndex + 1);
+      } else if (isLastVerse && onComplete) {
+        onComplete();
+      }
     }
   };
 
   const handlePreviousVerse = () => {
-    if (currentVerseIndex > 0) {
+    if (!isBibleStudyMode && currentVerseIndex > 0) {
       setCurrentVerseIndex(currentVerseIndex - 1);
     }
   };
@@ -113,6 +144,11 @@ export function BibleStoryViewer({
       setIsBookmarked(!isBookmarked);
     }
   };
+
+  // In study mode, show all verses; in normal mode, show just current verse
+  const verseRange = isBibleStudyMode 
+    ? `${section.verses[0].verse}-${section.verses[section.verses.length - 1].verse}`
+    : `${currentVerse?.verse}`;
 
   return (
     <>
@@ -140,10 +176,9 @@ export function BibleStoryViewer({
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
-                paddingTop: 80,
               }}
             >
-              {/* Verse number */}
+              {/* Verse number(s) */}
               <Text
                 style={{
                   fontSize: 64,
@@ -153,43 +188,86 @@ export function BibleStoryViewer({
                   textAlign: 'center',
                 }}
               >
-                {section?.verses?.[currentVerseIndex]?.verse ?? 'N/A'}
+                {verseRange}
               </Text>
 
-              {/* Verse text */}
-              <Text
-                style={{
-                  fontSize: 22,
-                  lineHeight: 36,
-                  color: 'white',
-                  textAlign: 'center',
-                  fontFamily: 'Georgia',
-                  fontWeight: '500',
-                  marginBottom: 40,
-                  letterSpacing: 0.3,
-                }}
-              >
-                {currentVerse?.text ?? 'Verse text not available'}
-              </Text>
-
-              {/* Bookmark button */}
-              <Pressable
-                onPress={handleBookmark}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: 24,
-                    paddingVertical: 12,
-                    borderRadius: 24,
-                    borderWidth: 1.5,
-                    borderColor: 'rgba(255,255,255,0.6)',
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                  {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+              {/* Verse text(s) - scrollable in study mode */}
+              {isBibleStudyMode ? (
+                <ScrollView
+                  style={{ flex: 1, width: '100%', marginBottom: 40 }}
+                  contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center' }}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {section.verses.map((verse, idx) => (
+                    <View key={`verse-${verse.verse}-${idx}`} style={{ marginBottom: 20, maxWidth: 300, alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: '600',
+                            color: 'rgba(255,255,255,0.7)',
+                            marginRight: 12,
+                            marginTop: 4,
+                            minWidth: 24,
+                            textAlign: 'right',
+                          }}
+                        >
+                          {verse.verse}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            lineHeight: 28,
+                            color: 'white',
+                            fontFamily: 'Georgia',
+                            fontWeight: '500',
+                            textAlign: 'center',
+                            letterSpacing: 0.3,
+                          }}
+                        >
+                          {verse.text}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 22,
+                    lineHeight: 36,
+                    color: 'white',
+                    textAlign: 'center',
+                    fontFamily: 'Georgia',
+                    fontWeight: '500',
+                    marginBottom: 40,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {currentVerse?.text ?? 'Verse text not available'}
                 </Text>
-              </Pressable>
+              )}
+
+              {/* Bookmark button - hidden in Study mode */}
+              {!isBibleStudyMode && (
+                <Pressable
+                  onPress={handleBookmark}
+                  style={({ pressed }) => [
+                    {
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 24,
+                      borderWidth: 1.5,
+                      borderColor: 'rgba(255,255,255,0.6)',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                    {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Bottom section - commentary pill button */}
@@ -239,27 +317,6 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Study Mode Pill - TOP RIGHT */}
-          {isBibleStudyMode && (
-            <View
-              pointerEvents="auto"
-              style={{
-                position: 'absolute',
-                top: 28,
-                right: 28,
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 20,
-                zIndex: 20,
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
-                Study Mode
-              </Text>
-            </View>
-          )}
-
           {/* Verse counter - BOTTOM RIGHT */}
           <View
             pointerEvents="auto"
@@ -275,7 +332,7 @@ export function BibleStoryViewer({
             }}
           >
             <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-              {currentVerseIndex + 1} / {section.verses.length}
+              {isBibleStudyMode ? 'Study Mode' : `${currentVerseIndex + 1} / ${section.verses.length}`}
             </Text>
           </View>
 
@@ -363,7 +420,7 @@ export function BibleStoryViewer({
               }}
             >
               <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
-                Commentary
+                Commentary {isBibleStudyMode && `(${verseRange})`}
               </Text>
               <Pressable
                 onPress={() => setShowCommentaryModal(false)}
@@ -446,7 +503,7 @@ export function BibleStoryViewer({
                       textAlign: 'center',
                     }}
                   >
-                    No commentary available for this verse yet
+                    No commentary available for this {isBibleStudyMode ? 'group' : 'verse'} yet
                   </Text>
                 </View>
               )}

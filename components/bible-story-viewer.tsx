@@ -173,7 +173,7 @@ export function BibleStoryViewer({
             <View
               style={{
                 flex: 1,
-                justifyContent: 'center',
+                justifyContent: isBibleStudyMode ? 'center' : 'center',
                 alignItems: 'center',
                 width: '100%',
               }}
@@ -317,12 +317,13 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Verse counter - BOTTOM RIGHT */}
+          {/* Verse counter - TOP RIGHT in Study mode, BOTTOM RIGHT in normal mode */}
           <View
             pointerEvents="auto"
             style={{
               position: 'absolute',
-              bottom: 28,
+              top: isBibleStudyMode ? 28 : undefined,
+              bottom: isBibleStudyMode ? undefined : 28,
               right: 28,
               backgroundColor: 'rgba(0,0,0,0.2)',
               paddingHorizontal: 18,

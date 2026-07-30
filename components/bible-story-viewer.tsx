@@ -248,6 +248,9 @@ export function BibleStoryViewer({
                 </Text>
               )}
 
+              {/* Flex spacer to push verses to center in Study mode */}
+              {isBibleStudyMode && <View style={{ flex: 1 }} />}
+
               {/* Bookmark button - hidden in Study mode */}
               {!isBibleStudyMode && (
                 <Pressable

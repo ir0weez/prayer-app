@@ -778,6 +778,12 @@ export function BibleChapterViewer({
         section={selectedSection}
         onClose={() => setStoryViewerVisible(false)}
         onComplete={async () => {
+          // Auto-bookmark the last verse of this section
+          if (selectedSection && selectedSection.verses.length > 0) {
+            const lastVerse = selectedSection.verses[selectedSection.verses.length - 1];
+            await saveBookmark(book, chapter, lastVerse.verse, version);
+          }
+          
           await handleSectionComplete();
           const currentIndex = sections.findIndex(
             (s) => s.id === selectedSection?.id

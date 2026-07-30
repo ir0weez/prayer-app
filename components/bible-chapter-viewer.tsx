@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
 import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
-import { loadCompletedSections, getSectionCompletionKey } from '@/lib/paragraph-sections';
+import { loadCompletedSections, getSectionCompletionKey, markSectionComplete } from '@/lib/paragraph-sections';
 import { BibleStoryViewer } from './bible-story-viewer';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
@@ -81,15 +81,14 @@ export function BibleChapterViewer({
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
 
   const handleSectionComplete = async () => {
-    // Mark section as complete in AsyncStorage
+    // Mark section as complete in AsyncStorage using the centralized function
     if (selectedSection) {
       const sectionIndex = sections.findIndex(
         (s) => s.id === selectedSection.id
       );
       if (sectionIndex >= 0 && !completedSections.includes(sectionIndex)) {
         setCompletedSections([...completedSections, sectionIndex]);
-        const completionKey = getSectionCompletionKey(book, chapter, selectedSection.id);
-        await AsyncStorage.setItem(completionKey, 'true');
+        await markSectionComplete(book, chapter, selectedSection.id);
       }
     }
   };
@@ -452,10 +451,13 @@ export function BibleChapterViewer({
                 <Pressable
                   onPress={async () => {
                     setCompletedSections([]);
+                    // Clear all completed sections using the centralized function
+                    const completed = await loadCompletedSections();
                     for (const section of sections) {
-                      const completionKey = getSectionCompletionKey(book, chapter, section.id);
-                      await AsyncStorage.removeItem(completionKey);
+                      const key = getSectionCompletionKey(book, chapter, section.id);
+                      completed.delete(key);
                     }
+                    await AsyncStorage.setItem('prayer_circle_completed_sections', JSON.stringify(Array.from(completed)));
                   }}
                   style={({ pressed }) => [{
                     paddingHorizontal: 8,
@@ -778,18 +780,18 @@ export function BibleChapterViewer({
         section={selectedSection}
         onClose={() => setStoryViewerVisible(false)}
         onComplete={async () => {
-          // Auto-bookmark the last verse of this section
-          if (selectedSection && selectedSection.verses.length > 0) {
-            const lastVerse = selectedSection.verses[selectedSection.verses.length - 1];
-            await saveBookmark(book, chapter, lastVerse.verse, version);
-          }
-          
           await handleSectionComplete();
           const currentIndex = sections.findIndex(
             (s) => s.id === selectedSection?.id
           );
           if (currentIndex >= 0 && currentIndex < sections.length - 1) {
-            setSelectedSection(sections[currentIndex + 1]);
+            // Move to next section and bookmark its first verse
+            const nextSection = sections[currentIndex + 1];
+            if (nextSection && nextSection.verses.length > 0) {
+              const firstVerse = nextSection.verses[0];
+              await saveBookmark(book, chapter, firstVerse.verse, version);
+            }
+            setSelectedSection(nextSection);
           } else {
             setStoryViewerVisible(false);
           }

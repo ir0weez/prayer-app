@@ -28,6 +28,7 @@ interface BibleStoryViewerProps {
   book: string;
   chapter: number;
   version?: 'kjv' | 'csb';
+  isBibleStudyMode?: boolean;
 }
 
 export function BibleStoryViewer({
@@ -38,6 +39,7 @@ export function BibleStoryViewer({
   book,
   chapter,
   version = 'kjv',
+  isBibleStudyMode = false,
 }: BibleStoryViewerProps) {
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -75,14 +77,14 @@ export function BibleStoryViewer({
 
   const handleToggleLike = async () => {
     if (commentaries.length === 0 || !currentVerse) return;
-    await toggleLike(commentaries[0].id, book, chapter, currentVerse.verse);
+    await toggleLike(commentaries[0].id);
     setIsCommentaryLiked(!isCommentaryLiked);
     await loadCommentary();
   };
 
   const handleToggleBookmark = async () => {
     if (commentaries.length === 0 || !currentVerse) return;
-    await toggleBookmark(commentaries[0].id, book, chapter, currentVerse.verse);
+    await toggleBookmark(commentaries[0].id);
     await loadCommentary();
   };
 
@@ -138,6 +140,7 @@ export function BibleStoryViewer({
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: '100%',
+                paddingTop: 80,
               }}
             >
               {/* Verse number */}
@@ -235,6 +238,27 @@ export function BibleStoryViewer({
           >
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
+
+          {/* Study Mode Pill - TOP RIGHT */}
+          {isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                top: 28,
+                right: 28,
+                backgroundColor: 'rgba(0,0,0,0.3)',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
+                Study Mode
+              </Text>
+            </View>
+          )}
 
           {/* Verse counter - BOTTOM RIGHT */}
           <View

@@ -72,6 +72,7 @@ export function BibleChapterViewer({
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
+  const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
 
   // Local highlights storage key
   const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
@@ -657,6 +658,7 @@ export function BibleChapterViewer({
         book={book}
         chapter={chapter}
         version="kjv"
+        isBibleStudyMode={isBibleStudyMode}
       />
     </>
   );

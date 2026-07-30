@@ -447,6 +447,12 @@ export function BibleStoryViewer({
                 <>
                   {commentaries.map((comment, idx) => (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
+                      {/* Verse reference - only show in Study Mode */}
+                      {isBibleStudyMode && (
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#666', marginBottom: 8 }}>
+                          Verse {comment.verse}
+                        </Text>
+                      )}
                       {/* Commentator info */}
                       <View
                         style={{

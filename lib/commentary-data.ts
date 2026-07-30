@@ -9331,7 +9331,7 @@ Genesis 5:18`,
       createdAt: new Date().toISOString(),
     },
   ],
-    'genesis_21_10': [
+  'genesis_21_10': [
       {
         id: 'genesis_21_10_comment1',
         book: 'Genesis',

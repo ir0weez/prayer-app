@@ -65,8 +65,7 @@ export function BibleStoriesBar({
           return (
             <Pressable
               key={section.id || `${section.title}-${section.startVerse}`}
-              onPress={() => !isCompleted && onSectionPress(section)}
-              disabled={isCompleted}
+              onPress={() => onSectionPress(section)}
               style={({ pressed }) => [
                 {
                   width: 80,
@@ -75,7 +74,7 @@ export function BibleStoriesBar({
                   backgroundColor,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  opacity: pressed && !isCompleted ? 0.8 : isCompleted ? 0.5 : 1,
+                  opacity: pressed ? 0.7 : 1,
                   borderWidth: isCompleted ? 2 : 0,
                   borderColor: isCompleted ? 'rgba(255,255,255,0.4)' : 'transparent',
                 },

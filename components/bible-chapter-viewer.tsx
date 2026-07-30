@@ -438,14 +438,36 @@ export function BibleChapterViewer({
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
-              <Switch
-                value={isBibleStudyMode}
-                onValueChange={setIsBibleStudyMode}
-                trackColor={{ false: '#ccc', true: colors.primary }}
-                thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
-              />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
+                <Switch
+                  value={isBibleStudyMode}
+                  onValueChange={setIsBibleStudyMode}
+                  trackColor={{ false: '#ccc', true: colors.primary }}
+                  thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
+                />
+              </View>
+              {completedSections.length > 0 && (
+                <Pressable
+                  onPress={async () => {
+                    setCompletedSections([]);
+                    for (const section of sections) {
+                      const completionKey = getSectionCompletionKey(book, chapter, section.id);
+                      await AsyncStorage.removeItem(completionKey);
+                    }
+                  }}
+                  style={({ pressed }) => [{
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 4,
+                    backgroundColor: colors.error,
+                    opacity: pressed ? 0.8 : 1,
+                  }]}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#fff' }}>Reset</Text>
+                </Pressable>
+              )}
             </View>
           </View>
 

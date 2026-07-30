@@ -118,17 +118,14 @@ export function BibleStoryViewer({
 
   const handleNextVerse = () => {
     if (isBibleStudyMode) {
-      // In study mode, this completes the section
-      if (onComplete) {
-        onComplete();
-      }
+      // In study mode, stay in modal - don't close
+      // Just do nothing (user can close with X button)
     } else {
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
         setCurrentVerseIndex(currentVerseIndex + 1);
-      } else if (isLastVerse && onComplete) {
-        onComplete();
       }
+      // Don't close on last verse - user can close with X button
     }
   };
 

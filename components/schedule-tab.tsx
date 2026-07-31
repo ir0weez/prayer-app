@@ -1306,7 +1306,7 @@ export function ScheduleTab({
               }
             } catch (error) {
               console.error('Error fetching summary:', error);
-              setChapterSummary('');
+              setChapterSummary('No summary available');
             } finally {
               setIsLoadingSummary(false);
             }

@@ -614,8 +614,12 @@ export function BibleStoryViewer({
         <ChapterCompleteScreen
           book={book}
           chapter={chapter}
-          onMarkAsRead={() => {
-            if (onChapterComplete) onChapterComplete();
+          onMarkAsRead={async () => {
+            if (onChapterComplete) {
+              await onChapterComplete();
+              // Small delay to ensure data is saved
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
             setShowChapterComplete(false);
             onClose();
           }}

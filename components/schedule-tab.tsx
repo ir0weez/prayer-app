@@ -4,6 +4,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
+import { bibleEventEmitter } from '@/lib/bible-events';
 import {
   Animated,
   Dimensions,
@@ -1408,6 +1409,28 @@ export function ScheduleTab({
     loadProfileData();
   }, [loadProfileData]);
   
+  // Listen for Bible chapter marked read events and refresh immediately
+  useEffect(() => {
+    const unsubscribe = bibleEventEmitter.subscribe(async (event) => {
+      if (event.type === 'chapter-marked-read') {
+        // Reload Bible data immediately
+        try {
+          const unifiedData = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
+          if (unifiedData) {
+            const state = JSON.parse(unifiedData) as UnifiedBibleState;
+            setBibleState(state);
+            const display = getCurrentBibleDisplay(state);
+            if (display) setCurrentBibleBook(display);
+          }
+        } catch (e) {
+          console.error('Error refreshing Bible data on chapter marked read:', e);
+        }
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
   // Reload profile and Bible book when tab comes into focus
   useFocusEffect(
     useCallback(() => {

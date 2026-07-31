@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ─── Unified Bible Tracking System ────────────────────────────────────────────
 // Consolidates bibleReadingProgress + bibleChapters into a single source of truth
 
+import { bibleEventEmitter } from './bible-events';
+
 export const UNIFIED_BIBLE_KEY = 'prayercircle.bible.unified.v1';
 export const BIBLE_BOOK_STATUS_KEY = 'prayercircle.bible.bookstatus.v1';
 
@@ -172,6 +174,14 @@ export async function markChapterAsRead(book: string, chapter: number, updateCur
   }
 
   await saveUnifiedBible(state);
+  
+  // Emit event so Schedule tab can refresh
+  bibleEventEmitter.emit({
+    type: 'chapter-marked-read',
+    book,
+    chapter,
+  });
+  
   return state;
 }
 

@@ -1692,3 +1692,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
   - [ ] Show "Future notes will be here" placeholder for chapters without commentary
   - [ ] Create commentary management screen to add/edit notes for each chapter
   - [ ] Support multiple commentators (Spurgeon, Moody, McGhee, etc.) with profile pictures
+
+## Bible Stories Enhancements
+
+- [x] Add "Verse X of Y" total count display at top of Bible Stories slides
+- [x] Add Chapter Complete screen with animated checkmark after last story in chapter
+- [x] Connect Mark as Read button to Schedule tab Bible checklist
+- [x] Auto-advance to next chapter after marking as read

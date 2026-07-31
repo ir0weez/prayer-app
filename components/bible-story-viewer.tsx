@@ -7,7 +7,10 @@ import {
   Dimensions,
   SafeAreaView,
   ScrollView,
+  Platform,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withSequence, Easing, runOnJS } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
@@ -25,10 +28,15 @@ interface BibleStoryViewerProps {
   section: BibleSection | null;
   onClose: () => void;
   onComplete?: () => void;
+  onChapterComplete?: () => void;
+  onReset?: () => void;
   book: string;
   chapter: number;
   version?: 'kjv' | 'csb';
   isBibleStudyMode?: boolean;
+  totalVerses?: number;
+  currentVerseOffset?: number;
+  isLastSection?: boolean;
 }
 
 export function BibleStoryViewer({
@@ -36,10 +44,15 @@ export function BibleStoryViewer({
   section,
   onClose,
   onComplete,
+  onChapterComplete,
+  onReset,
   book,
   chapter,
   version = 'kjv',
   isBibleStudyMode = false,
+  totalVerses = 0,
+  currentVerseOffset = 0,
+  isLastSection = false,
 }: BibleStoryViewerProps) {
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -48,11 +61,13 @@ export function BibleStoryViewer({
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
   const [isLoadingCommentary, setIsLoadingCommentary] = useState(false);
+  const [showChapterComplete, setShowChapterComplete] = useState(false);
   const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
     if (visible && section) {
       setCurrentVerseIndex(0);
+      setShowChapterComplete(false);
       loadCommentary();
     }
   }, [visible, section]);
@@ -119,15 +134,25 @@ export function BibleStoryViewer({
   const handleNextVerse = () => {
     if (isBibleStudyMode) {
       // In study mode, this completes the section
-      if (onComplete) {
+      if (isLastSection) {
+        // Last section - show chapter complete screen
+        if (onComplete) onComplete();
+        setShowChapterComplete(true);
+      } else if (onComplete) {
         onComplete();
       }
     } else {
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
         setCurrentVerseIndex(currentVerseIndex + 1);
-      } else if (isLastVerse && onComplete) {
-        onComplete();
+      } else if (isLastVerse) {
+        if (isLastSection) {
+          // Last verse of last section - show chapter complete screen
+          if (onComplete) onComplete();
+          setShowChapterComplete(true);
+        } else if (onComplete) {
+          onComplete();
+        }
       }
     }
   };
@@ -317,7 +342,28 @@ export function BibleStoryViewer({
             <MaterialIcons name="close" size={28} color="white" />
           </Pressable>
 
-          {/* Verse counter - BOTTOM RIGHT */}
+          {/* Verse counter - TOP LEFT for total, BOTTOM RIGHT for section */}
+          {totalVerses > 0 && !isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                top: 28,
+                left: 28,
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 20,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
+                Verse {currentVerseOffset + currentVerseIndex + 1} of {totalVerses}
+              </Text>
+            </View>
+          )}
+
+          {/* Section counter - BOTTOM RIGHT */}
           <View
             pointerEvents="auto"
             style={{
@@ -562,6 +608,207 @@ export function BibleStoryViewer({
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Chapter Complete Modal */}
+      <Modal visible={showChapterComplete} transparent animationType="fade" onRequestClose={() => setShowChapterComplete(false)}>
+        <ChapterCompleteScreen
+          book={book}
+          chapter={chapter}
+          onMarkAsRead={() => {
+            if (onChapterComplete) onChapterComplete();
+            setShowChapterComplete(false);
+            onClose();
+          }}
+          onReset={() => {
+            if (onReset) onReset();
+            setShowChapterComplete(false);
+            onClose();
+          }}
+          onClose={() => {
+            setShowChapterComplete(false);
+            onClose();
+          }}
+        />
+      </Modal>
     </>
+  );
+}
+
+// Chapter Complete Screen Component
+function ChapterCompleteScreen({ book, chapter, onMarkAsRead, onReset, onClose }: {
+  book: string;
+  chapter: number;
+  onMarkAsRead: () => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const checkScale = useSharedValue(0);
+  const checkOpacity = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
+  const buttonsOpacity = useSharedValue(0);
+  const confettiScale = useSharedValue(0);
+  const ringScale = useSharedValue(0);
+  const ringOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    // Trigger success haptic
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+
+    // Animate in sequence
+    // Ring pulse
+    ringScale.value = withSequence(
+      withTiming(1.2, { duration: 400, easing: Easing.out(Easing.cubic) }),
+      withTiming(1.5, { duration: 300 }),
+    );
+    ringOpacity.value = withDelay(400, withTiming(0, { duration: 300 }));
+
+    // Checkmark bounces in
+    checkScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 150 }));
+    checkOpacity.value = withDelay(200, withTiming(1, { duration: 300 }));
+
+    // Confetti burst
+    confettiScale.value = withDelay(400, withSequence(
+      withSpring(1.1, { damping: 6, stiffness: 120 }),
+      withTiming(1, { duration: 200 }),
+    ));
+
+    // Text fades in
+    textOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
+
+    // Buttons fade in
+    buttonsOpacity.value = withDelay(900, withTiming(1, { duration: 400 }));
+  }, []);
+
+  const checkAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+    opacity: checkOpacity.value,
+  }));
+
+  const textAnimStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+  }));
+
+  const buttonsAnimStyle = useAnimatedStyle(() => ({
+    opacity: buttonsOpacity.value,
+  }));
+
+  const ringAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: ringOpacity.value,
+  }));
+
+  const confettiAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: confettiScale.value }],
+  }));
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#2D8659' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+        {/* Close button */}
+        <Pressable
+          onPress={onClose}
+          style={({ pressed }) => [{
+            position: 'absolute',
+            top: 28,
+            right: 28,
+            padding: 8,
+            opacity: pressed ? 0.6 : 1,
+            zIndex: 10,
+          }]}
+        >
+          <MaterialIcons name="close" size={28} color="white" />
+        </Pressable>
+
+        {/* Animated checkmark area */}
+        <View style={{ alignItems: 'center', marginBottom: 40 }}>
+          {/* Ring pulse */}
+          <Animated.View style={[{
+            position: 'absolute',
+            width: 140,
+            height: 140,
+            borderRadius: 70,
+            borderWidth: 4,
+            borderColor: 'rgba(255,255,255,0.5)',
+          }, ringAnimStyle]} />
+
+          {/* Confetti dots */}
+          <Animated.View style={[{ position: 'absolute', width: 160, height: 160 }, confettiAnimStyle]}>
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
+              <View
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: 80 + Math.sin((angle * Math.PI) / 180) * 65 - 5,
+                  left: 80 + Math.cos((angle * Math.PI) / 180) * 65 - 5,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#A78BFA', '#F59E0B', '#EC4899', '#10B981', '#60A5FA'][i],
+                }}
+              />
+            ))}
+          </Animated.View>
+
+          {/* Checkmark circle */}
+          <Animated.View style={[{
+            width: 120,
+            height: 120,
+            borderRadius: 60,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 3,
+            borderColor: 'white',
+          }, checkAnimStyle]}>
+            <MaterialIcons name="check" size={64} color="white" />
+          </Animated.View>
+        </View>
+
+        {/* Text */}
+        <Animated.View style={[{ alignItems: 'center', marginBottom: 48 }, textAnimStyle]}>
+          <Text style={{ fontSize: 32, fontWeight: '800', color: 'white', marginBottom: 8, textAlign: 'center' }}>
+            Chapter Complete!
+          </Text>
+          <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>
+            {book} {chapter}
+          </Text>
+        </Animated.View>
+
+        {/* Buttons */}
+        <Animated.View style={[{ width: '100%', gap: 16 }, buttonsAnimStyle]}>
+          <Pressable
+            onPress={onMarkAsRead}
+            style={({ pressed }) => [{
+              backgroundColor: 'white',
+              paddingVertical: 16,
+              borderRadius: 28,
+              alignItems: 'center',
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            }]}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#2D8659' }}>Mark as Read</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onReset}
+            style={({ pressed }) => [{
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              paddingVertical: 16,
+              borderRadius: 28,
+              alignItems: 'center',
+              borderWidth: 1.5,
+              borderColor: 'rgba(255,255,255,0.4)',
+              opacity: pressed ? 0.8 : 1,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            }]}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '600', color: 'white' }}>Reset</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
   );
 }

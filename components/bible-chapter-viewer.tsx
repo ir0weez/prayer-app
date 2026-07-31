@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,6 +22,9 @@ import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import { createDefaultParagraphs, loadCustomParagraphs, parseCustomParagraphs } from '@/lib/paragraph-sections';
 import { getAllCommentariesForVerse } from '@/lib/commentary-data';
+import { markChapterAsRead, loadUnifiedBible, getNextUnreadChapter, getCurrentBook } from '@/lib/bible-unified';
+import { syncUnifiedBibleToAllOldSystems } from '@/lib/bible-sync';
+import * as Haptics from 'expo-haptics';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -757,12 +761,48 @@ export function BibleChapterViewer({
         onClose={() => setStoryViewerVisible(false)}
         onComplete={() => {
           handleSectionComplete();
-          setStoryViewerVisible(false);
+          // Find next section and auto-advance (unless it's the last section)
+          const currentIdx = sections.findIndex(s => s.id === selectedSection?.id);
+          if (currentIdx >= 0 && currentIdx < sections.length - 1) {
+            const nextSection = sections[currentIdx + 1];
+            setSelectedSection(nextSection);
+          }
+        }}
+        onChapterComplete={async () => {
+          try {
+            const updated = await markChapterAsRead(book, chapter, false);
+            await syncUnifiedBibleToAllOldSystems(updated);
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            // Advance to next chapter
+            onNextChapter();
+          } catch (error) {
+            console.error('Error marking chapter as read:', error);
+          }
+        }}
+        onReset={() => {
+          // Reset all completed sections for this chapter
+          setCompletedSections([]);
+          sections.forEach(async (s) => {
+            const key = getSectionCompletionKey(book, chapter, s.id);
+            await AsyncStorage.removeItem(key);
+          });
         }}
         book={book}
         chapter={chapter}
         version="kjv"
         isBibleStudyMode={isBibleStudyMode}
+        totalVerses={sections.reduce((sum, s) => sum + s.verses.length, 0)}
+        currentVerseOffset={(() => {
+          const idx = sections.findIndex(s => s.id === selectedSection?.id);
+          if (idx <= 0) return 0;
+          return sections.slice(0, idx).reduce((sum, s) => sum + s.verses.length, 0);
+        })()}
+        isLastSection={(() => {
+          const idx = sections.findIndex(s => s.id === selectedSection?.id);
+          return idx === sections.length - 1;
+        })()}
       />
     </>
   );

@@ -734,7 +734,7 @@ function ChapterCompleteScreen({ book, chapter, onMarkAsRead, onReset, onClose }
           }, ringAnimStyle]} />
 
           {/* Confetti dots */}
-          <Animated.View style={[{ position: 'absolute', width: 160, height: 160, top: 0, left: '50%', marginLeft: -80 }, confettiAnimStyle]}>
+          <Animated.View style={[{ position: 'absolute', width: 160, height: 160 }, confettiAnimStyle]}>
             {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
               <View
                 key={i}

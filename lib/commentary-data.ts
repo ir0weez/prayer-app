@@ -9316,22 +9316,6 @@ Genesis 5:18`,
     },
   ],
   'genesis_21_10': [
-    {
-      id: 'genesis_21_10_comment1',
-      book: 'Genesis',
-      chapter: 21,
-      verse: 10,
-      author: 'Tried By Fire',
-      authorHandle: '@TriedByFire',
-      profileImageUrl: undefined,
-      text: `Ishmael did not like this new child. He felt left out and neglected. It is quite possible that he was. Abraham took the word of the Lord seriously in the matter that Ishmael would not be the one that would take the covenant ( which was given to the children of Israel, but that is still to come). I believe that Ishmael doesn\'t understand the importance of this child. He either never paid attention when Abraham spoke of it, or Abraham never really clarified to Ishmael who he was. Then again, Jesus was mocked by His own family when His ministry started.`,
-      likes: 0,
-      isLikedByUser: false,
-      isBookmarkedByUser: false,
-      createdAt: new Date().toISOString(),
-    },
-  ],
-  'genesis_21_10': [
       {
         id: 'genesis_21_10_comment1',
         book: 'Genesis',

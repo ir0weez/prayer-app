@@ -442,7 +442,7 @@ export function BibleChapterViewer({
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>Study</Text>
               <Switch
                 value={isBibleStudyMode}
@@ -450,6 +450,27 @@ export function BibleChapterViewer({
                 trackColor={{ false: '#ccc', true: colors.primary }}
                 thumbColor={isBibleStudyMode ? colors.primary : '#f0f0f0'}
               />
+              
+              {completedSections.length > 0 && (
+                <Pressable
+                  onPress={async () => {
+                    setCompletedSections([]);
+                    sections.forEach(async (s) => {
+                      const key = getSectionCompletionKey(book, chapter, s.id);
+                      await AsyncStorage.removeItem(key);
+                    });
+                  }}
+                  style={({ pressed }) => [{
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                    backgroundColor: colors.error,
+                    opacity: pressed ? 0.8 : 1,
+                  }]}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: 'white' }}>Reset</Text>
+                </Pressable>
+              )}
             </View>
           </View>
 

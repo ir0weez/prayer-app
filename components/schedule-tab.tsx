@@ -100,6 +100,7 @@ import { format12HourTime, normalizeTimeFormat } from "@/lib/utils";
 import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { TimeOffCard } from '@/components/time-off-card';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
@@ -2208,74 +2209,7 @@ export function ScheduleTab({
             </Pressable>
           );
         case "time-off":
-          const timeOff = item.data;
-          const getTimeOffIcon = (type: string) => {
-            const icons: Record<string, string> = {
-              vacation: 'beach-access',
-              sick: 'local-hospital',
-              personal: 'self-improvement',
-              sabbatical: 'library-books',
-              other: 'pause-circle',
-            };
-            return icons[type] || 'pause-circle';
-          };
-          const duration = timeOff.endDate && timeOff.startDate 
-            ? Math.ceil((new Date(timeOff.endDate).getTime() - new Date(timeOff.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
-            : 1;
-          return (
-            <Pressable
-              style={({ pressed }) => [
-                {
-                  backgroundColor: timeOff.color || colors.primary,
-                  borderRadius: 16,
-                  padding: 16,
-                  marginBottom: 12,
-                  marginHorizontal: 0,
-                  overflow: 'hidden',
-                  opacity: pressed ? 0.8 : 1,
-                  borderWidth: 1,
-                  borderColor: 'rgba(0,0,0,0.05)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 4,
-                  elevation: 3,
-                }
-              ]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    backgroundColor: 'rgba(0,0,0,0.08)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <MaterialIcons name={getTimeOffIcon(timeOff.type) as any} size={24} color={colors.foreground} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.foreground, marginBottom: 4 }}>
-                    {timeOff.title}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted, textTransform: 'capitalize' }}>
-                      {timeOff.type}
-                    </Text>
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.muted }} />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.muted }}>
-                      {duration} day{duration !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 11, color: colors.muted }}>
-                    {timeOff.startDate} to {timeOff.endDate}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          );
+          return <TimeOffCard timeOff={item.data} />;
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
         case "todo":

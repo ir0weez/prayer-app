@@ -28,6 +28,7 @@ import {
   getActiveTimeOff,
 } from '@/lib/time-off';
 import { formatDateLocal } from '@/lib/date-utils';
+import { TimeOffExport } from './time-off-export';
 
 interface TimeOffModalProps {
   visible: boolean;
@@ -43,6 +44,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<TimeOffType>('vacation');
@@ -354,28 +356,56 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
         )}
 
         {!showForm && (
-          <Pressable
-            onPress={() => {
-              resetForm();
-              setShowForm(true);
-            }}
-            style={({ pressed }) => [{
-              position: 'absolute',
-              bottom: 24,
-              right: 24,
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: colors.primary,
-              justifyContent: 'center',
-              alignItems: 'center',
-              opacity: pressed ? 0.8 : 1,
-            }]}
-          >
-            <MaterialIcons name="add" size={28} color="white" />
-          </Pressable>
+          <>
+            <Pressable
+              onPress={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              style={({ pressed }) => [{
+                position: 'absolute',
+                bottom: 24,
+                right: 24,
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: colors.primary,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: pressed ? 0.8 : 1,
+              }]}
+            >
+              <MaterialIcons name="add" size={28} color="white" />
+            </Pressable>
+
+            {timeOffList.length > 0 && (
+              <Pressable
+                onPress={() => setShowExport(true)}
+                style={({ pressed }) => [{
+                  position: 'absolute',
+                  bottom: 24,
+                  right: 88,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: colors.success,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                }]}
+              >
+                <MaterialIcons name="share" size={28} color="white" />
+              </Pressable>
+            )}
+          </>
         )}
-      </SafeAreaView>
+      {/* Export Modal */}
+      <TimeOffExport
+        visible={showExport}
+        onClose={() => setShowExport(false)}
+        timeOffList={timeOffList}
+      />
+    </SafeAreaView>
     </Modal>
   );
 }

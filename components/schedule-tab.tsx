@@ -1840,7 +1840,21 @@ export function ScheduleTab({
   const listData = useMemo(() => {
     const items: Array<{ type: string; id: string; data: any; sortTime?: string }> = [];
 
-    // Birthdays first
+    // Add time-off first (all-day items)
+    const dayTimeOff = timeOffList.filter((to) => {
+      const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
+      const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
+      const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number);
+      
+      const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
+      const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
+      const selDateObj = new Date(selYear, selMonth - 1, selDay);
+      
+      return selDateObj >= toStart && selDateObj <= toEnd;
+    });
+    dayTimeOff.forEach((to) => items.push({ type: "time-off", id: to.id, data: to }));
+
+    // Birthdays next
     dayBirthdays.forEach((b) => items.push({ type: "birthday", id: b.id, data: b }));
 
     // Combine todos, events, and ministries with time info for chronological sorting
@@ -2192,6 +2206,32 @@ export function ScheduleTab({
                 </View>
               </View>
             </Pressable>
+          );
+        case "time-off":
+          const timeOff = item.data;
+          return (
+            <View
+              style={{
+                backgroundColor: timeOff.color || colors.primary,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 8,
+                borderLeftWidth: 4,
+                borderLeftColor: colors.primary,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialIcons name="beach-access" size={20} color={colors.foreground} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                    {timeOff.title}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.muted }}>
+                    Time Off
+                  </Text>
+                </View>
+              </View>
+            </View>
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;

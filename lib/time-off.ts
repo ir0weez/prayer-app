@@ -154,8 +154,13 @@ export function getActiveTimeOff(timeOffList: TimeOff[]): TimeOff[] {
  * Calculate duration of time-off in days
  */
 export function calculateTimeOffDuration(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse YYYY-MM-DD strings without timezone conversion
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  
+  const start = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
+  
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   return diffDays;

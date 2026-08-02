@@ -2884,6 +2884,24 @@ export function ScheduleTab({
                     isCompleted: m.isCompleted,
                   });
                 });
+                // Add time-off (all-day blocks)
+                timeOffList.forEach(to => {
+                  const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
+                  const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
+                  const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
+                  const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
+                  const currentDate = new Date(date);
+                  if (currentDate >= toStart && currentDate <= toEnd) {
+                    blocks.push({
+                      id: `${dateStr}-timeoff-${to.id}`,
+                      title: to.title,
+                      startTime: '00:00',
+                      endTime: '23:59',
+                      color: to.color || colors.primary,
+                      type: 'time-off',
+                    });
+                  }
+                });
               }
               return blocks;
             })()}
@@ -2919,6 +2937,20 @@ export function ScheduleTab({
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
                   eventMap.get(key)!.push({ id: m.id, title: m.title, color: m.color || colors.primary, type: 'ministry', isCompleted: m.isCompleted });
+                }
+              });
+              // Add time-off
+              timeOffList.forEach(to => {
+                const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
+                const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
+                const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
+                const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
+                let current = new Date(toStart);
+                while (current <= toEnd) {
+                  const dateStr = formatDateLocal(current);
+                  if (!eventMap.has(dateStr)) eventMap.set(dateStr, []);
+                  eventMap.get(dateStr)!.push({ id: to.id, title: to.title, color: to.color || colors.primary, type: 'time-off' });
+                  current.setDate(current.getDate() + 1);
                 }
               });
               return eventMap;

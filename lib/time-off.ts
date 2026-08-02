@@ -63,7 +63,8 @@ export async function createTimeOff(
   type: TimeOffType,
   startDate: string,
   endDate: string,
-  notes?: string
+  notes?: string,
+  color?: string
 ): Promise<TimeOff> {
   const now = new Date().toISOString();
   const timeOff: TimeOff = {
@@ -73,7 +74,7 @@ export async function createTimeOff(
     startDate,
     endDate,
     notes,
-    color: TIME_OFF_COLORS[type],
+    color: color || TIME_OFF_COLORS[type],
     createdAt: now,
     updatedAt: now,
   };

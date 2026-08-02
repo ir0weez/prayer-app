@@ -51,6 +51,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+  const [selectedColor, setSelectedColor] = useState('#E1F5FE');
 
   useEffect(() => {
     if (visible) {
@@ -76,6 +77,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
     setStartDate(new Date().toISOString().split('T')[0]);
     setEndDate(new Date().toISOString().split('T')[0]);
     setNotes('');
+    setSelectedColor('#E1F5FE');
     setEditingId(null);
   };
 
@@ -93,9 +95,9 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
     setLoading(true);
     try {
       if (editingId) {
-        await updateTimeOff(editingId, { title, type, startDate, endDate, notes });
+        await updateTimeOff(editingId, { title, type, startDate, endDate, notes, color: selectedColor });
       } else {
-        await createTimeOff(title, type, startDate, endDate, notes);
+        await createTimeOff(title, type, startDate, endDate, notes, selectedColor);
       }
 
       await loadTimeOff();
@@ -235,6 +237,36 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
             <View>
               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8 }}>End Date</Text>
               <DateTimePicker value={endDate} onChange={setEndDate} mode="date" label="End Date" />
+            </View>
+
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8 }}>Color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }}>
+                <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
+                  {['#E1F5FE', '#F3E5F5', '#E8F5E9', '#FFF3E0', '#FCE4EC', '#F1F8E9'].map((color) => (
+                    <Pressable
+                      key={color}
+                      onPress={() => {
+                        const timeOffWithColor = editingId
+                          ? timeOffList.find((to) => to.id === editingId)
+                          : null;
+                        if (timeOffWithColor && editingId) {
+                          updateTimeOff(editingId, { ...timeOffWithColor, color });
+                        }
+                        // For new items, we'll update color in handleSave
+                      }}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 25,
+                        backgroundColor: color,
+                        borderWidth: 2,
+                        borderColor: editingId && timeOffList.find((to) => to.id === editingId)?.color === color ? colors.primary : 'transparent',
+                      }}
+                    />
+                  ))}
+                </View>
+              </ScrollView>
             </View>
 
             <View>

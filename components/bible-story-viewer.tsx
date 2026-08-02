@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { BibleSection, BibleVerse } from '@/lib/bible-section-parser';
 import { saveBookmark } from '@/lib/bible-bookmark';
+import { isVerseHighlighted, addHighlight, removeHighlight } from '@/lib/bible-highlight';
 import {
   getCommentary,
   getAllCommentariesForVerse,
@@ -57,6 +58,7 @@ export function BibleStoryViewer({
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isHighlighted, setIsHighlighted] = useState(false);
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
@@ -74,7 +76,19 @@ export function BibleStoryViewer({
 
   useEffect(() => {
     loadCommentary();
+    checkHighlightStatus();
   }, [currentVerseIndex]);
+
+  const checkHighlightStatus = async () => {
+    if (!section || !section.verses || section.verses.length === 0) return;
+    const currentVerse = section.verses[currentVerseIndex];
+    if (!currentVerse || !currentVerse.verse) {
+      setIsHighlighted(false);
+      return;
+    }
+    const highlighted = await isVerseHighlighted(book, chapter, currentVerse.verse, version);
+    setIsHighlighted(highlighted);
+  };
 
   const loadCommentary = async () => {
     if (!section || !section.verses || section.verses.length === 0) return;
@@ -167,6 +181,21 @@ export function BibleStoryViewer({
     if (currentVerse) {
       await saveBookmark(book, chapter, currentVerse.verse, version);
       setIsBookmarked(!isBookmarked);
+    }
+  };
+
+  const handleHighlight = async () => {
+    if (!currentVerse) return;
+    
+    try {
+      if (isHighlighted) {
+        await removeHighlight(book, chapter, currentVerse.verse, version);
+      } else {
+        await addHighlight(book, chapter, currentVerse.verse, currentVerse.text, version, 'yellow');
+      }
+      setIsHighlighted(!isHighlighted);
+    } catch (error) {
+      console.error('Error toggling highlight:', error);
     }
   };
 
@@ -273,25 +302,45 @@ export function BibleStoryViewer({
                 </Text>
               )}
 
-              {/* Bookmark button - hidden in Study mode */}
+              {/* Bookmark and Highlight buttons - hidden in Study mode */}
               {!isBibleStudyMode && (
-                <Pressable
-                  onPress={handleBookmark}
-                  style={({ pressed }) => [
-                    {
-                      paddingHorizontal: 24,
-                      paddingVertical: 12,
-                      borderRadius: 24,
-                      borderWidth: 1.5,
-                      borderColor: 'rgba(255,255,255,0.6)',
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                    {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
-                  </Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
+                  <Pressable
+                    onPress={handleBookmark}
+                    style={({ pressed }) => [
+                      {
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 24,
+                        borderWidth: 1.5,
+                        borderColor: 'rgba(255,255,255,0.6)',
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                      {isBookmarked ? '✓ Bookmarked' : 'Bookmark'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleHighlight}
+                    style={({ pressed }) => [
+                      {
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 24,
+                        borderWidth: 1.5,
+                        borderColor: isHighlighted ? 'rgba(255,193,7,0.8)' : 'rgba(255,255,255,0.6)',
+                        backgroundColor: isHighlighted ? 'rgba(255,193,7,0.2)' : 'transparent',
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: isHighlighted ? '#FFC107' : 'white', fontSize: 14, fontWeight: '600' }}>
+                      {isHighlighted ? '★ Highlighted' : 'Highlight'}
+                    </Text>
+                  </Pressable>
+                </View>
               )}
             </View>
 

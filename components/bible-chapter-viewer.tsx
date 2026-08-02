@@ -1,3 +1,5 @@
+'use client';
+
 import {
   View,
   Text,
@@ -25,6 +27,8 @@ import { getAllCommentariesForVerse } from '@/lib/commentary-data';
 import { markChapterAsRead, loadUnifiedBible, getNextUnreadChapter, getCurrentBook } from '@/lib/bible-unified';
 import { syncUnifiedBibleToAllOldSystems } from '@/lib/bible-sync';
 import * as Haptics from 'expo-haptics';
+import { getVerseHighlights, addHighlight, removeHighlight, getChapterHighlights, BibleHighlight } from '@/lib/bible-highlight';
+import { bibleEventEmitter } from '@/lib/bible-events';
 
 export interface BibleChapterViewerProps {
   visible: boolean;
@@ -46,12 +50,8 @@ interface Verse {
 // Type alias for compatibility
 type BibleVerse = Verse;
 
-interface VerseHighlight {
-  id: number;
-  verse: number;
-  color: HighlightColor;
-  highlightedText: string;
-}
+// Use BibleHighlight from shared storage instead of local VerseHighlight
+type VerseHighlight = BibleHighlight;
 
 export function BibleChapterViewer({
   visible,
@@ -69,7 +69,7 @@ export function BibleChapterViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState<'kjv' | 'csb'>('kjv');
-  const [highlights, setHighlights] = useState<VerseHighlight[]>([]);
+  const [highlights, setHighlights] = useState<BibleHighlight[]>([]);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [selectedVerseForHighlight, setSelectedVerseForHighlight] = useState<number | null>(null);
   const [sections, setSections] = useState<BibleSection[]>([]);
@@ -80,9 +80,6 @@ export function BibleChapterViewer({
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
   const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
   const [commentariesBySection, setCommentariesBySection] = useState<Record<string, any[]>>({});
-
-  // Local highlights storage key
-  const getHighlightsKey = () => `highlights_${book}_${chapter}_${version}`;
 
   const handleSectionComplete = async () => {
     // Mark section as complete in AsyncStorage
@@ -97,7 +94,6 @@ export function BibleChapterViewer({
       }
     }
   };
-
   // Note: markSectionComplete is no longer used; use handleSectionComplete instead
 
   // Load saved version preference on mount
@@ -115,22 +111,40 @@ export function BibleChapterViewer({
     loadVersionPreference();
   }, []);
 
-  // Load highlights from AsyncStorage when chapter changes
+  // Load highlights from shared storage when chapter changes
   useEffect(() => {
     const loadHighlights = async () => {
       try {
-        const key = getHighlightsKey();
-        const saved = await AsyncStorage.getItem(key);
-        if (saved) {
-          setHighlights(JSON.parse(saved));
-        } else {
-          setHighlights([]);
-        }
+        const chapterHighlights = await getChapterHighlights(book, chapter, version);
+        setHighlights(chapterHighlights);
       } catch (err) {
         console.error('Error loading highlights:', err);
+        setHighlights([]);
       }
     };
     loadHighlights();
+  }, [book, chapter, version]);
+
+  // Subscribe to highlight events for real-time sync
+  useEffect(() => {
+    const unsubscribe = bibleEventEmitter.subscribe((event) => {
+      if ((event.type === 'highlight-added' || event.type === 'highlight-removed') &&
+          event.book === book &&
+          event.chapter === chapter) {
+        // Reload highlights when they change
+        const loadHighlights = async () => {
+          try {
+            const chapterHighlights = await getChapterHighlights(book, chapter, version);
+            setHighlights(chapterHighlights);
+          } catch (err) {
+            console.error('Error reloading highlights:', err);
+          }
+        };
+        loadHighlights();
+      }
+    });
+
+    return unsubscribe;
   }, [book, chapter, version]);
 
   // Parse sections when verses load
@@ -214,7 +228,7 @@ export function BibleChapterViewer({
     }
   };
 
-  // Handle highlighting a verse
+  // Handle highlighting a verse using shared storage
   const handleHighlightVerse = async (verseNumber: number, color: HighlightColor) => {
     const verse = verses.find((v) => v.verse === verseNumber);
     if (!verse) {
@@ -223,21 +237,16 @@ export function BibleChapterViewer({
     }
 
     try {
-      const newHighlight: VerseHighlight = {
-        id: Date.now(),
-        verse: verseNumber,
-        color,
-        highlightedText: verse.text,
-      };
-
       // Remove existing highlight for this verse if any
-      const updated = highlights.filter((h) => h.verse !== verseNumber);
-      updated.push(newHighlight);
-
-      // Save to AsyncStorage
-      const key = getHighlightsKey();
-      await AsyncStorage.setItem(key, JSON.stringify(updated));
-      setHighlights(updated);
+      await removeHighlight(book, chapter, verseNumber, version);
+      
+      // Add new highlight using shared storage (map HighlightColor to BibleHighlight color)
+      const highlightColor = (color === 'orange' ? 'yellow' : color) as 'yellow' | 'green' | 'pink' | 'blue';
+      await addHighlight(book, chapter, verseNumber, verse.text, version, highlightColor);
+      
+      // Reload highlights (event will trigger this too, but do it immediately for UX)
+      const chapterHighlights = await getChapterHighlights(book, chapter, version);
+      setHighlights(chapterHighlights);
     } catch (err) {
       console.error('Error creating highlight:', err);
       alert('Failed to create highlight: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -245,12 +254,21 @@ export function BibleChapterViewer({
   };
 
   // Handle removing a highlight
-  const handleRemoveHighlight = async (highlightId: number) => {
+  const handleRemoveHighlight = async (highlightId: string) => {
     try {
-      const updated = highlights.filter((h) => h.id !== highlightId);
-      const key = getHighlightsKey();
-      await AsyncStorage.setItem(key, JSON.stringify(updated));
-      setHighlights(updated);
+      // Find the highlight to get its verse number
+      const highlight = highlights.find((h) => h.id === highlightId);
+      if (!highlight) {
+        console.error('Highlight not found:', highlightId);
+        return;
+      }
+
+      // Remove from shared storage
+      await removeHighlight(highlight.book, highlight.chapter, highlight.verse, highlight.version);
+      
+      // Reload highlights (event will trigger this too, but do it immediately for UX)
+      const chapterHighlights = await getChapterHighlights(book, chapter, version);
+      setHighlights(chapterHighlights);
     } catch (err) {
       console.error('Error deleting highlight:', err);
     }
@@ -349,7 +367,6 @@ export function BibleChapterViewer({
   const getVerseHighlight = (verseNumber: number) => {
     return highlights.find((h) => h.verse === verseNumber);
   };
-
 
 
 
@@ -698,133 +715,34 @@ export function BibleChapterViewer({
               pointerEvents: 'box-none',
             }}
           >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-                backgroundColor: colors.surface,
-                borderRadius: 32,
-                borderWidth: 1,
-                borderColor: colors.border,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.15,
-                shadowRadius: 8,
-                elevation: 5,
-              }}
-            >
-              <Pressable
-                onPress={onPreviousChapter}
-                disabled={!canGoPrevious}
-                style={({ pressed }) => [
-                  { padding: 8, opacity: !canGoPrevious ? 0.3 : pressed ? 0.6 : 1 },
-                ]}
-              >
-                <MaterialIcons
-                  name="chevron-left"
-                  size={24}
-                  color={colors.foreground}
-                />
-              </Pressable>
-
-              <Text
-                style={{
-                  marginHorizontal: 16,
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: colors.foreground,
-                }}
-              >
-                Chapter {chapter}
-              </Text>
-
-              <Pressable
-                onPress={onNextChapter}
-                disabled={!canGoNext}
-                style={({ pressed }) => [
-                  { padding: 8, opacity: !canGoNext ? 0.3 : pressed ? 0.6 : 1 },
-                ]}
-              >
-                <MaterialIcons
-                  name="chevron-right"
-                  size={24}
-                  color={colors.foreground}
-                />
-              </Pressable>
-            </View>
           </View>
+
+          {/* Color Picker Modal */}
+          <HighlightColorPicker
+            visible={colorPickerVisible}
+            onClose={() => setColorPickerVisible(false)}
+            onSelectColor={(color) => {
+              if (selectedVerseForHighlight !== null) {
+                handleHighlightVerse(selectedVerseForHighlight, color);
+              }
+              setColorPickerVisible(false);
+            }}
+          />
+
+          {/* Bible Story Viewer Modal */}
+          {selectedSection && (
+            <BibleStoryViewer
+              visible={storyViewerVisible}
+              section={selectedSection}
+              book={book}
+              chapter={chapter}
+              onClose={() => setStoryViewerVisible(false)}
+              onComplete={onMarkComplete}
+              version={version}
+            />
+          )}
         </SafeAreaView>
       </Modal>
-
-      {/* Color Picker Modal */}
-      <HighlightColorPicker
-        visible={colorPickerVisible}
-        onSelectColor={(color) => {
-          if (selectedVerseForHighlight !== null) {
-            handleHighlightVerse(selectedVerseForHighlight, color);
-            setColorPickerVisible(false);
-            setSelectedVerseForHighlight(null);
-          }
-        }}
-        onClose={() => {
-          setColorPickerVisible(false);
-          setSelectedVerseForHighlight(null);
-        }}
-      />
-
-      {/* Story Viewer Modal */}
-      <BibleStoryViewer
-        visible={storyViewerVisible}
-        section={selectedSection}
-        onClose={() => setStoryViewerVisible(false)}
-        onComplete={() => {
-          handleSectionComplete();
-          // Find next section and auto-advance (unless it's the last section)
-          const currentIdx = sections.findIndex(s => s.id === selectedSection?.id);
-          if (currentIdx >= 0 && currentIdx < sections.length - 1) {
-            const nextSection = sections[currentIdx + 1];
-            setSelectedSection(nextSection);
-          }
-        }}
-        onChapterComplete={async () => {
-          try {
-            const updated = await markChapterAsRead(book, chapter, false);
-            await syncUnifiedBibleToAllOldSystems(updated);
-            if (Platform.OS !== 'web') {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-            // Advance to next chapter
-            onNextChapter();
-          } catch (error) {
-            console.error('Error marking chapter as read:', error);
-          }
-        }}
-        onReset={() => {
-          // Reset all completed sections for this chapter
-          setCompletedSections([]);
-          sections.forEach(async (s) => {
-            const key = getSectionCompletionKey(book, chapter, s.id);
-            await AsyncStorage.removeItem(key);
-          });
-        }}
-        book={book}
-        chapter={chapter}
-        version="kjv"
-        isBibleStudyMode={isBibleStudyMode}
-        totalVerses={sections.reduce((sum, s) => sum + s.verses.length, 0)}
-        currentVerseOffset={(() => {
-          const idx = sections.findIndex(s => s.id === selectedSection?.id);
-          if (idx <= 0) return 0;
-          return sections.slice(0, idx).reduce((sum, s) => sum + s.verses.length, 0);
-        })()}
-        isLastSection={(() => {
-          const idx = sections.findIndex(s => s.id === selectedSection?.id);
-          return idx === sections.length - 1;
-        })()}
-      />
     </>
   );
 }

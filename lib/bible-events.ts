@@ -2,9 +2,10 @@
 type BibleEventListener = (event: BibleEvent) => void;
 
 export interface BibleEvent {
-  type: 'chapter-marked-read' | 'chapter-marked-unread';
+  type: 'chapter-marked-read' | 'chapter-marked-unread' | 'highlight-added' | 'highlight-removed';
   book: string;
   chapter: number;
+  verse?: number;
 }
 
 class BibleEventEmitter {

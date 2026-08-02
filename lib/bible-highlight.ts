@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { bibleEventEmitter } from './bible-events';
 
 export interface BibleHighlight {
   id: string;
@@ -78,6 +79,14 @@ export async function addHighlight(
     highlights.push(highlight);
     await AsyncStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(highlights));
 
+    // Emit event for real-time sync
+    bibleEventEmitter.emit({
+      type: 'highlight-added',
+      book,
+      chapter,
+      verse,
+    });
+
     return highlight;
   } catch (error) {
     console.error('Error adding highlight:', error);
@@ -104,6 +113,14 @@ export async function removeHighlight(
     );
 
     await AsyncStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(filtered));
+
+    // Emit event for real-time sync
+    bibleEventEmitter.emit({
+      type: 'highlight-removed',
+      book,
+      chapter,
+      verse,
+    });
   } catch (error) {
     console.error('Error removing highlight:', error);
     throw error;

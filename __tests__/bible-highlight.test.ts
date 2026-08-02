@@ -98,3 +98,53 @@ describe('Bible Highlight System', () => {
     expect(allHighlights).toHaveLength(2);
   });
 });
+
+
+describe('Bible Highlight Events', () => {
+  beforeEach(() => {
+    mockStorage = {};
+    vi.clearAllMocks();
+  });
+
+  it('should emit highlight-added event when adding a highlight', async () => {
+    const { bibleEventEmitter } = await import('../lib/bible-events');
+    const listener = vi.fn();
+    const unsubscribe = bibleEventEmitter.subscribe(listener);
+
+    await addHighlight('Genesis', 1, 1, 'In the beginning...', 'kjv', 'yellow');
+
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'highlight-added',
+        book: 'Genesis',
+        chapter: 1,
+        verse: 1,
+      })
+    );
+
+    unsubscribe();
+  });
+
+  it('should emit highlight-removed event when removing a highlight', async () => {
+    const { bibleEventEmitter } = await import('../lib/bible-events');
+    const listener = vi.fn();
+
+    await addHighlight('Genesis', 1, 1, 'In the beginning...', 'kjv', 'yellow');
+    
+    const unsubscribe = bibleEventEmitter.subscribe(listener);
+    vi.clearAllMocks();
+
+    await removeHighlight('Genesis', 1, 1, 'kjv');
+
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'highlight-removed',
+        book: 'Genesis',
+        chapter: 1,
+        verse: 1,
+      })
+    );
+
+    unsubscribe();
+  });
+});

@@ -50,6 +50,8 @@ import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selecto
 import { VinylRecord } from "./vinyl-record";
 import { AlbumCard } from "./album-card";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
+import { TimeOffModal } from "./time-off-modal";
+import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
@@ -823,6 +825,8 @@ export function ScheduleTab({
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
+  const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
+  const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>('test-album-1');
   const testAlbum = {
     id: 'test-album-1',
@@ -1209,6 +1213,8 @@ export function ScheduleTab({
         if (prayersData) setPrayers(JSON.parse(prayersData));
         const worshipAlbumsData = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
         if (worshipAlbumsData) setWorshipAlbums(JSON.parse(worshipAlbumsData));
+        const timeOffData = await getAllTimeOff();
+        setTimeOffList(timeOffData);
       } catch (e) {
         // Silent fail
       }
@@ -2960,6 +2966,18 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
             </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowTimeOffModal(true);
+                setShowAddModal(false);
+              }}
+              style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+            >
+              <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E1F5FE" }]}>
+                <MaterialIcons name="beach-access" size={20} color="#01579B" />
+              </View>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Time Off</Text>
+            </Pressable>
 
           </View>
         </>
@@ -3733,6 +3751,16 @@ export function ScheduleTab({
         }}
         canGoPrevious={bibleChapter > 1}
         canGoNext={bibleChapter < 50}
+      />
+
+      {/* Time-Off Modal */}
+      <TimeOffModal
+        visible={showTimeOffModal}
+        onClose={() => setShowTimeOffModal(false)}
+        onTimeOffUpdated={async () => {
+          const updated = await getAllTimeOff();
+          setTimeOffList(updated);
+        }}
       />
 
     </View>

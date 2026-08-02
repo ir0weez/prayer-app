@@ -59,6 +59,8 @@ export function BibleStoryViewer({
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [selectedHighlightColor, setSelectedHighlightColor] = useState<'yellow' | 'green' | 'pink' | 'blue'>('yellow');
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
@@ -185,17 +187,22 @@ export function BibleStoryViewer({
   };
 
   const handleHighlight = async () => {
+    setShowColorPicker(true);
+  };
+
+  const handleColorSelected = async (color: 'yellow' | 'green' | 'pink' | 'blue') => {
     if (!currentVerse) return;
     
     try {
       if (isHighlighted) {
         await removeHighlight(book, chapter, currentVerse.verse, version);
-      } else {
-        await addHighlight(book, chapter, currentVerse.verse, currentVerse.text, version, 'yellow');
       }
-      setIsHighlighted(!isHighlighted);
+      await addHighlight(book, chapter, currentVerse.verse, currentVerse.text, version, color);
+      setSelectedHighlightColor(color);
+      setIsHighlighted(true);
+      setShowColorPicker(false);
     } catch (error) {
-      console.error('Error toggling highlight:', error);
+      console.error('Error highlighting verse:', error);
     }
   };
 
@@ -682,6 +689,78 @@ export function BibleStoryViewer({
             onClose();
           }}
         />
+      </Modal>
+
+      {/* Color Picker Modal */}
+      <Modal
+        visible={showColorPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowColorPicker(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          onPress={() => setShowColorPicker(false)}
+        >
+          <Pressable
+            style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              padding: 24,
+              width: '80%',
+              maxWidth: 300,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 20, textAlign: 'center' }}>Choose Color</Text>
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20 }}>
+              {[
+                { color: '#FDD835', name: 'Yellow', key: 'yellow' },
+                { color: '#81C784', name: 'Green', key: 'green' },
+                { color: '#EF5350', name: 'Pink', key: 'pink' },
+                { color: '#42A5F5', name: 'Blue', key: 'blue' },
+              ].map((item) => (
+                <Pressable
+                  key={item.key}
+                  onPress={() => handleColorSelected(item.key as 'yellow' | 'green' | 'pink' | 'blue')}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: item.color,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: selectedHighlightColor === item.key ? 3 : 0,
+                    borderColor: '#333',
+                  }}
+                >
+                  {selectedHighlightColor === item.key && (
+                    <MaterialIcons name="check" size={24} color="white" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable
+              onPress={() => setShowColorPicker(false)}
+              style={({ pressed }) => [{
+                backgroundColor: colors.primary,
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: 'center',
+                opacity: pressed ? 0.8 : 1,
+              }]}
+            >
+              <Text style={{ color: 'white', fontWeight: '600' }}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );

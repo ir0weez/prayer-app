@@ -17,15 +17,31 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
     const calculateDaysRemaining = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const startDate = new Date(timeOff.startDate);
+      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(timeOff.endDate);
       endDate.setHours(0, 0, 0, 0);
+      
+      // If time-off hasn't started yet, show 0
+      if (today < startDate) {
+        setDaysRemaining(0);
+        return;
+      }
+      
+      // If time-off has ended, show 0
+      if (today > endDate) {
+        setDaysRemaining(0);
+        return;
+      }
+      
+      // Calculate days remaining during the time-off period
       const remaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       setDaysRemaining(Math.max(0, remaining));
     };
     calculateDaysRemaining();
     const interval = setInterval(calculateDaysRemaining, 1000 * 60 * 60);
     return () => clearInterval(interval);
-  }, [timeOff.endDate]);
+  }, [timeOff.startDate, timeOff.endDate]);
 
   // Type-specific configuration with Material Icons and refined colors
   const typeConfig: Record<string, { icon: string; label: string; bgColor: string; textColor: string }> = {
@@ -48,7 +64,7 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       textColor: '#6A1B9A',
     },
     sabbatical: {
-      icon: 'school',
+      icon: 'trending-up',
       label: 'Sabbatical',
       bgColor: '#E3F2FD',
       textColor: '#1565C0',
@@ -139,11 +155,12 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
           <View
             style={{
               backgroundColor: config.textColor,
-              paddingHorizontal: 10,
+              paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: 8,
-              minWidth: 50,
+              borderRadius: 20,
+              minWidth: 54,
               alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Text

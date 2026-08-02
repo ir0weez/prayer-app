@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
+import { useEffect, useState } from 'react';
 import type { TimeOff } from '@/lib/time-off';
 
 interface TimeOffCardProps {
@@ -8,10 +9,29 @@ interface TimeOffCardProps {
   onPress?: () => void;
 }
 
+function formatDateWithoutYear(dateStr: string): string {
+  return dateStr.split('-').slice(1).join('-');
+}
+
 export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
   const colors = useColors();
+  const [daysRemaining, setDaysRemaining] = useState(0);
 
-  // Calculate duration
+  useEffect(() => {
+    const calculateDaysRemaining = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(timeOff.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      const remaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      setDaysRemaining(Math.max(0, remaining));
+    };
+    calculateDaysRemaining();
+    const interval = setInterval(calculateDaysRemaining, 1000 * 60 * 60); // Update every hour
+    return () => clearInterval(interval);
+  }, [timeOff.endDate]);
+
+  // Calculate total duration
   const duration = timeOff.endDate && timeOff.startDate
     ? Math.ceil((new Date(timeOff.endDate).getTime() - new Date(timeOff.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 1;
@@ -37,7 +57,7 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       accentColor: '#6A1B9A',
     },
     sabbatical: {
-      icon: '📚',
+      icon: '🔄',
       label: 'Sabbatical',
       gradient: ['#29B6F6', '#1976D2'],
       accentColor: '#0D47A1',
@@ -57,7 +77,7 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       onPress={onPress}
       style={({ pressed }) => [
         {
-          marginBottom: 16,
+          marginBottom: 10,
           marginHorizontal: 0,
           opacity: pressed ? 0.85 : 1,
         },
@@ -65,135 +85,91 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
     >
       <View
         style={{
-          borderRadius: 20,
+          borderRadius: 14,
           overflow: 'hidden',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 5,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
         }}
       >
         {/* Gradient background */}
         <View
           style={{
             backgroundColor: config.gradient[0],
-            paddingTop: 20,
-            paddingBottom: 20,
-            paddingHorizontal: 20,
-            borderRadius: 20,
+            paddingTop: 12,
+            paddingBottom: 12,
+            paddingHorizontal: 14,
+            borderRadius: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          {/* Top row: Icon and type label */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 12,
-            }}
-          >
+          {/* Left: Icon and content */}
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View
               style={{
-                width: 56,
-                height: 56,
-                borderRadius: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
                 backgroundColor: 'rgba(255, 255, 255, 0.25)',
                 justifyContent: 'center',
                 alignItems: 'center',
-                borderWidth: 2,
-                borderColor: 'rgba(255, 255, 255, 0.4)',
-              }}
-            >
-              <Text style={{ fontSize: 28 }}>{config.icon}</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 12,
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: 'rgba(255, 255, 255, 0.3)',
               }}
             >
+              <Text style={{ fontSize: 20 }}>{config.icon}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: '#FFFFFF',
+                  marginBottom: 2,
+                }}
+                numberOfLines={1}
+              >
+                {timeOff.title}
+              </Text>
               <Text
                 style={{
                   fontSize: 11,
-                  fontWeight: '700',
-                  color: '#FFFFFF',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
+                  fontWeight: '500',
+                  color: 'rgba(255, 255, 255, 0.85)',
                 }}
               >
-                {duration}d
+                {timeOff.startDate.split('-').slice(1).join('-')} → {timeOff.endDate.split('-').slice(1).join('-')}
               </Text>
             </View>
           </View>
 
-          {/* Title */}
-          <Text
+          {/* Right: Days remaining pill */}
+          <View
             style={{
-              fontSize: 18,
-              fontWeight: '800',
-              color: '#FFFFFF',
-              marginBottom: 8,
-              letterSpacing: -0.3,
+              backgroundColor: 'rgba(255, 255, 255, 0.25)',
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              minWidth: 50,
+              alignItems: 'center',
             }}
           >
-            {timeOff.title}
-          </Text>
-
-          {/* Type label and dates */}
-          <View style={{ marginBottom: 12 }}>
             <Text
               style={{
                 fontSize: 12,
-                fontWeight: '600',
-                color: 'rgba(255, 255, 255, 0.8)',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-                marginBottom: 4,
+                fontWeight: '700',
+                color: '#FFFFFF',
               }}
             >
-              {config.label}
-            </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: '500',
-                color: 'rgba(255, 255, 255, 0.9)',
-              }}
-            >
-              {timeOff.startDate} → {timeOff.endDate}
+              {daysRemaining}d
             </Text>
           </View>
-
-          {/* Notes if available */}
-          {timeOff.notes && (
-            <View
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 10,
-                borderLeftWidth: 3,
-                borderLeftColor: 'rgba(255, 255, 255, 0.5)',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: 'rgba(255, 255, 255, 0.85)',
-                  fontStyle: 'italic',
-                  lineHeight: 16,
-                }}
-                numberOfLines={2}
-              >
-                {timeOff.notes}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
     </Pressable>

@@ -6,7 +6,7 @@ import { getBookIcon } from '@/lib/book-icons';
 
 interface BibleStoriesBarProps {
   sections: BibleSection[];
-  onSectionPress: (section: BibleSection) => void;
+  onSectionPress: (section: BibleSection, isCompleted?: boolean) => void;
   completedSections?: number[];
   book?: string;
 }
@@ -65,7 +65,7 @@ export function BibleStoriesBar({
           return (
             <Pressable
               key={section.id || `${section.title}-${section.startVerse}`}
-              onPress={() => onSectionPress(section)}
+              onPress={() => onSectionPress(section, isCompleted)}
               style={({ pressed }) => [
                 {
                   width: 80,

@@ -80,6 +80,8 @@ export function BibleChapterViewer({
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
   const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
   const [commentariesBySection, setCommentariesBySection] = useState<Record<string, any[]>>({});
+  const [showRecapModal, setShowRecapModal] = useState(false);
+  const [recapSection, setRecapSection] = useState<BibleSection | null>(null);
 
   const handleSectionComplete = async () => {
     // Mark section as complete in AsyncStorage
@@ -406,16 +408,38 @@ export function BibleChapterViewer({
             </Pressable>
 
             <View style={{ alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '700',
-                  color: colors.foreground,
-                }}
-                numberOfLines={1}
-              >
-                {book} {chapter}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: colors.foreground,
+                  }}
+                  numberOfLines={1}
+                >
+                  {book} {chapter}
+                </Text>
+                {highlights.length > 0 && (
+                  <View
+                    style={{
+                      backgroundColor: '#FEF08A',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: '#7C2D12',
+                      }}
+                    >
+                      ★ {highlights.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <View style={{ flexDirection: 'row', marginTop: 4, gap: 8, alignItems: 'center' }}>
                 <Pressable
                   onPress={() => handleVersionChange('kjv')}
@@ -511,9 +535,16 @@ export function BibleChapterViewer({
               {/* Bible Stories Bar - scrolls with content */}
               <BibleStoriesBar
                 sections={sections}
-                onSectionPress={(section) => {
-                  setSelectedSection(section);
-                  setStoryViewerVisible(true);
+                onSectionPress={(section, isCompleted) => {
+                  if (isCompleted) {
+                    // Show recap for completed sections
+                    setRecapSection(section);
+                    setShowRecapModal(true);
+                  } else {
+                    // Show normal story viewer for active sections
+                    setSelectedSection(section);
+                    setStoryViewerVisible(true);
+                  }
                 }}
                 completedSections={completedSections}
                 book={book}
@@ -728,6 +759,83 @@ export function BibleChapterViewer({
               setColorPickerVisible(false);
             }}
           />
+
+          {/* Recap Modal for Completed Sections */}
+          <Modal
+            visible={showRecapModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowRecapModal(false)}
+          >
+            <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 16,
+                    padding: 24,
+                    maxHeight: '80%',
+                    width: '100%',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>
+                      Recap: {recapSection?.title || `Verses ${recapSection?.startVerse}-${recapSection?.endVerse}`}
+                    </Text>
+                    <Pressable onPress={() => setShowRecapModal(false)} style={{ padding: 8 }}>
+                      <MaterialIcons name="close" size={24} color={colors.foreground} />
+                    </Pressable>
+                  </View>
+
+                  <ScrollView style={{ flex: 1, marginBottom: 16 }}>
+                    {recapSection?.verses.map((verse, idx) => (
+                      <View key={`recap-${verse.verse}-${idx}`} style={{ marginBottom: 16 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: '600',
+                              color: colors.primary,
+                              minWidth: 30,
+                              marginTop: 2,
+                            }}
+                          >
+                            {verse.verse}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              lineHeight: 24,
+                              color: colors.foreground,
+                              flex: 1,
+                              fontFamily: 'Georgia',
+                            }}
+                          >
+                            {verse.text}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+
+                  <Pressable
+                    onPress={() => setShowRecapModal(false)}
+                    style={({ pressed }) => [{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 8,
+                      backgroundColor: colors.primary,
+                      opacity: pressed ? 0.8 : 1,
+                    }]}
+                  >
+                    <Text style={{ color: 'white', fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+                      Done
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </SafeAreaView>
+          </Modal>
 
           {/* Bible Story Viewer Modal */}
           {selectedSection && (

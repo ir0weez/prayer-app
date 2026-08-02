@@ -1,4 +1,4 @@
-import { View, Text, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useEffect, useState } from 'react';
@@ -7,10 +7,6 @@ import type { TimeOff } from '@/lib/time-off';
 interface TimeOffCardProps {
   timeOff: TimeOff;
   onPress?: () => void;
-}
-
-function formatDateWithoutYear(dateStr: string): string {
-  return dateStr.split('-').slice(1).join('-');
 }
 
 export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
@@ -27,46 +23,41 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       setDaysRemaining(Math.max(0, remaining));
     };
     calculateDaysRemaining();
-    const interval = setInterval(calculateDaysRemaining, 1000 * 60 * 60); // Update every hour
+    const interval = setInterval(calculateDaysRemaining, 1000 * 60 * 60);
     return () => clearInterval(interval);
   }, [timeOff.endDate]);
 
-  // Calculate total duration
-  const duration = timeOff.endDate && timeOff.startDate
-    ? Math.ceil((new Date(timeOff.endDate).getTime() - new Date(timeOff.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
-    : 1;
-
-  // Type-specific configuration with better icons and symbolic meaning
-  const typeConfig: Record<string, { icon: string; label: string; gradient: [string, string]; accentColor: string }> = {
+  // Type-specific configuration with Material Icons and refined colors
+  const typeConfig: Record<string, { icon: string; label: string; bgColor: string; textColor: string }> = {
     vacation: {
-      icon: '✈️',
+      icon: 'flight-takeoff',
       label: 'Vacation',
-      gradient: ['#FFA726', '#FB8C00'],
-      accentColor: '#FF6F00',
+      bgColor: '#FFF3E0',
+      textColor: '#E65100',
     },
     sick: {
-      icon: '🏥',
+      icon: 'local-hospital',
       label: 'Sick Leave',
-      gradient: ['#EF5350', '#E53935'],
-      accentColor: '#C62828',
+      bgColor: '#FFEBEE',
+      textColor: '#C62828',
     },
     personal: {
-      icon: '🧘',
+      icon: 'self-improvement',
       label: 'Personal Time',
-      gradient: ['#AB47BC', '#8E24AA'],
-      accentColor: '#6A1B9A',
+      bgColor: '#F3E5F5',
+      textColor: '#6A1B9A',
     },
     sabbatical: {
-      icon: '🔄',
+      icon: 'school',
       label: 'Sabbatical',
-      gradient: ['#29B6F6', '#1976D2'],
-      accentColor: '#0D47A1',
+      bgColor: '#E3F2FD',
+      textColor: '#1565C0',
     },
     other: {
-      icon: '⏸️',
+      icon: 'pause-circle',
       label: 'Time Off',
-      gradient: ['#66BB6A', '#43A047'],
-      accentColor: '#2E7D32',
+      bgColor: '#E8F5E9',
+      textColor: '#2E7D32',
     },
   };
 
@@ -79,29 +70,27 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
         {
           marginBottom: 10,
           marginHorizontal: 0,
-          opacity: pressed ? 0.85 : 1,
+          opacity: pressed ? 0.75 : 1,
         },
       ]}
     >
       <View
         style={{
-          borderRadius: 14,
+          borderRadius: 12,
           overflow: 'hidden',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 3,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.08,
+          shadowRadius: 3,
+          elevation: 2,
         }}
       >
-        {/* Gradient background */}
         <View
           style={{
-            backgroundColor: config.gradient[0],
+            backgroundColor: config.bgColor,
             paddingTop: 12,
             paddingBottom: 12,
             paddingHorizontal: 14,
-            borderRadius: 14,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -114,21 +103,19 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
                 width: 40,
                 height: 40,
                 borderRadius: 10,
-                backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                backgroundColor: 'rgba(0, 0, 0, 0.08)',
                 justifyContent: 'center',
                 alignItems: 'center',
-                borderWidth: 1.5,
-                borderColor: 'rgba(255, 255, 255, 0.3)',
               }}
             >
-              <Text style={{ fontSize: 20 }}>{config.icon}</Text>
+              <MaterialIcons name={config.icon as any} size={22} color={config.textColor} />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 14,
                   fontWeight: '700',
-                  color: '#FFFFFF',
+                  color: config.textColor,
                   marginBottom: 2,
                 }}
                 numberOfLines={1}
@@ -139,7 +126,8 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
                 style={{
                   fontSize: 11,
                   fontWeight: '500',
-                  color: 'rgba(255, 255, 255, 0.85)',
+                  color: config.textColor,
+                  opacity: 0.7,
                 }}
               >
                 {timeOff.startDate.split('-').slice(1).join('-')} → {timeOff.endDate.split('-').slice(1).join('-')}
@@ -150,12 +138,10 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
           {/* Right: Days remaining pill */}
           <View
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.25)',
+              backgroundColor: config.textColor,
               paddingHorizontal: 10,
               paddingVertical: 6,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.3)',
+              borderRadius: 8,
               minWidth: 50,
               alignItems: 'center',
             }}

@@ -231,6 +231,48 @@ export function BibleStoryViewer({
             backgroundColor: '#2D8659',
           }}
         >
+          {/* Header with progress and verse count */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+            }}
+          >
+            {/* Section progress indicator */}
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: 'rgba(255,255,255,0.8)',
+              }}
+            >
+              Section {sections.length > 0 ? sections.findIndex(s => s.id === section?.id) + 1 : 1} of {sections.length || 1}
+            </Text>
+
+            {/* Verse count pill */}
+            <View
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 12,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: 'white',
+                }}
+              >
+                {currentVerseIndex + 1} of {section?.verses.length || 0}
+              </Text>
+            </View>
+          </View>
+
           {/* Main content container */}
           <View
             style={{

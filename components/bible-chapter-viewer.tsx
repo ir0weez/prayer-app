@@ -847,6 +847,7 @@ export function BibleChapterViewer({
               onClose={() => setStoryViewerVisible(false)}
               onComplete={onMarkComplete}
               version={version}
+              isLastSection={sections.length > 0 && selectedSection.id === sections[sections.length - 1].id}
             />
           )}
         </SafeAreaView>

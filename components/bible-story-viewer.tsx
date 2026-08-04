@@ -184,7 +184,20 @@ export function BibleStoryViewer({
   };
 
   const handlePreviousVerse = () => {
-    if (!isBibleStudyMode && currentVerseIndex > 0) {
+    if (isBibleStudyMode) {
+      // In study mode, go to previous section
+      if (sections.length > 0 && section) {
+        const currentSectionIndex = sections.findIndex(s => s.id === section.id);
+        if (currentSectionIndex > 0) {
+          const previousSection = sections[currentSectionIndex - 1];
+          if (onSectionChange) {
+            onSectionChange(previousSection);
+            setCurrentVerseIndex(0);
+          }
+        }
+      }
+    } else if (currentVerseIndex > 0) {
+      // In normal mode, go to previous verse
       setCurrentVerseIndex(currentVerseIndex - 1);
     }
   };

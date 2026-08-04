@@ -251,6 +251,7 @@ export function BibleStoryViewer({
               alignItems: 'center',
               paddingHorizontal: 24,
               paddingVertical: 12,
+              paddingTop: 24,
             }}
           >
             {/* Section progress indicator */}

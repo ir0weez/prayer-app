@@ -846,6 +846,7 @@ export function BibleChapterViewer({
               chapter={chapter}
               onClose={() => setStoryViewerVisible(false)}
               onComplete={onMarkComplete}
+              onChapterComplete={onMarkComplete}
               version={version}
               isLastSection={sections.length > 0 && selectedSection.id === sections[sections.length - 1].id}
               sections={sections}

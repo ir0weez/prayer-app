@@ -38,6 +38,8 @@ interface BibleStoryViewerProps {
   totalVerses?: number;
   currentVerseOffset?: number;
   isLastSection?: boolean;
+  sections?: BibleSection[];
+  onSectionChange?: (section: BibleSection) => void;
 }
 
 export function BibleStoryViewer({
@@ -54,6 +56,8 @@ export function BibleStoryViewer({
   totalVerses = 0,
   currentVerseOffset = 0,
   isLastSection = false,
+  sections = [],
+  onSectionChange,
 }: BibleStoryViewerProps) {
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -160,12 +164,23 @@ export function BibleStoryViewer({
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
         setCurrentVerseIndex(currentVerseIndex + 1);
-      } else if (isLastVerse && isLastSection) {
-        // Only complete chapter if this is the last verse of the last section
-        if (onComplete) onComplete();
-        setShowChapterComplete(true);
+      } else if (isLastVerse) {
+        if (isLastSection) {
+          // Last verse of last section - show chapter complete screen
+          if (onComplete) onComplete();
+          setShowChapterComplete(true);
+        } else if (sections.length > 0 && section) {
+          // Auto-advance to next section
+          const currentSectionIndex = sections.findIndex(s => s.id === section.id);
+          if (currentSectionIndex >= 0 && currentSectionIndex < sections.length - 1) {
+            const nextSection = sections[currentSectionIndex + 1];
+            if (onSectionChange) {
+              onSectionChange(nextSection);
+              setCurrentVerseIndex(0);
+            }
+          }
+        }
       }
-      // Don't advance to next chapter if not the last section
     }
   };
 

@@ -746,6 +746,43 @@ export function BibleChapterViewer({
               pointerEvents: 'box-none',
             }}
           >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                backgroundColor: colors.surface,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Pressable
+                onPress={onPreviousChapter}
+                disabled={!canGoPrevious}
+                style={({ pressed }) => [{
+                  opacity: !canGoPrevious ? 0.3 : pressed ? 0.6 : 1,
+                }]}
+              >
+                <MaterialIcons name="chevron-left" size={24} color={colors.foreground} />
+              </Pressable>
+              
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground, minWidth: 80, textAlign: 'center' }}>
+                {book} {chapter}
+              </Text>
+              
+              <Pressable
+                onPress={onNextChapter}
+                disabled={!canGoNext}
+                style={({ pressed }) => [{
+                  opacity: !canGoNext ? 0.3 : pressed ? 0.6 : 1,
+                }]}
+              >
+                <MaterialIcons name="chevron-right" size={24} color={colors.foreground} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Color Picker Modal */}

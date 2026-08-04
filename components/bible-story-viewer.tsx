@@ -155,8 +155,7 @@ export function BibleStoryViewer({
     if (isBibleStudyMode) {
       // In study mode, this completes the section
       if (isLastSection) {
-        // Last section - show chapter complete screen
-        if (onComplete) onComplete();
+        // Last section - show chapter complete screen (DON'T call onComplete yet)
         setShowChapterComplete(true);
       }
       // Don't call onComplete for non-last sections in study mode
@@ -166,8 +165,8 @@ export function BibleStoryViewer({
         setCurrentVerseIndex(currentVerseIndex + 1);
       } else if (isLastVerse) {
         if (isLastSection) {
-          // Last verse of last section - show chapter complete screen
-          if (onComplete) onComplete();
+          // Last verse of last section - show chapter complete screen (DON'T call onComplete yet)
+          // The checkmark screen will call onComplete when user taps "Mark as Read"
           setShowChapterComplete(true);
         } else if (sections.length > 0 && section) {
           // Auto-advance to next section

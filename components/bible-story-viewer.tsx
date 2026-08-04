@@ -154,22 +154,18 @@ export function BibleStoryViewer({
         // Last section - show chapter complete screen
         if (onComplete) onComplete();
         setShowChapterComplete(true);
-      } else if (onComplete) {
-        onComplete();
       }
+      // Don't call onComplete for non-last sections in study mode
     } else {
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
         setCurrentVerseIndex(currentVerseIndex + 1);
-      } else if (isLastVerse) {
-        if (isLastSection) {
-          // Last verse of last section - show chapter complete screen
-          if (onComplete) onComplete();
-          setShowChapterComplete(true);
-        } else if (onComplete) {
-          onComplete();
-        }
+      } else if (isLastVerse && isLastSection) {
+        // Only complete chapter if this is the last verse of the last section
+        if (onComplete) onComplete();
+        setShowChapterComplete(true);
       }
+      // Don't advance to next chapter if not the last section
     }
   };
 

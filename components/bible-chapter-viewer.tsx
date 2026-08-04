@@ -848,6 +848,7 @@ export function BibleChapterViewer({
               onComplete={onMarkComplete}
               onChapterComplete={onMarkComplete}
               version={version}
+              isBibleStudyMode={isBibleStudyMode}
               isLastSection={sections.length > 0 && selectedSection.id === sections[sections.length - 1].id}
               sections={sections}
               onSectionChange={setSelectedSection}

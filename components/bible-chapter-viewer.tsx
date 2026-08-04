@@ -851,6 +851,7 @@ export function BibleChapterViewer({
               isLastSection={sections.length > 0 && selectedSection.id === sections[sections.length - 1].id}
               sections={sections}
               onSectionChange={setSelectedSection}
+              onSectionComplete={handleSectionComplete}
             />
           )}
         </SafeAreaView>

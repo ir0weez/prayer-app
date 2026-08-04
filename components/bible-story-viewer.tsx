@@ -40,6 +40,7 @@ interface BibleStoryViewerProps {
   isLastSection?: boolean;
   sections?: BibleSection[];
   onSectionChange?: (section: BibleSection) => void;
+  onSectionComplete?: () => void;
 }
 
 export function BibleStoryViewer({
@@ -58,6 +59,7 @@ export function BibleStoryViewer({
   isLastSection = false,
   sections = [],
   onSectionChange,
+  onSectionComplete,
 }: BibleStoryViewerProps) {
   const colors = useColors();
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -151,14 +153,40 @@ export function BibleStoryViewer({
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
 
-  const handleNextVerse = () => {
+  const handleSectionFinished = async () => {
+    // Auto-bookmark the last verse of this section
+    if (currentVerse) {
+      await saveBookmark(book, chapter, currentVerse.verse, version);
+    }
+    
+    // Mark section as complete
+    if (onSectionComplete) {
+      onSectionComplete();
+    }
+    
+    // Auto-advance to next section
+    if (sections.length > 0 && section) {
+      const currentSectionIndex = sections.findIndex(s => s.id === section.id);
+      if (currentSectionIndex >= 0 && currentSectionIndex < sections.length - 1) {
+        const nextSection = sections[currentSectionIndex + 1];
+        if (onSectionChange) {
+          onSectionChange(nextSection);
+          setCurrentVerseIndex(0);
+        }
+      }
+    }
+  };
+
+  const handleNextVerse = async () => {
     if (isBibleStudyMode) {
       // In study mode, this completes the section
       if (isLastSection) {
         // Last section - show chapter complete screen (DON'T call onComplete yet)
         setShowChapterComplete(true);
+      } else {
+        // Non-last section in study mode - mark complete, auto-bookmark, and move to next
+        await handleSectionFinished();
       }
-      // Don't call onComplete for non-last sections in study mode
     } else {
       // In normal mode, go to next verse
       if (currentVerseIndex < section.verses.length - 1) {
@@ -169,15 +197,8 @@ export function BibleStoryViewer({
           // The checkmark screen will call onComplete when user taps "Mark as Read"
           setShowChapterComplete(true);
         } else if (sections.length > 0 && section) {
-          // Auto-advance to next section
-          const currentSectionIndex = sections.findIndex(s => s.id === section.id);
-          if (currentSectionIndex >= 0 && currentSectionIndex < sections.length - 1) {
-            const nextSection = sections[currentSectionIndex + 1];
-            if (onSectionChange) {
-              onSectionChange(nextSection);
-              setCurrentVerseIndex(0);
-            }
-          }
+          // Finished this section - mark complete, auto-bookmark, and move to next
+          await handleSectionFinished();
         }
       }
     }

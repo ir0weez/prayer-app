@@ -483,24 +483,47 @@ export function BibleStoryViewer({
             </View>
           )}
 
-          {/* Section counter - BOTTOM RIGHT */}
-          <View
-            pointerEvents="auto"
-            style={{
-              position: 'absolute',
-              bottom: 28,
-              right: 28,
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              paddingHorizontal: 18,
-              paddingVertical: 10,
-              borderRadius: 24,
-              zIndex: 20,
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-              {isBibleStudyMode ? 'Study Mode' : `${currentVerseIndex + 1} / ${section.verses.length}`}
-            </Text>
-          </View>
+          {/* Study Mode Indicator - TOP RIGHT (only in study mode) */}
+          {isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                top: 28,
+                right: 28,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
+                Study Mode
+              </Text>
+            </View>
+          )}
+
+          {/* Section counter - BOTTOM RIGHT (only in normal mode) */}
+          {!isBibleStudyMode && (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                bottom: 28,
+                right: 28,
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                paddingHorizontal: 18,
+                paddingVertical: 10,
+                borderRadius: 24,
+                zIndex: 20,
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                {`${currentVerseIndex + 1} / ${section.verses.length}`}
+              </Text>
+            </View>
+          )}
 
           {/* Left tap area - previous verse */}
           <Pressable

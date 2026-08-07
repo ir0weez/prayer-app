@@ -744,6 +744,14 @@ export default function PersonScreen() {
           <Text style={styles.actionButtonText}>Emergency Prayer (24h)</Text>
         </Pressable>
 
+        <Pressable
+          onPress={() => handlePraise(currentPerson.prayerItems[0]?.id || '')}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: "#3B82F6" }, pressed && styles.pressed]}
+        >
+          <MaterialIcons name={iconName("thumb-up")} size={22} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Praise</Text>
+        </Pressable>
+
         {currentPerson.familyId && (
           <>
             <View style={styles.sectionHeader}>

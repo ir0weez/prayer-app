@@ -396,6 +396,33 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => togglePrayerItemDone(previousPeople, personId, itemId));
   };
 
+  const handlePraise = (itemId: string) => {
+    if (!currentPerson) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) =>
+      previousPeople.map((person) => {
+        if (person.id === currentPerson.id) {
+          return {
+            ...person,
+            prayerItems: person.prayerItems.map((item) => {
+              if (item.id === itemId) {
+                const now = new Date();
+                const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+                return {
+                  ...item,
+                  isPraised: true,
+                  praiseExpiresAt,
+                };
+              }
+              return item;
+            }),
+          };
+        }
+        return person;
+      })
+    );
+  };
+
   const handleRemoveItem = (itemId: string) => {
     if (!personId) return;
     updatePeople((previousPeople) => removePrayerItem(previousPeople, personId, itemId));
@@ -768,6 +795,9 @@ export default function PersonScreen() {
                     <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
                   </Pressable>
                 )}
+                <Pressable onPress={() => handlePraise(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: item.isPraised ? "#3B82F6" : getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
+                  <MaterialIcons name={iconName("thumb-up")} size={18} color={item.isPraised ? "#FFFFFF" : colors.muted} />
+                </Pressable>
                 <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
                   <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : colors.muted} />
                 </Pressable>

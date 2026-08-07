@@ -798,9 +798,11 @@ export default function HomeScreen() {
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
     const emergencyPrayers = person.prayerItems.filter((item) => item.isEmergency);
+    const praisedItems = person.prayerItems.filter((item) => item.isPraised && item.praiseExpiresAt);
     const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
     const isEmergency = emergencyPrayers.length > 0;
     const emergencyCountdown = isEmergency && displayItem?.emergencyExpiresAt ? emergencyCountdowns[displayItem.id] || 0 : 0;
+    const praiseCountdown = praisedItems.length > 0 && praisedItems[0].praiseExpiresAt ? (new Date(praisedItems[0].praiseExpiresAt).getTime() - new Date().getTime()) : 0;
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
@@ -815,6 +817,13 @@ export default function HomeScreen() {
                 {formatEmergencyPrayerCountdown(emergencyCountdown)}
               </Text>
             )}
+          </View>
+        ) : praiseCountdown > 0 ? (
+          <View style={[styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }]}>
+            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#1E40AF" }]}>Praise</Text>
+            <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
+              {formatEmergencyPrayerCountdown(praiseCountdown)}
+            </Text>
           </View>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>

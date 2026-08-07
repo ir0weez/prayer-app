@@ -5,6 +5,8 @@ export type PrayerItem = {
   isDone: boolean;
   isEmergency?: boolean;
   emergencyExpiresAt?: string;
+  praiseExpiresAt?: string; // ISO datetime string for 24-hour praise countdown
+  isPraised?: boolean; // Whether praise has been activated
 };
 
 export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";

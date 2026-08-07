@@ -8,20 +8,24 @@ interface EmergencyPrayersDisplayProps {
   emergencyPrayers: PrayerItem[];
   onPrayerPress?: (prayer: PrayerItem) => void;
   onRemove?: (prayerId: string) => void;
+  onPraise?: (prayerId: string) => void;
 }
 
 export function EmergencyPrayersDisplay({
   emergencyPrayers,
   onPrayerPress,
   onRemove,
+  onPraise,
 }: EmergencyPrayersDisplayProps) {
   const colors = useColors();
   const [countdowns, setCountdowns] = useState<Record<string, string>>({});
+  const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, string>>({});
 
   // Update countdowns every second
   useEffect(() => {
     const interval = setInterval(() => {
       const newCountdowns: Record<string, string> = {};
+      const newPraiseCountdowns: Record<string, string> = {};
       emergencyPrayers.forEach((prayer) => {
         if (prayer.emergencyExpiresAt) {
           const expiresAt = new Date(prayer.emergencyExpiresAt).getTime();
@@ -29,8 +33,15 @@ export function EmergencyPrayersDisplay({
           const millisRemaining = Math.max(0, expiresAt - now);
           newCountdowns[prayer.id] = formatEmergencyPrayerCountdown(millisRemaining);
         }
+        if (prayer.praiseExpiresAt) {
+          const expiresAt = new Date(prayer.praiseExpiresAt).getTime();
+          const now = new Date().getTime();
+          const millisRemaining = Math.max(0, expiresAt - now);
+          newPraiseCountdowns[prayer.id] = formatEmergencyPrayerCountdown(millisRemaining);
+        }
       });
       setCountdowns(newCountdowns);
+      setPraiseCountdowns(newPraiseCountdowns);
     }, 1000);
 
     return () => clearInterval(interval);
@@ -42,7 +53,9 @@ export function EmergencyPrayersDisplay({
 
   const renderPrayer = ({ item }: { item: PrayerItem }) => {
     const countdown = countdowns[item.id] || '';
+    const praiseCountdown = praiseCountdowns[item.id] || '';
     const isExpiring = countdown.includes('0m') || countdown.includes('expired') || countdown.includes('Expired');
+    const isPraiseActive = item.isPraised && praiseCountdown;
     
     return (
       <Pressable
@@ -84,14 +97,56 @@ export function EmergencyPrayersDisplay({
             </Text>
           </View>
         </View>
-        {onRemove && (
-          <Pressable
-            onPress={() => onRemove(item.id)}
-            style={({ pressed }) => [styles.removeButton, pressed && { opacity: 0.6 }]}
-          >
-            <MaterialIcons name="close" size={16} color={colors.muted} />
-          </Pressable>
-        )}
+        <View style={styles.actionButtons}>
+          {onPraise && (
+            <Pressable
+              onPress={() => onPraise(item.id)}
+              style={({ pressed }) => [
+                styles.praiseButton,
+                {
+                  backgroundColor: isPraiseActive ? '#3B82F6' : '#E0E7FF',
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <MaterialIcons 
+                name="thumb-up" 
+                size={14} 
+                color={isPraiseActive ? '#FFFFFF' : '#3B82F6'} 
+              />
+              <Text
+                style={[
+                  styles.praiseButtonText,
+                  {
+                    color: isPraiseActive ? '#FFFFFF' : '#3B82F6',
+                  },
+                ]}
+              >
+                Praise
+              </Text>
+              {isPraiseActive && (
+                <Text
+                  style={[
+                    styles.praiseCountdownText,
+                    {
+                      color: '#FFFFFF',
+                    },
+                  ]}
+                >
+                  {praiseCountdown}
+                </Text>
+              )}
+            </Pressable>
+          )}
+          {onRemove && (
+            <Pressable
+              onPress={() => onRemove(item.id)}
+              style={({ pressed }) => [styles.removeButton, pressed && { opacity: 0.6 }]}
+            >
+              <MaterialIcons name="close" size={16} color={colors.muted} />
+            </Pressable>
+          )}
+        </View>
       </Pressable>
     );
   };
@@ -137,14 +192,13 @@ const styles = StyleSheet.create({
     maxHeight: 300,
   },
   prayerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderLeftWidth: 4,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
+    gap: 8,
   },
   prayerContent: {
     flex: 1,
@@ -177,8 +231,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  praiseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  praiseButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  praiseCountdownText: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
   removeButton: {
     padding: 4,
-    marginLeft: 8,
   },
 });

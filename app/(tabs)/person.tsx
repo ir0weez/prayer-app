@@ -405,14 +405,22 @@ export default function PersonScreen() {
           return {
             ...person,
             prayerItems: person.prayerItems.map((item) => {
-              if (item.id === itemId) {
-                const now = new Date();
-                const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-                return {
-                  ...item,
-                  isPraised: true,
-                  praiseExpiresAt,
-                };
+                if (item.id === itemId) {
+                if (item.isPraised) {
+                  return {
+                    ...item,
+                    isPraised: false,
+                    praiseExpiresAt: undefined,
+                  };
+                } else {
+                  const now = new Date();
+                  const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+                  return {
+                    ...item,
+                    isPraised: true,
+                    praiseExpiresAt,
+                  };
+                }
               }
               return item;
             }),

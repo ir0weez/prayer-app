@@ -873,7 +873,8 @@ export default function HomeScreen() {
           </View>
         ) : showUrgentBubble ? (
           <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
-            <Text style={[styles.storyTagText, { color: "#7C3AED", fontSize: 16 }]}>💭</Text>
+            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#7C3AED" }]}>{urgentItems[0]?.title}</Text>
+            <Text style={[styles.storyTagText, { color: "#7C3AED", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>💭</Text>
           </Pressable>
         ) : showPraiseBadge ? (
           <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }]}>

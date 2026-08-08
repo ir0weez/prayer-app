@@ -765,6 +765,34 @@ export default function HomeScreen() {
     setPendingFastAction(null);
   };
 
+  const handlePraise = (personId: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) => {
+        if (person.id === personId) {
+          return {
+            ...person,
+            prayerItems: person.prayerItems.map((item) => {
+              if (!item.isPraised) {
+                const now = new Date();
+                const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+                return {
+                  ...item,
+                  isPraised: true,
+                  praiseExpiresAt,
+                };
+              }
+              return item;
+            }),
+          };
+        }
+        return person;
+      });
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
   const renderAvatar = (person: Person, size: number, story = false) => {
     const label = getAvatarText(person);
     const isEmoji = /\p{Emoji}/u.test(label);
@@ -829,8 +857,9 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
+        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>\n          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
+        </Pressable>
+        <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: "#3B82F6", borderColor: colors.background, marginLeft: 8 }, pressed && styles.pressed]}>\n          <MaterialIcons name={iconName("thumb-up")} size={20} color="#FFFFFF" />
         </Pressable>
         {isShowingCompletionAnimation && (
           <PrayerCompletionAnimation

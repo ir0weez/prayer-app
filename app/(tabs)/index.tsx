@@ -884,9 +884,13 @@ export default function HomeScreen() {
         <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
           <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
         </Pressable>
-        {!showPraiseBadge && (
-          <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: "#3B82F6", borderColor: colors.background, marginLeft: 8 }, pressed && styles.pressed]}>
+        {showPraiseBadge ? (
+          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: "#3B82F6", borderColor: colors.background }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("thumb-up")} size={20} color="#FFFFFF" />
+          </Pressable>
+        ) : (
+          <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
           </Pressable>
         )}
         {isShowingCompletionAnimation && (

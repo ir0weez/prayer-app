@@ -217,7 +217,22 @@ export function shouldPrayForTodayByReminder(
 
 // Helper: Get list of people to pray for today
 export function getPrayTodayList(people: Person[], todayDayOfWeek: number, todayDayOfMonth = new Date().getDate()): Person[] {
-  return people.filter((person) => shouldPrayForTodayByReminder(person, todayDayOfWeek, todayDayOfMonth));
+  const now = new Date();
+  return people.filter((person) => {
+    // Include if scheduled for today
+    if (shouldPrayForTodayByReminder(person, todayDayOfWeek, todayDayOfMonth)) return true;
+    
+    // Include if has active emergency prayer
+    const hasActiveEmergency = person.prayerItems.some((item) => 
+      item.isEmergency && item.emergencyExpiresAt && new Date(item.emergencyExpiresAt) > now
+    );
+    if (hasActiveEmergency) return true;
+    
+    // Include if has active praise
+    if (person.isPraised && person.praiseExpiresAt && new Date(person.praiseExpiresAt) > now) return true;
+    
+    return false;
+  });
 }
 
 // Helper: Get urgent prayer items for a person

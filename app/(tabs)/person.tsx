@@ -402,33 +402,24 @@ export default function PersonScreen() {
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
         if (person.id === currentPerson.id) {
-          return {
-            ...person,
-            prayerItems: person.prayerItems.map((item) => {
-                if (item.id === itemId) {
-                if (item.isPraised) {
-                  return {
-                    ...item,
-                    isPraised: false,
-                    praiseExpiresAt: undefined,
-                  };
-                } else {
-                  const now = new Date();
-                  const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-                  return {
-                    ...item,
-                    isPraised: true,
-                    praiseExpiresAt,
-                  };
-                }
-              }
-              return item;
-            }),
-          };
+          if (person.isPraised) {
+            return {
+              ...person,
+              isPraised: false,
+              praiseExpiresAt: undefined,
+            };
+          } else {
+            const now = new Date();
+            const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+            return {
+              ...person,
+              isPraised: true,
+              praiseExpiresAt,
+            };
+          }
         }
         return person;
       });
-      // Save to AsyncStorage
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });

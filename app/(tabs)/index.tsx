@@ -857,6 +857,7 @@ export default function HomeScreen() {
     // Determine which badge to show
     const showPraiseBadge = person.isPraised && praiseCountdown > 0;
     const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge;
+    const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge;
     
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
@@ -870,6 +871,10 @@ export default function HomeScreen() {
               </Text>
             )}
           </View>
+        ) : showUrgentBubble ? (
+          <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
+            <Text style={[styles.storyTagText, { color: "#7C3AED", fontSize: 16 }]}>💭</Text>
+          </Pressable>
         ) : showPraiseBadge ? (
           <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }]}>
             <Text numberOfLines={1} style={[styles.storyTagText, { color: "#1E40AF" }]}>Praise</Text>

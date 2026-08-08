@@ -367,6 +367,7 @@ export default function HomeScreen() {
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
+  const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
@@ -479,18 +480,26 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const newCountdowns: Record<string, number> = {};
+      const newEmergencyCountdowns: Record<string, number> = {};
+      const newPraiseCountdowns: Record<string, number> = {};
       people.forEach((person) => {
         person.prayerItems.forEach((item) => {
           if (item.isEmergency && item.emergencyExpiresAt) {
             const remaining = getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt);
             if (remaining > 0) {
-              newCountdowns[item.id] = remaining;
+              newEmergencyCountdowns[item.id] = remaining;
+            }
+          }
+          if (item.isPraised && item.praiseExpiresAt) {
+            const remaining = new Date(item.praiseExpiresAt).getTime() - new Date().getTime();
+            if (remaining > 0) {
+              newPraiseCountdowns[item.id] = remaining;
             }
           }
         });
       });
-      setEmergencyCountdowns(newCountdowns);
+      setEmergencyCountdowns(newEmergencyCountdowns);
+      setPraiseCountdowns(newPraiseCountdowns);
     }, 1000);
     return () => clearInterval(interval);
   }, [people]);
@@ -830,7 +839,7 @@ export default function HomeScreen() {
     const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
     const isEmergency = emergencyPrayers.length > 0;
     const emergencyCountdown = isEmergency && displayItem?.emergencyExpiresAt ? emergencyCountdowns[displayItem.id] || 0 : 0;
-    const praiseCountdown = praisedItems.length > 0 && praisedItems[0].praiseExpiresAt ? (new Date(praisedItems[0].praiseExpiresAt).getTime() - new Date().getTime()) : 0;
+    const praiseCountdown = praisedItems.length > 0 ? (praiseCountdowns[praisedItems[0].id] || 0) : 0;
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;

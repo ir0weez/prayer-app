@@ -786,7 +786,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }]}>
+              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, item.isPraised && { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
@@ -794,9 +794,12 @@ export default function PersonScreen() {
                   {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                  <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }]}>{item.title}</Text>
+                  <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }, item.isPraised && { color: "#1E40AF" }]}>{item.title}</Text>
                   {item.isEmergency && item.emergencyExpiresAt && (
                     <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer</Text>
+                  )}
+                  {item.isPraised && item.praiseExpiresAt && (
+                    <Text style={{ fontSize: 12, color: "#3B82F6", marginTop: 4 }}>24-hour praise</Text>
                   )}
                 </View>
                 {item.isEmergency ? (

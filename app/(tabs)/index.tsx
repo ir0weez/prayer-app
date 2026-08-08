@@ -778,21 +778,19 @@ export default function HomeScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
-        if (person.id === personId) {
+        if (person.id === personId && person.prayerItems.length > 0) {
+          const now = new Date();
+          const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
           return {
             ...person,
-            prayerItems: person.prayerItems.map((item) => {
-              if (!item.isPraised) {
-                const now = new Date();
-                const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-                return {
-                  ...item,
-                  isPraised: true,
-                  praiseExpiresAt,
-                };
-              }
-              return item;
-            }),
+            prayerItems: [
+              {
+                ...person.prayerItems[0],
+                isPraised: true,
+                praiseExpiresAt,
+              },
+              ...person.prayerItems.slice(1),
+            ],
           };
         }
         return person;

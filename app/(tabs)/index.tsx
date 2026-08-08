@@ -367,6 +367,7 @@ export default function HomeScreen() {
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
+  const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
@@ -479,18 +480,27 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const newCountdowns: Record<string, number> = {};
+      const newEmergencyCountdowns: Record<string, number> = {};
+      const newPraiseCountdowns: Record<string, number> = {};
       people.forEach((person) => {
         person.prayerItems.forEach((item) => {
           if (item.isEmergency && item.emergencyExpiresAt) {
             const remaining = getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt);
             if (remaining > 0) {
-              newCountdowns[item.id] = remaining;
+              newEmergencyCountdowns[item.id] = remaining;
             }
           }
         });
+        // Track person-level praise countdown
+        if (person.isPraised && person.praiseExpiresAt) {
+          const remaining = new Date(person.praiseExpiresAt).getTime() - new Date().getTime();
+          if (remaining > 0) {
+            newPraiseCountdowns[person.id] = remaining;
+          }
+        }
       });
-      setEmergencyCountdowns(newCountdowns);
+      setEmergencyCountdowns(newEmergencyCountdowns);
+      setPraiseCountdowns(newPraiseCountdowns);
     }, 1000);
     return () => clearInterval(interval);
   }, [people]);
@@ -765,6 +775,44 @@ export default function HomeScreen() {
     setPendingFastAction(null);
   };
 
+  const handlePraise = (personId: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) => {
+        if (person.id === personId) {
+          const now = new Date();
+          const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+          return {
+            ...person,
+            isPraised: true,
+            praiseExpiresAt,
+          };
+        }
+        return person;
+      });
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
+  const handleUndoPraise = (personId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) => {
+        if (person.id === personId) {
+          return {
+            ...person,
+            isPraised: false,
+            praiseExpiresAt: undefined,
+          };
+        }
+        return person;
+      });
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
   const renderAvatar = (person: Person, size: number, story = false) => {
     const label = getAvatarText(person);
     const isEmoji = /\p{Emoji}/u.test(label);
@@ -798,33 +846,37 @@ export default function HomeScreen() {
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
     const emergencyPrayers = person.prayerItems.filter((item) => item.isEmergency);
-    const praisedItems = person.prayerItems.filter((item) => item.isPraised && item.praiseExpiresAt);
     const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
     const isEmergency = emergencyPrayers.length > 0;
     const emergencyCountdown = isEmergency && displayItem?.emergencyExpiresAt ? emergencyCountdowns[displayItem.id] || 0 : 0;
-    const praiseCountdown = praisedItems.length > 0 && praisedItems[0].praiseExpiresAt ? (new Date(praisedItems[0].praiseExpiresAt).getTime() - new Date().getTime()) : 0;
+    const praiseCountdown = person.isPraised && person.praiseExpiresAt ? (praiseCountdowns[person.id] || 0) : 0;
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
+    
+    // Determine which badge to show
+    const showPraiseBadge = person.isPraised && praiseCountdown > 0;
+    const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge;
+    
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
-        {displayItem ? (
-          <View style={[styles.storyTag, isEmergency && { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
-            <Text numberOfLines={1} style={[styles.storyTagText, isEmergency && { color: "#DC2626" }]}>{displayItem.title}</Text>
-            {isEmergency && <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />}
-            {isEmergency && emergencyCountdown > 0 && (
+        {showEmergencyBadge ? (
+          <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
+            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>{displayItem.title}</Text>
+            <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />
+            {emergencyCountdown > 0 && (
               <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
                 {formatEmergencyPrayerCountdown(emergencyCountdown)}
               </Text>
             )}
           </View>
-        ) : praiseCountdown > 0 ? (
-          <View style={[styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }]}>
+        ) : showPraiseBadge ? (
+          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }]}>
             <Text numberOfLines={1} style={[styles.storyTagText, { color: "#1E40AF" }]}>Praise</Text>
             <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
               {formatEmergencyPrayerCountdown(praiseCountdown)}
             </Text>
-          </View>
+          </Pressable>
         ) : null}
         <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
@@ -832,6 +884,15 @@ export default function HomeScreen() {
         <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
           <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
         </Pressable>
+        {showPraiseBadge ? (
+          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: "#3B82F6", borderColor: colors.background }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName("thumb-up")} size={20} color="#FFFFFF" />
+          </Pressable>
+        ) : (
+          <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}>
+            <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+          </Pressable>
+        )}
         {isShowingCompletionAnimation && (
           <PrayerCompletionAnimation
             isActive={isShowingCompletionAnimation}

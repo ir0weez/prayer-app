@@ -434,6 +434,25 @@ export default function PersonScreen() {
     });
   };
 
+  const handleUndoPraise = () => {
+    if (!currentPerson) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) => {
+        if (person.id === currentPerson.id) {
+          return {
+            ...person,
+            isPraised: false,
+            praiseExpiresAt: undefined,
+          };
+        }
+        return person;
+      });
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
   const handleRemoveItem = (itemId: string) => {
     if (!personId) return;
     updatePeople((previousPeople) => removePrayerItem(previousPeople, personId, itemId));
@@ -783,6 +802,20 @@ export default function PersonScreen() {
           <Text style={styles.sectionStats}>{doneCount}/{currentPerson.prayerItems.length} done</Text>
         </View>
 
+        {currentPerson.isPraised && currentPerson.praiseExpiresAt && (
+          <View style={[styles.prayerItem, { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }]}>
+            <View style={[styles.prayerItemCheckbox, { backgroundColor: "transparent" }]} />
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={2} style={[styles.prayerItemTitle, { color: "#1E40AF" }]}>Praise</Text>
+              <Text style={{ fontSize: 12, color: "#3B82F6", marginTop: 4 }}>24-hour praise</Text>
+            </View>
+            <MaterialIcons name={iconName("thumb-up")} size={20} color="#3B82F6" />
+            <Pressable onPress={() => handleUndoPraise()} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("close")} size={18} color="#3B82F6" />
+            </Pressable>
+          </View>
+        )}
+
         {currentPerson.prayerItems.length === 0 ? (
           <View style={styles.emptyCard}>
              <MaterialIcons name={iconName("playlist-add-check")} size={34} color={colors.primary} />
@@ -794,7 +827,7 @@ export default function PersonScreen() {
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }, item.isPraised && { backgroundColor: getThemeAwareColor("#DBEAFE", colors), borderColor: "#3B82F6", borderWidth: 1 }]}>
+              <View style={[styles.prayerItem, item.isUrgent && { ...styles.prayerItemUrgent, backgroundColor: getThemeAwareColor("#FFF7F8", colors) }, item.isEmergency && { backgroundColor: getThemeAwareColor("#FEE2E2", colors), borderColor: "#EF4444", borderWidth: 1 }]}>
                 <Pressable
                   onPress={() => handleToggleDone(item.id)}
                   style={({ pressed }) => [styles.prayerItemCheckbox, item.isDone && styles.prayerItemCheckboxChecked, pressed && styles.pressed]}
@@ -802,12 +835,9 @@ export default function PersonScreen() {
                   {item.isDone ? <MaterialIcons name={iconName("check")} size={15} color="#FFFFFF" /> : null}
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                  <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }, item.isPraised && { color: "#1E40AF" }]}>{item.title}</Text>
+                  <Text numberOfLines={2} style={[styles.prayerItemTitle, item.isDone && styles.prayerItemTitleDone, item.isEmergency && { color: "#DC2626" }]}>{item.title}</Text>
                   {item.isEmergency && item.emergencyExpiresAt && (
                     <Text style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>24-hour emergency prayer</Text>
-                  )}
-                  {item.isPraised && item.praiseExpiresAt && (
-                    <Text style={{ fontSize: 12, color: "#3B82F6", marginTop: 4 }}>24-hour praise</Text>
                   )}
                 </View>
                 {item.isEmergency ? (
@@ -817,9 +847,7 @@ export default function PersonScreen() {
                     <Text style={[styles.lightningText, item.isUrgent && styles.lightningTextActive]}>⚡</Text>
                   </Pressable>
                 )}
-                <Pressable onPress={() => handlePraise(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: item.isPraised ? "#3B82F6" : getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("thumb-up")} size={18} color={item.isPraised ? "#FFFFFF" : colors.muted} />
-                </Pressable>
+
                 <Pressable onPress={() => handleRemoveItem(item.id)} style={({ pressed }) => [{ ...styles.iconCircle, backgroundColor: getThemeAwareColor("#F4EEF9", colors) }, pressed && styles.pressed]}>
                   <MaterialIcons name={iconName("close")} size={18} color={item.isEmergency ? "#EF4444" : colors.muted} />
                 </Pressable>

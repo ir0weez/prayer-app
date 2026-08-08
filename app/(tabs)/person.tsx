@@ -399,8 +399,8 @@ export default function PersonScreen() {
   const handlePraise = (itemId: string) => {
     if (!currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setPeople((previousPeople) =>
-      previousPeople.map((person) => {
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) => {
         if (person.id === currentPerson.id) {
           return {
             ...person,
@@ -419,8 +419,11 @@ export default function PersonScreen() {
           };
         }
         return person;
-      })
-    );
+      });
+      // Save to AsyncStorage
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
   };
 
   const handleRemoveItem = (itemId: string) => {

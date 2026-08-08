@@ -77,6 +77,8 @@ export type Person = {
   bibleChapters?: BibleChapter[]; // Tracked Bible chapters read
   budgetCategories?: BudgetCategory[]; // Budget categories for tracking
   budgetTransactions?: BudgetTransaction[]; // Expense transactions
+  isPraised?: boolean; // Whether praise is active for this person
+  praiseExpiresAt?: string; // ISO datetime string for when praise expires
 };
 
 export type AddPersonOptions = {

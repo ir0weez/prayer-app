@@ -884,12 +884,18 @@ export default function HomeScreen() {
           </Pressable>
         ) : null}
         {!showUrgentBubble && !showEmergencyBadge && !showPraiseBadge && (
-          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => {
+            handleMarkPrayTodayPerson(person.id);
+            router.push({ pathname: "/person", params: { personId: person.id } });
+          }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
             <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
           </Pressable>
         )}
         {(showUrgentBubble || showEmergencyBadge || showPraiseBadge) && (
-          <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => {
+            handleMarkPrayTodayPerson(person.id);
+            router.push({ pathname: "/person", params: { personId: person.id } });
+          }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
             <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
           </Pressable>
         )}

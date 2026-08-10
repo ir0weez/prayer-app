@@ -46,6 +46,9 @@ export type ScheduleTodo = {
   linkedEventColor?: string; // Cached color of linked event
   linkedMinistryColor?: string; // Cached color of linked ministry
   tag?: string; // Tag for todo (Ministry/Event/Family/Therapy/Personal)
+  groupId?: string; // ID of parent group if this todo is part of a group
+  isGroup?: boolean; // True if this todo is a group header
+  isGroupExpanded?: boolean; // True if group is expanded (only for group headers)
 };
 
 export type BibleStudySession = {

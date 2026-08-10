@@ -51,7 +51,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#E1F5FE');
+  const [selectedColor, setSelectedColor] = useState('#0288D1');
 
   useEffect(() => {
     if (visible) {
@@ -77,7 +77,7 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
     setStartDate(new Date().toISOString().split('T')[0]);
     setEndDate(new Date().toISOString().split('T')[0]);
     setNotes('');
-    setSelectedColor('#E1F5FE');
+    setSelectedColor('#0288D1');
     setEditingId(null);
   };
 
@@ -243,25 +243,17 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8 }}>Color</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }}>
                 <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16 }}>
-                  {['#E1F5FE', '#F3E5F5', '#E8F5E9', '#FFF3E0', '#FCE4EC', '#F1F8E9'].map((color) => (
+                  {['#0288D1', '#7B1FA2', '#388E3C', '#F57C00', '#C2185B', '#558B2F'].map((color) => (
                     <Pressable
                       key={color}
-                      onPress={() => {
-                        const timeOffWithColor = editingId
-                          ? timeOffList.find((to) => to.id === editingId)
-                          : null;
-                        if (timeOffWithColor && editingId) {
-                          updateTimeOff(editingId, { ...timeOffWithColor, color });
-                        }
-                        // For new items, we'll update color in handleSave
-                      }}
+                      onPress={() => setSelectedColor(color)}
                       style={{
                         width: 50,
                         height: 50,
                         borderRadius: 25,
                         backgroundColor: color,
-                        borderWidth: 2,
-                        borderColor: editingId && timeOffList.find((to) => to.id === editingId)?.color === color ? colors.primary : 'transparent',
+                        borderWidth: 3,
+                        borderColor: selectedColor === color ? colors.background : 'transparent',
                       }}
                     />
                   ))}

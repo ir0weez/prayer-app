@@ -17,6 +17,7 @@ import {
   toggleEventCompleted,
   toggleMinistryCompleted,
   toggleTodoCompleted,
+  toggleSubtaskCompleted,
 } from "./schedule-data";
 
 describe("schedule-data", () => {
@@ -143,6 +144,21 @@ describe("schedule-data", () => {
       const todos = [createScheduleTodo({ title: "Test", date: "2026-05-30" }, 0)];
       const toggled = toggleTodoCompleted(todos, todos[0].id);
       expect(toggled[0].isCompleted).toBe(true);
+    });
+  });
+
+  describe("toggleSubtaskCompleted", () => {
+    it("toggles only the selected subtask and preserves the parent todo", () => {
+      const todo = createScheduleTodo({ title: "Schoolwork", date: "2026-05-30", subtasks: [
+        { id: "math", title: "Finish math", isCompleted: false },
+        { id: "reading", title: "Read chapter", isCompleted: false },
+      ] }, 0);
+      const toggled = toggleSubtaskCompleted([todo], todo.id, "math");
+
+      expect(toggled[0].title).toBe("Schoolwork");
+      expect(toggled[0].subtasks?.find((subtask) => subtask.id === "math")?.isCompleted).toBe(true);
+      expect(toggled[0].subtasks?.find((subtask) => subtask.id === "reading")?.isCompleted).toBe(false);
+      expect(toggled[0].isCompleted).toBe(false);
     });
   });
 

@@ -91,6 +91,7 @@ import {
   toggleEventCompleted,
   toggleMinistryCompleted,
   toggleTodoCompleted,
+  toggleSubtaskCompleted,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
@@ -296,6 +297,7 @@ function EventCard({
 function TodoItem({
   todo,
   onToggle,
+  onToggleSubtask,
   onEdit,
   onDelete,
   people = [],
@@ -306,6 +308,7 @@ function TodoItem({
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
+  onToggleSubtask?: (subtaskId: string) => void;
   onEdit?: () => void;
   onDelete?: () => void;
   people?: Person[];
@@ -481,6 +484,27 @@ function TodoItem({
           </View>
         )}
       </Pressable>
+      {todo.subtasks && todo.subtasks.length > 0 && (
+        <View style={{ marginLeft: 46, marginTop: -4, marginBottom: 6, gap: 4 }}>
+          <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
+            {todo.subtasks.filter((subtask) => subtask.isCompleted).length} of {todo.subtasks.length} steps complete
+          </Text>
+          {todo.subtasks.map((subtask) => (
+            <Pressable
+              key={subtask.id}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: subtask.isCompleted }}
+              onPress={() => onToggleSubtask?.(subtask.id)}
+              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.background, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={18} color={subtask.isCompleted ? colors.success : colors.muted} />
+              <Text numberOfLines={1} style={{ flex: 1, color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
+                {subtask.title}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       <ContextMenu
         visible={contextMenuVisible}
         x={contextMenuPos.x}
@@ -808,6 +832,8 @@ export function ScheduleTab({
   const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
   const [formTodoTag, setFormTodoTag] = useState<string | null>(null); // Tag for todo (Ministry/Event/Family/Therapy/Personal)
   const [formTodoNotes, setFormTodoNotes] = useState(""); // Notes for todo
+  const [formSubtaskTitle, setFormSubtaskTitle] = useState("");
+  const [formSubtasks, setFormSubtasks] = useState<Array<{ id: string; title: string; isCompleted: boolean }>>([]);
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
@@ -1502,6 +1528,8 @@ export function ScheduleTab({
     setFormLinkedEventId(null);
     setFormLinkedMinistryId(null);
     setFormTodoTag(null);
+    setFormSubtaskTitle("");
+    setFormSubtasks([]);
     setFormSongLink("");
     setFormSpotifyLink("");
     setFormAlbumCoverImage(null);
@@ -1582,6 +1610,9 @@ export function ScheduleTab({
     }
     if (formTodoNotes) {
       newTodo.notes = formTodoNotes;
+    }
+    if (formSubtasks.length > 0) {
+      newTodo.subtasks = formSubtasks;
     }
     setTodos((prev) => {
       const updated = [...prev, newTodo];
@@ -2222,6 +2253,7 @@ export function ScheduleTab({
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
+              onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
               onEdit={() => {
                 setFormTitle(item.data.title);
                 setFormDate(item.data.date);
@@ -3218,6 +3250,48 @@ export function ScheduleTab({
                 multiline
                 numberOfLines={4}
               />
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>SUBTASKS (optional)</Text>
+              <View style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TextInput
+                    value={formSubtaskTitle}
+                    onChangeText={setFormSubtaskTitle}
+                    placeholder="Add a smaller step"
+                    placeholderTextColor={colors.muted}
+                    style={[scheduleStyles.formInput, { flex: 1, color: colors.foreground, borderColor: colors.border, marginBottom: 0 }]}
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      const title = formSubtaskTitle.trim();
+                      if (!title) return;
+                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, isCompleted: false }]);
+                      setFormSubtaskTitle("");
+                    }}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Add subtask"
+                    onPress={() => {
+                      const title = formSubtaskTitle.trim();
+                      if (!title) return;
+                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, isCompleted: false }]);
+                      setFormSubtaskTitle("");
+                    }}
+                    style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}
+                  >
+                    <MaterialIcons name="add" size={24} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+                {formSubtasks.map((subtask, index) => (
+                  <View key={subtask.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                    <MaterialIcons name="check-box-outline-blank" size={18} color={colors.muted} />
+                    <Text style={{ flex: 1, color: colors.foreground, fontSize: 14 }}>{index + 1}. {subtask.title}</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Remove subtask ${subtask.title}`} onPress={() => setFormSubtasks((current) => current.filter((item) => item.id !== subtask.id))}>
+                      <MaterialIcons name="close" size={18} color={colors.muted} />
+                    </Pressable>
+                  </View>
+                ))}
+                <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>Add steps such as “Finish worksheet” or “Pack backpack.”</Text>
+              </View>
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TAG (optional)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                 {['Ministry', 'Event', 'Family', 'Therapy', 'Personal'].map((tag) => (

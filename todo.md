@@ -1699,3 +1699,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add Chapter Complete screen with animated checkmark after last story in chapter
 - [x] Connect Mark as Read button to Schedule tab Bible checklist
 - [x] Auto-advance to next chapter after marking as read
+
+## Schedule Subtasks
+- [x] Add subtask support in ScheduleTodo type and storage
+- [x] Add subtask input and management UI inside New Todo modal
+- [x] Render nested checklist and progress under parent todos in schedule view
+- [x] Run full test suite for subtask feature

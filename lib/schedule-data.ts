@@ -49,6 +49,11 @@ export type ScheduleTodo = {
   groupId?: string; // ID of parent group if this todo is part of a group
   isGroup?: boolean; // True if this todo is a group header
   isGroupExpanded?: boolean; // True if group is expanded (only for group headers)
+  subtasks?: Array<{
+    id: string;
+    title: string;
+    isCompleted: boolean;
+  }>;
 };
 
 export type BibleStudySession = {
@@ -193,6 +198,18 @@ export function toggleTodoCompleted(todos: ScheduleTodo[], todoId: string): Sche
       ? { ...t, isCompleted: !t.isCompleted, completedAt: !t.isCompleted ? new Date().toISOString() : undefined }
       : t
   );
+}
+
+export function toggleSubtaskCompleted(todos: ScheduleTodo[], todoId: string, subtaskId: string): ScheduleTodo[] {
+  return todos.map((todo) => {
+    if (todo.id !== todoId || !todo.subtasks) return todo;
+    return {
+      ...todo,
+      subtasks: todo.subtasks.map((subtask) =>
+        subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask,
+      ),
+    };
+  });
 }
 
 export function toggleMinistryCompleted(ministries: ScheduleMinistry[], ministryId: string): ScheduleMinistry[] {

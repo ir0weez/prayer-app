@@ -212,6 +212,18 @@ export function toggleSubtaskCompleted(todos: ScheduleTodo[], todoId: string, su
   });
 }
 
+export function toggleTodoGroupExpanded(todos: ScheduleTodo[], todoId: string): ScheduleTodo[] {
+  return todos.map((todo) =>
+    todo.id === todoId ? { ...todo, isGroupExpanded: !todo.isGroupExpanded } : todo,
+  );
+}
+
+export function getSubtaskProgress(todo: ScheduleTodo): { completed: number; total: number; ratio: number } {
+  const total = todo.subtasks?.length ?? 0;
+  const completed = todo.subtasks?.filter((subtask) => subtask.isCompleted).length ?? 0;
+  return { completed, total, ratio: total === 0 ? 0 : completed / total };
+}
+
 export function toggleMinistryCompleted(ministries: ScheduleMinistry[], ministryId: string): ScheduleMinistry[] {
   return ministries.map((m) =>
     m.id === ministryId

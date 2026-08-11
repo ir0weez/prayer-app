@@ -16,8 +16,10 @@ import {
   getWeekDates,
   toggleEventCompleted,
   toggleMinistryCompleted,
+  toggleTodoGroupExpanded,
   toggleTodoCompleted,
   toggleSubtaskCompleted,
+  getSubtaskProgress,
 } from "./schedule-data";
 
 describe("schedule-data", () => {
@@ -159,6 +161,31 @@ describe("schedule-data", () => {
       expect(toggled[0].subtasks?.find((subtask) => subtask.id === "math")?.isCompleted).toBe(true);
       expect(toggled[0].subtasks?.find((subtask) => subtask.id === "reading")?.isCompleted).toBe(false);
       expect(toggled[0].isCompleted).toBe(false);
+    });
+  });
+
+  describe("grouped todo card helpers", () => {
+    const groupedTodo = createScheduleTodo({
+      title: "Schoolwork",
+      date: "2026-05-30",
+      subtasks: [
+        { id: "english", title: "English", isCompleted: true },
+        { id: "math", title: "Math", isCompleted: false },
+        { id: "science", title: "Science", isCompleted: false },
+      ],
+    }, 0);
+
+    it("calculates grouped todo progress", () => {
+      expect(getSubtaskProgress(groupedTodo)).toEqual({ completed: 1, total: 3, ratio: 1 / 3 });
+    });
+
+    it("toggles and persists the expanded state without changing subtasks", () => {
+      const expanded = toggleTodoGroupExpanded([groupedTodo], groupedTodo.id);
+      expect(expanded[0].isGroupExpanded).toBe(true);
+      expect(expanded[0].subtasks).toEqual(groupedTodo.subtasks);
+
+      const collapsed = toggleTodoGroupExpanded(expanded, groupedTodo.id);
+      expect(collapsed[0].isGroupExpanded).toBe(false);
     });
   });
 

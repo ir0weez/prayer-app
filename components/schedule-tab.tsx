@@ -90,8 +90,10 @@ import {
   ScheduleTodo,
   toggleEventCompleted,
   toggleMinistryCompleted,
+  toggleTodoGroupExpanded,
   toggleTodoCompleted,
   toggleSubtaskCompleted,
+  getSubtaskProgress,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
@@ -298,6 +300,7 @@ function TodoItem({
   todo,
   onToggle,
   onToggleSubtask,
+  onToggleGroupExpansion,
   onEdit,
   onDelete,
   people = [],
@@ -309,6 +312,7 @@ function TodoItem({
   todo: ScheduleTodo;
   onToggle: () => void;
   onToggleSubtask?: (subtaskId: string) => void;
+  onToggleGroupExpansion?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   people?: Person[];
@@ -368,6 +372,10 @@ function TodoItem({
     return ministries.find((m) => m.id === todo.linkedMinistryId) || null;
   }, [todo.linkedMinistryId, ministries]);
 
+  const isGroupedTodo = (todo.subtasks?.length ?? 0) > 0;
+  const groupedSubtasks = todo.subtasks ?? [];
+  const subtaskProgress = getSubtaskProgress(todo);
+
   // Determine if this todo is in its active hour (glow effect)
   // Re-check every minute so it activates/deactivates without restart
   const [currentMinute, setCurrentMinute] = useState(() => {
@@ -417,79 +425,83 @@ function TodoItem({
 
   return (
     <>
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
-        }}
-        onLongPress={handleLongPress}
-        delayLongPress={500}
-        style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
-      >
-        <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
-          <MaterialIcons
-            name={todo.isCompleted ? "check" : (iconNameStr as any)}
-            size={16}
-            color="#FFFFFF"
-          />
-        </ReAnimated.View>
-        <View style={{ flex: 1, alignItems: 'flex-start' }}>
-          <Text
-            style={[
-              todoStyles.title,
-              { color: colors.foreground },
-              todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted },
-            ]}
-            numberOfLines={1}
-          >
-            {todo.title}
-          </Text>
-          {(todo.startTime || todo.notes) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
-              {todo.startTime && (
-                <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>
-                  {format12HourTime(todo.startTime)}
-                </Text>
-              )}
-              {todo.notes && (
-                <Text
-                  style={[
-                    todoStyles.notes,
-                    { color: colors.muted, marginTop: 0 },
-                    todo.isCompleted && { textDecorationLine: "line-through" },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {todo.notes}
-                </Text>
-              )}
-            </View>
-          )}
+      {isGroupedTodo ? (
+        <View style={{ marginVertical: 4, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: (todo.color || colors.primary) + '35', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+            <View style={{ width: 5, backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }} />
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel={`Mark ${todo.title} ${todo.isCompleted ? 'incomplete' : 'complete'}`}
+              accessibilityState={{ checked: todo.isCompleted }}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onToggle();
+              }}
+              style={({ pressed }) => [{ width: 48, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 }]}
+            >
+              <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) + '20', borderWidth: 1.5, borderColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }}>
+                <MaterialIcons name={todo.isCompleted ? 'check' : 'folder-open'} size={16} color={todo.isCompleted ? '#FFFFFF' : (todo.color || colors.primary)} />
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onToggleGroupExpansion?.();
+              }}
+              onLongPress={handleLongPress}
+              delayLongPress={500}
+              style={({ pressed }) => [{ flex: 1, paddingVertical: 13, paddingRight: 14, opacity: pressed ? 0.72 : 1 }]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 16, fontWeight: '700', textDecorationLine: todo.isCompleted ? 'line-through' : 'none' }}>{todo.title}</Text>
+                {todo.tag && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: (todo.color || colors.primary) + '18' }}><Text style={{ color: todo.color || colors.primary, fontSize: 10, fontWeight: '700' }}>{todo.tag}</Text></View>}
+                <MaterialIcons name={todo.isGroupExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={22} color={colors.muted} />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5 }}>
+                {todo.startTime && <Text style={{ color: todo.color || colors.primary, fontSize: 11, fontWeight: '700' }}>{format12HourTime(todo.startTime)}</Text>}
+                <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '600' }}>{subtaskProgress.completed} of {subtaskProgress.total} complete</Text>
+              </View>
+              <View style={{ height: 4, marginTop: 9, borderRadius: 2, backgroundColor: (todo.color || colors.primary) + '18', overflow: 'hidden' }}>
+                <View style={{ width: `${Math.round(subtaskProgress.ratio * 100)}%`, height: '100%', backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary), borderRadius: 2 }} />
+              </View>
+            </Pressable>
+          </View>
         </View>
-        {linkedPeople.length > 0 && (
-          <StackedAvatar people={linkedPeople} size={24} />
-        )}
-        {isOverdue && (
-          <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-              Overdue
-            </Text>
+      ) : (
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
+        >
+          <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
+            <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
+          </ReAnimated.View>
+          <View style={{ flex: 1, alignItems: 'flex-start' }}>
+            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
+            {(todo.startTime || todo.notes) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                {todo.startTime && <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>{format12HourTime(todo.startTime)}</Text>}
+                {todo.notes && <Text style={[todoStyles.notes, { color: colors.muted, marginTop: 0 }, todo.isCompleted && { textDecorationLine: "line-through" }]} numberOfLines={1}>{todo.notes}</Text>}
+              </View>
+            )}
           </View>
-        )}
-        {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && (
-          <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-              {linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}
-            </Text>
-          </View>
-        )}
-      </Pressable>
-      {todo.subtasks && todo.subtasks.length > 0 && (
-        <View style={{ marginLeft: 46, marginTop: -4, marginBottom: 6, gap: 4 }}>
+          {linkedPeople.length > 0 && <StackedAvatar people={linkedPeople} size={24} />}
+          {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
+          {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
+        </Pressable>
+      )}
+      {isGroupedTodo && todo.isGroupExpanded && (
+        <View style={{ marginTop: -2, marginBottom: 8, marginHorizontal: 8, padding: 10, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderTopWidth: 0, borderColor: (todo.color || colors.primary) + '25', gap: 4 }}>
           <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
-            {todo.subtasks.filter((subtask) => subtask.isCompleted).length} of {todo.subtasks.length} steps complete
+            {groupedSubtasks.filter((subtask) => subtask.isCompleted).length} of {groupedSubtasks.length} steps complete
           </Text>
-          {todo.subtasks.map((subtask) => (
+          {groupedSubtasks.map((subtask) => (
             <Pressable
               key={subtask.id}
               accessibilityRole="checkbox"
@@ -2254,6 +2266,7 @@ export function ScheduleTab({
               isCurrentTodo={item.data.id === currentTodoId}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
+              onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
               onEdit={() => {
                 setFormTitle(item.data.title);
                 setFormDate(item.data.date);

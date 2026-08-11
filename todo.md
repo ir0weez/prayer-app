@@ -1705,3 +1705,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add subtask input and management UI inside New Todo modal
 - [x] Render nested checklist and progress under parent todos in schedule view
 - [x] Run full test suite for subtask feature
+- [x] Redesign grouped todos as compact Material-style expandable cards in the schedule timeline
+- [x] Keep subtask checklists hidden until a grouped todo card is expanded
+- [x] Validate grouped todo expansion, completion, and persistence behavior

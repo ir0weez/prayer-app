@@ -517,6 +517,8 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       lastPrayedDate: person.lastPrayedDate ?? null,
       lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
       isPersonal: person.isPersonal ?? false,
+      isPraised: person.isPraised ?? false,
+      praiseExpiresAt: person.praiseExpiresAt ?? undefined,
     };
   });
 }

@@ -1708,3 +1708,6 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Redesign grouped todos as compact Material-style expandable cards in the schedule timeline
 - [x] Keep subtask checklists hidden until a grouped todo card is expanded
 - [x] Validate grouped todo expansion, completion, and persistence behavior
+- [x] Restyle grouped todo cards to match the schedule’s semi-flat timeline language
+- [x] Remove elevated visual treatment while preserving expand and checklist behavior
+- [x] Revalidate grouped todo card appearance and interactions

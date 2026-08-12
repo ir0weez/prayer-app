@@ -62,3 +62,23 @@ describe('Deuteronomy 21–30 commentary import', () => {
     expect(notes.some((note) => note.author === 'D.L. Moody')).toBe(true);
   });
 });
+
+describe('Deuteronomy 31–34 commentary import', () => {
+  it('covers the supplied final chapters with the parsed verse and paragraph totals', () => {
+    const importedEntries = Object.entries(DEFAULT_COMMENTARY).filter(([key]) => {
+      const match = key.match(/^deuteronomy_(\d+)_(\d+)$/);
+      return match !== null && Number(match[1]) >= 31 && Number(match[1]) <= 34;
+    });
+    const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
+
+    expect(importedEntries).toHaveLength(62);
+    expect(paragraphCount).toBe(137);
+  });
+
+  it('keeps multiple comments available for the Deuteronomy 31:8 study note', () => {
+    const notes = getAllCommentariesForVerse('Deuteronomy', 31, 8);
+
+    expect(notes).toHaveLength(6);
+    expect(notes[0].author).toBe('Tried By Fire');
+  });
+});

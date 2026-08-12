@@ -1731,3 +1731,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace grouped todo delete action wiring and parent touch handling
 - [x] Fix deletion of grouped todo parents and their nested subtasks
 - [x] Add regression coverage and validate grouped todo deletion
+
+## Deuteronomy 11–20 Commentary
+- [x] Parse Deuteronomy 11–20 notes and preserve author attribution
+- [x] Add the commentary entries to the app’s study data
+- [x] Verify chapter coverage, compile the app, and save the import

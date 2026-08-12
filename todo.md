@@ -1736,3 +1736,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Parse Deuteronomy 11–20 notes and preserve author attribution
 - [x] Add the commentary entries to the app’s study data
 - [x] Verify chapter coverage, compile the app, and save the import
+
+## Deuteronomy 1–10 Commentary Replacement
+- [x] Parse the replacement Deuteronomy 1–10 notes
+- [x] Remove the existing Deuteronomy 1–10 commentary and import the new notes
+- [x] Verify coverage, run tests, and save the replacement import

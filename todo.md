@@ -1726,3 +1726,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Align grouped todo cards with the Personal Study card’s hierarchy and spacing
 - [x] Tint each grouped card with its selected todo color while preserving readable contrast
 - [x] Validate grouped-card styling and interaction behavior
+
+## Grouped Todo Delete Regression
+- [x] Trace grouped todo delete action wiring and parent touch handling
+- [x] Fix deletion of grouped todo parents and their nested subtasks
+- [x] Add regression coverage and validate grouped todo deletion

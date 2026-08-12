@@ -20,6 +20,7 @@ import {
   toggleTodoCompleted,
   toggleSubtaskCompleted,
   getSubtaskProgress,
+  removeScheduleTodo,
 } from "./schedule-data";
 
 describe("schedule-data", () => {
@@ -186,6 +187,12 @@ describe("schedule-data", () => {
 
       const collapsed = toggleTodoGroupExpanded(expanded, groupedTodo.id);
       expect(collapsed[0].isGroupExpanded).toBe(false);
+    });
+
+    it("removes a grouped parent together with its nested subtasks", () => {
+      const remaining = removeScheduleTodo([groupedTodo], groupedTodo.id);
+
+      expect(remaining).toEqual([]);
     });
   });
 

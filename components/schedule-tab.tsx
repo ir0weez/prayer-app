@@ -94,6 +94,7 @@ import {
   toggleTodoCompleted,
   toggleSubtaskCompleted,
   getSubtaskProgress,
+  removeScheduleTodo,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
@@ -469,6 +470,19 @@ function TodoItem({
                 <View style={{ width: `${Math.round(subtaskProgress.ratio * 100)}%`, height: '100%', backgroundColor: groupAccentColor, borderRadius: 3 }} />
               </View>
             </Pressable>
+            {onDelete && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${todo.title}`}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onDelete();
+                }}
+                style={({ pressed }) => [{ width: 34, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 }]}
+              >
+                <MaterialIcons name="delete-outline" size={19} color={colors.error} />
+              </Pressable>
+            )}
           </View>
         </View>
       ) : (
@@ -2285,7 +2299,7 @@ export function ScheduleTab({
                     {
                       text: 'Delete',
                       onPress: () => {
-                        setTodos((prev) => prev.filter(t => t.id !== item.data.id));
+                        setTodos((prev) => removeScheduleTodo(prev, item.data.id));
                       },
                       style: 'destructive',
                     },

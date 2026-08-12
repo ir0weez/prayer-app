@@ -200,6 +200,11 @@ export function toggleTodoCompleted(todos: ScheduleTodo[], todoId: string): Sche
   );
 }
 
+/** Removes a todo as one unit, including any nested subtasks stored on that parent. */
+export function removeScheduleTodo(todos: ScheduleTodo[], todoId: string): ScheduleTodo[] {
+  return todos.filter((todo) => todo.id !== todoId);
+}
+
 export function toggleSubtaskCompleted(todos: ScheduleTodo[], todoId: string, subtaskId: string): ScheduleTodo[] {
   return todos.map((todo) => {
     if (todo.id !== todoId || !todo.subtasks) return todo;

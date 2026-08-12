@@ -43,3 +43,22 @@ describe('Deuteronomy 1–10 commentary replacement import', () => {
     expect(authors).toContain('Martin Luther');
   });
 });
+
+describe('Deuteronomy 21–30 commentary import', () => {
+  it('covers the supplied ten-chapter range with the parsed verse and paragraph totals', () => {
+    const importedEntries = Object.entries(DEFAULT_COMMENTARY).filter(([key]) => {
+      const match = key.match(/^deuteronomy_(\d+)_(\d+)$/);
+      return match !== null && Number(match[1]) >= 21 && Number(match[1]) <= 30;
+    });
+    const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
+
+    expect(importedEntries).toHaveLength(124);
+    expect(paragraphCount).toBe(320);
+  });
+
+  it('keeps explicitly attributed author comments attached to the source verse', () => {
+    const notes = getAllCommentariesForVerse('Deuteronomy', 29, 4);
+
+    expect(notes.some((note) => note.author === 'D.L. Moody')).toBe(true);
+  });
+});

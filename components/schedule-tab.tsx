@@ -2699,44 +2699,21 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    // Calculate available hours based on INCOMPLETE items only
-                    // This way, as you mark items complete, available time increases
+                    // The summary intentionally shares the timeline's incomplete-item input
+                    // and 6 AM–11 PM day window so both surfaces report the same free time.
                     const incompleteScheduledItems = [
                       ...getTodosForDate(todos, selectedDate)
                         .filter((t) => t.startTime && !t.isCompleted)
-                        .map((t) => ({
-                          ...t,
-                          // Todos without end time default to 30 minutes
-                          endTime: t.endTime || minutesToTime(timeToMinutes(t.startTime!) + 30),
-                        })),
+                        .map((t) => ({ ...t })),
                       ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
                       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
                     ];
-                    // Calculate time blocks based on incomplete items only
-                    // Use 6am-6pm business hours (06:00 to 18:00)
-                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems, '06:00', '18:00');
-                    
-                    // Filter blocks to only include time from now onwards (for today)
+                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems, '06:00', '23:00');
                     const now = new Date();
-                    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-                    const selectedDateObj = new Date(selectedDate);
-                    const isToday = selectedDateObj.toDateString() === now.toDateString();
-                    
-                    const activeSummaryBlocks = isToday 
-                      ? summaryBlocks.filter((block) => {
-                          const blockEndMinutes = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
-                          return blockEndMinutes > currentTimeMinutes; // Only include blocks that haven't ended
-                        }).map((block) => {
-                          const blockStartMinutes = parseInt(block.startTime.split(':')[0]) * 60 + parseInt(block.startTime.split(':')[1]);
-                          // If block starts before now, adjust duration to start from now
-                          if (blockStartMinutes < currentTimeMinutes) {
-                            const blockEndMinutes = parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1]);
-                            const adjustedDuration = blockEndMinutes - currentTimeMinutes;
-                            return { ...block, durationMinutes: adjustedDuration };
-                          }
-                          return block;
-                        })
-                      : summaryBlocks;
+                    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const activeSummaryBlocks = selectedDate < todayISO
+                      ? []
+                      : filterExpiredTimeBlocks(summaryBlocks, selectedDate, now);
                     
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours

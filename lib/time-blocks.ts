@@ -143,9 +143,9 @@ export function calculateAvailableTimeBlocks(
  * Filter out expired time blocks based on current time
  * Only filters if the selectedDate is today
  */
-export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: string): TimeBlock[] {
+export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: string, now = new Date()): TimeBlock[] {
   // Get today's date in ISO format (YYYY-MM-DD)
-  const today = new Date();
+  const today = now;
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
@@ -156,12 +156,26 @@ export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: stri
     return blocks;
   }
   
-  const now = new Date();
   const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-  
-  return blocks.filter((block) => {
+
+  return blocks.flatMap((block) => {
+    const blockStartMinutes = timeToMinutes(block.startTime);
     const blockEndMinutes = timeToMinutes(block.endTime);
-    return blockEndMinutes > currentTimeMinutes;
+    if (blockEndMinutes <= currentTimeMinutes) return [];
+
+    // A live block must begin at the current minute so its range, badge, and summary
+    // all describe the same remaining time rather than the original full duration.
+    if (blockStartMinutes < currentTimeMinutes) {
+      const durationMinutes = blockEndMinutes - currentTimeMinutes;
+      return [{
+        ...block,
+        startTime: minutesToTime(currentTimeMinutes),
+        durationMinutes,
+        label: formatDuration(durationMinutes),
+      }];
+    }
+
+    return [block];
   });
 }
 

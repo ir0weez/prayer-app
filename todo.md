@@ -1716,3 +1716,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace praise activation, persistence, and Pray Today visibility
 - [x] Fix active praise avatars not appearing in Pray Today
 - [x] Add regression tests and validate the praise-avatar flow
+
+## Schedule Available-Time Regression
+- [x] Trace the summary and free-block duration calculation paths
+- [x] Make available-time summary and free-time blocks use one correct time source
+- [x] Add regression coverage for available-time calculations and validate the displayed results

@@ -86,4 +86,19 @@ describe('Time Block Alignment', () => {
     // Even though completed, it still blocks time: 09:00-23:00 = 14h = 840 minutes
     expect(stats.totalAvailableMinutes).toBe(840);
   });
+
+  it('clips an in-progress block so its range and duration match the current time', () => {
+    const now = new Date(2026, 7, 12, 12, 41, 0);
+    const blocks = calculateAvailableTimeBlocks([]);
+    const activeBlocks = filterExpiredTimeBlocks(blocks, '2026-08-12', now);
+
+    expect(activeBlocks).toHaveLength(1);
+    expect(activeBlocks[0]).toMatchObject({
+      startTime: '12:41',
+      endTime: '23:00',
+      durationMinutes: 619,
+      label: '10h 19m',
+    });
+    expect(getTimeBlockStats(activeBlocks).totalAvailableMinutes).toBe(619);
+  });
 });

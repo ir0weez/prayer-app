@@ -40,12 +40,11 @@ export function TimeBlockIndicator({ block }: TimeBlockIndicatorProps) {
       if (currentTimeInMinutes >= startMinutes) {
         const newStartHours = currentHours;
         const newStartTime = `${String(newStartHours).padStart(2, "0")}:${String(currentMinutes).padStart(2, "0")}`;
-        setDisplayBlock({ ...block, startTime: newStartTime });
-
         // Calculate remaining time (actual, not rounded up)
         const remainingMinutes = endMinutes - currentTimeInMinutes;
         const hours = Math.floor(remainingMinutes / 60);
         const mins = remainingMinutes % 60;
+        setDisplayBlock({ ...block, startTime: newStartTime, durationMinutes: remainingMinutes, label: formatTimeRemaining(hours, mins) });
         setRemainingTime({ hours, minutes: mins });
       } else {
         setDisplayBlock(block);

@@ -1721,3 +1721,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace the summary and free-block duration calculation paths
 - [x] Make available-time summary and free-time blocks use one correct time source
 - [x] Add regression coverage for available-time calculations and validate the displayed results
+
+## Grouped Todo Card Visual Alignment
+- [x] Align grouped todo cards with the Personal Study card’s hierarchy and spacing
+- [x] Tint each grouped card with its selected todo color while preserving readable contrast
+- [x] Validate grouped-card styling and interaction behavior

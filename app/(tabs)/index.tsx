@@ -33,9 +33,11 @@ import {
   getInitialState,
   getLastReachedAccentColor,
   getPrayTodayList,
+  hasActivePraise,
   getTodayISOString,
   getUrgentPrayerItems,
   hasPersonCompletedPrayerToday,
+  shouldKeepVisibleInPrayToday,
   markPersonPrayed,
   normalizePeopleForStorage,
   resetDailyPrayerCompletionsIfNeeded,
@@ -511,7 +513,7 @@ export default function HomeScreen() {
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
   const visiblePrayTodayList = useMemo(
-    () => prayTodayList.filter((person) => pendingPrayerIds.includes(person.id) || !hasPersonCompletedPrayerToday(person, today)),
+    () => prayTodayList.filter((person) => shouldKeepVisibleInPrayToday(person, today, pendingPrayerIds.includes(person.id))),
     [pendingPrayerIds, prayTodayList, today],
   );
   const duePersonalTodos = useMemo(() => {

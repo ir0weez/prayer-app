@@ -1711,3 +1711,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restyle grouped todo cards to match the schedule’s semi-flat timeline language
 - [x] Remove elevated visual treatment while preserving expand and checklist behavior
 - [x] Revalidate grouped todo card appearance and interactions
+
+## Praise Avatar Regression
+- [x] Trace praise activation, persistence, and Pray Today visibility
+- [x] Fix active praise avatars not appearing in Pray Today
+- [x] Add regression tests and validate the praise-avatar flow

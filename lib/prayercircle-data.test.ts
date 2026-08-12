@@ -18,10 +18,12 @@ import {
   getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
+  hasActivePraise,
   getReminderScheduleText,
   getUrgentPrayerItems,
   getTodayISOString,
   hasPersonCompletedPrayerToday,
+  shouldKeepVisibleInPrayToday,
   getInitialState,
   initialJournal,
   initialPeople,
@@ -169,6 +171,19 @@ describe("PrayerCircle local data helpers", () => {
 
     expect(scheduledToday).toHaveLength(2);
     expect(remainingToday).toBe(1);
+  });
+
+  it("keeps an active praise person in Pray Today after their daily prayer is complete", () => {
+    const now = new Date();
+    const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const prayed = markPersonPrayed(people, people[0].id);
+    const praised = [{ ...prayed[0], isPraised: true, praiseExpiresAt }];
+
+    expect(hasPersonCompletedPrayerToday(praised[0])).toBe(true);
+    expect(hasActivePraise(praised[0], now)).toBe(true);
+    expect(getPrayTodayList(praised, 2, 10)).toEqual(praised);
+    expect(shouldKeepVisibleInPrayToday(praised[0], getTodayISOString(), false, now)).toBe(true);
   });
 
   it("filters people by active reminder day of week", () => {

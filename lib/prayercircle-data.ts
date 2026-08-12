@@ -215,6 +215,13 @@ export function shouldPrayForTodayByReminder(
   return false;
 }
 
+/** Returns whether a person's independent 24-hour praise state is still active. */
+export function hasActivePraise(person: Person, now = new Date()): boolean {
+  if (!person.isPraised || !person.praiseExpiresAt) return false;
+  const expiresAt = new Date(person.praiseExpiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+}
+
 // Helper: Get list of people to pray for today
 export function getPrayTodayList(people: Person[], todayDayOfWeek: number, todayDayOfMonth = new Date().getDate()): Person[] {
   const now = new Date();
@@ -229,7 +236,7 @@ export function getPrayTodayList(people: Person[], todayDayOfWeek: number, today
     if (hasActiveEmergency) return true;
     
     // Include if has active praise
-    if (person.isPraised && person.praiseExpiresAt && new Date(person.praiseExpiresAt) > now) return true;
+    if (hasActivePraise(person, now)) return true;
     
     // Include if has urgent prayer items
     const hasUrgentPrayer = person.prayerItems.some((item) => item.isUrgent && !item.isDone);
@@ -254,6 +261,16 @@ export function getLastReachedAccentColor(person: Person): string {
 
 export function hasPersonCompletedPrayerToday(person: Person, dateString = getTodayISOString()): boolean {
   return person.lastPrayerCompletedDate === dateString;
+}
+
+/** Keeps active praise visible independently of the ordinary daily prayer completion state. */
+export function shouldKeepVisibleInPrayToday(
+  person: Person,
+  dateString = getTodayISOString(),
+  isPending = false,
+  now = new Date(),
+): boolean {
+  return isPending || !hasPersonCompletedPrayerToday(person, dateString) || hasActivePraise(person, now);
 }
 
 // Helper: Get daily prayer progress

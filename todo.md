@@ -1751,3 +1751,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Parse Deuteronomy 31–34 notes and preserve explicit author attribution
 - [x] Add the final Deuteronomy commentary entries to the app’s study data
 - [x] Verify complete Deuteronomy coverage, compile the app, and save the import
+
+## Joshua 1–10 Commentary
+- [x] Parse Joshua 1–10 notes and preserve explicit author attribution
+- [x] Add the Joshua commentary entries to the app’s study data
+- [x] Verify chapter coverage, compile the app, and save the import

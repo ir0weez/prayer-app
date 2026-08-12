@@ -82,3 +82,24 @@ describe('Deuteronomy 31–34 commentary import', () => {
     expect(notes[0].author).toBe('Tried By Fire');
   });
 });
+
+describe('Joshua 1–10 commentary import', () => {
+  it('covers the supplied chapters with the parsed verse and paragraph totals', () => {
+    const importedEntries = Object.entries(DEFAULT_COMMENTARY).filter(([key]) => {
+      const match = key.match(/^joshua_(\d+)_(\d+)$/);
+      return match !== null && Number(match[1]) >= 1 && Number(match[1]) <= 10;
+    });
+    const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
+
+    expect(importedEntries).toHaveLength(136);
+    expect(paragraphCount).toBe(269);
+  });
+
+  it('keeps the multiple Joshua 1:1 commentary notes in order', () => {
+    const notes = getAllCommentariesForVerse('Joshua', 1, 1);
+
+    expect(notes).toHaveLength(6);
+    expect(notes[0].author).toBe('Tried By Fire');
+    expect(notes[0].text).toContain('"Now" states');
+  });
+});

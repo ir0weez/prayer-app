@@ -1756,3 +1756,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Parse Joshua 1–10 notes and preserve explicit author attribution
 - [x] Add the Joshua commentary entries to the app’s study data
 - [x] Verify chapter coverage, compile the app, and save the import
+
+## Development Server
+- [x] Restart the unresponsive development server and verify preview health
+
+## Joshua 11–20 Commentary
+- [x] Parse Joshua 11–20 notes and preserve explicit author attribution
+- [x] Add the Joshua commentary entries to the app’s study data
+- [x] Verify chapter coverage, compile the app, and save the import

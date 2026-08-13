@@ -103,3 +103,24 @@ describe('Joshua 1–10 commentary import', () => {
     expect(notes[0].text).toContain('"Now" states');
   });
 });
+
+describe('Joshua 11–20 commentary import', () => {
+  it('covers the supplied chapters with the parsed verse and paragraph totals', () => {
+    const importedEntries = Object.entries(DEFAULT_COMMENTARY).filter(([key]) => {
+      const match = key.match(/^joshua_(\d+)_(\d+)$/);
+      return match !== null && Number(match[1]) >= 11 && Number(match[1]) <= 20;
+    });
+    const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
+
+    expect(importedEntries).toHaveLength(185);
+    expect(paragraphCount).toBe(330);
+  });
+
+  it('keeps the multiple Joshua 11:12 commentary notes in order', () => {
+    const notes = getAllCommentariesForVerse('Joshua', 11, 12);
+
+    expect(notes).toHaveLength(7);
+    expect(notes[0].author).toBe('Tried By Fire');
+    expect(notes[0].text).toContain('"Hazor" means "Castle."');
+  });
+});

@@ -1774,3 +1774,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Remove the visible trash icon from grouped todo cards
 - [x] Preserve edit, completion, and deletion through the long-press menu
 - [x] Validate grouped todo controls and save the refinement
+
+## Grouped Todo Card Surface
+- [x] Separate grouped todo headers and checklists into white card surfaces
+- [x] Limit the selected todo color to outlines, icons, progress, and checkboxes
+- [x] Validate grouped todo visual hierarchy and save the refinement

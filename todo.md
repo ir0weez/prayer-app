@@ -1764,3 +1764,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Parse Joshua 11–20 notes and preserve explicit author attribution
 - [x] Add the Joshua commentary entries to the app’s study data
 - [x] Verify chapter coverage, compile the app, and save the import
+
+## Grouped Todo Card Spacing
+- [x] Align grouped todo card side margins with the Personal Study card
+- [x] Preserve full-width layout for full-day schedule events
+- [x] Validate grouped todo spacing and save the refinement

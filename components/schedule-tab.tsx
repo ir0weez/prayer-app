@@ -430,7 +430,7 @@ function TodoItem({
   return (
     <>
       {isGroupedTodo ? (
-        <View style={{ marginVertical: 3, borderRadius: 12, overflow: 'hidden', backgroundColor: groupSurfaceColor, borderWidth: 1, borderColor: groupBorderColor }}>
+        <View style={{ marginVertical: 3, marginHorizontal: 12, borderRadius: 12, overflow: 'hidden', backgroundColor: groupSurfaceColor, borderWidth: 1, borderColor: groupBorderColor }}>
           <View style={{ flexDirection: 'row', alignItems: 'stretch', paddingHorizontal: 12, paddingVertical: 10 }}>
             <Pressable
               accessibilityRole="checkbox"
@@ -513,7 +513,7 @@ function TodoItem({
         </Pressable>
       )}
       {isGroupedTodo && todo.isGroupExpanded && (
-        <View style={{ marginTop: -3, marginBottom: 7, marginHorizontal: 0, paddingHorizontal: 14, paddingVertical: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: groupSurfaceColor, borderWidth: 1, borderTopWidth: 0, borderColor: groupBorderColor, gap: 4 }}>
+        <View style={{ marginTop: -3, marginBottom: 7, marginHorizontal: 12, paddingHorizontal: 14, paddingVertical: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: groupSurfaceColor, borderWidth: 1, borderTopWidth: 0, borderColor: groupBorderColor, gap: 4 }}>
           <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>
             {groupedSubtasks.filter((subtask) => subtask.isCompleted).length} of {groupedSubtasks.length} steps complete
           </Text>

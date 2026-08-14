@@ -1779,3 +1779,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Separate grouped todo headers and checklists into white card surfaces
 - [x] Limit the selected todo color to outlines, icons, progress, and checkboxes
 - [x] Validate grouped todo visual hierarchy and save the refinement
+
+## Grouped Todo Card Visual Correction
+- [x] Reconnect expanded grouped todo sections as one card
+- [x] Restore the normal schedule background while retaining selected-color accents
+- [x] Validate the corrected grouped todo card design and save the update

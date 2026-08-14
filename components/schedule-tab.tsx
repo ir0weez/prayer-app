@@ -54,7 +54,8 @@ import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
-import { parseSpotifyUrl, fetchSpotifyAlbum } from "@/lib/spotify-api";
+import { parseSpotifyUrl, fetchSpotifyAlbum, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
+import { getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory, type StoredWorshipAlbum } from "@/lib/worship-album-state";
 import {
   addDays,
   BirthdayEvent,
@@ -869,17 +870,12 @@ export function ScheduleTab({
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
-  const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>('test-album-1');
-  const testAlbum = {
-    id: 'test-album-1',
-    title: 'Breach',
-    artist: 'twenty one pilots',
-    coverUrl: 'https://via.placeholder.com/200?text=Breach',
-    spotifyUrl: '',
-    addedAt: new Date().toISOString(),
-  };
-  const [currentAlbum, setCurrentAlbum] = useState<(WorshipAlbum & { id: string; addedAt: string }) | null>(testAlbum);
+  const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const currentAlbum = useMemo(
+    () => getDisplayedWorshipAlbum(albumHistory, currentDisplayAlbumId),
+    [albumHistory, currentDisplayAlbumId],
+  );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   
   // Load album history and current display album on mount
@@ -888,34 +884,34 @@ export function ScheduleTab({
       try {
         console.log('[ALBUM_LOAD] Starting to load album data...');
         const savedHistory = await AsyncStorage.getItem('ALBUM_HISTORY_KEY');
-        if (savedHistory) {
-          const history = JSON.parse(savedHistory);
-          setAlbumHistory(history);
-          console.log('[ALBUM_LOAD] Loaded album history from storage:', history.length, history);
-        } else {
-          console.log('[ALBUM_LOAD] No saved album history, keeping initial test album');
-          setAlbumHistory([testAlbum]);
-          // Save to AsyncStorage so it persists on next mount
-          await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify([testAlbum]));
-        }
-        
+        const parsedHistory = savedHistory ? JSON.parse(savedHistory) : [];
+        let history = sanitizeWorshipAlbumHistory(parsedHistory) as Array<WorshipAlbum & { id: string; addedAt: string }>;
         const savedCurrentAlbumJson = await AsyncStorage.getItem('CURRENT_ALBUM_JSON');
-        console.log('[ALBUM_LOAD] savedCurrentAlbumJson from storage:', savedCurrentAlbumJson);
+        const savedDisplayAlbumId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
+        let legacyCurrentAlbum: StoredWorshipAlbum | null = null;
         if (savedCurrentAlbumJson) {
           try {
-            const savedAlbum = JSON.parse(savedCurrentAlbumJson);
-            console.log('[ALBUM_LOAD] Parsed album:', savedAlbum);
-            setCurrentAlbum(savedAlbum);
-            console.log('[ALBUM_LOAD] Loaded current album from storage:', savedAlbum.title);
+            legacyCurrentAlbum = sanitizeWorshipAlbumHistory([JSON.parse(savedCurrentAlbumJson)])[0] ?? null;
           } catch (parseError) {
             console.error('[ALBUM_LOAD] Failed to parse album JSON:', parseError);
-            // If parsing fails, use test album
-            console.log('[ALBUM_LOAD] Parse error, using test album');
-            setCurrentAlbum(testAlbum);
           }
-        } else {
-          console.log('[ALBUM_LOAD] No saved album found in AsyncStorage, using test album');
-          setCurrentAlbum(testAlbum);
+        }
+
+        if (legacyCurrentAlbum && !history.some((album) => album.id === legacyCurrentAlbum!.id)) {
+          history = [...history, legacyCurrentAlbum as WorshipAlbum & { id: string; addedAt: string }];
+        }
+
+        const selectedId = savedDisplayAlbumId && history.some((album) => album.id === savedDisplayAlbumId)
+          ? savedDisplayAlbumId
+          : legacyCurrentAlbum && history.some((album) => album.id === legacyCurrentAlbum!.id)
+            ? legacyCurrentAlbum.id
+            : null;
+
+        setAlbumHistory(history);
+        setCurrentDisplayAlbumId(selectedId);
+        await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(history));
+        if (!selectedId) {
+          await AsyncStorage.multiRemove(['CURRENT_DISPLAY_ALBUM_ID', 'CURRENT_ALBUM_JSON']);
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);
@@ -926,11 +922,9 @@ export function ScheduleTab({
   
   // Persist album history whenever it changes
   useEffect(() => {
-    if (albumHistory.length > 0) {
-      AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e => 
-        console.error('Error saving album history:', e)
-      );
-    }
+    AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e => 
+      console.error('Error saving album history:', e)
+    );
   }, [albumHistory]);
   
   // Persist current display album ID
@@ -1797,14 +1791,14 @@ export function ScheduleTab({
       
       console.log('[ALBUM_SAVE] Saving new album:', newAlbum.id, newAlbum.title);
       
-      // Update state - set currentAlbum directly
+      // Keep selection and displayed album in sync with the album history.
       setAlbumHistory(updatedHistory);
-      setCurrentAlbum(albumWithMetadata);
-      console.log('[ALBUM_SAVE] setCurrentAlbum called with:', albumWithMetadata);
+      setCurrentDisplayAlbumId(albumWithMetadata.id);
       
       // Save to storage
       await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
       await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(albumWithMetadata));
+      await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', albumWithMetadata.id);
       
       console.log('[ALBUM_SAVE] Saved to AsyncStorage');
       Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
@@ -3734,32 +3728,39 @@ export function ScheduleTab({
                 returnKeyType="done"
               />
 
-              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Spotify Link</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Spotify Album Link</Text>
               <TextInput
                 placeholder="https://open.spotify.com/album/..."
                 placeholderTextColor={colors.muted}
                 value={formSpotifyLink}
                 onChangeText={async (text) => {
                   setFormSpotifyLink(text);
-                  
-                  // Auto-fetch album metadata from Spotify link
-                  if (text.includes('spotify.com/album') || text.includes('spotify:album')) {
-                    setIsLoadingSpotify(true);
-                    try {
-                      const { type, id } = parseSpotifyUrl(text);
-                      if (type === 'album' && id) {
-                        const album = await fetchSpotifyAlbum(id);
-                        if (album) {
-                          setFormTitle(album.name);
-                          setFormNotes(album.artist);
-                          setFormSongLink(album.imageUrl || '');
-                        }
-                      }
-                    } catch (error) {
-                      console.error('Error fetching Spotify album:', error);
-                    } finally {
-                      setIsLoadingSpotify(false);
+                  const { type, id } = parseSpotifyUrl(text);
+                  if (type !== 'album' || !id) return;
+
+                  setIsLoadingSpotify(true);
+                  try {
+                    const album = await fetchSpotifyAlbum(id);
+                    if (album) {
+                      setFormTitle(album.name);
+                      setFormNotes(album.artist);
+                      setFormSongLink(album.imageUrl || '');
+                      return;
                     }
+
+                    const embedMetadata = await fetchSpotifyEmbedMetadata(text);
+                    if (embedMetadata) {
+                      setFormTitle(embedMetadata.title);
+                      setFormSongLink(embedMetadata.coverUrl || '');
+                      Alert.alert('Album imported', 'Album title and cover were added. Enter the artist if Spotify does not provide it.');
+                    } else {
+                      Alert.alert('Could not import album', 'The link was recognized, but Spotify did not provide metadata. You can still enter the title, artist, and cover manually.');
+                    }
+                  } catch (error) {
+                    console.error('Error fetching Spotify album:', error);
+                    Alert.alert('Could not import album', 'You can still enter the title, artist, and cover manually.');
+                  } finally {
+                    setIsLoadingSpotify(false);
                   }
                 }}
                 style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}

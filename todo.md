@@ -1774,3 +1774,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Align Emergency avatar presentation with the Praise avatar pattern
 - [x] Add the Emergency countdown to a thought bubble and fire badge below the avatar
 - [x] Validate Emergency and Praise avatar presentation and save the refinement
+
+## Worship Music Import Regression
+- [x] Trace worship link import, album editing, and default data initialization
+- [x] Remove the unwanted placeholder album and repair album metadata updates
+- [x] Add regression coverage and validate pasted worship links

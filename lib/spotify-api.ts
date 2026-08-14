@@ -32,6 +32,11 @@ export type SpotifyAlbum = {
   spotifyUrl: string;
 };
 
+export type SpotifyEmbedMetadata = {
+  title: string;
+  coverUrl?: string;
+};
+
 /**
  * Extract playlist ID from Spotify URL
  * Supports formats:
@@ -135,6 +140,30 @@ export async function fetchSpotifyAlbum(albumId: string): Promise<SpotifyAlbum |
     };
   } catch (error) {
     console.error('Error fetching Spotify album:', error);
+    return null;
+  }
+}
+
+/**
+ * Retrieves public Spotify embed metadata without requiring a Spotify API token.
+ * This is a graceful fallback when the authenticated Web API is unavailable.
+ */
+export async function fetchSpotifyEmbedMetadata(url: string): Promise<SpotifyEmbedMetadata | null> {
+  try {
+    const response = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const rawTitle = typeof data.title === "string" ? data.title : "";
+    const title = rawTitle.replace(/^Spotify Embed:\s*/i, "").trim();
+    if (!title) return null;
+
+    return {
+      title,
+      coverUrl: typeof data.thumbnail_url === "string" ? data.thumbnail_url : undefined,
+    };
+  } catch (error) {
+    console.error("Error fetching Spotify embed metadata:", error);
     return null;
   }
 }

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { extractPlaylistId, formatDuration } from './spotify-api';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { extractPlaylistId, fetchSpotifyEmbedMetadata, formatDuration, parseSpotifyUrl } from './spotify-api';
 
 describe('Spotify API', () => {
   describe('extractPlaylistId', () => {
@@ -46,6 +46,26 @@ describe('Spotify API', () => {
 
     it('should handle zero duration', () => {
       expect(formatDuration(0)).toBe('0:00');
+    });
+  });
+
+  describe('album link metadata fallback', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('should parse an album URL that includes query parameters', () => {
+      expect(parseSpotifyUrl('https://open.spotify.com/album/album123?si=shared')).toEqual({ type: 'album', id: 'album123' });
+    });
+
+    it('should load public oEmbed title and cover metadata without a Web API token', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ title: 'Spotify Embed: Prayer Songs', thumbnail_url: 'https://example.com/cover.jpg' }),
+      }));
+
+      await expect(fetchSpotifyEmbedMetadata('https://open.spotify.com/album/album123')).resolves.toEqual({
+        title: 'Prayer Songs',
+        coverUrl: 'https://example.com/cover.jpg',
+      });
     });
   });
 });

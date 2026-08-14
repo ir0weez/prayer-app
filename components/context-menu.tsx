@@ -55,10 +55,11 @@ export function ContextMenu({
       animationType="fade"
       onRequestClose={onDismiss}
     >
-      <Pressable
-        style={styles.overlay}
-        onPress={onDismiss}
-      >
+      <View style={styles.overlay}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onDismiss}
+        />
         <View
           style={[
             styles.menu,
@@ -74,8 +75,10 @@ export function ContextMenu({
             <Pressable
               key={index}
               onPress={() => {
-                action.onPress();
                 onDismiss();
+                // Run confirmation dialogs and navigation only after this Modal has closed.
+                // Keeping them separate prevents the modal backdrop from swallowing a follow-up alert.
+                setTimeout(action.onPress, 0);
               }}
               style={({ pressed }) => [
                 styles.menuItem,
@@ -101,7 +104,7 @@ export function ContextMenu({
             </Pressable>
           ))}
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }

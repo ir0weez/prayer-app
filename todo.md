@@ -1784,3 +1784,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Reconnect expanded grouped todo sections as one card
 - [x] Restore the normal schedule background while retaining selected-color accents
 - [x] Validate the corrected grouped todo card design and save the update
+
+## Grouped Todo Long-Press Delete Regression
+- [x] Trace grouped todo long-press menu delete behavior
+- [x] Fix grouped todo deletion and persistence through the long-press menu
+- [x] Add regression coverage and validate the repaired deletion flow

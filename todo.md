@@ -1765,27 +1765,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add the Joshua commentary entries to the app’s study data
 - [x] Verify chapter coverage, compile the app, and save the import
 
-## Grouped Todo Card Spacing
-- [x] Align grouped todo card side margins with the Personal Study card
-- [x] Preserve full-width layout for full-day schedule events
-- [x] Validate grouped todo spacing and save the refinement
-
-## Grouped Todo Delete Control
-- [x] Remove the visible trash icon from grouped todo cards
-- [x] Preserve edit, completion, and deletion through the long-press menu
-- [x] Validate grouped todo controls and save the refinement
-
-## Grouped Todo Card Surface
-- [x] Separate grouped todo headers and checklists into white card surfaces
-- [x] Limit the selected todo color to outlines, icons, progress, and checkboxes
-- [x] Validate grouped todo visual hierarchy and save the refinement
-
-## Grouped Todo Card Visual Correction
-- [x] Reconnect expanded grouped todo sections as one card
-- [x] Restore the normal schedule background while retaining selected-color accents
-- [x] Validate the corrected grouped todo card design and save the update
-
-## Grouped Todo Long-Press Delete Regression
-- [x] Trace grouped todo long-press menu delete behavior
-- [x] Fix grouped todo deletion and persistence through the long-press menu
-- [x] Add regression coverage and validate the repaired deletion flow
+## Grouped Todo Outer-Layout Spacing Repair
+- [x] Trace the full-width wrapper around grouped todo rows
+- [x] Apply the Personal Study inset wrapper to grouped todo cards
+- [x] Validate inset spacing and save the repair

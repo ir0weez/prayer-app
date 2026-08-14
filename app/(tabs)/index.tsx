@@ -1081,21 +1081,25 @@ export default function HomeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
               {visiblePrayTodayList.map(renderStoryPerson)}
               {getAllActiveEmergencyPrayers(people).map(({ person, item }) => {
+                const countdown = emergencyCountdowns[item.id] || 0;
                 return (
                   <View key={`emergency-${item.id}`} style={styles.storyItem}>
-                    <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
-                      <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>{item.title}</Text>
+                    <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}> 
+                      <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>Emergency</Text>
+                      {countdown > 0 && (
+                        <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
+                          {formatEmergencyPrayerCountdown(countdown)}
+                        </Text>
+                      )}
                     </View>
                     <Pressable onPress={() => router.push({ pathname: "/person", params: { personId: person.id } })} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-                      <View style={[styles.storyRing, { borderColor: person.accentColor }]}>
+                      <View style={[styles.storyRing, { borderColor: person.accentColor }]}> 
                         {renderAvatar(person, 66, false)}
-                        {emergencyCountdowns[item.id] && emergencyCountdowns[item.id] > 0 && (
-                          <View style={[styles.emergencyTimerBadge, { backgroundColor: "#EF4444" }]}>
-                            <Text style={styles.emergencyTimerText}>{formatEmergencyPrayerCountdown(emergencyCountdowns[item.id])}</Text>
-                          </View>
-                        )}
                       </View>
                     </Pressable>
+                    <View style={[styles.storyPlus, { backgroundColor: "#EF4444", borderColor: colors.background }]}>
+                      <MaterialIcons name={iconName("local-fire-department")} size={19} color="#FFFFFF" />
+                    </View>
                   </View>                );
               })}
               {duePersonalTodos.map(({ contact, todo }) => (

@@ -1769,3 +1769,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace the full-width wrapper around grouped todo rows
 - [x] Apply the Personal Study inset wrapper to grouped todo cards
 - [x] Validate inset spacing and save the repair
+
+## Emergency Avatar Refinement
+- [x] Align Emergency avatar presentation with the Praise avatar pattern
+- [x] Add the Emergency countdown to a thought bubble and fire badge below the avatar
+- [x] Validate Emergency and Praise avatar presentation and save the refinement

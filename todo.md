@@ -1769,3 +1769,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Align grouped todo card side margins with the Personal Study card
 - [x] Preserve full-width layout for full-day schedule events
 - [x] Validate grouped todo spacing and save the refinement
+
+## Grouped Todo Delete Control
+- [x] Remove the visible trash icon from grouped todo cards
+- [x] Preserve edit, completion, and deletion through the long-press menu
+- [x] Validate grouped todo controls and save the refinement

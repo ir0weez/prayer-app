@@ -55,7 +55,7 @@ import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyAlbum, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
-import { getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory, type StoredWorshipAlbum } from "@/lib/worship-album-state";
+import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory, type StoredWorshipAlbum } from "@/lib/worship-album-state";
 import {
   addDays,
   BirthdayEvent,
@@ -872,6 +872,7 @@ export function ScheduleTab({
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const [isAlbumStateHydrated, setIsAlbumStateHydrated] = useState(false);
   const currentAlbum = useMemo(
     () => getDisplayedWorshipAlbum(albumHistory, currentDisplayAlbumId),
     [albumHistory, currentDisplayAlbumId],
@@ -915,6 +916,8 @@ export function ScheduleTab({
         }
       } catch (e) {
         console.error('[ALBUM_LOAD] Error loading album data:', e);
+      } finally {
+        setIsAlbumStateHydrated(true);
       }
     };
     loadAlbumData();
@@ -922,13 +925,15 @@ export function ScheduleTab({
   
   // Persist album history whenever it changes
   useEffect(() => {
+    if (!isAlbumStateHydrated) return;
     AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e => 
       console.error('Error saving album history:', e)
     );
-  }, [albumHistory]);
+  }, [albumHistory, isAlbumStateHydrated]);
   
   // Persist current display album ID
   useEffect(() => {
+    if (!isAlbumStateHydrated) return;
     if (currentDisplayAlbumId) {
       AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', currentDisplayAlbumId).catch(e => 
         console.error('Error saving current display album:', e)
@@ -936,7 +941,7 @@ export function ScheduleTab({
     } else {
       AsyncStorage.removeItem('CURRENT_DISPLAY_ALBUM_ID').catch(() => undefined);
     }
-  }, [currentDisplayAlbumId]);
+  }, [currentDisplayAlbumId, isAlbumStateHydrated]);
   
   // Load and persist worship albums (deprecated - keeping for backward compatibility)
   useEffect(() => {
@@ -1787,16 +1792,17 @@ export function ScheduleTab({
       };
       
       const albumWithMetadata = { ...newAlbum, addedAt: new Date().toISOString() };
-      const updatedHistory = [...albumHistory, albumWithMetadata];
+      const selection = appendAndSelectWorshipAlbum(albumHistory, albumWithMetadata);
       
       console.log('[ALBUM_SAVE] Saving new album:', newAlbum.id, newAlbum.title);
       
       // Keep selection and displayed album in sync with the album history.
-      setAlbumHistory(updatedHistory);
-      setCurrentDisplayAlbumId(albumWithMetadata.id);
+      setIsAlbumStateHydrated(true);
+      setAlbumHistory(selection.albums);
+      setCurrentDisplayAlbumId(selection.selectedAlbumId);
       
       // Save to storage
-      await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(updatedHistory));
+      await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(selection.albums));
       await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(albumWithMetadata));
       await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', albumWithMetadata.id);
       

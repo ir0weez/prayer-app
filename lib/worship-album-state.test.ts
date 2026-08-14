@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory } from "./worship-album-state";
+import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory } from "./worship-album-state";
 
 describe("worship album display state", () => {
   const userAlbum = {
@@ -22,5 +22,12 @@ describe("worship album display state", () => {
     expect(getDisplayedWorshipAlbum([userAlbum], "album-prayer")).toEqual(userAlbum);
     expect(getDisplayedWorshipAlbum([userAlbum], "missing-album")).toBeNull();
     expect(getDisplayedWorshipAlbum([userAlbum], null)).toBeNull();
+  });
+
+  it("selects a newly created album in the same state transition that adds it", () => {
+    const result = appendAndSelectWorshipAlbum([], userAlbum);
+
+    expect(result.albums).toEqual([userAlbum]);
+    expect(result.selectedAlbumId).toBe("album-prayer");
   });
 });

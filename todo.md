@@ -1779,3 +1779,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace worship link import, album editing, and default data initialization
 - [x] Remove the unwanted placeholder album and repair album metadata updates
 - [x] Add regression coverage and validate pasted worship links
+
+## Worship Album Display Regression
+- [x] Trace the selected-date album list and Worship card display path
+- [x] Make newly saved albums appear immediately in the Worship box
+- [x] Add regression coverage and validate worship album display

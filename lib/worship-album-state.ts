@@ -36,3 +36,14 @@ export function getDisplayedWorshipAlbum(
   if (!selectedAlbumId) return null;
   return albums.find((album) => album.id === selectedAlbumId) ?? null;
 }
+
+/** Appends a user-created album and selects it in one deterministic state transition. */
+export function appendAndSelectWorshipAlbum<T extends StoredWorshipAlbum>(
+  albums: T[],
+  album: T,
+): { albums: T[]; selectedAlbumId: string } {
+  return {
+    albums: [...albums, album],
+    selectedAlbumId: album.id,
+  };
+}

@@ -1784,3 +1784,11 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace the selected-date album list and Worship card display path
 - [x] Make newly saved albums appear immediately in the Worship box
 - [x] Add regression coverage and validate worship album display
+
+## Development Server Restart
+- [x] Restart the unresponsive development server and verify preview health
+
+## Worship Album Creation Regression
+- [x] Trace the Add Album form submission through save, selection, and card display
+- [x] Connect successful album creation directly to the current Worship card state
+- [x] Add create-flow regression coverage and validate the repaired Worship display

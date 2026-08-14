@@ -47,3 +47,15 @@ export function appendAndSelectWorshipAlbum<T extends StoredWorshipAlbum>(
     selectedAlbumId: album.id,
   };
 }
+
+/** Merges a late storage read with albums created before hydration finishes. */
+export function mergeWorshipAlbumHistories<T extends StoredWorshipAlbum>(
+  storedAlbums: T[],
+  inMemoryAlbums: T[],
+): T[] {
+  const merged = [...storedAlbums];
+  for (const album of inMemoryAlbums) {
+    if (!merged.some((candidate) => candidate.id === album.id)) merged.push(album);
+  }
+  return merged;
+}

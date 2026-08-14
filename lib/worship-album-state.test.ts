@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, sanitizeWorshipAlbumHistory } from "./worship-album-state";
+import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, mergeWorshipAlbumHistories, sanitizeWorshipAlbumHistory } from "./worship-album-state";
 
 describe("worship album display state", () => {
   const userAlbum = {
@@ -29,5 +29,9 @@ describe("worship album display state", () => {
 
     expect(result.albums).toEqual([userAlbum]);
     expect(result.selectedAlbumId).toBe("album-prayer");
+  });
+
+  it("does not let a late empty storage read erase an album created in memory", () => {
+    expect(mergeWorshipAlbumHistories([], [userAlbum])).toEqual([userAlbum]);
   });
 });

@@ -53,6 +53,7 @@ export type Person = {
   initials: string;
   relationship: RelationshipType;
   lastPrayedDate: string | null; // Last reached date as an ISO date string (YYYY-MM-DD) or null.
+  lastMeetingLocation?: string; // Optional place where the contact was most recently met.
   lastPrayerCompletedDate?: string | null; // The date this person was prayed for in the daily Pray Today flow.
   reminderDaysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   reminderFrequency?: ReminderFrequency;
@@ -336,8 +337,19 @@ export function updatePersonLastReachedDate(
   people: Person[],
   personId: string,
   dateString: string,
+  meetingLocation?: string,
 ): Person[] {
-  return updatePersonLastPrayedDate(people, personId, dateString);
+  return people.map((person) =>
+    person.id === personId
+      ? {
+          ...person,
+          lastPrayedDate: dateString,
+          ...(meetingLocation !== undefined
+            ? { lastMeetingLocation: normalizeOptionalText(meetingLocation) }
+            : {}),
+        }
+      : person,
+  );
 }
 
 // Action: Toggle prayer item urgent flag
@@ -532,6 +544,7 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       prayerItems: Array.isArray(person.prayerItems) ? person.prayerItems : [],
       personalTodos: Array.isArray(person.personalTodos) ? person.personalTodos : [],
       lastPrayedDate: person.lastPrayedDate ?? null,
+      lastMeetingLocation: normalizeOptionalText(person.lastMeetingLocation),
       lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
       isPersonal: person.isPersonal ?? false,
       isPraised: person.isPraised ?? false,

@@ -337,6 +337,18 @@ describe("PrayerCircle local data helpers", () => {
     expect(getLastReachedAccentColor(overdue[0])).toBe("#EF4444");
   });
 
+  it("stores, normalizes, and clears the optional last meeting location with the reached date", () => {
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const reached = updatePersonLastReachedDate(people, people[0].id, "2026-08-30", "  Cornerstone Coffee  ");
+    const normalized = normalizePeopleForStorage(reached);
+
+    expect(normalized[0].lastPrayedDate).toBe("2026-08-30");
+    expect(normalized[0].lastMeetingLocation).toBe("Cornerstone Coffee");
+
+    const cleared = updatePersonLastReachedDate(normalized, normalized[0].id, "", "");
+    expect(cleared[0].lastMeetingLocation).toBeUndefined();
+  });
+
   it("removes a person from the list", () => {
     const people = addPerson(initialPeople, "Alice", "Friends");
     expect(people).toHaveLength(1);

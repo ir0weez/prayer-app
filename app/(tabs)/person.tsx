@@ -267,6 +267,7 @@ export default function PersonScreen() {
   const [draftReminderTime, setDraftReminderTime] = useState("08:00");
   const [showDateModal, setShowDateModal] = useState(false);
   const [draftLastReachedDate, setDraftLastReachedDate] = useState(getTodayISOString());
+  const [draftLastMeetingLocation, setDraftLastMeetingLocation] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
@@ -645,6 +646,7 @@ export default function PersonScreen() {
   const openLastReachedDateModal = () => {
     if (!currentPerson) return;
     setDraftLastReachedDate(currentPerson.lastPrayedDate ?? getTodayISOString());
+    setDraftLastMeetingLocation(currentPerson.lastMeetingLocation ?? "");
     setShowDateModal(true);
   };
 
@@ -659,13 +661,15 @@ export default function PersonScreen() {
       return;
     }
 
-    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate));
+    updatePeople((previousPeople) =>
+      updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate, draftLastMeetingLocation),
+    );
     setShowDateModal(false);
   };
 
   const handleDeleteLastReachedDate = () => {
     if (!personId) return;
-    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, ""));
+    updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, "", ""));
     setShowDateModal(false);
   };
 
@@ -733,6 +737,9 @@ export default function PersonScreen() {
             </Text>
           </Pressable>
           <Text style={styles.statusText}>{getStatusText(currentPerson)}</Text>
+          {currentPerson.lastMeetingLocation ? (
+            <Text style={styles.personBirthday}>Last met at {currentPerson.lastMeetingLocation}</Text>
+          ) : null}
         </View>
 
         <Pressable
@@ -1233,8 +1240,17 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
+            <Text style={styles.modalFieldLabel}>Last met at (optional)</Text>
+            <TextInput
+              value={draftLastMeetingLocation}
+              onChangeText={setDraftLastMeetingLocation}
+              placeholder="e.g., Coffee shop, church, school"
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
             <Pressable onPress={handleSaveLastReachedDate} style={({ pressed }) => [styles.modalPrimaryButton, pressed && styles.pressed]}>
-              <Text style={styles.modalPrimaryButtonText}>Save Date</Text>
+              <Text style={styles.modalPrimaryButtonText}>Save Last Reached</Text>
             </Pressable>
             <Pressable onPress={handleDeleteLastReachedDate} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
               <Text style={styles.modalSecondaryButtonText}>Delete Date</Text>

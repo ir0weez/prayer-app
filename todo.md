@@ -1792,3 +1792,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Trace the Add Album form submission through save, selection, and card display
 - [x] Connect successful album creation directly to the current Worship card state
 - [x] Add create-flow regression coverage and validate the repaired Worship display
+
+## Last Meeting Location
+- [x] Add an optional last-meeting location field to the Last Reached editor
+- [x] Persist the location in the contact data model
+- [x] Display the saved last-meeting location on the contact profile and validate the flow

@@ -1797,3 +1797,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add an optional last-meeting location field to the Last Reached editor
 - [x] Persist the location in the contact data model
 - [x] Display the saved last-meeting location on the contact profile and validate the flow
+
+## Floating Missed Todos
+- [x] Replace the in-flow missed-todo card with a conditional floating pill above the tab bar
+- [x] Show past todos in an upward action panel with complete and dismiss controls
+- [x] Test overdue todo completion and dismissal and save the redesigned flow

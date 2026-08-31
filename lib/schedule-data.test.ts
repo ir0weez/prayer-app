@@ -320,5 +320,17 @@ describe("schedule-data", () => {
       const result = getOverdueTodos(todos, "2026-05-30");
       expect(result).toHaveLength(0);
     });
+
+    it("removes an overdue todo from results after completing or dismissing it", () => {
+      const firstTodo = createScheduleTodo({ title: "Complete me", date: "2026-05-28" }, 0);
+      const secondTodo = createScheduleTodo({ title: "Dismiss me", date: "2026-05-29" }, 1);
+      const initialTodos = [firstTodo, secondTodo];
+
+      const completedTodos = toggleTodoCompleted(initialTodos, firstTodo.id);
+      expect(getOverdueTodos(completedTodos, "2026-05-30").map((todo) => todo.id)).toEqual([secondTodo.id]);
+
+      const dismissedTodos = removeScheduleTodo(completedTodos, secondTodo.id);
+      expect(getOverdueTodos(dismissedTodos, "2026-05-30")).toEqual([]);
+    });
   });
 });

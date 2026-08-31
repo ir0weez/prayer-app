@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -71,7 +72,6 @@ import {
   getDayNumber,
   getEventsForDate,
   getMinistriesForDate,
-  getOverdueTodos,
   getShortDayName,
   getTodosForDate,
   getWeekDates,
@@ -811,6 +811,7 @@ export function ScheduleTab({
   onTodoComplete?: (todoId: string) => void;
 }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
   const router = useRouter();
@@ -866,6 +867,8 @@ export function ScheduleTab({
   const [chapterSummary, setChapterSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
+  const [isMissedTodosOpen, setIsMissedTodosOpen] = useState(false);
+  const [activeMissedTodoId, setActiveMissedTodoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
@@ -1316,6 +1319,24 @@ export function ScheduleTab({
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
   const dayBirthdays = useMemo(() => getBirthdaysForDate(people, selectedDate), [people, selectedDate]);
+  const missedTodos = useMemo(() => {
+    const selectedDateStr = formatDateLocal(new Date(selectedDate));
+    return todos
+      .filter((todo) => formatDateLocal(new Date(todo.date)) < selectedDateStr && !todo.isCompleted)
+      .sort((first, second) => first.date.localeCompare(second.date));
+  }, [selectedDate, todos]);
+
+  useEffect(() => {
+    if (missedTodos.length === 0) {
+      setIsMissedTodosOpen(false);
+      setActiveMissedTodoId(null);
+      return;
+    }
+
+    if (activeMissedTodoId && !missedTodos.some((todo) => todo.id === activeMissedTodoId)) {
+      setActiveMissedTodoId(null);
+    }
+  }, [activeMissedTodoId, missedTodos]);
 
   // Fasting info for expandable card
   const activeFast = useMemo(() => getActiveFast(fasts, selectedDate), [fasts, selectedDate]);
@@ -2059,20 +2080,11 @@ export function ScheduleTab({
       items.unshift({ type: "personal-study-card", id: "personal-study-card", data: { display: currentBibleDisplay, state: bibleState, chapterSummary: chapterSummary } });
     }
 
-    // Get missed todos from previous days
-    const missedTodos = todos.filter(t => {
-      const todoDate = formatDateLocal(new Date(t.date));
-      const selectedDateStr = formatDateLocal(new Date(selectedDate));
-      return todoDate < selectedDateStr && !t.isCompleted;
-    });
-
-    // Expandable sections (missed todos, worship)
-    items.push({ type: "expandable-missed-todos", id: "missed-todos-section", data: missedTodos });
     // Add worship section as a direct display (not expandable)
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, todos,currentAlbum]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -2480,45 +2492,6 @@ export function ScheduleTab({
             </View>
           );
         }
-        case "expandable-missed-todos":
-          return (
-            <ExpandableSection title={`Missed Todos (${item.data?.length || 0})`} icon="assignment">
-              {item.data && item.data.length > 0 ? (
-                <View style={{ gap: 8 }}>
-                  {item.data.map((todo: any) => (
-                    <View key={todo.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }}>
-                          {todo.title}
-                        </Text>
-                        <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
-                          {new Date(todo.date).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Pressable
-                          onPress={() => setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, isCompleted: true } : t))}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.success, borderRadius: 6 }]}
-                        >
-                          <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>✓</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setTodos(prev => prev.filter(t => t.id !== todo.id))}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.error, borderRadius: 6 }]}
-                        >
-                          <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>✕</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={{ color: colors.muted, fontSize: 14 }}>
-                  No missed todos. Great job!
-                </Text>
-              )}
-            </ExpandableSection>
-          );
         case "expandable-fasting":
           return (
             <ExpandableSection title="Fasting" icon="restaurant">
@@ -2709,7 +2682,14 @@ export function ScheduleTab({
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             extraData={[selectedDate, listData, colors, currentAlbum]}
-            contentContainerStyle={[scheduleStyles.listContent, { paddingTop: 0, backgroundColor: colors.surface }]}
+            contentContainerStyle={[
+              scheduleStyles.listContent,
+              {
+                paddingTop: 0,
+                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 370 : 190) : 120,
+                backgroundColor: colors.surface,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
             onScroll={Animated.event(
               [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -2980,6 +2960,110 @@ export function ScheduleTab({
           />
         )}
         </ReAnimated.View>
+
+      {missedTodos.length > 0 && (
+        <View
+          pointerEvents="box-none"
+          style={[scheduleStyles.missedTodosFloatingContainer, { bottom: 68 + Math.max(insets.bottom, 8) }]}
+        >
+          {isMissedTodosOpen && (
+            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: colors.background, borderColor: colors.border }]}> 
+              <View style={[scheduleStyles.missedTodosPanelHeader, { borderBottomColor: colors.border }]}> 
+                <View style={scheduleStyles.missedTodosPanelTitleGroup}>
+                  <View style={[scheduleStyles.missedTodosPanelIcon, { backgroundColor: colors.error + '18' }]}> 
+                    <MaterialIcons name="event-busy" size={17} color={colors.error} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[scheduleStyles.missedTodosPanelTitle, { color: colors.foreground }]}>Past todos</Text>
+                    <Text style={[scheduleStyles.missedTodosPanelSubtitle, { color: colors.muted }]}>Choose one to resolve it</Text>
+                  </View>
+                </View>
+                <Pressable
+                  accessibilityLabel="Close past todos"
+                  onPress={() => {
+                    setIsMissedTodosOpen(false);
+                    setActiveMissedTodoId(null);
+                  }}
+                  style={({ pressed }) => [scheduleStyles.missedTodosCloseButton, pressed && { opacity: 0.65 }]}
+                >
+                  <MaterialIcons name="keyboard-arrow-down" size={22} color={colors.muted} />
+                </Pressable>
+              </View>
+              <ScrollView
+                style={scheduleStyles.missedTodosScroll}
+                contentContainerStyle={scheduleStyles.missedTodosScrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {missedTodos.map((todo) => {
+                  const isActive = activeMissedTodoId === todo.id;
+                  return (
+                    <View key={todo.id}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isActive }}
+                        onPress={() => setActiveMissedTodoId((current) => current === todo.id ? null : todo.id)}
+                        style={({ pressed }) => [
+                          scheduleStyles.missedTodoRow,
+                          { borderColor: colors.border, backgroundColor: isActive ? colors.surface : 'transparent' },
+                          pressed && { opacity: 0.7 },
+                        ]}
+                      >
+                        <View style={[scheduleStyles.missedTodoCheck, { borderColor: todo.color || colors.error }]}>
+                          <MaterialIcons name="schedule" size={15} color={todo.color || colors.error} />
+                        </View>
+                        <View style={scheduleStyles.missedTodoTextGroup}>
+                          <Text numberOfLines={1} style={[scheduleStyles.missedTodoTitle, { color: colors.foreground }]}>{todo.title}</Text>
+                          <Text style={[scheduleStyles.missedTodoDate, { color: colors.muted }]}>{new Date(todo.date).toLocaleDateString()}</Text>
+                        </View>
+                        <MaterialIcons name={isActive ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={20} color={colors.muted} />
+                      </Pressable>
+                      {isActive && (
+                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}> 
+                          <Pressable
+                            onPress={() => setTodos((current) => toggleTodoCompleted(current, todo.id))}
+                            style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
+                          >
+                            <MaterialIcons name="check" size={17} color="#FFFFFF" />
+                            <Text style={scheduleStyles.missedTodoActionText}>Complete</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => setTodos((current) => removeScheduleTodo(current, todo.id))}
+                            style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.error }, pressed && { opacity: 0.72 }]}
+                          >
+                            <MaterialIcons name="delete-outline" size={17} color="#FFFFFF" />
+                            <Text style={scheduleStyles.missedTodoActionText}>Dismiss</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isMissedTodosOpen }}
+            accessibilityLabel={`${missedTodos.length} past todo${missedTodos.length === 1 ? '' : 's'}`}
+            onPress={() => {
+              setIsMissedTodosOpen((current) => !current);
+              setActiveMissedTodoId(null);
+            }}
+            style={({ pressed }) => [
+              scheduleStyles.missedTodosPill,
+              { backgroundColor: colors.foreground, shadowColor: colors.foreground },
+              pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 },
+            ]}
+          >
+            <View style={scheduleStyles.missedTodosPillIcon}>
+              <MaterialIcons name="event-busy" size={16} color="#FFFFFF" />
+            </View>
+            <Text style={scheduleStyles.missedTodosPillText}>{missedTodos.length} past todo{missedTodos.length === 1 ? '' : 's'}</Text>
+            <MaterialIcons name={isMissedTodosOpen ? "keyboard-arrow-down" : "keyboard-arrow-up"} size={19} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      )}
 
       {/* FAB Button with Google Calendar-style popup menu */}
       <Pressable
@@ -4044,6 +4128,146 @@ const scheduleStyles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingBottom: 120,
     paddingTop: 0,
+  },
+  missedTodosFloatingContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+    zIndex: 102,
+    elevation: 12,
+  },
+  missedTodosPanel: {
+    alignSelf: 'stretch',
+    maxHeight: 320,
+    marginBottom: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  missedTodosPanelHeader: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  missedTodosPanelTitleGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  missedTodosPanelIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missedTodosPanelTitle: {
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '700',
+  },
+  missedTodosPanelSubtitle: {
+    marginTop: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  missedTodosCloseButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missedTodosScroll: {
+    maxHeight: 256,
+  },
+  missedTodosScrollContent: {
+    padding: 8,
+    gap: 8,
+  },
+  missedTodoRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  missedTodoCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missedTodoTextGroup: {
+    flex: 1,
+  },
+  missedTodoTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  missedTodoDate: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  missedTodoActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    marginTop: -3,
+  },
+  missedTodoActionButton: {
+    flex: 1,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+  },
+  missedTodoActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  missedTodosPill: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  missedTodosPillIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  missedTodosPillText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: "center",

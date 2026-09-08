@@ -1803,6 +1803,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Show past todos in an upward action panel with complete and dismiss controls
 - [x] Test overdue todo completion and dismissal and save the redesigned flow
 
+## Floating Missed Todo Visibility Fix
+- [x] Move the missed-todo pill and upward panel clear of the Schedule tab bar
+- [x] Validate the corrected bottom overlay position and save the repair
+
 ## PrayerCircle Splash Screen
 - [x] Create a new native splash visual with PrayerCircle’s calm violet brand treatment
 - [x] Apply the visual and matching launch background to the Expo splash configuration

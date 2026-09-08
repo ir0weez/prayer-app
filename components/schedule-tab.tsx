@@ -21,7 +21,6 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -116,6 +115,9 @@ const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key fo
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
+// The custom bottom navigation is 74px tall and sits 52px above the screen edge.
+// Keep the overdue control fully above that surface, with a small visual gap.
+const SCHEDULE_BOTTOM_NAV_CLEARANCE = 142;
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -811,7 +813,6 @@ export function ScheduleTab({
   onTodoComplete?: (todoId: string) => void;
 }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
   const router = useRouter();
@@ -2686,7 +2687,7 @@ export function ScheduleTab({
               scheduleStyles.listContent,
               {
                 paddingTop: 0,
-                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 370 : 190) : 120,
+                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 530 : 210) : 120,
                 backgroundColor: colors.surface,
               },
             ]}
@@ -2964,7 +2965,7 @@ export function ScheduleTab({
       {missedTodos.length > 0 && (
         <View
           pointerEvents="box-none"
-          style={[scheduleStyles.missedTodosFloatingContainer, { bottom: 68 + Math.max(insets.bottom, 8) }]}
+          style={[scheduleStyles.missedTodosFloatingContainer, { bottom: SCHEDULE_BOTTOM_NAV_CLEARANCE }]}
         >
           {isMissedTodosOpen && (
             <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: colors.background, borderColor: colors.border }]}> 

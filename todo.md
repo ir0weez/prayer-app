@@ -1811,3 +1811,7 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Create a new native splash visual with PrayerCircle’s calm violet brand treatment
 - [x] Apply the visual and matching launch background to the Expo splash configuration
 - [x] Validate the build configuration and save the updated splash screen
+
+## Floating Control Overlap Fix
+- [ ] Separate the missed-todo pill from the Today control
+- [ ] Validate both controls remain visible and save the repair

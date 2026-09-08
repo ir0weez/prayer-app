@@ -1802,3 +1802,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Replace the in-flow missed-todo card with a conditional floating pill above the tab bar
 - [x] Show past todos in an upward action panel with complete and dismiss controls
 - [x] Test overdue todo completion and dismissal and save the redesigned flow
+
+## PrayerCircle Splash Screen
+- [x] Create a new native splash visual with PrayerCircle’s calm violet brand treatment
+- [x] Apply the visual and matching launch background to the Expo splash configuration
+- [x] Validate the build configuration and save the updated splash screen

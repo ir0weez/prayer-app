@@ -58,3 +58,7 @@ The app will be designed for **mobile portrait orientation (9:16)** and **one-ha
 ## Implementation Notes
 
 The recreation should use local sample data and in-app state. It should not introduce cloud storage, user authentication, or server-only features because the APK findings do not require them for a faithful first pass. Exact binary decompilation of every React component is not necessary; the deliverable should reproduce the observed product concept, brand, navigation, and interface behavior in a maintainable Expo project.
+
+## Native Splash Screen Direction
+
+The native launch screen uses a single emblem on a deep violet background (`#201334`) so the hand-off from launch into PrayerCircle feels purposeful. The bundled emblem must remain clean at the center, use a true transparent background, and contain no unintended horizontal marks or surrounding artwork; this keeps the splash legible across Android screen sizes.

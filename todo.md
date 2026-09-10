@@ -1813,5 +1813,5 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Validate the build configuration and save the updated splash screen
 
 ## Floating Control Overlap Fix
-- [ ] Separate the missed-todo pill from the Today control
-- [ ] Validate both controls remain visible and save the repair
+- [x] Separate the missed-todo pill from the Today control
+- [x] Validate both controls remain visible and save the repair

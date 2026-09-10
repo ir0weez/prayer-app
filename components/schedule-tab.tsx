@@ -117,7 +117,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
 // The custom bottom navigation is 74px tall and sits 52px above the screen edge.
 // Keep the overdue control fully above that surface, with a small visual gap.
-const SCHEDULE_BOTTOM_NAV_CLEARANCE = 142;
+const SCHEDULE_BOTTOM_NAV_CLEARANCE = 198;
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -2687,7 +2687,7 @@ export function ScheduleTab({
               scheduleStyles.listContent,
               {
                 paddingTop: 0,
-                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 530 : 210) : 120,
+                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 586 : 266) : 120,
                 backgroundColor: colors.surface,
               },
             ]}

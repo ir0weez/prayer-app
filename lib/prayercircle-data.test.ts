@@ -198,6 +198,14 @@ describe("PrayerCircle local data helpers", () => {
     expect(updated[0].reminderDaysOfWeek).toEqual([1, 4]);
   });
 
+  it("does not let an unscheduled urgent item make a person appear every day", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = addPrayerItem(people, people[0].id, "Urgent request");
+    people = togglePrayerItemUrgent(people, people[0].id, people[0].prayerItems[0].id);
+
+    expect(getPrayTodayList(people, 2, 10)).toHaveLength(0);
+  });
+
   it("determines if a person should be prayed for by daily, weekly, monthly, or off frequency", () => {
     const people = addPerson(initialPeople, "Alice", "Friends");
     const weekly = updatePersonReminder(people, people[0].id, [1, 4]);

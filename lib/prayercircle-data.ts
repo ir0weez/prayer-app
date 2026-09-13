@@ -239,10 +239,8 @@ export function getPrayTodayList(people: Person[], todayDayOfWeek: number, today
     // Include if has active praise
     if (hasActivePraise(person, now)) return true;
     
-    // Include if has urgent prayer items
-    const hasUrgentPrayer = person.prayerItems.some((item) => item.isUrgent && !item.isDone);
-    if (hasUrgentPrayer) return true;
-    
+    // Urgent items are shown on their scheduled contact; they do not make an
+    // otherwise-unscheduled contact appear in Pray Today every day.
     return false;
   });
 }

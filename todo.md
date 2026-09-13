@@ -1820,3 +1820,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Verify the repository root contains the complete runnable Expo project
 - [x] Run Expo config and doctor checks and fix any publish-blocking structure issues
 - [x] Save a publish-ready checkpoint after validation
+
+## Pray Today Day-Specific Filtering Fix
+- [x] Restore current-weekday filtering for scheduled prayer contacts
+- [x] Add regression coverage for daily, weekly, and non-matching reminder days
+- [x] Run full validation and save the filtering fix

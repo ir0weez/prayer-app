@@ -1830,3 +1830,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Move the past-due todo pill into the Schedule header without colliding with the Day selector
 - [x] Anchor the overdue action panel beneath the pill and preserve complete/dismiss actions
 - [x] Validate the new placement and save the redesign
+
+## Compact Header Past-Due Control
+- [x] Place the past-due count beside the Schedule Day/View button as a matching pill or circle
+- [x] Anchor the overdue action panel from the compact header control
+- [x] Validate the corrected header placement and save the redesign

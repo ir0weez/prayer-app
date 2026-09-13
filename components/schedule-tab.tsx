@@ -2601,7 +2601,26 @@ export function ScheduleTab({
       {/* Fixed Schedule Title with View Mode Toggle */}
       <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={[scheduleStyles.scheduleTitleText, { color: colors.foreground }]}>Schedule</Text>
-        <View style={{ position: 'relative' }}>
+        <View style={{ position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {missedTodos.length > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isMissedTodosOpen }}
+              accessibilityLabel={`${missedTodos.length} past due todo${missedTodos.length === 1 ? '' : 's'}`}
+              onPress={() => {
+                setIsMissedTodosOpen((current) => !current);
+                setActiveMissedTodoId(null);
+              }}
+              style={({ pressed }) => [
+                scheduleStyles.headerMissedTodosPill,
+                { backgroundColor: colors.primary },
+                pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 },
+              ]}
+            >
+              <MaterialIcons name="event-busy" size={15} color="#FFFFFF" />
+              <Text style={scheduleStyles.headerMissedTodosText}>{missedTodos.length}</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => setShowViewMenu(!showViewMenu)}
             style={({ pressed }) => [{
@@ -3053,7 +3072,7 @@ export function ScheduleTab({
             }}
             style={({ pressed }) => [
               scheduleStyles.missedTodosPill,
-              { backgroundColor: colors.foreground, shadowColor: colors.foreground },
+              { display: 'none', backgroundColor: colors.foreground, shadowColor: colors.foreground },
               pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 },
             ]}
           >
@@ -4246,6 +4265,21 @@ const scheduleStyles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  headerMissedTodosPill: {
+    minWidth: 34,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    borderRadius: 17,
+  },
+  headerMissedTodosText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   missedTodosPill: {
     minHeight: 44,

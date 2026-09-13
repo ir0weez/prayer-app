@@ -1842,3 +1842,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Build the new-entry composer with prayer text, entry date, and multi-contact tagging
 - [x] Build the reply composer and preserve replies beneath their parent entry
 - [x] Add deterministic journal data tests, run full validation, and save the feature
+
+## Journal Long-Press Actions
+- [x] Remove visible X controls from journal entries and replies
+- [x] Add long-press actions for editing and deleting entries and replies
+- [x] Validate long-press edit/delete behavior and save the update

@@ -10,6 +10,8 @@ import {
   removePrayerJournalEntry,
   removePrayerJournalReply,
   togglePrayerJournalBookmark,
+  updatePrayerJournalEntry,
+  updatePrayerJournalReply,
 } from "./prayer-journal";
 
 describe("Prayer Journal helpers", () => {
@@ -54,6 +56,17 @@ describe("Prayer Journal helpers", () => {
       expect.objectContaining({ id: "reply-1", body: "The surgery went well.", date: "2026-09-14" }),
     ]);
     expect(removePrayerJournalReply(replied, "entry-1", "reply-1", createdAt)[0].replies).toEqual([]);
+  });
+
+  it("edits an entry and reply without losing bookmarks or other content", () => {
+    const entries = createPrayerJournalEntry([], { body: "Original prayer", date: "2026-09-12" }, "entry-1", createdAt);
+    const bookmarked = togglePrayerJournalBookmark(entries, "entry-1", createdAt);
+    const editedEntry = updatePrayerJournalEntry(bookmarked, "entry-1", { body: "Updated prayer", date: "2026-09-13" }, createdAt);
+    const editedReply = addPrayerJournalReply(editedEntry, "entry-1", "Original update", "reply-1", createdAt);
+    const updatedReply = updatePrayerJournalReply(editedReply, "entry-1", "reply-1", "Updated update", createdAt);
+
+    expect(updatedReply[0]).toMatchObject({ body: "Updated prayer", date: "2026-09-13", isBookmarked: true });
+    expect(updatedReply[0].replies[0].body).toBe("Updated update");
   });
 
   it("deletes only the selected journal entry", () => {

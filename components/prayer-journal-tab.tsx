@@ -29,6 +29,8 @@ import {
   removePrayerJournalEntry,
   removePrayerJournalReply,
   togglePrayerJournalBookmark,
+  updatePrayerJournalEntry,
+  updatePrayerJournalReply,
   type PrayerJournalEntry,
   type PrayerJournalTaggedPerson,
 } from "@/lib/prayer-journal";
@@ -58,7 +60,9 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const colors = useColors();
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
   const [showEntryComposer, setShowEntryComposer] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [replyEntryId, setReplyEntryId] = useState<string | null>(null);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState("");
   const [draftDate, setDraftDate] = useState(() => {
     const now = new Date();
@@ -87,30 +91,52 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   const closeEntryComposer = () => {
     setShowEntryComposer(false);
+    setEditingEntryId(null);
     setDraftBody("");
     setDraftTaggedPersonIds([]);
   };
 
-  const handleCreateEntry = () => {
+  const startEditEntry = (entry: PrayerJournalEntry) => {
+    setEditingEntryId(entry.id);
+    setDraftBody(entry.body);
+    setDraftDate(entry.date);
+    setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
+    setShowEntryComposer(true);
+  };
+
+  const handleSaveEntry = () => {
     if (!draftBody.trim()) return;
     const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
     onChange(
-      createPrayerJournalEntry(
-        entries,
-        { body: draftBody, date: draftDate, taggedPeople },
-        createId("journal"),
-      ),
+      editingEntryId
+        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople })
+        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople }, createId("journal")),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     closeEntryComposer();
   };
 
-  const handlePostReply = () => {
-    if (!replyTarget || !draftReply.trim()) return;
-    onChange(addPrayerJournalReply(entries, replyTarget.id, draftReply, createId("reply")));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+  const startEditReply = (entryId: string, replyId: string, body: string) => {
+    setReplyEntryId(entryId);
+    setEditingReplyId(replyId);
+    setDraftReply(body);
+  };
+
+  const closeReplyComposer = () => {
     setDraftReply("");
     setReplyEntryId(null);
+    setEditingReplyId(null);
+  };
+
+  const handlePostReply = () => {
+    if (!replyTarget || !draftReply.trim()) return;
+    onChange(
+      editingReplyId
+        ? updatePrayerJournalReply(entries, replyTarget.id, editingReplyId, draftReply)
+        : addPrayerJournalReply(entries, replyTarget.id, draftReply, createId("reply")),
+    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    closeReplyComposer();
   };
 
   const confirmDeleteEntry = (entry: PrayerJournalEntry) => {
@@ -139,18 +165,33 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     ]);
   };
 
+  const showEntryActions = (entry: PrayerJournalEntry) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    Alert.alert("Journal entry", "Choose an action", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => startEditEntry(entry) },
+      { text: "Delete", style: "destructive", onPress: () => confirmDeleteEntry(entry) },
+    ]);
+  };
+
+  const showReplyActions = (entryId: string, replyId: string, body: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    Alert.alert("Journal reply", "Choose an action", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => startEditReply(entryId, replyId, body) },
+      { text: "Delete", style: "destructive", onPress: () => confirmDeleteReply(entryId, replyId) },
+    ]);
+  };
+
   const renderEntry = ({ item }: { item: PrayerJournalEntry }) => (
-    <View style={[styles.entryCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+    <Pressable
+      delayLongPress={500}
+      onLongPress={() => showEntryActions(item)}
+      style={({ pressed }) => [styles.entryCard, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.longPressed]}
+    >
       <View style={styles.entryTopRow}>
         <Text style={[styles.entryDate, { color: colors.muted }]}>{formatPrayerJournalDate(item.date)}</Text>
-        <Pressable
-          accessibilityLabel="Delete journal entry"
-          hitSlop={8}
-          onPress={() => confirmDeleteEntry(item)}
-          style={({ pressed }) => [styles.deleteIconButton, pressed && styles.pressed]}
-        >
-          <MaterialIcons name="close" size={17} color={colors.muted} />
-        </Pressable>
+        <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
       </View>
 
       <Text style={[styles.entryBody, { color: colors.foreground }]}>{item.body}</Text>
@@ -203,26 +244,24 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"}
           </Text>
           {item.replies.map((reply) => (
-            <View key={reply.id} style={[styles.replyCard, { backgroundColor: colors.surface }]}>
+            <Pressable
+              key={reply.id}
+              delayLongPress={500}
+              onLongPress={() => showReplyActions(item.id, reply.id, reply.body)}
+              style={({ pressed }) => [styles.replyCard, { backgroundColor: colors.surface }, pressed && styles.longPressed]}
+            >
               <View style={styles.replyTopRow}>
                 <Text style={[styles.replyDate, { color: colors.muted }]}>
                   {formatPrayerJournalDate(reply.date)}
                 </Text>
-                <Pressable
-                  accessibilityLabel="Delete journal reply"
-                  hitSlop={8}
-                  onPress={() => confirmDeleteReply(item.id, reply.id)}
-                  style={({ pressed }) => [pressed && styles.pressed]}
-                >
-                  <MaterialIcons name="close" size={17} color={colors.muted} />
-                </Pressable>
+                <Text style={[styles.holdHint, { color: colors.muted }]}>Hold</Text>
               </View>
               <Text style={[styles.replyBody, { color: colors.foreground }]}>{reply.body}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 
   return (
@@ -358,7 +397,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               ListFooterComponent={
                 <Pressable
                   disabled={!draftBody.trim()}
-                  onPress={handleCreateEntry}
+                  onPress={handleSaveEntry}
                   style={({ pressed }) => [
                     styles.saveEntryButton,
                     { backgroundColor: colors.primary, opacity: draftBody.trim() ? (pressed ? 0.82 : 1) : 0.22 },
@@ -384,19 +423,13 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <Pressable
             style={styles.modalBackdrop}
-            onPress={() => {
-              setReplyEntryId(null);
-              setDraftReply("");
-            }}
+            onPress={closeReplyComposer}
           />
           <SafeAreaView edges={["top", "bottom"]} style={[styles.replySheet, { backgroundColor: colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>Reply to Entry</Text>
               <Pressable
-                onPress={() => {
-                  setReplyEntryId(null);
-                  setDraftReply("");
-                }}
+                onPress={closeReplyComposer}
                 style={({ pressed }) => [pressed && styles.pressed]}
               >
                 <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
@@ -458,7 +491,8 @@ const styles = StyleSheet.create({
   entryCard: { borderWidth: 1, borderRadius: 20, padding: 16, marginBottom: 14 },
   entryTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   entryDate: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
-  deleteIconButton: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  holdHint: { fontSize: 11, lineHeight: 15, fontWeight: "600", opacity: 0.78 },
+  longPressed: { opacity: 0.78 },
   entryBody: { fontSize: 17, lineHeight: 25, marginTop: 8 },
   taggedPeopleRow: { marginTop: 14, minHeight: 38, flexDirection: "row", alignItems: "center" },
   taggedAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, overflow: "hidden", marginRight: -7 },

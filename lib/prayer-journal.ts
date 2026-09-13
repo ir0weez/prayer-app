@@ -150,6 +150,51 @@ export function createPrayerJournalEntry(
   return sortPrayerJournalEntries([entry, ...entries]);
 }
 
+export function updatePrayerJournalEntry(
+  entries: PrayerJournalEntry[],
+  entryId: string,
+  input: { body: string; date: string; taggedPeople?: Person[] },
+  now = new Date(),
+): PrayerJournalEntry[] {
+  const body = input.body.trim();
+  if (!body) return entries;
+  const updatedAt = now.toISOString();
+  return sortPrayerJournalEntries(
+    entries.map((entry) =>
+      entry.id === entryId
+        ? {
+            ...entry,
+            body,
+            date: normalizeDate(input.date, entry.date),
+            taggedPeople: input.taggedPeople ? input.taggedPeople.map(snapshotPerson) : entry.taggedPeople,
+            updatedAt,
+          }
+        : entry,
+    ),
+  );
+}
+
+export function updatePrayerJournalReply(
+  entries: PrayerJournalEntry[],
+  entryId: string,
+  replyId: string,
+  bodyInput: string,
+  now = new Date(),
+): PrayerJournalEntry[] {
+  const body = bodyInput.trim();
+  if (!body) return entries;
+  const updatedAt = now.toISOString();
+  return entries.map((entry) =>
+    entry.id === entryId
+      ? {
+          ...entry,
+          replies: entry.replies.map((reply) => (reply.id === replyId ? { ...reply, body } : reply)),
+          updatedAt,
+        }
+      : entry,
+  );
+}
+
 export function togglePrayerJournalBookmark(
   entries: PrayerJournalEntry[],
   entryId: string,

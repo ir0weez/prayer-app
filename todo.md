@@ -1825,3 +1825,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restore current-weekday filtering for scheduled prayer contacts
 - [x] Add regression coverage for daily, weekly, and non-matching reminder days
 - [x] Run full validation and save the filtering fix
+
+## Top-Right Past-Due Todo Pill Redesign
+- [x] Move the past-due todo pill into the Schedule header without colliding with the Day selector
+- [x] Anchor the overdue action panel beneath the pill and preserve complete/dismiss actions
+- [x] Validate the new placement and save the redesign

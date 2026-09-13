@@ -2687,7 +2687,7 @@ export function ScheduleTab({
               scheduleStyles.listContent,
               {
                 paddingTop: 0,
-                paddingBottom: missedTodos.length > 0 ? (isMissedTodosOpen ? 586 : 266) : 120,
+                paddingBottom: 120,
                 backgroundColor: colors.surface,
               },
             ]}
@@ -2965,7 +2965,7 @@ export function ScheduleTab({
       {missedTodos.length > 0 && (
         <View
           pointerEvents="box-none"
-          style={[scheduleStyles.missedTodosFloatingContainer, { bottom: SCHEDULE_BOTTOM_NAV_CLEARANCE }]}
+          style={[scheduleStyles.missedTodosFloatingContainer, { top: 70 }]}
         >
           {isMissedTodosOpen && (
             <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: colors.background, borderColor: colors.border }]}> 
@@ -4132,14 +4132,15 @@ const scheduleStyles = StyleSheet.create({
   },
   missedTodosFloatingContainer: {
     position: 'absolute',
-    left: 16,
     right: 16,
-    alignItems: 'center',
+    width: Math.min(SCREEN_WIDTH - 32, 360),
+    alignItems: 'flex-end',
     zIndex: 102,
     elevation: 12,
   },
   missedTodosPanel: {
-    alignSelf: 'stretch',
+    alignSelf: 'flex-end',
+    width: '100%',
     maxHeight: 320,
     marginBottom: 10,
     borderRadius: 18,

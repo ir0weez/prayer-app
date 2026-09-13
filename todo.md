@@ -1835,3 +1835,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Place the past-due count beside the Schedule Day/View button as a matching pill or circle
 - [x] Anchor the overdue action panel from the compact header control
 - [x] Validate the corrected header placement and save the redesign
+
+## Prayer Journal Rebuild
+- [x] Define persistent journal entries with dates, tagged contacts, bookmarks, and dated replies
+- [x] Build the grouped Prayer Journal feed with bookmark filtering and entry/reply deletion
+- [x] Build the new-entry composer with prayer text, entry date, and multi-contact tagging
+- [x] Build the reply composer and preserve replies beneath their parent entry
+- [x] Add deterministic journal data tests, run full validation, and save the feature

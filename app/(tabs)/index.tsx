@@ -14,6 +14,7 @@ import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, Easing, useShare
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
+import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
@@ -78,8 +79,9 @@ import {
   type PersonalFast,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
+import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -303,7 +305,7 @@ export default function HomeScreen() {
 
   const initialState = useMemo(() => getInitialState(), []);
   const [people, setPeople] = useState<Person[]>(() => initialState.people);
-  const [journal] = useState(initialState.journal);
+  const [journal, setJournal] = useState<PrayerJournalEntry[]>([]);
   const { setColorScheme } = useThemeContext();
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonName, setNewPersonName] = useState("");
@@ -380,8 +382,8 @@ export default function HomeScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY)])
-      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos, storedJournal]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -394,6 +396,7 @@ export default function HomeScreen() {
         setProfile(parseStoredProfile(storedProfile));
         if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
         if (storedScheduleTodos) setScheduleTodos(JSON.parse(storedScheduleTodos));
+        if (storedJournal) setJournal(normalizePrayerJournalEntries(JSON.parse(storedJournal)));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -450,6 +453,11 @@ export default function HomeScreen() {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
   }, [hasHydratedPeople, people]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(journal)).catch(() => undefined);
+  }, [hasHydratedPeople, journal]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -1579,10 +1587,12 @@ export default function HomeScreen() {
             { text: "Cancel", style: "cancel" },
             { text: "Delete All", style: "destructive", onPress: () => {
               setPeople([]);
+              setJournal([]);
               setFasts([]);
               setStreakRecord({ streak: 0, lastCompletedDate: null });
               setProfile(DEFAULT_PROFILE);
               AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+              AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
               AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
               AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
               AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
@@ -1810,7 +1820,7 @@ export default function HomeScreen() {
         />
       );
     }
-    if (activeTab === "journal") return renderSimpleScreen("Journal", "article", journal.length ? "Your journal entries appear here." : "Personal prayer journal entries will appear here later.");
+    if (activeTab === "journal") return <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />;
     return renderSettingsScreen();
   };
 

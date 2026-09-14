@@ -1882,3 +1882,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Separate event/status pills so they do not overlap Pray Today avatars or each other
 - [x] Preserve emergency, praise, completion, and event interactions
 - [x] Run full validation and save the layout fix
+
+## Compact Pray Today Speech Bubbles
+- [x] Restore compact content-sized speech bubbles above Pray Today avatars
+- [x] Keep row spacing independent from bubble width and preserve all interactions
+- [x] Run full validation and save the corrected layout

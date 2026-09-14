@@ -531,9 +531,16 @@ function TodoItem({
               style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 6, borderRadius: 8, backgroundColor: subtask.isCompleted ? 'transparent' : `${groupAccentColor}09`, opacity: pressed ? 0.7 : 1 }]}
             >
               <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={18} color={subtask.isCompleted ? colors.success : groupAccentColor} />
-              <Text numberOfLines={1} style={{ flex: 1, color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
-                {subtask.title}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
+                  {subtask.title}
+                </Text>
+                {subtask.description && (
+                  <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 2 }}>
+                    {subtask.description}
+                  </Text>
+                )}
+              </View>
             </Pressable>
           ))}
         </View>
@@ -866,7 +873,8 @@ export function ScheduleTab({
   const [formTodoTag, setFormTodoTag] = useState<string | null>(null); // Tag for todo (Ministry/Event/Family/Therapy/Personal)
   const [formTodoNotes, setFormTodoNotes] = useState(""); // Notes for todo
   const [formSubtaskTitle, setFormSubtaskTitle] = useState("");
-  const [formSubtasks, setFormSubtasks] = useState<Array<{ id: string; title: string; isCompleted: boolean }>>([]);
+  const [formSubtaskDescription, setFormSubtaskDescription] = useState("");
+  const [formSubtasks, setFormSubtasks] = useState<Array<{ id: string; title: string; description?: string; isCompleted: boolean }>>([]);
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
@@ -1597,6 +1605,7 @@ export function ScheduleTab({
     setFormLinkedMinistryId(null);
     setFormTodoTag(null);
     setFormSubtaskTitle("");
+    setFormSubtaskDescription("");
     setFormSubtasks([]);
     setFormSongLink("");
     setFormSpotifyLink("");
@@ -3394,9 +3403,18 @@ export function ScheduleTab({
                     onSubmitEditing={() => {
                       const title = formSubtaskTitle.trim();
                       if (!title) return;
-                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, isCompleted: false }]);
+                      const description = formSubtaskDescription.trim();
+                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, description: description || undefined, isCompleted: false }]);
                       setFormSubtaskTitle("");
+                      setFormSubtaskDescription("");
                     }}
+                  />
+                  <TextInput
+                    value={formSubtaskDescription}
+                    onChangeText={setFormSubtaskDescription}
+                    placeholder="Description for this step (optional)"
+                    placeholderTextColor={colors.muted}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, marginTop: 8, marginBottom: 0 }]}
                   />
                   <Pressable
                     accessibilityRole="button"
@@ -3404,8 +3422,10 @@ export function ScheduleTab({
                     onPress={() => {
                       const title = formSubtaskTitle.trim();
                       if (!title) return;
-                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, isCompleted: false }]);
+                      const description = formSubtaskDescription.trim();
+                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, description: description || undefined, isCompleted: false }]);
                       setFormSubtaskTitle("");
+                      setFormSubtaskDescription("");
                     }}
                     style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}
                   >

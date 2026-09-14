@@ -52,6 +52,7 @@ export type ScheduleTodo = {
   subtasks?: Array<{
     id: string;
     title: string;
+    description?: string;
     isCompleted: boolean;
   }>;
 };

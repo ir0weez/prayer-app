@@ -192,6 +192,23 @@ describe("schedule-data", () => {
       expect(todo.subtasks).toHaveLength(1);
     });
 
+    it("preserves each subtask description when toggling completion", () => {
+      const todo = createScheduleTodo({
+        title: "Schoolwork",
+        date: "2026-05-30",
+        subtasks: [
+          { id: "math", title: "Finish math", description: "Complete pages 10-12.", isCompleted: false },
+          { id: "reading", title: "Read chapter", description: "Write three discussion questions.", isCompleted: false },
+        ],
+      }, 0);
+      const toggled = toggleSubtaskCompleted([todo], todo.id, "math");
+
+      expect(toggled[0].subtasks).toEqual([
+        { id: "math", title: "Finish math", description: "Complete pages 10-12.", isCompleted: true },
+        { id: "reading", title: "Read chapter", description: "Write three discussion questions.", isCompleted: false },
+      ]);
+    });
+
     it("toggles and persists the expanded state without changing subtasks", () => {
       const expanded = toggleTodoGroupExpanded([groupedTodo], groupedTodo.id);
       expect(expanded[0].isGroupExpanded).toBe(true);

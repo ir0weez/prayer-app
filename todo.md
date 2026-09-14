@@ -1862,3 +1862,13 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restore note rendering for grouped todos in the expanded group card
 - [x] Preserve grouped subtask, completion, expansion, and deletion behavior
 - [x] Add regression coverage, run full validation, and save the fix
+
+## Grouped Todo Descriptions
+- [ ] Add a persisted description field for grouped todos
+- [ ] Add description editing and show it when the group is expanded
+- [ ] Add regression coverage, run full validation, and save the update
+
+## Per-Subtask Descriptions
+- [x] Add a persisted description field to each grouped-todo subtask
+- [x] Add per-subtask description editing and display it beneath the matching subtask
+- [x] Add regression coverage, run full validation, and save the update

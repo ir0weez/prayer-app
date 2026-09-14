@@ -1877,3 +1877,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Replace prayer-completion subtitle with last reached date
 - [x] Show saved meeting location on People cards when available
 - [x] Add regression coverage, run full validation, and save the correction
+
+## Pray Today Row Layout Regression
+- [x] Separate event/status pills so they do not overlap Pray Today avatars or each other
+- [x] Preserve emergency, praise, completion, and event interactions
+- [x] Run full validation and save the layout fix

@@ -2160,9 +2160,9 @@ function createStyles(colors: any) {
     paddingBottom: 20,
   },
   storyItem: {
-    width: 86,
+    width: 150,
     height: 110,
-    marginRight: 7,
+    marginRight: 10,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -2186,12 +2186,13 @@ function createStyles(colors: any) {
   },
   storyTag: {
     position: "absolute",
-    top: 8,
-    right: -8,
+    top: 4,
+    left: 0,
+    right: 0,
     zIndex: 4,
     minHeight: 26,
-    minWidth: 150,
-    maxWidth: 220,
+    minWidth: 0,
+    maxWidth: "100%",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 13,
@@ -2208,7 +2209,7 @@ function createStyles(colors: any) {
     fontWeight: "800",
   },
   emergencyPrayerTitle: {
-    width: 180,
+    width: "100%",
     textAlign: "center",
   },
   storyTagMeta: {
@@ -2219,7 +2220,7 @@ function createStyles(colors: any) {
   },
   storyPlus: {
     position: "absolute",
-    right: 3,
+    right: 24,
     bottom: 2,
     width: 32,
     height: 32,

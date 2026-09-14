@@ -38,6 +38,20 @@ describe("event-icons", () => {
       expect(keyword!.icon).toBe("local-hospital");
     });
 
+    it("should map Gardening to yard icon", () => {
+      const keyword = detectEventKeyword("Gardening in the backyard");
+      expect(keyword).not.toBeNull();
+      expect(keyword!.label).toBe("Gardening");
+      expect(keyword!.icon).toBe("yard");
+    });
+
+    it("should map Therapy to psychology icon", () => {
+      const keyword = detectEventKeyword("Therapy appointment");
+      expect(keyword).not.toBeNull();
+      expect(keyword!.label).toBe("Therapy");
+      expect(keyword!.icon).toBe("psychology");
+    });
+
     it("should map Church to church icon", () => {
       const keyword = detectEventKeyword("Sunday Church Service");
       expect(keyword).not.toBeNull();
@@ -95,6 +109,8 @@ describe("event-icons", () => {
         "music-note",
         "book",
         "local-hospital",
+        "yard",
+        "psychology",
         "child-care",
         "cake",
         "card-giftcard",

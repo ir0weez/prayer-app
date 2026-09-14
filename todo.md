@@ -1852,3 +1852,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restore actual emergency prayer text in the Pray Today badge
 - [x] Preserve emergency countdown, fire icon, praise state, and tap behavior
 - [x] Add regression coverage, run validation, and save the fix
+
+## Gardening and Therapy Event Icons
+- [x] Add distinct event icons for Gardening and Therapy
+- [x] Validate icon mapping and schedule rendering
+- [x] Run full validation and save the update

@@ -472,6 +472,14 @@ function TodoItem({
               <View style={{ height: 4, marginTop: 8, borderRadius: 3, backgroundColor: `${groupAccentColor}20`, overflow: 'hidden' }}>
                 <View style={{ width: `${Math.round(subtaskProgress.ratio * 100)}%`, height: '100%', backgroundColor: groupAccentColor, borderRadius: 3 }} />
               </View>
+              {todo.notes && (
+                <Text
+                  numberOfLines={2}
+                  style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 7 }}
+                >
+                  {todo.notes}
+                </Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -507,6 +515,13 @@ function TodoItem({
           <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>
             {groupedSubtasks.filter((subtask) => subtask.isCompleted).length} of {groupedSubtasks.length} steps complete
           </Text>
+          {todo.notes && (
+            <View style={{ paddingHorizontal: 8, paddingVertical: 7, borderRadius: 8, backgroundColor: `${groupAccentColor}09`, borderLeftWidth: 2, borderLeftColor: groupAccentColor }}>
+              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15 }}>
+                {todo.notes}
+              </Text>
+            </View>
+          )}
           {groupedSubtasks.map((subtask) => (
             <Pressable
               key={subtask.id}

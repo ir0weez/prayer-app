@@ -1857,3 +1857,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add distinct event icons for Gardening and Therapy
 - [x] Validate icon mapping and schedule rendering
 - [x] Run full validation and save the update
+
+## Grouped Todo Notes Visibility
+- [x] Restore note rendering for grouped todos in the expanded group card
+- [x] Preserve grouped subtask, completion, expansion, and deletion behavior
+- [x] Add regression coverage, run full validation, and save the fix

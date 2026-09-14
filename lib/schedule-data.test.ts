@@ -180,6 +180,18 @@ describe("schedule-data", () => {
       expect(getSubtaskProgress(groupedTodo)).toEqual({ completed: 1, total: 3, ratio: 1 / 3 });
     });
 
+    it("preserves notes on grouped todos for the expanded card", () => {
+      const todo = createScheduleTodo({
+        title: "Schoolwork",
+        date: "2026-05-30",
+        notes: "Bring the completed assignments to the teacher.",
+        subtasks: [{ id: "math", title: "Finish math", isCompleted: false }],
+      }, 0);
+
+      expect(todo.notes).toBe("Bring the completed assignments to the teacher.");
+      expect(todo.subtasks).toHaveLength(1);
+    });
+
     it("toggles and persists the expanded state without changing subtasks", () => {
       const expanded = toggleTodoGroupExpanded([groupedTodo], groupedTodo.id);
       expect(expanded[0].isGroupExpanded).toBe(true);

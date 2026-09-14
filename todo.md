@@ -1847,3 +1847,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Remove visible X controls from journal entries and replies
 - [x] Add long-press actions for editing and deleting entries and replies
 - [x] Validate long-press edit/delete behavior and save the update
+
+## Emergency Prayer Text Regression
+- [x] Restore actual emergency prayer text in the Pray Today badge
+- [x] Preserve emergency countdown, fire icon, praise state, and tap behavior
+- [x] Add regression coverage, run validation, and save the fix

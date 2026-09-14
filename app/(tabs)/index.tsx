@@ -873,13 +873,15 @@ export default function HomeScreen() {
       <View key={`story-${person.id}`} style={styles.storyItem}>
         {showEmergencyBadge ? (
           <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
-            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#DC2626" }]}>{displayItem.title}</Text>
-            <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" style={{ marginLeft: 4 }} />
+            <Text numberOfLines={3} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
+            <View style={styles.storyTagMeta}>
+              <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" />
             {emergencyCountdown > 0 && (
               <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
                 {formatEmergencyPrayerCountdown(emergencyCountdown)}
               </Text>
             )}
+            </View>
           </View>
         ) : showUrgentBubble ? (
           <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
@@ -2185,8 +2187,10 @@ function createStyles(colors: any) {
     right: -8,
     zIndex: 4,
     minHeight: 26,
+    minWidth: 150,
+    maxWidth: 220,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 13,
     borderWidth: 2,
     borderColor: "#D36B72",
@@ -2197,7 +2201,17 @@ function createStyles(colors: any) {
   storyTagText: {
     color: "#C75D67",
     fontSize: 11,
+    lineHeight: 14,
     fontWeight: "800",
+  },
+  emergencyPrayerTitle: {
+    width: 180,
+    textAlign: "center",
+  },
+  storyTagMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     lineHeight: 13,
   },
   storyPlus: {

@@ -29,6 +29,8 @@ import { DailySummaryCard } from "@/components/daily-summary-card";
 import {
   addPerson,
   formatDaysSinceLastPrayer,
+  formatIsoDateForDisplay,
+  formatLastReachedSummary,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
   getInitialState,
@@ -167,6 +169,7 @@ function getReachProgressRatio(daysSince: number) {
   if (daysSince === 999 || daysSince <= 0) return 0;
   return Math.min(daysSince, 31) / 31;
 }
+
 
 function getYesterdayISOString(today: string) {
   const date = new Date(`${today}T00:00:00Z`);
@@ -1013,7 +1016,7 @@ export default function HomeScreen() {
           <View style={styles.personInfo}>
             <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
             <Text numberOfLines={1} style={styles.personMeta}>
-              {daysSince === 999 ? "Never prayed" : `Prayed ${daysSince === 0 ? "today" : daysSince === 1 ? "yesterday" : `${daysSince} days ago`}`}
+              {formatLastReachedSummary(person)}
             </Text>
           </View>
           <View style={styles.personActions}>
@@ -1252,7 +1255,7 @@ export default function HomeScreen() {
                                 <View style={{ flex: 1, marginLeft: 12 }}>
                                   <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
                                   <Text numberOfLines={1} style={styles.personMeta}>
-                                    {daysSince === 999 ? "Never prayed" : `Prayed ${daysSince === 0 ? "today" : daysSince === 1 ? "yesterday" : `${daysSince} days ago`}`}
+                                    {formatLastReachedSummary(member)}
                                   </Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end', gap: 4 }}>

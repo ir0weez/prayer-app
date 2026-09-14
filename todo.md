@@ -1872,3 +1872,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add a persisted description field to each grouped-todo subtask
 - [x] Add per-subtask description editing and display it beneath the matching subtask
 - [x] Add regression coverage, run full validation, and save the update
+
+## People Card Last Reached Display
+- [x] Replace prayer-completion subtitle with last reached date
+- [x] Show saved meeting location on People cards when available
+- [x] Add regression coverage, run full validation, and save the correction

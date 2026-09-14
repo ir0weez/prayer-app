@@ -15,6 +15,7 @@ import {
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
   formatIsoDateForDisplay,
+  formatLastReachedSummary,
   getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
@@ -117,6 +118,12 @@ describe("PrayerCircle local data helpers", () => {
   it("formats ISO dates as MM-DD-YYYY for display", () => {
     expect(formatIsoDateForDisplay("2026-04-30")).toBe("04-30-2026");
     expect(formatIsoDateForDisplay(null)).toBe("Never");
+  });
+
+  it("formats People-card last reached date and meeting location", () => {
+    expect(formatLastReachedSummary({ lastPrayedDate: "2026-08-30", lastMeetingLocation: "Cornerstone Coffee" })).toBe("Reached 08-30-2026 • Cornerstone Coffee");
+    expect(formatLastReachedSummary({ lastPrayedDate: "2026-08-30" })).toBe("Reached 08-30-2026");
+    expect(formatLastReachedSummary({ lastPrayedDate: null })).toBe("Never reached");
   });
 
   it("calculates days since last prayed correctly", () => {

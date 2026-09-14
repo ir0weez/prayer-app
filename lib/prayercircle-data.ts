@@ -178,6 +178,14 @@ export function formatIsoDateForDisplay(dateString: string | null): string {
   return `${month}-${day}-${year}`;
 }
 
+export function formatLastReachedSummary(person: Pick<Person, "lastPrayedDate" | "lastMeetingLocation">): string {
+  if (!person.lastPrayedDate) return "Never reached";
+  const date = formatIsoDateForDisplay(person.lastPrayedDate);
+  return person.lastMeetingLocation
+    ? `Reached ${date} • ${person.lastMeetingLocation}`
+    : `Reached ${date}`;
+}
+
 // Helper: Get today's ISO date string (using local device date, not UTC)
 export function getTodayISOString(): string {
   const today = new Date();

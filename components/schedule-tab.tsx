@@ -471,7 +471,7 @@ function TodoItem({
               }}
               onLongPress={handleLongPress}
               delayLongPress={500}
-              style={({ pressed }) => [{ padding: 16, gap: 12, opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: todo.isGroupExpanded ? 10 : 16, gap: 12, opacity: pressed ? 0.7 : 1 }]}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -516,7 +516,7 @@ function TodoItem({
             </Pressable>
 
             {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
-              <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, gap: 12 }}>
+              <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: colors.surface, gap: 12 }}>
                 {groupedSubtasks.map((subtask, index) => (
                   <Pressable
                     key={subtask.id}

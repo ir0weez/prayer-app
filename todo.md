@@ -1970,3 +1970,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Reuse keyword-based icons for grouped todo titles
 - [x] Preserve tapping the group icon to complete the full group
 - [x] Run validation and save the icon restyle
+
+## Grouped Todo Continuous Card Regression
+- [x] Remove the visible seam between grouped-todo header and expanded checklist
+- [x] Match Personal Study’s single continuous outer shell in open and closed states
+- [x] Preserve keyword icon, group completion, expansion, subtasks, and long-press actions
+- [x] Run validation and save the repair

@@ -1917,3 +1917,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Increase speech pills to a readable compact size
 - [x] Anchor each pill to the enlarged avatar upper-right corner without widening the row
 - [x] Run full validation and save the correction
+
+## Grouped Todo Personal Study Visual Refinement
+- [x] Match grouped todo cards to the Personal Study box structure and spacing
+- [x] Preserve grouped accents, notes, descriptions, subtasks, and interactions
+- [x] Run full validation and save the visual refinement

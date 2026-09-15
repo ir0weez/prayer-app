@@ -4,6 +4,7 @@ import {
   calculateAvailableTimeBlocks,
   formatDuration,
   getCurrentTimeInsertionIndex,
+  getLiveCursorPosition,
   getTimeBlockStats,
   minutesToTime,
   timeToMinutes,
@@ -39,6 +40,32 @@ describe("Time Block Helpers", () => {
       expect(blocks).toEqual([
         expect.objectContaining({ startTime: "12:15", endTime: "23:00", durationMinutes: 645 }),
       ]);
+    });
+
+    it("moves through a scheduled block using fractional progress", () => {
+      const cursor = getLiveCursorPosition(
+        [{ id: "plan", startTime: "16:00", endTime: "17:00" }],
+        new Date(2026, 8, 15, 16, 30, 30),
+      );
+
+      expect(cursor.activeItemId).toBe("plan");
+      expect(cursor.progress).toBeCloseTo(0.5083, 3);
+    });
+
+    it("pauses during an unscheduled gap and resumes at the next block", () => {
+      const items = [
+        { id: "morning", startTime: "09:00", endTime: "10:00" },
+        { id: "plan", startTime: "16:00", endTime: "17:00" },
+      ];
+
+      expect(getLiveCursorPosition(items, new Date(2026, 8, 15, 12, 0, 0))).toMatchObject({
+        activeItemId: null,
+        progress: 0,
+      });
+      expect(getLiveCursorPosition(items, new Date(2026, 8, 15, 16, 0, 0))).toMatchObject({
+        activeItemId: "plan",
+        progress: 0,
+      });
     });
   });
 

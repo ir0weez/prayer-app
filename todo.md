@@ -1987,3 +1987,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add a short centered divider between grouped header and checklist
 - [x] Keep the divider inside the shared card without a full-width seam
 - [x] Preserve grouped todo actions and run validation before checkpointing
+
+## Live NOW Cursor
+- [x] Trace current NOW marker placement, timeline block geometry, and clock refresh behavior
+- [x] Make the NOW cursor move through active scheduled blocks and pause in gaps
+- [x] Preserve exact-boundary transitions, summary timing, and existing timeline interactions
+- [x] Add deterministic cursor-position coverage, run validation, and save the repair

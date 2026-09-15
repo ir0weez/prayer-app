@@ -51,7 +51,7 @@ import { AlbumCard } from "./album-card";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
-import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
+import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
@@ -319,6 +319,7 @@ function TodoItem({
   ministries = [],
   isOverdue = false,
   isCurrentTodo = false,
+  liveNow,
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
@@ -331,6 +332,7 @@ function TodoItem({
   ministries?: ScheduleMinistry[];
   isOverdue?: boolean;
   isCurrentTodo?: boolean;
+  liveNow?: Date;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -389,6 +391,8 @@ function TodoItem({
   const groupAccentColor = todo.isCompleted ? colors.success : (todo.color || colors.primary);
   const groupSurfaceColor = colors.surface;
   const groupBorderColor = `${groupAccentColor}38`;
+  const liveCursor = todo.startTime && liveNow ? getLiveCursorPosition([todo], liveNow) : null;
+  const isLiveScheduledBlock = liveCursor?.activeItemId === todo.id && !todo.isCompleted;
 
   // Determine if this todo is in its active hour (glow effect)
   // Re-check every minute so it activates/deactivates without restart
@@ -512,6 +516,11 @@ function TodoItem({
                 <View style={{ height: 6, backgroundColor: `${groupAccentColor}16`, borderRadius: 3, overflow: 'hidden' }}>
                   <View style={{ height: '100%', width: `${Math.round(subtaskProgress.ratio * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 3 }} />
                 </View>
+                {isLiveScheduledBlock && (
+                  <View accessibilityLabel="Live schedule position" style={{ height: 3, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
+                  </View>
+                )}
               </View>
             </Pressable>
 
@@ -582,6 +591,11 @@ function TodoItem({
           {linkedPeople.length > 0 && <StackedAvatar people={linkedPeople} size={24} />}
           {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
+          {isLiveScheduledBlock && (
+            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 0, height: 3, backgroundColor: `${todo.color || colors.primary}20`, borderRadius: 2, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
+            </View>
+          )}
         </Pressable>
       )}
       <ContextMenu
@@ -948,17 +962,8 @@ export function ScheduleTab({
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
 
   useEffect(() => {
-    let minuteInterval: ReturnType<typeof setInterval> | undefined;
-    const delayToNextMinute = 60_000 - (Date.now() % 60_000);
-    const minuteTimeout = setTimeout(() => {
-      setClockNow(new Date());
-      minuteInterval = setInterval(() => setClockNow(new Date()), 60_000);
-    }, delayToNextMinute);
-
-    return () => {
-      clearTimeout(minuteTimeout);
-      if (minuteInterval) clearInterval(minuteInterval);
-    };
+    const interval = setInterval(() => setClockNow(new Date()), 1000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -2386,6 +2391,7 @@ export function ScheduleTab({
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
+              liveNow={clockNow}
               onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
               onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
               onEdit={() => {
@@ -2674,7 +2680,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, clockNow]
   );
 
   return (

@@ -68,10 +68,48 @@ export function formatDuration(minutes: number): string {
 }
 
 export type ScheduleItem = {
+  id?: string;
   startTime?: string;
   endTime?: string;
   isCompleted?: boolean;
 };
+
+export type LiveCursorPosition = {
+  activeItemId: string | null;
+  progress: number;
+  currentMinutes: number;
+};
+
+/**
+ * Returns the live position of the schedule cursor. During a scheduled block,
+ * progress moves from 0 to 1. During a gap, activeItemId is null and the cursor
+ * remains at the gap boundary until the next scheduled block begins.
+ */
+export function getLiveCursorPosition(
+  items: ScheduleItem[],
+  now = new Date(),
+): LiveCursorPosition {
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const scheduled = items
+    .filter((item) => item.startTime)
+    .map((item, index) => {
+      const start = timeToMinutes(item.startTime!);
+      const end = item.endTime ? timeToMinutes(item.endTime) : start + 60;
+      return { item, index, start, end: Math.max(end, start + 1) };
+    })
+    .sort((a, b) => a.start - b.start || a.index - b.index);
+
+  const active = scheduled.find(({ start, end }) => currentMinutes >= start && currentMinutes < end);
+  if (!active) {
+    return { activeItemId: null, progress: 0, currentMinutes };
+  }
+
+  return {
+    activeItemId: active.item.id ?? null,
+    progress: Math.min(1, Math.max(0, (currentMinutes - active.start) / (active.end - active.start))),
+    currentMinutes,
+  };
+}
 
 /**
  * Calculate available time blocks for a given day

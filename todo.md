@@ -1982,3 +1982,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Stop runaway duplicate recurrence materialization and safely deduplicate existing entries
 - [x] Add delete recurring series action with confirmation while preserving one-time bills
 - [x] Add regression coverage, run validation, and save the repair
+
+## Grouped Todo Inset Divider Refinement
+- [x] Add a short centered divider between grouped header and checklist
+- [x] Keep the divider inside the shared card without a full-width seam
+- [x] Preserve grouped todo actions and run validation before checkpointing

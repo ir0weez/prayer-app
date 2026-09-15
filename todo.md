@@ -1912,3 +1912,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Replace the cramped subtask input row with readable stacked subtask cards
 - [x] Preserve per-subtask titles, descriptions, ordering, removal, and completion behavior
 - [x] Run full validation and save the redesign
+
+## Pray Today Speech Pill Size and Anchor
+- [x] Increase speech pills to a readable compact size
+- [x] Anchor each pill to the enlarged avatar upper-right corner without widening the row
+- [x] Run full validation and save the correction

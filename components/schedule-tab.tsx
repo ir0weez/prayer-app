@@ -452,9 +452,7 @@ function TodoItem({
           delayLongPress={500}
           style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
         >
-          <View style={[todoStyles.iconContainer, { backgroundColor: colors.success }]}> 
-            <MaterialIcons name="check" size={16} color="#FFFFFF" />
-          </View>
+          <MaterialIcons name={iconName(iconNameStr)} size={20} color={colors.success} />
           <View style={{ flex: 1, gap: 1 }}>
             <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }]}>{todo.title}</Text>
             <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>{subtaskProgress.total} steps complete</Text>
@@ -488,9 +486,7 @@ function TodoItem({
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
-                    <View style={{ width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: `${groupAccentColor}14`, borderWidth: 1.5, borderColor: groupAccentColor }}>
-                      <MaterialIcons name={todo.isCompleted ? 'check' : 'folder'} size={14} color={groupAccentColor} />
-                    </View>
+                    <MaterialIcons name={iconName(iconNameStr)} size={22} color={groupAccentColor} />
                   </Pressable>
                   <Text numberOfLines={1} style={{ flex: 1, color: todo.isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '600', textDecorationLine: todo.isCompleted ? 'line-through' : 'none' }}>
                     {todo.title}

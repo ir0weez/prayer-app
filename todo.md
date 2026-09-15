@@ -1964,3 +1964,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Define and preserve consistent completed-item time accounting for the current day
 - [x] Add exact-boundary and completion regression coverage
 - [x] Run full validation and save the repair
+
+## Grouped Todo Icon Restyle
+- [x] Make grouped-todo icons standalone beside the title without a surrounding box
+- [x] Reuse keyword-based icons for grouped todo titles
+- [x] Preserve tapping the group icon to complete the full group
+- [x] Run validation and save the icon restyle

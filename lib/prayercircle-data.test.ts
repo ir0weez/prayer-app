@@ -23,6 +23,7 @@ import {
   getReminderScheduleText,
   getUrgentPrayerItems,
   getTodayISOString,
+  getIconForTodo,
   hasPersonCompletedPrayerToday,
   shouldKeepVisibleInPrayToday,
   getInitialState,
@@ -505,4 +506,10 @@ describe("PrayerCircle local data helpers", () => {
     expect(grouped[0].familyId).toBeDefined();
     expect(grouped[0].familyType).toBeUndefined();
     expect(grouped[1].familyType).toBeUndefined();
+  });
+
+  it("maps grouped todo titles through the regular keyword icon rules", () => {
+    expect(getIconForTodo("Therapy homework")).toBe("sentiment-satisfied");
+    expect(getIconForTodo("School test")).toBe("help");
+    expect(getIconForTodo("Morning prayer")).toBe("favorite");
   });

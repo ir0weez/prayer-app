@@ -1945,3 +1945,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Show the grouped todo description as a prominent secondary title below the group name
 - [x] Preserve per-subtask descriptions, completion, editing, deletion, and selected accents
 - [x] Run full validation and save the redesign
+
+## Grouped Todo Duplicate and Delete Regression
+- [x] Remove the duplicate expanded grouped-todo render path
+- [x] Restore long-press edit and delete actions for grouped todo parents
+- [x] Simplify subtask rows and preserve one-card expansion with selected accents
+- [x] Run full validation and save the regression repair

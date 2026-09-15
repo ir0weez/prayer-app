@@ -527,7 +527,7 @@ function TodoItem({
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: subtask.isCompleted }}
                     onPress={() => onToggleSubtask?.(subtask.id)}
-                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: subtask.isCompleted ? `${groupAccentColor}45` : `${groupAccentColor}22`, opacity: pressed ? 0.7 : 1 }]}
+                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: index < groupedSubtasks.length - 1 ? 1 : 0, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                   >
                     <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />
                     <View style={{ flex: 1 }}>
@@ -586,61 +586,6 @@ function TodoItem({
           {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
         </Pressable>
-      )}
-      {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
-        <View style={{ marginTop: -12, marginBottom: 12, marginHorizontal: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderTopWidth: 0, borderColor: groupBorderColor, gap: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-            <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
-              {groupedSubtasks.filter((subtask) => subtask.isCompleted).length} of {groupedSubtasks.length} steps complete
-            </Text>
-            <Text style={{ color: groupAccentColor, fontSize: 11, fontWeight: '700' }}>{Math.round(subtaskProgress.ratio * 100)}%</Text>
-          </View>
-          <View style={{ height: 6, borderRadius: 3, backgroundColor: `${groupAccentColor}16`, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.round(subtaskProgress.ratio * 100)}%`, height: '100%', backgroundColor: groupAccentColor, borderRadius: 3 }} />
-          </View>
-          {todo.notes && (
-            <View style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 9, backgroundColor: `${groupAccentColor}08`, borderLeftWidth: 2, borderLeftColor: groupAccentColor }}>
-              <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 16 }}>
-                {todo.notes}
-              </Text>
-            </View>
-          )}
-          {groupedSubtasks.map((subtask, index) => (
-            <Pressable
-              key={subtask.id}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: subtask.isCompleted }}
-              onPress={() => onToggleSubtask?.(subtask.id)}
-              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: subtask.isCompleted ? `${groupAccentColor}45` : `${groupAccentColor}22`, opacity: pressed ? 0.7 : 1 }]}
-            >
-              <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={subtask.isCompleted ? groupAccentColor : groupAccentColor} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
-                  {index + 1}. {subtask.title}
-                </Text>
-                {subtask.description && (
-                  <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }}>
-                    {subtask.description}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
-          ))}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Mark ${todo.title} complete`}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              onToggle();
-            }}
-            style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: groupAccentColor, borderRadius: 8 }}>
-              <MaterialIcons name="check" size={18} color="#FFFFFF" />
-              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Complete</Text>
-            </View>
-          </Pressable>
-        </View>
       )}
       <ContextMenu
         visible={contextMenuVisible}

@@ -1892,3 +1892,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Anchor compact speech bubbles at the upper-right of each avatar
 - [x] Preserve compact sizing and collision-safe spacing
 - [x] Run full validation and save the corrected layout
+
+## Avatar-Relative Pray Today Bubble Offset
+- [x] Tuck compact bubbles against the avatar upper-right edge
+- [x] Preserve compact sizing and all Pray Today interactions
+- [x] Run full validation and save the repair

@@ -2160,9 +2160,9 @@ function createStyles(colors: any) {
     paddingBottom: 20,
   },
   storyItem: {
-    width: 112,
+    width: 94,
     height: 110,
-    marginRight: 9,
+    marginRight: 2,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",

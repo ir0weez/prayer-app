@@ -1902,3 +1902,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Move compact bubbles slightly lower
 - [x] Preserve horizontal avatar-relative placement and compact sizing
 - [x] Run full validation and save the refinement
+
+## Tight Pray Today Avatar Spacing
+- [x] Restore compact spacing between Pray Today avatars
+- [x] Preserve compact speech-bubble sizing, placement, and interactions
+- [x] Run full validation and save the spacing correction

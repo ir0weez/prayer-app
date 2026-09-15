@@ -2186,7 +2186,7 @@ function createStyles(colors: any) {
   },
   storyTag: {
     position: "absolute",
-    top: 5,
+    top: 11,
     right: 18,
     zIndex: 4,
     minHeight: 24,

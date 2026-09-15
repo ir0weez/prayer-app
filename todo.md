@@ -1897,3 +1897,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Tuck compact bubbles against the avatar upper-right edge
 - [x] Preserve compact sizing and all Pray Today interactions
 - [x] Run full validation and save the repair
+
+## Lower Pray Today Speech Bubbles
+- [x] Move compact bubbles slightly lower
+- [x] Preserve horizontal avatar-relative placement and compact sizing
+- [x] Run full validation and save the refinement

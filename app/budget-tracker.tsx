@@ -3,6 +3,7 @@
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState } from 'react';
+import { createRecurringExpense, materializeRecurringExpenses, type MonthlyExpenseRecord } from '@/lib/budget-data';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -10,15 +11,7 @@ import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, TextInput 
 
 const BUDGET_STORAGE_KEY = 'monthlyBudgetExpenses';
 
-interface MonthlyExpense {
-  id: string;
-  day: number;
-  name: string;
-  amount: number;
-  isPaid: boolean;
-  dueDate: string; // ISO date string
-  isRecurring?: boolean; // Auto-create each month
-}
+type MonthlyExpense = MonthlyExpenseRecord;
 
 export default function BudgetTrackerScreen() {
   const colors = useColors();
@@ -34,13 +27,19 @@ export default function BudgetTrackerScreen() {
   const loadExpenses = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(BUDGET_STORAGE_KEY);
-      if (stored) {
-        setExpenses(JSON.parse(stored));
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored) as MonthlyExpense[];
+      const expanded = materializeRecurringExpenses(parsed, currentMonth, 12);
+      setExpenses(expanded);
+
+      if (JSON.stringify(expanded) !== JSON.stringify(parsed)) {
+        await AsyncStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(expanded));
       }
     } catch (error) {
       console.error('Error loading budget expenses:', error);
     }
-  }, []);
+  }, [currentMonth]);
 
   const saveExpenses = useCallback(async (newExpenses: MonthlyExpense[]) => {
     try {
@@ -103,27 +102,28 @@ export default function BudgetTrackerScreen() {
   };
 
   const handleAddExpense = () => {
-    if (!newExpenseName || !newExpenseAmount || selectedDay === null) {
-      Alert.alert('Error', 'Please fill in all fields');
+    const amount = parseFloat(newExpenseAmount);
+    if (!newExpenseName.trim() || !Number.isFinite(amount) || amount <= 0 || selectedDay === null) {
+      Alert.alert('Error', 'Please enter a name, a positive amount, and a due day');
       return;
     }
 
-    const year = currentMonth.getFullYear();
-    const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
-    const day = String(selectedDay).padStart(2, '0');
-    const dateString = `${year}-${month}-${day}`;
+    const id = Date.now().toString();
+    const newExpense: MonthlyExpense = isRecurring
+      ? createRecurringExpense(id, newExpenseName.trim(), amount, selectedDay, currentMonth)
+      : {
+          id,
+          day: selectedDay,
+          name: newExpenseName.trim(),
+          amount,
+          isPaid: false,
+          dueDate: `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`,
+          isRecurring: false,
+        };
 
-    const newExpense: MonthlyExpense = {
-      id: Date.now().toString(),
-      day: selectedDay,
-      name: newExpenseName,
-      amount: parseFloat(newExpenseAmount),
-      isPaid: false,
-      dueDate: dateString,
-      isRecurring: isRecurring,
-    };
-
-    const updated = [...expenses, newExpense];
+    const updated = isRecurring
+      ? materializeRecurringExpenses([...expenses, newExpense], currentMonth, 12)
+      : [...expenses, newExpense];
     saveExpenses(updated);
     setNewExpenseName('');
     setNewExpenseAmount('');

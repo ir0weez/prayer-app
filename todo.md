@@ -1951,3 +1951,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restore long-press edit and delete actions for grouped todo parents
 - [x] Simplify subtask rows and preserve one-card expansion with selected accents
 - [x] Run full validation and save the regression repair
+
+## Recurring Budget Bill Regression
+- [x] Trace the budget Recurring control through form state, persistence, and tracker rendering
+- [x] Make recurring bills generate and persist future occurrences correctly
+- [x] Preserve one-time budget behavior and add regression coverage
+- [x] Run full validation and save the repair

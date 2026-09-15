@@ -51,7 +51,7 @@ import { AlbumCard } from "./album-card";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
-import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
+import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
@@ -879,6 +879,7 @@ export function ScheduleTab({
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
+  const [clockNow, setClockNow] = useState(() => new Date());
   const router = useRouter();
   const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
   const [bibleBook, setBibleBook] = useState('1 Thessalonians');
@@ -948,6 +949,20 @@ export function ScheduleTab({
     [albumHistory, currentDisplayAlbumId],
   );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
+
+  useEffect(() => {
+    let minuteInterval: ReturnType<typeof setInterval> | undefined;
+    const delayToNextMinute = 60_000 - (Date.now() % 60_000);
+    const minuteTimeout = setTimeout(() => {
+      setClockNow(new Date());
+      minuteInterval = setInterval(() => setClockNow(new Date()), 60_000);
+    }, delayToNextMinute);
+
+    return () => {
+      clearTimeout(minuteTimeout);
+      if (minuteInterval) clearInterval(minuteInterval);
+    };
+  }, []);
 
   useEffect(() => {
     albumHistoryRef.current = albumHistory;
@@ -2089,23 +2104,21 @@ export function ScheduleTab({
       });
     }
 
-    // Calculate available time blocks - show on today and future days, not past days
-    const now = new Date();
+    // Calculate available time blocks from every reserved commitment. Completion
+    // does not reopen the scheduled time, which keeps the total stable.
+    const now = clockNow;
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const isTodayOrFuture = selectedDate >= todayISO;
 
-    let activeBlocks: ReturnType<typeof calculateAvailableTimeBlocks> = [];
+    let activeBlocks: ReturnType<typeof calculateActiveAvailableTimeBlocks> = [];
     if (isTodayOrFuture) {
       const allScheduledItems = [
-        ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
-        ...dayEvents.filter((e) => !e.isCompleted && e.startTime),
-        ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
+        ...dayTodos.filter((t) => t.startTime),
+        ...dayEvents.filter((e) => e.startTime),
+        ...dayMinistries.filter((m) => m.startTime),
+        ...dayBibleStudies.filter((study) => study.startTime),
       ];
-      const availableBlocks = calculateAvailableTimeBlocks(allScheduledItems);
-      // Only filter expired blocks for today; future days show all blocks
-      activeBlocks = selectedDate === todayISO
-        ? filterExpiredTimeBlocks(availableBlocks, selectedDate)
-        : availableBlocks;
+      activeBlocks = calculateActiveAvailableTimeBlocks(allScheduledItems, selectedDate, now);
     }
 
     // Merge time blocks with timed items for chronological intertwining
@@ -2127,33 +2140,15 @@ export function ScheduleTab({
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
     if (selectedDate === todayISO) {
-      // Insert current-time-indicator at the right chronological position
-      let inserted = false;
-      for (let i = 0; i < allTimedItems.length; i++) {
-        if (allTimedItems[i].sortTime.localeCompare(currentTimeStr) > 0) {
-          items.push(allTimedItems[i]);
-          if (!inserted) {
-            items.push({
-              type: "current-time-indicator",
-              id: "current-time",
-              data: { currentTime: currentTimeStr },
-              sortTime: currentTimeStr,
-            });
-            inserted = true;
-          }
-        } else {
-          items.push(allTimedItems[i]);
-        }
-      }
-      if (!inserted) {
-        // If we haven't inserted yet, add at the end
-        items.push({
-          type: "current-time-indicator",
-          id: "current-time",
-          data: { currentTime: currentTimeStr },
-          sortTime: currentTimeStr,
-        });
-      }
+      const insertionIndex = getCurrentTimeInsertionIndex(allTimedItems, currentTimeStr);
+      items.push(...allTimedItems.slice(0, insertionIndex));
+      items.push({
+        type: "current-time-indicator",
+        id: "current-time",
+        data: { currentTime: currentTimeStr },
+        sortTime: currentTimeStr,
+      });
+      items.push(...allTimedItems.slice(insertionIndex));
     } else {
       allTimedItems.forEach((item) => items.push(item));
     }
@@ -2179,7 +2174,7 @@ export function ScheduleTab({
     items.push({ type: "worship-display", id: "worship-section", data: null });
 
     return items;
-  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum]);
+  }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -2810,21 +2805,17 @@ export function ScheduleTab({
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
-                    // The summary intentionally shares the timeline's incomplete-item input
-                    // and 6 AM–11 PM day window so both surfaces report the same free time.
-                    const incompleteScheduledItems = [
+                    // The summary and timeline share one scheduled-commitment rule:
+                    // completing an item does not make its reserved time available again.
+                    const scheduledItems = [
                       ...getTodosForDate(todos, selectedDate)
-                        .filter((t) => t.startTime && !t.isCompleted)
+                        .filter((t) => t.startTime)
                         .map((t) => ({ ...t })),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
+                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
+                      ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
                     ];
-                    const summaryBlocks = calculateAvailableTimeBlocks(incompleteScheduledItems, '06:00', '23:00');
-                    const now = new Date();
-                    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                    const activeSummaryBlocks = selectedDate < todayISO
-                      ? []
-                      : filterExpiredTimeBlocks(summaryBlocks, selectedDate, now);
+                    const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
                     
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours

@@ -1,13 +1,47 @@
 import { describe, it, expect } from "vitest";
 import {
+  calculateActiveAvailableTimeBlocks,
   calculateAvailableTimeBlocks,
   formatDuration,
+  getCurrentTimeInsertionIndex,
   getTimeBlockStats,
   minutesToTime,
   timeToMinutes,
 } from "./time-blocks";
 
 describe("Time Block Helpers", () => {
+  describe("live schedule alignment", () => {
+    it("places NOW before a task that starts at the exact current minute", () => {
+      const items = [
+        { sortTime: "11:00" },
+        { sortTime: "12:00" },
+        { sortTime: "13:00" },
+      ];
+
+      expect(getCurrentTimeInsertionIndex(items, "12:00")).toBe(1);
+      expect(getCurrentTimeInsertionIndex(items, "12:30")).toBe(2);
+    });
+
+    it("keeps completed commitments in today's available-hours calculation", () => {
+      const now = new Date(2026, 8, 15, 12, 0, 0);
+      const scheduled = [{ startTime: "12:00", endTime: "13:00", isCompleted: true }];
+
+      const blocks = calculateActiveAvailableTimeBlocks(scheduled, "2026-09-15", now);
+      expect(blocks).toEqual([
+        expect.objectContaining({ startTime: "13:00", endTime: "23:00", durationMinutes: 600 }),
+      ]);
+    });
+
+    it("clips today's free time to the shared live minute", () => {
+      const now = new Date(2026, 8, 15, 12, 15, 0);
+      const blocks = calculateActiveAvailableTimeBlocks([], "2026-09-15", now);
+
+      expect(blocks).toEqual([
+        expect.objectContaining({ startTime: "12:15", endTime: "23:00", durationMinutes: 645 }),
+      ]);
+    });
+  });
+
   describe("timeToMinutes", () => {
     it("should convert time string to minutes", () => {
       expect(timeToMinutes("06:00")).toBe(360);

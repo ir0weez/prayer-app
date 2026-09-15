@@ -1957,3 +1957,10 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make recurring bills generate and persist future occurrences correctly
 - [x] Preserve one-time budget behavior and add regression coverage
 - [x] Run full validation and save the repair
+
+## Schedule Time Tracker Consistency Regression
+- [x] Trace exact-time NOW marker placement against tasks and events
+- [x] Unify available-hours summary and free-block calculations after additions and completions
+- [x] Define and preserve consistent completed-item time accounting for the current day
+- [x] Add exact-boundary and completion regression coverage
+- [x] Run full validation and save the repair

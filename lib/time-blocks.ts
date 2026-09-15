@@ -180,6 +180,39 @@ export function filterExpiredTimeBlocks(blocks: TimeBlock[], selectedDate?: stri
 }
 
 /**
+ * Calculate the free-time blocks that should be visible for a selected day.
+ * Completed items remain scheduled commitments, so checking an item off does
+ * not make the available-hours total jump. Past days intentionally return no
+ * remaining availability, while today's first live block is clipped to now.
+ */
+export function calculateActiveAvailableTimeBlocks(
+  items: ScheduleItem[],
+  selectedDate: string,
+  now = new Date(),
+  businessHourStart = "06:00",
+  businessHourEnd = "23:00",
+): TimeBlock[] {
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (selectedDate < todayISO) return [];
+
+  const blocks = calculateAvailableTimeBlocks(items, businessHourStart, businessHourEnd);
+  return filterExpiredTimeBlocks(blocks, selectedDate, now);
+}
+
+/**
+ * Return the index where the NOW marker belongs. An item that begins at the
+ * exact current minute follows the marker, placing the line on its top edge
+ * rather than below the item.
+ */
+export function getCurrentTimeInsertionIndex(
+  items: Array<{ sortTime: string }>,
+  currentTime: string,
+): number {
+  const index = items.findIndex((item) => item.sortTime.localeCompare(currentTime) >= 0);
+  return index === -1 ? items.length : index;
+}
+
+/**
  * Get summary statistics about available time
  */
 export function getTimeBlockStats(blocks: TimeBlock[]) {

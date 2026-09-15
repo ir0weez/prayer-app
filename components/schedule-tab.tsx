@@ -462,19 +462,19 @@ function TodoItem({
           <MaterialIcons name="folder" size={18} color={colors.muted} />
         </Pressable>
       ) : isGroupedTodo ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
-          onPress={() => {
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggleGroupExpansion?.();
-          }}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
-        >
+        <View style={{ marginBottom: 12, marginHorizontal: 12 }}>
           <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: groupBorderColor, overflow: 'hidden' }}>
-            <View style={{ padding: 16, gap: 12 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${todo.isGroupExpanded ? 'Collapse' : 'Expand'} ${todo.title} subtasks`}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onToggleGroupExpansion?.();
+              }}
+              onLongPress={handleLongPress}
+              delayLongPress={500}
+              style={({ pressed }) => [{ padding: 16, gap: 12, opacity: pressed ? 0.7 : 1 }]}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   <Pressable
@@ -499,6 +499,11 @@ function TodoItem({
                 </View>
                 <MaterialIcons name={todo.isGroupExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
               </View>
+              {todo.notes && (
+                <Text numberOfLines={2} style={{ color: colors.foreground, fontSize: 16, fontWeight: '700', lineHeight: 21 }}>
+                  {todo.notes}
+                </Text>
+              )}
 
               <View style={{ gap: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -512,15 +517,49 @@ function TodoItem({
                   <View style={{ height: '100%', width: `${Math.round(subtaskProgress.ratio * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 3 }} />
                 </View>
               </View>
+            </Pressable>
 
-              {todo.notes && (
-                <Text numberOfLines={2} style={{ color: colors.muted, fontSize: 12, lineHeight: 17 }}>
-                  {todo.notes}
-                </Text>
-              )}
-            </View>
+            {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
+              <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, gap: 12 }}>
+                {groupedSubtasks.map((subtask, index) => (
+                  <Pressable
+                    key={subtask.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: subtask.isCompleted }}
+                    onPress={() => onToggleSubtask?.(subtask.id)}
+                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: subtask.isCompleted ? `${groupAccentColor}45` : `${groupAccentColor}22`, opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
+                        {index + 1}. {subtask.title}
+                      </Text>
+                      {subtask.description && (
+                        <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }}>
+                          {subtask.description}
+                        </Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mark ${todo.title} complete`}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    onToggle();
+                  }}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: groupAccentColor, borderRadius: 8 }}>
+                    <MaterialIcons name="check" size={18} color="#FFFFFF" />
+                    <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>Mark as Complete</Text>
+                  </View>
+                </Pressable>
+              </View>
+            )}
           </View>
-        </Pressable>
+        </View>
       ) : (
         <Pressable
           onPress={() => {

@@ -1939,3 +1939,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Preserve selected todo accent color across borders, icons, progress, and actions
 - [x] Validate grouped todo interaction, compact completion treatment, and visual hierarchy
 - [x] Run full validation and save the redesign
+
+## Grouped Todo Single-Card Expansion
+- [x] Merge the grouped todo header and expanded checklist into one continuous card
+- [x] Show the grouped todo description as a prominent secondary title below the group name
+- [x] Preserve per-subtask descriptions, completion, editing, deletion, and selected accents
+- [x] Run full validation and save the redesign

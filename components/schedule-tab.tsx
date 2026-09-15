@@ -526,7 +526,7 @@ function TodoItem({
 
             {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
               <View style={{ paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16, backgroundColor: colors.surface, gap: 12 }}>
-                <View style={{ height: 1, width: '78%', alignSelf: 'center', backgroundColor: colors.border, opacity: 0.8 }} />
+                <View style={{ height: 1, width: '100%', alignSelf: 'center', backgroundColor: colors.border, opacity: 0.8 }} />
                 {groupedSubtasks.map((subtask, index) => (
                   <Pressable
                     key={subtask.id}

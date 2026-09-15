@@ -1993,3 +1993,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make the NOW cursor move through active scheduled blocks and pause in gaps
 - [x] Preserve exact-boundary transitions, summary timing, and existing timeline interactions
 - [x] Add deterministic cursor-position coverage, run validation, and save the repair
+
+## Grouped Todo Static Separator Width
+- [x] Match the static header/checklist separator to the grouped-todo progress bar width
+- [x] Leave the live NOW cursor behavior unchanged
+- [x] Validate and save the focused visual repair

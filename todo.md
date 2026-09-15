@@ -1976,3 +1976,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Match Personal Study’s single continuous outer shell in open and closed states
 - [x] Preserve keyword icon, group completion, expansion, subtasks, and long-press actions
 - [x] Run validation and save the repair
+
+## Recurring Budget Runaway Generation and Delete Series
+- [x] Trace recurring series identity, duplicate occurrence generation, persistence, and delete paths
+- [x] Stop runaway duplicate recurrence materialization and safely deduplicate existing entries
+- [x] Add delete recurring series action with confirmation while preserving one-time bills
+- [x] Add regression coverage, run validation, and save the repair

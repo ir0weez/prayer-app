@@ -3,7 +3,7 @@
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState } from 'react';
-import { createRecurringExpense, materializeRecurringExpenses, type MonthlyExpenseRecord } from '@/lib/budget-data';
+import { createRecurringExpense, deleteExpense as removeExpense, deleteRecurringSeries, materializeRecurringExpenses, normalizeRecurringExpenses, type MonthlyExpenseRecord } from '@/lib/budget-data';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -30,7 +30,8 @@ export default function BudgetTrackerScreen() {
       if (!stored) return;
 
       const parsed = JSON.parse(stored) as MonthlyExpense[];
-      const expanded = materializeRecurringExpenses(parsed, currentMonth, 12);
+      const normalized = normalizeRecurringExpenses(parsed);
+      const expanded = materializeRecurringExpenses(normalized, currentMonth, 12);
       setExpenses(expanded);
 
       if (JSON.stringify(expanded) !== JSON.stringify(parsed)) {
@@ -139,9 +140,19 @@ export default function BudgetTrackerScreen() {
     saveExpenses(updated);
   };
 
-  const deleteExpense = (expenseId: string) => {
-    const updated = expenses.filter(exp => exp.id !== expenseId);
-    saveExpenses(updated);
+  const deleteExpense = (expense: MonthlyExpense) => {
+    if (expense.isRecurring) {
+      Alert.alert(
+        'Delete recurring bill?',
+        `This will remove every occurrence of “${expense.name}” from the tracker.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete series', style: 'destructive', onPress: () => saveExpenses(deleteRecurringSeries(expenses, expense.recurrenceId ?? expense.id)) },
+        ],
+      );
+      return;
+    }
+    saveExpenses(removeExpense(expenses, expense.id));
   };
 
   const previousMonth = () => {
@@ -531,7 +542,9 @@ export default function BudgetTrackerScreen() {
                     ${expense.amount.toFixed(2)}
                   </Text>
                   <Pressable
-                    onPress={() => deleteExpense(expense.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={expense.isRecurring ? `Delete recurring ${expense.name}` : `Delete ${expense.name}`}
+                    onPress={() => deleteExpense(expense)}
                     style={styles.deleteButton}
                   >
                     <MaterialIcons name="delete" size={20} color="#EF4444" />

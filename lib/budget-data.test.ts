@@ -3,6 +3,8 @@ import {
   createRecurringExpense,
   getRecurringDueDate,
   materializeRecurringExpenses,
+  deleteRecurringSeries,
+  normalizeRecurringExpenses,
 } from "./budget-data";
 
 describe("budget recurrence helpers", () => {
@@ -48,5 +50,23 @@ describe("budget recurrence helpers", () => {
 
     expect(getRecurringDueDate(template, new Date(2026, 1, 1))).toBe("2026-02-28");
     expect(getRecurringDueDate(template, new Date(2028, 1, 1))).toBe("2028-02-29");
+  });
+
+  it("deduplicates runaway recurring occurrences and preserves paid state", () => {
+    const duplicateA = { id: "rent-2026-01-a", day: 1, name: "Rent", amount: 1200, isPaid: false, dueDate: "2026-01-01", isRecurring: true, recurrenceId: "rent" };
+    const duplicateB = { ...duplicateA, id: "rent-2026-01-b", isPaid: true };
+    const normalized = normalizeRecurringExpenses([duplicateA, duplicateB]);
+
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0].isPaid).toBe(true);
+    expect(materializeRecurringExpenses([...normalized, duplicateB], new Date(2026, 0, 1), 3)).toHaveLength(3);
+  });
+
+  it("deletes every occurrence in a recurring series without touching one-time expenses", () => {
+    const recurring = createRecurringExpense("rent", "Rent", 1200, 1, new Date(2026, 0, 1));
+    const occurrence = { ...recurring, id: "rent-2026-02", dueDate: "2026-02-01" };
+    const oneTime = { id: "phone", day: 5, name: "Phone", amount: 80, isPaid: false, dueDate: "2026-01-05", isRecurring: false };
+
+    expect(deleteRecurringSeries([recurring, occurrence, oneTime], "rent")).toEqual([oneTime]);
   });
 });

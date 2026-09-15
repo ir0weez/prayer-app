@@ -63,6 +63,7 @@ import {
   togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
 import { SCHEDULE_TODOS_KEY, type ScheduleTodo } from "@/lib/schedule-data";
+import { normalizeRecurringExpenses } from "@/lib/budget-data";
 import {
   calculateFastStreak,
   createPersonalFast,
@@ -1634,7 +1635,7 @@ export default function HomeScreen() {
       ]);
       if (bibleData) setBibleChapters(JSON.parse(bibleData));
       if (budgetExpensesData) {
-        const expenses = JSON.parse(budgetExpensesData);
+        const expenses = normalizeRecurringExpenses(JSON.parse(budgetExpensesData));
         const totalAmount = expenses.reduce((sum: number, e: any) => sum + e.amount, 0);
         const totalPaid = expenses.filter((e: any) => e.isPaid).reduce((sum: number, e: any) => sum + e.amount, 0);
         setBudgetCategories([{ budgetedAmount: totalAmount }]);

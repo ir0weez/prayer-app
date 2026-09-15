@@ -1907,3 +1907,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Restore compact spacing between Pray Today avatars
 - [x] Preserve compact speech-bubble sizing, placement, and interactions
 - [x] Run full validation and save the spacing correction
+
+## Grouped Todo Subtask Editor Redesign
+- [x] Replace the cramped subtask input row with readable stacked subtask cards
+- [x] Preserve per-subtask titles, descriptions, ordering, removal, and completion behavior
+- [x] Run full validation and save the redesign

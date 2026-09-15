@@ -522,21 +522,21 @@ function TodoItem({
               </Text>
             </View>
           )}
-          {groupedSubtasks.map((subtask) => (
+          {groupedSubtasks.map((subtask, index) => (
             <Pressable
               key={subtask.id}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: subtask.isCompleted }}
               onPress={() => onToggleSubtask?.(subtask.id)}
-              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 6, borderRadius: 8, backgroundColor: subtask.isCompleted ? 'transparent' : `${groupAccentColor}09`, opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 12, backgroundColor: subtask.isCompleted ? `${colors.success}0D` : `${groupAccentColor}0D`, opacity: pressed ? 0.7 : 1 }]}
             >
-              <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={18} color={subtask.isCompleted ? colors.success : groupAccentColor} />
+              <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={subtask.isCompleted ? colors.success : groupAccentColor} />
               <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
-                  {subtask.title}
+                <Text style={{ color: subtask.isCompleted ? colors.muted : colors.foreground, fontSize: 13, fontWeight: '700', lineHeight: 18, textDecorationLine: subtask.isCompleted ? 'line-through' : 'none' }}>
+                  {index + 1}. {subtask.title}
                 </Text>
                 {subtask.description && (
-                  <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 2 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }}>
                     {subtask.description}
                   </Text>
                 )}
@@ -3396,25 +3396,10 @@ export function ScheduleTab({
                   <TextInput
                     value={formSubtaskTitle}
                     onChangeText={setFormSubtaskTitle}
-                    placeholder="Add a smaller step"
+                    placeholder="Subtask title"
                     placeholderTextColor={colors.muted}
                     style={[scheduleStyles.formInput, { flex: 1, color: colors.foreground, borderColor: colors.border, marginBottom: 0 }]}
-                    returnKeyType="done"
-                    onSubmitEditing={() => {
-                      const title = formSubtaskTitle.trim();
-                      if (!title) return;
-                      const description = formSubtaskDescription.trim();
-                      setFormSubtasks((current) => [...current, { id: `subtask-${Date.now()}-${current.length}`, title, description: description || undefined, isCompleted: false }]);
-                      setFormSubtaskTitle("");
-                      setFormSubtaskDescription("");
-                    }}
-                  />
-                  <TextInput
-                    value={formSubtaskDescription}
-                    onChangeText={setFormSubtaskDescription}
-                    placeholder="Description for this step (optional)"
-                    placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, marginTop: 8, marginBottom: 0 }]}
+                    returnKeyType="next"
                   />
                   <Pressable
                     accessibilityRole="button"
@@ -3427,21 +3412,38 @@ export function ScheduleTab({
                       setFormSubtaskTitle("");
                       setFormSubtaskDescription("");
                     }}
-                    style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}
+                    style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}
                   >
                     <MaterialIcons name="add" size={24} color="#FFFFFF" />
                   </Pressable>
                 </View>
+                <TextInput
+                  value={formSubtaskDescription}
+                  onChangeText={setFormSubtaskDescription}
+                  placeholder="Details for this step (optional)"
+                  placeholderTextColor={colors.muted}
+                  style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, marginTop: 8, marginBottom: 0, minHeight: 52 }]}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
                 {formSubtasks.map((subtask, index) => (
-                  <View key={subtask.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
-                    <MaterialIcons name="check-box-outline-blank" size={18} color={colors.muted} />
-                    <Text style={{ flex: 1, color: colors.foreground, fontSize: 14 }}>{index + 1}. {subtask.title}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Remove subtask ${subtask.title}`} onPress={() => setFormSubtasks((current) => current.filter((item) => item.id !== subtask.id))}>
-                      <MaterialIcons name="close" size={18} color={colors.muted} />
-                    </Pressable>
+                  <View key={subtask.id} style={{ marginTop: 10, padding: 12, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: `${colors.primary}18`, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '800' }}>{index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '800' }}>{subtask.title}</Text>
+                        {subtask.description ? <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{subtask.description}</Text> : null}
+                      </View>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Remove subtask ${subtask.title}`} onPress={() => setFormSubtasks((current) => current.filter((item) => item.id !== subtask.id))} style={({ pressed }) => [{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: colors.border }] }>
+                        <MaterialIcons name="close" size={18} color={colors.muted} />
+                      </Pressable>
+                    </View>
                   </View>
                 ))}
-                <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>Add steps such as “Finish worksheet” or “Pack backpack.”</Text>
+                <Text style={{ color: colors.muted, fontSize: 11, marginTop: 8 }}>Add a title and optional details, then tap +.</Text>
               </View>
               <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TAG (optional)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>

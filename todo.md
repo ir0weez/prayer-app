@@ -1933,3 +1933,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Sort completed grouped todos below active Schedule items like completed events
 - [x] Preserve reopening, editing, deletion, and subtask completion behavior
 - [x] Run full validation and save both repairs
+
+## Grouped Todo Personal Study Parity
+- [x] Match grouped todo collapsed and expanded layout to the Personal Study box
+- [x] Preserve selected todo accent color across borders, icons, progress, and actions
+- [x] Validate grouped todo interaction, compact completion treatment, and visual hierarchy
+- [x] Run full validation and save the redesign

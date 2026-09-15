@@ -1922,3 +1922,14 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Match grouped todo cards to the Personal Study box structure and spacing
 - [x] Preserve grouped accents, notes, descriptions, subtasks, and interactions
 - [x] Run full validation and save the visual refinement
+
+## Worship Reliability Rebuild
+- [x] Trace album creation, editing, link handling, persistence, and Schedule display end to end
+- [x] Repair or restructure Worship state so newly saved albums appear and remain editable
+- [x] Add deterministic Worship workflow coverage and validate the rebuilt flow
+
+## Completed Grouped Todo Treatment
+- [x] Collapse completed grouped todos into compact finished rows
+- [x] Sort completed grouped todos below active Schedule items like completed events
+- [x] Preserve reopening, editing, deletion, and subtask completion behavior
+- [x] Run full validation and save both repairs

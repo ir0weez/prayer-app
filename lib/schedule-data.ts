@@ -196,11 +196,17 @@ export function toggleEventCompleted(events: ScheduleEvent[], eventId: string): 
 }
 
 export function toggleTodoCompleted(todos: ScheduleTodo[], todoId: string): ScheduleTodo[] {
-  return todos.map((t) =>
-    t.id === todoId
-      ? { ...t, isCompleted: !t.isCompleted, completedAt: !t.isCompleted ? new Date().toISOString() : undefined }
-      : t
-  );
+  return todos.map((todo) => {
+    if (todo.id !== todoId) return todo;
+    const isCompleted = !todo.isCompleted;
+    return {
+      ...todo,
+      isCompleted,
+      completedAt: isCompleted ? new Date().toISOString() : undefined,
+      isGroupExpanded: isCompleted ? false : todo.isGroupExpanded,
+      subtasks: todo.subtasks?.map((subtask) => ({ ...subtask, isCompleted })),
+    };
+  });
 }
 
 /** Removes a todo as one unit, including any nested subtasks stored on that parent. */
@@ -211,13 +217,29 @@ export function removeScheduleTodo(todos: ScheduleTodo[], todoId: string): Sched
 export function toggleSubtaskCompleted(todos: ScheduleTodo[], todoId: string, subtaskId: string): ScheduleTodo[] {
   return todos.map((todo) => {
     if (todo.id !== todoId || !todo.subtasks) return todo;
+    const subtasks = todo.subtasks.map((subtask) =>
+      subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask,
+    );
+    const isCompleted = subtasks.length > 0 && subtasks.every((subtask) => subtask.isCompleted);
     return {
       ...todo,
-      subtasks: todo.subtasks.map((subtask) =>
-        subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask,
-      ),
+      subtasks,
+      isCompleted,
+      completedAt: isCompleted ? new Date().toISOString() : undefined,
+      isGroupExpanded: isCompleted ? false : todo.isGroupExpanded,
     };
   });
+}
+
+export function partitionGroupedTodosForSchedule(todos: ScheduleTodo[]): {
+  timelineTodos: ScheduleTodo[];
+  completedGroups: ScheduleTodo[];
+} {
+  const isGroupedTodo = (todo: ScheduleTodo) => todo.isGroup || (todo.subtasks?.length ?? 0) > 0;
+  return {
+    timelineTodos: todos.filter((todo) => !(isGroupedTodo(todo) && todo.isCompleted)),
+    completedGroups: todos.filter((todo) => isGroupedTodo(todo) && todo.isCompleted),
+  };
 }
 
 export function toggleTodoGroupExpanded(todos: ScheduleTodo[], todoId: string): ScheduleTodo[] {

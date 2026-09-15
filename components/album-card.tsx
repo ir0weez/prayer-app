@@ -7,6 +7,8 @@ export interface AlbumCardProps {
   title: string;
   artist: string;
   coverUrl?: string;
+  onOpen?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }
 
@@ -17,6 +19,8 @@ export function AlbumCard({
   title, 
   artist, 
   coverUrl, 
+  onOpen,
+  onEdit,
   onDelete,
 }: AlbumCardProps) {
   const colors = useColors();
@@ -97,19 +101,39 @@ export function AlbumCard({
           </Text>
         </View>
 
-        {/* Delete Button */}
-        {onDelete && (
-          <Pressable
-            onPress={onDelete}
-            style={({ pressed }) => [
-              {
-                opacity: pressed ? 0.6 : 1,
-                padding: 8,
-              },
-            ]}
-          >
-            <MaterialIcons name="close" size={20} color={colors.error} />
-          </Pressable>
+        {(onOpen || onEdit || onDelete) && (
+          <View style={{ gap: 2 }}>
+            {onOpen && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open album link"
+                onPress={onOpen}
+                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
+              >
+                <MaterialIcons name="open-in-new" size={19} color={colors.primary} />
+              </Pressable>
+            )}
+            {onEdit && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit album"
+                onPress={onEdit}
+                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
+              >
+                <MaterialIcons name="edit" size={19} color={colors.muted} />
+              </Pressable>
+            )}
+            {onDelete && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete album"
+                onPress={onDelete}
+                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
+              >
+                <MaterialIcons name="delete-outline" size={20} color={colors.error} />
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
     </View>

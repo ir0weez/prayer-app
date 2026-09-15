@@ -21,6 +21,7 @@ import {
   toggleSubtaskCompleted,
   getSubtaskProgress,
   removeScheduleTodo,
+  partitionGroupedTodosForSchedule,
 } from "./schedule-data";
 
 describe("schedule-data", () => {
@@ -163,6 +164,24 @@ describe("schedule-data", () => {
       expect(toggled[0].subtasks?.find((subtask) => subtask.id === "reading")?.isCompleted).toBe(false);
       expect(toggled[0].isCompleted).toBe(false);
     });
+
+    it("finishes and collapses a grouped todo when its last subtask is completed", () => {
+      const todo = createScheduleTodo({
+        title: "Schoolwork",
+        date: "2026-05-30",
+        isGroup: true,
+        isGroupExpanded: true,
+        subtasks: [
+          { id: "math", title: "Finish math", isCompleted: true },
+          { id: "reading", title: "Read chapter", isCompleted: false },
+        ],
+      }, 0);
+      const toggled = toggleSubtaskCompleted([todo], todo.id, "reading");
+
+      expect(toggled[0].isCompleted).toBe(true);
+      expect(toggled[0].isGroupExpanded).toBe(false);
+      expect(toggled[0].completedAt).toBeTruthy();
+    });
   });
 
   describe("grouped todo card helpers", () => {
@@ -222,6 +241,17 @@ describe("schedule-data", () => {
       const remaining = removeScheduleTodo([groupedTodo], groupedTodo.id);
 
       expect(remaining).toEqual([]);
+    });
+
+    it("separates completed grouped todos from active timeline todos", () => {
+      const completedGroup = { ...groupedTodo, id: "done-group", isCompleted: true };
+      const activeGroup = { ...groupedTodo, id: "active-group", isGroup: true, isCompleted: false };
+      const regularTodo = { ...groupedTodo, id: "regular", isGroup: false, isCompleted: true, subtasks: undefined };
+
+      expect(partitionGroupedTodosForSchedule([completedGroup, activeGroup, regularTodo])).toEqual({
+        timelineTodos: [activeGroup, regularTodo],
+        completedGroups: [completedGroup],
+      });
     });
   });
 

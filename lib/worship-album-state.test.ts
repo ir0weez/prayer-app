@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, mergeWorshipAlbumHistories, sanitizeWorshipAlbumHistory } from "./worship-album-state";
+import {
+  appendAndSelectWorshipAlbum,
+  getDisplayedWorshipAlbum,
+  hydrateWorshipAlbumState,
+  mergeWorshipAlbumHistories,
+  removeWorshipAlbumAndSelectFallback,
+  sanitizeWorshipAlbumHistory,
+  upsertAndSelectWorshipAlbum,
+} from "./worship-album-state";
 
 describe("worship album display state", () => {
   const userAlbum = {
@@ -33,5 +41,32 @@ describe("worship album display state", () => {
 
   it("does not let a late empty storage read erase an album created in memory", () => {
     expect(mergeWorshipAlbumHistories([], [userAlbum])).toEqual([userAlbum]);
+  });
+
+  it("migrates legacy albums and selects the newest valid album when no selection exists", () => {
+    const older = { ...userAlbum, id: "older", addedAt: "2026-01-01T00:00:00.000Z" };
+    const newer = { ...userAlbum, id: "newer", addedAt: "2026-02-01T00:00:00.000Z" };
+
+    expect(hydrateWorshipAlbumState({ canonicalAlbums: [older], legacyAlbums: [newer] })).toEqual({
+      albums: [older, newer],
+      selectedAlbumId: "newer",
+    });
+  });
+
+  it("updates an existing album without creating a duplicate and keeps it selected", () => {
+    const updated = { ...userAlbum, title: "Updated Prayer Songs" };
+    expect(upsertAndSelectWorshipAlbum([userAlbum], updated)).toEqual({
+      albums: [updated],
+      selectedAlbumId: userAlbum.id,
+    });
+  });
+
+  it("removes an album and falls back to the newest remaining album", () => {
+    const older = { ...userAlbum, id: "older", addedAt: "2026-01-01T00:00:00.000Z" };
+    const newer = { ...userAlbum, id: "newer", addedAt: "2026-02-01T00:00:00.000Z" };
+    expect(removeWorshipAlbumAndSelectFallback([older, newer], "newer")).toEqual({
+      albums: [older],
+      selectedAlbumId: "older",
+    });
   });
 });

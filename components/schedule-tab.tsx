@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import * as Linking from "expo-linking";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -46,16 +47,21 @@ import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
-import { WorshipAlbumSelector, type WorshipAlbum } from "./worship-album-selector";
-import { VinylRecord } from "./vinyl-record";
 import { AlbumCard } from "./album-card";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { calculateAvailableTimeBlocks, filterExpiredTimeBlocks, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
-import { parseSpotifyUrl, fetchSpotifyAlbum, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
-import { appendAndSelectWorshipAlbum, getDisplayedWorshipAlbum, mergeWorshipAlbumHistories, sanitizeWorshipAlbumHistory, type StoredWorshipAlbum } from "@/lib/worship-album-state";
+import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
+import {
+  getDisplayedWorshipAlbum,
+  hydrateWorshipAlbumState,
+  mergeWorshipAlbumHistories,
+  removeWorshipAlbumAndSelectFallback,
+  upsertAndSelectWorshipAlbum,
+  type StoredWorshipAlbum,
+} from "@/lib/worship-album-state";
 import {
   addDays,
   BirthdayEvent,
@@ -95,6 +101,7 @@ import {
   toggleSubtaskCompleted,
   getSubtaskProgress,
   removeScheduleTodo,
+  partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
 import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
@@ -432,7 +439,29 @@ function TodoItem({
 
   return (
     <>
-      {isGroupedTodo ? (
+      {isGroupedTodo && todo.isCompleted ? (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={`Mark ${todo.title} incomplete`}
+          accessibilityState={{ checked: true }}
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [todoStyles.row, { marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
+        >
+          <View style={[todoStyles.iconContainer, { backgroundColor: colors.success }]}> 
+            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1, gap: 1 }}>
+            <Text numberOfLines={1} style={[todoStyles.title, { color: colors.muted, textDecorationLine: 'line-through' }]}>{todo.title}</Text>
+            <Text style={{ color: colors.muted, fontSize: 10, fontWeight: '600' }}>{subtaskProgress.total} steps complete</Text>
+          </View>
+          <MaterialIcons name="folder" size={18} color={colors.muted} />
+        </Pressable>
+      ) : isGroupedTodo ? (
         <View style={{ marginVertical: 5, marginHorizontal: 12, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: groupAccentColor }}>
           <View style={{ flexDirection: 'row', alignItems: 'stretch', backgroundColor: colors.surface }}>
             <Pressable
@@ -507,7 +536,7 @@ function TodoItem({
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
         </Pressable>
       )}
-      {isGroupedTodo && todo.isGroupExpanded && (
+      {isGroupedTodo && !todo.isCompleted && todo.isGroupExpanded && (
         <View style={{ marginTop: -1, marginBottom: 8, marginHorizontal: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, backgroundColor: colors.background, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, gap: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '600' }}>
@@ -880,11 +909,9 @@ export function ScheduleTab({
   const [bibleStudies, setBibleStudies] = useState<BibleStudySession[]>([]);
   const [worshipLists, setWorshipLists] = useState<any[]>([]);
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
-  const [worshipAlbums, setWorshipAlbums] = useState<Array<WorshipAlbum & { date: string; createdAt: string }>>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
   const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
-  const [formWorshipSongs, setFormWorshipSongs] = useState<any[]>([]);
   const [isLoadingSpotify, setIsLoadingSpotify] = useState(false);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
@@ -900,9 +927,10 @@ export function ScheduleTab({
   const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
-  const [albumHistory, setAlbumHistory] = useState<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const [albumHistory, setAlbumHistory] = useState<StoredWorshipAlbum[]>([]);
   const [isAlbumStateHydrated, setIsAlbumStateHydrated] = useState(false);
-  const albumHistoryRef = useRef<Array<WorshipAlbum & { id: string; addedAt: string }>>([]);
+  const [editingWorshipAlbumId, setEditingWorshipAlbumId] = useState<string | null>(null);
+  const albumHistoryRef = useRef<StoredWorshipAlbum[]>([]);
   const currentDisplayAlbumIdRef = useRef<string | null>(null);
   const currentAlbum = useMemo(
     () => getDisplayedWorshipAlbum(albumHistory, currentDisplayAlbumId),
@@ -923,41 +951,44 @@ export function ScheduleTab({
     const loadAlbumData = async () => {
       try {
         console.log('[ALBUM_LOAD] Starting to load album data...');
-        const savedHistory = await AsyncStorage.getItem('ALBUM_HISTORY_KEY');
-        const parsedHistory = savedHistory ? JSON.parse(savedHistory) : [];
-        let history = sanitizeWorshipAlbumHistory(parsedHistory) as Array<WorshipAlbum & { id: string; addedAt: string }>;
-        const savedCurrentAlbumJson = await AsyncStorage.getItem('CURRENT_ALBUM_JSON');
-        const savedDisplayAlbumId = await AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID');
-        let legacyCurrentAlbum: StoredWorshipAlbum | null = null;
-        if (savedCurrentAlbumJson) {
+        const [savedHistory, legacyAlbumsJson, legacyCurrentJson, savedDisplayAlbumId] = await Promise.all([
+          AsyncStorage.getItem('ALBUM_HISTORY_KEY'),
+          AsyncStorage.getItem('WORSHIP_ALBUMS_KEY'),
+          AsyncStorage.getItem('CURRENT_ALBUM_JSON'),
+          AsyncStorage.getItem('CURRENT_DISPLAY_ALBUM_ID'),
+        ]);
+        const parseJson = (value: string | null, fallback: unknown) => {
+          if (!value) return fallback;
           try {
-            legacyCurrentAlbum = sanitizeWorshipAlbumHistory([JSON.parse(savedCurrentAlbumJson)])[0] ?? null;
-          } catch (parseError) {
-            console.error('[ALBUM_LOAD] Failed to parse album JSON:', parseError);
+            return JSON.parse(value);
+          } catch {
+            return fallback;
           }
-        }
-
-        if (legacyCurrentAlbum && !history.some((album) => album.id === legacyCurrentAlbum!.id)) {
-          history = [...history, legacyCurrentAlbum as WorshipAlbum & { id: string; addedAt: string }];
-        }
-
-        const selectedId = savedDisplayAlbumId && history.some((album) => album.id === savedDisplayAlbumId)
-          ? savedDisplayAlbumId
-          : legacyCurrentAlbum && history.some((album) => album.id === legacyCurrentAlbum!.id)
-            ? legacyCurrentAlbum.id
-            : null;
-
-        const mergedHistory = mergeWorshipAlbumHistories(history, albumHistoryRef.current);
+        };
+        const hydrated = hydrateWorshipAlbumState({
+          canonicalAlbums: parseJson(savedHistory, []),
+          legacyAlbums: parseJson(legacyAlbumsJson, []),
+          legacyCurrentAlbum: parseJson(legacyCurrentJson, null),
+          selectedAlbumId: savedDisplayAlbumId,
+        });
+        const mergedHistory = mergeWorshipAlbumHistories(hydrated.albums, albumHistoryRef.current);
         const activeId = currentDisplayAlbumIdRef.current && mergedHistory.some((album) => album.id === currentDisplayAlbumIdRef.current)
           ? currentDisplayAlbumIdRef.current
-          : selectedId;
+          : hydrated.selectedAlbumId && mergedHistory.some((album) => album.id === hydrated.selectedAlbumId)
+            ? hydrated.selectedAlbumId
+            : mergedHistory.at(-1)?.id ?? null;
 
         albumHistoryRef.current = mergedHistory;
         currentDisplayAlbumIdRef.current = activeId;
         setAlbumHistory(mergedHistory);
         setCurrentDisplayAlbumId(activeId);
         await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(mergedHistory));
-        if (!activeId) {
+        await AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(mergedHistory));
+        if (activeId) {
+          await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', activeId);
+          const activeAlbum = mergedHistory.find((album) => album.id === activeId);
+          if (activeAlbum) await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(activeAlbum));
+        } else {
           await AsyncStorage.multiRemove(['CURRENT_DISPLAY_ALBUM_ID', 'CURRENT_ALBUM_JSON']);
         }
       } catch (e) {
@@ -988,32 +1019,6 @@ export function ScheduleTab({
       AsyncStorage.removeItem('CURRENT_DISPLAY_ALBUM_ID').catch(() => undefined);
     }
   }, [currentDisplayAlbumId, isAlbumStateHydrated]);
-  
-  // Load and persist worship albums (deprecated - keeping for backward compatibility)
-  useEffect(() => {
-    const loadWorshipAlbums = async () => {
-      try {
-        const saved = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
-        if (saved) {
-          const albums = JSON.parse(saved);
-          console.log('Loaded worship albums from storage:', albums.length);
-          setWorshipAlbums(albums);
-        }
-      } catch (e) {
-        console.error('Error loading worship albums:', e);
-      }
-    };
-    loadWorshipAlbums();
-  }, []);
-  
-  // Persist worship albums whenever they change
-  useEffect(() => {
-    if (worshipAlbums.length > 0) {
-      AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(worshipAlbums)).catch(e => 
-        console.error('Error saving worship albums:', e)
-      );
-    }
-  }, [worshipAlbums]);
   
   // Persist Personal Study expanded state
   useEffect(() => {
@@ -1298,8 +1303,6 @@ export function ScheduleTab({
         if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
         if (worshipLinksData) setWorshipListLinks(JSON.parse(worshipLinksData));
         if (prayersData) setPrayers(JSON.parse(prayersData));
-        const worshipAlbumsData = await AsyncStorage.getItem('WORSHIP_ALBUMS_KEY');
-        if (worshipAlbumsData) setWorshipAlbums(JSON.parse(worshipAlbumsData));
         const timeOffData = await getAllTimeOff();
         setTimeOffList(timeOffData);
       } catch (e) {
@@ -1333,10 +1336,6 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
   }, [timeBlockColors]);
-
-  useEffect(() => {
-    AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(worshipAlbums)).catch(() => undefined);
-  }, [worshipAlbums]);
 
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
@@ -1612,6 +1611,7 @@ export function ScheduleTab({
     setFormSongLink("");
     setFormSpotifyLink("");
     setFormAlbumCoverImage(null);
+    setEditingWorshipAlbumId(null);
     setFormBibleBook("Genesis");
     setFormBibleChapter("1");
   };
@@ -1789,35 +1789,71 @@ export function ScheduleTab({
     setShowAddModal(false);
   };
 
-  const handleAddSongToForm = async () => {
-    if (!formSongLink.trim()) return;
-    
-    if (formSongLink.includes('spotify.com/playlist') || formSongLink.includes('spotify:playlist')) {
-      try {
-        const { extractPlaylistId, fetchSpotifyPlaylist } = await import('@/lib/spotify-api');
-        const playlistId = extractPlaylistId(formSongLink);
-        
-        if (!playlistId) return;
-        
-        const playlist = await fetchSpotifyPlaylist(playlistId);
-        if (!playlist) return;
-        
-        const newSongs = playlist.songs.map(song => ({
-          id: song.id,
-          title: song.name,
-          artist: song.artist,
-          album: song.album,
-          imageUrl: song.imageUrl,
-          spotifyUrl: song.spotifyUrl,
-          duration: song.duration.toString(),
-        }));
-        
-        setFormWorshipSongs([...formWorshipSongs, ...newSongs]);
-        if (!formTitle) setFormTitle(playlist.name);
-        setFormSongLink("");
-      } catch (error) {
-        console.error('Error fetching Spotify playlist:', error);
+  const persistWorshipAlbumState = async (albums: StoredWorshipAlbum[], selectedAlbumId: string | null) => {
+    await Promise.all([
+      AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albums)),
+      AsyncStorage.setItem('WORSHIP_ALBUMS_KEY', JSON.stringify(albums)),
+    ]);
+    if (!selectedAlbumId) {
+      await AsyncStorage.multiRemove(['CURRENT_DISPLAY_ALBUM_ID', 'CURRENT_ALBUM_JSON']);
+      return;
+    }
+    const selectedAlbum = albums.find((album) => album.id === selectedAlbumId);
+    await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', selectedAlbumId);
+    if (selectedAlbum) await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(selectedAlbum));
+  };
+
+  const openNewWorshipAlbum = () => {
+    resetForm();
+    setFormDate(selectedDate);
+    setAddType('worship');
+    setShowAddModal(true);
+  };
+
+  const openEditWorshipAlbum = (album: StoredWorshipAlbum) => {
+    resetForm();
+    setEditingWorshipAlbumId(album.id);
+    setFormTitle(album.title);
+    setFormNotes(album.artist);
+    setFormSpotifyLink(album.spotifyUrl ?? '');
+    setFormDate(album.date ?? selectedDate);
+    if (album.coverUrl?.startsWith('file:') || album.coverUrl?.startsWith('content:')) {
+      setFormAlbumCoverImage(album.coverUrl);
+    } else {
+      setFormSongLink(album.coverUrl ?? '');
+    }
+    setShowAlbumLibrary(false);
+    setAddType('worship');
+    setShowAddModal(true);
+  };
+
+  const handleImportWorshipLink = async () => {
+    const link = formSpotifyLink.trim();
+    if (!link) {
+      Alert.alert('Add a link', 'Paste a Spotify album or playlist link first.');
+      return;
+    }
+    const parsed = parseSpotifyUrl(link);
+    if (!parsed.type || !parsed.id) {
+      Alert.alert('Link not recognized', 'Use a Spotify album or playlist link. You can still enter the album details manually.');
+      return;
+    }
+
+    setIsLoadingSpotify(true);
+    try {
+      const metadata = await fetchSpotifyEmbedMetadata(link);
+      if (!metadata) {
+        Alert.alert('Could not import details', 'The link will still be saved. Enter the title, artist, and cover manually.');
+        return;
       }
+      setFormTitle(metadata.title);
+      if (metadata.coverUrl) setFormSongLink(metadata.coverUrl);
+      Alert.alert('Album imported', 'The title and cover were added. Check the artist before saving.');
+    } catch (error) {
+      console.error('Error importing Spotify metadata:', error);
+      Alert.alert('Could not import details', 'The link will still be saved. Enter the remaining album details manually.');
+    } finally {
+      setIsLoadingSpotify(false);
     }
   };
 
@@ -1839,61 +1875,78 @@ export function ScheduleTab({
     }
   };
 
-    const handleSaveWorshipList = async () => {
+  const handleSaveWorshipAlbum = async () => {
     try {
       if (!formTitle.trim()) {
-        Alert.alert('Error', 'Please enter an album title');
+        Alert.alert('Add an album title', 'Enter the album or playlist name before saving.');
         return;
       }
-      
-      const newAlbum = {
-        id: generateId(),
+
+      const existingAlbum = editingWorshipAlbumId
+        ? albumHistoryRef.current.find((album) => album.id === editingWorshipAlbumId)
+        : null;
+      const now = new Date().toISOString();
+      const albumWithMetadata: StoredWorshipAlbum = {
+        id: existingAlbum?.id ?? generateId(),
         title: formTitle.trim(),
         artist: formNotes.trim() || 'Unknown Artist',
-        coverUrl: formAlbumCoverImage || formSongLink.trim() || '',
-        spotifyUrl: formSpotifyLink.trim() || '',
+        coverUrl: formAlbumCoverImage || formSongLink.trim() || undefined,
+        spotifyUrl: formSpotifyLink.trim() || undefined,
         date: formDate || selectedDate,
-        createdAt: new Date().toISOString(),
+        createdAt: existingAlbum?.createdAt ?? now,
+        addedAt: existingAlbum?.addedAt ?? now,
       };
-      
-      const albumWithMetadata = { ...newAlbum, addedAt: new Date().toISOString() };
-      const selection = appendAndSelectWorshipAlbum(albumHistoryRef.current, albumWithMetadata);
-      
-      console.log('[ALBUM_SAVE] Saving new album:', newAlbum.id, newAlbum.title);
-      
-      // Keep selection and displayed album in sync with the album history.
+
+      const selection = upsertAndSelectWorshipAlbum(albumHistoryRef.current, albumWithMetadata);
       setIsAlbumStateHydrated(true);
       albumHistoryRef.current = selection.albums;
       currentDisplayAlbumIdRef.current = selection.selectedAlbumId;
       setAlbumHistory(selection.albums);
       setCurrentDisplayAlbumId(selection.selectedAlbumId);
-      
-      // Save to storage
-      await AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(selection.albums));
-      await AsyncStorage.setItem('CURRENT_ALBUM_JSON', JSON.stringify(albumWithMetadata));
-      await AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', albumWithMetadata.id);
-      
-      console.log('[ALBUM_SAVE] Saved to AsyncStorage');
-      Alert.alert('Saved', `Album saved: ${newAlbum.title}`);
-      
-      // Close modal and reset form AFTER alert is dismissed
-      // This ensures state updates are processed before modal closes
-      setTimeout(() => {
-        resetForm();
-        setFormWorshipSongs([]);
-        setAddType(null);
-        setShowAddModal(false);
-      }, 100);
+      await persistWorshipAlbumState(selection.albums, selection.selectedAlbumId);
+
+      resetForm();
+      setAddType(null);
+      setShowAddModal(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('ERROR:', error);
-      Alert.alert('Error', `Failed: ${String(error)}`);
-      // Still close modal on error
-      setTimeout(() => {
-        resetForm();
-        setFormWorshipSongs([]);
-        setAddType(null);
-        setShowAddModal(false);
-      }, 100);
+      console.error('Error saving Worship album:', error);
+      Alert.alert('Album not saved', 'PrayerCircle could not save this album. Your form is still open so you can try again.');
+    }
+  };
+
+  const selectWorshipAlbum = async (albumId: string) => {
+    currentDisplayAlbumIdRef.current = albumId;
+    setCurrentDisplayAlbumId(albumId);
+    await persistWorshipAlbumState(albumHistoryRef.current, albumId);
+  };
+
+  const confirmDeleteWorshipAlbum = (albumId: string) => {
+    const album = albumHistoryRef.current.find((candidate) => candidate.id === albumId);
+    if (!album) return;
+    Alert.alert('Delete worship album?', `Remove “${album.title}” from your Worship library?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const next = removeWorshipAlbumAndSelectFallback(albumHistoryRef.current, albumId);
+          albumHistoryRef.current = next.albums;
+          currentDisplayAlbumIdRef.current = next.selectedAlbumId;
+          setAlbumHistory(next.albums);
+          setCurrentDisplayAlbumId(next.selectedAlbumId);
+          await persistWorshipAlbumState(next.albums, next.selectedAlbumId);
+        },
+      },
+    ]);
+  };
+
+  const openWorshipAlbumLink = async (album: StoredWorshipAlbum) => {
+    if (!album.spotifyUrl) return;
+    try {
+      await Linking.openURL(album.spotifyUrl);
+    } catch {
+      Alert.alert('Could not open link', 'Check the saved Spotify link and try again.');
     }
   };
 
@@ -1973,10 +2026,11 @@ export function ScheduleTab({
 
     // Combine todos, events, and ministries with time info for chronological sorting
     const timedItems: Array<{ type: string; id: string; data: any; sortTime: string }> = [];
+    const { timelineTodos, completedGroups } = partitionGroupedTodosForSchedule(dayTodos);
 
     // Add todos with time (only if there are any)
-    if (dayTodos.length > 0) {
-      dayTodos.forEach((t) => {
+    if (timelineTodos.length > 0) {
+      timelineTodos.forEach((t) => {
         timedItems.push({
           type: "todo",
           id: t.id,
@@ -2100,6 +2154,9 @@ export function ScheduleTab({
     // Add completed Bible Study sessions
     const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
     completedBibleStudies.forEach((bs) => items.push({ type: "bible-study", id: bs.id, data: bs }));
+
+    // Finished grouped todos collapse into compact rows at the bottom with other completed work.
+    completedGroups.forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));
 
     // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
@@ -2459,20 +2516,6 @@ export function ScheduleTab({
             />
           );
         case "worship-display": {
-          // currentAlbum is now directly managed, no need to find it
-          console.log('[WORSHIP_DEBUG] Rendering worship display', {
-            hasAlbum: !!currentAlbum,
-            album: currentAlbum ? { id: currentAlbum.id, title: currentAlbum.title } : null
-          });
-          
-          const handleDeleteAlbum = () => {
-            setCurrentDisplayAlbumId(null);
-          };
-          
-          const handleSelectAlbum = (albumId: string) => {
-            setCurrentDisplayAlbumId(albumId);
-          };
-          
           return (
             <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>
               {/* Worship Header */}
@@ -2491,7 +2534,9 @@ export function ScheduleTab({
                     </Pressable>
                   )}
                   <Pressable
-                    onPress={() => setAddType('worship')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add worship album"
+                    onPress={openNewWorshipAlbum}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <MaterialIcons name="add" size={20} color={colors.primary} />
@@ -2505,14 +2550,21 @@ export function ScheduleTab({
                   title={currentAlbum.title}
                   artist={currentAlbum.artist}
                   coverUrl={currentAlbum.coverUrl}
-                  onDelete={handleDeleteAlbum}
+                  onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
+                  onEdit={() => openEditWorshipAlbum(currentAlbum)}
+                  onDelete={() => confirmDeleteWorshipAlbum(currentAlbum.id)}
                 />
               ) : (
-                <View style={[{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border }]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Add your first worship album"
+                  onPress={openNewWorshipAlbum}
+                  style={({ pressed }) => [{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                >
                   <MaterialIcons name="music-note" size={40} color={colors.muted} />
                   <Text style={[{ fontSize: 14, fontWeight: '500', color: colors.foreground }]}>Nothing chosen yet</Text>
-                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap + to add an album</Text>
-                </View>
+                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap here to add an album</Text>
+                </Pressable>
               )}
               
 
@@ -3800,7 +3852,7 @@ export function ScheduleTab({
         </View>
       </Modal>
 
-      {/* Add Modal - Worship List Form */}
+      {/* Add/Edit Worship Album */}
       <Modal transparent visible={addType === "worship"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>
         <View style={scheduleStyles.formOverlay}>
           <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface }]}>
@@ -3808,9 +3860,9 @@ export function ScheduleTab({
               <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Add Album</Text>
-              <Pressable onPress={handleSaveWorshipList} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Add</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingWorshipAlbumId ? 'Edit Album' : 'Add Album'}</Text>
+              <Pressable onPress={handleSaveWorshipAlbum} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+                <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>{editingWorshipAlbumId ? 'Save' : 'Add'}</Text>
               </Pressable>
             </View>
             <ScrollView style={scheduleStyles.formContent} contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
@@ -3897,43 +3949,31 @@ export function ScheduleTab({
               />
 
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Spotify Album Link</Text>
-              <TextInput
-                placeholder="https://open.spotify.com/album/..."
-                placeholderTextColor={colors.muted}
-                value={formSpotifyLink}
-                onChangeText={async (text) => {
-                  setFormSpotifyLink(text);
-                  const { type, id } = parseSpotifyUrl(text);
-                  if (type !== 'album' || !id) return;
-
-                  setIsLoadingSpotify(true);
-                  try {
-                    const album = await fetchSpotifyAlbum(id);
-                    if (album) {
-                      setFormTitle(album.name);
-                      setFormNotes(album.artist);
-                      setFormSongLink(album.imageUrl || '');
-                      return;
-                    }
-
-                    const embedMetadata = await fetchSpotifyEmbedMetadata(text);
-                    if (embedMetadata) {
-                      setFormTitle(embedMetadata.title);
-                      setFormSongLink(embedMetadata.coverUrl || '');
-                      Alert.alert('Album imported', 'Album title and cover were added. Enter the artist if Spotify does not provide it.');
-                    } else {
-                      Alert.alert('Could not import album', 'The link was recognized, but Spotify did not provide metadata. You can still enter the title, artist, and cover manually.');
-                    }
-                  } catch (error) {
-                    console.error('Error fetching Spotify album:', error);
-                    Alert.alert('Could not import album', 'You can still enter the title, artist, and cover manually.');
-                  } finally {
-                    setIsLoadingSpotify(false);
-                  }
-                }}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
-                returnKeyType="done"
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  placeholder="https://open.spotify.com/album/..."
+                  placeholderTextColor={colors.muted}
+                  value={formSpotifyLink}
+                  onChangeText={setFormSpotifyLink}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[scheduleStyles.formInput, { flex: 1, color: colors.foreground, borderColor: colors.border }]}
+                  returnKeyType="done"
+                  onSubmitEditing={handleImportWorshipLink}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Import Spotify album details"
+                  disabled={isLoadingSpotify}
+                  onPress={handleImportWorshipLink}
+                  style={({ pressed }) => [{ minWidth: 82, minHeight: 48, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: isLoadingSpotify ? 0.55 : pressed ? 0.75 : 1 }]}
+                >
+                  {isLoadingSpotify ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Import</Text>}
+                </Pressable>
+              </View>
+              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 6 }}>
+                Import fills the title and cover when Spotify provides them. You can always enter or correct the details manually.
+              </Text>
             </ScrollView>
           </View>
         </View>
@@ -3956,38 +3996,50 @@ export function ScheduleTab({
                   <Text style={[{ color: colors.muted, textAlign: 'center', marginTop: 24 }]}>No albums saved yet</Text>
                 ) : (
                   albumHistory.map((album) => (
-                    <Pressable
+                    <View
                       key={album.id}
-                      onPress={() => {
-                        setCurrentDisplayAlbumId(album.id);
-                        setShowAlbumLibrary(false);
-                      }}
-                      style={({ pressed }) => [{
+                      style={{
                         flexDirection: 'row',
+                        alignItems: 'center',
                         gap: 12,
                         padding: 12,
                         borderRadius: 12,
                         backgroundColor: currentDisplayAlbumId === album.id ? colors.primary + '20' : colors.background,
                         borderWidth: 1,
                         borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border,
-                        opacity: pressed ? 0.7 : 1,
-                      }]}
+                      }}
                     >
-                      {album.coverUrl ? (
-                        <Image source={{ uri: album.coverUrl }} style={[{ width: 60, height: 60, borderRadius: 8 }]} />
-                      ) : (
-                        <View style={[{ width: 60, height: 60, borderRadius: 8, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}>
-                          <MaterialIcons name="music-note" size={28} color={colors.muted} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Display ${album.title}`}
+                        onPress={async () => {
+                          await selectWorshipAlbum(album.id);
+                          setShowAlbumLibrary(false);
+                        }}
+                        style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        {album.coverUrl ? (
+                          <Image source={{ uri: album.coverUrl }} style={[{ width: 60, height: 60, borderRadius: 8 }]} />
+                        ) : (
+                          <View style={[{ width: 60, height: 60, borderRadius: 8, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}> 
+                            <MaterialIcons name="music-note" size={28} color={colors.muted} />
+                          </View>
+                        )}
+                        <View style={[{ flex: 1, justifyContent: 'center', gap: 2 }]}> 
+                          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{album.title}</Text>
+                          <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{album.artist}</Text>
                         </View>
-                      )}
-                      <View style={[{ flex: 1, justifyContent: 'center', gap: 2 }]}>
-                        <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{album.title}</Text>
-                        <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{album.artist}</Text>
+                        {currentDisplayAlbumId === album.id && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
+                      </Pressable>
+                      <View style={{ gap: 2 }}>
+                        <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={() => openEditWorshipAlbum(album)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
+                          <MaterialIcons name="edit" size={19} color={colors.muted} />
+                        </Pressable>
+                        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${album.title}`} onPress={() => confirmDeleteWorshipAlbum(album.id)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
+                          <MaterialIcons name="delete-outline" size={20} color={colors.error} />
+                        </Pressable>
                       </View>
-                      {currentDisplayAlbumId === album.id && (
-                        <MaterialIcons name="check-circle" size={24} color={colors.primary} />
-                      )}
-                    </Pressable>
+                    </View>
                   ))
                 )}
               </View>

@@ -25,6 +25,8 @@ The APK’s bundle strings include **“Pray for the people you love,” “Time
 | Prayer Journal | Prayer text, entry date, tagged-contact avatar snapshots, bookmark state, dated reply updates, and delete controls. | New entries persist locally, newest dates appear first, bookmark filtering never alters stored entries, and replies remain attached to their parent prayer. |
 | Reminder rows | Frequency, reminder time, and notification-style state. | Local UI should make reminder intent clear even if real scheduling is not enabled yet. |
 | Settings | Version row, theme row, and notification row. | Rows should be informational and avoid dead-end actions. |
+| Schedule Worship | A selected worship album, saved album library, cover art, artist, and optional Spotify link. | One canonical local album library drives the displayed card. Users can import public Spotify metadata, enter details manually, select, edit, open, or delete saved albums without losing newly created data during hydration. |
+| Completed grouped todos | Finished grouped tasks summarized by title and completed-step count. | Completing the parent or final subtask collapses the group into a compact finished row placed below active schedule items; marking it incomplete restores it to the active timeline. |
 
 ## Key User Flows
 
@@ -37,6 +39,8 @@ The APK’s bundle strings include **“Pray for the people you love,” “Time
 | Review important prayers | User bookmarks meaningful entries → taps the bookmark filter in the Journal header → sees only bookmarked entries → taps again to restore the full journal. |
 | Handle birthday prompt | User opens Home or People → sees “Birthday today!” badge → taps the person → profile suggests reaching out and praying for them. |
 | Adjust reminders | User opens Reminders or a Person Profile → reviews reminder frequency and time → toggles or edits local reminder settings. |
+| Manage Worship albums | User opens Schedule → scrolls to Worship → adds an album manually or imports a Spotify link → saves → the album appears immediately → uses the library to switch, edit, or delete albums → optionally opens the saved link. |
+| Finish a grouped todo | User checks the group or completes its final subtask → the group collapses → it moves below active schedule items as a compact finished row → tapping the finished row marks it incomplete and returns it to the active timeline. |
 
 ## Color Choices
 

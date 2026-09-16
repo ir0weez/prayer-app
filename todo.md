@@ -2004,3 +2004,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make Schedule totals month-scoped and paid-status-aware so paid bills do not remain in the amount to budget
 - [x] Add regression coverage for fully paid and partially paid recurring months
 - [x] Run full validation and save the repair
+
+## Gap-Only NOW Separator Visibility
+- [x] Hide the separate NOW separator while the live cursor is inside a task or grouped todo
+- [x] Preserve the existing in-item moving progress line
+- [x] Show the NOW separator only during unscheduled gaps and before the next scheduled item
+- [x] Add regression coverage, run validation, and save the repair

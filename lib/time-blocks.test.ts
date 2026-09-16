@@ -33,6 +33,13 @@ describe("Time Block Helpers", () => {
       ]);
     });
 
+    it("uses the item cursor instead of a separate NOW marker during an active block", () => {
+      const scheduled = [{ id: "plan", startTime: "16:00", endTime: "17:00" }];
+
+      expect(getLiveCursorPosition(scheduled, new Date(2026, 8, 15, 16, 30)).activeItemId).toBe("plan");
+      expect(getLiveCursorPosition(scheduled, new Date(2026, 8, 15, 15, 30)).activeItemId).toBeNull();
+    });
+
     it("clips today's free time to the shared live minute", () => {
       const now = new Date(2026, 8, 15, 12, 15, 0);
       const blocks = calculateActiveAvailableTimeBlocks([], "2026-09-15", now);

@@ -2111,6 +2111,14 @@ export function ScheduleTab({
     const now = clockNow;
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const isTodayOrFuture = selectedDate >= todayISO;
+    const liveScheduledCursor = selectedDate === todayISO
+      ? getLiveCursorPosition(
+          timedItems
+            .filter(({ data }) => data?.startTime && !data?.isCompleted)
+            .map(({ data }) => data),
+          now,
+        )
+      : null;
 
     let activeBlocks: ReturnType<typeof calculateActiveAvailableTimeBlocks> = [];
     if (isTodayOrFuture) {
@@ -2141,7 +2149,7 @@ export function ScheduleTab({
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    if (selectedDate === todayISO) {
+    if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId) {
       const insertionIndex = getCurrentTimeInsertionIndex(allTimedItems, currentTimeStr);
       items.push(...allTimedItems.slice(0, insertionIndex));
       items.push({

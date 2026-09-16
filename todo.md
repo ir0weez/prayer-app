@@ -2010,3 +2010,8 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Preserve the existing in-item moving progress line
 - [x] Show the NOW separator only during unscheduled gaps and before the next scheduled item
 - [x] Add regression coverage, run validation, and save the repair
+
+## Active Item NOW Pill
+- [x] Add a compact pulsing NOW pill beside the currently active task, grouped todo, event, or ministry
+- [x] Preserve the active item’s moving progress line and gap-only global NOW separator
+- [x] Add regression coverage, run validation, and save the refinement

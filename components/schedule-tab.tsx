@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { bibleEventEmitter } from '@/lib/bible-events';
 import {
@@ -41,7 +41,7 @@ import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
 import { TimeBlockCard } from "./time-block-card";
 import { TimeBlockIndicator } from "./time-block-indicator";
-import { NowIndicator } from "./now-indicator";
+import { NowIndicator, NowPill } from "./now-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
@@ -128,6 +128,16 @@ const SCHEDULE_BOTTOM_NAV_CLEARANCE = 198;
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
+}
+
+function ActiveNowCard({ active, children }: { active: boolean; children: ReactNode }) {
+  if (!active) return <>{children}</>;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginHorizontal: 12 }}>
+      <View style={{ paddingTop: 10 }}><NowPill /></View>
+      <View style={{ flex: 1 }}>{children}</View>
+    </View>
+  );
 }
 
 // ─── Event Card Component ────────────────────────────────────────────────────
@@ -320,6 +330,7 @@ function TodoItem({
   isOverdue = false,
   isCurrentTodo = false,
   liveNow,
+  showActiveNow = false,
 }: {
   todo: ScheduleTodo;
   onToggle: () => void;
@@ -333,6 +344,7 @@ function TodoItem({
   isOverdue?: boolean;
   isCurrentTodo?: boolean;
   liveNow?: Date;
+  showActiveNow?: boolean;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -496,6 +508,7 @@ function TodoItem({
                     {todo.title}
                   </Text>
                   {todo.tag && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: `${groupAccentColor}14` }}><Text style={{ color: groupAccentColor, fontSize: 10, fontWeight: '700' }}>{todo.tag}</Text></View>}
+                  {showActiveNow && <NowPill />}
                 </View>
                 <MaterialIcons name={todo.isGroupExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
               </View>
@@ -580,7 +593,10 @@ function TodoItem({
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
-            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+              <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
+              {showActiveNow && <NowPill />}
+            </View>
             {(todo.startTime || todo.notes) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
                 {todo.startTime && <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>{format12HourTime(todo.startTime)}</Text>}
@@ -2400,6 +2416,7 @@ export function ScheduleTab({
               isCurrentTodo={item.data.id === currentTodoId}
               onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
               liveNow={clockNow}
+              showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
               onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
               onEdit={() => {
@@ -2427,9 +2444,11 @@ export function ScheduleTab({
               }}
             />
           );
-        case "event":
+        case "event": {
+          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <EventCard
+            <ActiveNowCard active={showActiveNow}>
+              <EventCard
               event={item.data}
               people={people}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
@@ -2454,11 +2473,15 @@ export function ScheduleTab({
                   ]
                 );
               }}
-            />
+              />
+            </ActiveNowCard>
           );
-        case "ministry":
+        }
+        case "ministry": {
+          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <MinistryCard
+            <ActiveNowCard active={showActiveNow}>
+              <MinistryCard
               ministry={item.data}
               people={people}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
@@ -2495,11 +2518,15 @@ export function ScheduleTab({
                   ]
                 );
               }}
-            />
+              />
+            </ActiveNowCard>
           );
-        case "bible-study":
+        }
+        case "bible-study": {
+          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <EventCard
+            <ActiveNowCard active={showActiveNow}>
+              <EventCard
               event={{
                 ...item.data,
                 title: `${item.data.book} ${item.data.chapter}`,
@@ -2530,8 +2557,10 @@ export function ScheduleTab({
                   ]
                 );
               }}
-            />
+              />
+            </ActiveNowCard>
           );
+        }
         case "worship-display": {
           return (
             <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>

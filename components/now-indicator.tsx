@@ -16,6 +16,32 @@ import { useColors } from "@/hooks/use-colors";
  * NOW Indicator Component with pulsing red dot
  * Shows current time position in schedule with live recording aesthetic
  */
+export function NowPill() {
+  const colors = useColors();
+  const pulseAnim = useSharedValue(0);
+
+  useEffect(() => {
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 600, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulseAnim.value, [0, 1], [0.4, 1], Extrapolation.CLAMP),
+  }));
+
+  return (
+    <View style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <Text style={{ color: colors.background, fontSize: 9, fontWeight: '700' }}>NOW</Text>
+      <ReAnimated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }, pulseStyle]} />
+    </View>
+  );
+}
+
 export function NowIndicator() {
   const colors = useColors();
   const pulseAnim = useSharedValue(0);

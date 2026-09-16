@@ -2021,3 +2021,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Remove the misplaced title-side and outside-card placement
 - [x] Preserve live cursor movement, gap-only separator behavior, and existing item interactions
 - [x] Run full validation and save the focused repair
+
+## Event Live Progress Bar and NOW Space
+- [x] Give active event cards a full live progress bar matching grouped todos
+- [x] Reserve a fixed left slot for the NOW pill so it never overlaps or compresses the bar
+- [x] Preserve grouped-todo behavior, live timing, gap separator behavior, and interactions
+- [x] Run full validation and save the focused repair

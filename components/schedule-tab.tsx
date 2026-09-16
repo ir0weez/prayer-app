@@ -244,7 +244,7 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40" }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80 }]}>
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.startTime && (
@@ -292,7 +292,7 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border }]}>
+        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
           <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
           <View style={{ flex: 1 }}>
             <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>

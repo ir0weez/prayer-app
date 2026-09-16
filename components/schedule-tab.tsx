@@ -261,7 +261,7 @@ function EventCard({
             {isLiveScheduledBlock && (
               <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <NowPill />
-                <View style={{ flex: 1, height: 3, backgroundColor: '#FFFFFF55', borderRadius: 2, overflow: 'hidden' }}>
+                <View style={{ flex: 1, height: 4, backgroundColor: '#FFFFFFAA', borderRadius: 2, overflow: 'hidden', zIndex: 2 }}>
                   <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: '#FFFFFF', borderRadius: 2 }} />
                 </View>
               </View>
@@ -310,7 +310,7 @@ function EventCard({
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <NowPill />
-              <View style={{ flex: 1, height: 3, backgroundColor: `${event.color || colors.primary}30`, borderRadius: 2, overflow: 'hidden' }}>
+              <View style={{ flex: 1, height: 4, backgroundColor: `${event.color || colors.primary}80`, borderRadius: 2, overflow: 'hidden', zIndex: 2 }}>
                 <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: event.color || colors.primary, borderRadius: 2 }} />
               </View>
             </View>
@@ -601,7 +601,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 30 }, pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
@@ -619,9 +619,9 @@ function TodoItem({
           {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
           {isLiveScheduledBlock && (
-            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <NowPill />
-              <View style={{ flex: 1, height: 3, backgroundColor: `${todo.color || colors.primary}20`, borderRadius: 2, overflow: 'hidden' }}>
+              <View style={{ flex: 1, height: 4, backgroundColor: `${todo.color || colors.primary}45`, borderRadius: 2, overflow: 'hidden' }}>
                 <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
               </View>
             </View>

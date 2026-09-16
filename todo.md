@@ -2027,3 +2027,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Reserve a fixed left slot for the NOW pill so it never overlaps or compresses the bar
 - [x] Preserve grouped-todo behavior, live timing, gap separator behavior, and interactions
 - [x] Run full validation and save the focused repair
+
+## Active NOW Row Spacing and Event Bar Visibility
+- [x] Give active todo rows a clearly inset progress row with enough room for the NOW pill
+- [x] Make the active event progress bar visibly span the space beside the NOW pill
+- [x] Preserve normal compact card size after the active time block ends
+- [x] Run full validation and save the focused repair

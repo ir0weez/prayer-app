@@ -40,6 +40,17 @@ describe("Time Block Helpers", () => {
       expect(getLiveCursorPosition(scheduled, new Date(2026, 8, 15, 15, 30)).activeItemId).toBeNull();
     });
 
+    it("supports a 30-minute todo cursor window without changing event defaults", () => {
+      const todo = [{ id: "todo", startTime: "16:00", endTime: "18:00" }];
+
+      expect(getLiveCursorPosition(todo, new Date(2026, 8, 15, 16, 15), 30)).toMatchObject({
+        activeItemId: "todo",
+        progress: 0.5,
+      });
+      expect(getLiveCursorPosition(todo, new Date(2026, 8, 15, 16, 31), 30).activeItemId).toBeNull();
+      expect(getLiveCursorPosition(todo, new Date(2026, 8, 15, 17, 30)).activeItemId).toBe("todo");
+    });
+
     it("clips today's free time to the shared live minute", () => {
       const now = new Date(2026, 8, 15, 12, 15, 0);
       const blocks = calculateActiveAvailableTimeBlocks([], "2026-09-15", now);

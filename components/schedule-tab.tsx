@@ -415,7 +415,7 @@ function TodoItem({
   const groupAccentColor = todo.isCompleted ? colors.success : (todo.color || colors.primary);
   const groupSurfaceColor = colors.surface;
   const groupBorderColor = `${groupAccentColor}38`;
-  const liveCursor = todo.startTime && liveNow ? getLiveCursorPosition([todo], liveNow) : null;
+  const liveCursor = todo.startTime && liveNow ? getLiveCursorPosition([todo], liveNow, 30) : null;
   const isLiveScheduledBlock = liveCursor?.activeItemId === todo.id && !todo.isCompleted;
 
   // Determine if this todo is in its active hour (glow effect)
@@ -541,9 +541,9 @@ function TodoItem({
                   <View style={{ height: '100%', width: `${Math.round(subtaskProgress.ratio * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 3 }} />
                 </View>
                 {isLiveScheduledBlock && (
-                  <View accessibilityLabel="Live schedule position" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <NowPill />
-                    <View style={{ flex: 1, height: 3, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
+                  <View accessibilityLabel="Live schedule position" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 96, flexShrink: 0 }}><NowPill /></View>
+                    <View style={{ flex: 1, minWidth: 80, height: 4, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
                       <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
                     </View>
                   </View>
@@ -620,8 +620,8 @@ function TodoItem({
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <NowPill />
-              <View style={{ flex: 1, height: 4, backgroundColor: `${todo.color || colors.primary}45`, borderRadius: 2, overflow: 'hidden' }}>
+              <View style={{ width: 96, flexShrink: 0 }}><NowPill /></View>
+              <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: `${todo.color || colors.primary}45`, borderRadius: 3, overflow: 'hidden' }}>
                 <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
               </View>
             </View>

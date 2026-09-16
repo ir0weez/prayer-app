@@ -88,13 +88,16 @@ export type LiveCursorPosition = {
 export function getLiveCursorPosition(
   items: ScheduleItem[],
   now = new Date(),
+  durationOverrideMinutes?: number,
 ): LiveCursorPosition {
   const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
   const scheduled = items
     .filter((item) => item.startTime)
     .map((item, index) => {
       const start = timeToMinutes(item.startTime!);
-      const end = item.endTime ? timeToMinutes(item.endTime) : start + 60;
+      const end = durationOverrideMinutes !== undefined
+        ? start + durationOverrideMinutes
+        : item.endTime ? timeToMinutes(item.endTime) : start + 60;
       return { item, index, start, end: Math.max(end, start + 1) };
     })
     .sort((a, b) => a.start - b.start || a.index - b.index);

@@ -2039,3 +2039,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Standardize the NOW pill with padded neutral purple styling and a red dot
 - [x] Preserve the improved todo row and normal inactive card sizing
 - [x] Run full validation and save the focused repair
+
+## Todo 30-Minute Progress Window and NOW Slot
+- [x] Limit todo live progress bars to a fixed 30-minute window
+- [x] Reserve a wider left slot for the todo NOW pill and keep the bar readable
+- [x] Preserve event durations and existing live cursor behavior
+- [x] Add regression coverage, run validation, and save the repair

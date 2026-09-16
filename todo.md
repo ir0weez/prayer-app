@@ -2033,3 +2033,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Make the active event progress bar visibly span the space beside the NOW pill
 - [x] Preserve normal compact card size after the active time block ends
 - [x] Run full validation and save the focused repair
+
+## Event Progress Bar and NOW Pill Styling
+- [x] Make active event cards visibly render their live progress track and fill
+- [x] Standardize the NOW pill with padded neutral purple styling and a red dot
+- [x] Preserve the improved todo row and normal inactive card sizing
+- [x] Run full validation and save the focused repair

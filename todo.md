@@ -2015,3 +2015,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Add a compact pulsing NOW pill beside the currently active task, grouped todo, event, or ministry
 - [x] Preserve the active item’s moving progress line and gap-only global NOW separator
 - [x] Add regression coverage, run validation, and save the refinement
+
+## Active NOW Progress-Row Placement
+- [x] Move the active NOW pill to the left of the live progress bar for todos and events
+- [x] Remove the misplaced title-side and outside-card placement
+- [x] Preserve live cursor movement, gap-only separator behavior, and existing item interactions
+- [x] Run full validation and save the focused repair

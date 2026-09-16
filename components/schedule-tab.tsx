@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { bibleEventEmitter } from '@/lib/bible-events';
 import {
@@ -130,16 +130,6 @@ function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
 
-function ActiveNowCard({ active, children }: { active: boolean; children: ReactNode }) {
-  if (!active) return <>{children}</>;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginHorizontal: 12 }}>
-      <View style={{ paddingTop: 10 }}><NowPill /></View>
-      <View style={{ flex: 1 }}>{children}</View>
-    </View>
-  );
-}
-
 // ─── Event Card Component ────────────────────────────────────────────────────
 function EventCard({
   event,
@@ -147,18 +137,24 @@ function EventCard({
   onEdit,
   onDelete,
   people = [],
+  liveNow,
+  showActiveNow = false,
 }: {
   event: ScheduleEvent;
   onToggle: () => void;
   onEdit?: (updatedEvent?: ScheduleEvent) => void;
   onDelete?: () => void;
   people?: Person[];
+  liveNow?: Date;
+  showActiveNow?: boolean;
 }) {
   const colors = useColors();
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [detailCardVisible, setDetailCardVisible] = useState(false);
+  const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
+  const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
   const handleLongPress = (eventData: any) => {
     const { pageX, pageY } = eventData.nativeEvent;
@@ -262,6 +258,14 @@ function EventCard({
                 </Text>
               )}
             </View>
+            {isLiveScheduledBlock && (
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <NowPill />
+                <View style={{ flex: 1, height: 3, backgroundColor: '#FFFFFF55', borderRadius: 2, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: '#FFFFFF', borderRadius: 2 }} />
+                </View>
+              </View>
+            )}
             <MaterialIcons name={keyword.icon as any} size={48} color="#FFFFFF" style={{ opacity: 0.9 }} />
           </View>
         </Pressable>
@@ -301,6 +305,14 @@ function EventCard({
           {linkedPeople.length > 0 && (
             <View style={{ marginLeft: 8 }}>
               <StackedAvatar people={linkedPeople} size={20} />
+            </View>
+          )}
+          {isLiveScheduledBlock && (
+            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <NowPill />
+              <View style={{ flex: 1, height: 3, backgroundColor: `${event.color || colors.primary}30`, borderRadius: 2, overflow: 'hidden' }}>
+                <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: event.color || colors.primary, borderRadius: 2 }} />
+              </View>
             </View>
           )}
         </View>
@@ -508,7 +520,6 @@ function TodoItem({
                     {todo.title}
                   </Text>
                   {todo.tag && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: `${groupAccentColor}14` }}><Text style={{ color: groupAccentColor, fontSize: 10, fontWeight: '700' }}>{todo.tag}</Text></View>}
-                  {showActiveNow && <NowPill />}
                 </View>
                 <MaterialIcons name={todo.isGroupExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
               </View>
@@ -530,8 +541,11 @@ function TodoItem({
                   <View style={{ height: '100%', width: `${Math.round(subtaskProgress.ratio * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 3 }} />
                 </View>
                 {isLiveScheduledBlock && (
-                  <View accessibilityLabel="Live schedule position" style={{ height: 3, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
-                    <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
+                  <View accessibilityLabel="Live schedule position" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <NowPill />
+                    <View style={{ flex: 1, height: 3, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
+                      <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
+                    </View>
                   </View>
                 )}
               </View>
@@ -593,10 +607,7 @@ function TodoItem({
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
-              <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
-              {showActiveNow && <NowPill />}
-            </View>
+            <Text style={[todoStyles.title, { color: colors.foreground }, todo.isCompleted && { textDecorationLine: "line-through", color: colors.muted }]} numberOfLines={1}>{todo.title}</Text>
             {(todo.startTime || todo.notes) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 }}>
                 {todo.startTime && <Text style={{ fontSize: 11, color: todo.isCompleted ? colors.muted : colors.primary, fontWeight: '500' }}>{format12HourTime(todo.startTime)}</Text>}
@@ -608,8 +619,11 @@ function TodoItem({
           {isOverdue && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.error, marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>Overdue</Text></View>}
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
           {isLiveScheduledBlock && (
-            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 0, height: 3, backgroundColor: `${todo.color || colors.primary}20`, borderRadius: 2, overflow: 'hidden' }}>
-              <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
+            <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 12, right: 12, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <NowPill />
+              <View style={{ flex: 1, height: 3, backgroundColor: `${todo.color || colors.primary}20`, borderRadius: 2, overflow: 'hidden' }}>
+                <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
+              </View>
             </View>
           )}
         </Pressable>
@@ -2447,8 +2461,7 @@ export function ScheduleTab({
         case "event": {
           const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <ActiveNowCard active={showActiveNow}>
-              <EventCard
+            <EventCard
               event={item.data}
               people={people}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
@@ -2473,15 +2486,14 @@ export function ScheduleTab({
                   ]
                 );
               }}
-              />
-            </ActiveNowCard>
+              liveNow={clockNow}
+              showActiveNow={showActiveNow}
+            />
           );
         }
         case "ministry": {
-          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <ActiveNowCard active={showActiveNow}>
-              <MinistryCard
+            <MinistryCard
               ministry={item.data}
               people={people}
               onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
@@ -2518,15 +2530,13 @@ export function ScheduleTab({
                   ]
                 );
               }}
-              />
-            </ActiveNowCard>
+            />
           );
         }
         case "bible-study": {
           const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
-            <ActiveNowCard active={showActiveNow}>
-              <EventCard
+            <EventCard
               event={{
                 ...item.data,
                 title: `${item.data.book} ${item.data.chapter}`,
@@ -2557,8 +2567,9 @@ export function ScheduleTab({
                   ]
                 );
               }}
-              />
-            </ActiveNowCard>
+              liveNow={clockNow}
+              showActiveNow={showActiveNow}
+            />
           );
         }
         case "worship-display": {

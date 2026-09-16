@@ -2045,3 +2045,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Reserve a wider left slot for the todo NOW pill and keep the bar readable
 - [x] Preserve event durations and existing live cursor behavior
 - [x] Add regression coverage, run validation, and save the repair
+
+## NOW Pill Compact Sizing Regression
+- [x] Restore the NOW pill to its compact normal width and padding
+- [x] Create extra spacing through the separate todo progress-row slot
+- [x] Preserve the fixed 30-minute todo window and event behavior
+- [x] Run validation and save the focused repair

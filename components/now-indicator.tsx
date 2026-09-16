@@ -35,7 +35,7 @@ export function NowPill() {
   }));
 
   return (
-    <View style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 10, paddingVertical: 5, minHeight: 24, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#A78BFA' }}>
+    <View style={{ width: 74, height: 26, paddingHorizontal: 8, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#8B5CF6', borderWidth: 1, borderColor: '#A78BFA', alignSelf: 'flex-start' }}>
       <Text style={{ color: '#FFFFFF', fontSize: 10, lineHeight: 12, fontWeight: '700' }}>NOW</Text>
       <ReAnimated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }, pulseStyle]} />
     </View>

@@ -1998,3 +1998,9 @@ Skipping widget implementation until Expo adds native widget support. Current Ex
 - [x] Match the static header/checklist separator to the grouped-todo progress bar width
 - [x] Leave the live NOW cursor behavior unchanged
 - [x] Validate and save the focused visual repair
+
+## Schedule Budget Summary Paid-Status Mismatch
+- [x] Trace Schedule budget summary and budget-tracker month totals, including recurring normalization
+- [x] Make Schedule totals month-scoped and paid-status-aware so paid bills do not remain in the amount to budget
+- [x] Add regression coverage for fully paid and partially paid recurring months
+- [x] Run full validation and save the repair

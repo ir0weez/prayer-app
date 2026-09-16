@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRecurringExpense,
   getRecurringDueDate,
+  getBudgetMonthTotals,
   materializeRecurringExpenses,
   deleteRecurringSeries,
   normalizeRecurringExpenses,
@@ -68,5 +69,33 @@ describe("budget recurrence helpers", () => {
     const oneTime = { id: "phone", day: 5, name: "Phone", amount: 80, isPaid: false, dueDate: "2026-01-05", isRecurring: false };
 
     expect(deleteRecurringSeries([recurring, occurrence, oneTime], "rent")).toEqual([oneTime]);
+  });
+
+  it("matches the budget tracker when every expense in the month is paid", () => {
+    const expenses = [
+      { id: "rent-september", day: 1, name: "Rent", amount: 1200, isPaid: true, dueDate: "2026-09-01", isRecurring: true, recurrenceId: "rent" },
+      { id: "phone-september", day: 15, name: "Phone", amount: 80.73, isPaid: true, dueDate: "2026-09-15", isRecurring: false },
+      { id: "rent-october", day: 1, name: "Rent", amount: 1200, isPaid: false, dueDate: "2026-10-01", isRecurring: true, recurrenceId: "rent" },
+    ];
+
+    expect(getBudgetMonthTotals(expenses, new Date(2026, 8, 15))).toEqual({
+      totalDue: 1280.73,
+      paid: 1280.73,
+      remaining: 0,
+    });
+  });
+
+  it("counts only unpaid expenses in the active month’s remaining amount", () => {
+    const expenses = [
+      { id: "rent-september", day: 1, name: "Rent", amount: 1200, isPaid: true, dueDate: "2026-09-01", isRecurring: true, recurrenceId: "rent" },
+      { id: "internet-september", day: 20, name: "Internet", amount: 90, isPaid: false, dueDate: "2026-09-20", isRecurring: false },
+      { id: "rent-august", day: 1, name: "Rent", amount: 1200, isPaid: false, dueDate: "2026-08-01", isRecurring: true, recurrenceId: "rent" },
+    ];
+
+    expect(getBudgetMonthTotals(expenses, new Date(2026, 8, 15))).toEqual({
+      totalDue: 1290,
+      paid: 1200,
+      remaining: 90,
+    });
   });
 });

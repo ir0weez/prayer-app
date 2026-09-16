@@ -14,6 +14,12 @@ export interface MonthCursor {
   month: number;
 }
 
+export type BudgetMonthTotals = {
+  totalDue: number;
+  paid: number;
+  remaining: number;
+};
+
 export function monthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -24,6 +30,31 @@ export function addMonths(date: Date, amount: number): Date {
 
 export function getDaysInMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+/**
+ * Calculate the same month totals shown by the Budget Tracker. Date matching
+ * uses the stored YYYY-MM-DD prefix so device timezone conversion cannot move
+ * an expense into the adjacent month.
+ */
+export function getBudgetMonthTotals(
+  expenses: MonthlyExpenseRecord[],
+  month: Date,
+): BudgetMonthTotals {
+  const targetMonth = monthKey(month);
+  const monthExpenses = normalizeRecurringExpenses(expenses).filter(
+    (expense) => expense.dueDate.slice(0, 7) === targetMonth,
+  );
+  const totalDue = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const paid = monthExpenses
+    .filter((expense) => expense.isPaid)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+
+  return {
+    totalDue,
+    paid,
+    remaining: totalDue - paid,
+  };
 }
 
 export function getRecurringDueDate(template: MonthlyExpenseRecord, month: Date): string {

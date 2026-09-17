@@ -284,13 +284,6 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           >
             <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={bookmarksOnly ? "#FFFFFF" : colors.primary} />
           </Pressable>
-          <Pressable
-            accessibilityLabel="Add prayer journal entry"
-            onPress={() => setShowEntryComposer(true)}
-            style={({ pressed }) => [styles.headerCircle, { backgroundColor: colors.primary, borderColor: colors.primary }, pressed && styles.primaryPressed]}
-          >
-            <MaterialIcons name="add" size={29} color="#FFFFFF" />
-          </Pressable>
         </View>
       </View>
 
@@ -329,6 +322,19 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           </View>
         }
       />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add prayer journal entry"
+        onPress={() => setShowEntryComposer(true)}
+        style={({ pressed }) => [
+          styles.fab,
+          { backgroundColor: colors.primary },
+          pressed && styles.primaryPressed,
+        ]}
+      >
+        <MaterialIcons name="add" size={32} color="#FFFFFF" />
+      </Pressable>
 
       <Modal transparent visible={showEntryComposer} animationType="slide" onRequestClose={closeEntryComposer}>
         <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -484,6 +490,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fab: {
+    position: "absolute",
+    right: 15,
+    bottom: 60,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#3E226B",
+    shadowOpacity: 0.26,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    zIndex: 12,
   },
   listContent: { paddingHorizontal: 16, paddingBottom: 140 },
   emptyListContent: { flexGrow: 1 },

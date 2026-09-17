@@ -2232,6 +2232,26 @@ export function ScheduleTab({
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Choose Bible book"
+                        onPress={(event) => {
+                          event.stopPropagation?.();
+                          router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } });
+                        }}
+                        style={({ pressed }) => [{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: `${colors.primary}18`,
+                          marginLeft: 4,
+                          opacity: pressed ? 0.7 : 1,
+                        }]}
+                      >
+                        <MaterialIcons name="list" size={19} color={colors.primary} />
+                      </Pressable>
+                      <Pressable
                         onPress={async () => {
                           // Reload fresh state from storage to ensure we have latest chapter read status
                           const { loadUnifiedBible } = await import('@/lib/bible-unified');

@@ -3,10 +3,10 @@ import { useColors } from '@/hooks/use-colors';
 import { useCallback, useState, useEffect, useRef } from 'react';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
-import { loadUnifiedBible, saveUnifiedBible, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
+import { loadUnifiedBible, saveUnifiedBible, setCurrentBook, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -86,6 +86,7 @@ const BIBLE_STATUS_STORAGE_KEY = 'bibleBookStatus';
 export default function BibleChaptersScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { openBookNav } = useLocalSearchParams<{ openBookNav?: string }>();
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
   const [bookStatuses, setBookStatuses] = useState<BookStatusData>({});
   const scrollViewRef = useRef<ScrollView>(null);
@@ -163,7 +164,8 @@ export default function BibleChaptersScreen() {
     useCallback(() => {
       loadData();
       setHasScrolled(false);
-    }, [loadData])
+      if (openBookNav === '1') setShowBookNav(true);
+    }, [loadData, openBookNav])
   );
 
   // Scroll to current book once positions are measured
@@ -328,6 +330,22 @@ export default function BibleChaptersScreen() {
           console.error('Error syncing to unified Bible state:', error);
         }
       })();
+    }
+  };
+
+  const markBookCurrent = async (bookName: string) => {
+    if (bookStatuses[bookName] === 'complete') return;
+    const newStatuses: BookStatusData = { ...bookStatuses };
+    Object.keys(newStatuses).forEach((key) => {
+      if (newStatuses[key] === 'current') newStatuses[key] = 'not-started';
+    });
+    newStatuses[bookName] = 'current';
+    setBookStatuses(newStatuses);
+    await saveBookStatuses(newStatuses);
+    try {
+      await setCurrentBook(bookName);
+    } catch (error) {
+      console.error('Error syncing current Bible book:', error);
     }
   };
 
@@ -504,7 +522,29 @@ export default function BibleChaptersScreen() {
                     <Text style={[styles.navItemText, { color: colors.foreground }]}>{item.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={[styles.navItemChapters, { color: colors.muted }]}>{item.chapters} ch.</Text>
-                      <View style={[styles.navItemDot, { backgroundColor: statusColor }]} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Make ${item.name} current`}
+                        disabled={status === 'complete'}
+                        onPress={(event) => {
+                          event.stopPropagation?.();
+                          void markBookCurrent(item.name);
+                        }}
+                        style={({ pressed }) => [{
+                          minWidth: 66,
+                          paddingHorizontal: 9,
+                          paddingVertical: 5,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: status === 'current' ? colors.primary : colors.border,
+                          backgroundColor: status === 'current' ? `${colors.primary}20` : 'transparent',
+                          opacity: status === 'complete' ? 0.55 : pressed ? 0.7 : 1,
+                        }]}
+                      >
+                        <Text style={{ color: status === 'current' ? colors.primary : colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
+                          {status === 'complete' ? 'Complete' : status === 'current' ? 'Current' : 'Current'}
+                        </Text>
+                      </Pressable>
                     </View>
                   </Pressable>
                 );

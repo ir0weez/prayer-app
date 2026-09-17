@@ -6,6 +6,7 @@ import { useColors } from '@/hooks/use-colors';
 export interface AlbumCardProps {
   title: string;
   artist: string;
+  tracks?: Array<{ id: string; title: string }>;
   coverUrl?: string;
   onOpen?: () => void;
   onEdit?: () => void;
@@ -18,6 +19,7 @@ export interface AlbumCardProps {
 export function AlbumCard({ 
   title, 
   artist, 
+  tracks = [],
   coverUrl, 
   onOpen,
   onEdit,
@@ -25,6 +27,7 @@ export function AlbumCard({
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   
   return (
     <View
@@ -37,7 +40,10 @@ export function AlbumCard({
         marginBottom: 12,
       }}
     >
-      <View
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`}
+        onPress={() => tracks.length > 0 && setExpanded((value) => !value)}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -107,7 +113,7 @@ export function AlbumCard({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Open album link"
-                onPress={onOpen}
+                onPress={(event) => { event.stopPropagation?.(); onOpen(); }}
                 style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
               >
                 <MaterialIcons name="open-in-new" size={19} color={colors.primary} />
@@ -117,7 +123,7 @@ export function AlbumCard({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit album"
-                onPress={onEdit}
+                onPress={(event) => { event.stopPropagation?.(); onEdit(); }}
                 style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
               >
                 <MaterialIcons name="edit" size={19} color={colors.muted} />
@@ -127,7 +133,7 @@ export function AlbumCard({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Delete album"
-                onPress={onDelete}
+                onPress={(event) => { event.stopPropagation?.(); onDelete(); }}
                 style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
               >
                 <MaterialIcons name="delete-outline" size={20} color={colors.error} />
@@ -135,7 +141,24 @@ export function AlbumCard({
             )}
           </View>
         )}
-      </View>
+      </Pressable>
+      {expanded && tracks.length > 0 && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
+          <View style={{ height: 1, backgroundColor: colors.border }} />
+          {tracks.map((track, index) => (
+            <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ width: 20, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
+              <MaterialIcons name="music-note" size={16} color={colors.primary} />
+              <Text style={{ flex: 1, color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track.title}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {tracks.length > 0 && (
+        <View pointerEvents="none" style={{ position: 'absolute', right: 12, bottom: expanded ? 10 : 12 }}>
+          <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={18} color={colors.muted} />
+        </View>
+      )}
     </View>
   );
 }

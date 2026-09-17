@@ -2,6 +2,7 @@ export type StoredWorshipAlbum = {
   id: string;
   title: string;
   artist: string;
+  tracks?: Array<{ id: string; title: string }>;
   coverUrl?: string;
   spotifyUrl?: string;
   date?: string;

@@ -542,7 +542,7 @@ function TodoItem({
                 </View>
                 {isLiveScheduledBlock && (
                   <View accessibilityLabel="Live schedule position" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={{ width: 96, flexShrink: 0 }}><NowPill /></View>
+                    <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
                     <View style={{ flex: 1, minWidth: 80, height: 4, backgroundColor: `${groupAccentColor}20`, borderRadius: 2, overflow: 'hidden' }}>
                       <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: groupAccentColor, borderRadius: 2 }} />
                     </View>
@@ -601,7 +601,7 @@ function TodoItem({
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
-          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 30 }, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, pressed && { opacity: 0.7 }]}
         >
           <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
@@ -620,7 +620,7 @@ function TodoItem({
           {!isOverdue && (linkedEvent || linkedMinistry || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag) && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: linkedEvent?.color || linkedMinistry?.color || todo.linkedEventColor || todo.linkedMinistryColor || (todo.color || colors.primary), marginLeft: 'auto' }}><Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }} numberOfLines={1}>{linkedEvent?.title || linkedMinistry?.title || todo.linkedEventTitle || todo.linkedMinistryTitle || todo.tag}</Text></View>}
           {isLiveScheduledBlock && (
             <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 96, flexShrink: 0 }}><NowPill /></View>
+              <View style={{ width: 70, flexShrink: 0 }}><NowPill /></View>
               <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: `${todo.color || colors.primary}45`, borderRadius: 3, overflow: 'hidden' }}>
                 <View style={{ height: '100%', width: `${Math.round((liveCursor?.progress ?? 0) * 100)}%`, backgroundColor: todo.color || colors.primary, borderRadius: 2 }} />
               </View>

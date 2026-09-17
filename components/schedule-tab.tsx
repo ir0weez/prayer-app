@@ -2343,40 +2343,17 @@ export function ScheduleTab({
                       </Pressable>
 
                       <Pressable
-                        onPress={async () => {
-                          if (item.data?.state) {
-                            const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                            if (book) {
-                              // Get the next unread chapter (the one currently being displayed)
-                              const nextChapter = item.data.state.chapters.find((c: any) => c.book === book && !c.isRead);
-                              
-                              if (nextChapter) {
-                                try {
-                                  const { toggleChapterBookmark } = await import('@/lib/bible-unified');
-                                  await toggleChapterBookmark(book, nextChapter.chapter);
-                                  const updated = await loadUnifiedBible();
-                                  setBibleState(updated);
-                                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                } catch (error) {
-                                  console.error('Error toggling bookmark:', error);
-                                }
-                              }
-                            }
-                          }
+                        accessibilityRole="button"
+                        accessibilityLabel="Choose Bible book"
+                        onPress={(event) => {
+                          event.stopPropagation?.();
+                          router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } });
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        {(() => {
-                          const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
-                          const nextChapter = book ? item.data.state.chapters.find((c: any) => c.book === book && !c.isRead) : null;
-                          const isBookmarked = nextChapter ? nextChapter.isBookmarked : false;
-                          
-                          return (
-                            <View style={{ width: 44, height: 44, backgroundColor: isBookmarked ? colors.primary + '20' : colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: isBookmarked ? 2 : 0, borderColor: isBookmarked ? colors.primary : 'transparent' }}>
-                              <MaterialIcons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={18} color={colors.primary} />
-                            </View>
-                          );
-                        })()}
+                        <View style={{ width: 44, height: 44, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
+                          <MaterialIcons name="list" size={19} color={colors.primary} />
+                        </View>
                       </Pressable>
 
                       <Pressable

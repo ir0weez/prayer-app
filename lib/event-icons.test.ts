@@ -119,6 +119,10 @@ describe("event-icons", () => {
         "sentiment-very-satisfied",
         "people",
         "fitness-center",
+        "sports-basketball",
+        "sports-soccer",
+        "sports-esports",
+        "movie",
         "pan-tool",
         "public",
         "flight",
@@ -134,6 +138,26 @@ describe("event-icons", () => {
   });
 
   describe("keyword detection with icons", () => {
+    it("should map basketball games to the basketball icon", () => {
+      const keyword = detectEventKeyword("Basketball Game");
+      expect(keyword?.icon).toBe("sports-basketball");
+    });
+
+    it("should map soccer games to the soccer icon", () => {
+      const keyword = detectEventKeyword("Soccer Game");
+      expect(keyword?.icon).toBe("sports-soccer");
+    });
+
+    it("should map generic games to the esports icon", () => {
+      const keyword = detectEventKeyword("Game night");
+      expect(keyword?.icon).toBe("sports-esports");
+    });
+
+    it("should map movies to the movie icon", () => {
+      const keyword = detectEventKeyword("Movie night");
+      expect(keyword?.icon).toBe("movie");
+    });
+
     it("should detect dinner and return restaurant icon", () => {
       const keyword = detectEventKeyword("Dinner at 6pm");
       expect(keyword).not.toBeNull();

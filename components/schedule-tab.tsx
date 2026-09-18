@@ -4004,8 +4004,14 @@ export function ScheduleTab({
                 onPress={pickAlbumCover}
                 style={({ pressed }) => [scheduleStyles.formInput, { backgroundColor: colors.background, borderColor: colors.primary, borderWidth: 2, justifyContent: 'center', alignItems: 'center', height: 100, opacity: pressed ? 0.7 : 1 }]}
               >
-                <MaterialIcons name="image" size={32} color={colors.primary} />
-                <Text style={[scheduleStyles.formLabel, { color: colors.primary, marginTop: 8 }]}>Tap to upload cover</Text>
+                {formAlbumCoverImage ? (
+                  <Image source={{ uri: formAlbumCoverImage }} style={{ width: '100%', height: '100%', borderRadius: 8 }} contentFit="cover" />
+                ) : (
+                  <>
+                    <MaterialIcons name="image" size={32} color={colors.primary} />
+                    <Text style={[scheduleStyles.formLabel, { color: colors.primary, marginTop: 8 }]}>Tap to upload cover</Text>
+                  </>
+                )}
               </Pressable>
               {formAlbumCoverImage && (
                 <Pressable

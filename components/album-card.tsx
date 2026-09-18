@@ -145,15 +145,14 @@ export function AlbumCard({
                 </Pressable>
               )}
               {onEdit && (
-                <Pressable accessibilityRole="button" accessibilityLabel="Edit album" onPress={onEdit} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Edit album" onPress={onEdit} style={({ pressed }) => [{ width: 56, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}>
                   <MaterialIcons name="edit" size={20} color={colors.foreground} />
-                  <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700' }}>Edit</Text>
                 </Pressable>
               )}
               {onDelete && (
-                <Pressable accessibilityRole="button" accessibilityLabel="Delete album" onPress={onDelete} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: `${colors.error}55`, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
-                  <MaterialIcons name="delete-outline" size={20} color={colors.error} />
-                  <Text style={{ color: colors.error, fontSize: 13, fontWeight: '700' }}>Delete</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Delete album" onPress={onDelete} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.error, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
+                  <MaterialIcons name="delete-outline" size={20} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Delete</Text>
                 </Pressable>
               )}
             </View>

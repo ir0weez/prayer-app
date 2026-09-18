@@ -48,15 +48,15 @@ export function AlbumCard({
           flexDirection: 'row',
           alignItems: 'center',
           padding: 12,
-          gap: 12,
+          gap: 10,
         }}
       >
         {/* Album Cover Image */}
         <View
           style={{
-            width: 80,
-            height: 80,
-            borderRadius: 8,
+            width: 56,
+            height: 56,
+            borderRadius: 10,
             overflow: 'hidden',
             backgroundColor: colors.muted,
             borderWidth: 1,
@@ -79,17 +79,17 @@ export function AlbumCard({
                 backgroundColor: colors.muted,
               }}
             >
-              <MaterialIcons name="music-note" size={32} color={colors.foreground} />
+              <MaterialIcons name="music-note" size={28} color={colors.foreground} />
             </View>
           )}
         </View>
 
         {/* Album Info */}
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={{ flex: 1, gap: 3 }}>
           <Text
             style={{
-              fontSize: 15,
-              fontWeight: '600',
+              fontSize: 16,
+              fontWeight: '700',
               color: colors.foreground,
             }}
             numberOfLines={2}
@@ -98,7 +98,7 @@ export function AlbumCard({
           </Text>
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 14,
               color: colors.muted,
             }}
             numberOfLines={1}
@@ -141,22 +141,20 @@ export function AlbumCard({
             )}
           </View>
         )}
+        {tracks.length > 0 && (
+          <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={22} color={colors.muted} />
+        )}
       </Pressable>
       {expanded && tracks.length > 0 && (
         <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
-          <View style={{ height: 1, backgroundColor: colors.border }} />
+          <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4, marginBottom: 2 }} />
           {tracks.map((track, index) => (
-            <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={{ width: 20, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
-              <MaterialIcons name="music-note" size={16} color={colors.primary} />
-              <Text style={{ flex: 1, color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track.title}</Text>
+            <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 }}>
+              <Text style={{ width: 20, color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
+              <MaterialIcons name="music-note" size={17} color={colors.primary} />
+              <Text style={{ flex: 1, color: colors.foreground, fontSize: 14, fontWeight: '500' }} numberOfLines={1}>{track.title}</Text>
             </View>
           ))}
-        </View>
-      )}
-      {tracks.length > 0 && (
-        <View pointerEvents="none" style={{ position: 'absolute', right: 12, bottom: expanded ? 10 : 12 }}>
-          <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={18} color={colors.muted} />
         </View>
       )}
     </View>

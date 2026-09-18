@@ -1003,11 +1003,26 @@ export function ScheduleTab({
   const [editingWorshipAlbumId, setEditingWorshipAlbumId] = useState<string | null>(null);
   const albumHistoryRef = useRef<StoredWorshipAlbum[]>([]);
   const currentDisplayAlbumIdRef = useRef<string | null>(null);
+  const selectedWorshipDate = selectedDate.slice(0, 10);
   const currentAlbum = useMemo(
-    () => getDisplayedWorshipAlbum(albumHistory, currentDisplayAlbumId),
-    [albumHistory, currentDisplayAlbumId],
+    () => {
+      const selected = getDisplayedWorshipAlbum(albumHistory, currentDisplayAlbumId);
+      return selected?.date?.slice(0, 10) === selectedWorshipDate ? selected : null;
+    },
+    [albumHistory, currentDisplayAlbumId, selectedWorshipDate],
   );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
+
+  // Worship is intentionally date-scoped: changing days never carries a setlist forward.
+  useEffect(() => {
+    if (!isAlbumStateHydrated) return;
+    const dayAlbum = albumHistoryRef.current.find((album) => album.date?.slice(0, 10) === selectedWorshipDate);
+    const nextId = dayAlbum?.id ?? null;
+    if (currentDisplayAlbumIdRef.current === nextId) return;
+    currentDisplayAlbumIdRef.current = nextId;
+    setCurrentDisplayAlbumId(nextId);
+    void persistWorshipAlbumState(albumHistoryRef.current, nextId);
+  }, [isAlbumStateHydrated, selectedWorshipDate]);
 
   useEffect(() => {
     const interval = setInterval(() => setClockNow(new Date()), 1000);
@@ -3278,7 +3293,7 @@ export function ScheduleTab({
               <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#9C27B0" }]}>
                 <MaterialIcons name="music-note" size={20} color="#FFFFFF" />
               </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship Setlist</Text>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
             </Pressable>
             <Pressable
               onPress={() => {

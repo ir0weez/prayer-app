@@ -247,6 +247,11 @@ function EventCard({
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80 }]}>
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+              {event.notes && (
+                <Text style={[eventStyles.illustratedDescription, { color: '#FFFFFFEE' }]} numberOfLines={2}>
+                  {event.notes}
+                </Text>
+              )}
               {event.startTime && (
                 <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
                   {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
@@ -292,12 +297,17 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.surface, borderColor: colors.border, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
-          <View style={[eventStyles.defaultDot, { backgroundColor: event.color || colors.primary }]} />
+        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.primary, borderColor: event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
+          <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={[eventStyles.defaultTitle, { color: event.color ? '#FFFFFF' : colors.foreground }]}>{event.title}</Text>
+            <Text style={[eventStyles.defaultTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+            {event.notes && (
+              <Text style={[eventStyles.defaultDescription, { color: '#FFFFFFEE' }]} numberOfLines={2}>
+                {event.notes}
+              </Text>
+            )}
             {event.startTime && (
-              <Text style={[eventStyles.defaultTime, { color: event.color ? '#FFFFFFDD' : colors.muted }]}>
+              <Text style={[eventStyles.defaultTime, { color: '#FFFFFFDD' }] }>
                 {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}
@@ -4703,6 +4713,12 @@ const eventStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
+  illustratedDescription: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 21,
+    marginTop: 4,
+  },
   illustratedTime: {
     fontSize: 13,
     marginTop: 4,
@@ -4758,6 +4774,12 @@ const eventStyles = StyleSheet.create({
   defaultTitle: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  defaultDescription: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 21,
+    marginTop: 4,
   },
   defaultTime: {
     fontSize: 12,

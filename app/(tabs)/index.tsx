@@ -1234,6 +1234,21 @@ export default function HomeScreen() {
                       {renderFamilyCard(familyMembers, undefined, isExpanded)}
                       {isExpanded && (
                         <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${relationshipColors[section.title].accent}45`, overflow: 'hidden' }}>
+                          {(() => {
+                            const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
+                            const completionRatio = familyMembers.length ? completedMembers / familyMembers.length : 0;
+                            return (
+                              <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}>
+                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                  <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text>
+                                  <Text style={{ color: relationshipColors[section.title].accent, fontSize: 12, fontWeight: "800" }}>{Math.round(completionRatio * 100)}%</Text>
+                                </View>
+                                <View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${relationshipColors[section.title].accent}18`, overflow: "hidden" }}>
+                                  <View style={{ width: `${Math.round(completionRatio * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: relationshipColors[section.title].accent }} />
+                                </View>
+                              </View>
+                            );
+                          })()}
                           {familyMembers.map((member, memberIdx) => {
                             const isLast = memberIdx === familyMembers.length - 1;
                             const activeEmergencies = getAllActiveEmergencyPrayers(people);
@@ -1256,8 +1271,8 @@ export default function HomeScreen() {
                                 }]}
                               >
                                 {renderAvatar(member, 44)}
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                  <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
+                                  <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
                                   <Text numberOfLines={1} style={styles.personMeta}>
                                     {formatLastReachedSummary(member)}
                                   </Text>
@@ -1271,9 +1286,22 @@ export default function HomeScreen() {
                                     </View>
                                   )}
                                 </View>
+                                <Pressable
+                                  onPress={() => setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? previousPeople : markPersonPrayed(previousPeople, member.id))}
+                                  hitSlop={8}
+                                  style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
+                                >
+                                  {hasPersonCompletedPrayerToday(member, today) && <MaterialIcons name={iconName("check")} size={16} color={relationshipColors[section.title].accent} />}
+                                </Pressable>
                               </Pressable>
                             );
                           })}
+                          <Pressable
+                            onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))}
+                            style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}
+                          >
+                            <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text>
+                          </Pressable>
                         </ReAnimated.View>
                       )}
                     </View>

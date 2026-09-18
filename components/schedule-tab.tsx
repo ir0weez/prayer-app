@@ -193,7 +193,9 @@ function EventCard({
 
   if (event.isCompleted) {
     // Completed: solid color box, smaller
-    const completedColor = keyword?.accentColor || colors.muted;
+    // Preserve the event's assigned color when it is completed. Keyword colors
+    // remain a fallback for older events that have no explicit color saved.
+    const completedColor = event.color || keyword?.accentColor || colors.muted;
     return (
       <>
         <Pressable

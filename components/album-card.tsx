@@ -88,8 +88,8 @@ export function AlbumCard({
         <View style={{ flex: 1, gap: 3 }}>
           <Text
             style={{
-              fontSize: 16,
-              fontWeight: '700',
+              fontSize: 14,
+              fontWeight: '600',
               color: colors.foreground,
             }}
             numberOfLines={2}
@@ -98,10 +98,12 @@ export function AlbumCard({
           </Text>
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 18,
+              lineHeight: 23,
+              fontWeight: '700',
               color: colors.muted,
             }}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {artist}
           </Text>

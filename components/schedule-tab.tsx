@@ -264,7 +264,7 @@ function EventCard({
               )}
             </View>
             {isLiveScheduledBlock && (
-              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
                 <NowPill />
                 <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
                   <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
@@ -4714,9 +4714,9 @@ const eventStyles = StyleSheet.create({
     fontWeight: "700",
   },
   illustratedDescription: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "600",
-    lineHeight: 21,
+    lineHeight: 25,
     marginTop: 4,
   },
   illustratedTime: {

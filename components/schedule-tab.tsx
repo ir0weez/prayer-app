@@ -2349,7 +2349,7 @@ export function ScheduleTab({
                     </View>
                   )}
 
-                  {isPersonalStudyExpanded && (
+                  {isPersonalStudyExpanded && hasCurrentBook && (
                     <>
                       {isLoadingSummary || item.data.chapterSummary ? (
                         <View style={{ gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>

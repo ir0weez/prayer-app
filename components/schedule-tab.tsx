@@ -3291,7 +3291,7 @@ export function ScheduleTab({
               <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#9C27B0" }]}>
                 <MaterialIcons name="music-note" size={20} color="#FFFFFF" />
               </View>
-              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
+              <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship Setlist</Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -3912,7 +3912,7 @@ export function ScheduleTab({
               <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingWorshipAlbumId ? 'Edit Album' : 'Add Album'}</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingWorshipAlbumId ? 'Edit Worship Setlist' : 'Add Worship Setlist'}</Text>
               <Pressable onPress={handleSaveWorshipAlbum} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>{editingWorshipAlbumId ? 'Save' : 'Add'}</Text>
               </Pressable>
@@ -3965,10 +3965,14 @@ export function ScheduleTab({
                 returnKeyType="done"
               />
 
-              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Tracks (optional)</Text>
+              <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Songs in this setlist</Text>
+              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: -4, marginBottom: 6 }}>
+                Add each song one at a time. They will appear inside the expandable Worship card.
+              </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <TextInput
-                  placeholder="Add a track name"
+                  accessibilityLabel="Song title"
+                  placeholder="Add a song title"
                   placeholderTextColor={colors.muted}
                   value={formTrackTitle}
                   onChangeText={setFormTrackTitle}

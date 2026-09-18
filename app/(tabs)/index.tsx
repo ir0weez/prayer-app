@@ -963,7 +963,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: `${familyRelationship.accent}12`, borderColor: `${familyRelationship.accent}45` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${familyRelationship.accent}55` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 12 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, { backgroundColor: `${relationshipStyle.accent}12`, borderColor: `${relationshipStyle.accent}45` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
           <View style={styles.personInfo}>
@@ -1052,7 +1052,8 @@ export default function HomeScreen() {
           </View>
         </Pressable>
         {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
-          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2, borderColor: getLastReachedAccentColor(person), paddingHorizontal: 12, paddingVertical: 8 }}>
+          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: "#FFFFFF", borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
+            <View style={[styles.personCardDivider, { backgroundColor: `${relationshipStyle.accent}35` }]} />
             {person.prayerItems.map((item, idx) => (
               <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
                 <View style={{ paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -2332,22 +2333,22 @@ function createStyles(colors: any) {
     lineHeight: 18,
   },
   personCard: {
-    minHeight: 76,
+    minHeight: 84,
     marginHorizontal: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#6D617D",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 1,
   },
   personInfo: {
@@ -2359,17 +2360,22 @@ function createStyles(colors: any) {
   },
   personName: {
     color: colors.foreground,
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "800",
     letterSpacing: -0.2,
-    lineHeight: 19,
+    lineHeight: 22,
   },
   personMeta: {
     marginTop: 2,
     color: colors.muted,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  personCardDivider: {
+    height: 1,
+    marginHorizontal: 4,
+    marginBottom: 2,
   },
   personActions: {
     alignItems: "center",

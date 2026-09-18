@@ -980,8 +980,9 @@ export function ScheduleTab({
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
   const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
-  const [formTracks, setFormTracks] = useState<string[]>([]);
+  const [formTracks, setFormTracks] = useState<Array<{ title: string; key: string }>>([]);
   const [formTrackTitle, setFormTrackTitle] = useState("");
+  const [formTrackKey, setFormTrackKey] = useState("");
   const [isLoadingSpotify, setIsLoadingSpotify] = useState(false);
   const [editingTimeBlock, setEditingTimeBlock] = useState<any>(null);
   const [showTimeBlockColorPicker, setShowTimeBlockColorPicker] = useState(false);
@@ -1688,6 +1689,7 @@ export function ScheduleTab({
     setFormAlbumCoverImage(null);
     setFormTracks([]);
     setFormTrackTitle("");
+    setFormTrackKey("");
     setEditingWorshipAlbumId(null);
     setFormBibleBook("Genesis");
     setFormBibleChapter("1");
@@ -1893,7 +1895,7 @@ export function ScheduleTab({
     setFormTitle(album.title);
     setFormNotes(album.artist);
     setFormSpotifyLink(album.spotifyUrl ?? '');
-    setFormTracks(album.tracks?.map((track) => track.title) ?? []);
+    setFormTracks(album.tracks?.map((track) => ({ title: track.title, key: track.key ?? '' })) ?? []);
     setFormDate(album.date ?? selectedDate);
     if (album.coverUrl?.startsWith('file:') || album.coverUrl?.startsWith('content:')) {
       setFormAlbumCoverImage(album.coverUrl);
@@ -1968,7 +1970,7 @@ export function ScheduleTab({
         id: existingAlbum?.id ?? generateId(),
         title: formTitle.trim(),
         artist: formNotes.trim() || 'Unknown Artist',
-        tracks: formTracks.map((title, index) => ({ id: `${editingWorshipAlbumId ?? 'track'}-${index}-${title}`, title })).filter((track) => track.title.trim().length > 0),
+        tracks: formTracks.map((track, index) => ({ id: `${editingWorshipAlbumId ?? 'track'}-${index}-${track.title}`, title: track.title, ...(track.key.trim() ? { key: track.key.trim().toUpperCase() } : {}) })).filter((track) => track.title.trim().length > 0),
         coverUrl: formAlbumCoverImage || formSongLink.trim() || undefined,
         spotifyUrl: formSpotifyLink.trim() || undefined,
         date: formDate || selectedDate,
@@ -3961,13 +3963,25 @@ export function ScheduleTab({
                   placeholderTextColor={colors.muted}
                   value={formTrackTitle}
                   onChangeText={setFormTrackTitle}
+                  style={[scheduleStyles.formInput, { flex: 1, color: colors.foreground, borderColor: colors.border }]}
+                  returnKeyType="next"
+                />
+                <TextInput
+                  accessibilityLabel="Song key"
+                  placeholder="Key"
+                  placeholderTextColor={colors.muted}
+                  value={formTrackKey}
+                  onChangeText={setFormTrackKey}
+                  autoCapitalize="characters"
+                  maxLength={4}
                   onSubmitEditing={() => {
                     const title = formTrackTitle.trim();
                     if (!title) return;
-                    setFormTracks((tracks) => [...tracks, title]);
+                    setFormTracks((tracks) => [...tracks, { title, key: formTrackKey.trim().toUpperCase() }]);
                     setFormTrackTitle('');
+                    setFormTrackKey('');
                   }}
-                  style={[scheduleStyles.formInput, { flex: 1, color: colors.foreground, borderColor: colors.border }]}
+                  style={[scheduleStyles.formInput, { width: 70, color: colors.foreground, borderColor: colors.border }]}
                   returnKeyType="done"
                 />
                 <Pressable
@@ -3976,8 +3990,9 @@ export function ScheduleTab({
                   onPress={() => {
                     const title = formTrackTitle.trim();
                     if (!title) return;
-                    setFormTracks((tracks) => [...tracks, title]);
+                    setFormTracks((tracks) => [...tracks, { title, key: formTrackKey.trim().toUpperCase() }]);
                     setFormTrackTitle('');
+                    setFormTrackKey('');
                   }}
                   style={({ pressed }) => [{ width: 48, height: 48, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}
                 >
@@ -3987,13 +4002,16 @@ export function ScheduleTab({
               {formTracks.length > 0 && (
                 <View style={{ gap: 8, marginTop: 4 }}>
                   {formTracks.map((track, index) => (
-                    <View key={`${track}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                    <View key={`${track.title}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
                       <Text style={{ width: 20, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
                       <MaterialIcons name="music-note" size={16} color={colors.primary} />
-                      <Text style={{ flex: 1, color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track.title}</Text>
+                        {track.key && <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>Key of {track.key}</Text>}
+                      </View>
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove track ${track}`}
+                        accessibilityLabel={`Remove track ${track.title}`}
                         onPress={() => setFormTracks((tracks) => tracks.filter((_, trackIndex) => trackIndex !== index))}
                         style={({ pressed }) => [{ padding: 4, opacity: pressed ? 0.55 : 1 }]}
                       >

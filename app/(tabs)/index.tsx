@@ -1012,13 +1012,13 @@ export default function HomeScreen() {
             setDraggedPersonId(person.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
-          onPress={() => !isDragged && setExpandedPersonId(isExpanded ? null : person.id)}
-          style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55`, borderLeftWidth: 5, borderLeftColor: relationshipStyle.accent }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55`, borderLeftWidth: 4, borderLeftColor: relationshipStyle.accent }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
-          {renderAvatar(person, 44)}
+          {renderAvatar(person, 32)}
           <View style={styles.personInfo}>
-            <Text numberOfLines={1} style={styles.personName}>{person.name}</Text>
-            <Text numberOfLines={1} style={styles.personMeta}>
+            <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName]}>{person.name}</Text>
+            <Text numberOfLines={1} style={[styles.personMeta, styles.singlePersonMeta]}>
               {formatLastReachedSummary(person)}
             </Text>
           </View>
@@ -1051,38 +1051,6 @@ export default function HomeScreen() {
             )}
           </View>
         </Pressable>
-        {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
-          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: "#FFFFFF", borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
-            <View style={[styles.personCardDivider, { backgroundColor: `${relationshipStyle.accent}35` }]} />
-            <View style={{ paddingTop: 6, paddingBottom: 4 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{person.prayerItems.filter((item) => item.isDone).length} of {person.prayerItems.length} complete</Text>
-                <Text style={{ color: relationshipStyle.accent, fontSize: 12, fontWeight: "800" }}>{Math.round((person.prayerItems.filter((item) => item.isDone).length / person.prayerItems.length) * 100)}%</Text>
-              </View>
-              <View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${relationshipStyle.accent}18`, overflow: "hidden" }}>
-                <View style={{ width: `${Math.round((person.prayerItems.filter((item) => item.isDone).length / person.prayerItems.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: relationshipStyle.accent }} />
-              </View>
-            </View>
-            {person.prayerItems.map((item, idx) => (
-              <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
-                <View style={{ paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Pressable onPress={() => setPeople((previousPeople) => togglePrayerItemDone(previousPeople, person.id, item.id))} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.6 }]}>
-                    <Text style={[{ color: colors.foreground, fontSize: 14 }, item.isDone && { textDecorationLine: "line-through", color: colors.muted }]}>{item.title}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setPeople((previousPeople) => togglePrayerItemUrgent(previousPeople, person.id, item.id))}>
-                    <MaterialIcons name={item.isUrgent ? "priority-high" : "low-priority"} size={16} color={item.isUrgent ? "#EF4444" : colors.muted} />
-                  </Pressable>
-                </View>
-              </ReAnimated.View>
-            ))}
-            <Pressable
-              onPress={() => setPeople((previousPeople) => markPersonPrayed(previousPeople, person.id))}
-              style={({ pressed }) => [{ marginTop: 8, minHeight: 38, borderRadius: 8, backgroundColor: relationshipStyle.accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}
-            >
-              <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text>
-            </Pressable>
-          </ReAnimated.View>
-        )}
       </ReAnimated.View>
     );
   };
@@ -2394,6 +2362,14 @@ function createStyles(colors: any) {
     shadowOffset: { width: 0, height: 3 },
     elevation: 1,
   },
+  singlePersonCard: {
+    minHeight: 62,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
   personInfo: {
     flex: 1,
     marginLeft: 12,
@@ -2419,6 +2395,14 @@ function createStyles(colors: any) {
     height: 1,
     marginHorizontal: 4,
     marginBottom: 2,
+  },
+  singlePersonName: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  singlePersonMeta: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   personActions: {
     alignItems: "center",

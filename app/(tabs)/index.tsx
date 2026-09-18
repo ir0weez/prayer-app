@@ -42,6 +42,7 @@ import {
   hasPersonCompletedPrayerToday,
   shouldKeepVisibleInPrayToday,
   markPersonPrayed,
+  unmarkPersonPrayed,
   normalizePeopleForStorage,
   resetDailyPrayerCompletionsIfNeeded,
   type Person,
@@ -969,7 +970,7 @@ export default function HomeScreen() {
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
           <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>0 of {familyMembers.length} complete</Text>
         </View>
-        {!isExpanded && <View style={{ marginLeft: 10, justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={38} /></View>}
+        {!isExpanded && <View style={{ marginLeft: 10, alignSelf: "stretch", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={38} /></View>}
         <View style={styles.personActions}>
           <MaterialIcons name={iconName("chevron-right")} size={20} color={isExpanded ? "#8B8199" : "#FFFFFF"} />
         </View>
@@ -1259,7 +1260,7 @@ export default function HomeScreen() {
                                   )}
                                 </View>
                                 <Pressable
-                                  onPress={() => setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? previousPeople : markPersonPrayed(previousPeople, member.id))}
+                                  onPress={() => setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id))}
                                   hitSlop={8}
                                   style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
                                 >

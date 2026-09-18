@@ -328,6 +328,19 @@ export function markPersonPrayed(people: Person[], personId: string): Person[] {
   );
 }
 
+// Action: Undo today's prayer completion for one person
+export function unmarkPersonPrayed(people: Person[], personId: string): Person[] {
+  return people.map((p) =>
+    p.id === personId
+      ? {
+          ...p,
+          lastPrayerCompletedDate: null,
+          prayerItems: p.prayerItems.map((item) => ({ ...item, isDone: false })),
+        }
+      : p,
+  );
+}
+
 // Action: Update person's last prayed/reached date
 export function updatePersonLastPrayedDate(
   people: Person[],

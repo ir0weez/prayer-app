@@ -258,9 +258,12 @@ function EventCard({
                 </Text>
               )}
               {event.location && (
-                <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                  📍 {event.location}
-                </Text>
+                <View style={eventStyles.illustratedLocationRow}>
+                  <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
+                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                    {event.location}
+                  </Text>
+                </View>
               )}
             </View>
             {isLiveScheduledBlock && (
@@ -4725,6 +4728,12 @@ const eventStyles = StyleSheet.create({
   },
   illustratedLocation: {
     fontSize: 12,
+    marginTop: 2,
+  },
+  illustratedLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     marginTop: 2,
   },
   illustratedEmoji: {

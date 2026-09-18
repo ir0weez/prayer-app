@@ -2003,20 +2003,25 @@ export function ScheduleTab({
   const confirmDeleteWorshipAlbum = (albumId: string) => {
     const album = albumHistoryRef.current.find((candidate) => candidate.id === albumId);
     if (!album) return;
+    const deleteAlbum = async () => {
+      const next = removeWorshipAlbumAndSelectFallback(albumHistoryRef.current, albumId);
+      albumHistoryRef.current = next.albums;
+      currentDisplayAlbumIdRef.current = next.selectedAlbumId;
+      setAlbumHistory(next.albums);
+      setCurrentDisplayAlbumId(next.selectedAlbumId);
+      await persistWorshipAlbumState(next.albums, next.selectedAlbumId);
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof globalThis.confirm === 'function' && globalThis.confirm(`Remove “${album.title}” from your Worship library?`)) {
+        void deleteAlbum();
+      }
+      return;
+    }
+
     Alert.alert('Delete worship album?', `Remove “${album.title}” from your Worship library?`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const next = removeWorshipAlbumAndSelectFallback(albumHistoryRef.current, albumId);
-          albumHistoryRef.current = next.albums;
-          currentDisplayAlbumIdRef.current = next.selectedAlbumId;
-          setAlbumHistory(next.albums);
-          setCurrentDisplayAlbumId(next.selectedAlbumId);
-          await persistWorshipAlbumState(next.albums, next.selectedAlbumId);
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => { void deleteAlbum(); } },
     ]);
   };
 

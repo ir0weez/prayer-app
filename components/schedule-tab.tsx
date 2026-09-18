@@ -2262,10 +2262,13 @@ export function ScheduleTab({
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
       switch (item.type) {
-        case "personal-study-card":
+        case "personal-study-card": {
+          const hasCurrentBook = Object.values(item.data.state.bookStatuses).some((status) => status === 'current');
           return (
             <Pressable
-              onPress={() => togglePersonalStudyExpanded(!isPersonalStudyExpanded)}
+              onPress={() => hasCurrentBook
+                ? togglePersonalStudyExpanded(!isPersonalStudyExpanded)
+                : router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } })}
               style={({ pressed }) => [{ marginBottom: 12, marginHorizontal: 12, opacity: pressed ? 0.7 : 1 }]}
             >
               <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
@@ -2274,7 +2277,7 @@ export function ScheduleTab({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <MaterialIcons name="book" size={20} color={colors.primary} />
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
-                      <Pressable
+                      {hasCurrentBook && <Pressable
                         onPress={async () => {
                           // Reload fresh state from storage to ensure we have latest chapter read status
                           const { loadUnifiedBible } = await import('@/lib/bible-unified');
@@ -2306,12 +2309,12 @@ export function ScheduleTab({
                         <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>
                           Read Chapter
                         </Text>
-                      </Pressable>
+                      </Pressable>}
                     </View>
                     <MaterialIcons name={isPersonalStudyExpanded ? 'expand-less' : 'expand-more'} size={20} color={colors.muted} />
                   </View>
 
-                  <View style={{ gap: 8 }}>
+                  {hasCurrentBook ? <View style={{ gap: 8 }}>
                     <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>
                       {item.data.display}
                     </Text>
@@ -2338,7 +2341,13 @@ export function ScheduleTab({
                       }
                       return null;
                     })()}
-                  </View>
+                  </View> : (
+                    <View style={{ alignItems: 'center', gap: 8, paddingVertical: 10 }}>
+                      <MaterialIcons name="menu-book" size={34} color={colors.muted} />
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>No book chosen yet</Text>
+                      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center' }}>Tap here to choose a current book</Text>
+                    </View>
+                  )}
 
                   {isPersonalStudyExpanded && (
                     <>
@@ -2435,6 +2444,7 @@ export function ScheduleTab({
               </View>
             </Pressable>
           );
+        }
         case "time-off":
           return <TimeOffCard timeOff={item.data} />;
         case "birthday":

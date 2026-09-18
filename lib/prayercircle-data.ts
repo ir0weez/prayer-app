@@ -9,7 +9,7 @@ export type PrayerItem = {
   isPraised?: boolean; // Whether praise has been activated
 };
 
-export type RelationshipType = "Family" | "Friends" | "Ministry" | "Prospect";
+export type RelationshipType = "Family" | "Friends" | "Ministry" | "Unministry" | "Prospect";
 export type ReminderFrequency = "none" | "daily" | "weekly" | "monthly";
 export type FamilyType = "Spouse" | "Child" | "Other"; // For organizing family hierarchy
 
@@ -135,6 +135,7 @@ export const relationshipColors: Record<RelationshipType, { avatar: string; acce
   Family: { avatar: "#A78BFA", accent: "#7C3AED" }, // Purple
   Friends: { avatar: "#86EFAC", accent: "#22C55E" }, // Green
   Ministry: { avatar: "#FED7AA", accent: "#EA580C" }, // Orange
+  Unministry: { avatar: "#166534", accent: "#14532D" }, // Dark green
   Prospect: { avatar: "#D1D5DB", accent: "#6B7280" }, // Grey
 };
 

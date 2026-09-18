@@ -121,7 +121,7 @@ type PersonalProfile = {
   statusHighlight?: string;
 };
 
-const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Prospect"];
+const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Unministry", "Prospect"];
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
 
@@ -959,10 +959,11 @@ export default function HomeScreen() {
     const emergencyProgress = familyEmergency ? getEmergencyPrayerProgress(familyEmergency.item.emergencyExpiresAt) : 0;
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
     const familyIndex = index ?? 0;
+    const familyRelationship = relationshipColors[familyMembers[0]?.relationship] ?? relationshipColors.Family;
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: `${familyRelationship.accent}12`, borderColor: `${familyRelationship.accent}45` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 12 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -1002,6 +1003,7 @@ export default function HomeScreen() {
     const isExpanded = expandedPersonId === person.id;
     const personIndex = index ?? 0;
     const totalCount = array?.length ?? 1;
+    const relationshipStyle = relationshipColors[person.relationship] ?? relationshipColors.Friends;
 
     return (
       <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
@@ -1011,7 +1013,7 @@ export default function HomeScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          style={({ pressed }) => [styles.personCard, { backgroundColor: `${relationshipStyle.accent}12`, borderColor: `${relationshipStyle.accent}45` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
           <View style={styles.personInfo}>
@@ -1070,8 +1072,8 @@ export default function HomeScreen() {
   };
 
   const renderPeopleScreen = () => (
-    <>
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+    <View style={[styles.peopleScreen, { backgroundColor: "#FFFFFF" }]}> 
+      <View style={[styles.header, { backgroundColor: "#FFFFFF", borderBottomColor: colors.border }]}> 
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
           <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
@@ -1230,7 +1232,7 @@ export default function HomeScreen() {
                     <View key={familyId}>
                       {renderFamilyCard(familyMembers, undefined, isExpanded)}
                       {isExpanded && (
-                        <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 24, marginTop: -12, marginBottom: 8, backgroundColor: colors.surface, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: colors.border, overflow: 'hidden' }}>
+                        <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${relationshipColors[section.title].accent}45`, overflow: 'hidden' }}>
                           {familyMembers.map((member, memberIdx) => {
                             const isLast = memberIdx === familyMembers.length - 1;
                             const activeEmergencies = getAllActiveEmergencyPrayers(people);
@@ -1288,7 +1290,7 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-    </>
+    </View>
   );
 
   const renderSimpleScreen = (title: string, icon: string, description: string) => (
@@ -2095,6 +2097,10 @@ function createStyles(colors: any) {
   root: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  peopleScreen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
   },
   header: {
     minHeight: 88,

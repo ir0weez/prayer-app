@@ -963,7 +963,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${familyRelationship.accent}55` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${familyRelationship.accent}55`, borderLeftWidth: 5, borderLeftColor: familyRelationship.accent }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 12 }}>
           <StackedAvatar people={familyMembers} size={44} />
         </View>
@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55` }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55`, borderLeftWidth: 5, borderLeftColor: relationshipStyle.accent }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
           <View style={styles.personInfo}>
@@ -1052,7 +1052,7 @@ export default function HomeScreen() {
           </View>
         </Pressable>
         {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
-          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: "#FFFFFF", borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
+          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: `${relationshipStyle.accent}08`, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderLeftColor: relationshipStyle.accent, borderRightColor: `${relationshipStyle.accent}55`, borderBottomColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
             <View style={[styles.personCardDivider, { backgroundColor: `${relationshipStyle.accent}35` }]} />
             {person.prayerItems.map((item, idx) => (
               <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>

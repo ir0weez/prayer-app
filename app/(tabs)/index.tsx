@@ -963,26 +963,15 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${familyRelationship.accent}55`, borderLeftWidth: 5, borderLeftColor: familyRelationship.accent }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
-        <View style={{ marginRight: 12, justifyContent: "center", alignItems: "center", paddingTop: 12 }}>
-          <StackedAvatar people={familyMembers} size={44} />
-        </View>
+        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? "#FFFFFF" : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={styles.personInfo}>
-          <Text numberOfLines={1} style={styles.personName}>{familyName}</Text>
-          <Text numberOfLines={1} style={styles.personMeta}>
-            {familyMembers.length} {familyMembers.length === 1 ? "person" : "people"}
-          </Text>
+          <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
+          <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
+          <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>0 of {familyMembers.length} complete</Text>
         </View>
+        {!isExpanded && <View style={{ marginLeft: 10, justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={38} /></View>}
         <View style={styles.personActions}>
-          {emergencyCountdown ? (
-            <EmergencyPrayerPill timeRemaining={reachText} progress={emergencyProgress} />
-          ) : (
-            <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
-              <View style={[styles.reachPillFill, { backgroundColor: reachColor, width: reachProgress === 1 ? "100%" : `${Math.round(reachProgress * 100)}%` }]} />
-              <Text style={[styles.reachPillText, (daysSince === 999 || reachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
-            </View>
-          )}
-          <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
+          <MaterialIcons name={iconName("chevron-right")} size={20} color={isExpanded ? "#8B8199" : "#FFFFFF"} />
         </View>
         </Pressable>
       </ReAnimated.View>

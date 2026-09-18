@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 
 export interface AlbumCardProps {
@@ -11,6 +12,8 @@ export interface AlbumCardProps {
   onOpen?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  sectionTitle?: string;
+  sectionIcon?: keyof typeof MaterialIcons.glyphMap;
 }
 
 /**
@@ -24,6 +27,8 @@ export function AlbumCard({
   onOpen,
   onEdit,
   onDelete,
+  sectionTitle,
+  sectionIcon = 'music-note',
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
@@ -40,10 +45,16 @@ export function AlbumCard({
         marginBottom: 12,
       }}
     >
+      {sectionTitle && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
+          <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>{sectionTitle}</Text>
+        </View>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`}
-        onPress={() => tracks.length > 0 && setExpanded((value) => !value)}
+        onPress={() => (tracks.length > 0 || onEdit || onDelete || onOpen) && setExpanded((value) => !value)}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -67,6 +78,7 @@ export function AlbumCard({
             <Image
               source={{ uri: coverUrl }}
               style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
               onError={() => setImageError(true)}
             />
           ) : (
@@ -109,45 +121,11 @@ export function AlbumCard({
           </Text>
         </View>
 
-        {(onOpen || onEdit || onDelete) && (
-          <View style={{ gap: 2 }}>
-            {onOpen && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open album link"
-                onPress={(event) => { event.stopPropagation?.(); onOpen(); }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
-              >
-                <MaterialIcons name="open-in-new" size={19} color={colors.primary} />
-              </Pressable>
-            )}
-            {onEdit && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Edit album"
-                onPress={(event) => { event.stopPropagation?.(); onEdit(); }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
-              >
-                <MaterialIcons name="edit" size={19} color={colors.muted} />
-              </Pressable>
-            )}
-            {onDelete && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Delete album"
-                onPress={(event) => { event.stopPropagation?.(); onDelete(); }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.55 : 1, padding: 7 }]}
-              >
-                <MaterialIcons name="delete-outline" size={20} color={colors.error} />
-              </Pressable>
-            )}
-          </View>
-        )}
-        {tracks.length > 0 && (
+        {(tracks.length > 0 || onEdit || onDelete || onOpen) && (
           <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={22} color={colors.muted} />
         )}
       </Pressable>
-      {expanded && tracks.length > 0 && (
+      {expanded && (tracks.length > 0 || onEdit || onDelete || onOpen) && (
         <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
           <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4, marginBottom: 2 }} />
           {tracks.map((track, index) => (
@@ -157,6 +135,29 @@ export function AlbumCard({
               <Text style={{ flex: 1, color: colors.foreground, fontSize: 14, fontWeight: '500' }} numberOfLines={1}>{track.title}</Text>
             </View>
           ))}
+          {tracks.length === 0 && <Text style={{ color: colors.muted, fontSize: 13, paddingVertical: 4 }}>No songs added yet.</Text>}
+          {(onOpen || onEdit || onDelete) && (
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+              {onOpen && (
+                <Pressable accessibilityRole="button" accessibilityLabel="Open album link" onPress={onOpen} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
+                  <MaterialIcons name="open-in-new" size={19} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>Open</Text>
+                </Pressable>
+              )}
+              {onEdit && (
+                <Pressable accessibilityRole="button" accessibilityLabel="Edit album" onPress={onEdit} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
+                  <MaterialIcons name="edit" size={20} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '700' }}>Edit</Text>
+                </Pressable>
+              )}
+              {onDelete && (
+                <Pressable accessibilityRole="button" accessibilityLabel="Delete album" onPress={onDelete} style={({ pressed }) => [{ flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1, borderColor: `${colors.error}55`, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pressed ? 0.65 : 1 }]}>
+                  <MaterialIcons name="delete-outline" size={20} color={colors.error} />
+                  <Text style={{ color: colors.error, fontSize: 13, fontWeight: '700' }}>Delete</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
         </View>
       )}
     </View>

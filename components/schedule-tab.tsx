@@ -2572,36 +2572,12 @@ export function ScheduleTab({
         }
         case "worship-display": {
           return (
-            <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>
-              {/* Worship Header */}
-              <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                  <MaterialIcons name="music-note" size={20} color={colors.primary} />
-                  <Text style={[{ fontSize: 16, fontWeight: '600', color: colors.foreground }]}>Worship</Text>
-                </View>
-                <View style={[{ flexDirection: 'row', gap: 8 }]}>
-                  {albumHistory.length > 0 && (
-                    <Pressable
-                      onPress={() => setShowAlbumLibrary(true)}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <MaterialIcons name="library-music" size={20} color={colors.primary} />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Add worship album"
-                    onPress={openNewWorshipAlbum}
-                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <MaterialIcons name="add" size={20} color={colors.primary} />
-                  </Pressable>
-                </View>
-              </View>
-              
+            <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}> 
               {/* Worship Album Display - Material Design Card */}
               {currentAlbum ? (
                 <AlbumCard
+                  sectionTitle="Worship"
+                  sectionIcon="music-note"
                   title={currentAlbum.title}
                   artist={currentAlbum.artist}
                   tracks={currentAlbum.tracks}
@@ -2617,6 +2593,10 @@ export function ScheduleTab({
                   onPress={openNewWorshipAlbum}
                   style={({ pressed }) => [{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                 >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialIcons name="music-note" size={20} color={colors.primary} />
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>Worship</Text>
+                  </View>
                   <MaterialIcons name="music-note" size={40} color={colors.muted} />
                   <Text style={[{ fontSize: 14, fontWeight: '500', color: colors.foreground }]}>Nothing chosen yet</Text>
                   <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap here to add an album</Text>

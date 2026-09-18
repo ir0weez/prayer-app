@@ -2371,7 +2371,8 @@ export function ScheduleTab({
                                 .filter((c: any) => c.book === book && c.isRead)
                                 .sort((a: any, b: any) => b.chapter - a.chapter)[0];
                               
-                              if (lastReadChapter && lastReadChapter.chapter > 1) {
+                              // A first-chapter read is still a valid previous position when viewing chapter 2.
+                              if (lastReadChapter) {
                                 try {
                                   // Mark the last read chapter as unread to go back
                                   const updated = await markChapterAsUnread(book, lastReadChapter.chapter);

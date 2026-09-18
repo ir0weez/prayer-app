@@ -1013,7 +1013,7 @@ export default function HomeScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55`, borderLeftWidth: 4, borderLeftColor: relationshipStyle.accent }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}85`, borderWidth: 1.5 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 32)}
           <View style={styles.personInfo}>

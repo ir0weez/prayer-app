@@ -1012,7 +1012,7 @@ export default function HomeScreen() {
             setDraggedPersonId(person.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }}
-          onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
+          onPress={() => !isDragged && setExpandedPersonId(isExpanded ? null : person.id)}
           style={({ pressed }) => [styles.personCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}55`, borderLeftWidth: 5, borderLeftColor: relationshipStyle.accent }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
           {renderAvatar(person, 44)}
@@ -1052,8 +1052,17 @@ export default function HomeScreen() {
           </View>
         </Pressable>
         {isExpanded && person.prayerItems && person.prayerItems.length > 0 && (
-          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: `${relationshipStyle.accent}08`, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderLeftColor: relationshipStyle.accent, borderRightColor: `${relationshipStyle.accent}55`, borderBottomColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
+          <ReAnimated.View entering={FadeIn.duration(200).delay(50)} style={{ backgroundColor: "#FFFFFF", borderBottomLeftRadius: 14, borderBottomRightRadius: 14, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${relationshipStyle.accent}55`, paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 }}>
             <View style={[styles.personCardDivider, { backgroundColor: `${relationshipStyle.accent}35` }]} />
+            <View style={{ paddingTop: 6, paddingBottom: 4 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{person.prayerItems.filter((item) => item.isDone).length} of {person.prayerItems.length} complete</Text>
+                <Text style={{ color: relationshipStyle.accent, fontSize: 12, fontWeight: "800" }}>{Math.round((person.prayerItems.filter((item) => item.isDone).length / person.prayerItems.length) * 100)}%</Text>
+              </View>
+              <View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${relationshipStyle.accent}18`, overflow: "hidden" }}>
+                <View style={{ width: `${Math.round((person.prayerItems.filter((item) => item.isDone).length / person.prayerItems.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: relationshipStyle.accent }} />
+              </View>
+            </View>
             {person.prayerItems.map((item, idx) => (
               <ReAnimated.View key={item.id} entering={FadeIn.duration(200).delay(100 + idx * 50)}>
                 <View style={{ paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -1066,6 +1075,12 @@ export default function HomeScreen() {
                 </View>
               </ReAnimated.View>
             ))}
+            <Pressable
+              onPress={() => setPeople((previousPeople) => markPersonPrayed(previousPeople, person.id))}
+              style={({ pressed }) => [{ marginTop: 8, minHeight: 38, borderRadius: 8, backgroundColor: relationshipStyle.accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text>
+            </Pressable>
           </ReAnimated.View>
         )}
       </ReAnimated.View>

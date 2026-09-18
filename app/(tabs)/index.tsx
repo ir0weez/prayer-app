@@ -941,6 +941,32 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handleContactLongPress = (person: Person) => {
+    Alert.alert(person.name, "What would you like to do?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => router.push({ pathname: "/person", params: { personId: person.id } }) },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setPeople((previousPeople) => previousPeople.filter((candidate) => candidate.id !== person.id)),
+      },
+    ]);
+  };
+
+  const handleFamilyLongPress = (familyMembers: Person[]) => {
+    const familyIds = new Set(familyMembers.map((member) => member.id));
+    const familyName = familyMembers[0]?.familyName || "Family";
+    Alert.alert(familyName, "What would you like to do?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Edit", onPress: () => familyMembers[0] && router.push({ pathname: "/person", params: { personId: familyMembers[0].id } }) },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setPeople((previousPeople) => previousPeople.filter((candidate) => !familyIds.has(candidate.id))),
+      },
+    ]);
+  };
+
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
@@ -964,16 +990,13 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? "#FFFFFF" : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? "#FFFFFF" : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={styles.personInfo}>
           <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
           <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>0 of {familyMembers.length} complete</Text>
         </View>
         {!isExpanded && <View style={{ marginLeft: 10, width: 48, height: 48, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={38} /></View>}
-        <View style={styles.personActions}>
-          <MaterialIcons name={iconName("chevron-right")} size={20} color={isExpanded ? "#8B8199" : "#FFFFFF"} />
-        </View>
         </Pressable>
       </ReAnimated.View>
     );
@@ -998,10 +1021,7 @@ export default function HomeScreen() {
     return (
       <ReAnimated.View key={person.id} style={[isDragged && { opacity: 0.6 }]} entering={FadeIn.duration(400).delay(personIndex * 50).springify()}>
         <Pressable
-          onLongPress={() => {
-            setDraggedPersonId(person.id);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}
+          onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
           style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}45`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
@@ -1030,7 +1050,6 @@ export default function HomeScreen() {
                 >
                   {hasPersonCompletedPrayerToday(person, today) && <MaterialIcons name={iconName("check")} size={14} color={relationshipStyle.accent} />}
                 </Pressable>
-                <MaterialIcons name={iconName("edit")} size={18} color="#8B8199" />
               </>
             )}
             {isDragged && (

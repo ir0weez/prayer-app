@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
-import { useAudioPlayer } from "expo-audio";
+import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, ZoomIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
@@ -91,8 +91,21 @@ import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/pr
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
 function VerifiedBadge() {
+  const scale = useSharedValue(0.2);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 70 });
+    scale.value = withSequence(
+      withTiming(1.38, { duration: 120, easing: Easing.out(Easing.cubic) }),
+      withSpring(1, { damping: 5, stiffness: 260, mass: 0.55 }),
+    );
+  }, [opacity, scale]);
+
+  const badgeStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
+
   return (
-    <ReAnimated.View entering={ZoomIn.duration(420).springify().damping(6).stiffness(180).mass(0.65)} style={{ marginLeft: 6, alignItems: "center", justifyContent: "center" }}>
+    <ReAnimated.View style={[{ marginLeft: 6, alignItems: "center", justifyContent: "center" }, badgeStyle]}>
       <MaterialIcons name="verified" size={21} color="#1D9BF0" />
     </ReAnimated.View>
   );
@@ -294,7 +307,11 @@ function UndoCountdownBar({ color }: { color: string }) {
 
 export default function HomeScreen() {
   const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
+  useEffect(() => {
+    void setAudioModeAsync({ playsInSilentMode: true });
+  }, []);
   const playVerifiedPop = () => {
+    verifiedPopPlayer.volume = 1;
     verifiedPopPlayer.seekTo(0);
     verifiedPopPlayer.play();
   };
@@ -1016,7 +1033,7 @@ export default function HomeScreen() {
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
           <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>
         </View>
-        {!isExpanded && <View style={{ marginLeft: 10, width: 58, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={46} /></View>}
+        {!isExpanded && <View style={{ marginLeft: 10, marginRight: 14, width: 58, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={46} /></View>}
         </Pressable>
       </ReAnimated.View>
     );

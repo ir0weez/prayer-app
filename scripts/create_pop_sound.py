@@ -3,18 +3,21 @@ import wave
 from pathlib import Path
 
 sample_rate = 44100
-duration = 0.16
+duration = 0.20
 frames = []
 for i in range(int(sample_rate * duration)):
     t = i / sample_rate
     progress = t / duration
-    frequency = 420 + 520 * progress
-    envelope = min(1.0, t / 0.008) * max(0.0, 1.0 - progress) ** 1.8
-    sample = 0.32 * math.sin(2 * math.pi * frequency * t) * envelope
-    frames.append(int(sample * 32767))
+    chirp_frequency = 760 - 360 * progress
+    chirp_envelope = min(1.0, t / 0.004) * max(0.0, 1.0 - progress) ** 2.2
+    thump_envelope = min(1.0, t / 0.003) * max(0.0, 1.0 - progress * 1.6) ** 2
+    sample = (
+        0.62 * math.sin(2 * math.pi * chirp_frequency * t) * chirp_envelope
+        + 0.24 * math.sin(2 * math.pi * 115 * t) * thump_envelope
+    )
+    frames.append(max(-32767, min(32767, int(sample * 32767))))
 
 output = Path(__file__).resolve().parents[1] / "assets" / "verified-pop.wav"
-output.parent.mkdir(parents=True, exist_ok=True)
 with wave.open(str(output), "wb") as wav:
     wav.setnchannels(1)
     wav.setsampwidth(2)

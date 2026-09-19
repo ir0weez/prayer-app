@@ -17,19 +17,21 @@ export interface WorshipAlbumDetailProps {
 
 export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddToDate, onEdit, onToggleSaved }: WorshipAlbumDetailProps) {
   const colors = useColors();
+  // Keep the detail view calm and grounded beneath bright or busy cover art.
+  // This deep warm accent is used consistently for the page and its controls.
+  const albumSurface = '#241715';
+  const albumControl = '#4A2921';
   if (!album) return null;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#16110F' }}>
-        {album.coverUrl && <Image source={{ uri: album.coverUrl }} blurRadius={28} contentFit="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.48 }} />}
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,12,10,0.72)' }} />
+      <View style={{ flex: 1, backgroundColor: albumSurface }}>
         <View style={{ position: 'absolute', zIndex: 3, top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 54, paddingBottom: 14 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Close album details" onPress={onClose} style={({ pressed }) => [{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close album details" onPress={onClose} style={({ pressed }) => [{ width: 42, height: 42, borderRadius: 21, backgroundColor: albumControl, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}>
             <MaterialIcons name="keyboard-arrow-down" size={30} color="#FFFFFF" />
           </Pressable>
           <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 1.2 }}>WORSHIP SETLIST</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={album.isSaved ? 'Remove album from saved' : 'Save album'} onPress={onToggleSaved} style={({ pressed }) => [{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={album.isSaved ? 'Remove album from saved' : 'Save album'} onPress={onToggleSaved} style={({ pressed }) => [{ width: 42, height: 42, borderRadius: 21, backgroundColor: albumControl, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.65 : 1 }]}>
             <MaterialIcons name={album.isSaved ? 'star' : 'star-border'} size={24} color="#FFFFFF" />
           </Pressable>
         </View>
@@ -55,8 +57,8 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
             </View>
           )) : <Text style={{ color: 'rgba(255,255,255,0.62)', paddingHorizontal: 24, paddingVertical: 18 }}>No songs have been added to this setlist yet.</Text>}
           <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 18, marginTop: 24 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to ${dateLabel}`} onPress={onAddToDate} style={({ pressed }) => [{ flex: 1, minHeight: 54, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="event" size={21} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Add to date</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={onEdit} style={({ pressed }) => [{ width: 58, minHeight: 54, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="edit" size={23} color="#FFFFFF" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to ${dateLabel}`} onPress={onAddToDate} style={({ pressed }) => [{ flex: 1, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: '#6A3D31', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="event" size={21} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Add to date</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={onEdit} style={({ pressed }) => [{ width: 58, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: '#6A3D31', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="edit" size={23} color="#FFFFFF" /></Pressable>
           </View>
         </ScrollView>
       </View>

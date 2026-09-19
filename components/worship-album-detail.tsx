@@ -40,6 +40,8 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
   const colors = useColors();
   if (!album) return null;
   const { surface: albumSurface, control: albumControl, border: albumBorder } = getAlbumPalette(album);
+  const releaseLabel = album.releaseDate ?? album.createdAt?.slice(0, 10);
+  const releaseText = releaseLabel ? new Date(`${releaseLabel.slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
@@ -62,6 +64,7 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
               <Text style={{ color: '#FFFFFF', fontSize: 30, lineHeight: 36, fontWeight: '800' }}>{album.title}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 19, lineHeight: 25, fontWeight: '600', marginTop: 5 }}>{album.artist}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.56)', fontSize: 13, marginTop: 8 }}>For {dateLabel}</Text>
+              {releaseText && <Text style={{ color: 'rgba(255,255,255,0.56)', fontSize: 13, marginTop: 4 }}>Released {releaseText}</Text>}
             </View>
           </View>
           <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.18)', marginHorizontal: 24, marginBottom: 18 }} />

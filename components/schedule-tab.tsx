@@ -982,6 +982,7 @@ export function ScheduleTab({
   const [worshipListLinks, setWorshipListLinks] = useState<WorshipListLink[]>([]);
   const [formSongLink, setFormSongLink] = useState("");
   const [formSpotifyLink, setFormSpotifyLink] = useState("");
+  const [formReleaseDate, setFormReleaseDate] = useState("");
   const [formAlbumCoverImage, setFormAlbumCoverImage] = useState<string | null>(null);
   const [formTracks, setFormTracks] = useState<Array<{ title: string; key: string }>>([]);
   const [formTrackTitle, setFormTrackTitle] = useState("");
@@ -1042,9 +1043,12 @@ export function ScheduleTab({
     return Array.from(groups.values())
       .map((group) => {
         const lead = getSavedAlbumGroupLead(group.albums);
-        const remaining = group.albums
+          const remaining = group.albums
           .filter((album) => album.id !== lead?.id)
           .sort((a, b) => {
+            const aRelease = a.releaseDate?.slice(0, 10) ?? a.createdAt?.slice(0, 10) ?? "";
+            const bRelease = b.releaseDate?.slice(0, 10) ?? b.createdAt?.slice(0, 10) ?? "";
+            if (aRelease !== bRelease) return bRelease.localeCompare(aRelease);
             const aDate = a.date?.slice(0, 10) ?? "";
             const bDate = b.date?.slice(0, 10) ?? "";
             if (aDate !== bDate) return bDate.localeCompare(aDate);
@@ -1743,6 +1747,7 @@ export function ScheduleTab({
     setFormSubtasks([]);
     setFormSongLink("");
     setFormSpotifyLink("");
+    setFormReleaseDate("");
     setFormAlbumCoverImage(null);
     setFormTracks([]);
     setFormTrackTitle("");
@@ -1952,6 +1957,7 @@ export function ScheduleTab({
     setFormTitle(album.title);
     setFormNotes(album.artist);
     setFormSpotifyLink(album.spotifyUrl ?? '');
+    setFormReleaseDate(album.releaseDate ?? album.createdAt?.slice(0, 10) ?? '');
     setFormTracks(album.tracks?.map((track) => ({ title: track.title, key: track.key ?? '' })) ?? []);
     setFormDate(album.date ?? selectedDate);
     if (album.coverUrl?.startsWith('file:') || album.coverUrl?.startsWith('content:')) {
@@ -2031,6 +2037,7 @@ export function ScheduleTab({
         coverUrl: formAlbumCoverImage || formSongLink.trim() || undefined,
         spotifyUrl: formSpotifyLink.trim() || undefined,
         date: formDate || selectedDate,
+        releaseDate: formReleaseDate || undefined,
         isSaved: existingAlbum?.isSaved ?? false,
         createdAt: existingAlbum?.createdAt ?? now,
         addedAt: existingAlbum?.addedAt ?? now,
@@ -4176,6 +4183,17 @@ export function ScheduleTab({
                 label="Select Date"
               />
 
+              <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginTop: 14 }]}>RELEASE DATE (OPTIONAL)</Text>
+              <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: -4, marginBottom: 6 }}>
+                Use the album’s original release date to keep older worship music organized. Existing albums fall back to their first-created date.
+              </Text>
+              <DateTimePicker
+                value={formReleaseDate}
+                onChange={setFormReleaseDate}
+                mode="date"
+                label="Select Release Date"
+              />
+
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Cover URL (optional)</Text>
               <TextInput
                 placeholder="https://example.com/cover.jpg"
@@ -4268,6 +4286,7 @@ export function ScheduleTab({
                         <View style={{ paddingHorizontal: 2, paddingTop: 8 }}>
                           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '800' }} numberOfLines={1}>{album.title}</Text>
                           <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }} numberOfLines={1}>{group.artist}</Text>
+                          {(album.releaseDate || album.createdAt) && <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>Released {new Date(`${(album.releaseDate ?? album.createdAt ?? '').slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>}
                         </View>
                       </Pressable>
                     );
@@ -4314,6 +4333,7 @@ export function ScheduleTab({
                               <View style={{ flex: 1 }}>
                                 <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }} numberOfLines={2}>{album.title}</Text>
                                 <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{album.tracks?.length ?? 0} songs</Text>
+                                {(album.releaseDate || album.createdAt) && <Text style={{ color: colors.muted, fontSize: 11, marginTop: 3 }}>Released {new Date(`${(album.releaseDate ?? album.createdAt ?? '').slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>}
                               </View>
                               <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
                             </Pressable>

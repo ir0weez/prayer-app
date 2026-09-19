@@ -1056,6 +1056,11 @@ export default function HomeScreen() {
     const familyRelationship = relationshipColors[familyMembers[0]?.relationship] ?? relationshipColors.Family;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
     const isFamilyComplete = completedMembers === familyMembers.length;
+    const lastReachedDate = familyMembers
+      .map((member) => member.lastPrayedDate)
+      .filter((date): date is string => Boolean(date))
+      .sort()
+      .at(-1);
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
@@ -1065,8 +1070,10 @@ export default function HomeScreen() {
             <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
             {isFamilyComplete && <VerifiedBadge />}
           </View>
-          <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
-          <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>
+          <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
+            {lastReachedDate ? `Last Reached: ${formatIsoDateForDisplay(lastReachedDate)}` : `${completedMembers} of ${familyMembers.length} complete`}
+          </Text>
+          {lastReachedDate && <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>}
         </View>
         {!isExpanded && <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>}
         </Pressable>

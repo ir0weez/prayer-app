@@ -297,7 +297,7 @@ export function DateTimePicker({
         style={[
           pickerStyles.input,
           compact
-            ? { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', marginBottom: 0, paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0, alignItems: 'flex-end' }
+            ? { flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0, borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', marginBottom: 0, paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0 }
             : { borderColor: colors.border, backgroundColor: colors.surface },
         ]}
       >

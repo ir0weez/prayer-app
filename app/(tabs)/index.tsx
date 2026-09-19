@@ -1033,7 +1033,7 @@ export default function HomeScreen() {
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
           <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>
         </View>
-        {!isExpanded && <View style={{ marginLeft: 10, marginRight: 14, width: 58, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={46} /></View>}
+        {!isExpanded && <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>}
         </Pressable>
       </ReAnimated.View>
     );

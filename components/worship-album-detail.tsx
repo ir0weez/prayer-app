@@ -51,7 +51,7 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
           {album.tracks?.length ? album.tracks.map((track, index) => (
             <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 24, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)' }}>
               <Text style={{ width: 24, color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '800', textAlign: 'center' }}>{index + 1}</Text>
-              <View style={{ width: 38, height: 38, borderRadius: 7, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }}>{album.coverUrl ? <Image source={{ uri: album.coverUrl }} contentFit="cover" style={{ width: '100%', height: '100%' }} /> : <MaterialIcons name="music-note" size={20} color="#FFFFFF" style={{ alignSelf: 'center', marginTop: 9 }} />}</View>
+              <View style={{ width: 38, height: 38, borderRadius: 7, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }}>{album.coverUrl ? <Image source={{ uri: album.coverUrl }} contentFit="cover" style={{ width: '100%', height: '100%' }} /> : null}</View>
               <View style={{ flex: 1 }}><Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }} numberOfLines={1}>{track.title}</Text>{track.key && <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 13, marginTop: 3 }}>Key of {track.key}</Text>}</View>
               <MaterialIcons name="drag-handle" size={22} color="rgba(255,255,255,0.46)" />
             </View>

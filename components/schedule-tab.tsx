@@ -2659,20 +2659,21 @@ export function ScheduleTab({
                   onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Add your first worship album"
-                  onPress={openNewWorshipAlbum}
-                  style={({ pressed }) => [{ backgroundColor: colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4 }}>
                     <MaterialIcons name="music-note" size={20} color={colors.primary} />
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.foreground }}>Worship</Text>
+                    <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: '600', color: colors.foreground }}>Worship</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
+                      <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
+                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
+                    </Pressable>
                   </View>
-                  <MaterialIcons name="music-note" size={40} color={colors.muted} />
-                  <Text style={[{ fontSize: 14, fontWeight: '500', color: colors.foreground }]}>Nothing chosen yet</Text>
-                  <Text style={[{ fontSize: 12, color: colors.muted, textAlign: 'center' }]}>Tap here to add an album</Text>
-                </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Add your first worship album" onPress={openNewWorshipAlbum} style={({ pressed }) => [{ alignItems: 'center', gap: 8, padding: 24, opacity: pressed ? 0.7 : 1 }]}>
+                    <MaterialIcons name="music-note" size={40} color={colors.muted} />
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: colors.foreground }}>Nothing chosen yet</Text>
+                    <Text style={{ fontSize: 12, color: colors.muted, textAlign: 'center' }}>Tap here to add an album</Text>
+                  </Pressable>
+                </View>
               )}
               
 
@@ -4069,7 +4070,6 @@ export function ScheduleTab({
                   {formTracks.map((track, index) => (
                     <View key={`${track.title}-${index}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
                       <Text style={{ width: 20, color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
-                      <MaterialIcons name="music-note" size={16} color={colors.primary} />
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.foreground, fontSize: 13 }} numberOfLines={1}>{track.title}</Text>
                         {track.key && <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>Key of {track.key}</Text>}

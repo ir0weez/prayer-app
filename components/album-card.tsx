@@ -76,7 +76,6 @@ export function AlbumCard({
           {tracks.map((track, index) => (
             <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 }}>
               <Text style={{ width: 20, color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
-              <MaterialIcons name="music-note" size={17} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }} numberOfLines={1}>{track.title}</Text>
                 {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>Key of {track.key}</Text>}

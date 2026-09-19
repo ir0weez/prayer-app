@@ -1015,12 +1015,24 @@ export function ScheduleTab({
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
   const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
+  const [expandedSavedArtists, setExpandedSavedArtists] = useState<string[]>([]);
   const savedAlbums = useMemo(() => {
     const starred = albumHistory.filter((album) => album.isSaved);
     const templates = starred.filter((album) => !album.date);
     const datedFallbacks = starred.filter((album) => album.date && !templates.some((template) => template.title === album.title && template.artist === album.artist));
     return [...templates, ...datedFallbacks];
   }, [albumHistory]);
+  const savedArtistGroups = useMemo(() => {
+    const groups = new Map<string, { artist: string; albums: StoredWorshipAlbum[] }>();
+    savedAlbums.forEach((album) => {
+      const artist = album.artist?.trim() || "Unknown artist";
+      const key = artist.toLocaleLowerCase();
+      const group = groups.get(key) ?? { artist, albums: [] };
+      group.albums.push(album);
+      groups.set(key, group);
+    });
+    return Array.from(groups.values()).sort((a, b) => a.artist.localeCompare(b.artist));
+  }, [savedAlbums]);
 
   // Worship is intentionally date-scoped: changing days never carries a setlist forward.
   useEffect(() => {
@@ -4198,8 +4210,8 @@ export function ScheduleTab({
 
       {/* Saved Albums Library Page */}
       <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
-        <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, maxHeight: '80%', minHeight: 360 }]}> 
+        <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}> 
+          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}> 
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
@@ -4207,25 +4219,63 @@ export function ScheduleTab({
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Saved Albums</Text>
               <View style={{ width: 28 }} />
             </View>
-            <Text style={{ color: colors.muted, fontSize: 12, paddingHorizontal: 16, paddingTop: 10 }}>Tap an album cover to view its setlist.</Text>
-            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingVertical: 16 }}>
-                {savedAlbums.length === 0 ? (
-                  <Text style={{ color: colors.muted, textAlign: 'center', width: '100%', marginTop: 24 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
-                ) : (
-                  savedAlbums.map((album) => (
-                    <Pressable
-                      key={album.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open ${album.title}`}
-                      onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
-                      style={({ pressed }) => [{ width: '30%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, borderWidth: 1, borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border, opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={30} color={colors.muted} /></View>}
-                    </Pressable>
-                  ))
-                )}
-              </View>
+            <Text style={{ color: colors.muted, fontSize: 13, paddingHorizontal: 20, paddingTop: 14 }}>Artists are grouped together. Tap an artist to reveal their saved albums, then tap an album to open its full setlist.</Text>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
+              {savedAlbums.length === 0 ? (
+                <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 36 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
+              ) : (
+                savedArtistGroups.map((group) => {
+                  const groupKey = group.artist.toLocaleLowerCase();
+                  const expanded = expandedSavedArtists.includes(groupKey);
+                  const previewAlbums = group.albums.slice(0, 3);
+                  return (
+                    <View key={groupKey} style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: expanded ? colors.primary : colors.border, backgroundColor: colors.background }}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} saved albums by ${group.artist}`}
+                        onPress={() => setExpandedSavedArtists((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}
+                        style={({ pressed }) => [{ minHeight: 104, flexDirection: 'row', alignItems: 'center', padding: 14, opacity: pressed ? 0.75 : 1 }]}
+                      >
+                        <View style={{ width: 112, height: 76, position: 'relative', marginRight: 14 }}>
+                          {previewAlbums.slice().reverse().map((album, index) => (
+                            <View key={album.id} style={{ position: 'absolute', left: index * 14, top: index * 4, width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, borderWidth: 2, borderColor: colors.surface }}>
+                              {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={24} color={colors.muted} /></View>}
+                            </View>
+                          ))}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{group.artist}</Text>
+                          <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{group.albums.length} {group.albums.length === 1 ? 'saved album' : 'saved albums'}</Text>
+                        </View>
+                        <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={26} color={colors.primary} />
+                      </Pressable>
+                      {expanded && (
+                        <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>
+                          <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4 }} />
+                          {group.albums.map((album) => (
+                            <Pressable
+                              key={album.id}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Open ${album.title} by ${group.artist}`}
+                              onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
+                              style={({ pressed }) => [{ minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 12, backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }]}
+                            >
+                              <View style={{ width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border }}>
+                                {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={24} color={colors.muted} /></View>}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }} numberOfLines={2}>{album.title}</Text>
+                                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{album.tracks?.length ?? 0} songs</Text>
+                              </View>
+                              <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         </View>

@@ -16,6 +16,39 @@ export type WorshipAlbumState = {
   selectedAlbumId: string | null;
 };
 
+function getAlbumAddedTimestamp(album: StoredWorshipAlbum): number {
+  const value = album.addedAt ?? album.createdAt;
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function getLocalDateISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** Chooses the album cover that represents an artist group in Saved Albums. */
+export function getSavedAlbumGroupLead(
+  albums: StoredWorshipAlbum[],
+  referenceDate: Date = new Date(),
+): StoredWorshipAlbum | undefined {
+  if (albums.length === 0) return undefined;
+
+  const datedAlbums = albums.filter((album) => Boolean(album.date?.slice(0, 10)));
+  if (datedAlbums.length === 0) {
+    return [...albums].sort((a, b) => getAlbumAddedTimestamp(b) - getAlbumAddedTimestamp(a))[0];
+  }
+
+  const todayISO = getLocalDateISO(referenceDate);
+  const futureOrToday = datedAlbums.filter((album) => (album.date?.slice(0, 10) ?? "") >= todayISO);
+  const candidates = futureOrToday.length > 0 ? futureOrToday : datedAlbums;
+
+  return [...candidates].sort((a, b) => {
+    const dateOrder = (b.date?.slice(0, 10) ?? "").localeCompare(a.date?.slice(0, 10) ?? "");
+    return dateOrder !== 0 ? dateOrder : getAlbumAddedTimestamp(b) - getAlbumAddedTimestamp(a);
+  })[0];
+}
+
 const LEGACY_PLACEHOLDER_ALBUM_ID = "test-album-1";
 
 /** Removes the old seeded demo album while preserving every user-created album. */
@@ -68,10 +101,7 @@ export function mergeWorshipAlbumHistories<T extends StoredWorshipAlbum>(
 }
 
 function getAlbumTimestamp(album: StoredWorshipAlbum): number {
-  const value = album.addedAt ?? album.createdAt;
-  if (!value) return 0;
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? timestamp : 0;
+  return getAlbumAddedTimestamp(album);
 }
 
 /** Merges canonical and legacy storage into one ordered, de-duplicated album library. */

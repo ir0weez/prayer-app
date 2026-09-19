@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendAndSelectWorshipAlbum,
   getDisplayedWorshipAlbum,
+  getSavedAlbumGroupLead,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
   removeWorshipAlbumAndSelectFallback,
@@ -68,5 +69,21 @@ describe("worship album display state", () => {
       albums: [older],
       selectedAlbumId: "older",
     });
+  });
+
+  it("uses the farthest future dated occurrence as the artist group lead", () => {
+    const past = { ...userAlbum, id: "past", date: "2026-09-10", addedAt: "2026-09-01T00:00:00.000Z" };
+    const nearerFuture = { ...userAlbum, id: "nearer-future", date: "2026-09-25", addedAt: "2026-09-02T00:00:00.000Z" };
+    const farthestFuture = { ...userAlbum, id: "farthest-future", date: "2026-10-02", addedAt: "2026-09-03T00:00:00.000Z" };
+
+    expect(getSavedAlbumGroupLead([past, nearerFuture, farthestFuture], new Date(2026, 8, 19))?.id).toBe("farthest-future");
+  });
+
+  it("uses the most recent past occurrence when there are no future dates", () => {
+    const older = { ...userAlbum, id: "older-past", date: "2026-09-10" };
+    const recent = { ...userAlbum, id: "recent-past", date: "2026-09-18" };
+    const template = { ...userAlbum, id: "template", date: undefined, addedAt: "2026-09-19T00:00:00.000Z" };
+
+    expect(getSavedAlbumGroupLead([older, template, recent], new Date(2026, 8, 19))?.id).toBe("recent-past");
   });
 });

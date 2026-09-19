@@ -16,6 +16,7 @@ interface DateTimePickerProps {
   onChange: (value: string) => void;
   mode: "date" | "time";
   label: string;
+  compact?: boolean;
 }
 
 export function DateTimePicker({
@@ -23,6 +24,7 @@ export function DateTimePicker({
   onChange,
   mode,
   label,
+  compact = false,
 }: DateTimePickerProps) {
   const colors = useColors();
   const [showPicker, setShowPicker] = useState(false);
@@ -284,7 +286,9 @@ export function DateTimePicker({
         onPress={() => setShowPicker(true)}
         style={[
           pickerStyles.input,
-          { borderColor: colors.border, backgroundColor: colors.surface },
+          compact
+            ? { borderColor: colors.border, backgroundColor: colors.surface, marginBottom: 0, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }
+            : { borderColor: colors.border, backgroundColor: colors.surface },
         ]}
       >
         <MaterialIcons
@@ -293,10 +297,10 @@ export function DateTimePicker({
           color={colors.muted}
         />
         <Text
-          style={[
-            pickerStyles.inputText,
-            { color: value ? colors.foreground : colors.muted },
-          ]}
+        style={[
+          pickerStyles.inputText,
+          { color: value ? colors.foreground : colors.muted, fontSize: compact ? 13 : 14, fontWeight: compact ? "700" : "400" },
+        ]}
         >
           {formatDisplay()}
         </Text>

@@ -57,6 +57,7 @@ import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
   getDisplayedWorshipAlbum,
+  getSavedAlbumGroupLead,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
   removeWorshipAlbumAndSelectFallback,
@@ -1038,7 +1039,18 @@ export function ScheduleTab({
       groups.set(key, group);
     });
     return Array.from(groups.values())
-      .map((group) => ({ ...group, albums: group.albums.sort((a, b) => (Date.parse(b.addedAt ?? b.createdAt ?? "") || 0) - (Date.parse(a.addedAt ?? a.createdAt ?? "") || 0)) }))
+      .map((group) => {
+        const lead = getSavedAlbumGroupLead(group.albums);
+        const remaining = group.albums
+          .filter((album) => album.id !== lead?.id)
+          .sort((a, b) => {
+            const aDate = a.date?.slice(0, 10) ?? "";
+            const bDate = b.date?.slice(0, 10) ?? "";
+            if (aDate !== bDate) return bDate.localeCompare(aDate);
+            return (Date.parse(b.addedAt ?? b.createdAt ?? "") || 0) - (Date.parse(a.addedAt ?? a.createdAt ?? "") || 0);
+          });
+        return { ...group, albums: lead ? [lead, ...remaining] : remaining };
+      })
       .sort((a, b) => a.artist.localeCompare(b.artist));
   }, [savedAlbums]);
 
@@ -3037,14 +3049,13 @@ export function ScheduleTab({
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
                     {/* Today button moved to bottom - see renderItem */}
-                    <View style={scheduleStyles.dateRight}>
-                      <Text style={[scheduleStyles.monthYear, { color: colors.muted }]}>
-                        {dateHeader.monthName} {dateHeader.dayNum}
-                      </Text>
-                      <Text style={[scheduleStyles.yearText, { color: colors.muted }]}>
-                        {dateHeader.year}
-                      </Text>
-                    </View>
+                    <DateTimePicker
+                      value={selectedDate}
+                      onChange={setSelectedDate}
+                      mode="date"
+                      label="Jump to date"
+                      compact
+                    />
                   </View>
                   <View style={scheduleStyles.dateStrip}>
                     {weekDates.map((date) => {

@@ -2057,7 +2057,15 @@ export function ScheduleTab({
     const album = albumHistoryRef.current.find((candidate) => candidate.id === albumId);
     if (!album) return;
     const deleteAlbum = async () => {
-      const next = removeWorshipAlbumAndSelectFallback(albumHistoryRef.current, albumId);
+      const removed = removeWorshipAlbumAndSelectFallback(albumHistoryRef.current, albumId);
+      // A starred daily occurrence is also a reusable saved template. Delete only
+      // this date's occurrence and keep the template available in Saved Albums.
+      const savedTemplate = album.isSaved
+        ? { ...album, id: `${album.id}-saved-template`, date: undefined, addedAt: album.createdAt ?? album.addedAt }
+        : null;
+      const next = savedTemplate
+        ? { albums: [...removed.albums, savedTemplate], selectedAlbumId: removed.selectedAlbumId }
+        : removed;
       albumHistoryRef.current = next.albums;
       currentDisplayAlbumIdRef.current = next.selectedAlbumId;
       setAlbumHistory(next.albums);

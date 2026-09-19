@@ -5,6 +5,27 @@ import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 import type { StoredWorshipAlbum } from '@/lib/worship-album-state';
 
+function getAlbumPalette(album: StoredWorshipAlbum) {
+  const identity = `${album.title} ${album.artist}`.toLowerCase();
+  if (identity.includes('nirvana') || identity.includes('nevermind')) {
+    return { surface: '#102D52', control: '#1D5C91', border: '#2B78B8' };
+  }
+  if (identity.includes('twenty one pilots') || identity.includes('city walls')) {
+    return { surface: '#71352B', control: '#93483A', border: '#B96856' };
+  }
+  if (identity.includes('for king') || identity.includes('beautiful colours')) {
+    return { surface: '#4C1D1D', control: '#743129', border: '#985047' };
+  }
+  const palettes = [
+    { surface: '#241715', control: '#4A2921', border: '#6A3D31' },
+    { surface: '#182B36', control: '#245064', border: '#347A94' },
+    { surface: '#281B45', control: '#55338A', border: '#8057C7' },
+    { surface: '#253A2B', control: '#356044', border: '#568C65' },
+  ];
+  const hash = [...identity].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return palettes[hash % palettes.length];
+}
+
 export interface WorshipAlbumDetailProps {
   album: StoredWorshipAlbum | null;
   visible: boolean;
@@ -17,11 +38,8 @@ export interface WorshipAlbumDetailProps {
 
 export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddToDate, onEdit, onToggleSaved }: WorshipAlbumDetailProps) {
   const colors = useColors();
-  // Keep the detail view calm and grounded beneath bright or busy cover art.
-  // This deep warm accent is used consistently for the page and its controls.
-  const albumSurface = '#241715';
-  const albumControl = '#4A2921';
   if (!album) return null;
+  const { surface: albumSurface, control: albumControl, border: albumBorder } = getAlbumPalette(album);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
@@ -57,8 +75,8 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
             </View>
           )) : <Text style={{ color: 'rgba(255,255,255,0.62)', paddingHorizontal: 24, paddingVertical: 18 }}>No songs have been added to this setlist yet.</Text>}
           <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 18, marginTop: 24 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to ${dateLabel}`} onPress={onAddToDate} style={({ pressed }) => [{ flex: 1, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: '#6A3D31', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="event" size={21} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Add to date</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={onEdit} style={({ pressed }) => [{ width: 58, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: '#6A3D31', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="edit" size={23} color="#FFFFFF" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to ${dateLabel}`} onPress={onAddToDate} style={({ pressed }) => [{ flex: 1, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: albumBorder, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="event" size={21} color="#FFFFFF" /><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Add to date</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={onEdit} style={({ pressed }) => [{ width: 58, minHeight: 54, borderRadius: 16, backgroundColor: albumControl, borderWidth: 1, borderColor: albumBorder, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.75 : 1 }]}><MaterialIcons name="edit" size={23} color="#FFFFFF" /></Pressable>
           </View>
         </ScrollView>
       </View>

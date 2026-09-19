@@ -1090,7 +1090,7 @@ export default function HomeScreen() {
             {isFamilyComplete && <VerifiedBadge />}
           </View>
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
-            {lastReachedDate ? `Last Reached: ${formatIsoDateForDisplay(lastReachedDate)}` : `${completedMembers} of ${familyMembers.length} complete`}
+            {lastReachedDate ? formatIsoDateForDisplay(lastReachedDate) : `${completedMembers} of ${familyMembers.length} complete`}
           </Text>
           {lastReachedDate && <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>}
         </View>

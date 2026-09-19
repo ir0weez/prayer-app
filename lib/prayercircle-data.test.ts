@@ -335,22 +335,32 @@ describe("PrayerCircle local data helpers", () => {
     expect(normalized[0].reminderDaysOfWeek).toEqual([]);
   });
 
-  it("updates last reached date and reports threshold colors", () => {
+  it("updates last reached date and reports the 14/30-day threshold colors", () => {
     const people = addPerson(initialPeople, "Alice", "Friends");
     const today = new Date();
-    const tenDaysAgo = new Date();
-    tenDaysAgo.setDate(today.getDate() - 10);
+    const thirteenDaysAgo = new Date();
+    thirteenDaysAgo.setDate(today.getDate() - 13);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(today.getDate() - 14);
     const sixteenDaysAgo = new Date();
     sixteenDaysAgo.setDate(today.getDate() - 16);
+    const thirtyOneDaysAgo = new Date();
+    thirtyOneDaysAgo.setDate(today.getDate() - 31);
 
-    const recent = updatePersonLastReachedDate(people, people[0].id, getTodayISOString());
+    const recentToday = updatePersonLastReachedDate(people, people[0].id, getTodayISOString());
+    expect(getLastReachedAccentColor(recentToday[0])).toBe(recentToday[0].accentColor);
+
+    const recent = updatePersonLastReachedDate(people, people[0].id, thirteenDaysAgo.toISOString().split("T")[0]);
     expect(getLastReachedAccentColor(recent[0])).toBe(recent[0].accentColor);
 
-    const warning = updatePersonLastReachedDate(people, people[0].id, tenDaysAgo.toISOString().split("T")[0]);
+    const warning = updatePersonLastReachedDate(people, people[0].id, fourteenDaysAgo.toISOString().split("T")[0]);
     expect(getLastReachedAccentColor(warning[0])).toBe("#F59E0B");
 
     const overdue = updatePersonLastReachedDate(people, people[0].id, sixteenDaysAgo.toISOString().split("T")[0]);
     expect(getLastReachedAccentColor(overdue[0])).toBe("#EF4444");
+
+    const late = updatePersonLastReachedDate(people, people[0].id, thirtyOneDaysAgo.toISOString().split("T")[0]);
+    expect(getLastReachedAccentColor(late[0])).toBe("#000000");
   });
 
   it("stores, normalizes, and clears the optional last meeting location with the reached date", () => {

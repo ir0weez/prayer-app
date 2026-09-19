@@ -262,9 +262,10 @@ export function getUrgentPrayerItems(person: Person): PrayerItem[] {
 // Helper: Color for Last Reached recency state
 export function getLastReachedAccentColor(person: Person): string {
   const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
-  if (daysSince <= 7) return person.accentColor;
-  if (daysSince <= 14) return LAST_REACHED_WARNING_COLOR;
-  return LAST_REACHED_OVERDUE_COLOR;
+  if (daysSince === 999 || daysSince < 14) return person.accentColor;
+  if (daysSince === 14) return LAST_REACHED_WARNING_COLOR;
+  if (daysSince <= 30) return LAST_REACHED_OVERDUE_COLOR;
+  return "#000000";
 }
 
 export function hasPersonCompletedPrayerToday(person: Person, dateString = getTodayISOString()): boolean {

@@ -188,7 +188,7 @@ function getAvatarPaletteColor(person: Person) {
 
 function getReachProgressRatio(daysSince: number) {
   if (daysSince === 999 || daysSince <= 0) return 0;
-  return Math.min(daysSince, 31) / 31;
+  return Math.min(daysSince, 30) / 30;
 }
 
 
@@ -1051,8 +1051,7 @@ export default function HomeScreen() {
     const familyEmergency = activeEmergencies.find((ep) => familyMembers.some((m) => m.id === ep.person.id));
     const emergencyCountdown = familyEmergency ? emergencyCountdowns[familyEmergency.item.id] : undefined;
     const daysSince = getDaysSinceLastPrayed(mostRecentPerson.lastPrayedDate);
-    const isFull = daysSince >= 0 && daysSince <= 3;
-    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(mostRecentPerson);
+    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(mostRecentPerson);
     const reachText = emergencyCountdown ? formatEmergencyPrayerCountdown(emergencyCountdown) : daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const emergencyProgress = familyEmergency ? getEmergencyPrayerProgress(familyEmergency.item.emergencyExpiresAt) : 0;
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
@@ -1090,8 +1089,7 @@ export default function HomeScreen() {
     const personEmergency = activeEmergencies.find((ep) => ep.person.id === person.id);
     const emergencyCountdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
     const daysSince = getDaysSinceLastPrayed(person.lastPrayedDate);
-    const isFull = daysSince >= 31;
-    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : isFull ? "#000000" : getLastReachedAccentColor(person);
+    const reachColor = emergencyCountdown ? "#EF4444" : daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(person);
     const reachText = emergencyCountdown ? formatEmergencyPrayerCountdown(emergencyCountdown) : daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
     const emergencyProgress = personEmergency ? getEmergencyPrayerProgress(personEmergency.item.emergencyExpiresAt) : 0;
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
@@ -1344,6 +1342,8 @@ export default function HomeScreen() {
                             const memberEmergency = activeEmergencies.find((ep) => ep.person.id === member.id);
                             const emergencyCountdown = memberEmergency ? emergencyCountdowns[memberEmergency.item.id] : undefined;
                             const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
+                            const memberReachColor = daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member);
+                            const memberReachProgress = getReachProgressRatio(daysSince);
                             const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
                             return (
                               <Pressable
@@ -1371,7 +1371,8 @@ export default function HomeScreen() {
                                     <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={memberEmergency ? getEmergencyPrayerProgress(memberEmergency.item.emergencyExpiresAt) : 0} />
                                   ) : (
                                     <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
-                                      <Text style={[styles.reachPillText, daysSince === 999 && styles.reachPillTextMuted]}>{reachText}</Text>
+                                      <View style={[styles.reachPillFill, { backgroundColor: memberReachColor, width: `${Math.round(memberReachProgress * 100)}%` }]} />
+                                      <Text style={[styles.reachPillText, (daysSince === 999 || memberReachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
                                     </View>
                                   )}
                                 </View>

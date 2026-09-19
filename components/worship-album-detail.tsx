@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { useColors } from '@/hooks/use-colors';
 import type { StoredWorshipAlbum } from '@/lib/worship-album-state';
 
-function getAlbumPalette(album: StoredWorshipAlbum) {
+export function getAlbumPalette(album: StoredWorshipAlbum) {
   const identity = `${album.title} ${album.artist}`.toLowerCase();
   if (identity.includes('nirvana') || identity.includes('nevermind')) {
     return { surface: '#102D52', control: '#1D5C91', border: '#2B78B8' };

@@ -48,7 +48,7 @@ import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
-import { WorshipAlbumDetail } from "./worship-album-detail";
+import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
@@ -1020,7 +1020,13 @@ export function ScheduleTab({
     const starred = albumHistory.filter((album) => album.isSaved);
     const templates = starred.filter((album) => !album.date);
     const datedFallbacks = starred.filter((album) => album.date && !templates.some((template) => template.title === album.title && template.artist === album.artist));
-    return [...templates, ...datedFallbacks];
+    return [...templates, ...datedFallbacks].sort((a, b) => {
+      const artistOrder = (a.artist || "Unknown artist").localeCompare(b.artist || "Unknown artist");
+      if (artistOrder !== 0) return artistOrder;
+      const aTime = Date.parse(a.addedAt ?? a.createdAt ?? "") || 0;
+      const bTime = Date.parse(b.addedAt ?? b.createdAt ?? "") || 0;
+      return bTime - aTime;
+    });
   }, [albumHistory]);
   const savedArtistGroups = useMemo(() => {
     const groups = new Map<string, { artist: string; albums: StoredWorshipAlbum[] }>();
@@ -1031,7 +1037,9 @@ export function ScheduleTab({
       group.albums.push(album);
       groups.set(key, group);
     });
-    return Array.from(groups.values()).sort((a, b) => a.artist.localeCompare(b.artist));
+    return Array.from(groups.values())
+      .map((group) => ({ ...group, albums: group.albums.sort((a, b) => (Date.parse(b.addedAt ?? b.createdAt ?? "") || 0) - (Date.parse(a.addedAt ?? a.createdAt ?? "") || 0)) }))
+      .sort((a, b) => a.artist.localeCompare(b.artist));
   }, [savedAlbums]);
 
   // Worship is intentionally date-scoped: changing days never carries a setlist forward.
@@ -4226,15 +4234,38 @@ export function ScheduleTab({
               ) : (
                 savedArtistGroups.map((group) => {
                   const groupKey = group.artist.toLocaleLowerCase();
+                  const topAlbum = group.albums[0];
+                  const albumPalette = getAlbumPalette(topAlbum);
+                  if (group.albums.length === 1) {
+                    const album = topAlbum;
+                    return (
+                      <Pressable
+                        key={album.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open ${album.title} by ${group.artist}`}
+                        onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
+                        style={({ pressed }) => [{ minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12, marginBottom: 12, borderRadius: 16, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <View style={{ width: 76, height: 76, borderRadius: 11, overflow: 'hidden', backgroundColor: colors.border }}>
+                          {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={26} color={colors.muted} /></View>}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: '800' }} numberOfLines={2}>{album.title}</Text>
+                          <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }} numberOfLines={1}>{group.artist} · {album.tracks?.length ?? 0} songs</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={25} color={colors.muted} />
+                      </Pressable>
+                    );
+                  }
                   const expanded = expandedSavedArtists.includes(groupKey);
                   const previewAlbums = group.albums.slice(0, 3);
                   return (
-                    <View key={groupKey} style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: expanded ? colors.primary : colors.border, backgroundColor: colors.background }}>
+                    <View key={groupKey} style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: expanded ? albumPalette.border : albumPalette.border, backgroundColor: expanded ? colors.background : albumPalette.surface }}>
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} saved albums by ${group.artist}`}
                         onPress={() => setExpandedSavedArtists((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}
-                        style={({ pressed }) => [{ minHeight: 104, flexDirection: 'row', alignItems: 'center', padding: 14, opacity: pressed ? 0.75 : 1 }]}
+                        style={({ pressed }) => [{ minHeight: 104, flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: albumPalette.surface, opacity: pressed ? 0.75 : 1 }]}
                       >
                         <View style={{ width: 112, height: 76, position: 'relative', marginRight: 14 }}>
                           {previewAlbums.slice().reverse().map((album, index) => (
@@ -4244,10 +4275,10 @@ export function ScheduleTab({
                           ))}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{group.artist}</Text>
-                          <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>{group.albums.length} {group.albums.length === 1 ? 'saved album' : 'saved albums'}</Text>
+                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{group.artist}</Text>
+                          <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, marginTop: 4 }}>{group.albums.length} saved albums</Text>
                         </View>
-                        <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={26} color={colors.primary} />
+                        <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={26} color="#FFFFFF" />
                       </Pressable>
                       {expanded && (
                         <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>

@@ -4239,7 +4239,7 @@ export function ScheduleTab({
               <View style={{ width: 28 }} />
             </View>
             <Text style={{ color: colors.muted, fontSize: 13, paddingHorizontal: 20, paddingTop: 14 }}>Artists are grouped together. Tap an artist to reveal their saved albums, then tap an album to open its full setlist.</Text>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignContent: 'flex-start' }} showsVerticalScrollIndicator={false}>
               {savedAlbums.length === 0 ? (
                 <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 36 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
               ) : (
@@ -4255,23 +4255,22 @@ export function ScheduleTab({
                         accessibilityRole="button"
                         accessibilityLabel={`Open ${album.title} by ${group.artist}`}
                         onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
-                        style={({ pressed }) => [{ minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12, marginBottom: 12, borderRadius: 16, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                        style={({ pressed }) => [{ width: '48%', marginBottom: 22, opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <View style={{ width: 76, height: 76, borderRadius: 11, overflow: 'hidden', backgroundColor: colors.border }}>
-                          {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={26} color={colors.muted} /></View>}
+                        <View style={{ width: '100%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.border }}>
+                          {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}><MaterialIcons name="music-note" size={34} color={colors.muted} /></View>}
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: '800' }} numberOfLines={2}>{album.title}</Text>
-                          <Text style={{ color: colors.muted, fontSize: 13, marginTop: 4 }} numberOfLines={1}>{group.artist} · {album.tracks?.length ?? 0} songs</Text>
+                        <View style={{ paddingHorizontal: 2, paddingTop: 8 }}>
+                          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: '800' }} numberOfLines={1}>{album.title}</Text>
+                          <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }} numberOfLines={1}>{group.artist}</Text>
                         </View>
-                        <MaterialIcons name="chevron-right" size={25} color={colors.muted} />
                       </Pressable>
                     );
                   }
                   const expanded = expandedSavedArtists.includes(groupKey);
                   const previewAlbums = group.albums.slice(0, 3);
                   return (
-                    <View key={groupKey} style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: expanded ? albumPalette.border : albumPalette.border, backgroundColor: expanded ? colors.background : albumPalette.surface }}>
+                    <View key={groupKey} style={{ width: '100%', marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: albumPalette.border, backgroundColor: expanded ? colors.background : albumPalette.surface }}>
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} saved albums by ${group.artist}`}

@@ -272,6 +272,7 @@ export default function PersonScreen() {
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
   const [draftFamilyType, setDraftFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
+  const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [draftBirthday, setDraftBirthday] = useState("");
   const [draftPhotoUri, setDraftPhotoUri] = useState<string | undefined>(undefined);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
@@ -498,6 +499,7 @@ export default function PersonScreen() {
     setDraftName(currentPerson.name);
     setDraftRelationship(currentPerson.relationship);
     setDraftFamilyType(currentPerson.familyType);
+    setSelectedFamilyMemberIds(currentPerson.familyId ? people.filter((person) => person.familyId === currentPerson.familyId && person.id !== currentPerson.id).map((person) => person.id) : []);
     setDraftBirthday(currentPerson.birthday ?? "");
     setDraftPhotoUri(currentPerson.photoUri);
     setDraftIsPersonal(currentPerson.isPersonal ?? false);
@@ -532,8 +534,7 @@ export default function PersonScreen() {
     }
 
     const colors = relationshipColors[draftRelationship];
-    updatePeople((previousPeople) =>
-      previousPeople.map((person) =>
+    let updatedPeople = people.map((person) =>
         person.id === personId
           ? {
               ...person,
@@ -549,8 +550,17 @@ export default function PersonScreen() {
               isPersonal: draftIsPersonal,
             }
           : person,
-      ),
-    );
+      );
+    if (selectedFamilyMemberIds.length > 0) {
+      const familyTypes: Record<string, "Spouse" | "Child" | "Other" | undefined> = {};
+      [personId, ...selectedFamilyMemberIds].forEach((id) => {
+        familyTypes[id] = id === personId ? draftFamilyType : updatedPeople.find((person) => person.id === id)?.familyType;
+      });
+      updatedPeople = groupIntoFamily(updatedPeople, [personId, ...selectedFamilyMemberIds], familyTypes);
+    } else {
+      updatedPeople = ungroupFromFamily(updatedPeople, personId);
+    }
+    updatePeople(() => updatedPeople);
     setShowEditModal(false);
   };
 
@@ -1041,28 +1051,29 @@ export default function PersonScreen() {
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
             />
-            {familyMembers.length > 0 && (
-              <>
-                <Text style={styles.modalFieldLabel}>Family Members</Text>
-                <View style={[styles.familyMembersList, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}>
-                  {familyMembers.map((member) => (
-                    <View key={member.id} style={styles.familyMemberItem}>
-                      <Text style={styles.familyMemberName}>{member.name}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Pressable onPress={handleUngroupFromFamily} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
-                  <MaterialIcons name={iconName("link-off")} size={18} color={colors.primary} />
-                  <Text style={styles.modalSecondaryButtonText}>Remove from Family</Text>
-                </Pressable>
-              </>
+            <Text style={styles.modalFieldLabel}>Family Members</Text>
+            <Text style={[styles.modalDescription, { marginBottom: 8 }]}>Choose the contacts who should appear with this person in one family card.</Text>
+            <View style={styles.familyChoiceGrid}>
+              {otherPeople.map((member) => {
+                const selected = selectedFamilyMemberIds.includes(member.id);
+                const accent = relationshipColors[member.relationship]?.accent || colors.primary;
+                return (
+                  <Pressable key={member.id} onPress={() => setSelectedFamilyMemberIds((current) => selected ? current.filter((id) => id !== member.id) : [...current, member.id])} style={({ pressed }) => [styles.familyChoice, { borderColor: accent, backgroundColor: selected ? accent : getThemeAwareColor("#FBF8FF", colors) }, pressed && styles.pressed]}>
+                    <Text numberOfLines={1} style={[styles.familyChoiceName, { color: selected ? "#FFFFFF" : colors.foreground }]}>{member.name}</Text>
+                    <Text style={{ color: selected ? "rgba(255,255,255,0.82)" : colors.muted, fontSize: 11 }}>{member.relationship}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {selectedFamilyMemberIds.length > 0 && (
+              <View style={styles.familyRoleRow}>
+                {(["Spouse", "Child", "Other"] as const).map((familyType) => (
+                  <Pressable key={familyType} onPress={() => setDraftFamilyType(familyType)} style={({ pressed }) => [styles.familyRolePill, { borderColor: colors.primary, backgroundColor: draftFamilyType === familyType ? colors.primary : getThemeAwareColor("#FBF8FF", colors) }, pressed && styles.pressed]}>
+                    <Text style={{ color: draftFamilyType === familyType ? "#FFFFFF" : colors.primary, fontWeight: "800", fontSize: 12 }}>{familyType}</Text>
+                  </Pressable>
+                ))}
+              </View>
             )}
-            <Pressable onPress={() => setShowFamilyModal(true)} style={({ pressed }) => [{ ...styles.modalSecondaryButton, backgroundColor: getThemeAwareColor("#EFE8FB", colors) }, styles.addToFamilyButton, pressed && styles.pressed]}>
-              <MaterialIcons name={iconName("link")} size={18} color={colors.primary} />
-              <Text style={styles.modalSecondaryButtonText} numberOfLines={1}>
-                Add to Family
-              </Text>
-            </Pressable>
 
             <Text style={styles.modalFieldLabel}>Personal Profile</Text>
             <Pressable onPress={() => setDraftIsPersonal(!draftIsPersonal)} style={({ pressed }) => [styles.modalSecondaryButton, { backgroundColor: draftIsPersonal ? colors.primary : getThemeAwareColor("#EFE8FB", colors) }, pressed && styles.pressed]}>
@@ -1971,6 +1982,35 @@ function createStyles(themeColors: any) {
     color: DEEP_TEXT,
     fontSize: 14,
     fontWeight: "600",
+  },
+  familyChoiceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  familyChoice: {
+    minWidth: 104,
+    maxWidth: 150,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 13,
+    borderWidth: 1.5,
+  },
+  familyChoiceName: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  familyRoleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+  },
+  familyRolePill: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   familySelectItem: {
     paddingVertical: 12,

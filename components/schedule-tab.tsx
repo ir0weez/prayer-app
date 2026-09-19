@@ -4271,25 +4271,27 @@ export function ScheduleTab({
                   const expanded = expandedSavedArtists.includes(groupKey);
                   const previewAlbums = group.albums.slice(0, 3);
                   return (
-                    <View key={groupKey} style={{ width: '100%', marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: albumPalette.border, backgroundColor: expanded ? colors.background : albumPalette.surface }}>
+                    <View key={groupKey} style={{ width: '100%', marginBottom: 12, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: expanded ? colors.border : albumPalette.border, backgroundColor: expanded ? colors.background : albumPalette.surface }}>
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} saved albums by ${group.artist}`}
                         onPress={() => setExpandedSavedArtists((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}
-                        style={({ pressed }) => [{ minHeight: 104, flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: albumPalette.surface, opacity: pressed ? 0.75 : 1 }]}
+                        style={({ pressed }) => [{ minHeight: expanded ? 84 : 104, flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: expanded ? colors.background : albumPalette.surface, opacity: pressed ? 0.75 : 1 }]}
                       >
-                        <View style={{ width: 112, height: 76, position: 'relative', marginRight: 14 }}>
-                          {previewAlbums.slice().reverse().map((album, index) => (
-                            <View key={album.id} style={{ position: 'absolute', left: index * 14, top: index * 4, width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, borderWidth: 2, borderColor: colors.surface }}>
-                              {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={24} color={colors.muted} /></View>}
-                            </View>
-                          ))}
-                        </View>
+                        {!expanded && (
+                          <View style={{ width: 112, height: 76, position: 'relative', marginRight: 14 }}>
+                            {previewAlbums.slice().reverse().map((album, index) => (
+                              <View key={album.id} style={{ position: 'absolute', left: index * 14, top: index * 4, width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, borderWidth: 2, borderColor: colors.surface }}>
+                                {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={24} color={colors.muted} /></View>}
+                              </View>
+                            ))}
+                          </View>
+                        )}
                         <View style={{ flex: 1 }}>
-                          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{group.artist}</Text>
-                          <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, marginTop: 4 }}>{group.albums.length} saved albums</Text>
+                          <Text style={{ color: expanded ? colors.foreground : '#FFFFFF', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>{group.artist}</Text>
+                          <Text style={{ color: expanded ? colors.muted : 'rgba(255,255,255,0.72)', fontSize: 13, marginTop: 4 }}>{group.albums.length} saved albums</Text>
                         </View>
-                        <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={26} color="#FFFFFF" />
+                        <MaterialIcons name={expanded ? 'expand-less' : 'expand-more'} size={26} color={expanded ? colors.muted : '#FFFFFF'} />
                       </Pressable>
                       {expanded && (
                         <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>

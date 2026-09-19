@@ -4182,72 +4182,25 @@ export function ScheduleTab({
               <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{showSavedAlbumsOnly ? 'Saved Albums' : 'Album Library'}</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Saved Albums</Text>
               <View style={{ width: 28 }} />
             </View>
-            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
-              {(['saved', 'all'] as const).map((mode) => {
-                const selected = mode === 'saved' ? showSavedAlbumsOnly : !showSavedAlbumsOnly;
-                return <Pressable key={mode} onPress={() => setShowSavedAlbumsOnly(mode === 'saved')} style={({ pressed }) => [{ flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.primary : colors.background, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.7 : 1 }]}><Text style={{ color: selected ? '#FFFFFF' : colors.foreground, fontSize: 12, fontWeight: '700' }}>{mode === 'saved' ? 'Saved' : 'All albums'}</Text></Pressable>;
-              })}
-            </View>
-            <Text style={{ color: colors.muted, fontSize: 12, paddingHorizontal: 16, paddingTop: 10 }}>Choose a saved setlist to add a copy to {formatDateHeader(selectedDate).dayName} {formatDateHeader(selectedDate).monthName} {formatDateHeader(selectedDate).dayNum}.</Text>
-            <ScrollView style={[{ flex: 1, paddingHorizontal: 16 }]} showsVerticalScrollIndicator={false}>
-              <View style={[{ gap: 12, paddingVertical: 16 }]}> 
-                {(showSavedAlbumsOnly ? albumHistory.filter((album) => album.isSaved) : albumHistory).length === 0 ? (
-                  <Text style={[{ color: colors.muted, textAlign: 'center', marginTop: 24 }]}>{showSavedAlbumsOnly ? 'No saved albums yet. Expand an album and tap the star to save it.' : 'No albums saved yet.'}</Text>
+            <Text style={{ color: colors.muted, fontSize: 12, paddingHorizontal: 16, paddingTop: 10 }}>Tap an album cover to view its setlist.</Text>
+            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingVertical: 16 }}>
+                {albumHistory.filter((album) => album.isSaved).length === 0 ? (
+                  <Text style={{ color: colors.muted, textAlign: 'center', width: '100%', marginTop: 24 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
                 ) : (
-                  (showSavedAlbumsOnly ? albumHistory.filter((album) => album.isSaved) : albumHistory).map((album) => (
-                    <View
+                  albumHistory.filter((album) => album.isSaved).map((album) => (
+                    <Pressable
                       key={album.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: 12,
-                        borderRadius: 12,
-                        backgroundColor: currentDisplayAlbumId === album.id ? colors.primary + '20' : colors.background,
-                        borderWidth: 1,
-                        borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border,
-                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${album.title}`}
+                      onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
+                      style={({ pressed }) => [{ width: '30%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, borderWidth: 1, borderColor: currentDisplayAlbumId === album.id ? colors.primary : colors.border, opacity: pressed ? 0.7 : 1 }]}
                     >
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Display ${album.title}`}
-                        onPress={() => {
-                          setShowAlbumLibrary(false);
-                          setWorshipDetailAlbum(album);
-                        }}
-                        style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.7 : 1 }]}
-                      >
-                        {album.coverUrl ? (
-                          <Image source={{ uri: album.coverUrl }} style={[{ width: 60, height: 60, borderRadius: 8 }]} />
-                        ) : (
-                          <View style={[{ width: 60, height: 60, borderRadius: 8, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}> 
-                            <MaterialIcons name="music-note" size={28} color={colors.muted} />
-                          </View>
-                        )}
-                        <View style={[{ flex: 1, justifyContent: 'center', gap: 2 }]}> 
-                          <Text style={[{ fontSize: 14, fontWeight: '600', color: colors.foreground }]} numberOfLines={1}>{album.title}</Text>
-                          <Text style={[{ fontSize: 12, color: colors.muted }]} numberOfLines={1}>{album.artist}</Text>
-                        </View>
-                        {currentDisplayAlbumId === album.id && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
-                      </Pressable>
-                      <View style={{ gap: 2 }}>
-                        {album.isSaved && <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to this date`} onPress={() => void reAddSavedWorshipAlbum(album)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}>
-                          <MaterialIcons name="event" size={20} color={colors.primary} />
-                        </Pressable>}
-                        <Pressable accessibilityRole="button" accessibilityLabel={album.isSaved ? `Unsave ${album.title}` : `Save ${album.title}`} onPress={() => void toggleWorshipAlbumSaved(album.id)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
-                          <MaterialIcons name={album.isSaved ? 'star' : 'star-border'} size={20} color={album.isSaved ? colors.primary : colors.muted} />
-                        </Pressable>
-                        <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={() => openEditWorshipAlbum(album)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
-                          <MaterialIcons name="edit" size={19} color={colors.muted} />
-                        </Pressable>
-                        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${album.title}`} onPress={() => confirmDeleteWorshipAlbum(album.id)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
-                          <MaterialIcons name="delete-outline" size={20} color={colors.error} />
-                        </Pressable>
-                      </View>
-                    </View>
+                      {album.coverUrl ? <Image source={{ uri: album.coverUrl }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={30} color={colors.muted} /></View>}
+                    </Pressable>
                   ))
                 )}
               </View>

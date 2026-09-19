@@ -47,9 +47,9 @@ export function AlbumCard({
           <MaterialIcons name={sectionIcon} size={20} color={colors.primary} />
           <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>{sectionTitle}</Text>
           {onOpenLibrary && (
-            <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.65 : 1 }]}>
-              <MaterialIcons name="collections-bookmark" size={18} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Open saved albums" onPress={onOpenLibrary} style={({ pressed }) => [{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
+              <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved Albums</Text>
             </Pressable>
           )}
         </View>

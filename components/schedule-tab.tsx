@@ -4199,7 +4199,7 @@ export function ScheduleTab({
       {/* Saved Albums Library Page */}
       <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
         <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}>
-          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, maxHeight: '80%' }]}>
+          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, maxHeight: '80%', minHeight: 360 }]}> 
             <View style={scheduleStyles.formHeader}>
               <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />

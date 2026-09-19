@@ -317,6 +317,9 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[] }>();
+  const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
+  const handledEditPersonId = useRef<string | null>(null);
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -728,6 +731,19 @@ export default function HomeScreen() {
     // This prevents the sheet dismissal from swallowing the editor transition on web.
     setTimeout(() => setShowAddPerson(true), 0);
   };
+
+  useEffect(() => {
+    if (!editPersonIdParam) {
+      handledEditPersonId.current = null;
+      return;
+    }
+    if (!hasHydratedPeople || showAddPerson || handledEditPersonId.current === editPersonIdParam) return;
+    const person = people.find((candidate) => candidate.id === editPersonIdParam);
+    if (!person) return;
+    handledEditPersonId.current = editPersonIdParam;
+    openPersonEditor(person);
+    router.setParams({ editPersonId: undefined });
+  }, [editPersonIdParam, hasHydratedPeople, people, router, showAddPerson]);
 
   const handlePickNewPersonPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

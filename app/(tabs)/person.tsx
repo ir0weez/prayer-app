@@ -496,14 +496,7 @@ export default function PersonScreen() {
 
   const openEditModal = () => {
     if (!currentPerson) return;
-    setDraftName(currentPerson.name);
-    setDraftRelationship(currentPerson.relationship);
-    setDraftFamilyType(currentPerson.familyType);
-    setSelectedFamilyMemberIds(currentPerson.familyId ? people.filter((person) => person.familyId === currentPerson.familyId && person.id !== currentPerson.id).map((person) => person.id) : []);
-    setDraftBirthday(currentPerson.birthday ?? "");
-    setDraftPhotoUri(currentPerson.photoUri);
-    setDraftIsPersonal(currentPerson.isPersonal ?? false);
-    setShowEditModal(true);
+    router.replace({ pathname: "/(tabs)", params: { editPersonId: currentPerson.id } });
   };
 
   const handlePickPersonPhoto = async () => {

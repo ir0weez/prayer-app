@@ -89,6 +89,14 @@ import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/pr
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
+function VerifiedBadge() {
+  return (
+    <ReAnimated.View entering={FadeIn.duration(180).springify()} style={{ width: 19, height: 19, marginLeft: 6, borderRadius: 10, backgroundColor: "#1D9BF0", alignItems: "center", justifyContent: "center" }}>
+      <MaterialIcons name="check" size={13} color="#FFFFFF" />
+    </ReAnimated.View>
+  );
+}
+
 
 type RelationshipSection = {
   title: RelationshipType;
@@ -987,14 +995,19 @@ export default function HomeScreen() {
     const reachProgress = emergencyCountdown ? emergencyProgress : getReachProgressRatio(daysSince);
     const familyIndex = index ?? 0;
     const familyRelationship = relationshipColors[familyMembers[0]?.relationship] ?? relationshipColors.Family;
+    const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
+    const isFamilyComplete = completedMembers === familyMembers.length;
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
         <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? "#FFFFFF" : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={styles.personInfo}>
-          <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
+            {isFamilyComplete && <VerifiedBadge />}
+          </View>
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
-          <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>0 of {familyMembers.length} complete</Text>
+          <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>
         </View>
         {!isExpanded && <View style={{ marginLeft: 10, width: 58, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={46} /></View>}
         </Pressable>
@@ -1027,7 +1040,10 @@ export default function HomeScreen() {
         >
           {renderAvatar(person, 38)}
           <View style={styles.personInfo}>
-            <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName]}>{person.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName]}>{person.name}</Text>
+              {hasPersonCompletedPrayerToday(person, today) && <VerifiedBadge />}
+            </View>
             <Text numberOfLines={1} style={[styles.personMeta, styles.singlePersonMeta]}>
               {formatLastReachedSummary(person)}
             </Text>
@@ -1044,7 +1060,10 @@ export default function HomeScreen() {
                   </View>
                 )}
                 <Pressable
-                  onPress={() => setPeople((previousPeople) => hasPersonCompletedPrayerToday(person, today) ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id))}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setPeople((previousPeople) => hasPersonCompletedPrayerToday(person, today) ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id));
+                  }}
                   hitSlop={8}
                   style={({ pressed }) => [{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: relationshipStyle.accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
                 >
@@ -1286,7 +1305,10 @@ export default function HomeScreen() {
                                   )}
                                 </View>
                                 <Pressable
-                                  onPress={() => setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id))}
+                                  onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id));
+                                  }}
                                   hitSlop={8}
                                   style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
                                 >

@@ -57,6 +57,7 @@ import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
   getDisplayedWorshipAlbum,
+  getSavedAlbumLibraryEntries,
   getSavedAlbumGroupLead,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
@@ -1018,12 +1019,12 @@ export function ScheduleTab({
   const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
   const [expandedSavedArtists, setExpandedSavedArtists] = useState<string[]>([]);
   const savedAlbums = useMemo(() => {
-    const starred = albumHistory.filter((album) => album.isSaved);
-    const templates = starred.filter((album) => !album.date);
-    const datedFallbacks = starred.filter((album) => album.date && !templates.some((template) => template.title === album.title && template.artist === album.artist));
-    return [...templates, ...datedFallbacks].sort((a, b) => {
+    return getSavedAlbumLibraryEntries(albumHistory).sort((a, b) => {
       const artistOrder = (a.artist || "Unknown artist").localeCompare(b.artist || "Unknown artist");
       if (artistOrder !== 0) return artistOrder;
+      const aDate = a.date?.slice(0, 10) ?? "";
+      const bDate = b.date?.slice(0, 10) ?? "";
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
       const aTime = Date.parse(a.addedAt ?? a.createdAt ?? "") || 0;
       const bTime = Date.parse(b.addedAt ?? b.createdAt ?? "") || 0;
       return bTime - aTime;

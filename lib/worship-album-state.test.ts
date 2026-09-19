@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendAndSelectWorshipAlbum,
   getDisplayedWorshipAlbum,
+  getSavedAlbumLibraryEntries,
   getSavedAlbumGroupLead,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
@@ -85,5 +86,12 @@ describe("worship album display state", () => {
     const template = { ...userAlbum, id: "template", date: undefined, addedAt: "2026-09-19T00:00:00.000Z" };
 
     expect(getSavedAlbumGroupLead([older, template, recent], new Date(2026, 8, 19))?.id).toBe("recent-past");
+  });
+
+  it("prefers a dated saved occurrence over its undated reusable template", () => {
+    const template = { ...userAlbum, id: "template", date: undefined, isSaved: true };
+    const datedOccurrence = { ...userAlbum, id: "dated", date: "2026-09-19", isSaved: true };
+
+    expect(getSavedAlbumLibraryEntries([template, datedOccurrence]).map((album) => album.id)).toEqual(["dated"]);
   });
 });

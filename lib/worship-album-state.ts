@@ -49,6 +49,26 @@ export function getSavedAlbumGroupLead(
   })[0];
 }
 
+/** Returns one gallery entry per saved title/artist pair, preferring dated occurrences. */
+export function getSavedAlbumLibraryEntries(albums: StoredWorshipAlbum[]): StoredWorshipAlbum[] {
+  const entries = new Map<string, StoredWorshipAlbum>();
+  for (const album of albums.filter((candidate) => candidate.isSaved)) {
+    const key = `${album.artist.trim().toLocaleLowerCase()}::${album.title.trim().toLocaleLowerCase()}`;
+    const existing = entries.get(key);
+    if (!existing) {
+      entries.set(key, album);
+      continue;
+    }
+
+    const currentDate = existing.date?.slice(0, 10) ?? "";
+    const nextDate = album.date?.slice(0, 10) ?? "";
+    if (nextDate && (!currentDate || nextDate > currentDate || (nextDate === currentDate && getAlbumAddedTimestamp(album) > getAlbumAddedTimestamp(existing)))) {
+      entries.set(key, album);
+    }
+  }
+  return Array.from(entries.values());
+}
+
 const LEGACY_PLACEHOLDER_ALBUM_ID = "test-album-1";
 
 /** Removes the old seeded demo album while preserving every user-created album. */

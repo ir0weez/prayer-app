@@ -1083,7 +1083,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? "#FFFFFF" : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={styles.personInfo}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
@@ -1121,7 +1121,7 @@ export default function HomeScreen() {
         <Pressable
           onLongPress={() => handleContactLongPress(person)}
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
-          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}45`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
+          style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: colors.surface, borderColor: `${relationshipStyle.accent}65`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: colors.background }]}
         >
           {renderAvatar(person, 38)}
           <View style={styles.personInfo}>
@@ -1177,8 +1177,8 @@ export default function HomeScreen() {
   };
 
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: "#FFFFFF" }]}> 
-      <View style={[styles.header, { backgroundColor: "#FFFFFF", borderBottomColor: colors.border }]}> 
+    <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}> 
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}> 
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
           <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
@@ -2395,7 +2395,7 @@ function createStyles(colors: any) {
     borderColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   storyRingComplete: {
     borderColor: "#31C48D",
@@ -2412,7 +2412,7 @@ function createStyles(colors: any) {
     borderRadius: 14,
     borderWidth: 2,
     borderColor: "#D36B72",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },

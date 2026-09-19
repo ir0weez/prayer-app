@@ -71,7 +71,6 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
               <Text style={{ width: 24, color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '800', textAlign: 'center' }}>{index + 1}</Text>
               <View style={{ width: 38, height: 38, borderRadius: 7, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }}>{album.coverUrl ? <Image source={{ uri: album.coverUrl }} contentFit="cover" style={{ width: '100%', height: '100%' }} /> : null}</View>
               <View style={{ flex: 1 }}><Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }} numberOfLines={1}>{track.title}</Text>{track.key && <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 13, marginTop: 3 }}>Key of {track.key}</Text>}</View>
-              <MaterialIcons name="drag-handle" size={22} color="rgba(255,255,255,0.46)" />
             </View>
           )) : <Text style={{ color: 'rgba(255,255,255,0.62)', paddingHorizontal: 24, paddingVertical: 18 }}>No songs have been added to this setlist yet.</Text>}
           <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 18, marginTop: 24 }}>

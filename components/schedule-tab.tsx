@@ -2075,7 +2075,11 @@ export function ScheduleTab({
     const next = { albums: nextAlbums, selectedAlbumId: currentDisplayAlbumIdRef.current };
     albumHistoryRef.current = next.albums;
     setAlbumHistory(next.albums);
-    setWorshipDetailAlbum(updatedAlbum);
+    if (shouldSave) {
+      setWorshipDetailAlbum(updatedAlbum);
+    } else {
+      setWorshipDetailAlbum(null);
+    }
     await persistWorshipAlbumState(next.albums, currentDisplayAlbumIdRef.current);
   };
 

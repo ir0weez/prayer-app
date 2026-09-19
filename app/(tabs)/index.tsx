@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
+import { useAudioPlayer } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -292,6 +293,11 @@ function UndoCountdownBar({ color }: { color: string }) {
 }
 
 export default function HomeScreen() {
+  const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
+  const playVerifiedPop = () => {
+    verifiedPopPlayer.seekTo(0);
+    verifiedPopPlayer.play();
+  };
   const router = useRouter();
   const today = getTodayISOString();
   const todayDate = new Date();
@@ -739,6 +745,7 @@ export default function HomeScreen() {
 
   const commitPrayTodayPerson = useCallback((personId: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    playVerifiedPop();
     setCompletedPrayerAnimationId(personId);
     setPeople((previousPeople) => {
       const updatedPeople = markPersonPrayed(previousPeople, personId);
@@ -1062,6 +1069,7 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    if (!hasPersonCompletedPrayerToday(person, today)) playVerifiedPop();
                     setPeople((previousPeople) => hasPersonCompletedPrayerToday(person, today) ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id));
                   }}
                   hitSlop={8}
@@ -1307,6 +1315,7 @@ export default function HomeScreen() {
                                 <Pressable
                                   onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    if (!hasPersonCompletedPrayerToday(member, today)) playVerifiedPop();
                                     setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id));
                                   }}
                                   hitSlop={8}

@@ -2069,7 +2069,13 @@ export default function HomeScreen() {
           <Text style={styles.fieldLabel}>FAMILY MEMBERS (optional)</Text>
           <Text style={styles.fieldHint}>Select existing contacts to place this person in the same family card.</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 8 }}>
-            {people.filter((person) => person.id !== editingPersonId).map((person) => {
+            {people.filter((person) => {
+              if (person.id === editingPersonId) return false;
+              // Hide contacts already assigned to another family, while keeping
+              // members of the family currently being edited available.
+              const editingFamilyId = people.find((candidate) => candidate.id === editingPersonId)?.familyId;
+              return !person.familyId || person.familyId === editingFamilyId;
+            }).map((person) => {
               const selected = selectedFamilyMemberIds.includes(person.id);
               const accent = relationshipColors[person.relationship]?.accent || colors.primary;
               return (

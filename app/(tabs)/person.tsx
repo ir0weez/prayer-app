@@ -362,8 +362,8 @@ export default function PersonScreen() {
   );
 
   const otherPeople = useMemo(
-    () => people.filter((p) => p.id !== personId),
-    [people, personId],
+    () => people.filter((p) => p.id !== personId && (!p.familyId || p.familyId === currentPerson?.familyId)),
+    [people, personId, currentPerson?.familyId],
   );
 
   const familyMembers = useMemo(

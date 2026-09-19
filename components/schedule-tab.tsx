@@ -2652,11 +2652,11 @@ export function ScheduleTab({
                   tracks={currentAlbum.tracks}
                   coverUrl={currentAlbum.coverUrl}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
-                  onOpenDetails={() => setWorshipDetailAlbum(currentAlbum)}
                   onEdit={() => openEditWorshipAlbum(currentAlbum)}
                   isSaved={currentAlbum.isSaved}
                   onToggleSaved={() => void toggleWorshipAlbumSaved(currentAlbum.id)}
                   onDelete={() => confirmDeleteWorshipAlbum(currentAlbum.id)}
+                  onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
                 <Pressable
@@ -2807,15 +2807,6 @@ export function ScheduleTab({
               <Text style={scheduleStyles.headerMissedTodosText}>{missedTodos.length}</Text>
             </Pressable>
           )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open saved Worship albums"
-            onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
-            style={({ pressed }) => [{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
-          >
-            <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved</Text>
-          </Pressable>
           <Pressable
             onPress={() => setShowViewMenu(!showViewMenu)}
             style={({ pressed }) => [{

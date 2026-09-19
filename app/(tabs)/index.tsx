@@ -996,7 +996,7 @@ export default function HomeScreen() {
           <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>Last Reached:</Text>
           <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>0 of {familyMembers.length} complete</Text>
         </View>
-        {!isExpanded && <View style={{ marginLeft: 10, width: 48, height: 48, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={38} /></View>}
+        {!isExpanded && <View style={{ marginLeft: 10, width: 58, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "center" }}><StackedAvatar people={familyMembers} size={46} /></View>}
         </Pressable>
       </ReAnimated.View>
     );
@@ -1025,7 +1025,7 @@ export default function HomeScreen() {
           onPress={() => !isDragged && router.push({ pathname: "/person", params: { personId: person.id } })}
           style={({ pressed }) => [styles.personCard, styles.singlePersonCard, { backgroundColor: "#FFFFFF", borderColor: `${relationshipStyle.accent}45`, borderWidth: 1 }, pressed && !isDragged && styles.pressed, isDragged && { backgroundColor: "#F0E8FF" }]}
         >
-          {renderAvatar(person, 32)}
+          {renderAvatar(person, 38)}
           <View style={styles.personInfo}>
             <Text numberOfLines={1} style={[styles.personName, styles.singlePersonName]}>{person.name}</Text>
             <Text numberOfLines={1} style={[styles.personMeta, styles.singlePersonMeta]}>
@@ -2413,12 +2413,12 @@ function createStyles(colors: any) {
     marginBottom: 2,
   },
   singlePersonName: {
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 19,
   },
   singlePersonMeta: {
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
   },
   personActions: {
     alignItems: "center",

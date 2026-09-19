@@ -1015,6 +1015,12 @@ export function ScheduleTab({
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
   const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
+  const savedAlbums = useMemo(() => {
+    const starred = albumHistory.filter((album) => album.isSaved);
+    const templates = starred.filter((album) => !album.date);
+    const datedFallbacks = starred.filter((album) => album.date && !templates.some((template) => template.title === album.title && template.artist === album.artist));
+    return [...templates, ...datedFallbacks];
+  }, [albumHistory]);
 
   // Worship is intentionally date-scoped: changing days never carries a setlist forward.
   useEffect(() => {
@@ -2024,8 +2030,16 @@ export function ScheduleTab({
   const toggleWorshipAlbumSaved = async (albumId: string) => {
     const album = albumHistoryRef.current.find((candidate) => candidate.id === albumId);
     if (!album) return;
-    const updatedAlbum = { ...album, isSaved: !album.isSaved };
-    const next = upsertAndSelectWorshipAlbum(albumHistoryRef.current, updatedAlbum);
+    const shouldSave = !album.isSaved;
+    const updatedAlbum = { ...album, isSaved: shouldSave };
+    let nextAlbums = albumHistoryRef.current.map((candidate) => candidate.id === albumId ? updatedAlbum : candidate);
+    const templateId = `${album.id}-saved-template`;
+    if (shouldSave && album.date && !nextAlbums.some((candidate) => candidate.id === templateId)) {
+      nextAlbums = [...nextAlbums, { ...album, id: templateId, date: undefined, isSaved: true, addedAt: album.createdAt ?? album.addedAt }];
+    } else if (!shouldSave) {
+      nextAlbums = nextAlbums.filter((candidate) => candidate.id !== templateId);
+    }
+    const next = { albums: nextAlbums, selectedAlbumId: currentDisplayAlbumIdRef.current };
     albumHistoryRef.current = next.albums;
     setAlbumHistory(next.albums);
     setWorshipDetailAlbum(updatedAlbum);
@@ -4196,10 +4210,10 @@ export function ScheduleTab({
             <Text style={{ color: colors.muted, fontSize: 12, paddingHorizontal: 16, paddingTop: 10 }}>Tap an album cover to view its setlist.</Text>
             <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingVertical: 16 }}>
-                {albumHistory.filter((album) => album.isSaved).length === 0 ? (
+                {savedAlbums.length === 0 ? (
                   <Text style={{ color: colors.muted, textAlign: 'center', width: '100%', marginTop: 24 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
                 ) : (
-                  albumHistory.filter((album) => album.isSaved).map((album) => (
+                  savedAlbums.map((album) => (
                     <Pressable
                       key={album.id}
                       accessibilityRole="button"

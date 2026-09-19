@@ -6,6 +6,7 @@ export type StoredWorshipAlbum = {
   coverUrl?: string;
   spotifyUrl?: string;
   date?: string;
+  isSaved?: boolean;
   createdAt?: string;
   addedAt?: string;
 };

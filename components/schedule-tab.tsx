@@ -1012,6 +1012,7 @@ export function ScheduleTab({
     [albumHistory, currentDisplayAlbumId, selectedWorshipDate],
   );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
+  const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
 
   // Worship is intentionally date-scoped: changing days never carries a setlist forward.
   useEffect(() => {
@@ -1989,6 +1990,7 @@ export function ScheduleTab({
         coverUrl: formAlbumCoverImage || formSongLink.trim() || undefined,
         spotifyUrl: formSpotifyLink.trim() || undefined,
         date: formDate || selectedDate,
+        isSaved: existingAlbum?.isSaved ?? false,
         createdAt: existingAlbum?.createdAt ?? now,
         addedAt: existingAlbum?.addedAt ?? now,
       };
@@ -2015,6 +2017,37 @@ export function ScheduleTab({
     currentDisplayAlbumIdRef.current = albumId;
     setCurrentDisplayAlbumId(albumId);
     await persistWorshipAlbumState(albumHistoryRef.current, albumId);
+  };
+
+  const toggleWorshipAlbumSaved = async (albumId: string) => {
+    const album = albumHistoryRef.current.find((candidate) => candidate.id === albumId);
+    if (!album) return;
+    const updatedAlbum = { ...album, isSaved: !album.isSaved };
+    const next = upsertAndSelectWorshipAlbum(albumHistoryRef.current, updatedAlbum);
+    albumHistoryRef.current = next.albums;
+    setAlbumHistory(next.albums);
+    await persistWorshipAlbumState(next.albums, currentDisplayAlbumIdRef.current);
+  };
+
+  const reAddSavedWorshipAlbum = async (sourceAlbum: StoredWorshipAlbum) => {
+    const now = new Date().toISOString();
+    const copy: StoredWorshipAlbum = {
+      ...sourceAlbum,
+      id: generateId(),
+      date: selectedDate,
+      createdAt: now,
+      addedAt: now,
+      isSaved: true,
+      tracks: sourceAlbum.tracks?.map((track) => ({ ...track, id: generateId() })),
+    };
+    const next = upsertAndSelectWorshipAlbum(albumHistoryRef.current, copy);
+    albumHistoryRef.current = next.albums;
+    currentDisplayAlbumIdRef.current = next.selectedAlbumId;
+    setAlbumHistory(next.albums);
+    setCurrentDisplayAlbumId(next.selectedAlbumId);
+    await persistWorshipAlbumState(next.albums, next.selectedAlbumId);
+    setShowAlbumLibrary(false);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const confirmDeleteWorshipAlbum = (albumId: string) => {
@@ -2617,7 +2650,10 @@ export function ScheduleTab({
                   coverUrl={currentAlbum.coverUrl}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
                   onEdit={() => openEditWorshipAlbum(currentAlbum)}
+                  isSaved={currentAlbum.isSaved}
+                  onToggleSaved={() => void toggleWorshipAlbumSaved(currentAlbum.id)}
                   onDelete={() => confirmDeleteWorshipAlbum(currentAlbum.id)}
+                  onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
                 <Pressable
@@ -4128,15 +4164,22 @@ export function ScheduleTab({
               <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Album Library</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{showSavedAlbumsOnly ? 'Saved Albums' : 'Album Library'}</Text>
               <View style={{ width: 28 }} />
             </View>
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+              {(['saved', 'all'] as const).map((mode) => {
+                const selected = mode === 'saved' ? showSavedAlbumsOnly : !showSavedAlbumsOnly;
+                return <Pressable key={mode} onPress={() => setShowSavedAlbumsOnly(mode === 'saved')} style={({ pressed }) => [{ flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.primary : colors.background, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.7 : 1 }]}><Text style={{ color: selected ? '#FFFFFF' : colors.foreground, fontSize: 12, fontWeight: '700' }}>{mode === 'saved' ? 'Saved' : 'All albums'}</Text></Pressable>;
+              })}
+            </View>
+            <Text style={{ color: colors.muted, fontSize: 12, paddingHorizontal: 16, paddingTop: 10 }}>Choose a saved setlist to add a copy to {formatDateHeader(selectedDate).dayName} {formatDateHeader(selectedDate).monthName} {formatDateHeader(selectedDate).dayNum}.</Text>
             <ScrollView style={[{ flex: 1, paddingHorizontal: 16 }]} showsVerticalScrollIndicator={false}>
-              <View style={[{ gap: 12, paddingVertical: 16 }]}>
-                {albumHistory.length === 0 ? (
-                  <Text style={[{ color: colors.muted, textAlign: 'center', marginTop: 24 }]}>No albums saved yet</Text>
+              <View style={[{ gap: 12, paddingVertical: 16 }]}> 
+                {(showSavedAlbumsOnly ? albumHistory.filter((album) => album.isSaved) : albumHistory).length === 0 ? (
+                  <Text style={[{ color: colors.muted, textAlign: 'center', marginTop: 24 }]}>{showSavedAlbumsOnly ? 'No saved albums yet. Expand an album and tap the star to save it.' : 'No albums saved yet.'}</Text>
                 ) : (
-                  albumHistory.map((album) => (
+                  (showSavedAlbumsOnly ? albumHistory.filter((album) => album.isSaved) : albumHistory).map((album) => (
                     <View
                       key={album.id}
                       style={{
@@ -4173,6 +4216,12 @@ export function ScheduleTab({
                         {currentDisplayAlbumId === album.id && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
                       </Pressable>
                       <View style={{ gap: 2 }}>
+                        {album.isSaved && <Pressable accessibilityRole="button" accessibilityLabel={`Add ${album.title} to this date`} onPress={() => void reAddSavedWorshipAlbum(album)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}>
+                          <MaterialIcons name="event" size={20} color={colors.primary} />
+                        </Pressable>}
+                        <Pressable accessibilityRole="button" accessibilityLabel={album.isSaved ? `Unsave ${album.title}` : `Save ${album.title}`} onPress={() => void toggleWorshipAlbumSaved(album.id)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
+                          <MaterialIcons name={album.isSaved ? 'star' : 'star-border'} size={20} color={album.isSaved ? colors.primary : colors.muted} />
+                        </Pressable>
                         <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${album.title}`} onPress={() => openEditWorshipAlbum(album)} style={({ pressed }) => [{ padding: 7, opacity: pressed ? 0.55 : 1 }]}> 
                           <MaterialIcons name="edit" size={19} color={colors.muted} />
                         </Pressable>

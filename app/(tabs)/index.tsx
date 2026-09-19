@@ -4,12 +4,15 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
@@ -1587,6 +1590,76 @@ export default function HomeScreen() {
     });
   };
 
+  const handleExportData = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const entries = await AsyncStorage.multiGet(keys);
+      const storage: Record<string, string | null> = {};
+      entries.forEach(([key, value]) => { storage[key] = value; });
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage }, null, 2);
+      const filename = `prayercircle-backup-${getTodayISOString()}.json`;
+      const uri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
+      if (Platform.OS !== "web" && await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: "application/json", dialogTitle: "Export PrayerCircle backup" });
+      } else {
+        await Share.share({ title: filename, message: payload });
+      }
+    } catch (error) {
+      console.error("PrayerCircle export failed", error);
+      Alert.alert("Export failed", "PrayerCircle could not create the backup file. Please try again.");
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || (parsed as { format?: unknown }).format !== "prayercircle-backup") {
+        Alert.alert("Invalid backup", "Choose a PrayerCircle JSON backup file.");
+        return;
+      }
+      const storageValue = (parsed as { storage?: unknown }).storage;
+      if (!storageValue || typeof storageValue !== "object" || Array.isArray(storageValue)) {
+        Alert.alert("Invalid backup", "This backup does not contain valid app data.");
+        return;
+      }
+      const entries = Object.entries(storageValue as Record<string, unknown>);
+      if (!entries.every(([, value]) => value === null || typeof value === "string")) {
+        Alert.alert("Invalid backup", "Some backup values are not valid JSON strings.");
+        return;
+      }
+      Alert.alert("Restore backup?", "This will replace the data currently stored on this device.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Restore", style: "destructive", onPress: async () => {
+          try {
+            await AsyncStorage.multiSet(entries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+            const imported = Object.fromEntries(entries);
+            const readJson = <T,>(key: string, fallback: T): T => {
+              try { return imported[key] ? JSON.parse(imported[key] as string) as T : fallback; } catch { return fallback; }
+            };
+            setPeople(readJson(PEOPLE_STORAGE_KEY, []));
+            setJournal(readJson(JOURNAL_STORAGE_KEY, []));
+            setFasts(readJson(FASTS_STORAGE_KEY, []));
+            setStreakRecord(readJson(PRAYER_STREAK_STORAGE_KEY, { streak: 0, lastCompletedDate: null }));
+            setProfile(readJson(PROFILE_STORAGE_KEY, DEFAULT_PROFILE));
+            setSettings(readJson(APP_SETTINGS_STORAGE_KEY, settings));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert("Backup restored", "Your PrayerCircle data has been restored. Reopen the Schedule tab to refresh imported schedule or worship data.");
+          } catch (error) {
+            console.error("PrayerCircle import failed", error);
+            Alert.alert("Restore failed", "PrayerCircle could not restore that backup.");
+          }
+        } },
+      ]);
+    } catch (error) {
+      console.error("PrayerCircle import failed", error);
+      Alert.alert("Import failed", "PrayerCircle could not read that backup file.");
+    }
+  };
+
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
@@ -1678,7 +1751,13 @@ export default function HomeScreen() {
 
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}> 
+        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+          {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
+        </Pressable>
+        <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+          {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
+        </Pressable>
         <Pressable onPress={() => {
           Alert.alert("Reset Today's Prayers", "Uncheck all items for today?", [
             { text: "Cancel", style: "cancel" },

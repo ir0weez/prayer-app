@@ -10,7 +10,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, ZoomIn, SlideInUp, withTiming, withSpring, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
@@ -91,8 +91,8 @@ type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
 function VerifiedBadge() {
   return (
-    <ReAnimated.View entering={FadeIn.duration(180).springify()} style={{ width: 19, height: 19, marginLeft: 6, borderRadius: 10, backgroundColor: "#1D9BF0", alignItems: "center", justifyContent: "center" }}>
-      <MaterialIcons name="check" size={13} color="#FFFFFF" />
+    <ReAnimated.View entering={ZoomIn.duration(260).springify().damping(10)} style={{ marginLeft: 6, alignItems: "center", justifyContent: "center" }}>
+      <MaterialIcons name="verified" size={21} color="#1D9BF0" />
     </ReAnimated.View>
   );
 }

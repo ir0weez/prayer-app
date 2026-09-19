@@ -91,7 +91,7 @@ type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
 function VerifiedBadge() {
   return (
-    <ReAnimated.View entering={ZoomIn.duration(260).springify().damping(10)} style={{ marginLeft: 6, alignItems: "center", justifyContent: "center" }}>
+    <ReAnimated.View entering={ZoomIn.duration(420).springify().damping(6).stiffness(180).mass(0.65)} style={{ marginLeft: 6, alignItems: "center", justifyContent: "center" }}>
       <MaterialIcons name="verified" size={21} color="#1D9BF0" />
     </ReAnimated.View>
   );

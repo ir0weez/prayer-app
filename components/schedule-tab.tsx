@@ -4166,11 +4166,11 @@ export function ScheduleTab({
         onClose={() => setWorshipDetailAlbum(null)}
         onAddToDate={() => worshipDetailAlbum && void reAddSavedWorshipAlbum(worshipDetailAlbum)}
         onToggleSaved={() => worshipDetailAlbum && void toggleWorshipAlbumSaved(worshipDetailAlbum.id)}
-        onDelete={() => {
+        onEdit={() => {
           if (!worshipDetailAlbum) return;
-          const albumId = worshipDetailAlbum.id;
+          const album = worshipDetailAlbum;
           setWorshipDetailAlbum(null);
-          confirmDeleteWorshipAlbum(albumId);
+          openEditWorshipAlbum(album);
         }}
       />
 

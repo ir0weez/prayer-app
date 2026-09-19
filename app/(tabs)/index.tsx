@@ -714,6 +714,7 @@ export default function HomeScreen() {
   };
 
   const openPersonEditor = (person: Person) => {
+    setActiveTab("people");
     setEditingPersonId(person.id);
     setNewPersonName(person.name);
     setNewPersonRelationship(person.relationship);
@@ -723,7 +724,9 @@ export default function HomeScreen() {
     setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
     setSelectedFamilyMemberIds(people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId && candidate.id !== person.id).map((candidate) => candidate.id));
     setNewPersonFamilyType(person.familyType);
-    setShowAddPerson(true);
+    // Defer the screen switch by one tick when launched from an action sheet.
+    // This prevents the sheet dismissal from swallowing the editor transition on web.
+    setTimeout(() => setShowAddPerson(true), 0);
   };
 
   const handlePickNewPersonPhoto = async () => {
@@ -2198,7 +2201,7 @@ export default function HomeScreen() {
               <Pressable onPress={() => setFamilyActionMembers(null)}><MaterialIcons name={iconName("close")} size={26} color={colors.foreground} /></Pressable>
             </View>
             <Text style={styles.fieldHint}>What would you like to do with this group?</Text>
-            <Pressable onPress={() => { const firstMember = familyActionMembers?.[0]; setFamilyActionMembers(null); if (firstMember) openPersonEditor(firstMember); }} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
+            <Pressable onPress={() => { const firstMember = familyActionMembers?.[0]; setFamilyActionMembers(null); if (firstMember) setTimeout(() => openPersonEditor(firstMember), 0); }} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
               <MaterialIcons name={iconName("edit")} size={21} color="#FFFFFF" />
               <Text style={styles.createFastButtonText}>Edit Group</Text>
             </Pressable>

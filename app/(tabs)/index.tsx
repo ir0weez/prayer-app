@@ -413,6 +413,7 @@ export default function HomeScreen() {
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
   const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+  const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
 
@@ -1030,17 +1031,7 @@ export default function HomeScreen() {
   };
 
   const handleFamilyLongPress = (familyMembers: Person[]) => {
-    const familyIds = new Set(familyMembers.map((member) => member.id));
-    const familyName = familyMembers[0]?.familyName || "Family";
-    Alert.alert(familyName, "What would you like to do?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Edit", onPress: () => familyMembers[0] && openPersonEditor(familyMembers[0]) },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => setPeople((previousPeople) => previousPeople.filter((candidate) => !familyIds.has(candidate.id))),
-      },
-    ]);
+    setFamilyActionMembers(familyMembers);
   };
 
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
@@ -2187,6 +2178,36 @@ export default function HomeScreen() {
                 <Text style={styles.createFastButtonText}>{editingFastId ? "Save Changes" : "Create Fast"}</Text>
               </Pressable>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={familyActionMembers !== null} animationType="fade" onRequestClose={() => setFamilyActionMembers(null)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setFamilyActionMembers(null)} />
+          <View style={[styles.themeSheet, { paddingBottom: 24 }]}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>{familyActionMembers?.[0]?.familyName || "Family"}</Text>
+              <Pressable onPress={() => setFamilyActionMembers(null)}><MaterialIcons name={iconName("close")} size={26} color={colors.foreground} /></Pressable>
+            </View>
+            <Text style={styles.fieldHint}>What would you like to do with this group?</Text>
+            <Pressable onPress={() => { const firstMember = familyActionMembers?.[0]; setFamilyActionMembers(null); if (firstMember) openPersonEditor(firstMember); }} style={({ pressed }) => [styles.createFastButton, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("edit")} size={21} color="#FFFFFF" />
+              <Text style={styles.createFastButtonText}>Edit Group</Text>
+            </Pressable>
+            <Pressable onPress={() => {
+              const familyIds = new Set((familyActionMembers || []).map((member) => member.id));
+              const updatedPeople = people.filter((person) => !familyIds.has(person.id));
+              setPeople(updatedPeople);
+              AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+              setFamilyActionMembers(null);
+            }} style={({ pressed }) => [styles.createFastButton, { backgroundColor: "#C75265", marginTop: 10 }, pressed && styles.pressed]}>
+              <MaterialIcons name={iconName("delete-outline")} size={21} color="#FFFFFF" />
+              <Text style={styles.createFastButtonText}>Delete Group</Text>
+            </Pressable>
+            <Pressable onPress={() => setFamilyActionMembers(null)} style={({ pressed }) => [{ marginTop: 10, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface }, pressed && styles.pressed]}>
+              <Text style={{ color: colors.primary, fontWeight: "800", fontSize: 15 }}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>

@@ -1376,7 +1376,11 @@ export default function HomeScreen() {
                                 <Pressable
                                   onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    if (!hasPersonCompletedPrayerToday(member, today)) playVerifiedPop();
+                                    const memberIsComplete = hasPersonCompletedPrayerToday(member, today);
+                                    const completedMembers = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length;
+                                    // Grouped cards stay silent while checking individual members.
+                                    // Play the pop only when this tap completes the entire group.
+                                    if (!memberIsComplete && completedMembers === familyMembers.length - 1) playVerifiedPop();
                                     setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id));
                                   }}
                                   hitSlop={8}

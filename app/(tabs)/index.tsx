@@ -88,6 +88,7 @@ import {
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -117,11 +118,6 @@ type RelationshipSection = {
   title: RelationshipType;
   people: Person[];
   familyGroups?: Person[][];
-};
-
-type PrayerStreakRecord = {
-  streak: number;
-  lastCompletedDate: string | null;
 };
 
 type AppSettings = {
@@ -196,20 +192,10 @@ function getReachProgressRatio(daysSince: number) {
 }
 
 
-function getYesterdayISOString(today: string) {
-  const date = new Date(`${today}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().split("T")[0];
-}
-
 function parseStoredStreak(value: string | null): PrayerStreakRecord {
   if (!value) return { streak: 0, lastCompletedDate: null };
   try {
-    const parsed = JSON.parse(value) as Partial<PrayerStreakRecord>;
-    return {
-      streak: typeof parsed.streak === "number" && parsed.streak > 0 ? parsed.streak : 0,
-      lastCompletedDate: typeof parsed.lastCompletedDate === "string" ? parsed.lastCompletedDate : null,
-    };
+    return normalizePrayerStreakRecord(JSON.parse(value), getTodayISOString());
   } catch {
     return { streak: 0, lastCompletedDate: null };
   }
@@ -819,8 +805,7 @@ export default function HomeScreen() {
 
     setStreakRecord((previousRecord) => {
       if (previousRecord.lastCompletedDate === today) return previousRecord;
-      const nextStreak = previousRecord.lastCompletedDate === getYesterdayISOString(today) ? previousRecord.streak + 1 : 1;
-      return { streak: nextStreak, lastCompletedDate: today };
+      return advancePrayerStreak(previousRecord, today);
     });
   }, [today, todayDayOfMonth, todayDayOfWeek]);
 
@@ -1596,7 +1581,7 @@ export default function HomeScreen() {
   const handleCompletePersonalPrayer = () => {
     setProfile((previous) => {
       if (previous.lastPersonalPrayerDate === today) return previous;
-      const nextStreak = previous.lastPersonalPrayerDate === getYesterdayISOString(today) ? previous.personalPrayerStreak + 1 : 1;
+      const nextStreak = previous.lastPersonalPrayerDate === getPreviousDate(today) ? previous.personalPrayerStreak + 1 : 1;
       return { ...previous, personalPrayerStreak: nextStreak, lastPersonalPrayerDate: today };
     });
   };

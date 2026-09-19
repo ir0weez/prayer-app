@@ -51,6 +51,7 @@ import {
   relationshipColors,
   groupIntoFamily,
   ungroupFromFamily,
+  removePerson,
   removeExpiredEmergencyPrayersFromAll,
   getEmergencyPrayerTimeRemaining,
   formatEmergencyPrayerCountdown,
@@ -344,11 +345,14 @@ export default function HomeScreen() {
   const [journal, setJournal] = useState<PrayerJournalEntry[]>([]);
   const { setColorScheme } = useThemeContext();
   const [showAddPerson, setShowAddPerson] = useState(false);
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [newPersonName, setNewPersonName] = useState("");
   const [newPersonRelationship, setNewPersonRelationship] = useState<RelationshipType>("family" as RelationshipType);
   const [newPersonCustomRelationship, setNewPersonCustomRelationship] = useState("");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
+  const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
+  const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
@@ -697,12 +701,28 @@ export default function HomeScreen() {
 
 
   const resetAddPersonForm = () => {
+    setEditingPersonId(null);
     setNewPersonName("");
     setNewPersonRelationship("Family");
     setNewPersonCustomRelationship("");
     setNewPersonBirthday("");
     setNewPersonPhotoUri(undefined);
+    setSelectedFamilyMemberIds([]);
+    setNewPersonFamilyType(undefined);
     setShowCustomRelationshipInput(false);
+  };
+
+  const openPersonEditor = (person: Person) => {
+    setEditingPersonId(person.id);
+    setNewPersonName(person.name);
+    setNewPersonRelationship(person.relationship);
+    setNewPersonCustomRelationship(RELATIONSHIP_ORDER.includes(person.relationship) ? "" : person.relationship);
+    setNewPersonBirthday(person.birthday ? formatIsoDateForDisplay(person.birthday) : "");
+    setNewPersonPhotoUri(person.photoUri);
+    setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
+    setSelectedFamilyMemberIds(people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId && candidate.id !== person.id).map((candidate) => candidate.id));
+    setNewPersonFamilyType(person.familyType);
+    setShowAddPerson(true);
   };
 
   const handlePickNewPersonPhoto = async () => {
@@ -718,7 +738,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleAddPerson = () => {
+  const handleSavePerson = () => {
     if (!newPersonName.trim()) return;
     const normalizedBirthday = normalizeBirthdayInput(newPersonBirthday);
     if (normalizedBirthday === null) {
@@ -728,24 +748,48 @@ export default function HomeScreen() {
 
     // Use custom relationship if provided, otherwise use selected preset
     const finalRelationship = newPersonCustomRelationship.trim() || newPersonRelationship;
-    const updatedPeople = addPerson(people, newPersonName, finalRelationship as RelationshipType, {
-      birthday: normalizedBirthday,
-      reminderFrequency: "none",
-      reminderDaysOfWeek: [],
-      photoUri: newPersonPhotoUri,
-      avatarLabel: newPersonName
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2),
-    });
+    let updatedPeople: Person[];
+    if (editingPersonId) {
+      updatedPeople = people.map((person) => person.id === editingPersonId
+        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonPhotoUri, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType }
+        : person);
+      updatedPeople = selectedFamilyMemberIds.length > 0
+        ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : updatedPeople.find((person) => person.id === id)?.familyType])))
+        : ungroupFromFamily(updatedPeople, editingPersonId);
+    } else {
+      updatedPeople = addPerson(people, newPersonName, finalRelationship as RelationshipType, {
+        birthday: normalizedBirthday,
+        reminderFrequency: "none",
+        reminderDaysOfWeek: [],
+        photoUri: newPersonPhotoUri,
+        avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2),
+      });
+      const createdPerson = updatedPeople.find((person) => !people.some((existing) => existing.id === person.id));
+      if (createdPerson && selectedFamilyMemberIds.length > 0) {
+        updatedPeople = groupIntoFamily(updatedPeople, [createdPerson.id, ...selectedFamilyMemberIds], { [createdPerson.id]: newPersonFamilyType });
+      }
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople(updatedPeople);
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(updatedPeople)).catch(() => undefined);
     resetAddPersonForm();
     setActiveTab("people");
     setShowAddPerson(false);
+  };
+
+  const handleDeleteEditedPerson = () => {
+    if (!editingPersonId) return;
+    const person = people.find((candidate) => candidate.id === editingPersonId);
+    Alert.alert("Delete contact?", `Remove ${person?.name || "this contact"} from your prayer circle?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => {
+        const updatedPeople = removePerson(people, editingPersonId);
+        setPeople(updatedPeople);
+        AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+        resetAddPersonForm();
+        setShowAddPerson(false);
+      } },
+    ]);
   };
 
   const maybeAdvanceStreak = useCallback((updatedPeople: Person[]) => {
@@ -976,7 +1020,7 @@ export default function HomeScreen() {
   const handleContactLongPress = (person: Person) => {
     Alert.alert(person.name, "What would you like to do?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Edit", onPress: () => router.push({ pathname: "/person", params: { personId: person.id } }) },
+      { text: "Edit", onPress: () => openPersonEditor(person) },
       {
         text: "Delete",
         style: "destructive",
@@ -990,7 +1034,7 @@ export default function HomeScreen() {
     const familyName = familyMembers[0]?.familyName || "Family";
     Alert.alert(familyName, "What would you like to do?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Edit", onPress: () => familyMembers[0] && router.push({ pathname: "/person", params: { personId: familyMembers[0].id } }) },
+      { text: "Edit", onPress: () => familyMembers[0] && openPersonEditor(familyMembers[0]) },
       {
         text: "Delete",
         style: "destructive",
@@ -1933,10 +1977,10 @@ export default function HomeScreen() {
           <Pressable onPress={() => setShowAddPerson(false)} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("close")} size={30} color="#46525D" />
           </Pressable>
-          <Text style={styles.addTitle}>Add Person</Text>
-          <Pressable onPress={handleAddPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
+          <Text style={styles.addTitle}>{editingPersonId ? "Edit Person" : "Add Person"}</Text>
+          {editingPersonId ? <Pressable onPress={handleDeleteEditedPerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}><MaterialIcons name={iconName("delete-outline")} size={24} color="#C75265" /></Pressable> : <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
             <Text style={styles.saveButtonText}>Save</Text>
-          </Pressable>
+          </Pressable>}
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.addContent}>
@@ -2001,6 +2045,33 @@ export default function HomeScreen() {
             />
           )}
 
+          <Text style={styles.fieldLabel}>FAMILY MEMBERS (optional)</Text>
+          <Text style={styles.fieldHint}>Select existing contacts to place this person in the same family card.</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 8 }}>
+            {people.filter((person) => person.id !== editingPersonId).map((person) => {
+              const selected = selectedFamilyMemberIds.includes(person.id);
+              const accent = relationshipColors[person.relationship]?.accent || colors.primary;
+              return (
+                <Pressable key={person.id} onPress={() => setSelectedFamilyMemberIds((current) => selected ? current.filter((id) => id !== person.id) : [...current, person.id])} style={({ pressed }) => [{ minWidth: 86, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14, borderWidth: 1.5, borderColor: accent, backgroundColor: selected ? accent : colors.background, alignItems: "center" }, pressed && styles.pressed]}>
+                  <Text numberOfLines={1} style={{ maxWidth: 100, color: selected ? "#FFFFFF" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{person.name}</Text>
+                  <Text style={{ color: selected ? "rgba(255,255,255,0.82)" : colors.muted, fontSize: 10 }}>{person.relationship}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {selectedFamilyMemberIds.length > 0 && (
+            <>
+              <Text style={styles.fieldLabel}>FAMILY ROLE</Text>
+              <View style={styles.relationshipPills}>
+                {(["Spouse", "Child", "Other"] as const).map((familyType) => (
+                  <Pressable key={familyType} onPress={() => setNewPersonFamilyType(familyType)} style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, newPersonFamilyType === familyType && { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+                    <Text style={[styles.relationshipPillText, { color: colors.primary }, newPersonFamilyType === familyType && styles.relationshipPillTextActive]}>{familyType}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
           <Text style={styles.fieldLabel}>BIRTHDAY (optional)</Text>
           <TextInput
             value={newPersonBirthday}
@@ -2011,6 +2082,10 @@ export default function HomeScreen() {
             style={styles.textInput}
           />
           <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
+
+          <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, pressed && styles.pressed]}>
+            <Text style={styles.createFastButtonText}>{editingPersonId ? "Save Changes" : "Create Contact"}</Text>
+          </Pressable>
 
         </ScrollView>
       </ScreenContainer>

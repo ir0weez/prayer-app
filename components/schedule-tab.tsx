@@ -48,6 +48,7 @@ import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
+import { WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
@@ -1013,6 +1014,7 @@ export function ScheduleTab({
   );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
+  const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
 
   // Worship is intentionally date-scoped: changing days never carries a setlist forward.
   useEffect(() => {
@@ -2026,6 +2028,7 @@ export function ScheduleTab({
     const next = upsertAndSelectWorshipAlbum(albumHistoryRef.current, updatedAlbum);
     albumHistoryRef.current = next.albums;
     setAlbumHistory(next.albums);
+    setWorshipDetailAlbum(updatedAlbum);
     await persistWorshipAlbumState(next.albums, currentDisplayAlbumIdRef.current);
   };
 
@@ -2649,11 +2652,11 @@ export function ScheduleTab({
                   tracks={currentAlbum.tracks}
                   coverUrl={currentAlbum.coverUrl}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
+                  onOpenDetails={() => setWorshipDetailAlbum(currentAlbum)}
                   onEdit={() => openEditWorshipAlbum(currentAlbum)}
                   isSaved={currentAlbum.isSaved}
                   onToggleSaved={() => void toggleWorshipAlbumSaved(currentAlbum.id)}
                   onDelete={() => confirmDeleteWorshipAlbum(currentAlbum.id)}
-                  onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
                 />
               ) : (
                 <Pressable
@@ -2804,6 +2807,15 @@ export function ScheduleTab({
               <Text style={scheduleStyles.headerMissedTodosText}>{missedTodos.length}</Text>
             </Pressable>
           )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open saved Worship albums"
+            onPress={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
+            style={({ pressed }) => [{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <MaterialIcons name="collections-bookmark" size={17} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Saved</Text>
+          </Pressable>
           <Pressable
             onPress={() => setShowViewMenu(!showViewMenu)}
             style={({ pressed }) => [{
@@ -4156,7 +4168,22 @@ export function ScheduleTab({
         </View>
       </Modal>
 
-      {/* Album Library Modal */}
+      <WorshipAlbumDetail
+        album={worshipDetailAlbum}
+        visible={Boolean(worshipDetailAlbum)}
+        dateLabel={`${formatDateHeader(selectedDate).dayName} ${formatDateHeader(selectedDate).monthName} ${formatDateHeader(selectedDate).dayNum}`}
+        onClose={() => setWorshipDetailAlbum(null)}
+        onAddToDate={() => worshipDetailAlbum && void reAddSavedWorshipAlbum(worshipDetailAlbum)}
+        onToggleSaved={() => worshipDetailAlbum && void toggleWorshipAlbumSaved(worshipDetailAlbum.id)}
+        onDelete={() => {
+          if (!worshipDetailAlbum) return;
+          const albumId = worshipDetailAlbum.id;
+          setWorshipDetailAlbum(null);
+          confirmDeleteWorshipAlbum(albumId);
+        }}
+      />
+
+      {/* Saved Albums Library Page */}
       <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
         <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}>
           <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, maxHeight: '80%' }]}>
@@ -4196,9 +4223,9 @@ export function ScheduleTab({
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`Display ${album.title}`}
-                        onPress={async () => {
-                          await selectWorshipAlbum(album.id);
+                        onPress={() => {
                           setShowAlbumLibrary(false);
+                          setWorshipDetailAlbum(album);
                         }}
                         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.7 : 1 }]}
                       >

@@ -10,6 +10,7 @@ export interface AlbumCardProps {
   tracks?: Array<{ id: string; title: string; key?: string }>;
   coverUrl?: string;
   onOpen?: () => void;
+  onOpenDetails?: () => void;
   onEdit?: () => void;
   onToggleSaved?: () => void;
   isSaved?: boolean;
@@ -25,6 +26,7 @@ export function AlbumCard({
   tracks = [],
   coverUrl,
   onOpen,
+  onOpenDetails,
   onEdit,
   onToggleSaved,
   isSaved = false,
@@ -52,7 +54,7 @@ export function AlbumCard({
           )}
         </View>
       )}
-      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => hasActions && setExpanded((value) => !value)} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && setExpanded((value) => !value)} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
         <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}>
           {!imageError && coverUrl ? (
             <Image source={{ uri: coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" onError={() => setImageError(true)} />

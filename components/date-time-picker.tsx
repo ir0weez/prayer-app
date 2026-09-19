@@ -77,8 +77,8 @@ export function DateTimePicker({
     const currentYear = today.getFullYear();
     const days = Array.from({ length: 31 }, (_, i) => i + 1);
     const months = Array.from({ length: 12 }, (_, i) => i);
-    // Keep historical dates available while still allowing forward planning.
-    const years = Array.from({ length: 31 }, (_, i) => currentYear - 20 + i);
+    // Keep the full 1900s available while still allowing forward planning.
+    const years = Array.from({ length: currentYear + 10 - 1900 + 1 }, (_, i) => 1900 + i);
 
     return (
       <View style={[pickerStyles.container, { backgroundColor: colors.background }]}>

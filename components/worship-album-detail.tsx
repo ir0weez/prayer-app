@@ -54,7 +54,7 @@ export function WorshipAlbumDetail({ album, visible, dateLabel, onClose, onAddTo
           </Pressable>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 34 }}>
-          <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 24 }}>
+          <View style={{ alignItems: 'center', paddingTop: 0, paddingBottom: 24 }}>
             <View style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').width, overflow: 'hidden', backgroundColor: colors.surface, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 8 }}>
               {album.coverUrl ? <Image source={{ uri: album.coverUrl }} contentFit="cover" style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><MaterialIcons name="music-note" size={90} color={colors.primary} /></View>}
             </View>

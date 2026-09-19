@@ -48,6 +48,16 @@ export function DateTimePicker({
     }
   };
 
+  const getCompactDateParts = () => {
+    const [year, month, day] = value.split('-');
+    if (!year || !month || !day) return null;
+    const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+    return {
+      monthDay: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      year,
+    };
+  };
+
   const handleDateChange = (day: number, month: number, year: number) => {
     // Use local timezone instead of UTC to avoid date shift
     const date = new Date(year, month, day);
@@ -287,23 +297,36 @@ export function DateTimePicker({
         style={[
           pickerStyles.input,
           compact
-            ? { borderColor: colors.border, backgroundColor: colors.surface, marginBottom: 0, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 }
+            ? { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', marginBottom: 0, paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0, alignItems: 'flex-end' }
             : { borderColor: colors.border, backgroundColor: colors.surface },
         ]}
       >
-        <MaterialIcons
-          name={mode === "date" ? "calendar-today" : "schedule"}
-          size={20}
-          color={colors.muted}
-        />
-        <Text
-        style={[
-          pickerStyles.inputText,
-          { color: value ? colors.foreground : colors.muted, fontSize: compact ? 13 : 14, fontWeight: compact ? "700" : "400" },
-        ]}
-        >
-          {formatDisplay()}
-        </Text>
+        {compact && mode === "date" ? (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ color: colors.muted, fontSize: 15, fontWeight: '500' }}>
+              {getCompactDateParts()?.monthDay ?? 'Select date'}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 15, fontWeight: '500' }}>
+              {getCompactDateParts()?.year ?? ''}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <MaterialIcons
+              name={mode === "date" ? "calendar-today" : "schedule"}
+              size={20}
+              color={colors.muted}
+            />
+            <Text
+              style={[
+                pickerStyles.inputText,
+                { color: value ? colors.foreground : colors.muted, fontSize: compact ? 13 : 14, fontWeight: compact ? "700" : "400" },
+              ]}
+            >
+              {formatDisplay()}
+            </Text>
+          </>
+        )}
       </Pressable>
 
       <Modal

@@ -38,8 +38,18 @@ const env = {
   androidPackage: bundleId,
 };
 
+// Build variant: set APP_VARIANT=test (e.g. in CI) to produce a separately
+// installable test build. It gets its own app name and package id so it
+// installs alongside the production app instead of clashing with it
+// (Android refuses to install an update signed with a different key).
+const isTestBuild = process.env.APP_VARIANT === "test";
+const appName = isTestBuild ? "PrayerCircle Test" : env.appName;
+const androidPackage = isTestBuild
+  ? `${env.androidPackage}.test`
+  : env.androidPackage;
+
 const config: ExpoConfig = {
-  name: env.appName,
+  name: appName,
   slug: env.appSlug,
   version: "1.0.0",
   orientation: "portrait",
@@ -63,7 +73,7 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
-    package: env.androidPackage,
+    package: androidPackage,
     permissions: ["POST_NOTIFICATIONS"],
     intentFilters: [
       {

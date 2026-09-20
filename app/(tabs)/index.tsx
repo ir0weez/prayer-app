@@ -32,6 +32,7 @@ import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import {
   addPerson,
+  addEmergencyPrayer,
   formatDaysSinceLastPrayer,
   formatIsoDateForDisplay,
   formatLastReachedSummary,
@@ -407,6 +408,7 @@ export default function HomeScreen() {
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
+  const [avatarActionPersonId, setAvatarActionPersonId] = useState<string | null>(null);
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -912,6 +914,18 @@ export default function HomeScreen() {
     });
   };
 
+  const handleEmergencyPrayer = (personId: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setPeople((previousPeople) => {
+      const updatedPeople = previousPeople.map((person) =>
+        person.id === personId ? addEmergencyPrayer(person, "24-hour emergency prayer", 24) : person,
+      );
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+    setAvatarActionPersonId(null);
+  };
+
   const renderAvatar = (person: Person, size: number, story = false) => {
     const label = getAvatarText(person);
     const isEmoji = /\p{Emoji}/u.test(label);
@@ -991,18 +1005,38 @@ export default function HomeScreen() {
         <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        {!isPending && <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(isPrayedToday ? "check" : "add")} size={isPrayedToday ? 20 : 24} color="#FFFFFF" />
-        </Pressable>}
-        {!isPending && (showPraiseBadge ? (
-          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyPlus, isPending && styles.storyPlusPending, { backgroundColor: "#3B82F6", borderColor: colors.background }, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("thumb-up")} size={20} color="#FFFFFF" />
-          </Pressable>
-        ) : (
-          <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, isPending && styles.storyPlusPending, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}>
-            <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
-          </Pressable>
-        ))}
+        {!isPending && (
+          <>
+            {avatarActionPersonId === person.id && (
+              <View style={styles.storyActionPicker}>
+                <Pressable
+                  onPress={() => {
+                    if (showPraiseBadge) handleUndoPraise(person.id);
+                    else handlePraise(person.id);
+                    setAvatarActionPersonId(null);
+                  }}
+                  style={({ pressed }) => [styles.storyActionOption, { backgroundColor: "#3B82F6" }, pressed && styles.pressed]}
+                >
+                  <MaterialIcons name={iconName("thumb-up")} size={21} color="#FFFFFF" />
+                  <Text style={styles.storyActionOptionText}>{showPraiseBadge ? "Undo" : "Praise"}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleEmergencyPrayer(person.id)}
+                  style={({ pressed }) => [styles.storyActionOption, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}
+                >
+                  <MaterialIcons name={iconName("local-fire-department")} size={21} color="#FFFFFF" />
+                  <Text style={styles.storyActionOptionText}>24h</Text>
+                </Pressable>
+              </View>
+            )}
+            <Pressable
+              onPress={() => setAvatarActionPersonId((current) => current === person.id ? null : person.id)}
+              style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}
+            >
+              <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+            </Pressable>
+          </>
+        )}
         {isShowingCompletionAnimation && (
           <PrayerCompletionAnimation
             isActive={isShowingCompletionAnimation}
@@ -2518,6 +2552,42 @@ function createStyles(colors: any) {
   },
   storyPlusPending: {
     bottom: 38,
+  },
+  storyActionPicker: {
+    position: "absolute",
+    bottom: 46,
+    left: -18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 6,
+    borderRadius: 25,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    zIndex: 20,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+  },
+  storyActionOption: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  storyActionOptionText: {
+    position: "absolute",
+    top: 43,
+    color: colors.foreground,
+    fontSize: 9,
+    fontWeight: "800",
   },
   undoCountdownPill: {
     position: "absolute",

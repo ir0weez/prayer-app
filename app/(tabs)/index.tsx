@@ -2441,7 +2441,7 @@ function createStyles(colors: any) {
   },
   storyItem: {
     width: 94,
-    height: 110,
+    height: 126,
     marginRight: 2,
     alignItems: "center",
     justifyContent: "center",
@@ -2515,8 +2515,8 @@ function createStyles(colors: any) {
   },
   undoCountdownPill: {
     position: "absolute",
-    top: 16,
-    right: 7,
+    top: 96,
+    left: -8,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 6,

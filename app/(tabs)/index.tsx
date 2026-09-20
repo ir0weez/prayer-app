@@ -292,7 +292,7 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
 }
 
 function UndoCountdownBar({ color, compact = false }: { color: string; compact?: boolean }) {
-  return <UndoCountdownTimer color={color} size={compact ? 54 : 72} />;
+  return <UndoCountdownTimer color={color} size={compact ? 44 : 72} />;
 }
 
 export default function HomeScreen() {
@@ -2518,10 +2518,11 @@ function createStyles(colors: any) {
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: -4,
+    bottom: 18,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
+    zIndex: 6,
   },
   undoCountdownTrack: {
     width: 58,

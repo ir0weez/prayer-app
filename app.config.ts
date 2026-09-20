@@ -56,10 +56,7 @@ const config: ExpoConfig = {
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
-  // New architecture is disabled for the test variant only: the test
-  // build crashes at startup even with a minimal root screen, so this
-  // isolates whether the new-arch native runtime is the cause.
-  newArchEnabled: isTestBuild ? false : true,
+  newArchEnabled: true,
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,

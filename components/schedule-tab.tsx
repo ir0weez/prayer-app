@@ -22,6 +22,7 @@ import {
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
+import { SafeAreaView } from "react-native-safe-area-context";
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -945,7 +946,7 @@ export function ScheduleTab({
   const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
   const [bibleBook, setBibleBook] = useState('1 Thessalonians');
   const [bibleChapter, setBibleChapter] = useState(1);
-  
+
   // Debug: log chapter changes
   useEffect(() => {
     console.log(`[ScheduleTab] bibleChapter changed to ${bibleChapter}`);
@@ -1102,7 +1103,7 @@ export function ScheduleTab({
   useEffect(() => {
     currentDisplayAlbumIdRef.current = currentDisplayAlbumId;
   }, [currentDisplayAlbumId]);
-  
+
   // Load album history and current display album on mount
   useEffect(() => {
     const loadAlbumData = async () => {
@@ -1156,27 +1157,27 @@ export function ScheduleTab({
     };
     loadAlbumData();
   }, []);
-  
+
   // Persist album history whenever it changes
   useEffect(() => {
     if (!isAlbumStateHydrated) return;
-    AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e => 
+    AsyncStorage.setItem('ALBUM_HISTORY_KEY', JSON.stringify(albumHistory)).catch(e =>
       console.error('Error saving album history:', e)
     );
   }, [albumHistory, isAlbumStateHydrated]);
-  
+
   // Persist current display album ID
   useEffect(() => {
     if (!isAlbumStateHydrated) return;
     if (currentDisplayAlbumId) {
-      AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', currentDisplayAlbumId).catch(e => 
+      AsyncStorage.setItem('CURRENT_DISPLAY_ALBUM_ID', currentDisplayAlbumId).catch(e =>
         console.error('Error saving current display album:', e)
       );
     } else {
       AsyncStorage.removeItem('CURRENT_DISPLAY_ALBUM_ID').catch(() => undefined);
     }
   }, [currentDisplayAlbumId, isAlbumStateHydrated]);
-  
+
   // Persist Personal Study expanded state
   useEffect(() => {
     const loadExpandedState = async () => {
@@ -1191,10 +1192,10 @@ export function ScheduleTab({
     };
     loadExpandedState();
   }, []);
-  
+
   const togglePersonalStudyExpanded = (newState: boolean) => {
     setIsPersonalStudyExpanded(newState);
-    AsyncStorage.setItem('personalStudyExpanded', newState ? 'true' : 'false').catch(e => 
+    AsyncStorage.setItem('personalStudyExpanded', newState ? 'true' : 'false').catch(e =>
       console.error('Error saving Personal Study expanded state:', e)
     );
   };
@@ -1266,17 +1267,17 @@ export function ScheduleTab({
   // Get all unique days with Bible studies from ALL sources (bibleStudies, ministries, events)
   const getUniqueBibleStudyDays = (bibleStudiesList: BibleStudySession[], ministriesList?: ScheduleMinistry[], eventsList?: ScheduleEvent[]): Array<{ dayName: string; date: string; book: string; chapter: number }> => {
     const dayMap = new Map<string, { date: string; book: string; chapter: number }>();
-    
+
     // Helper to add an item to the day map
     const addToMap = (dateStr: string, book: string, chapter: number | string) => {
       // Fix timezone: parse YYYY-MM-DD as local date, not UTC
       const parts = dateStr.split('T')[0].split('-');
-      const date = parts.length === 3 
+      const date = parts.length === 3
         ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
         : new Date(dateStr);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
       const chapterNum = typeof chapter === 'string' ? parseInt(chapter, 10) || 0 : chapter;
-      
+
       const existing = dayMap.get(dayName);
       if (!existing) {
         dayMap.set(dayName, { date: dateStr, book, chapter: chapterNum });
@@ -1288,12 +1289,12 @@ export function ScheduleTab({
         }
       }
     };
-    
+
     // Add from COMPLETED Bible Study sessions only
     bibleStudiesList.filter(s => s.isCompleted).forEach(study => {
       addToMap(study.date, study.book, study.chapter);
     });
-    
+
     // Add from COMPLETED Read/Bible Study ministries with Bible info
     if (ministriesList) {
       ministriesList.forEach(m => {
@@ -1302,7 +1303,7 @@ export function ScheduleTab({
         }
       });
     }
-    
+
     // Add from COMPLETED events with Bible references in title
     if (eventsList) {
       eventsList.forEach(e => {
@@ -1314,7 +1315,7 @@ export function ScheduleTab({
         }
       });
     }
-    
+
     // Convert to array and sort by most recent date
     return Array.from(dayMap.entries())
       .map(([dayName, data]) => ({ dayName, ...data }))
@@ -1328,9 +1329,9 @@ export function ScheduleTab({
       const date = new Date(study.date);
       return date.toLocaleDateString('en-US', { weekday: 'long' }) === dayName;
     });
-    
+
     if (dayStudies.length === 0) return 'No studies';
-    
+
     // Return the most recent study for this day
     const sorted = dayStudies.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latest = sorted[0];
@@ -1350,7 +1351,7 @@ export function ScheduleTab({
     }
     // Collect all completed Bible reading items from Read ministries, Bible Study sessions, and Bible Study events
     const allReadItems: Array<{ book: string; chapter: string; date: string; completedAt?: string; dayName: string }> = [];
-    
+
     // Add completed Read/Bible Study ministries with Bible info
     const readMinistries = ministriesList.filter(
       (m) => {
@@ -1361,7 +1362,7 @@ export function ScheduleTab({
     readMinistries.forEach(m => {
       // Fix timezone: parse YYYY-MM-DD as local date
       const mParts = m.date.split('T')[0].split('-');
-      const date = mParts.length === 3 
+      const date = mParts.length === 3
         ? new Date(parseInt(mParts[0]), parseInt(mParts[1]) - 1, parseInt(mParts[2]))
         : new Date(m.date);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1373,13 +1374,13 @@ export function ScheduleTab({
         dayName
       });
     });
-    
+
     // Add completed Bible Study sessions
     const completedStudies = bibleStudiesList.filter((s) => s.isCompleted);
     completedStudies.forEach(s => {
       // Fix timezone: parse YYYY-MM-DD as local date
       const sParts = s.date.split('T')[0].split('-');
-      const date = sParts.length === 3 
+      const date = sParts.length === 3
         ? new Date(parseInt(sParts[0]), parseInt(sParts[1]) - 1, parseInt(sParts[2]))
         : new Date(s.date);
       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1391,7 +1392,7 @@ export function ScheduleTab({
         dayName
       });
     });
-    
+
     // Add completed events that contain Bible references
     if (eventsList) {
       const completedEvents = eventsList.filter((e) => {
@@ -1403,7 +1404,7 @@ export function ScheduleTab({
         if (parsed) {
           // Fix timezone: parse YYYY-MM-DD as local date
           const eParts = e.date.split('T')[0].split('-');
-          const date = eParts.length === 3 
+          const date = eParts.length === 3
             ? new Date(parseInt(eParts[0]), parseInt(eParts[1]) - 1, parseInt(eParts[2]))
             : new Date(e.date);
           const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1417,23 +1418,23 @@ export function ScheduleTab({
         }
       });
     }
-    
+
     if (allReadItems.length === 0) return '';
-    
+
     // Filter by target day of week if specified
     const filtered = targetDayName
       ? allReadItems.filter(item => item.dayName === targetDayName)
       : allReadItems;
-    
+
     if (filtered.length === 0) return '';
-    
+
     // Sort by completedAt (most recent first), with date as fallback
     const sorted = filtered.sort((a, b) => {
       const timeA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
       const timeB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
       return timeB - timeA; // Most recent first
     });
-    
+
     const latest = sorted[0];
     return `${latest.book} ${latest.chapter}`
   };
@@ -1570,7 +1571,7 @@ export function ScheduleTab({
     if (bibleState) {
       const display = getCurrentBibleDisplay(bibleState);
       setCurrentBibleBook(display || 'No book marked as current');
-      
+
       // Fetch chapter summary
       const fetchSummary = async () => {
         const book = Object.entries(bibleState.bookStatuses).find(([_, status]) => status === 'current')?.[0];
@@ -1578,7 +1579,7 @@ export function ScheduleTab({
           const nextChapter = bibleState.chapters.find((c: any) => c.book === book && !c.isRead);
           if (nextChapter) {
             const cacheKey = `chapter-summary-${book}-${nextChapter.chapter}`;
-            
+
             // Try to load from cache first
             try {
               const cached = await AsyncStorage.getItem(cacheKey);
@@ -1589,7 +1590,7 @@ export function ScheduleTab({
             } catch (e) {
               console.error('Error reading cache:', e);
             }
-            
+
             // Fetch from server if not cached
             setIsLoadingSummary(true);
             try {
@@ -1601,7 +1602,7 @@ export function ScheduleTab({
               const summaryData = result?.summary;
               const summary = typeof summaryData === 'string' ? summaryData : '';
               setChapterSummary(summary);
-              
+
               // Cache the result
               if (summary) {
                 try {
@@ -1629,7 +1630,7 @@ export function ScheduleTab({
         // Try to load unified Bible state first
         let state: UnifiedBibleState | null = null;
         const unifiedData = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
-        
+
         if (unifiedData) {
           state = JSON.parse(unifiedData);
           if (state) console.log('Unified Bible data loaded:', { display: getCurrentBibleDisplay(state), bookStatuses: state.bookStatuses });
@@ -1637,17 +1638,17 @@ export function ScheduleTab({
           // Fallback: check for legacy book status and chapters
           const legacyBookStatus = await AsyncStorage.getItem('bibleBookStatus');
           const legacyChapters = await AsyncStorage.getItem('bibleChapters');
-          
+
           if (legacyBookStatus || legacyChapters) {
             const legacyStatuses = legacyBookStatus ? JSON.parse(legacyBookStatus) : {};
             const legacyChapterData = legacyChapters ? JSON.parse(legacyChapters) : [];
             console.log('Found legacy data, migrating:', { legacyStatuses, chapterCount: legacyChapterData.length });
-            
+
             // Convert legacy chapters to new format with readDate
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
-            
+
             const migratedChapters = legacyChapterData.map((ch: any) => ({
               book: ch.book,
               chapter: ch.chapter,
@@ -1655,18 +1656,18 @@ export function ScheduleTab({
               readDate: ch.isRead ? yesterdayStr : undefined,
               isBookmarked: ch.isBookmarked || false,
             }));
-            
+
             // Create a new unified state with the legacy data
             state = {
               chapters: migratedChapters,
               bookStatuses: legacyStatuses,
             };
-            
+
             // Save migrated state to unified storage
             await AsyncStorage.setItem(UNIFIED_BIBLE_KEY, JSON.stringify(state));
           }
         }
-        
+
         if (state && state.bookStatuses) {
           // Ensure chapters array exists and is populated
           if (!state.chapters || state.chapters.length === 0) {
@@ -1687,7 +1688,7 @@ export function ScheduleTab({
         setCurrentBibleBook('Error loading Bible data');
       }
     };
-    
+
     loadBibleData();
   }, []);
 
@@ -1695,7 +1696,7 @@ export function ScheduleTab({
   const [userName, setUserName] = useState("Friend");
   const [userProfilePhoto, setUserProfilePhoto] = useState<string | undefined>(undefined);
   const [prayerStreak, setPrayerStreak] = useState(0);
-  
+
   const loadProfileData = useCallback(() => {
     AsyncStorage.getItem(PROFILE_STORAGE_KEY).then((data) => {
       if (data) {
@@ -1709,11 +1710,11 @@ export function ScheduleTab({
       }
     }).catch(() => undefined);
   }, []);
-  
+
   useEffect(() => {
     loadProfileData();
   }, [loadProfileData]);
-  
+
   // Listen for Bible chapter marked read events and refresh immediately
   useEffect(() => {
     const unsubscribe = bibleEventEmitter.subscribe(async (event) => {
@@ -1732,7 +1733,7 @@ export function ScheduleTab({
         }
       }
     });
-    
+
     return () => unsubscribe();
   }, []);
 
@@ -1740,13 +1741,13 @@ export function ScheduleTab({
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
-      
+
       const reloadBibleData = async () => {
         try {
           // Try to load unified Bible state first
           let state: UnifiedBibleState | null = null;
           const unifiedData = await AsyncStorage.getItem(UNIFIED_BIBLE_KEY);
-          
+
           if (unifiedData) {
             state = JSON.parse(unifiedData);
             if (state) console.log('Unified Bible data reloaded on focus:', { display: getCurrentBibleDisplay(state), bookStatuses: state.bookStatuses });
@@ -1756,18 +1757,18 @@ export function ScheduleTab({
             if (legacyBookStatus) {
               const legacyStatuses = JSON.parse(legacyBookStatus);
               console.log('Found legacy book status on focus, migrating:', legacyStatuses);
-              
+
               // Create a new unified state with the legacy book statuses
               state = {
                 chapters: [],
                 bookStatuses: legacyStatuses,
               };
-              
+
               // Save migrated state to unified storage
               await AsyncStorage.setItem(UNIFIED_BIBLE_KEY, JSON.stringify(state));
             }
           }
-          
+
           if (state && state.bookStatuses) {
             setBibleState(state);
             const display = getCurrentBibleDisplay(state);
@@ -1780,7 +1781,7 @@ export function ScheduleTab({
           console.error('Error reloading Bible data:', e);
         }
       };
-      
+
       reloadBibleData();
     }, [loadProfileData])
   );
@@ -1817,11 +1818,11 @@ export function ScheduleTab({
 
   const handleSaveEvent = () => {
     if (!formTitle.trim()) return;
-    
+
     // Validate and normalize times to ensure they're in 24-hour HH:mm format
     const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
     const normalizedEndTime = formEndTime ? normalizeTimeFormat(formEndTime) : undefined;
-    
+
     if (formStartTime && !normalizedStartTime) {
       Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
       return;
@@ -1830,7 +1831,7 @@ export function ScheduleTab({
       Alert.alert("Invalid Time", "End time must be in HH:mm format (24-hour)");
       return;
     }
-    
+
     const newEvent = createScheduleEvent({
       title: formTitle.trim(),
       date: formDate || selectedDate,
@@ -1851,15 +1852,15 @@ export function ScheduleTab({
 
   const handleSaveTodo = () => {
     if (!formTitle.trim()) return;
-    
+
     // Validate and normalize times to ensure they're in 24-hour HH:mm format
     const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
-    
+
     if (formStartTime && !normalizedStartTime) {
       Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
       return;
     }
-    
+
     const newTodo = createScheduleTodo(
       { title: formTitle.trim(), date: formDate || selectedDate, startTime: normalizedStartTime || undefined, color: formColor, notes: formTodoNotes || undefined },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
@@ -1909,11 +1910,11 @@ export function ScheduleTab({
 
   const handleSaveMinistry = async () => {
     if (!formTitle.trim()) return;
-    
+
     // Validate and normalize times to ensure they're in 24-hour HH:mm format
     const normalizedStartTime = formStartTime ? normalizeTimeFormat(formStartTime) : undefined;
     const normalizedEndTime = formEndTime ? normalizeTimeFormat(formEndTime) : undefined;
-    
+
     if (formStartTime && !normalizedStartTime) {
       Alert.alert("Invalid Time", "Start time must be in HH:mm format (24-hour)");
       return;
@@ -1922,7 +1923,7 @@ export function ScheduleTab({
       Alert.alert("Invalid Time", "End time must be in HH:mm format (24-hour)");
       return;
     }
-    
+
     // If editing, update existing ministry; otherwise create new
     if (editingMinistry) {
       const updatedMinistry: ScheduleMinistry = {
@@ -1940,7 +1941,7 @@ export function ScheduleTab({
         bibleBook: formBibleBook || undefined,
         bibleChapter: formBibleChapter || undefined,
       };
-      
+
       setMinistries((prev) => prev.map((m) => m.id === editingMinistry.id ? updatedMinistry : m));
       setEditingMinistry(null);
     } else {
@@ -1964,7 +1965,7 @@ export function ScheduleTab({
       }
       setMinistries((prev) => [...prev, newMinistry]);
     }
-    
+
     // Mark chapter as read if this is a Read ministry with Bible info
     if ((formMinistryType === "Read" || formMinistryType === "Bible Study") && formBibleBook && formBibleChapter) {
       try {
@@ -1982,7 +1983,7 @@ export function ScheduleTab({
         console.error('Error marking Bible chapter as read:', error);
       }
     }
-    
+
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -2222,7 +2223,7 @@ export function ScheduleTab({
       notes: formNotes || undefined,
     });
     setBibleStudies((prev) => [...prev, newStudy]);
-    
+
     // Update the unified Bible state to mark this book as current
     try {
       const { setCurrentBook } = await import('@/lib/bible-unified');
@@ -2233,7 +2234,7 @@ export function ScheduleTab({
     } catch (error) {
       console.error('Error setting current Bible book:', error);
     }
-    
+
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -2244,10 +2245,10 @@ export function ScheduleTab({
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
+
     // Only calculate current todo for today
     if (selectedDate !== todayISO) return null;
-    
+
     // Find the first incomplete todo whose time has passed or is current
     const incompleteTodos = dayTodos.filter(t => !t.isCompleted);
     for (const todo of incompleteTodos) {
@@ -2273,11 +2274,11 @@ export function ScheduleTab({
       const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
       const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
       const [selYear, selMonth, selDay] = selectedDate.split('-').map(Number);
-      
+
       const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
       const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
       const selDateObj = new Date(selYear, selMonth - 1, selDay);
-      
+
       return selDateObj >= toStart && selDateObj <= toEnd;
     });
     dayTimeOff.forEach((to) => items.push({ type: "time-off", id: to.id, data: to }));
@@ -2381,7 +2382,7 @@ export function ScheduleTab({
     // Add sorted items and insert current-time indicator if it's today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    
+
     if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId) {
       const insertionIndex = getCurrentTimeInsertionIndex(allTimedItems, currentTimeStr);
       items.push(...allTimedItems.slice(0, insertionIndex));
@@ -2530,7 +2531,7 @@ export function ScheduleTab({
                               const lastReadChapter = item.data.state.chapters
                                 .filter((c: any) => c.book === book && c.isRead)
                                 .sort((a: any, b: any) => b.chapter - a.chapter)[0];
-                              
+
                               // A first-chapter read is still a valid previous position when viewing chapter 2.
                               if (lastReadChapter) {
                                 try {
@@ -2765,7 +2766,7 @@ export function ScheduleTab({
         }
         case "worship-display": {
           return (
-            <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}> 
+            <View style={[{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }]}>
               {/* Worship Album Display - Material Design Card */}
               {currentAlbum ? (
                 <AlbumCard
@@ -2810,7 +2811,7 @@ export function ScheduleTab({
                   </Pressable>
                 </View>
               )}
-              
+
 
             </View>
           );
@@ -3054,15 +3055,15 @@ export function ScheduleTab({
                       ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
                     ];
                     const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
-                    
+
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours
                     const availableHours = Math.floor(totalAvailableMinutes / 60);
                     const availableMinutes = totalAvailableMinutes % 60;
                     const availableTimeString = availableMinutes > 0 ? `${availableHours}h ${availableMinutes}m` : `${availableHours}h`;
-                    
 
-                    
+
+
                     return (
                       <DailySummaryCard
                         remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
@@ -3112,7 +3113,7 @@ export function ScheduleTab({
                       />
                     );
                   })()}
-                  
+
                   {/* Progress Bar */}
                   <ScheduleProgressBar
                     completed={getTodosForDate(todos, selectedDate).filter(t => t.isCompleted).length + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
@@ -3304,10 +3305,10 @@ export function ScheduleTab({
           style={[scheduleStyles.missedTodosFloatingContainer, { top: 70 }]}
         >
           {isMissedTodosOpen && (
-            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: colors.background, borderColor: colors.border }]}> 
-              <View style={[scheduleStyles.missedTodosPanelHeader, { borderBottomColor: colors.border }]}> 
+            <View style={[scheduleStyles.missedTodosPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <View style={[scheduleStyles.missedTodosPanelHeader, { borderBottomColor: colors.border }]}>
                 <View style={scheduleStyles.missedTodosPanelTitleGroup}>
-                  <View style={[scheduleStyles.missedTodosPanelIcon, { backgroundColor: colors.error + '18' }]}> 
+                  <View style={[scheduleStyles.missedTodosPanelIcon, { backgroundColor: colors.error + '18' }]}>
                     <MaterialIcons name="event-busy" size={17} color={colors.error} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -3356,7 +3357,7 @@ export function ScheduleTab({
                         <MaterialIcons name={isActive ? "keyboard-arrow-up" : "keyboard-arrow-right"} size={20} color={colors.muted} />
                       </Pressable>
                       {isActive && (
-                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}> 
+                        <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}>
                           <Pressable
                             onPress={() => setTodos((current) => toggleTodoCompleted(current, todo.id))}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
@@ -4096,11 +4097,11 @@ export function ScheduleTab({
         <View style={scheduleStyles.formOverlay}>
           <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface }]}>
             <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>  
+              <Pressable onPress={() => { setAddType(null); resetForm(); setShowAddModal(false); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
               <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingWorshipAlbumId ? 'Edit Worship Setlist' : 'Add Worship Setlist'}</Text>
-              <Pressable onPress={handleSaveWorshipAlbum} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+              <Pressable onPress={handleSaveWorshipAlbum} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>{editingWorshipAlbumId ? 'Save' : 'Add'}</Text>
               </Pressable>
             </View>
@@ -4131,7 +4132,7 @@ export function ScheduleTab({
                   )}
                 </View>
               )}
-              
+
               <Text style={[scheduleStyles.formLabel, { color: colors.foreground }]}>Album Title *</Text>
               <TextInput
                 placeholder="e.g., Hillsong Worship"
@@ -4321,20 +4322,25 @@ export function ScheduleTab({
 
       {/* Saved Albums Library Page */}
       <Modal transparent visible={showAlbumLibrary} animationType="slide" onRequestClose={() => setShowAlbumLibrary(false)}>
-        <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}> 
-          <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}> 
-            <View style={scheduleStyles.formHeader}>
-              <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                <MaterialIcons name="close" size={28} color={colors.foreground} />
-              </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Saved Albums</Text>
-              <View style={{ width: 28 }} />
-            </View>
-            <Text style={{ color: colors.muted, fontSize: 13, paddingHorizontal: 20, paddingTop: 14 }}>Artists are grouped together. Tap an artist to reveal their saved albums, then tap an album to open its full setlist.</Text>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignContent: 'flex-start' }} showsVerticalScrollIndicator={false}>
-              {savedAlbums.length === 0 ? (
-                <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 36 }}>No saved albums yet. Expand an album and tap the star to save it.</Text>
-              ) : (
+        <View style={[scheduleStyles.formOverlay, { backgroundColor: colors.background + 'E6' }]}>
+          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+            <View style={[scheduleStyles.formSheet, { backgroundColor: colors.surface, flex: 1, maxHeight: '100%', minHeight: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingBottom: 0 }]}>
+              <View style={scheduleStyles.formHeader}>
+                <Pressable onPress={() => setShowAlbumLibrary(false)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+                  <MaterialIcons name="close" size={28} color={colors.foreground} />
+                </Pressable>
+                <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>Saved Albums</Text>
+                <View style={{ width: 28 }} />
+              </View>
+              <Text style={{ color: colors.muted, fontSize: 13, paddingHorizontal: 20, paddingTop: 14 }}>Artists are grouped together. Tap an artist to reveal their saved albums, then tap an album to open its full setlist.</Text>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignContent: 'flex-start' }} showsVerticalScrollIndicator={false}>
+                {savedAlbums.length === 0 ? (
+                  <View style={{ width: '100%', marginTop: 36, padding: 24, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
+                    <MaterialIcons name="library-music" size={46} color={colors.primary} />
+                    <Text style={{ marginTop: 10, color: colors.foreground, fontSize: 16, fontWeight: '800' }}>No saved albums yet</Text>
+                    <Text style={{ marginTop: 6, color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 18 }}>Expand an album and tap the star to save it to your library.</Text>
+                  </View>
+                ) : (
                 savedArtistGroups.map((group) => {
                   const groupKey = group.artist.toLocaleLowerCase();
                   const topAlbum = group.albums[0];
@@ -4412,9 +4418,10 @@ export function ScheduleTab({
                     </View>
                   );
                 })
-              )}
-            </ScrollView>
-          </View>
+                )}
+              </ScrollView>
+            </View>
+          </SafeAreaView>
         </View>
       </Modal>
 

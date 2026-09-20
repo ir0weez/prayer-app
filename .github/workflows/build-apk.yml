@@ -1,0 +1,60 @@
+name: Build test APK
+
+# Builds a debug APK of the app on GitHub's free runners and uploads it as a
+# downloadable artifact. No Expo/EAS cloud builds are used, so this consumes
+# zero Expo build credits. The APK is built with APP_VARIANT=test, giving it
+# the name "PrayerCircle Test" and its own package id so it installs
+# alongside the production app without a signature clash.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      APP_VARIANT: test
+      CI: "true"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --non-interactive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Note: ubuntu-latest runners already ship with the Android SDK
+      # (ANDROID_SDK_ROOT is pre-set), so no SDK setup step is needed.
+
+      - name: Build debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: prayercircle-test-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

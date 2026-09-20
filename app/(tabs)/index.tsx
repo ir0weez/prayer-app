@@ -409,6 +409,8 @@ export default function HomeScreen() {
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [avatarActionPersonId, setAvatarActionPersonId] = useState<string | null>(null);
+  const [avatarComposer, setAvatarComposer] = useState<{ personId: string; kind: "praise" | "emergency" } | null>(null);
+  const [avatarComposerText, setAvatarComposerText] = useState("");
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -876,7 +878,7 @@ export default function HomeScreen() {
     setPendingFastAction(null);
   };
 
-  const handlePraise = (personId: string) => {
+  const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
@@ -887,6 +889,7 @@ export default function HomeScreen() {
             ...person,
             isPraised: true,
             praiseExpiresAt,
+            praiseNote: note.trim() || undefined,
           };
         }
         return person;
@@ -905,6 +908,7 @@ export default function HomeScreen() {
             ...person,
             isPraised: false,
             praiseExpiresAt: undefined,
+            praiseNote: undefined,
           };
         }
         return person;
@@ -914,16 +918,24 @@ export default function HomeScreen() {
     });
   };
 
-  const handleEmergencyPrayer = (personId: string) => {
+  const handleEmergencyPrayer = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) =>
-        person.id === personId ? addEmergencyPrayer(person, "24-hour emergency prayer", 24) : person,
+        person.id === personId ? addEmergencyPrayer(person, note.trim() || "24-hour emergency prayer", 24) : person,
       );
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });
     setAvatarActionPersonId(null);
+  };
+
+  const submitAvatarComposer = () => {
+    if (!avatarComposer) return;
+    if (avatarComposer.kind === "praise") handlePraise(avatarComposer.personId, avatarComposerText);
+    else handleEmergencyPrayer(avatarComposer.personId, avatarComposerText);
+    setAvatarComposer(null);
+    setAvatarComposerText("");
   };
 
   const renderAvatar = (person: Person, size: number, story = false) => {
@@ -979,27 +991,18 @@ export default function HomeScreen() {
             <UndoCountdownTimer color={colors.primary} variant="pill" />
           </Pressable>
         ) : showEmergencyBadge ? (
-          <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
-            <Text numberOfLines={3} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
-            <View style={styles.storyTagMeta}>
-              <MaterialIcons name={iconName("local-fire-department")} size={12} color="#EF4444" />
-            {emergencyCountdown > 0 && (
-              <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
-                {formatEmergencyPrayerCountdown(emergencyCountdown)}
-              </Text>
-            )}
-            </View>
+          <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }] }>
+            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
+            <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(emergencyCountdown)}</Text>
           </View>
+        ) : showPraiseBadge ? (
+          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }] }>
+            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, { color: "#1E40AF" }]}>{person.praiseNote?.trim() || "Praise"}</Text>
+            <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(praiseCountdown)}</Text>
+          </Pressable>
         ) : showUrgentBubble ? (
           <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
             <Text numberOfLines={1} style={[styles.storyTagText, { color: "#7C3AED" }]}>{urgentItems[0]?.title}</Text>
-          </Pressable>
-        ) : showPraiseBadge ? (
-          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }]}>
-            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#1E40AF" }]}>Praise</Text>
-            <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>
-              {formatEmergencyPrayerCountdown(praiseCountdown)}
-            </Text>
           </Pressable>
         ) : null}
         <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
@@ -1007,33 +1010,42 @@ export default function HomeScreen() {
         </Pressable>
         {!isPending && (
           <>
-            {avatarActionPersonId === person.id && (
+            {avatarActionPersonId === person.id && !showPraiseBadge && !showEmergencyBadge && (
               <View style={styles.storyActionPicker}>
                 <Pressable
                   onPress={() => {
-                    if (showPraiseBadge) handleUndoPraise(person.id);
-                    else handlePraise(person.id);
+                    setAvatarComposer({ personId: person.id, kind: "praise" });
+                    setAvatarComposerText("");
                     setAvatarActionPersonId(null);
                   }}
                   style={({ pressed }) => [styles.storyActionOption, { backgroundColor: "#3B82F6" }, pressed && styles.pressed]}
                 >
                   <MaterialIcons name={iconName("thumb-up")} size={21} color="#FFFFFF" />
-                  <Text style={styles.storyActionOptionText}>{showPraiseBadge ? "Undo" : "Praise"}</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => handleEmergencyPrayer(person.id)}
+                  onPress={() => {
+                    setAvatarComposer({ personId: person.id, kind: "emergency" });
+                    setAvatarComposerText("");
+                    setAvatarActionPersonId(null);
+                  }}
                   style={({ pressed }) => [styles.storyActionOption, { backgroundColor: "#EF4444" }, pressed && styles.pressed]}
                 >
                   <MaterialIcons name={iconName("local-fire-department")} size={21} color="#FFFFFF" />
-                  <Text style={styles.storyActionOptionText}>24h</Text>
                 </Pressable>
               </View>
             )}
             <Pressable
-              onPress={() => setAvatarActionPersonId((current) => current === person.id ? null : person.id)}
-              style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}
+              onPress={() => {
+                if (showPraiseBadge) {
+                  handleUndoPraise(person.id);
+                  return;
+                }
+                if (showEmergencyBadge) return;
+                setAvatarActionPersonId((current) => current === person.id ? null : person.id);
+              }}
+              style={({ pressed }) => [styles.storyPlus, { backgroundColor: showPraiseBadge ? "#3B82F6" : showEmergencyBadge ? "#EF4444" : colors.primary, borderColor: colors.background }, pressed && styles.pressed]}
             >
-              <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
+              <MaterialIcons name={iconName(showPraiseBadge ? "thumb-up" : showEmergencyBadge ? "local-fire-department" : "add")} size={showPraiseBadge || showEmergencyBadge ? 20 : 24} color="#FFFFFF" />
             </Pressable>
           </>
         )}
@@ -2240,6 +2252,40 @@ export default function HomeScreen() {
         {renderTab("settings", "Settings", "settings")}
       </BlurView>
 
+      <Modal
+        transparent
+        visible={avatarComposer !== null}
+        animationType="fade"
+        onRequestClose={() => { setAvatarComposer(null); setAvatarComposerText(""); }}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }} />
+          <View style={[styles.themeSheet, { paddingBottom: 24 }]}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }}>
+                <Text style={styles.sheetDone}>Cancel</Text>
+              </Pressable>
+              <Text style={styles.sheetTitle}>{avatarComposer?.kind === "praise" ? "Praise" : "Emergency Prayer"}</Text>
+              <Pressable onPress={submitAvatarComposer}>
+                <Text style={styles.sheetDone}>Save</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.fieldLabel}>{avatarComposer?.kind === "praise" ? "WHAT ARE YOU PRAISING?" : "WHAT DO YOU NEED PRAYER FOR?"}</Text>
+            <TextInput
+              autoFocus
+              value={avatarComposerText}
+              onChangeText={setAvatarComposerText}
+              placeholder={avatarComposer?.kind === "praise" ? "e.g., A new job, healing, or answered prayer" : "e.g., Please pray for peace and wisdom"}
+              placeholderTextColor="#73808B"
+              multiline
+              returnKeyType="done"
+              style={[styles.textInput, { minHeight: 88, textAlignVertical: "top" }]}
+            />
+            <Text style={styles.fieldHint}>You can leave this blank and use the default label.</Text>
+          </View>
+        </View>
+      </Modal>
+
       <Modal transparent visible={showProfileEditor} animationType="slide" onRequestClose={() => setShowProfileEditor(false)}>
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => setShowProfileEditor(false)} />
@@ -2581,13 +2627,6 @@ function createStyles(colors: any) {
     justifyContent: "center",
     borderWidth: 2,
     borderColor: colors.background,
-  },
-  storyActionOptionText: {
-    position: "absolute",
-    top: 43,
-    color: colors.foreground,
-    fontSize: 9,
-    fontWeight: "800",
   },
   undoCountdownPill: {
     position: "absolute",

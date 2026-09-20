@@ -63,6 +63,7 @@ export type Person = {
   avatarColor: string;
   birthday?: string;
   prayerNote?: string;
+  praiseNote?: string;
   reminderTag?: string;
   avatarLabel?: string;
   photoUri?: string;

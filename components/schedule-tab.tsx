@@ -122,6 +122,7 @@ import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDispla
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
+const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1';
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
@@ -1004,6 +1005,8 @@ export function ScheduleTab({
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<StoredWorshipAlbum[]>([]);
   const [isAlbumStateHydrated, setIsAlbumStateHydrated] = useState(false);
+  const [worshipExpansionByDate, setWorshipExpansionByDate] = useState<Record<string, boolean>>({});
+  const [isWorshipExpansionHydrated, setIsWorshipExpansionHydrated] = useState(false);
   const [editingWorshipAlbumId, setEditingWorshipAlbumId] = useState<string | null>(null);
   const albumHistoryRef = useRef<StoredWorshipAlbum[]>([]);
   const currentDisplayAlbumIdRef = useRef<string | null>(null);
@@ -1014,6 +1017,11 @@ export function ScheduleTab({
       return selected?.date?.slice(0, 10) === selectedWorshipDate ? selected : null;
     },
     [albumHistory, currentDisplayAlbumId, selectedWorshipDate],
+  );
+  const isWorshipExpanded = Boolean(
+    currentAlbum && isWorshipExpansionHydrated
+      ? worshipExpansionByDate[selectedWorshipDate] ?? true
+      : false,
   );
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
@@ -1422,7 +1430,7 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData, prayersData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData, prayersData, worshipExpansionData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
@@ -1431,6 +1439,7 @@ export function ScheduleTab({
           AsyncStorage.getItem(WORSHIP_LISTS_KEY),
           AsyncStorage.getItem('WORSHIP_LIST_LINKS_KEY'),
           AsyncStorage.getItem('PRAYERS_KEY'),
+          AsyncStorage.getItem(WORSHIP_EXPANSION_STATE_KEY),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
@@ -1440,10 +1449,24 @@ export function ScheduleTab({
         if (worshipListsData) setWorshipLists(JSON.parse(worshipListsData));
         if (worshipLinksData) setWorshipListLinks(JSON.parse(worshipLinksData));
         if (prayersData) setPrayers(JSON.parse(prayersData));
+        if (worshipExpansionData) {
+          const parsedExpansion = JSON.parse(worshipExpansionData);
+          if (parsedExpansion && typeof parsedExpansion === 'object' && !Array.isArray(parsedExpansion)) {
+            const normalizedExpansion = Object.entries(parsedExpansion).reduce<Record<string, boolean>>((result, [date, expanded]) => {
+              if (/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof expanded === 'boolean') {
+                result[date] = expanded;
+              }
+              return result;
+            }, {});
+            setWorshipExpansionByDate(normalizedExpansion);
+          }
+        }
         const timeOffData = await getAllTimeOff();
         setTimeOffList(timeOffData);
       } catch (e) {
         // Silent fail
+      } finally {
+        setIsWorshipExpansionHydrated(true);
       }
     };
     loadData();
@@ -1473,6 +1496,11 @@ export function ScheduleTab({
   useEffect(() => {
     AsyncStorage.setItem('SCHEDULE_TIME_BLOCK_COLORS_KEY', JSON.stringify(timeBlockColors)).catch(() => undefined);
   }, [timeBlockColors]);
+
+  useEffect(() => {
+    if (!isWorshipExpansionHydrated) return;
+    AsyncStorage.setItem(WORSHIP_EXPANSION_STATE_KEY, JSON.stringify(worshipExpansionByDate)).catch(() => undefined);
+  }, [isWorshipExpansionHydrated, worshipExpansionByDate]);
 
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
@@ -2720,6 +2748,8 @@ export function ScheduleTab({
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
                   onEdit={() => openEditWorshipAlbum(currentAlbum)}
                   isSaved={currentAlbum.isSaved}
+                  isExpanded={isWorshipExpanded}
+                  onToggleExpanded={(expanded) => setWorshipExpansionByDate((previous) => ({ ...previous, [selectedWorshipDate]: expanded }))}
                   onToggleSaved={() => void toggleWorshipAlbumSaved(currentAlbum.id)}
                   onDelete={() => confirmDeleteWorshipAlbum(currentAlbum.id)}
                   onOpenLibrary={() => { setShowSavedAlbumsOnly(true); setShowAlbumLibrary(true); }}
@@ -2846,7 +2876,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, clockNow]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow]
   );
 
   return (
@@ -2954,7 +2984,7 @@ export function ScheduleTab({
             data={listData}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            extraData={[selectedDate, listData, colors, currentAlbum]}
+            extraData={[selectedDate, listData, colors, currentAlbum, isWorshipExpanded]}
             contentContainerStyle={[
               scheduleStyles.listContent,
               {

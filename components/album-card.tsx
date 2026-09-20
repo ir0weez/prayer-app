@@ -16,6 +16,8 @@ export interface AlbumCardProps {
   isSaved?: boolean;
   onDelete?: () => void;
   onOpenLibrary?: () => void;
+  isExpanded?: boolean;
+  onToggleExpanded?: (expanded: boolean) => void;
   sectionTitle?: string;
   sectionIcon?: keyof typeof MaterialIcons.glyphMap;
 }
@@ -32,13 +34,21 @@ export function AlbumCard({
   isSaved = false,
   onDelete,
   onOpenLibrary,
+  isExpanded,
+  onToggleExpanded,
   sectionTitle,
   sectionIcon = 'music-note',
 }: AlbumCardProps) {
   const colors = useColors();
   const [imageError, setImageError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = isExpanded ?? internalExpanded;
   const hasActions = tracks.length > 0 || onEdit || onToggleSaved || onDelete || onOpen;
+  const toggleExpanded = () => {
+    const nextExpanded = !expanded;
+    if (onToggleExpanded) onToggleExpanded(nextExpanded);
+    else setInternalExpanded(nextExpanded);
+  };
 
   return (
     <View style={{ backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}>
@@ -54,7 +64,7 @@ export function AlbumCard({
           )}
         </View>
       )}
-      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && setExpanded((value) => !value)} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && toggleExpanded()} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
         <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}>
           {!imageError && coverUrl ? (
             <Image source={{ uri: coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" onError={() => setImageError(true)} />

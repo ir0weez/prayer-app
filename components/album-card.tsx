@@ -104,7 +104,6 @@ export function AlbumCard({
                   <Text style={{ color: isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '500', textDecorationLine: isCompleted ? 'line-through' : 'none' }} numberOfLines={1}>{track.title}</Text>
                   {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2, textDecorationLine: isCompleted ? 'line-through' : 'none' }}>Key of {track.key}</Text>}
                 </View>
-                {onToggleTrack && <MaterialIcons name={isCompleted ? 'check-circle' : 'radio-button-unchecked'} size={18} color={isCompleted ? colors.primary : colors.border} />}
               </>
             );
             return onToggleTrack ? (

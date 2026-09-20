@@ -8,6 +8,8 @@ export interface AlbumCardProps {
   title: string;
   artist: string;
   tracks?: Array<{ id: string; title: string; key?: string }>;
+  completedTracks?: Record<string, boolean>;
+  onToggleTrack?: (trackId: string) => void;
   coverUrl?: string;
   onOpen?: () => void;
   onOpenDetails?: () => void;
@@ -27,6 +29,8 @@ export function AlbumCard({
   title,
   artist,
   tracks = [],
+  completedTracks = {},
+  onToggleTrack,
   coverUrl,
   onOpen,
   onOpenDetails,
@@ -91,15 +95,28 @@ export function AlbumCard({
       {expanded && hasActions && (
         <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
           <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 4, marginBottom: 2 }} />
-          {tracks.map((track, index) => (
-            <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 }}>
-              <Text style={{ width: 20, color: colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '500' }} numberOfLines={1}>{track.title}</Text>
-                {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>Key of {track.key}</Text>}
+          {tracks.map((track, index) => {
+            const isCompleted = Boolean(completedTracks[track.id]);
+            const trackContent = (
+              <>
+                <Text style={{ width: 20, color: isCompleted ? colors.primary : colors.muted, fontSize: 12, fontWeight: '700', textAlign: 'right' }}>{index + 1}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: isCompleted ? colors.muted : colors.foreground, fontSize: 14, fontWeight: '500', textDecorationLine: isCompleted ? 'line-through' : 'none' }} numberOfLines={1}>{track.title}</Text>
+                  {track.key && <Text style={{ color: colors.muted, fontSize: 12, marginTop: 2, textDecorationLine: isCompleted ? 'line-through' : 'none' }}>Key of {track.key}</Text>}
+                </View>
+                {onToggleTrack && <MaterialIcons name={isCompleted ? 'check-circle' : 'radio-button-unchecked'} size={18} color={isCompleted ? colors.primary : colors.border} />}
+              </>
+            );
+            return onToggleTrack ? (
+              <Pressable key={track.id} accessibilityRole="button" accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`} onPress={() => onToggleTrack(track.id)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30, borderRadius: 8, opacity: pressed ? 0.65 : 1 }]}>
+                {trackContent}
+              </Pressable>
+            ) : (
+              <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 }}>
+                {trackContent}
               </View>
-            </View>
-          ))}
+            );
+          })}
           {tracks.length === 0 && <Text style={{ color: colors.muted, fontSize: 13, paddingVertical: 4 }}>No songs added yet.</Text>}
           {(onOpen || onEdit || onToggleSaved || onDelete) && (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>

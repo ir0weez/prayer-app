@@ -123,6 +123,7 @@ import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bibl
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
 const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1';
+const WORSHIP_TRACK_COMPLETION_STATE_KEY = 'prayercircle.schedule.worship.track-completions.v1';
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const DAY_HEADER_HEIGHT = 160; // Height of summary card
@@ -1007,6 +1008,8 @@ export function ScheduleTab({
   const [isAlbumStateHydrated, setIsAlbumStateHydrated] = useState(false);
   const [worshipExpansionByDate, setWorshipExpansionByDate] = useState<Record<string, boolean>>({});
   const [isWorshipExpansionHydrated, setIsWorshipExpansionHydrated] = useState(false);
+  const [worshipTrackCompletions, setWorshipTrackCompletions] = useState<Record<string, boolean>>({});
+  const [isWorshipTrackCompletionsHydrated, setIsWorshipTrackCompletionsHydrated] = useState(false);
   const [editingWorshipAlbumId, setEditingWorshipAlbumId] = useState<string | null>(null);
   const albumHistoryRef = useRef<StoredWorshipAlbum[]>([]);
   const currentDisplayAlbumIdRef = useRef<string | null>(null);
@@ -1023,6 +1026,15 @@ export function ScheduleTab({
       ? worshipExpansionByDate[selectedWorshipDate] ?? true
       : false,
   );
+  const worshipTrackCompletionKey = currentAlbum ? `${selectedWorshipDate}:${currentAlbum.id}:` : '';
+  const completedWorshipTracks = useMemo(() => {
+    if (!worshipTrackCompletionKey) return {};
+    return Object.fromEntries(
+      Object.entries(worshipTrackCompletions)
+        .filter(([key, completed]) => key.startsWith(worshipTrackCompletionKey) && completed)
+        .map(([key, completed]) => [key.slice(worshipTrackCompletionKey.length), completed]),
+    );
+  }, [worshipTrackCompletions, worshipTrackCompletionKey]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
   const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
@@ -1430,7 +1442,7 @@ export function ScheduleTab({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData, prayersData, worshipExpansionData] = await Promise.all([
+        const [eventsData, todosData, ministriesData, bibleStudiesData, timeBlockColorsData, worshipListsData, worshipLinksData, prayersData, worshipExpansionData, worshipTrackCompletionsData] = await Promise.all([
           AsyncStorage.getItem(SCHEDULE_EVENTS_KEY),
           AsyncStorage.getItem(SCHEDULE_TODOS_KEY),
           AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
@@ -1440,6 +1452,7 @@ export function ScheduleTab({
           AsyncStorage.getItem('WORSHIP_LIST_LINKS_KEY'),
           AsyncStorage.getItem('PRAYERS_KEY'),
           AsyncStorage.getItem(WORSHIP_EXPANSION_STATE_KEY),
+          AsyncStorage.getItem(WORSHIP_TRACK_COMPLETION_STATE_KEY),
         ]);
         if (eventsData) setEvents(JSON.parse(eventsData));
         if (todosData) setTodos(JSON.parse(todosData));
@@ -1461,12 +1474,24 @@ export function ScheduleTab({
             setWorshipExpansionByDate(normalizedExpansion);
           }
         }
+        if (worshipTrackCompletionsData) {
+          const parsedCompletions = JSON.parse(worshipTrackCompletionsData);
+          if (parsedCompletions && typeof parsedCompletions === 'object' && !Array.isArray(parsedCompletions)) {
+            setWorshipTrackCompletions(
+              Object.entries(parsedCompletions).reduce<Record<string, boolean>>((result, [key, completed]) => {
+                if (typeof key === 'string' && typeof completed === 'boolean') result[key] = completed;
+                return result;
+              }, {}),
+            );
+          }
+        }
         const timeOffData = await getAllTimeOff();
         setTimeOffList(timeOffData);
       } catch (e) {
         // Silent fail
       } finally {
         setIsWorshipExpansionHydrated(true);
+        setIsWorshipTrackCompletionsHydrated(true);
       }
     };
     loadData();
@@ -1501,6 +1526,11 @@ export function ScheduleTab({
     if (!isWorshipExpansionHydrated) return;
     AsyncStorage.setItem(WORSHIP_EXPANSION_STATE_KEY, JSON.stringify(worshipExpansionByDate)).catch(() => undefined);
   }, [isWorshipExpansionHydrated, worshipExpansionByDate]);
+
+  useEffect(() => {
+    if (!isWorshipTrackCompletionsHydrated) return;
+    AsyncStorage.setItem(WORSHIP_TRACK_COMPLETION_STATE_KEY, JSON.stringify(worshipTrackCompletions)).catch(() => undefined);
+  }, [isWorshipTrackCompletionsHydrated, worshipTrackCompletions]);
 
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
@@ -2744,6 +2774,14 @@ export function ScheduleTab({
                   title={currentAlbum.title}
                   artist={currentAlbum.artist}
                   tracks={currentAlbum.tracks}
+                  completedTracks={completedWorshipTracks}
+                  onToggleTrack={(trackId) => setWorshipTrackCompletions((previous) => {
+                    const completionKey = `${selectedWorshipDate}:${currentAlbum.id}:${trackId}`;
+                    const next = { ...previous };
+                    if (next[completionKey]) delete next[completionKey];
+                    else next[completionKey] = true;
+                    return next;
+                  })}
                   coverUrl={currentAlbum.coverUrl}
                   onCoverPress={() => setWorshipDetailAlbum(currentAlbum)}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}

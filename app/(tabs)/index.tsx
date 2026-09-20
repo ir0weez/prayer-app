@@ -291,8 +291,8 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
   );
 }
 
-function UndoCountdownBar({ color }: { color: string }) {
-  return <UndoCountdownTimer color={color} />;
+function UndoCountdownBar({ color, compact = false }: { color: string; compact?: boolean }) {
+  return <UndoCountdownTimer color={color} size={compact ? 54 : 72} />;
 }
 
 export default function HomeScreen() {
@@ -1008,7 +1008,7 @@ export default function HomeScreen() {
         )}
         {isPending ? (
           <View style={styles.undoCountdownPill}>
-            <UndoCountdownBar color={colors.primary} />
+            <UndoCountdownBar color={colors.primary} compact />
           </View>
         ) : null}
       </View>
@@ -2516,9 +2516,9 @@ function createStyles(colors: any) {
   },
   undoCountdownPill: {
     position: "absolute",
-    left: -8,
-    right: -8,
-    bottom: -32,
+    left: 0,
+    right: 0,
+    bottom: -4,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,

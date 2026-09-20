@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const UNDO_COUNTDOWN_MS = 5000;
 
-export function UndoCountdownTimer({ color }: { color: string }) {
+export function UndoCountdownTimer({ color, size = 72 }: { color: string; size?: number }) {
   const progress = useRef(new Animated.Value(1)).current;
   const [secondsRemaining, setSecondsRemaining] = useState(5);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -66,8 +66,8 @@ export function UndoCountdownTimer({ color }: { color: string }) {
     <Animated.View
       style={[
         {
-          width: 72,
-          height: 72,
+          width: size,
+          height: size,
           alignItems: "center",
           justifyContent: "center",
           transform: [{ scale: pulseAnim }],
@@ -75,8 +75,8 @@ export function UndoCountdownTimer({ color }: { color: string }) {
       ]}
     >
       <Svg
-        width={72}
-        height={72}
+        width={size}
+        height={size}
         viewBox="0 0 64 64"
         style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}
       >
@@ -106,7 +106,7 @@ export function UndoCountdownTimer({ color }: { color: string }) {
       <Text
         style={{
           color,
-          fontSize: 24,
+          fontSize: size * 0.33,
           fontWeight: "700",
           zIndex: 10,
         }}

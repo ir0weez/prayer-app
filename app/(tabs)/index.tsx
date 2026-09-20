@@ -881,7 +881,8 @@ export default function HomeScreen() {
   const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
-      const updatedPeople = previousPeople.map((person) => {
+      const markedPeople = markPersonPrayed(previousPeople, personId);
+      const updatedPeople = markedPeople.map((person) => {
         if (person.id === personId) {
           const now = new Date();
           const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
@@ -894,6 +895,7 @@ export default function HomeScreen() {
         }
         return person;
       });
+      maybeAdvanceStreak(updatedPeople);
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });
@@ -921,9 +923,11 @@ export default function HomeScreen() {
   const handleEmergencyPrayer = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setPeople((previousPeople) => {
-      const updatedPeople = previousPeople.map((person) =>
+      const markedPeople = markPersonPrayed(previousPeople, personId);
+      const updatedPeople = markedPeople.map((person) =>
         person.id === personId ? addEmergencyPrayer(person, note.trim() || "24-hour emergency prayer", 24) : person,
       );
+      maybeAdvanceStreak(updatedPeople);
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });

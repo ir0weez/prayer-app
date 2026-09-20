@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const UNDO_COUNTDOWN_MS = 5000;
 
-export function UndoCountdownTimer({ color, size = 72 }: { color: string; size?: number }) {
+export function UndoCountdownTimer({ color, size = 72, variant = "circle" }: { color: string; size?: number; variant?: "circle" | "pill" }) {
   const progress = useRef(new Animated.Value(1)).current;
   const [secondsRemaining, setSecondsRemaining] = useState(5);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -61,6 +61,41 @@ export function UndoCountdownTimer({ color, size = 72 }: { color: string; size?:
     inputRange: [0, 1],
     outputRange: [circumference, 0],
   });
+
+  if (variant === "pill") {
+    return (
+      <Animated.View
+        style={{
+          width: 66,
+          height: 28,
+          borderRadius: 14,
+          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(124,58,237,0.14)",
+          borderWidth: 2,
+          borderColor: color,
+          transform: [{ scale: pulseAnim }],
+        }}
+      >
+        <Animated.View
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "100%",
+            backgroundColor: color,
+            opacity: 0.16,
+            transform: [{ scaleX: progress }],
+          }}
+        />
+        <Text style={{ color, fontSize: 11, fontWeight: "800", zIndex: 1 }}>
+          Undo {secondsRemaining}s
+        </Text>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View

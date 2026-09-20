@@ -291,8 +291,8 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
   );
 }
 
-function UndoCountdownBar({ color, compact = false }: { color: string; compact?: boolean }) {
-  return <UndoCountdownTimer color={color} size={compact ? 44 : 72} />;
+function UndoCountdownBar({ color }: { color: string }) {
+  return <UndoCountdownTimer color={color} />;
 }
 
 export default function HomeScreen() {
@@ -955,12 +955,16 @@ export default function HomeScreen() {
     
     // Determine which badge to show
     const showPraiseBadge = person.isPraised && praiseCountdown > 0;
-    const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge;
-    const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge;
+    const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge && !isPending;
+    const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge && !isPending;
     
     return (
       <View key={`story-${person.id}`} style={styles.storyItem}>
-        {showEmergencyBadge ? (
+        {isPending ? (
+          <Pressable onPress={() => handleUndoPrayTodayPerson(person.id)} style={({ pressed }) => [styles.undoCountdownPill, pressed && styles.pressed]}>
+            <UndoCountdownTimer color={colors.primary} variant="pill" />
+          </Pressable>
+        ) : showEmergencyBadge ? (
           <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }]}>
             <Text numberOfLines={3} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
             <View style={styles.storyTagMeta}>
@@ -1006,11 +1010,6 @@ export default function HomeScreen() {
             onComplete={() => setCompletedPrayerAnimationId(null)}
           />
         )}
-        {isPending ? (
-          <View style={styles.undoCountdownPill}>
-            <UndoCountdownBar color={colors.primary} compact />
-          </View>
-        ) : null}
       </View>
     );
   };
@@ -1301,7 +1300,7 @@ export default function HomeScreen() {
                   </View>
                   {/* Speech bubble removed - will be replaced with better UX */}
                   {pendingFastAction && (
-                    <Pressable onPress={handleUndoFastAction} style={styles.undoCountdownPill}>
+                    <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}>
                       <UndoCountdownBar color={colors.primary} />
                     </Pressable>
                   )}
@@ -2516,13 +2515,20 @@ function createStyles(colors: any) {
   },
   undoCountdownPill: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 18,
+    top: 16,
+    right: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 6,
+  },
+  fastUndoCountdownPill: {
+    position: "absolute",
+    left: -8,
+    right: -8,
+    bottom: -32,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
-    zIndex: 6,
   },
   undoCountdownTrack: {
     width: 58,

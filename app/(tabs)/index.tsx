@@ -19,6 +19,7 @@ import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Ea
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
+import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
@@ -1646,7 +1647,8 @@ export default function HomeScreen() {
       const entries = await AsyncStorage.multiGet(keys);
       const storage: Record<string, string | null> = {};
       entries.forEach(([key, value]) => { storage[key] = value; });
-      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage }, null, 2);
+      const photos = await createPhotoBackup(storage);
+      const payload = JSON.stringify({ format: "prayercircle-backup", version: 1, exportedAt: new Date().toISOString(), storage, photos: getPhotoBackupPayload(photos) }, null, 2);
       const filename = `prayercircle-backup-${getTodayISOString()}.json`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, payload, { encoding: FileSystem.EncodingType.UTF8 });
@@ -1685,8 +1687,11 @@ export default function HomeScreen() {
         { text: "Cancel", style: "cancel" },
         { text: "Restore", style: "destructive", onPress: async () => {
           try {
-            await AsyncStorage.multiSet(entries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
-            const imported = Object.fromEntries(entries);
+            const photos = (parsed as { photos?: unknown }).photos;
+            const restoredStorage = await restorePhotoBackup(Object.fromEntries(entries) as Record<string, string | null>, photos);
+            const restoredEntries = Object.entries(restoredStorage);
+            await AsyncStorage.multiSet(restoredEntries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+            const imported = Object.fromEntries(restoredEntries);
             const readJson = <T,>(key: string, fallback: T): T => {
               try { return imported[key] ? JSON.parse(imported[key] as string) as T : fallback; } catch { return fallback; }
             };

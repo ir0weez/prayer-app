@@ -2259,10 +2259,10 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => { setAvatarComposer(null); setAvatarComposerText(""); }}
       >
-        <View style={styles.sheetOverlay}>
+        <View style={styles.avatarComposerOverlay}>
           <Pressable style={styles.sheetBackdrop} onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }} />
-          <View style={[styles.themeSheet, { paddingBottom: 24 }]}>
-            <View style={styles.sheetHeader}>
+          <View style={styles.avatarComposerCard}>
+            <View style={[styles.sheetHeader, styles.avatarComposerHeader]}>
               <Pressable onPress={() => { setAvatarComposer(null); setAvatarComposerText(""); }}>
                 <Text style={styles.sheetDone}>Cancel</Text>
               </Pressable>
@@ -3634,6 +3634,11 @@ function createStyles(colors: any) {
     flex: 1,
     justifyContent: "flex-end",
   },
+  avatarComposerOverlay: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 112,
+  },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.46)",
@@ -3644,6 +3649,25 @@ function createStyles(colors: any) {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     backgroundColor: colors.background,
+  },
+  avatarComposerCard: {
+    width: "88%",
+    maxWidth: 380,
+    paddingBottom: 22,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    shadowColor: "#000000",
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  avatarComposerHeader: {
+    minHeight: 58,
+    paddingHorizontal: 2,
   },
   sheetHeader: {
     minHeight: 64,

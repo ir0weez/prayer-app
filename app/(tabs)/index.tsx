@@ -930,6 +930,26 @@ export default function HomeScreen() {
     setAvatarActionPersonId(null);
   };
 
+  const handleRemoveEmergencyPrayer = (personId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPeople((previousPeople) => {
+      const now = Date.now();
+      const updatedPeople = previousPeople.map((person) =>
+        person.id === personId
+          ? {
+              ...person,
+              prayerItems: person.prayerItems.filter((item) => {
+                if (!item.isEmergency || !item.emergencyExpiresAt) return true;
+                return new Date(item.emergencyExpiresAt).getTime() <= now;
+              }),
+            }
+          : person,
+      );
+      AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
+      return updatedPeople;
+    });
+  };
+
   const submitAvatarComposer = () => {
     if (!avatarComposer) return;
     if (avatarComposer.kind === "praise") handlePraise(avatarComposer.personId, avatarComposerText);
@@ -1040,7 +1060,10 @@ export default function HomeScreen() {
                   handleUndoPraise(person.id);
                   return;
                 }
-                if (showEmergencyBadge) return;
+                if (showEmergencyBadge) {
+                  handleRemoveEmergencyPrayer(person.id);
+                  return;
+                }
                 setAvatarActionPersonId((current) => current === person.id ? null : person.id);
               }}
               style={({ pressed }) => [styles.storyPlus, { backgroundColor: showPraiseBadge ? "#3B82F6" : showEmergencyBadge ? "#EF4444" : colors.primary, borderColor: colors.background }, pressed && styles.pressed]}

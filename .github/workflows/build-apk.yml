@@ -1,10 +1,17 @@
 name: Build test APK
 
-# Builds a debug APK of the app on GitHub's free runners and uploads it as a
+# Builds a release APK of the app on GitHub's free runners and uploads it as a
 # downloadable artifact. No Expo/EAS cloud builds are used, so this consumes
 # zero Expo build credits. The APK is built with APP_VARIANT=test, giving it
 # the name "PrayerCircle Test" and its own package id so it installs
 # alongside the production app without a signature clash.
+#
+# NOTE: this must be a *release* build (assembleRelease). A debug build does
+# not bundle the JS, so the app would crash on launch looking for a dev
+# server. The APK is signed with a throwaway test key generated fresh on each
+# run, so before installing an update, uninstall the previous "PrayerCircle
+# Test" first. (A permanent key stored as a GitHub secret would allow
+# seamless updates; the repo token currently lacks secrets permission.)
 
 on:
   push:
@@ -16,6 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VARIANT: test
+      # Exposed to JS so the test build can enable its temporary startup
+      # crash reporter (lib/test-crash-reporter.tsx). Production is unaffected.
+      EXPO_PUBLIC_APP_VARIANT: test
+      # Required: without NODE_ENV set, Expo ignores system env vars when
+      # bundling ("Using only .env.local and .env"), which silently drops
+      # EXPO_PUBLIC_* values from the JS bundle.
+      NODE_ENV: production
       CI: "true"
     steps:
       - name: Checkout code
@@ -47,14 +61,22 @@ jobs:
       # Note: ubuntu-latest runners already ship with the Android SDK
       # (ANDROID_SDK_ROOT is pre-set), so no SDK setup step is needed.
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           chmod +x android/gradlew
-          cd android && ./gradlew assembleDebug --no-daemon
+          keytool -genkeypair -keystore /tmp/test-release.keystore \
+            -alias prayercircle-test -keyalg RSA -keysize 2048 -validity 10950 \
+            -storepass android -keypass android \
+            -dname "CN=PrayerCircle Test, OU=Test, O=PrayerCircle, L=Lancaster, ST=CA, C=US"
+          cd android && ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=/tmp/test-release.keystore \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=prayercircle-test \
+            -Pandroid.injected.signing.key.password=android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: prayercircle-test-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

@@ -2745,6 +2745,7 @@ export function ScheduleTab({
                   artist={currentAlbum.artist}
                   tracks={currentAlbum.tracks}
                   coverUrl={currentAlbum.coverUrl}
+                  onCoverPress={() => setWorshipDetailAlbum(currentAlbum)}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}
                   onEdit={() => openEditWorshipAlbum(currentAlbum)}
                   isSaved={currentAlbum.isSaved}

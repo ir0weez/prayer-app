@@ -11,6 +11,7 @@ export interface AlbumCardProps {
   coverUrl?: string;
   onOpen?: () => void;
   onOpenDetails?: () => void;
+  onCoverPress?: () => void;
   onEdit?: () => void;
   onToggleSaved?: () => void;
   isSaved?: boolean;
@@ -29,6 +30,7 @@ export function AlbumCard({
   coverUrl,
   onOpen,
   onOpenDetails,
+  onCoverPress,
   onEdit,
   onToggleSaved,
   isSaved = false,
@@ -65,7 +67,13 @@ export function AlbumCard({
         </View>
       )}
       <Pressable accessibilityRole="button" accessibilityLabel={`${title}${tracks.length ? ', show tracks' : ''}`} onPress={() => onOpenDetails ? onOpenDetails() : hasActions && toggleExpanded()} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 }}>
-        <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}>
+        <Pressable
+          accessibilityRole={onCoverPress ? "button" : undefined}
+          accessibilityLabel={onCoverPress ? `Open ${title} album` : undefined}
+          disabled={!onCoverPress}
+          onPress={onCoverPress}
+          style={({ pressed }) => [{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+        >
           {!imageError && coverUrl ? (
             <Image source={{ uri: coverUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" onError={() => setImageError(true)} />
           ) : (
@@ -73,7 +81,7 @@ export function AlbumCard({
               <MaterialIcons name="music-note" size={28} color={colors.foreground} />
             </View>
           )}
-        </View>
+        </Pressable>
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }} numberOfLines={2}>{title}</Text>
           <Text style={{ fontSize: 18, lineHeight: 23, fontWeight: '700', color: colors.muted }} numberOfLines={2}>{artist}</Text>

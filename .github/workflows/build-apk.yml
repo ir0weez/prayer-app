@@ -26,6 +26,10 @@ jobs:
       # Exposed to JS so the test build can enable its temporary startup
       # crash reporter (lib/test-crash-reporter.tsx). Production is unaffected.
       EXPO_PUBLIC_APP_VARIANT: test
+      # Required: without NODE_ENV set, Expo ignores system env vars when
+      # bundling ("Using only .env.local and .env"), which silently drops
+      # EXPO_PUBLIC_* values from the JS bundle.
+      NODE_ENV: production
       CI: "true"
     steps:
       - name: Checkout code

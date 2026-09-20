@@ -12,8 +12,26 @@
  */
 import React from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import Constants from "expo-constants";
 
-export const isTestVariant = process.env.EXPO_PUBLIC_APP_VARIANT === "test";
+const variantFromEnv = process.env.EXPO_PUBLIC_APP_VARIANT === "test";
+// Fallback that does not depend on env-var inlining at bundle time: the
+// native app name/package are baked in from app.config.ts during prebuild,
+// so the embedded manifest always reflects the test variant. (A build where
+// NODE_ENV was unset caused Expo to ignore system env vars, silently
+// disabling this reporter via the env check alone.)
+const manifestName = Constants.expoConfig?.name ?? "";
+const manifestPackage = Constants.expoConfig?.android?.package ?? "";
+const variantFromManifest =
+  manifestName === "PrayerCircle Test" || manifestPackage.endsWith(".test");
+
+export const isTestVariant = variantFromEnv || variantFromManifest;
+
+// Sentinel string so the built JS bundle can be inspected to confirm the
+// reporter is actually live (grep the bundle for DIAG_REPORTER_ACTIVE_).
+export const reporterSentinel = isTestVariant
+  ? "DIAG_REPORTER_ACTIVE_9f3a7c2e"
+  : "DIAG_REPORTER_INACTIVE_9f3a7c2e";
 
 export type CrashInfo = {
   message: string;

@@ -991,10 +991,10 @@ export default function HomeScreen() {
         <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
-        <Pressable onPress={() => (isPending ? handleUndoPrayTodayPerson(person.id) : handleMarkPrayTodayPerson(person.id))} style={({ pressed }) => [styles.storyPlus, isPending && styles.storyPlusPending, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
-          <MaterialIcons name={iconName(isPending ? "undo" : isPrayedToday ? "check" : "add")} size={isPending ? 20 : 24} color="#FFFFFF" />
-        </Pressable>
-        {showPraiseBadge ? (
+        {!isPending && <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPlus, { backgroundColor: colors.primary, borderColor: colors.background }, isPrayedToday && styles.storyPlusDone, pressed && styles.pressed]}>
+          <MaterialIcons name={iconName(isPrayedToday ? "check" : "add")} size={isPrayedToday ? 20 : 24} color="#FFFFFF" />
+        </Pressable>}
+        {!isPending && (showPraiseBadge ? (
           <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyPlus, isPending && styles.storyPlusPending, { backgroundColor: "#3B82F6", borderColor: colors.background }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("thumb-up")} size={20} color="#FFFFFF" />
           </Pressable>
@@ -1002,7 +1002,7 @@ export default function HomeScreen() {
           <Pressable onPress={() => handlePraise(person.id)} style={({ pressed }) => [styles.storyPlus, isPending && styles.storyPlusPending, { backgroundColor: colors.primary, borderColor: colors.background }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("add")} size={24} color="#FFFFFF" />
           </Pressable>
-        )}
+        ))}
         {isShowingCompletionAnimation && (
           <PrayerCompletionAnimation
             isActive={isShowingCompletionAnimation}

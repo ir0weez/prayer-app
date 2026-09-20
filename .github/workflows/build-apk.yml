@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VARIANT: test
+      # Exposed to JS so the test build can enable its temporary startup
+      # crash reporter (lib/test-crash-reporter.tsx). Production is unaffected.
+      EXPO_PUBLIC_APP_VARIANT: test
       CI: "true"
     steps:
       - name: Checkout code

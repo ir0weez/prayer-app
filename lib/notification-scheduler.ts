@@ -1,0 +1,169 @@
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import type { Person, ReminderFrequency } from "./prayercircle-data";
+import { getPersonReminderFrequency } from "./prayercircle-data";
+import type { ScheduleEvent } from "./schedule-data";
+
+const SOURCE = "prayercircle";
+const PRAYER_KIND = "prayer-reminder";
+const EVENT_KIND = "scheduled-event";
+const CHANNEL_ID = "prayercircle-reminders";
+
+export type NotificationPlan = {
+  content: Notifications.NotificationContentInput;
+  trigger: Notifications.NotificationTriggerInput;
+};
+
+function parseTime(value?: string): { hour: number; minute: number } | null {
+  if (!value) return null;
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?$/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const meridiem = match[3]?.toLowerCase();
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute > 59) return null;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    if (meridiem === "pm" && hour !== 12) hour += 12;
+    if (meridiem === "am" && hour === 12) hour = 0;
+  } else if (hour > 23) {
+    return null;
+  }
+  return { hour, minute };
+}
+
+function prayerBody(person: Person): string {
+  const tag = person.reminderTag?.trim();
+  return tag ? `Take a moment to pray for ${person.name} · ${tag}` : `Take a moment to pray for ${person.name}`;
+}
+
+function prayerTrigger(
+  frequency: ReminderFrequency,
+  time: { hour: number; minute: number },
+  day?: number,
+): Notifications.NotificationTriggerInput | null {
+  const base = { hour: time.hour, minute: time.minute, channelId: CHANNEL_ID };
+  if (frequency === "daily") return { type: Notifications.SchedulableTriggerInputTypes.DAILY, ...base };
+  if (frequency === "weekly" && day !== undefined) {
+    return { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: day + 1, ...base };
+  }
+  if (frequency === "monthly" && day !== undefined) {
+    return { type: Notifications.SchedulableTriggerInputTypes.MONTHLY, day, ...base };
+  }
+  return null;
+}
+
+export function buildPrayerReminderPlans(people: Person[]): NotificationPlan[] {
+  const plans: NotificationPlan[] = [];
+  for (const person of people) {
+    const time = parseTime(person.reminderTime);
+    const frequency = getPersonReminderFrequency(person);
+    if (!time || frequency === "none") continue;
+
+    const days = frequency === "weekly" ? person.reminderDaysOfWeek ?? [] : [undefined];
+    for (const day of days) {
+      const trigger = prayerTrigger(frequency, time, day);
+      if (!trigger) continue;
+      plans.push({
+        content: {
+          title: "PrayerCircle reminder",
+          body: prayerBody(person),
+          sound: "default",
+          data: { source: SOURCE, kind: PRAYER_KIND, personId: person.id },
+        },
+        trigger,
+      });
+    }
+  }
+  return plans;
+}
+
+function eventDate(event: ScheduleEvent): Date | null {
+  if (!event.startTime) return null;
+  const time = parseTime(event.startTime);
+  if (!time) return null;
+  const [year, month, day] = event.date.split("-").map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  const date = new Date(year, month - 1, day, time.hour, time.minute, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function buildScheduledEventPlans(events: ScheduleEvent[], now = new Date()): NotificationPlan[] {
+  return events.flatMap((event) => {
+    if (event.isCompleted) return [];
+    const date = eventDate(event);
+    if (!date || date.getTime() <= now.getTime()) return [];
+    return [{
+      content: {
+        title: "Scheduled event",
+        body: event.location ? `${event.title} · ${event.location}` : event.title,
+        sound: "default",
+        data: { source: SOURCE, kind: EVENT_KIND, eventId: event.id },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL_ID },
+    }];
+  });
+}
+
+async function ensurePermission(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      name: "PrayerCircle reminders",
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: "default",
+      vibrationPattern: [0, 250, 200, 250],
+    });
+  }
+  const current = await Notifications.getPermissionsAsync();
+  if (current.granted) return true;
+  if (!current.canAskAgain) return false;
+  const requested = await Notifications.requestPermissionsAsync();
+  return requested.granted;
+}
+
+async function cancelKind(kind: string): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter((notification) => notification.content.data?.source === SOURCE && notification.content.data?.kind === kind)
+      .map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier)),
+  );
+}
+
+async function schedulePlans(plans: NotificationPlan[]): Promise<void> {
+  await Promise.all(plans.map((plan) => Notifications.scheduleNotificationAsync(plan)));
+}
+
+export async function syncPrayerReminderNotifications(people: Person[]): Promise<void> {
+  if (Platform.OS === "web") return;
+  await cancelKind(PRAYER_KIND);
+  const plans = buildPrayerReminderPlans(people);
+  if (plans.length === 0 || !(await ensurePermission())) return;
+  await schedulePlans(plans);
+}
+
+export async function syncScheduledEventNotifications(events: ScheduleEvent[]): Promise<void> {
+  if (Platform.OS === "web") return;
+  await cancelKind(EVENT_KIND);
+  const plans = buildScheduledEventPlans(events);
+  if (plans.length === 0 || !(await ensurePermission())) return;
+  await schedulePlans(plans);
+}
+
+export function configureLocalNotifications(): void {
+  if (Platform.OS === "web") return;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
+export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND } as const;
+
+export { parseTime };

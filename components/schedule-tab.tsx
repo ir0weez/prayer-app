@@ -118,6 +118,7 @@ import { getActiveFast, type PersonalFast } from "@/lib/prayercircle-fasting";
 import { createWorshipList, WORSHIP_LISTS_KEY, addSongToList } from "@/lib/worship-list";
 import { PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { TimeOffCard } from '@/components/time-off-card';
+import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
@@ -1492,6 +1493,10 @@ export function ScheduleTab({
   // Save data
   useEffect(() => {
     AsyncStorage.setItem(SCHEDULE_EVENTS_KEY, JSON.stringify(events)).catch(() => undefined);
+  }, [events]);
+
+  useEffect(() => {
+    syncScheduledEventNotifications(events).catch(() => undefined);
   }, [events]);
 
   useEffect(() => {

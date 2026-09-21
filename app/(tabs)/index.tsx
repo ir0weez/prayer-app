@@ -20,6 +20,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
+import { syncPrayerReminderNotifications } from "@/lib/notification-scheduler";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
@@ -657,6 +658,11 @@ export default function HomeScreen() {
       setProfile((previous) => ({ ...previous, fastingStreak: newStreak }));
     }
   }, [activeFast, today, hasHydratedPeople, profile.fastingStreak]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    syncPrayerReminderNotifications(people).catch(() => undefined);
+  }, [hasHydratedPeople, people]);
 
   // Separate family groups from individual people
   const familyGroups = useMemo(() => {

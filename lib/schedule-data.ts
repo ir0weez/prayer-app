@@ -258,6 +258,29 @@ export function getSubtaskProgress(todo: ScheduleTodo): { completed: number; tot
   return { completed, total, ratio: total === 0 ? 0 : completed / total };
 }
 
+/**
+ * Counts the actionable todo units for the Schedule summary. A grouped todo is
+ * represented by its subtasks rather than also counting the group header as a
+ * separate todo, while ordinary todos continue to count as one unit.
+ */
+export function getTodoSummaryCounts(todos: ScheduleTodo[]): { completed: number; total: number; remaining: number } {
+  const counts = todos.reduce(
+    (counts, todo) => {
+      const subtasks = todo.subtasks ?? [];
+      if (subtasks.length > 0) {
+        counts.total += subtasks.length;
+        counts.completed += subtasks.filter((subtask) => subtask.isCompleted).length;
+      } else {
+        counts.total += 1;
+        if (todo.isCompleted) counts.completed += 1;
+      }
+      return counts;
+    },
+    { completed: 0, total: 0 },
+  );
+  return { ...counts, remaining: counts.total - counts.completed };
+}
+
 export function toggleMinistryCompleted(ministries: ScheduleMinistry[], ministryId: string): ScheduleMinistry[] {
   return ministries.map((m) =>
     m.id === ministryId

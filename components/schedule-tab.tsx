@@ -105,6 +105,7 @@ import {
   toggleTodoCompleted,
   toggleSubtaskCompleted,
   getSubtaskProgress,
+  getTodoSummaryCounts,
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
@@ -3044,6 +3045,7 @@ export function ScheduleTab({
                       ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
                     ];
                     const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
+                    const todoSummaryCounts = getTodoSummaryCounts(getTodosForDate(todos, selectedDate));
 
                     const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
                     // Format as "Xh Ym" instead of just hours
@@ -3055,7 +3057,7 @@ export function ScheduleTab({
 
                     return (
                       <DailySummaryCard
-                        remainingTodos={getTodosForDate(todos, selectedDate).filter(t => !t.isCompleted).length}
+                        remainingTodos={todoSummaryCounts.remaining}
                         remainingPrayers={memoizedSummaryData.remainingPrayers}
                         fastingStatus={memoizedSummaryData.fastingStatus}
                         budgetAmount={memoizedSummaryData.budgetAmount}
@@ -3105,8 +3107,8 @@ export function ScheduleTab({
 
                   {/* Progress Bar */}
                   <ScheduleProgressBar
-                    completed={getTodosForDate(todos, selectedDate).filter(t => t.isCompleted).length + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
-                    total={getTodosForDate(todos, selectedDate).length + getEventsForDate(events, selectedDate).length}
+                    completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
+                    total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
                     label="Tasks & Events"
                   />
                 </View>

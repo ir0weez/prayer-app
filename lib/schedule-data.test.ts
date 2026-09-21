@@ -20,6 +20,7 @@ import {
   toggleTodoCompleted,
   toggleSubtaskCompleted,
   getSubtaskProgress,
+  getTodoSummaryCounts,
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "./schedule-data";
@@ -197,6 +198,15 @@ describe("schedule-data", () => {
 
     it("calculates grouped todo progress", () => {
       expect(getSubtaskProgress(groupedTodo)).toEqual({ completed: 1, total: 3, ratio: 1 / 3 });
+    });
+
+    it("counts grouped subtasks as individual summary todo units", () => {
+      const regularTodo = createScheduleTodo({ title: "Call the school", date: "2026-05-30" }, 1);
+      expect(getTodoSummaryCounts([groupedTodo, regularTodo])).toEqual({
+        completed: 1,
+        total: 4,
+        remaining: 3,
+      });
     });
 
     it("preserves notes on grouped todos for the expanded card", () => {

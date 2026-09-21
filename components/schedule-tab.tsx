@@ -59,7 +59,7 @@ import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
   getDisplayedWorshipAlbum,
   getSavedAlbumLibraryEntries,
-  getSavedAlbumGroupLead,
+  compareSavedAlbumsByReleaseDate,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
   removeWorshipAlbumAndSelectFallback,
@@ -1063,19 +1063,8 @@ export function ScheduleTab({
     });
     return Array.from(groups.values())
       .map((group) => {
-        const lead = getSavedAlbumGroupLead(group.albums);
-          const remaining = group.albums
-          .filter((album) => album.id !== lead?.id)
-          .sort((a, b) => {
-            const aRelease = a.releaseDate?.slice(0, 10) ?? a.createdAt?.slice(0, 10) ?? "";
-            const bRelease = b.releaseDate?.slice(0, 10) ?? b.createdAt?.slice(0, 10) ?? "";
-            if (aRelease !== bRelease) return bRelease.localeCompare(aRelease);
-            const aDate = a.date?.slice(0, 10) ?? "";
-            const bDate = b.date?.slice(0, 10) ?? "";
-            if (aDate !== bDate) return bDate.localeCompare(aDate);
-            return (Date.parse(b.addedAt ?? b.createdAt ?? "") || 0) - (Date.parse(a.addedAt ?? a.createdAt ?? "") || 0);
-          });
-        return { ...group, albums: lead ? [lead, ...remaining] : remaining };
+        const albums = [...group.albums].sort(compareSavedAlbumsByReleaseDate);
+        return { ...group, albums };
       })
       .sort((a, b) => a.artist.localeCompare(b.artist));
   }, [savedAlbums]);

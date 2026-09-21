@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendAndSelectWorshipAlbum,
+  compareSavedAlbumsByReleaseDate,
   getDisplayedWorshipAlbum,
   getSavedAlbumLibraryEntries,
   getSavedAlbumGroupLead,
@@ -93,5 +94,15 @@ describe("worship album display state", () => {
     const datedOccurrence = { ...userAlbum, id: "dated", date: "2026-09-19", isSaved: true };
 
     expect(getSavedAlbumLibraryEntries([template, datedOccurrence]).map((album) => album.id)).toEqual(["dated"]);
+  });
+
+  it("sorts grouped albums newest-first by release date", () => {
+    const olderRelease = { ...userAlbum, id: "older-release", releaseDate: "2023-09-01", date: "2026-09-20" };
+    const newerRelease = { ...userAlbum, id: "newer-release", releaseDate: "2026-03-01", date: "2026-09-19" };
+
+    expect([olderRelease, newerRelease].sort(compareSavedAlbumsByReleaseDate).map((album) => album.id)).toEqual([
+      "newer-release",
+      "older-release",
+    ]);
   });
 });

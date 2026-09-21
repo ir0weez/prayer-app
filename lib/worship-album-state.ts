@@ -28,6 +28,18 @@ function getLocalDateISO(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function getReleaseSortDate(album: StoredWorshipAlbum): string {
+  return (album.releaseDate ?? album.createdAt ?? album.date ?? album.addedAt ?? "").slice(0, 10);
+}
+
+/** Sorts albums newest-first by release date, then by scheduled date and save time. */
+export function compareSavedAlbumsByReleaseDate(a: StoredWorshipAlbum, b: StoredWorshipAlbum): number {
+  const releaseOrder = getReleaseSortDate(b).localeCompare(getReleaseSortDate(a));
+  if (releaseOrder !== 0) return releaseOrder;
+  const scheduledOrder = (b.date?.slice(0, 10) ?? "").localeCompare(a.date?.slice(0, 10) ?? "");
+  return scheduledOrder !== 0 ? scheduledOrder : getAlbumAddedTimestamp(b) - getAlbumAddedTimestamp(a);
+}
+
 /** Chooses the album cover that represents an artist group in Saved Albums. */
 export function getSavedAlbumGroupLead(
   albums: StoredWorshipAlbum[],

@@ -927,6 +927,8 @@ export function ScheduleTab({
   showWorshipAlbumForm = false,
   onShowWorshipAlbumForm,
   onTodoComplete,
+  eventRemindersEnabled = true,
+  defaultEventReminderMinutes = 0,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -940,6 +942,8 @@ export function ScheduleTab({
   showWorshipAlbumForm?: boolean;
   onShowWorshipAlbumForm?: (show: boolean) => void;
   onTodoComplete?: (todoId: string) => void;
+  eventRemindersEnabled?: boolean;
+  defaultEventReminderMinutes?: number;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
@@ -968,6 +972,7 @@ export function ScheduleTab({
   const [formDate, setFormDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
+  const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(0);
   const [formLocation, setFormLocation] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
@@ -1497,7 +1502,7 @@ export function ScheduleTab({
 
   useEffect(() => {
     syncScheduledEventNotifications(events).catch(() => undefined);
-  }, [events]);
+  }, [defaultEventReminderMinutes, eventRemindersEnabled, events]);
 
   useEffect(() => {
     AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);
@@ -1788,6 +1793,7 @@ export function ScheduleTab({
     setFormDate("");
     setFormStartTime("");
     setFormEndTime("");
+    setFormReminderMinutesBefore(defaultEventReminderMinutes);
     setFormLocation("");
     setFormNotes("");
     setFormMinistryType("Outreach");
@@ -1833,6 +1839,7 @@ export function ScheduleTab({
       date: formDate || selectedDate,
       startTime: normalizedStartTime || undefined,
       endTime: normalizedEndTime || undefined,
+      reminderMinutesBefore: normalizedStartTime ? formReminderMinutesBefore : undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,

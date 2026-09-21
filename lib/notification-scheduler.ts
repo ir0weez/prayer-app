@@ -1,13 +1,48 @@
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
 import { getPersonReminderFrequency } from "./prayercircle-data";
 import type { ScheduleEvent } from "./schedule-data";
+import { APP_SETTINGS_STORAGE_KEY } from "./prayercircle-storage";
 
 const SOURCE = "prayercircle";
 const PRAYER_KIND = "prayer-reminder";
 const EVENT_KIND = "scheduled-event";
 const CHANNEL_ID = "prayercircle-reminders";
+
+export type NotificationPreferences = {
+  prayerRemindersEnabled: boolean;
+  eventRemindersEnabled: boolean;
+  defaultEventReminderMinutes: number;
+};
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  prayerRemindersEnabled: true,
+  eventRemindersEnabled: true,
+  defaultEventReminderMinutes: 0,
+};
+
+const VALID_ADVANCE_MINUTES = [0, 5, 15, 30, 60];
+
+export function normalizeNotificationPreferences(value: unknown): NotificationPreferences {
+  const parsed = (value && typeof value === "object" ? value : {}) as Partial<NotificationPreferences>;
+  const minutes = Number(parsed.defaultEventReminderMinutes);
+  return {
+    prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
+    eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
+    defaultEventReminderMinutes: VALID_ADVANCE_MINUTES.includes(minutes) ? minutes : 0,
+  };
+}
+
+async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  try {
+    const raw = await AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY);
+    return normalizeNotificationPreferences(raw ? JSON.parse(raw) : undefined);
+  } catch {
+    return DEFAULT_NOTIFICATION_PREFERENCES;
+  }
+}
 
 export type NotificationPlan = {
   content: Notifications.NotificationContentInput;
@@ -88,19 +123,28 @@ function eventDate(event: ScheduleEvent): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function buildScheduledEventPlans(events: ScheduleEvent[], now = new Date()): NotificationPlan[] {
+export function buildScheduledEventPlans(
+  events: ScheduleEvent[],
+  now = new Date(),
+  defaultReminderMinutes = 0,
+): NotificationPlan[] {
   return events.flatMap((event) => {
     if (event.isCompleted) return [];
     const date = eventDate(event);
-    if (!date || date.getTime() <= now.getTime()) return [];
+    if (!date) return [];
+    const reminderMinutes = event.reminderMinutesBefore ?? defaultReminderMinutes;
+    const notificationDate = new Date(date.getTime() - Math.max(0, reminderMinutes) * 60_000);
+    if (notificationDate.getTime() <= now.getTime()) return [];
     return [{
       content: {
-        title: "Scheduled event",
-        body: event.location ? `${event.title} · ${event.location}` : event.title,
+        title: reminderMinutes > 0 ? `Upcoming: ${event.title}` : "Scheduled event",
+        body: reminderMinutes > 0
+          ? `${event.location ? `${event.location} · ` : ""}${reminderMinutes} minutes from now`
+          : event.location ? `${event.title} · ${event.location}` : event.title,
         sound: "default",
         data: { source: SOURCE, kind: EVENT_KIND, eventId: event.id },
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: CHANNEL_ID },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: notificationDate, channelId: CHANNEL_ID },
     }];
   });
 }
@@ -138,6 +182,8 @@ async function schedulePlans(plans: NotificationPlan[]): Promise<void> {
 export async function syncPrayerReminderNotifications(people: Person[]): Promise<void> {
   if (Platform.OS === "web") return;
   await cancelKind(PRAYER_KIND);
+  const preferences = await getNotificationPreferences();
+  if (!preferences.prayerRemindersEnabled) return;
   const plans = buildPrayerReminderPlans(people);
   if (plans.length === 0 || !(await ensurePermission())) return;
   await schedulePlans(plans);
@@ -146,7 +192,9 @@ export async function syncPrayerReminderNotifications(people: Person[]): Promise
 export async function syncScheduledEventNotifications(events: ScheduleEvent[]): Promise<void> {
   if (Platform.OS === "web") return;
   await cancelKind(EVENT_KIND);
-  const plans = buildScheduledEventPlans(events);
+  const preferences = await getNotificationPreferences();
+  if (!preferences.eventRemindersEnabled) return;
+  const plans = buildScheduledEventPlans(events, new Date(), preferences.defaultEventReminderMinutes);
   if (plans.length === 0 || !(await ensurePermission())) return;
   await schedulePlans(plans);
 }

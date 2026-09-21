@@ -17,6 +17,7 @@ export type ScheduleEvent = {
   date: string; // ISO YYYY-MM-DD
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
+  reminderMinutesBefore?: number; // Optional local notification lead time
   location?: string;
   notes?: string;
   isCompleted: boolean;

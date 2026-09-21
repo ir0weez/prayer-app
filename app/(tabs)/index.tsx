@@ -129,6 +129,9 @@ type RelationshipSection = {
 type AppSettings = {
   demoMode: boolean;
   colorTheme: "default" | "ocean" | "forest" | "sunset" | "rose";
+  prayerRemindersEnabled: boolean;
+  eventRemindersEnabled: boolean;
+  defaultEventReminderMinutes: number;
 };
 
 type PersonalProfile = {
@@ -151,7 +154,13 @@ const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry",
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
 
-const DEFAULT_SETTINGS: AppSettings = { demoMode: false, colorTheme: "default" };
+const DEFAULT_SETTINGS: AppSettings = {
+  demoMode: false,
+  colorTheme: "default",
+  prayerRemindersEnabled: true,
+  eventRemindersEnabled: true,
+  defaultEventReminderMinutes: 0,
+};
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
@@ -213,7 +222,15 @@ function parseStoredSettings(value: string | null): AppSettings {
     const parsed = JSON.parse(value) as Partial<AppSettings>;
     const validThemes = ["default", "ocean", "forest", "sunset", "rose"];
     const colorTheme = validThemes.includes(parsed.colorTheme || "") ? (parsed.colorTheme as AppSettings["colorTheme"]) : "default";
-    return { demoMode: Boolean(parsed.demoMode), colorTheme };
+    const validAdvanceMinutes = [0, 5, 15, 30, 60];
+    const defaultEventReminderMinutes = Number(parsed.defaultEventReminderMinutes);
+    return {
+      demoMode: Boolean(parsed.demoMode),
+      colorTheme,
+      prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
+      eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
+      defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -577,7 +594,7 @@ export default function HomeScreen() {
     });
     return todos;
   }, [personalContacts, visiblePrayTodayList]);
-  
+
   // Get next personal to-do (even if not due yet) to show in speech bubble
   const nextPersonalTodo = useMemo(() => {
     if (visiblePrayTodayList.length > 0) {
@@ -614,7 +631,7 @@ export default function HomeScreen() {
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
-  
+
   // Derive fast avatar color from the persisted fast status
   const getStatusColor = (status?: FastDayStatus) => {
     if (status === "completed") return "#22C55E"; // Green
@@ -622,7 +639,7 @@ export default function HomeScreen() {
     if (status === "missed") return "#EF4444"; // Red
     return colors.primary;
   };
-  
+
   const fastAvatarColorFromStatus = useMemo(() => {
     if (!activeFast) return null;
     return getStatusColor(activeFastTodayStatus);
@@ -662,7 +679,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!hasHydratedPeople) return;
     syncPrayerReminderNotifications(people).catch(() => undefined);
-  }, [hasHydratedPeople, people]);
+  }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
 
   // Separate family groups from individual people
   const familyGroups = useMemo(() => {
@@ -694,7 +711,7 @@ export default function HomeScreen() {
         }
         return false;
       });
-      
+
       return {
         title: relationship,
         people: ungroupedInRelationship,
@@ -1009,12 +1026,12 @@ export default function HomeScreen() {
     const isPending = pendingPrayerIds.includes(person.id);
     const isPrayedToday = hasPersonCompletedPrayerToday(person, today) || isPending;
     const isShowingCompletionAnimation = completedPrayerAnimationId === person.id;
-    
+
     // Determine which badge to show
     const showPraiseBadge = person.isPraised && praiseCountdown > 0;
     const showEmergencyBadge = isEmergency && emergencyCountdown > 0 && !showPraiseBadge && !isPending;
     const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge && !isPending;
-    
+
     return (
       <View key={`story-${person.id}`} style={[styles.storyItem, isPending && styles.storyItemPending]}>
         {isPending ? (
@@ -1242,8 +1259,8 @@ export default function HomeScreen() {
   };
 
   const renderPeopleScreen = () => (
-    <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}> 
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}> 
+    <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View>
           <Text style={styles.appTitle}>PrayerCircle</Text>
           <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
@@ -1811,12 +1828,29 @@ export default function HomeScreen() {
       </View>
 
 
+      <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+        {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.prayerRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
+        {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.eventRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
+        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
+          <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
+          <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {[0, 5, 15, 30, 60].map((minutes) => (
+              <Pressable key={minutes} onPress={() => setSettings((previous) => ({ ...previous, defaultEventReminderMinutes: minutes }))} style={{ borderWidth: 1, borderColor: settings.defaultEventReminderMinutes === minutes ? colors.primary : colors.border, backgroundColor: settings.defaultEventReminderMinutes === minutes ? `${colors.primary}18` : colors.surface, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Text style={{ color: settings.defaultEventReminderMinutes === minutes ? colors.primary : colors.foreground, fontWeight: "700", fontSize: 12 }}>{minutes === 0 ? "At start" : `${minutes} min`}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </View>
+
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}> 
-        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
         </Pressable>
-        <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+        <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
         </Pressable>
         <Pressable onPress={() => {
@@ -1913,7 +1947,7 @@ export default function HomeScreen() {
       }
       if (bookStatusData) setBookStatuses(JSON.parse(bookStatusData));
       if (lastReadData) setBibleLastReadDate(lastReadData);
-      
+
       // Load unified Bible state to get the next unread chapter
       try {
         const bibleState = await loadUnifiedBible();
@@ -1955,20 +1989,20 @@ export default function HomeScreen() {
     const allPersonalTodos = personalPerson?.personalTodos || [];
     const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
     const completedPersonalTodos = allPersonalTodos.filter(t => t.isDone).length;
-    
+
     // Sort incomplete todos by time
     const sortedIncompleteTodos = [...incompleteTodos].sort((a, b) => {
       const timeA = a.scheduledTime || '23:59';
       const timeB = b.scheduledTime || '23:59';
       return timeA.localeCompare(timeB);
     });
-    
+
     // Use prayTodayList for accurate prayer count (same as home screen)
     const totalPrayers = prayTodayList.length;
     const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
     const remainingPrayers = totalPrayers - completedPrayers;
     const remainingTodos = incompleteTodos.length;
-    
+
     // Get fasting status - map from dayStatuses to display format
     let fastingStatus = 'not-selected';
     if (activeFastTodayStatus === 'completed') {
@@ -1978,7 +2012,7 @@ export default function HomeScreen() {
     } else if (activeFastTodayStatus === 'skipped') {
       fastingStatus = 'skipped';
     }
-    
+
     // Calculate people to reach out to (only those who HAVE been marked and are past 14 days)
     const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const peopleToReach = people.filter(p => {
@@ -1986,12 +2020,12 @@ export default function HomeScreen() {
       if (!p.lastPrayedDate) return false; // Don't count people never marked
       return p.lastPrayedDate <= fourteenDaysAgo;
     }).length;
-    
+
     // Calculate total budget and spent from AsyncStorage data
     const totalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
     const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
     const budgetAmount = totalBudgeted - totalSpent;
-    
+
     // Use the currentBibleDisplay from state (loaded from unified Bible state)
     const currentBibleStudy = currentBibleDisplay;
 
@@ -2012,7 +2046,7 @@ export default function HomeScreen() {
                   if (p.isPersonal) {
                     return {
                       ...p,
-                      personalTodos: p.personalTodos?.map(t => 
+                      personalTodos: p.personalTodos?.map(t =>
                         t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
                       ) || [],
                     };
@@ -2058,7 +2092,7 @@ export default function HomeScreen() {
         if (!p.lastPrayedDate) return false; // Don't count people never marked
         return p.lastPrayedDate <= fourteenDaysAgo;
       }).length;
-      
+
       // Calculate total budget and spent from AsyncStorage data
       const scheduleTotalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
       const scheduleTotalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
@@ -2077,6 +2111,8 @@ export default function HomeScreen() {
           peopleToReach={schedulePeopleToReach}
           currentBibleStudy={scheduleCurrentBibleStudy}
           personalTodos={sortedIncompleteTodos}
+          eventRemindersEnabled={settings.eventRemindersEnabled}
+          defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {

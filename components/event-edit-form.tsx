@@ -31,6 +31,7 @@ export function EventEditForm({
   const [formDate, setFormDate] = useState(event.date);
   const [formStartTime, setFormStartTime] = useState(event.startTime || "");
   const [formEndTime, setFormEndTime] = useState(event.endTime || "");
+  const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(event.reminderMinutesBefore ?? 0);
   const [formLocation, setFormLocation] = useState(event.location || "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#0a7ea4");
@@ -42,6 +43,7 @@ export function EventEditForm({
       date: formDate,
       startTime: formStartTime || undefined,
       endTime: formEndTime || undefined,
+      reminderMinutesBefore: formStartTime ? formReminderMinutesBefore : undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
@@ -55,6 +57,7 @@ export function EventEditForm({
     setFormDate(event.date);
     setFormStartTime(event.startTime || "");
     setFormEndTime(event.endTime || "");
+    setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
     setFormLocation(event.location || "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#0a7ea4");
@@ -130,6 +133,27 @@ export function EventEditForm({
             mode="time"
             label="Select End Time"
           />
+
+          <Text style={[styles.label, { color: colors.muted }]}>REMIND ME BEFORE</Text>
+          <View style={styles.reminderOptions}>
+            {[0, 5, 15, 30, 60].map((minutes) => (
+              <Pressable
+                key={minutes}
+                onPress={() => setFormReminderMinutesBefore(minutes)}
+                style={[
+                  styles.reminderOption,
+                  {
+                    borderColor: formReminderMinutesBefore === minutes ? colors.primary : colors.border,
+                    backgroundColor: formReminderMinutesBefore === minutes ? `${colors.primary}18` : colors.surface,
+                  },
+                ]}
+              >
+                <Text style={{ color: formReminderMinutesBefore === minutes ? colors.primary : colors.foreground, fontWeight: "700", fontSize: 12 }}>
+                  {minutes === 0 ? "At start" : `${minutes} min`}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
           {/* Location */}
           <Text style={[styles.label, { color: colors.muted }]}>
@@ -275,6 +299,18 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+  },
+  reminderOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  reminderOption: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   actions: {
     flexDirection: "row",

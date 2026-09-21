@@ -6,11 +6,25 @@ import { useColors } from '@/hooks/use-colors';
 import type { StoredWorshipAlbum } from '@/lib/worship-album-state';
 
 export function getAlbumPalette(album: StoredWorshipAlbum) {
-  const identity = `${album.title} ${album.artist}`.toLowerCase();
-  if (identity.includes('nirvana') || identity.includes('nevermind')) {
+  const title = album.title.toLowerCase();
+  const artist = album.artist.toLowerCase();
+  const identity = `${title} ${artist}`;
+  if (title.includes('trench')) {
+    return { surface: '#575000', control: '#8B8200', border: '#C1B52A' };
+  }
+  if (title.includes('breach') || title.includes('digital remains')) {
+    return { surface: '#7A1F12', control: '#B52E18', border: '#E05A35' };
+  }
+  if (title.includes('dookie')) {
+    return { surface: '#214A2B', control: '#2F7A3F', border: '#66A866' };
+  }
+  if (title.includes('kerplunk')) {
+    return { surface: '#29442E', control: '#467347', border: '#7BA36C' };
+  }
+  if (artist.includes('nirvana') || title.includes('nevermind')) {
     return { surface: '#102D52', control: '#1D5C91', border: '#2B78B8' };
   }
-  if (identity.includes('twenty one pilots') || identity.includes('city walls')) {
+  if (identity.includes('city walls')) {
     return { surface: '#71352B', control: '#93483A', border: '#B96856' };
   }
   if (identity.includes('for king') || identity.includes('beautiful colours')) {

@@ -9,6 +9,7 @@ import {
   mergeWorshipAlbumHistories,
   removeWorshipAlbumAndSelectFallback,
   sanitizeWorshipAlbumHistory,
+  toggleWorshipTrackCompletion,
   upsertAndSelectWorshipAlbum,
 } from "./worship-album-state";
 
@@ -104,5 +105,17 @@ describe("worship album display state", () => {
       "newer-release",
       "older-release",
     ]);
+  });
+
+  it("toggles one song completion without mutating the stored map", () => {
+    const initial = { "2026-09-20:album-prayer:track-1": true };
+    const completed = toggleWorshipTrackCompletion(initial, "2026-09-20:album-prayer:track-2");
+
+    expect(initial).toEqual({ "2026-09-20:album-prayer:track-1": true });
+    expect(completed).toEqual({
+      "2026-09-20:album-prayer:track-1": true,
+      "2026-09-20:album-prayer:track-2": true,
+    });
+    expect(toggleWorshipTrackCompletion(completed, "2026-09-20:album-prayer:track-2")).toEqual(initial);
   });
 });

@@ -60,6 +60,7 @@ import {
   getDisplayedWorshipAlbum,
   getSavedAlbumLibraryEntries,
   compareSavedAlbumsByReleaseDate,
+  toggleWorshipTrackCompletion,
   hydrateWorshipAlbumState,
   mergeWorshipAlbumHistories,
   removeWorshipAlbumAndSelectFallback,
@@ -2767,9 +2768,8 @@ export function ScheduleTab({
                   completedTracks={completedWorshipTracks}
                   onToggleTrack={(trackId) => setWorshipTrackCompletions((previous) => {
                     const completionKey = `${selectedWorshipDate}:${currentAlbum.id}:${trackId}`;
-                    const next = { ...previous };
-                    if (next[completionKey]) delete next[completionKey];
-                    else next[completionKey] = true;
+                    const next = toggleWorshipTrackCompletion(previous, completionKey);
+                    AsyncStorage.setItem(WORSHIP_TRACK_COMPLETION_STATE_KEY, JSON.stringify(next)).catch(() => undefined);
                     return next;
                   })}
                   coverUrl={currentAlbum.coverUrl}

@@ -40,6 +40,17 @@ export function compareSavedAlbumsByReleaseDate(a: StoredWorshipAlbum, b: Stored
   return scheduledOrder !== 0 ? scheduledOrder : getAlbumAddedTimestamp(b) - getAlbumAddedTimestamp(a);
 }
 
+/** Toggles one date/album/track completion without mutating the stored map. */
+export function toggleWorshipTrackCompletion(
+  completions: Record<string, boolean>,
+  completionKey: string,
+): Record<string, boolean> {
+  const next = { ...completions };
+  if (next[completionKey]) delete next[completionKey];
+  else next[completionKey] = true;
+  return next;
+}
+
 /** Chooses the album cover that represents an artist group in Saved Albums. */
 export function getSavedAlbumGroupLead(
   albums: StoredWorshipAlbum[],

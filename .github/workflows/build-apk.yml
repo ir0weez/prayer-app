@@ -27,6 +27,9 @@ jobs:
       NODE_ENV: production
       # API.Bible key for the in-app chapter reader (repo secret, never hardcoded).
       EXPO_PUBLIC_APIBIBLE_KEY: ${{ secrets.EXPO_PUBLIC_APIBIBLE_KEY }}
+      # Backend API base URL for tRPC (chapter summaries, etc.). Temporary Manus
+      # sandbox endpoint until a permanent backend is deployed (repo secret).
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
       CI: "true"
     steps:
       - name: Checkout code

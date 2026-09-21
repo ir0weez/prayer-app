@@ -28,6 +28,7 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
   const colors = useColors();
   const [showPicker, setShowPicker] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
 
   const formatDisplay = () => {
     if (mode === "date") {
@@ -62,14 +63,12 @@ export function DateTimePicker({
     // Use local timezone instead of UTC to avoid date shift
     const date = new Date(year, month, day);
     const isoString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    onChange(isoString);
-    setShowPicker(false);
+    setDraftValue(isoString);
   };
 
   const handleTimeChange = (hour: number, minute: number) => {
     const timeString = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-    onChange(timeString);
-    setShowPicker(false);
+    setDraftValue(timeString);
   };
 
   const renderDatePicker = () => {
@@ -99,8 +98,8 @@ export function DateTimePicker({
                 onPress={() => {
                   // Parse ISO date string (YYYY-MM-DD) without timezone conversion
                   let selectedDate;
-                  if (value && value.includes('-')) {
-                    const [year, month, day] = value.split('-');
+                  if (draftValue && draftValue.includes('-')) {
+                    const [year, month, day] = draftValue.split('-');
                     selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                   } else {
                     selectedDate = new Date();
@@ -132,8 +131,8 @@ export function DateTimePicker({
                 onPress={() => {
                   // Parse ISO date string (YYYY-MM-DD) without timezone conversion
                   let selectedDate;
-                  if (value && value.includes('-')) {
-                    const [year, month, day] = value.split('-');
+                  if (draftValue && draftValue.includes('-')) {
+                    const [year, month, day] = draftValue.split('-');
                     selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                   } else {
                     selectedDate = new Date();
@@ -165,8 +164,8 @@ export function DateTimePicker({
                 onPress={() => {
                   // Parse ISO date string (YYYY-MM-DD) without timezone conversion
                   let selectedDate;
-                  if (value && value.includes('-')) {
-                    const [year, month, day] = value.split('-');
+                  if (draftValue && draftValue.includes('-')) {
+                    const [year, month, day] = draftValue.split('-');
                     selectedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                   } else {
                     selectedDate = new Date();
@@ -194,7 +193,7 @@ export function DateTimePicker({
 
         <View style={[pickerStyles.footer, { borderTopColor: colors.border }]}>
           <Pressable
-            onPress={() => setShowPicker(false)}
+            onPress={() => { onChange(draftValue); setShowPicker(false); }}
             style={[pickerStyles.button, { backgroundColor: colors.primary }]}
           >
             <Text style={[pickerStyles.buttonText, { color: colors.background }]}>
@@ -230,8 +229,8 @@ export function DateTimePicker({
                 <Pressable
                   key={h}
                   onPress={() => {
-                    const currentMinute = value
-                      ? parseInt(value.split(":")[1] || "0")
+                    const currentMinute = draftValue
+                      ? parseInt(draftValue.split(":")[1] || "0")
                       : 0;
                     handleTimeChange(h, currentMinute);
                   }}
@@ -259,7 +258,7 @@ export function DateTimePicker({
               <Pressable
                 key={m}
                 onPress={() => {
-                  const currentHour = value ? parseInt(value.split(":")[0] || "0") : 0;
+                  const currentHour = draftValue ? parseInt(draftValue.split(":")[0] || "0") : 0;
                   handleTimeChange(currentHour, m);
                 }}
                 style={pickerStyles.pickerItem}
@@ -279,7 +278,7 @@ export function DateTimePicker({
 
         <View style={[pickerStyles.footer, { borderTopColor: colors.border }]}>
           <Pressable
-            onPress={() => setShowPicker(false)}
+            onPress={() => { onChange(draftValue); setShowPicker(false); }}
             style={[pickerStyles.button, { backgroundColor: colors.primary }]}
           >
             <Text style={[pickerStyles.buttonText, { color: colors.background }]}>
@@ -294,7 +293,10 @@ export function DateTimePicker({
   return (
     <>
       <Pressable
-        onPress={() => setShowPicker(true)}
+        onPress={() => {
+          setDraftValue(value);
+          setShowPicker(true);
+        }}
         style={[
           pickerStyles.input,
           compact

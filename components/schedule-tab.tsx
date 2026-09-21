@@ -1788,6 +1788,13 @@ export function ScheduleTab({
   );
 
   // Form handlers
+  const handleFormStartTimeChange = (startTime: string) => {
+    setFormStartTime(startTime);
+    if (!formEndTime && startTime) {
+      setFormEndTime(minutesToTime(Math.min(timeToMinutes(startTime) + 60, 23 * 60 + 59)));
+    }
+  };
+
   const resetForm = () => {
     setFormTitle("");
     setFormDate("");
@@ -3548,7 +3555,7 @@ export function ScheduleTab({
                       <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>START TIME</Text>
                       <DateTimePicker
                         value={formStartTime}
-                        onChange={setFormStartTime}
+                        onChange={handleFormStartTimeChange}
                         mode="time"
                         label="Start Time"
                       />

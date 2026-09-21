@@ -13,6 +13,13 @@ import { useColors } from "@/hooks/use-colors";
 import { ScheduleEvent } from "@/lib/schedule-data";
 import { DateTimePicker } from "./date-time-picker";
 
+function addHourToTime(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
+  const total = Math.min(hours * 60 + minutes + 60, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
 interface EventEditFormProps {
   event: ScheduleEvent;
   visible: boolean;
@@ -35,6 +42,11 @@ export function EventEditForm({
   const [formLocation, setFormLocation] = useState(event.location || "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#0a7ea4");
+
+  const handleStartTimeChange = (value: string) => {
+    setFormStartTime(value);
+    if (!formEndTime && value) setFormEndTime(addHourToTime(value));
+  };
 
   const handleSave = () => {
     const updatedEvent: ScheduleEvent = {
@@ -118,7 +130,7 @@ export function EventEditForm({
           </Text>
           <DateTimePicker
             value={formStartTime}
-            onChange={setFormStartTime}
+            onChange={handleStartTimeChange}
             mode="time"
             label="Select Start Time"
           />

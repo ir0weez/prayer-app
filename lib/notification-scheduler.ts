@@ -179,7 +179,10 @@ async function schedulePlans(plans: NotificationPlan[]): Promise<void> {
   await Promise.all(plans.map((plan) => Notifications.scheduleNotificationAsync(plan)));
 }
 
-export async function syncPrayerReminderNotifications(people: Person[]): Promise<void> {
+let prayerSyncQueue: Promise<void> = Promise.resolve();
+let eventSyncQueue: Promise<void> = Promise.resolve();
+
+async function syncPrayerReminderNotificationsNow(people: Person[]): Promise<void> {
   if (Platform.OS === "web") return;
   await cancelKind(PRAYER_KIND);
   const preferences = await getNotificationPreferences();
@@ -189,7 +192,14 @@ export async function syncPrayerReminderNotifications(people: Person[]): Promise
   await schedulePlans(plans);
 }
 
-export async function syncScheduledEventNotifications(events: ScheduleEvent[]): Promise<void> {
+export function syncPrayerReminderNotifications(people: Person[]): Promise<void> {
+  prayerSyncQueue = prayerSyncQueue
+    .catch(() => undefined)
+    .then(() => syncPrayerReminderNotificationsNow(people));
+  return prayerSyncQueue;
+}
+
+async function syncScheduledEventNotificationsNow(events: ScheduleEvent[]): Promise<void> {
   if (Platform.OS === "web") return;
   await cancelKind(EVENT_KIND);
   const preferences = await getNotificationPreferences();
@@ -197,6 +207,13 @@ export async function syncScheduledEventNotifications(events: ScheduleEvent[]): 
   const plans = buildScheduledEventPlans(events, new Date(), preferences.defaultEventReminderMinutes);
   if (plans.length === 0 || !(await ensurePermission())) return;
   await schedulePlans(plans);
+}
+
+export function syncScheduledEventNotifications(events: ScheduleEvent[]): Promise<void> {
+  eventSyncQueue = eventSyncQueue
+    .catch(() => undefined)
+    .then(() => syncScheduledEventNotificationsNow(events));
+  return eventSyncQueue;
 }
 
 export function configureLocalNotifications(): void {

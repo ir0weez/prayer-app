@@ -14,6 +14,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -989,6 +990,7 @@ export function ScheduleTab({
   const [formDate, setFormDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
+  const [formTodoNotificationsEnabled, setFormTodoNotificationsEnabled] = useState(true);
   const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(0);
   const [formLocation, setFormLocation] = useState("");
   const [formNotes, setFormNotes] = useState("");
@@ -1818,6 +1820,7 @@ export function ScheduleTab({
     setFormDate("");
     setFormStartTime("");
     setFormEndTime("");
+    setFormTodoNotificationsEnabled(true);
     setFormReminderMinutesBefore(defaultEventReminderMinutes);
     setFormLocation("");
     setFormNotes("");
@@ -1890,7 +1893,7 @@ export function ScheduleTab({
     }
 
     const newTodo = createScheduleTodo(
-      { title: formTitle.trim(), date: formDate || selectedDate, startTime: normalizedStartTime || undefined, color: formColor, notes: formTodoNotes || undefined },
+      { title: formTitle.trim(), date: formDate || selectedDate, startTime: normalizedStartTime || undefined, notificationsEnabled: formTodoNotificationsEnabled, color: formColor, notes: formTodoNotes || undefined },
       todos.filter((t) => t.date === (formDate || selectedDate)).length
     );
     if (formLinkedPeopleIds.length > 0) {
@@ -2657,6 +2660,7 @@ export function ScheduleTab({
                 setFormTitle(item.data.title);
                 setFormDate(item.data.date);
                 setFormStartTime(item.data.startTime || "");
+                setFormTodoNotificationsEnabled(item.data.notificationsEnabled !== false);
                 setAddType("todo");
                 setShowAddModal(true);
               }}
@@ -3677,7 +3681,20 @@ export function ScheduleTab({
                 mode="date"
                 label="Select Date"
               />
-              <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME (optional)</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={[scheduleStyles.formLabel, { color: colors.muted, marginBottom: 0 }]}>TIME (optional)</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <MaterialIcons name="notifications-active" size={18} color={formTodoNotificationsEnabled ? colors.primary : colors.muted} />
+                  <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "700" }}>Notify</Text>
+                  <Switch
+                    value={formTodoNotificationsEnabled}
+                    onValueChange={setFormTodoNotificationsEnabled}
+                    accessibilityLabel="Notify me about this todo"
+                    trackColor={{ false: colors.border, true: `${colors.primary}80` }}
+                    thumbColor={formTodoNotificationsEnabled ? colors.primary : colors.muted}
+                  />
+                </View>
+              </View>
               <DateTimePicker
                 value={formStartTime}
                 onChange={setFormStartTime}

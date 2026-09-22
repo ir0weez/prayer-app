@@ -33,6 +33,7 @@ export type ScheduleTodo = {
   date: string; // ISO YYYY-MM-DD
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
+  notificationsEnabled?: boolean; // Whether this todo should create a local reminder
   isCompleted: boolean;
   completedAt?: string;
   icon?: string; // MaterialIcons name

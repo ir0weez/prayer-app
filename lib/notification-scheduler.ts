@@ -197,7 +197,7 @@ export function buildScheduledTodoPlans(
   defaultReminderMinutes = 0,
 ): NotificationPlan[] {
   return todos.flatMap((todo) => {
-    if (todo.isCompleted || todo.isGroup || !todo.startTime) return [];
+    if (todo.isCompleted || todo.isGroup || todo.notificationsEnabled === false || !todo.startTime) return [];
     const date = eventDate({ ...todo, title: todo.title, isCompleted: todo.isCompleted });
     if (!date) return [];
     const notificationDate = new Date(date.getTime() - Math.max(0, defaultReminderMinutes) * 60_000);

@@ -2173,6 +2173,9 @@ export default function HomeScreen() {
           personalTodos={sortedIncompleteTodos}
           eventRemindersEnabled={settings.eventRemindersEnabled}
           defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
+          notificationScheduleAction={notificationScheduleActionParam}
+          notificationScheduleKind={notificationScheduleKindParam}
+          notificationScheduleId={notificationScheduleIdParam}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {

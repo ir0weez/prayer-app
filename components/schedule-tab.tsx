@@ -929,6 +929,9 @@ export function ScheduleTab({
   onTodoComplete,
   eventRemindersEnabled = true,
   defaultEventReminderMinutes = 0,
+  notificationScheduleAction,
+  notificationScheduleKind,
+  notificationScheduleId,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -944,6 +947,9 @@ export function ScheduleTab({
   onTodoComplete?: (todoId: string) => void;
   eventRemindersEnabled?: boolean;
   defaultEventReminderMinutes?: number;
+  notificationScheduleAction?: string;
+  notificationScheduleKind?: string;
+  notificationScheduleId?: string;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
@@ -966,6 +972,17 @@ export function ScheduleTab({
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
   const [showMinistryForm, setShowMinistryForm] = useState(false);
+
+  useEffect(() => {
+    if (notificationScheduleAction !== "schedule-complete" || !notificationScheduleKind || !notificationScheduleId) return;
+    if (notificationScheduleKind === "scheduled-event") {
+      setEvents((current) => current.map((item) => item.id === notificationScheduleId ? { ...item, isCompleted: true, completedAt: item.completedAt || new Date().toISOString() } : item));
+    } else if (notificationScheduleKind === "scheduled-todo") {
+      setTodos((current) => current.map((item) => item.id === notificationScheduleId ? { ...item, isCompleted: true, completedAt: item.completedAt || new Date().toISOString() } : item));
+    } else if (notificationScheduleKind === "scheduled-ministry") {
+      setMinistries((current) => current.map((item) => item.id === notificationScheduleId ? { ...item, isCompleted: true, completedAt: item.completedAt || new Date().toISOString() } : item));
+    }
+  }, [notificationScheduleAction, notificationScheduleId, notificationScheduleKind]);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -1045,6 +1062,7 @@ export function ScheduleTab({
     );
   }, [worshipTrackCompletions, worshipTrackCompletionKey]);
   const [showAlbumLibrary, setShowAlbumLibrary] = useState(false);
+  const [returnToAlbumLibrary, setReturnToAlbumLibrary] = useState(false);
   const [showSavedAlbumsOnly, setShowSavedAlbumsOnly] = useState(true);
   const [worshipDetailAlbum, setWorshipDetailAlbum] = useState<StoredWorshipAlbum | null>(null);
   const [expandedSavedArtists, setExpandedSavedArtists] = useState<string[]>([]);
@@ -1501,8 +1519,8 @@ export function ScheduleTab({
   }, [events]);
 
   useEffect(() => {
-    syncScheduledEventNotifications(events, todos).catch(() => undefined);
-  }, [defaultEventReminderMinutes, eventRemindersEnabled, events, todos]);
+    syncScheduledEventNotifications(events, todos, ministries).catch(() => undefined);
+  }, [defaultEventReminderMinutes, eventRemindersEnabled, events, ministries, todos]);
 
   useEffect(() => {
     AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);
@@ -4319,7 +4337,13 @@ export function ScheduleTab({
         album={worshipDetailAlbum}
         visible={Boolean(worshipDetailAlbum)}
         dateLabel={`${formatDateHeader(selectedDate).dayName} ${formatDateHeader(selectedDate).monthName} ${formatDateHeader(selectedDate).dayNum}`}
-        onClose={() => setWorshipDetailAlbum(null)}
+        onClose={() => {
+          setWorshipDetailAlbum(null);
+          if (returnToAlbumLibrary) {
+            setShowAlbumLibrary(true);
+            setReturnToAlbumLibrary(false);
+          }
+        }}
         onAddToDate={() => worshipDetailAlbum && void reAddSavedWorshipAlbum(worshipDetailAlbum)}
         onToggleSaved={() => worshipDetailAlbum && void toggleWorshipAlbumSaved(worshipDetailAlbum.id)}
         onEdit={() => {
@@ -4362,7 +4386,7 @@ export function ScheduleTab({
                         key={album.id}
                         accessibilityRole="button"
                         accessibilityLabel={`Open ${album.title} by ${group.artist}`}
-                        onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
+                        onPress={() => { setReturnToAlbumLibrary(true); setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
                         style={({ pressed }) => [{ width: '48%', marginBottom: 22, opacity: pressed ? 0.7 : 1 }]}
                       >
                         <View style={{ width: '100%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.border }}>
@@ -4409,7 +4433,7 @@ export function ScheduleTab({
                               key={album.id}
                               accessibilityRole="button"
                               accessibilityLabel={`Open ${album.title} by ${group.artist}`}
-                              onPress={() => { setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
+                              onPress={() => { setReturnToAlbumLibrary(true); setShowAlbumLibrary(false); setWorshipDetailAlbum(album); }}
                               style={({ pressed }) => [{ minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 12, backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }]}
                             >
                               <View style={{ width: 72, height: 72, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border }}>

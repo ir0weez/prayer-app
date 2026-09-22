@@ -49,16 +49,20 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (Platform.OS === "web") return;
+    const handledResponseIds = new Set<string>();
     const handleResponse = async (response: Notifications.NotificationResponse) => {
-      const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown; eventId?: unknown; todoId?: unknown };
+      const responseId = response.notification.request.identifier;
+      if (handledResponseIds.has(responseId)) return;
+      handledResponseIds.add(responseId);
+      const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown; eventId?: unknown; todoId?: unknown; ministryId?: unknown };
       const action = response.actionIdentifier;
       if (data.kind === "prayer-reminder" && typeof data.personId === "string") {
         if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
         router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId, notificationAction: action } });
         return;
       }
-      if ((data.kind === "scheduled-event" && typeof data.eventId === "string") || (data.kind === "scheduled-todo" && typeof data.todoId === "string")) {
-        const itemId = data.kind === "scheduled-event" ? data.eventId : data.todoId;
+      if ((data.kind === "scheduled-event" && typeof data.eventId === "string") || (data.kind === "scheduled-todo" && typeof data.todoId === "string") || (data.kind === "scheduled-ministry" && typeof data.ministryId === "string")) {
+        const itemId = data.kind === "scheduled-event" ? data.eventId : data.kind === "scheduled-todo" ? data.todoId : data.ministryId;
         if (action === NOTIFICATION_ACTIONS.snooze) await snoozeScheduleNotification(response);
         else if (action === NOTIFICATION_ACTIONS.complete) await completeScheduledNotificationItem(data.kind, itemId as string);
         else return;
@@ -66,6 +70,9 @@ function RootLayoutContent() {
       }
     };
     const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) return handleResponse(response);
+    }).catch(() => undefined);
     return () => subscription.remove();
   }, [router]);
 

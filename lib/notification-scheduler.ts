@@ -3,14 +3,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
 import { getPersonReminderFrequency, getUrgentPrayerItems } from "./prayercircle-data";
-import type { ScheduleEvent, ScheduleTodo } from "./schedule-data";
-import { SCHEDULE_EVENTS_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
+import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
+import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
 import { APP_SETTINGS_STORAGE_KEY } from "./prayercircle-storage";
 
 const SOURCE = "prayercircle";
 const PRAYER_KIND = "prayer-reminder";
 const EVENT_KIND = "scheduled-event";
 const TODO_KIND = "scheduled-todo";
+const MINISTRY_KIND = "scheduled-ministry";
 const CHANNEL_ID = "prayercircle-reminders";
 export const PRAYER_NOTIFICATION_CATEGORY = "prayer-reminder-actions";
 export const NOTIFICATION_ACTIONS = {
@@ -206,6 +207,30 @@ export function buildScheduledTodoPlans(
   });
 }
 
+export function buildScheduledMinistryPlans(
+  ministries: ScheduleMinistry[],
+  now = new Date(),
+  defaultReminderMinutes = 0,
+): NotificationPlan[] {
+  return ministries.flatMap((ministry) => {
+    if (ministry.isCompleted || !ministry.startTime) return [];
+    const date = eventDate({ ...ministry, title: ministry.title, isCompleted: ministry.isCompleted });
+    if (!date) return [];
+    const notificationDate = new Date(date.getTime() - Math.max(0, defaultReminderMinutes) * 60_000);
+    if (notificationDate.getTime() <= now.getTime()) return [];
+    return [{
+      content: {
+        title: defaultReminderMinutes > 0 ? `Upcoming: ${ministry.title}` : ministry.title,
+        body: ministry.notes?.trim() || (defaultReminderMinutes > 0 ? `${defaultReminderMinutes} minutes from now` : "Scheduled ministry"),
+        sound: "default",
+        categoryIdentifier: SCHEDULE_NOTIFICATION_CATEGORY,
+        data: { source: SOURCE, kind: MINISTRY_KIND, ministryId: ministry.id },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: notificationDate, channelId: CHANNEL_ID },
+    }];
+  });
+}
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   try {
@@ -299,29 +324,31 @@ export function syncPrayerReminderNotifications(people: Person[]): Promise<void>
   return prayerSyncQueue;
 }
 
-async function syncScheduledEventNotificationsNow(events: ScheduleEvent[], todos: ScheduleTodo[]): Promise<void> {
+async function syncScheduledEventNotificationsNow(events: ScheduleEvent[], todos: ScheduleTodo[], ministries: ScheduleMinistry[]): Promise<void> {
   if (Platform.OS === "web") return;
   await cancelKind(EVENT_KIND);
   await cancelKind(TODO_KIND);
+  await cancelKind(MINISTRY_KIND);
   const preferences = await getNotificationPreferences();
   if (!preferences.eventRemindersEnabled) return;
   const plans = buildScheduledEventPlans(events, new Date(), preferences.defaultEventReminderMinutes);
   const todoPlans = buildScheduledTodoPlans(todos, new Date(), preferences.defaultEventReminderMinutes);
-  const allPlans = [...plans, ...todoPlans];
+  const ministryPlans = buildScheduledMinistryPlans(ministries, new Date(), preferences.defaultEventReminderMinutes);
+  const allPlans = [...plans, ...todoPlans, ...ministryPlans];
   if (allPlans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(allPlans);
 }
 
-export function syncScheduledEventNotifications(events: ScheduleEvent[], todos: ScheduleTodo[] = []): Promise<void> {
+export function syncScheduledEventNotifications(events: ScheduleEvent[], todos: ScheduleTodo[] = [], ministries: ScheduleMinistry[] = []): Promise<void> {
   scheduleSyncQueue = scheduleSyncQueue
     .catch(() => undefined)
-    .then(() => syncScheduledEventNotificationsNow(events, todos));
+    .then(() => syncScheduledEventNotificationsNow(events, todos, ministries));
   return scheduleSyncQueue;
 }
 
 export async function completeScheduledNotificationItem(kind: string, itemId: string): Promise<boolean> {
   if (Platform.OS === "web") return false;
-  const key = kind === EVENT_KIND ? SCHEDULE_EVENTS_KEY : kind === TODO_KIND ? SCHEDULE_TODOS_KEY : null;
+  const key = kind === EVENT_KIND ? SCHEDULE_EVENTS_KEY : kind === TODO_KIND ? SCHEDULE_TODOS_KEY : kind === MINISTRY_KIND ? SCHEDULE_MINISTRIES_KEY : null;
   if (!key) return false;
   try {
     const raw = await AsyncStorage.getItem(key);
@@ -376,6 +403,6 @@ export function configureLocalNotifications(): void {
   void ensureNotificationCategories().catch(() => undefined);
 }
 
-export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo: TODO_KIND } as const;
+export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo: TODO_KIND, ministry: MINISTRY_KIND } as const;
 
 export { parseTime };

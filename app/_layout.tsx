@@ -1,6 +1,7 @@
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -18,7 +19,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
-import { configureLocalNotifications } from "@/lib/notification-scheduler";
+import { configureLocalNotifications, NOTIFICATION_ACTIONS } from "@/lib/notification-scheduler";
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -28,6 +29,7 @@ export const unstable_settings = {
 
 function RootLayoutContent() {
   const { colorScheme } = useThemeContext();
+  const router = useRouter();
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -39,6 +41,22 @@ function RootLayoutContent() {
     initManusRuntime();
     configureLocalNotifications();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown };
+      if (data.kind !== "prayer-reminder" || typeof data.personId !== "string") return;
+      const action = response.actionIdentifier;
+      if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
+      router.replace({
+        pathname: "/(tabs)",
+        params: { notificationPersonId: data.personId, notificationAction: action },
+      });
+    };
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    return () => subscription.remove();
+  }, [router]);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
     setInsets(metrics.insets);

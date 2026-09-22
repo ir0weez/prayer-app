@@ -331,9 +331,12 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
+  const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
+  const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
   const handledEditPersonId = useRef<string | null>(null);
+  const handledNotificationAction = useRef<string | null>(null);
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -990,6 +993,31 @@ export default function HomeScreen() {
     setAvatarComposer(null);
     setAvatarComposerText("");
   };
+
+  useEffect(() => {
+    if (!hasHydratedPeople || !notificationPersonIdParam || !notificationActionParam) return;
+    const actionKey = `${notificationPersonIdParam}:${notificationActionParam}`;
+    if (handledNotificationAction.current === actionKey) return;
+    const person = people.find((candidate) => candidate.id === notificationPersonIdParam);
+    if (!person) return;
+    handledNotificationAction.current = actionKey;
+    setActiveTab("people");
+    setShowAddPerson(false);
+    if (notificationActionParam === "prayer-prayed") {
+      setPeople((previousPeople) => {
+        const updatedPeople = markPersonPrayed(previousPeople, person.id);
+        maybeAdvanceStreak(updatedPeople);
+        return updatedPeople;
+      });
+    } else if (notificationActionParam === "prayer-praise") {
+      setAvatarComposer({ personId: person.id, kind: "praise" });
+      setAvatarComposerText("");
+    } else if (notificationActionParam === "prayer-emergency") {
+      setAvatarComposer({ personId: person.id, kind: "emergency" });
+      setAvatarComposerText("");
+    }
+    router.setParams({ notificationPersonId: undefined, notificationAction: undefined });
+  }, [hasHydratedPeople, maybeAdvanceStreak, notificationActionParam, notificationPersonIdParam, people, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
     const label = getAvatarText(person);

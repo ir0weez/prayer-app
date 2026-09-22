@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
-import { getPersonReminderFrequency } from "./prayercircle-data";
+import { getPersonReminderFrequency, getUrgentPrayerItems } from "./prayercircle-data";
 import type { ScheduleEvent } from "./schedule-data";
 import { APP_SETTINGS_STORAGE_KEY } from "./prayercircle-storage";
 
@@ -10,6 +10,12 @@ const SOURCE = "prayercircle";
 const PRAYER_KIND = "prayer-reminder";
 const EVENT_KIND = "scheduled-event";
 const CHANNEL_ID = "prayercircle-reminders";
+export const PRAYER_NOTIFICATION_CATEGORY = "prayer-reminder-actions";
+export const NOTIFICATION_ACTIONS = {
+  prayed: "prayer-prayed",
+  praise: "prayer-praise",
+  emergency: "prayer-emergency",
+} as const;
 
 export type NotificationPreferences = {
   prayerRemindersEnabled: boolean;
@@ -44,6 +50,15 @@ async function getNotificationPreferences(): Promise<NotificationPreferences> {
   }
 }
 
+async function ensureNotificationCategories(): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.setNotificationCategoryAsync(PRAYER_NOTIFICATION_CATEGORY, [
+    { identifier: NOTIFICATION_ACTIONS.prayed, buttonTitle: "Prayed", options: { opensAppToForeground: true } },
+    { identifier: NOTIFICATION_ACTIONS.praise, buttonTitle: "Praise", options: { opensAppToForeground: true } },
+    { identifier: NOTIFICATION_ACTIONS.emergency, buttonTitle: "Emergency", options: { opensAppToForeground: true } },
+  ]);
+}
+
 export type NotificationPlan = {
   content: Notifications.NotificationContentInput;
   trigger: Notifications.NotificationTriggerInput;
@@ -68,8 +83,9 @@ function parseTime(value?: string): { hour: number; minute: number } | null {
 }
 
 function prayerBody(person: Person): string {
+  const urgentPrayer = getUrgentPrayerItems(person)[0]?.title?.trim();
   const tag = person.reminderTag?.trim();
-  return tag ? `Take a moment to pray for ${person.name} · ${tag}` : `Take a moment to pray for ${person.name}`;
+  return urgentPrayer || tag || "Take a moment to pray for this person";
 }
 
 function prayerTrigger(
@@ -101,9 +117,11 @@ export function buildPrayerReminderPlans(people: Person[]): NotificationPlan[] {
       if (!trigger) continue;
       plans.push({
         content: {
-          title: "PrayerCircle reminder",
+          // Notification titles are rendered bold by both iOS and Android.
+          title: person.name,
           body: prayerBody(person),
           sound: "default",
+          categoryIdentifier: PRAYER_NOTIFICATION_CATEGORY,
           data: { source: SOURCE, kind: PRAYER_KIND, personId: person.id },
         },
         trigger,
@@ -117,9 +135,14 @@ function eventDate(event: ScheduleEvent): Date | null {
   if (!event.startTime) return null;
   const time = parseTime(event.startTime);
   if (!time) return null;
-  const [year, month, day] = event.date.split("-").map(Number);
+  // Schedule dates are normally YYYY-MM-DD, but accept ISO strings and trim
+  // whitespace so an imported/older event cannot silently become unscheduled.
+  const datePart = String(event.date ?? "").trim().slice(0, 10);
+  const [year, month, day] = datePart.split("-").map(Number);
   if (![year, month, day].every(Number.isFinite)) return null;
+  if (year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) return null;
   const date = new Date(year, month - 1, day, time.hour, time.minute, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -152,6 +175,7 @@ export function buildScheduledEventPlans(
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   try {
+    await ensureNotificationCategories();
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
         name: "PrayerCircle reminders",
@@ -269,6 +293,9 @@ export function configureLocalNotifications(): void {
       shouldSetBadge: false,
     }),
   });
+  // Register eagerly; ensureNotificationPermission repeats this immediately
+  // before scheduling to avoid a startup race.
+  void ensureNotificationCategories().catch(() => undefined);
 }
 
 export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND } as const;

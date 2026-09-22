@@ -149,21 +149,63 @@ export function buildScheduledEventPlans(
   });
 }
 
-async function ensurePermission(): Promise<boolean> {
+export async function ensureNotificationPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: "PrayerCircle reminders",
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
-      vibrationPattern: [0, 250, 200, 250],
-    });
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+        name: "PrayerCircle reminders",
+        importance: Notifications.AndroidImportance.MAX,
+        sound: "default",
+        vibrationPattern: [0, 250, 200, 250],
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+    }
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted) return true;
+    if (!current.canAskAgain) return false;
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.granted;
+  } catch {
+    return false;
   }
-  const current = await Notifications.getPermissionsAsync();
-  if (current.granted) return true;
-  if (!current.canAskAgain) return false;
-  const requested = await Notifications.requestPermissionsAsync();
-  return requested.granted;
+}
+
+export async function getNotificationPermissionStatus(): Promise<Notifications.NotificationPermissionsStatus | null> {
+  if (Platform.OS === "web") return null;
+  try {
+    return await Notifications.getPermissionsAsync();
+  } catch {
+    return null;
+  }
+}
+
+export async function scheduleTestNotification(): Promise<boolean> {
+  if (!(await ensureNotificationPermission())) return false;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "PrayerCircle test notification",
+        body: "Notifications are working on this device.",
+        sound: "default",
+        data: { source: SOURCE, kind: "test" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 10,
+        repeats: false,
+        channelId: CHANNEL_ID,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearAllScheduledNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
 async function cancelKind(kind: string): Promise<void> {
@@ -188,7 +230,7 @@ async function syncPrayerReminderNotificationsNow(people: Person[]): Promise<voi
   const preferences = await getNotificationPreferences();
   if (!preferences.prayerRemindersEnabled) return;
   const plans = buildPrayerReminderPlans(people);
-  if (plans.length === 0 || !(await ensurePermission())) return;
+  if (plans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(plans);
 }
 
@@ -205,7 +247,7 @@ async function syncScheduledEventNotificationsNow(events: ScheduleEvent[]): Prom
   const preferences = await getNotificationPreferences();
   if (!preferences.eventRemindersEnabled) return;
   const plans = buildScheduledEventPlans(events, new Date(), preferences.defaultEventReminderMinutes);
-  if (plans.length === 0 || !(await ensurePermission())) return;
+  if (plans.length === 0 || !(await ensureNotificationPermission())) return;
   await schedulePlans(plans);
 }
 

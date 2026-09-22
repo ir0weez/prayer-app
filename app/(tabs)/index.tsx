@@ -20,7 +20,12 @@ import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
-import { syncPrayerReminderNotifications } from "@/lib/notification-scheduler";
+import {
+  clearAllScheduledNotifications,
+  getNotificationPermissionStatus,
+  scheduleTestNotification,
+  syncPrayerReminderNotifications,
+} from "@/lib/notification-scheduler";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
@@ -1686,6 +1691,21 @@ export default function HomeScreen() {
     }
   };
 
+  const handleTestNotification = async () => {
+    const scheduled = await scheduleTestNotification();
+    if (scheduled) {
+      Alert.alert("Test scheduled", "A test notification should appear in about 10 seconds. Leave the app or lock the screen to test background delivery.");
+      return;
+    }
+    const status = await getNotificationPermissionStatus();
+    Alert.alert(
+      "Notifications are blocked",
+      status?.canAskAgain === false
+        ? "Android has blocked notifications for PrayerCircle. Open the phone’s Settings, choose PrayerCircle, and turn Notifications on, then try again."
+        : "PrayerCircle could not get notification permission on this device. Check the system notification settings and try again.",
+    );
+  };
+
   const handleImportData = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
@@ -1832,7 +1852,7 @@ export default function HomeScreen() {
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.prayerRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
         {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.eventRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
           <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -1842,6 +1862,9 @@ export default function HomeScreen() {
               </Pressable>
             ))}
           </View>
+          <Pressable onPress={handleTestNotification} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+            {renderSettingsRow("notifications", "Test notification", "Send a test alert in about 10 seconds")}
+          </Pressable>
         </View>
       </View>
 
@@ -1876,7 +1899,7 @@ export default function HomeScreen() {
         <Pressable onPress={() => {
           Alert.alert("Clear Notifications", "Remove all scheduled notifications?", [
             { text: "Cancel", style: "cancel" },
-            { text: "Clear", style: "destructive", onPress: () => {} },
+            { text: "Clear", style: "destructive", onPress: () => { clearAllScheduledNotifications().catch(() => undefined); } },
           ]);
         }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}

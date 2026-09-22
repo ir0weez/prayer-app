@@ -315,6 +315,17 @@ describe("Fast Editor Modal - Create and Edit", () => {
     expect(getCompletedFastCount([completed])).toBe(0);
   });
 
+  it("finds the best completed run even when a later day breaks it", () => {
+    const fast = createPersonalFast({ name: "Interrupted Fast", startDate: "01-01-2026", durationDays: 7, type: "Growth", focusItems: [], existingCount: 0 })!;
+    let tracked = upsertFastDayStatus([fast], fast.id, "2026-01-01", "completed")[0];
+    tracked = upsertFastDayStatus([tracked], fast.id, "2026-01-02", "completed")[0];
+    tracked = upsertFastDayStatus([tracked], fast.id, "2026-01-03", "completed")[0];
+    tracked = upsertFastDayStatus([tracked], fast.id, "2026-01-04", "missed")[0];
+    tracked = upsertFastDayStatus([tracked], fast.id, "2026-01-05", "completed")[0];
+
+    expect(getHighestFastStreak([tracked])).toBe(3);
+  });
+
   it("returns the most recent completed fast for the selected type", () => {
     const older = createPersonalFast({ name: "Older Growth", startDate: "01-01-2026", durationDays: 1, type: "Growth", focusItems: [], existingCount: 0 })!;
     const newer = createPersonalFast({ name: "Newer Growth", startDate: "03-01-2026", durationDays: 1, type: "Growth", focusItems: [], existingCount: 1 })!;

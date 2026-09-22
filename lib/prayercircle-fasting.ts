@@ -126,7 +126,22 @@ export function getCompletedFastCount(fasts: PersonalFast[]): number {
 }
 
 export function getHighestFastStreak(fasts: PersonalFast[]): number {
-  return fasts.reduce((highest, fast) => Math.max(highest, calculateFastStreak(fast, getFastEndDate(fast))), 0);
+  const today = getTodayISOString();
+  return fasts.reduce((highest, fast) => {
+    let current = 0;
+    let fastHighest = 0;
+    for (const date of getFastCalendarDays(fast)) {
+      if (date > today) break;
+      if (fast.dayStatuses[date] === "completed") {
+        current += 1;
+        fastHighest = Math.max(fastHighest, current);
+      } else {
+        // Skipped, missed, and unmarked days all break a consecutive streak.
+        current = 0;
+      }
+    }
+    return Math.max(highest, fastHighest);
+  }, 0);
 }
 
 export function getLastCompletedFastForType(

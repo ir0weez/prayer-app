@@ -19,7 +19,12 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
-import { configureLocalNotifications, NOTIFICATION_ACTIONS } from "@/lib/notification-scheduler";
+import {
+  completeScheduledNotificationItem,
+  configureLocalNotifications,
+  NOTIFICATION_ACTIONS,
+  snoozeScheduleNotification,
+} from "@/lib/notification-scheduler";
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -44,15 +49,21 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (Platform.OS === "web") return;
-    const handleResponse = (response: Notifications.NotificationResponse) => {
-      const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown };
-      if (data.kind !== "prayer-reminder" || typeof data.personId !== "string") return;
+    const handleResponse = async (response: Notifications.NotificationResponse) => {
+      const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown; eventId?: unknown; todoId?: unknown };
       const action = response.actionIdentifier;
-      if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
-      router.replace({
-        pathname: "/(tabs)",
-        params: { notificationPersonId: data.personId, notificationAction: action },
-      });
+      if (data.kind === "prayer-reminder" && typeof data.personId === "string") {
+        if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
+        router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId, notificationAction: action } });
+        return;
+      }
+      if ((data.kind === "scheduled-event" && typeof data.eventId === "string") || (data.kind === "scheduled-todo" && typeof data.todoId === "string")) {
+        const itemId = data.kind === "scheduled-event" ? data.eventId : data.todoId;
+        if (action === NOTIFICATION_ACTIONS.snooze) await snoozeScheduleNotification(response);
+        else if (action === NOTIFICATION_ACTIONS.complete) await completeScheduledNotificationItem(data.kind, itemId as string);
+        else return;
+        router.replace({ pathname: "/(tabs)", params: { notificationScheduleAction: action, notificationScheduleKind: String(data.kind), notificationScheduleId: String(itemId) } });
+      }
     };
     const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => subscription.remove();

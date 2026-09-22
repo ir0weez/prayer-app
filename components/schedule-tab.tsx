@@ -1501,8 +1501,8 @@ export function ScheduleTab({
   }, [events]);
 
   useEffect(() => {
-    syncScheduledEventNotifications(events).catch(() => undefined);
-  }, [defaultEventReminderMinutes, eventRemindersEnabled, events]);
+    syncScheduledEventNotifications(events, todos).catch(() => undefined);
+  }, [defaultEventReminderMinutes, eventRemindersEnabled, events, todos]);
 
   useEffect(() => {
     AsyncStorage.setItem('WORSHIP_LIST_LINKS_KEY', JSON.stringify(worshipListLinks)).catch(() => undefined);

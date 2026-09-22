@@ -331,10 +331,13 @@ export default function HomeScreen() {
     verifiedPopPlayer.play();
   };
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[] }>();
+  const routeParams = useLocalSearchParams<{ editPersonId?: string | string[]; notificationPersonId?: string | string[]; notificationAction?: string | string[]; notificationScheduleAction?: string | string[]; notificationScheduleKind?: string | string[]; notificationScheduleId?: string | string[] }>();
   const editPersonIdParam = Array.isArray(routeParams.editPersonId) ? routeParams.editPersonId[0] : routeParams.editPersonId;
   const notificationPersonIdParam = Array.isArray(routeParams.notificationPersonId) ? routeParams.notificationPersonId[0] : routeParams.notificationPersonId;
   const notificationActionParam = Array.isArray(routeParams.notificationAction) ? routeParams.notificationAction[0] : routeParams.notificationAction;
+  const notificationScheduleActionParam = Array.isArray(routeParams.notificationScheduleAction) ? routeParams.notificationScheduleAction[0] : routeParams.notificationScheduleAction;
+  const notificationScheduleKindParam = Array.isArray(routeParams.notificationScheduleKind) ? routeParams.notificationScheduleKind[0] : routeParams.notificationScheduleKind;
+  const notificationScheduleIdParam = Array.isArray(routeParams.notificationScheduleId) ? routeParams.notificationScheduleId[0] : routeParams.notificationScheduleId;
   const handledEditPersonId = useRef<string | null>(null);
   const handledNotificationAction = useRef<string | null>(null);
   const today = getTodayISOString();
@@ -1018,6 +1021,12 @@ export default function HomeScreen() {
     }
     router.setParams({ notificationPersonId: undefined, notificationAction: undefined });
   }, [hasHydratedPeople, maybeAdvanceStreak, notificationActionParam, notificationPersonIdParam, people, router]);
+
+  useEffect(() => {
+    if (!notificationScheduleActionParam || !notificationScheduleKindParam || !notificationScheduleIdParam) return;
+    setActiveTab("schedule");
+    router.setParams({ notificationScheduleAction: undefined, notificationScheduleKind: undefined, notificationScheduleId: undefined });
+  }, [notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
     const label = getAvatarText(person);

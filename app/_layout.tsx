@@ -63,8 +63,16 @@ function RootLayoutContent() {
       }
       if ((data.kind === "scheduled-event" && typeof data.eventId === "string") || (data.kind === "scheduled-todo" && typeof data.todoId === "string") || (data.kind === "scheduled-ministry" && typeof data.ministryId === "string")) {
         const itemId = data.kind === "scheduled-event" ? data.eventId : data.kind === "scheduled-todo" ? data.todoId : data.ministryId;
-        if (action === NOTIFICATION_ACTIONS.snooze) await snoozeScheduleNotification(response);
-        else if (action === NOTIFICATION_ACTIONS.complete) await completeScheduledNotificationItem(data.kind, itemId as string);
+        if (action === NOTIFICATION_ACTIONS.snooze) {
+          await snoozeScheduleNotification(response);
+        } else if (action === NOTIFICATION_ACTIONS.complete) {
+          await completeScheduledNotificationItem(String(data.kind), String(itemId));
+          try {
+            await Notifications.dismissNotificationAsync(response.notification.request.identifier);
+          } catch {
+            // Some Android versions already remove an action notification automatically.
+          }
+        }
         else return;
         router.replace({ pathname: "/(tabs)", params: { notificationScheduleAction: action, notificationScheduleKind: String(data.kind), notificationScheduleId: String(itemId) } });
       }

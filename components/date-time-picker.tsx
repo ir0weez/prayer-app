@@ -110,12 +110,20 @@ export function DateTimePicker({
                     selectedDate.getFullYear()
                   );
                 }}
-                style={pickerStyles.pickerItem}
+                style={[
+                  pickerStyles.pickerItem,
+                  draftValue && draftValue.includes('-') &&
+                    parseInt(draftValue.split('-')[1] || '0', 10) - 1 === m &&
+                    [pickerStyles.selectedPickerItem, { backgroundColor: colors.primary }],
+                ]}
               >
                 <Text
                   style={[
                     pickerStyles.pickerItemText,
                     { color: colors.foreground },
+                    draftValue && draftValue.includes('-') &&
+                      parseInt(draftValue.split('-')[1] || '0', 10) - 1 === m &&
+                      { color: colors.background, fontWeight: '800' },
                   ]}
                 >
                   {new Date(2024, m).toLocaleString("en-US", { month: "short" })}
@@ -143,12 +151,20 @@ export function DateTimePicker({
                     selectedDate.getFullYear()
                   );
                 }}
-                style={pickerStyles.pickerItem}
+                style={[
+                  pickerStyles.pickerItem,
+                  draftValue && draftValue.includes('-') &&
+                    parseInt(draftValue.split('-')[2] || '0', 10) === d &&
+                    [pickerStyles.selectedPickerItem, { backgroundColor: colors.primary }],
+                ]}
               >
                 <Text
                   style={[
                     pickerStyles.pickerItemText,
                     { color: colors.foreground },
+                    draftValue && draftValue.includes('-') &&
+                      parseInt(draftValue.split('-')[2] || '0', 10) === d &&
+                      { color: colors.background, fontWeight: '800' },
                   ]}
                 >
                   {String(d).padStart(2, "0")}
@@ -176,12 +192,20 @@ export function DateTimePicker({
                     y
                   );
                 }}
-                style={pickerStyles.pickerItem}
+                style={[
+                  pickerStyles.pickerItem,
+                  draftValue && draftValue.includes('-') &&
+                    parseInt(draftValue.split('-')[0] || '0', 10) === y &&
+                    [pickerStyles.selectedPickerItem, { backgroundColor: colors.primary }],
+                ]}
               >
                 <Text
                   style={[
                     pickerStyles.pickerItemText,
                     { color: colors.foreground },
+                    draftValue && draftValue.includes('-') &&
+                      parseInt(draftValue.split('-')[0] || '0', 10) === y &&
+                      { color: colors.background, fontWeight: '800' },
                   ]}
                 >
                   {y}
@@ -234,12 +258,18 @@ export function DateTimePicker({
                       : 0;
                     handleTimeChange(h, currentMinute);
                   }}
-                  style={pickerStyles.pickerItem}
+                  style={[
+                    pickerStyles.pickerItem,
+                    draftValue && parseInt(draftValue.split(':')[0] || '0', 10) === h &&
+                      [pickerStyles.selectedPickerItem, { backgroundColor: colors.primary }],
+                  ]}
                 >
                   <Text
                     style={[
                       pickerStyles.pickerItemText,
                       { color: colors.foreground },
+                      draftValue && parseInt(draftValue.split(':')[0] || '0', 10) === h &&
+                        { color: colors.background, fontWeight: '800' },
                     ]}
                   >
                     {displayHour} {period}
@@ -261,12 +291,18 @@ export function DateTimePicker({
                   const currentHour = draftValue ? parseInt(draftValue.split(":")[0] || "0") : 0;
                   handleTimeChange(currentHour, m);
                 }}
-                style={pickerStyles.pickerItem}
+                style={[
+                  pickerStyles.pickerItem,
+                  draftValue && parseInt(draftValue.split(':')[1] || '0', 10) === m &&
+                    [pickerStyles.selectedPickerItem, { backgroundColor: colors.primary }],
+                ]}
               >
                 <Text
                   style={[
                     pickerStyles.pickerItemText,
                     { color: colors.foreground },
+                    draftValue && parseInt(draftValue.split(':')[1] || '0', 10) === m &&
+                      { color: colors.background, fontWeight: '800' },
                   ]}
                 >
                   {String(m).padStart(2, "0")}
@@ -397,6 +433,10 @@ const pickerStyles = StyleSheet.create({
   pickerItem: {
     paddingVertical: 12,
     alignItems: "center",
+  },
+  selectedPickerItem: {
+    borderRadius: 10,
+    marginHorizontal: 4,
   },
   pickerItemText: {
     fontSize: 16,

@@ -950,6 +950,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
+    textAlign: "center" as const,
+    alignSelf: "center",
+    width: "100%",
   },
   sectionLabel: {
     marginTop: 20,

@@ -8,6 +8,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, TextInput } from 'react-native';
+import { syncBudgetReminderNotifications } from '@/lib/notification-scheduler';
 
 const BUDGET_STORAGE_KEY = 'monthlyBudgetExpenses';
 
@@ -33,6 +34,7 @@ export default function BudgetTrackerScreen() {
       const normalized = normalizeRecurringExpenses(parsed);
       const expanded = materializeRecurringExpenses(normalized, currentMonth, 12);
       setExpenses(expanded);
+      void syncBudgetReminderNotifications(expanded);
 
       if (JSON.stringify(expanded) !== JSON.stringify(parsed)) {
         await AsyncStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(expanded));
@@ -46,6 +48,7 @@ export default function BudgetTrackerScreen() {
     try {
       await AsyncStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(newExpenses));
       setExpenses(newExpenses);
+      void syncBudgetReminderNotifications(newExpenses);
     } catch (error) {
       console.error('Error saving budget expenses:', error);
     }

@@ -5,6 +5,7 @@ import type { Person, ReminderFrequency } from "./prayercircle-data";
 import { getPersonReminderFrequency, getUrgentPrayerItems } from "./prayercircle-data";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
 import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
+import type { MonthlyExpenseRecord } from "./budget-data";
 import { APP_SETTINGS_STORAGE_KEY } from "./prayercircle-storage";
 
 const SOURCE = "prayercircle";
@@ -12,6 +13,7 @@ const PRAYER_KIND = "prayer-reminder";
 const EVENT_KIND = "scheduled-event";
 const TODO_KIND = "scheduled-todo";
 const MINISTRY_KIND = "scheduled-ministry";
+const BUDGET_KIND = "budget-due";
 const CHANNEL_ID = "prayercircle-reminders";
 export const PRAYER_NOTIFICATION_CATEGORY = "prayer-reminder-actions";
 export const NOTIFICATION_ACTIONS = {
@@ -27,12 +29,16 @@ export type NotificationPreferences = {
   prayerRemindersEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
+  budgetRemindersEnabled: boolean;
+  budgetReminderDaysBefore: number;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   prayerRemindersEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
+  budgetRemindersEnabled: true,
+  budgetReminderDaysBefore: 1,
 };
 
 const VALID_ADVANCE_MINUTES = [0, 5, 15, 30, 60];
@@ -44,6 +50,8 @@ export function normalizeNotificationPreferences(value: unknown): NotificationPr
     prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
     eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
     defaultEventReminderMinutes: VALID_ADVANCE_MINUTES.includes(minutes) ? minutes : 0,
+    budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
+    budgetReminderDaysBefore: Number(parsed.budgetReminderDaysBefore) === 0 ? 0 : 1,
   };
 }
 
@@ -231,6 +239,39 @@ export function buildScheduledMinistryPlans(
   });
 }
 
+function budgetDueDate(value: string): Date | null {
+  const datePart = String(value ?? "").trim().slice(0, 10);
+  const [year, month, day] = datePart.split("-").map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  const date = new Date(year, month - 1, day, 9, 0, 0, 0);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+export function buildBudgetReminderPlans(
+  expenses: MonthlyExpenseRecord[],
+  now = new Date(),
+  daysBefore = 1,
+): NotificationPlan[] {
+  const seen = new Set<string>();
+  return expenses.flatMap((expense) => {
+    if (expense.isPaid || seen.has(expense.id)) return [];
+    seen.add(expense.id);
+    const dueDate = budgetDueDate(expense.dueDate);
+    if (!dueDate) return [];
+    const reminderDate = new Date(dueDate.getTime() - Math.max(0, daysBefore) * 24 * 60 * 60 * 1000);
+    if (reminderDate.getTime() <= now.getTime()) return [];
+    return [{
+      content: {
+        title: daysBefore === 0 ? `Budget due today: ${expense.name}` : `Budget due in ${daysBefore} day${daysBefore === 1 ? "" : "s"}: ${expense.name}`,
+        body: `$${expense.amount.toFixed(2)} due ${expense.dueDate.slice(0, 10)}`,
+        sound: "default",
+        data: { source: SOURCE, kind: BUDGET_KIND, expenseId: expense.id },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: reminderDate, channelId: CHANNEL_ID },
+    }];
+  });
+}
+
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   try {
@@ -346,6 +387,25 @@ export function syncScheduledEventNotifications(events: ScheduleEvent[], todos: 
   return scheduleSyncQueue;
 }
 
+let budgetSyncQueue: Promise<void> = Promise.resolve();
+
+async function syncBudgetReminderNotificationsNow(expenses: MonthlyExpenseRecord[]): Promise<void> {
+  if (Platform.OS === "web") return;
+  await cancelKind(BUDGET_KIND);
+  const preferences = await getNotificationPreferences();
+  if (!preferences.budgetRemindersEnabled) return;
+  const plans = buildBudgetReminderPlans(expenses, new Date(), preferences.budgetReminderDaysBefore);
+  if (plans.length === 0 || !(await ensureNotificationPermission())) return;
+  await schedulePlans(plans);
+}
+
+export function syncBudgetReminderNotifications(expenses: MonthlyExpenseRecord[]): Promise<void> {
+  budgetSyncQueue = budgetSyncQueue
+    .catch(() => undefined)
+    .then(() => syncBudgetReminderNotificationsNow(expenses));
+  return budgetSyncQueue;
+}
+
 export async function completeScheduledNotificationItem(kind: string, itemId: string): Promise<boolean> {
   if (Platform.OS === "web") return false;
   const key = kind === EVENT_KIND ? SCHEDULE_EVENTS_KEY : kind === TODO_KIND ? SCHEDULE_TODOS_KEY : kind === MINISTRY_KIND ? SCHEDULE_MINISTRIES_KEY : null;
@@ -403,6 +463,6 @@ export function configureLocalNotifications(): void {
   void ensureNotificationCategories().catch(() => undefined);
 }
 
-export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo: TODO_KIND, ministry: MINISTRY_KIND } as const;
+export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo: TODO_KIND, ministry: MINISTRY_KIND, budget: BUDGET_KIND } as const;
 
 export { parseTime };

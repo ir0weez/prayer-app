@@ -24,6 +24,7 @@ import {
   clearAllScheduledNotifications,
   getNotificationPermissionStatus,
   scheduleTestNotification,
+  syncBudgetReminderNotifications,
   syncPrayerReminderNotifications,
 } from "@/lib/notification-scheduler";
 
@@ -137,6 +138,8 @@ type AppSettings = {
   prayerRemindersEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
+  budgetRemindersEnabled: boolean;
+  budgetReminderDaysBefore: number;
 };
 
 type PersonalProfile = {
@@ -165,6 +168,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   prayerRemindersEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
+  budgetRemindersEnabled: true,
+  budgetReminderDaysBefore: 1,
 };
 const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
@@ -235,6 +240,8 @@ function parseStoredSettings(value: string | null): AppSettings {
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
       eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
       defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
+      budgetRemindersEnabled: parsed.budgetRemindersEnabled !== false,
+      budgetReminderDaysBefore: Number(parsed.budgetReminderDaysBefore) === 0 ? 0 : 1,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -691,6 +698,17 @@ export default function HomeScreen() {
     if (!hasHydratedPeople) return;
     syncPrayerReminderNotifications(people).catch(() => undefined);
   }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.getItem("monthlyBudgetExpenses")
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) void syncBudgetReminderNotifications(normalizeRecurringExpenses(parsed));
+      })
+      .catch(() => undefined);
+  }, [hasHydratedPeople, settings.budgetRemindersEnabled, settings.budgetReminderDaysBefore]);
 
   // Separate family groups from individual people
   const familyGroups = useMemo(() => {
@@ -1889,6 +1907,7 @@ export default function HomeScreen() {
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.prayerRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
         {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.eventRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
+        {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.budgetRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
           <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>

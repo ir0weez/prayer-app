@@ -3,7 +3,11 @@ import {
   calculateFastStreak,
   createPersonalFast,
   formatIsoToMmDdYyyy,
+  getCompletedFastCount,
   getFastProgress,
+  getHighestFastStreak,
+  getLastCompletedFastForType,
+  isFastCompleted,
   normalizeFastDateInput,
   upsertFastDayStatus,
   removeFastDayStatus,
@@ -269,5 +273,38 @@ describe("Fast Editor Modal - Create and Edit", () => {
     expect(fastAfterRemoval.dayStatuses["2026-04-28"]).toBe("completed");
     expect(fastAfterRemoval.dayStatuses["2026-04-29"]).toBeUndefined();
     expect(fastAfterRemoval.dayStatuses["2026-04-30"]).toBe("missed");
+  });
+
+  it("summarizes completed fasts and finds the highest streak", () => {
+    const fast = createPersonalFast({
+      name: "Seven Day Fast",
+      startDate: "04-28-2026",
+      durationDays: 7,
+      type: "Growth",
+      focusItems: [],
+      existingCount: 0,
+    })!;
+    let completed = upsertFastDayStatus([fast], fast.id, "2026-04-28", "completed")[0];
+    completed = upsertFastDayStatus([completed], fast.id, "2026-04-29", "completed")[0];
+    completed = upsertFastDayStatus([completed], fast.id, "2026-04-30", "completed")[0];
+
+    expect(getHighestFastStreak([completed])).toBe(3);
+    expect(isFastCompleted(completed)).toBe(false);
+    expect(getCompletedFastCount([completed])).toBe(0);
+  });
+
+  it("returns the most recent completed fast for the selected type", () => {
+    const older = createPersonalFast({ name: "Older Growth", startDate: "01-01-2026", durationDays: 1, type: "Growth", focusItems: [], existingCount: 0 })!;
+    const newer = createPersonalFast({ name: "Newer Growth", startDate: "03-01-2026", durationDays: 1, type: "Growth", focusItems: [], existingCount: 1 })!;
+    const olderCompleted = upsertFastDayStatus([older], older.id, "2026-01-01", "completed")[0];
+    const newerCompleted = upsertFastDayStatus([newer], newer.id, "2026-03-01", "completed")[0];
+
+    expect(getLastCompletedFastForType([olderCompleted, newerCompleted], "Growth")?.name).toBe("Newer Growth");
+    expect(getCompletedFastCount([olderCompleted, newerCompleted])).toBe(2);
+  });
+
+  it("does not report an unfinished fast as a previous result", () => {
+    const unfinished = createPersonalFast({ name: "Current Growth", startDate: "04-28-2026", durationDays: 7, type: "Growth", focusItems: [], existingCount: 0 })!;
+    expect(getLastCompletedFastForType([unfinished], "Growth", unfinished.id)).toBeNull();
   });
 });

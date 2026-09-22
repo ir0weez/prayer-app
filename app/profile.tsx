@@ -16,8 +16,12 @@ import {
   formatIsoToMmDdYyyy,
   getActiveFast,
   getFastCalendarDays,
+  getCompletedFastCount,
   getFastProgress,
+  getHighestFastStreak,
+  getLastCompletedFastForType,
   getTodayFocusItemStatus,
+  isFastCompleted,
   normalizeFastDateInput,
   normalizeFastsForStorage,
   resetFocusItemsForNewDay,
@@ -171,6 +175,12 @@ export default function ProfileScreen() {
   const selectedFastProgress = selectedFast ? getFastProgress(selectedFast) : null;
   const selectedFastStreak = selectedFast ? calculateFastStreak(selectedFast, today) : 0;
   const selectedFastDays = selectedFast ? getFastCalendarDays(selectedFast) : [];
+  const highestFastStreak = getHighestFastStreak(fasts);
+  const completedFastCount = getCompletedFastCount(fasts);
+  const lastCompletedFast = selectedFast
+    ? getLastCompletedFastForType(fasts, selectedFast.type, isFastCompleted(selectedFast) ? undefined : selectedFast.id)
+    : null;
+  const lastCompletedFastProgress = lastCompletedFast ? getFastProgress(lastCompletedFast) : null;
 
   const persistFasts = (nextFasts: PersonalFast[]) => {
     setFasts(nextFasts);
@@ -418,9 +428,20 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{selectedFastStreak}</Text><Text style={styles.statLabel}>Fast Streak</Text></View>
-          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{selectedFastProgress?.completed ?? 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
-          <View style={styles.statCard}><Text style={dynamicStyles.statNumber}>{fasts.length}</Text><Text style={styles.statLabel}>Fasts</Text></View>
+          <View style={styles.statCard}>
+            <Text style={dynamicStyles.statNumber}>{highestFastStreak}</Text>
+            <Text style={styles.statLabel}>Highest Streak</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={dynamicStyles.statNumber}>{completedFastCount}</Text>
+            <Text style={styles.statLabel}>Completed Fasts</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
+              {lastCompletedFastProgress ? `${lastCompletedFastProgress.completed}/${lastCompletedFastProgress.total}` : "Collecting Data"}
+            </Text>
+            <Text style={styles.statLabel}>Last {selectedFast?.type ?? "Fast"}</Text>
+          </View>
         </View>
 
         {selectedFast ? (
@@ -691,6 +712,12 @@ const styles = StyleSheet.create({
     color: PURPLE,
     fontSize: 28,
     fontWeight: "900",
+  },
+  statValueText: {
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center" as const,
+    lineHeight: 19,
   },
   statLabel: {
     color: MUTED_TEXT,

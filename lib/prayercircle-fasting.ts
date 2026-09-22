@@ -108,6 +108,31 @@ export function getFastProgress(fast: PersonalFast): { completed: number; skippe
   };
 }
 
+export function isFastCompleted(fast: PersonalFast): boolean {
+  return getFastCalendarDays(fast).every((date) => fast.dayStatuses[date] === "completed");
+}
+
+export function getCompletedFastCount(fasts: PersonalFast[]): number {
+  return fasts.filter(isFastCompleted).length;
+}
+
+export function getHighestFastStreak(fasts: PersonalFast[]): number {
+  return fasts.reduce((highest, fast) => Math.max(highest, calculateFastStreak(fast, getFastEndDate(fast))), 0);
+}
+
+export function getLastCompletedFastForType(
+  fasts: PersonalFast[],
+  type: FastType,
+  excludeFastId?: string,
+): PersonalFast | null {
+  return [...fasts]
+    .filter((fast) => fast.type === type && fast.id !== excludeFastId && isFastCompleted(fast))
+    .sort((a, b) => {
+      const endDateDifference = getFastEndDate(b).localeCompare(getFastEndDate(a));
+      return endDateDifference || b.createdAt.localeCompare(a.createdAt);
+    })[0] ?? null;
+}
+
 export function getCurrentFastDay(fast: PersonalFast, dateString = getTodayISOString()): number {
   const days = getFastCalendarDays(fast);
   const currentIndex = days.indexOf(dateString);

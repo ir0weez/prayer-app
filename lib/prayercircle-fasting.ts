@@ -108,6 +108,15 @@ export function getFastProgress(fast: PersonalFast): { completed: number; skippe
   };
 }
 
+export function getFastCompletionPercentage(fast: PersonalFast): number {
+  const progress = getFastProgress(fast);
+  return progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+}
+
+export function getFastDateRangeLabel(fast: PersonalFast): string {
+  return `${formatIsoToMmDdYyyy(fast.startDate)} – ${formatIsoToMmDdYyyy(getFastEndDate(fast))}`;
+}
+
 export function isFastCompleted(fast: PersonalFast): boolean {
   return getFastCalendarDays(fast).every((date) => fast.dayStatuses[date] === "completed");
 }

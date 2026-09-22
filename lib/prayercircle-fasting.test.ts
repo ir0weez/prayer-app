@@ -3,6 +3,8 @@ import {
   calculateFastStreak,
   createPersonalFast,
   formatIsoToMmDdYyyy,
+  getFastCompletionPercentage,
+  getFastDateRangeLabel,
   getCompletedFastCount,
   getFastProgress,
   getHighestFastStreak,
@@ -72,6 +74,26 @@ describe("Fast Editor Modal - Create and Edit", () => {
   it("formats ISO date to MM-DD-YYYY", () => {
     expect(formatIsoToMmDdYyyy("2026-04-28")).toBe("04-28-2026");
     expect(formatIsoToMmDdYyyy("2025-12-31")).toBe("12-31-2025");
+  });
+
+  it("summarizes completion percentage and date range for profile history", () => {
+    const fast = createPersonalFast({
+      name: "Profile Summary Fast",
+      startDate: "04-28-2026",
+      durationDays: 7,
+      type: "Growth",
+      focusItems: ["Wisdom"],
+      existingCount: 0,
+    })!;
+    const partiallyCompleted = upsertFastDayStatus(
+      upsertFastDayStatus([fast], fast.id, "2026-04-28", "completed"),
+      fast.id,
+      "2026-04-29",
+      "completed",
+    )[0];
+
+    expect(getFastCompletionPercentage(partiallyCompleted)).toBe(29);
+    expect(getFastDateRangeLabel(partiallyCompleted)).toBe("04-28-2026 – 05-04-2026");
   });
 
   it("simulates editing a fast by updating properties in place", () => {

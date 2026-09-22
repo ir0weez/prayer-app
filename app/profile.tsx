@@ -16,6 +16,8 @@ import {
   formatIsoToMmDdYyyy,
   getActiveFast,
   getFastCalendarDays,
+  getFastCompletionPercentage,
+  getFastDateRangeLabel,
   getCompletedFastCount,
   getFastProgress,
   getHighestFastStreak,
@@ -181,6 +183,11 @@ export default function ProfileScreen() {
     ? getLastCompletedFastForType(fasts, selectedFast.type, isFastCompleted(selectedFast) ? undefined : selectedFast.id)
     : null;
   const lastCompletedFastProgress = lastCompletedFast ? getFastProgress(lastCompletedFast) : null;
+  const lastCompletedFastPercentage = lastCompletedFast ? getFastCompletionPercentage(lastCompletedFast) : 0;
+  const fastHistory = useMemo(
+    () => [...fasts].sort((a, b) => b.startDate.localeCompare(a.startDate) || b.createdAt.localeCompare(a.createdAt)),
+    [fasts],
+  );
 
   const persistFasts = (nextFasts: PersonalFast[]) => {
     setFasts(nextFasts);
@@ -437,12 +444,42 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
-              {lastCompletedFastProgress ? `${lastCompletedFastProgress.completed}/${lastCompletedFastProgress.total}` : "Collecting Data"}
+            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}> 
+              {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
             <Text style={styles.statLabel}>Last {selectedFast?.type ?? "Fast"}</Text>
           </View>
         </View>
+
+        <Text style={styles.sectionLabel}>PREVIOUS FAST</Text>
+        {lastCompletedFast && lastCompletedFastProgress ? (
+          <View style={styles.previousFastCard}>
+            <View style={styles.previousFastHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.previousFastTitle}>{lastCompletedFast.name}</Text>
+                <Text style={styles.previousFastMeta}>{lastCompletedFast.type} • {getFastDateRangeLabel(lastCompletedFast)}</Text>
+              </View>
+              <Text style={[styles.previousFastPercentage, { color: colors.primary }]}>{lastCompletedFastPercentage}%</Text>
+            </View>
+            <View style={styles.previousFastProgressTrack}>
+              <View style={[styles.previousFastProgressFill, { width: `${lastCompletedFastPercentage}%`, backgroundColor: colors.primary }]} />
+            </View>
+            <Text style={styles.previousFastDays}>{lastCompletedFastProgress.completed}/{lastCompletedFastProgress.total} days completed</Text>
+            <Text style={styles.previousFastFocusLabel}>FOCUS ITEMS</Text>
+            <View style={styles.focusWrap}>
+              {(lastCompletedFast.focusItems.length ? lastCompletedFast.focusItems : ["No focus items recorded"]).map((item) => (
+                <View key={item} style={[styles.previousFocusChip, { backgroundColor: `${colors.primary}18`, borderColor: `${colors.primary}35` }]}>
+                  <Text style={[styles.previousFocusChipText, { color: colors.primary }]}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.previousFastEmpty}>
+            <MaterialIcons name={iconName("history")} size={22} color={colors.muted} />
+            <Text style={styles.previousFastEmptyText}>Complete a fast to start your history.</Text>
+          </View>
+        )}
 
         {selectedFast ? (
           <>
@@ -519,15 +556,43 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {fasts.length > 1 ? (
+        {fastHistory.length > 0 ? (
           <>
-            <Text style={styles.sectionLabel}>ALL FASTS</Text>
-            {fasts.map((fast) => (
-              <Pressable key={fast.id} onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.fastListRow, selectedFast?.id === fast.id && styles.fastListRowActive, pressed && styles.pressed]}>
-                <Text style={styles.fastListTitle}>{fast.name}</Text>
-                <Text style={styles.fastListMeta}>{fast.type} • {fast.durationDays} days</Text>
-              </Pressable>
-            ))}
+            <Text style={styles.sectionLabel}>FAST HISTORY</Text>
+            <View style={styles.historyTimeline}>
+              {fastHistory.map((fast, index) => {
+                const progress = getFastProgress(fast);
+                const percentage = getFastCompletionPercentage(fast);
+                const typeInfo = FAST_TYPES.find((entry) => entry.type === fast.type);
+                const isCompleted = isFastCompleted(fast);
+                return (
+                  <View key={fast.id} style={styles.timelineRow}>
+                    <View style={styles.timelineRail}>
+                      <View style={[styles.timelineDot, { backgroundColor: typeInfo?.color ?? colors.primary }]} />
+                      {index < fastHistory.length - 1 && <View style={styles.timelineLine} />}
+                    </View>
+                    <Pressable onPress={() => setSelectedFastId(fast.id)} style={({ pressed }) => [styles.historyCard, selectedFast?.id === fast.id && { borderColor: typeInfo?.color ?? colors.primary }, pressed && styles.pressed]}>
+                      <View style={styles.historyCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.historyTitle}>{fast.name}</Text>
+                          <Text style={styles.historyMeta}>{fast.type} • {getFastDateRangeLabel(fast)}</Text>
+                        </View>
+                        <View style={[styles.historyStatusPill, { backgroundColor: isCompleted ? "#DDF8ED" : `${typeInfo?.color ?? colors.primary}18` }]}>
+                          <Text style={[styles.historyStatusText, { color: isCompleted ? "#16845A" : typeInfo?.color ?? colors.primary }]}>{isCompleted ? "Complete" : `${percentage}%`}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.historyProgressTrack}>
+                        <View style={[styles.historyProgressFill, { width: `${percentage}%`, backgroundColor: typeInfo?.color ?? colors.primary }]} />
+                      </View>
+                      <Text style={styles.historyDays}>{progress.completed}/{progress.total} completed • {progress.missed} missed • {progress.skipped} skipped</Text>
+                      {fast.focusItems.length > 0 && (
+                        <Text numberOfLines={1} style={styles.historyFocus}>Focus: {fast.focusItems.join(" • ")}</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -718,6 +783,167 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center" as const,
     lineHeight: 19,
+  },
+  previousFastCard: {
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5DDF2",
+  },
+  previousFastHeader: {
+    flexDirection: "row" as const,
+    alignItems: "flex-start" as const,
+    gap: 12,
+  },
+  previousFastTitle: {
+    color: DEEP_TEXT,
+    fontSize: 18,
+    fontWeight: "900" as const,
+  },
+  previousFastMeta: {
+    marginTop: 4,
+    color: MUTED_TEXT,
+    fontSize: 12,
+    fontWeight: "700" as const,
+  },
+  previousFastPercentage: {
+    fontSize: 24,
+    fontWeight: "900" as const,
+  },
+  previousFastProgressTrack: {
+    height: 8,
+    marginTop: 14,
+    borderRadius: 4,
+    backgroundColor: "#EEE9F7",
+    overflow: "hidden" as const,
+  },
+  previousFastProgressFill: {
+    height: "100%" as const,
+    borderRadius: 4,
+  },
+  previousFastDays: {
+    marginTop: 7,
+    color: MUTED_TEXT,
+    fontSize: 12,
+    fontWeight: "800" as const,
+  },
+  previousFastFocusLabel: {
+    marginTop: 14,
+    marginBottom: 8,
+    color: MUTED_TEXT,
+    fontSize: 11,
+    fontWeight: "900" as const,
+    letterSpacing: 1,
+  },
+  previousFocusChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  previousFocusChipText: {
+    fontSize: 12,
+    fontWeight: "900" as const,
+  },
+  previousFastEmpty: {
+    minHeight: 58,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5DDF2",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 9,
+  },
+  previousFastEmptyText: {
+    color: MUTED_TEXT,
+    fontSize: 13,
+    fontWeight: "700" as const,
+  },
+  historyTimeline: {
+    paddingBottom: 4,
+  },
+  timelineRow: {
+    flexDirection: "row" as const,
+    minHeight: 126,
+  },
+  timelineRail: {
+    width: 22,
+    alignItems: "center" as const,
+  },
+  timelineDot: {
+    width: 13,
+    height: 13,
+    marginTop: 19,
+    borderRadius: 7,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    marginTop: 3,
+    backgroundColor: "#DED4EC",
+  },
+  historyCard: {
+    flex: 1,
+    marginLeft: 8,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5DDF2",
+  },
+  historyCardHeader: {
+    flexDirection: "row" as const,
+    alignItems: "flex-start" as const,
+    gap: 9,
+  },
+  historyTitle: {
+    color: DEEP_TEXT,
+    fontSize: 16,
+    fontWeight: "900" as const,
+  },
+  historyMeta: {
+    marginTop: 3,
+    color: MUTED_TEXT,
+    fontSize: 11,
+    fontWeight: "700" as const,
+  },
+  historyStatusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  historyStatusText: {
+    fontSize: 11,
+    fontWeight: "900" as const,
+  },
+  historyProgressTrack: {
+    height: 7,
+    marginTop: 12,
+    borderRadius: 4,
+    backgroundColor: "#EEE9F7",
+    overflow: "hidden" as const,
+  },
+  historyProgressFill: {
+    height: "100%" as const,
+    borderRadius: 4,
+  },
+  historyDays: {
+    marginTop: 6,
+    color: MUTED_TEXT,
+    fontSize: 11,
+    fontWeight: "800" as const,
+  },
+  historyFocus: {
+    marginTop: 6,
+    color: DEEP_TEXT,
+    fontSize: 11,
+    fontWeight: "700" as const,
   },
   statLabel: {
     color: MUTED_TEXT,

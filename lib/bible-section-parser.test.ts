@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBibleSections, BibleVerse } from './bible-section-parser';
+import { createSectionsFromRanges, parseBibleSections, BibleVerse } from './bible-section-parser';
 
 describe('parseBibleSections', () => {
   it('should parse verses without headings into a single section', () => {
@@ -108,5 +108,22 @@ describe('parseBibleSections', () => {
 
     const ids = sections.map(s => s.id);
     expect(new Set(ids).size).toBe(ids.length); // All IDs should be unique
+  });
+
+  it('should preserve explicit uneven subsection ranges without splitting them', () => {
+    const verses: BibleVerse[] = Array.from({ length: 15 }, (_, index) => ({
+      verse: index + 1,
+      text: `Verse ${index + 1}`,
+    }));
+
+    const sections = createSectionsFromRanges(verses, [
+      { id: 'section-1-6', title: "God's Work", startVerse: 1, endVerse: 6 },
+      { id: 'section-7-15', title: "Man's Creation", startVerse: 7, endVerse: 15 },
+    ]);
+
+    expect(sections.map((section) => section.title)).toEqual(["God's Work", "Man's Creation"]);
+    expect(sections.map((section) => section.verses.length)).toEqual([6, 9]);
+    expect(sections[1].verses[0].verse).toBe(7);
+    expect(sections[1].verses[8].verse).toBe(15);
   });
 });

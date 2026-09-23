@@ -15,6 +15,29 @@ export interface BibleSection {
   verses: BibleVerse[];
 }
 
+export interface BibleSectionRange {
+  id: string;
+  title: string;
+  startVerse: number;
+  endVerse: number;
+}
+
+/**
+ * Builds reader sections from explicit subsection ranges supplied by the
+ * commentary source. Every range becomes exactly one section.
+ */
+export function createSectionsFromRanges(
+  verses: BibleVerse[],
+  ranges: BibleSectionRange[],
+): BibleSection[] {
+  return ranges
+    .map((range) => ({
+      ...range,
+      verses: verses.filter((verse) => verse.verse >= range.startVerse && verse.verse <= range.endVerse),
+    }))
+    .filter((section) => section.verses.length > 0);
+}
+
 /**
  * Detects if a line is a section heading
  * Looks for: short text (< 80 chars), no verse numbers, no ending punctuation

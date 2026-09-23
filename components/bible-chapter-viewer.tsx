@@ -17,13 +17,13 @@ import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BOOK_IDS } from '@/lib/book-ids';
 import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highlight-color-picker';
-import { parseBibleSections, BibleSection } from '@/lib/bible-section-parser';
+import { parseBibleSections, createSectionsFromRanges, BibleSection } from '@/lib/bible-section-parser';
 import { loadCompletedSections, getSectionCompletionKey } from '@/lib/paragraph-sections';
 import { BibleStoryViewer } from './bible-story-viewer';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import { createDefaultParagraphs, loadCustomParagraphs, parseCustomParagraphs } from '@/lib/paragraph-sections';
-import { getAllCommentariesForVerse } from '@/lib/commentary-data';
+import { getAllCommentariesForVerse, getStructuredCommentarySections } from '@/lib/commentary-data';
 import { markChapterAsRead, loadUnifiedBible, getNextUnreadChapter, getCurrentBook } from '@/lib/bible-unified';
 import { syncUnifiedBibleToAllOldSystems } from '@/lib/bible-sync';
 import * as Haptics from 'expo-haptics';
@@ -162,8 +162,13 @@ export function BibleChapterViewer({
         // First try to load custom paragraphs
         const customDefs = await loadCustomParagraphs(book, chapter, bibleVerses);
         
-        let parsedSections: any[];
-        if (customDefs) {
+        const structuredCommentarySections = getStructuredCommentarySections(book, chapter)
+          .filter((candidate) => candidate.title !== 'Introduction');
+        let parsedSections: BibleSection[];
+        if (structuredCommentarySections.length > 0) {
+          parsedSections = createSectionsFromRanges(bibleVerses, structuredCommentarySections);
+          console.log(`Created ${parsedSections.length} commentary-aligned sections`);
+        } else if (customDefs) {
           parsedSections = customDefs;
           console.log(`Loaded ${parsedSections.length} custom paragraphs`);
         } else {

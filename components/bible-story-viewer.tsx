@@ -25,6 +25,8 @@ import {
   CommentaryNote,
 } from '@/lib/commentary-data';
 import { formatCommentaryRange, groupCommentariesByRange } from '@/lib/commentary-grouping';
+
+const COMMENTARY_CARD_COLORS = ['#F59E0B', '#EF4444', '#F97316', '#EAB308', '#10B981', '#3B82F6', '#8B5CF6'];
 import type { CleanedCommentarySection } from '@/lib/commentary-cleaned-genesis';
 
 interface BibleStoryViewerProps {
@@ -72,6 +74,8 @@ export function BibleStoryViewer({
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<'yellow' | 'green' | 'pink' | 'blue'>('yellow');
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [commentarySlideIndex, setCommentarySlideIndex] = useState(0);
+  const [expandedCommentarySlide, setExpandedCommentarySlide] = useState<number | null>(null);
+  const commentaryCarouselRef = useRef<ScrollView>(null);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
   const [structuredCommentarySections, setStructuredCommentarySections] = useState<CleanedCommentarySection[]>([]);
@@ -92,7 +96,11 @@ export function BibleStoryViewer({
     checkHighlightStatus();
   }, [currentVerseIndex]);
   useEffect(() => {
-    if (showCommentaryModal) setCommentarySlideIndex(0);
+    if (showCommentaryModal) {
+      setCommentarySlideIndex(0);
+      setExpandedCommentarySlide(null);
+      requestAnimationFrame(() => commentaryCarouselRef.current?.scrollTo({ x: 0, y: 0, animated: false }));
+    }
   }, [showCommentaryModal, section?.id]);
 
   const checkHighlightStatus = async () => {
@@ -650,7 +658,8 @@ export function BibleStoryViewer({
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'flex-end',
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
           {/* Backdrop - tap to close */}
@@ -669,12 +678,12 @@ export function BibleStoryViewer({
           <View
             style={{
               backgroundColor: 'white',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
+              borderRadius: 24,
               paddingHorizontal: 20,
               paddingTop: 16,
               paddingBottom: 32,
-              maxHeight: '85%',
+              width: '92%',
+              maxHeight: '72%',
               zIndex: 10,
             }}
           >
@@ -719,38 +728,59 @@ export function BibleStoryViewer({
             {isBibleStudyMode ? (
               <>
                 <ScrollView
+                  ref={commentaryCarouselRef}
                   horizontal
                   pagingEnabled
+                  nestedScrollEnabled
                   showsHorizontalScrollIndicator={false}
                   style={{ marginBottom: 10, marginHorizontal: -20 }}
                   contentOffset={{ x: commentarySlideIndex * commentarySlideWidth, y: 0 }}
                   onMomentumScrollEnd={(event) => {
                     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / commentarySlideWidth);
-                    setCommentarySlideIndex(Math.max(0, Math.min(nextIndex, Math.max(studyCommentaryGroups.length - 1, 0))));
+                    const boundedIndex = Math.max(0, Math.min(nextIndex, Math.max(studyCommentaryGroups.length - 1, 0)));
+                    setCommentarySlideIndex(boundedIndex);
+                    setExpandedCommentarySlide(null);
                   }}
                 >
-                  {studyCommentaryGroups.map((group) => {
+                  {studyCommentaryGroups.map((group, index) => {
                     const groupVerses = section.verses.filter(
                       (verse) => verse.verse >= group.startVerse && verse.verse <= group.endVerse,
                     );
+                    const isExpanded = expandedCommentarySlide === index;
+                    const cardColor = COMMENTARY_CARD_COLORS[index % COMMENTARY_CARD_COLORS.length];
                     return (
                       <View key={`${group.startVerse}-${group.endVerse}`} style={{ width: commentarySlideWidth, paddingHorizontal: 20 }}>
-                        <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 12 }}>
-                          <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 14 }}>
-                            {subsectionHeading}
-                          </Text>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#555', marginBottom: 10 }}>
-                            {formatCommentaryRange(group.startVerse, group.endVerse)}
-                          </Text>
-                          {groupVerses.map((verse) => (
-                            <Text key={verse.verse} style={{ fontSize: 15, lineHeight: 24, color: '#333', fontFamily: 'Georgia', marginBottom: 14 }}>
-                              <Text style={{ fontWeight: '700', fontFamily: undefined }}>{verse.verse} </Text>{verse.text}
+                        <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 1.5, borderColor: isExpanded ? `${cardColor}66` : cardColor, backgroundColor: isExpanded ? 'white' : cardColor }}>
+                          <Pressable
+                            onPress={() => setExpandedCommentarySlide(isExpanded ? null : index)}
+                            style={({ pressed }) => [{ paddingHorizontal: 18, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: pressed ? 0.8 : 1 }]}
+                          >
+                            <Text style={{ flex: 1, color: isExpanded ? '#111' : 'white', fontSize: 17, fontWeight: '800' }}>
+                              {formatCommentaryRange(group.startVerse, group.endVerse)}
                             </Text>
-                          ))}
-                          <View style={{ borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingTop: 16 }}>
-                            {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
-                          </View>
-                        </ScrollView>
+                            <MaterialIcons name={isExpanded ? 'expand-less' : 'expand-more'} size={24} color={isExpanded ? cardColor : 'white'} />
+                          </Pressable>
+                          {isExpanded && (
+                            <ScrollView
+                              nestedScrollEnabled
+                              showsVerticalScrollIndicator
+                              style={{ maxHeight: 390, backgroundColor: 'white' }}
+                              contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }}
+                            >
+                              <Text style={{ fontSize: 14, fontWeight: '800', color: cardColor, marginBottom: 12 }}>
+                                {subsectionHeading}
+                              </Text>
+                              {groupVerses.map((verse) => (
+                                <Text key={verse.verse} style={{ fontSize: 15, lineHeight: 24, color: '#333', fontFamily: 'Georgia', marginBottom: 14 }}>
+                                  <Text style={{ fontWeight: '700', fontFamily: undefined }}>{verse.verse} </Text>{verse.text}
+                                </Text>
+                              ))}
+                              <View style={{ borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingTop: 16 }}>
+                                {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
+                              </View>
+                            </ScrollView>
+                          )}
+                        </View>
                       </View>
                     );
                   })}

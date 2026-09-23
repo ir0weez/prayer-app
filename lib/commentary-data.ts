@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IMPORTED_COMMENTARY } from './commentary-imported';
+import { IMPORTED_COMMENTARY_NEW } from './commentary-imported-new';
 
 export interface CommentaryNote {
   id: string;
@@ -177,7 +178,7 @@ const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
       book: 'Genesis',
       chapter: 1,
       verse: 5,
-      startVerse: 3,
+      startVerse: 5,
       endVerse: 5,
       author: 'Tried By Fire',
       authorHandle: '@TriedByFire',
@@ -193,7 +194,7 @@ const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
       book: 'Genesis',
       chapter: 1,
       verse: 5,
-      startVerse: 3,
+      startVerse: 5,
       endVerse: 5,
       author: 'Tried By Fire',
       authorHandle: '@TriedByFire',
@@ -55519,6 +55520,7 @@ Genesis 5:18`,
       createdAt: new Date().toISOString(),
     },
   ],
+  ...IMPORTED_COMMENTARY_NEW,
 };
 
 // Export the default commentary data

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_COMMENTARY, getAllCommentariesForVerse } from './commentary-data';
 import { IMPORTED_COMMENTARY } from './commentary-imported';
+import { IMPORTED_COMMENTARY_NEW } from './commentary-imported-new';
 
 describe('Deuteronomy 11–20 commentary import', () => {
   it('covers the supplied ten-chapter range with the parsed verse and paragraph totals', () => {
@@ -160,5 +161,25 @@ describe('commentary subsection ranges', () => {
 
     expect(notes).toHaveLength(2);
     expect(notes.every((note) => note.startVerse === 3 && note.endVerse === 5)).toBe(true);
+  });
+});
+
+describe('Genesis replacement and new book commentary import', () => {
+  it('imports Genesis chapters 1–2 from the replacement source', () => {
+    expect(IMPORTED_COMMENTARY_NEW['genesis_1_1']?.length).toBeGreaterThan(0);
+    expect(IMPORTED_COMMENTARY_NEW['genesis_2_23']?.length).toBeGreaterThan(0);
+    expect(getAllCommentariesForVerse('Genesis', 1, 1)[0].text).toContain('In the beginning');
+  });
+
+  it('imports 1 Kings, 2 Kings, and Proverbs into the default lookup', () => {
+    expect(IMPORTED_COMMENTARY_NEW['1kings_1_1']?.length).toBeGreaterThan(0);
+    expect(IMPORTED_COMMENTARY_NEW['2kings_1_1']?.length).toBeGreaterThan(0);
+    expect(IMPORTED_COMMENTARY_NEW['proverbs_1_1']?.length).toBeGreaterThan(0);
+    expect(getAllCommentariesForVerse('Proverbs', 31, 31).length).toBeGreaterThan(0);
+  });
+
+  it('attaches new notes to their source subsection ranges', () => {
+    const notes = getAllCommentariesForVerse('1 Kings', 1, 1);
+    expect(notes.every((note) => note.startVerse === 1 && note.endVerse === 4)).toBe(true);
   });
 });

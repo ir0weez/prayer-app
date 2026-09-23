@@ -78,6 +78,9 @@ export function BibleChapterViewer({
   const [bookmarkedVerse, setBookmarkedVerse] = useState<number | null>(null);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [lastTapTime, setLastTapTime] = useState<{ [key: number]: number }>({});
+  const chapterIntroduction = getStructuredCommentarySections(book, chapter).find(
+    (candidate) => candidate.title === 'Introduction',
+  );
   const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
   const [commentariesBySection, setCommentariesBySection] = useState<Record<string, any[]>>({});
   const [showRecapModal, setShowRecapModal] = useState(false);
@@ -537,6 +540,29 @@ export function BibleChapterViewer({
               contentContainerStyle={{ paddingBottom: 100 }}
               showsVerticalScrollIndicator={true}
             >
+              {chapterIntroduction && chapterIntroduction.entries.length > 0 && (
+                <View style={{ marginHorizontal: 16, marginBottom: 20, padding: 16, borderRadius: 14, backgroundColor: colors.surface }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
+                    Introduction
+                  </Text>
+                  {chapterIntroduction.entries.map((entry, index) => (
+                    entry.quoteStyle === 'inline' ? (
+                      <Text key={entry.id} style={{ fontSize: 14, lineHeight: 22, color: colors.muted, fontStyle: 'italic', marginBottom: index < chapterIntroduction.entries.length - 1 ? 12 : 0 }}>
+                        {entry.text}
+                      </Text>
+                    ) : (
+                      <View key={entry.id} style={{ marginBottom: index < chapterIntroduction.entries.length - 1 ? 16 : 0 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 5 }}>
+                          {entry.authorHandle || entry.author}
+                        </Text>
+                        <Text style={{ fontSize: 15, lineHeight: 24, color: colors.foreground }}>
+                          {entry.text}
+                        </Text>
+                      </View>
+                    )
+                  ))}
+                </View>
+              )}
               {/* Bible Stories Bar - scrolls with content */}
               <BibleStoriesBar
                 sections={sections}

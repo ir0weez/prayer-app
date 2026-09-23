@@ -26,6 +26,7 @@ export interface CommentaryNote {
   isLikedByUser: boolean;
   isBookmarkedByUser: boolean;
   createdAt: string;
+  quoteStyle?: 'profile' | 'inline' | null;
 }
 
 const COMMENTARY_STORAGE_KEY = 'prayer_circle_commentary';

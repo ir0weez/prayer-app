@@ -111,7 +111,7 @@ export function BibleStoryViewer({
       const allComments: CommentaryNote[] = [];
       const structuredSections = getStructuredCommentarySections(book, chapter);
       const visibleStructuredSections = structuredSections.filter((candidate) => {
-        if (candidate.title === 'Introduction') return true;
+        if (candidate.title === 'Introduction') return false;
         return candidate.endVerse >= section.verses[0].verse && candidate.startVerse <= section.verses[section.verses.length - 1].verse;
       });
       setStructuredCommentarySections(visibleStructuredSections);
@@ -174,6 +174,11 @@ export function BibleStoryViewer({
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
   const commentaryGroups = isBibleStudyMode ? groupCommentariesByRange(commentaries) : [];
   const renderCommentaryCard = (comment: CommentaryNote, idx: number, total: number) => (
+    comment.quoteStyle === 'inline' ? (
+      <Text key={comment.id} style={{ fontSize: 14, lineHeight: 22, color: '#666', fontStyle: 'italic', marginBottom: 16 }}>
+        {comment.text}
+      </Text>
+    ) : (
     <View key={comment.id} style={{ marginBottom: idx < total - 1 ? 24 : 0 }}>
       <View
         style={{
@@ -207,6 +212,7 @@ export function BibleStoryViewer({
         {comment.text}
       </Text>
     </View>
+    )
   );
 
   const handleSectionFinished = async () => {
@@ -716,7 +722,11 @@ export function BibleStoryViewer({
                 )
               ) : commentaries.length > 0 ? (
                 <>
-                  {commentaries.map((comment, idx) => (
+                  {commentaries.map((comment, idx) => comment.quoteStyle === 'inline' ? (
+                    <Text key={comment.id} style={{ fontSize: 14, lineHeight: 22, color: '#666', fontStyle: 'italic', marginBottom: 16 }}>
+                      {comment.text}
+                    </Text>
+                  ) : (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>
                       {/* Commentator info */}
                       <View

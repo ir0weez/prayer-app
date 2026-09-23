@@ -19,12 +19,13 @@ describe('cleaned Genesis commentary structure', () => {
     expect(sections[1].entries.map((entry) => entry.verseLabel)).toEqual(['1', '1', '1', '1', '1', '1', '1', '2', '2']);
   });
 
-  it('keeps standalone quotes as their own profile-post entries', () => {
+  it('keeps Scripture quotes as separate inline entries', () => {
     const entries = CLEANED_GENESIS_BY_VERSE['genesis_1_1'];
     const quote = entries.find((entry) => entry.kind === 'quote');
     expect(quote).toBeDefined();
     expect(quote?.text).toContain('2 Peter 3:8');
-    expect(quote?.authorHandle).toBe('@2 Peter 3:8');
+    expect(quote?.quoteStyle).toBe('inline');
+    expect(quote?.authorHandle).toBe('');
   });
 
   it('keeps a verse range as one exact sub-header inside its subsection', () => {

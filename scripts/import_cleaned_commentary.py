@@ -15,6 +15,9 @@ SUBSECTION_RE = re.compile(r'^Ver\.?\s+(\d+)(?:-(\d+))?:\s*(.*?)\s*$')
 VERSE_RE = re.compile(r'^(?P<book>.+?)\s+(?P<chapter>\d+):(?P<start>\d+)(?:-(?P<end>\d+))?:\s*$')
 COMMENT_RE = re.compile(r'^Comment\s+(\d+):\s*$')
 INTRO_RE = re.compile(r'^Introduction:\s*$')
+SCRIPTURE_ATTRIBUTION_RE = re.compile(
+    r'^(?:[1-3]\s+)?[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*\s+\d+:\d+(?:-\d+)?$'
+)
 
 
 def text_line(line: str) -> str:
@@ -42,9 +45,14 @@ def attribution(text: str) -> str:
     return 'Someone'
 
 
+def is_scripture_attribution(speaker: str) -> bool:
+    return bool(SCRIPTURE_ATTRIBUTION_RE.fullmatch(speaker))
+
+
 def make_note(note_id: str, book: str, chapter: int, verse_start: int, verse_end: int, text: str, kind: str, section_id: str, section_title: str, intro: bool) -> dict:
     speaker = 'Tried By Fire' if kind == 'comment' else attribution(text)
-    handle = '@TriedByFire' if kind == 'comment' else ('@' + speaker if speaker != 'Someone' else '@Someone')
+    scripture_quote = kind == 'quote' and is_scripture_attribution(speaker)
+    handle = '@TriedByFire' if kind == 'comment' else ('' if scripture_quote else ('@' + speaker if speaker != 'Someone' else '@Someone'))
     return {
         'id': note_id,
         'book': book,
@@ -60,6 +68,7 @@ def make_note(note_id: str, book: str, chapter: int, verse_start: int, verse_end
         'isBookmarkedByUser': False,
         'createdAt': '2026-09-23T00:00:00.000Z',
         'kind': kind,
+        'quoteStyle': 'inline' if scripture_quote else ('profile' if kind == 'quote' else None),
         'sectionId': section_id,
         'sectionTitle': section_title,
         'isIntroduction': intro,
@@ -138,6 +147,11 @@ def parse() -> tuple[list[dict], dict[str, list[dict]]]:
         # A quote after a completed comment is a separate standalone entry,
         # even when the source does not repeat a blank/header marker.
         if current_comment_number is not None and line.lstrip().startswith(('"', '“')):
+            flush()
+            current_mode = 'quote'
+            buffer.append(line)
+            continue
+        if current_mode == 'quote' and buffer and line.lstrip().startswith(('"', '“')):
             flush()
             current_mode = 'quote'
             buffer.append(line)

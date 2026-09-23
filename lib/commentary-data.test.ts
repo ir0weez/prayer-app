@@ -13,7 +13,7 @@ describe('Deuteronomy 11–20 commentary import', () => {
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
     expect(importedEntries).toHaveLength(126);
-    expect(paragraphCount).toBe(393);
+    expect(paragraphCount).toBe(411);
   });
 
   it('keeps multiple ordered comments available for a referenced verse', () => {
@@ -34,7 +34,7 @@ describe('Deuteronomy 1–10 commentary replacement import', () => {
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
     expect(importedEntries).toHaveLength(143);
-    expect(paragraphCount).toBe(370);
+    expect(paragraphCount).toBe(384);
   });
 
   it('preserves separately attributed source comments from the supplied notes', () => {
@@ -53,7 +53,7 @@ describe('Deuteronomy 21–30 commentary import', () => {
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
     expect(importedEntries).toHaveLength(137);
-    expect(paragraphCount).toBe(357);
+    expect(paragraphCount).toBe(368);
   });
 
   it('keeps explicitly attributed author comments attached to the source verse', () => {
@@ -73,13 +73,13 @@ describe('Deuteronomy 31–34 commentary import', () => {
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
     expect(importedEntries).toHaveLength(66);
-    expect(paragraphCount).toBe(169);
+    expect(paragraphCount).toBe(181);
   });
 
   it('keeps multiple comments available for the Deuteronomy 31:8 study note', () => {
     const notes = getAllCommentariesForVerse('Deuteronomy', 31, 8);
 
-    expect(notes).toHaveLength(7);
+    expect(notes).toHaveLength(11);
     expect(notes[0].author).toBe('Tried By Fire');
   });
 });

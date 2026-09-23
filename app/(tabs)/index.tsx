@@ -60,6 +60,7 @@ import {
   resetDailyPrayerCompletionsIfNeeded,
   type Person,
   type RelationshipType,
+  type FamilyType,
   relationshipColors,
   groupIntoFamily,
   ungroupFromFamily,
@@ -383,6 +384,7 @@ export default function HomeScreen() {
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
+  const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
@@ -759,6 +761,7 @@ export default function HomeScreen() {
     setNewPersonPhotoUri(undefined);
     setSelectedFamilyMemberIds([]);
     setNewPersonFamilyType(undefined);
+    setFamilyRolesByPersonId({});
     setShowCustomRelationshipInput(false);
   };
 
@@ -771,8 +774,10 @@ export default function HomeScreen() {
     setNewPersonBirthday(person.birthday ? formatIsoDateForDisplay(person.birthday) : "");
     setNewPersonPhotoUri(person.photoUri);
     setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
-    setSelectedFamilyMemberIds(people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId && candidate.id !== person.id).map((candidate) => candidate.id));
+    const familyMembers = people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId);
+    setSelectedFamilyMemberIds(familyMembers.filter((candidate) => candidate.id !== person.id).map((candidate) => candidate.id));
     setNewPersonFamilyType(person.familyType);
+    setFamilyRolesByPersonId(Object.fromEntries(familyMembers.map((member) => [member.id, member.familyType])));
     // Defer the screen switch by one tick when launched from an action sheet.
     // This prevents the sheet dismissal from swallowing the editor transition on web.
     setTimeout(() => setShowAddPerson(true), 0);
@@ -820,7 +825,7 @@ export default function HomeScreen() {
         ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonPhotoUri, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType }
         : person);
       updatedPeople = selectedFamilyMemberIds.length > 0
-        ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : updatedPeople.find((person) => person.id === id)?.familyType])))
+        ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : familyRolesByPersonId[id] ?? updatedPeople.find((person) => person.id === id)?.familyType])))
         : ungroupFromFamily(updatedPeople, editingPersonId);
     } else {
       updatedPeople = addPerson(people, newPersonName, finalRelationship as RelationshipType, {
@@ -832,7 +837,7 @@ export default function HomeScreen() {
       });
       const createdPerson = updatedPeople.find((person) => !people.some((existing) => existing.id === person.id));
       if (createdPerson && selectedFamilyMemberIds.length > 0) {
-        updatedPeople = groupIntoFamily(updatedPeople, [createdPerson.id, ...selectedFamilyMemberIds], { [createdPerson.id]: newPersonFamilyType });
+        updatedPeople = groupIntoFamily(updatedPeople, [createdPerson.id, ...selectedFamilyMemberIds], Object.fromEntries([createdPerson.id, ...selectedFamilyMemberIds].map((id) => [id, id === createdPerson.id ? newPersonFamilyType : familyRolesByPersonId[id]])));
       }
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -2323,7 +2328,17 @@ export default function HomeScreen() {
               const selected = selectedFamilyMemberIds.includes(person.id);
               const accent = relationshipColors[person.relationship]?.accent || colors.primary;
               return (
-                <Pressable key={person.id} onPress={() => setSelectedFamilyMemberIds((current) => selected ? current.filter((id) => id !== person.id) : [...current, person.id])} style={({ pressed }) => [{ minWidth: 86, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14, borderWidth: 1.5, borderColor: accent, backgroundColor: selected ? accent : colors.background, alignItems: "center" }, pressed && styles.pressed]}>
+                <Pressable key={person.id} onPress={() => {
+                  setSelectedFamilyMemberIds((current) => selected ? current.filter((id) => id !== person.id) : [...current, person.id]);
+                  setFamilyRolesByPersonId((current) => {
+                    if (selected) {
+                      const next = { ...current };
+                      delete next[person.id];
+                      return next;
+                    }
+                    return { ...current, [person.id]: current[person.id] ?? person.familyType ?? "Other" };
+                  });
+                }} style={({ pressed }) => [{ minWidth: 86, paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14, borderWidth: 1.5, borderColor: accent, backgroundColor: selected ? accent : colors.background, alignItems: "center" }, pressed && styles.pressed]}>
                   <Text numberOfLines={1} style={{ maxWidth: 100, color: selected ? "#FFFFFF" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{person.name}</Text>
                   <Text style={{ color: selected ? "rgba(255,255,255,0.82)" : colors.muted, fontSize: 10 }}>{person.relationship}</Text>
                 </Pressable>
@@ -2332,14 +2347,25 @@ export default function HomeScreen() {
           </ScrollView>
           {selectedFamilyMemberIds.length > 0 && (
             <>
-              <Text style={styles.fieldLabel}>FAMILY ROLE</Text>
-              <View style={styles.relationshipPills}>
-                {(["Spouse", "Child", "Other"] as const).map((familyType) => (
-                  <Pressable key={familyType} onPress={() => setNewPersonFamilyType(familyType)} style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, newPersonFamilyType === familyType && { backgroundColor: colors.primary }, pressed && styles.pressed]}>
-                    <Text style={[styles.relationshipPillText, { color: colors.primary }, newPersonFamilyType === familyType && styles.relationshipPillTextActive]}>{familyType}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text style={styles.fieldLabel}>FAMILY ROLES</Text>
+              <Text style={styles.fieldHint}>Choose a role separately for each person in this family.</Text>
+              {[...(editingPersonId ? [people.find((person) => person.id === editingPersonId)].filter(Boolean) : [{ id: "new-person", name: newPersonName.trim() || "This person" } as Person]), ...selectedFamilyMemberIds.map((id) => people.find((person) => person.id === id)).filter(Boolean)].map((member) => {
+                if (!member) return null;
+                const isCurrentPerson = member.id === editingPersonId || member.id === "new-person";
+                const selectedRole = isCurrentPerson ? newPersonFamilyType : familyRolesByPersonId[member.id];
+                return (
+                  <View key={member.id} style={{ marginBottom: 10, padding: 12, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", marginBottom: 8 }}>{member.name}{isCurrentPerson ? " (this person)" : ""}</Text>
+                    <View style={styles.relationshipPills}>
+                      {(["Spouse", "Child", "Other"] as const).map((familyType) => (
+                        <Pressable key={familyType} onPress={() => isCurrentPerson ? setNewPersonFamilyType(familyType) : setFamilyRolesByPersonId((current) => ({ ...current, [member.id]: familyType }))} style={({ pressed }) => [styles.relationshipPill, { borderColor: colors.primary }, selectedRole === familyType && { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+                          <Text style={[styles.relationshipPillText, { color: colors.primary }, selectedRole === familyType && styles.relationshipPillTextActive]}>{familyType}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
             </>
           )}
 

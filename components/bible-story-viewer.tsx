@@ -23,6 +23,7 @@ import {
   toggleBookmark,
   CommentaryNote,
 } from '@/lib/commentary-data';
+import { groupCommentariesByVerse } from '@/lib/commentary-grouping';
 
 interface BibleStoryViewerProps {
   visible: boolean;
@@ -152,6 +153,9 @@ export function BibleStoryViewer({
     ? section.verses[section.verses.length - 1] 
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
+  const commentaryGroups = isBibleStudyMode
+    ? groupCommentariesByVerse(section.verses, commentaries)
+    : [];
 
   const handleSectionFinished = async () => {
     // Auto-bookmark the last verse of this section
@@ -629,7 +633,68 @@ export function BibleStoryViewer({
               style={{ marginBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {commentaries.length > 0 ? (
+              {isBibleStudyMode ? (
+                commentaryGroups.map((group) => (
+                  <View key={group.verse} style={{ marginBottom: 24 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
+                      Verse {group.verse}
+                    </Text>
+                    {group.comments.length > 0 ? group.comments.map((comment, idx) => (
+                      <View key={comment.id} style={{ marginBottom: idx < group.comments.length - 1 ? 24 : 0 }}>
+                        {/* Commentator info */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 12,
+                            marginBottom: 16,
+                            paddingBottom: 16,
+                            borderBottomWidth: 1,
+                            borderBottomColor: '#E0E0E0',
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 24,
+                              backgroundColor: '#E8F5E9',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <MaterialIcons name="person" size={24} color="#2D8659" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
+                              {comment.author}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                              {comment.authorHandle}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Commentary text */}
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            lineHeight: 24,
+                            color: '#333',
+                            marginBottom: 20,
+                          }}
+                        >
+                          {comment.text}
+                        </Text>
+                      </View>
+                    )) : (
+                      <Text style={{ fontSize: 14, color: '#999', marginBottom: 4 }}>
+                        No notes yet.
+                      </Text>
+                    )}
+                  </View>
+                ))
+              ) : commentaries.length > 0 ? (
                 <>
                   {commentaries.map((comment, idx) => (
                     <View key={comment.id} style={{ marginBottom: idx < commentaries.length - 1 ? 24 : 0 }}>

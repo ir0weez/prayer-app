@@ -97,7 +97,7 @@ export function BibleStoriesBar({
                   }}
                   numberOfLines={1}
                 >
-                  v{section.startVerse}
+                  {section.isIntroduction ? 'Intro' : `v${section.startVerse}`}
                 </Text>
               </View>
             </Pressable>

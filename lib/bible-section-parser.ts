@@ -13,6 +13,7 @@ export interface BibleSection {
   startVerse: number;
   endVerse: number;
   verses: BibleVerse[];
+  isIntroduction?: boolean;
 }
 
 export interface BibleSectionRange {

@@ -103,10 +103,20 @@ export function BibleStoryViewer({
   };
 
   const loadCommentary = async () => {
-    if (!section || !section.verses || section.verses.length === 0) return;
+    if (!section) return;
     setIsLoadingCommentary(true);
     
     if (isBibleStudyMode) {
+      if (section.isIntroduction) {
+        const introduction = getStructuredCommentarySections(book, chapter).find((candidate) => candidate.title === 'Introduction');
+        const entries = introduction?.entries ?? [];
+        setStructuredCommentarySections(introduction ? [introduction] : []);
+        setCommentaries(entries);
+        setIsCommentaryLiked(entries.length > 0 ? (entries[0]?.isLikedByUser ?? false) : false);
+        setIsLoadingCommentary(false);
+        return;
+      }
+      if (!section.verses || section.verses.length === 0) return;
       // In study mode, load commentary for ALL verses and combine them
       const allComments: CommentaryNote[] = [];
       const structuredSections = getStructuredCommentarySections(book, chapter);
@@ -164,7 +174,7 @@ export function BibleStoryViewer({
     return null;
   }
   
-  if (!section.verses || section.verses.length === 0) {
+  if (!section.isIntroduction && (!section.verses || section.verses.length === 0)) {
     return null;
   }
 
@@ -313,8 +323,10 @@ export function BibleStoryViewer({
   };
 
   // In study mode, show all verses; in normal mode, show just current verse
-  const verseRange = isBibleStudyMode 
-    ? `${section.verses[0].verse}-${section.verses[section.verses.length - 1].verse}`
+  const verseRange = isBibleStudyMode
+    ? section.isIntroduction
+      ? 'Intro'
+      : `${section.verses[0].verse}-${section.verses[section.verses.length - 1].verse}`
     : `${currentVerse?.verse}`;
 
   return (
@@ -379,7 +391,15 @@ export function BibleStoryViewer({
               </Text>
 
               {/* Verse text(s) - scrollable in study mode */}
-              {isBibleStudyMode ? (
+              {section.isIntroduction ? (
+                <ScrollView
+                  style={{ flex: 1, width: '100%', marginBottom: 40 }}
+                  contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8 }}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {commentaries.map((comment, idx) => renderCommentaryCard(comment, idx, commentaries.length))}
+                </ScrollView>
+              ) : isBibleStudyMode ? (
                 <ScrollView
                   style={{ flex: 1, width: '100%', marginBottom: 40 }}
                   contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center' }}
@@ -478,7 +498,7 @@ export function BibleStoryViewer({
             </View>
 
             {/* Bottom section - commentary pill button */}
-            <Pressable
+            {!section.isIntroduction && <Pressable
               onPress={() => setShowCommentaryModal(true)}
               style={({ pressed }) => [
                 {
@@ -499,7 +519,7 @@ export function BibleStoryViewer({
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '500' }}>
                 {commentaries.length > 0 ? 'View' : 'No'} Commentary
               </Text>
-            </Pressable>
+            </Pressable>}
           </View>
 
           {/* X button - BOTTOM LEFT */}

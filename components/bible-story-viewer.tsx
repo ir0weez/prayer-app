@@ -326,6 +326,14 @@ export function BibleStoryViewer({
     }
   };
 
+  const handleCommentaryDismiss = () => {
+    if (expandedCommentarySlide !== null) {
+      setExpandedCommentarySlide(null);
+      return;
+    }
+    setShowCommentaryModal(false);
+  };
+
   const handleHighlight = async () => {
     setShowColorPicker(true);
   };
@@ -671,7 +679,7 @@ export function BibleStoryViewer({
         >
           {/* Backdrop - tap to close */}
           <Pressable
-            onPress={() => setShowCommentaryModal(false)}
+            onPress={handleCommentaryDismiss}
             style={{
               position: 'absolute',
               top: 0,
@@ -720,7 +728,7 @@ export function BibleStoryViewer({
                 {isBibleStudyMode ? section.title : `Commentary ${verseRange}`}
               </Text>
               <Pressable
-                onPress={() => setShowCommentaryModal(false)}
+                onPress={handleCommentaryDismiss}
                 style={({ pressed }) => [
                   {
                     padding: 8,

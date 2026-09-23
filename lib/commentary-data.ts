@@ -10,6 +10,10 @@ import {
   CLEANED_DEUTERONOMY_BY_VERSE,
   CLEANED_DEUTERONOMY_CHAPTERS,
 } from './commentary-cleaned-deuteronomy';
+import {
+  CLEANED_JOSHUA_BY_VERSE,
+  CLEANED_JOSHUA_CHAPTERS,
+} from './commentary-cleaned-joshua';
 
 export interface CommentaryNote {
   id: string;
@@ -35,7 +39,7 @@ const COMMENTARY_STORAGE_KEY = 'prayer_circle_commentary';
 // cleaned source files replace earlier imports for their books so each verse
 // has one authoritative, source-ordered set of notes.
 const IMPORTED_COMMENTARY_WITHOUT_CLEANED_BOOKS = Object.fromEntries(
-  Object.entries(IMPORTED_COMMENTARY).filter(([key]) => !/^deuteronomy_\d+_\d+$/.test(key)),
+  Object.entries(IMPORTED_COMMENTARY).filter(([key]) => !/^(?:deuteronomy|joshua)_\d+_\d+$/.test(key)),
 );
 
 const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
@@ -55539,10 +55543,14 @@ Genesis 5:18`,
   ...IMPORTED_COMMENTARY_NEW,
   ...CLEANED_GENESIS_BY_VERSE,
   ...CLEANED_DEUTERONOMY_BY_VERSE,
+  ...CLEANED_JOSHUA_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
   if (/^deuteronomy_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_DEUTERONOMY_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^joshua_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_JOSHUA_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55556,6 +55564,9 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === 'deuteronomy') {
     return CLEANED_DEUTERONOMY_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === 'joshua') {
+    return CLEANED_JOSHUA_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

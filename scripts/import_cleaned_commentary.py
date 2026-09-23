@@ -146,7 +146,7 @@ def parse() -> tuple[list[dict], dict[str, list[dict]]]:
             continue
         # A quote after a completed comment is a separate standalone entry,
         # even when the source does not repeat a blank/header marker.
-        if current_comment_number is not None and line.lstrip().startswith(('"', '“')):
+        if current_comment_number is not None and not line.startswith('\t') and line.lstrip().startswith(('"', '“')):
             flush()
             current_mode = 'quote'
             buffer.append(line)

@@ -92,14 +92,14 @@ describe('Joshua 1–10 commentary import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(136);
-    expect(paragraphCount).toBe(269);
+    expect(importedEntries).toHaveLength(146);
+    expect(paragraphCount).toBe(335);
   });
 
   it('keeps the multiple Joshua 1:1 commentary notes in order', () => {
     const notes = getAllCommentariesForVerse('Joshua', 1, 1);
 
-    expect(notes).toHaveLength(6);
+    expect(notes).toHaveLength(8);
     expect(notes[0].author).toBe('Tried By Fire');
     expect(notes[0].text).toContain('"Now" states');
   });
@@ -113,8 +113,8 @@ describe('Joshua 11–20 commentary import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(185);
-    expect(paragraphCount).toBe(330);
+    expect(importedEntries).toHaveLength(195);
+    expect(paragraphCount).toBe(390);
   });
 
   it('keeps the multiple Joshua 11:12 commentary notes in order', () => {
@@ -126,15 +126,13 @@ describe('Joshua 11–20 commentary import', () => {
   });
 });
 
-describe('Joshua 21–24, Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
+describe('Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
   it('imports all continuation notes into the verse lookup', () => {
     const importedNotes = Object.values(IMPORTED_COMMENTARY).flat();
 
     expect(Object.keys(IMPORTED_COMMENTARY)).toHaveLength(989);
     expect(importedNotes).toHaveLength(1619);
     expect(Object.keys(DEFAULT_COMMENTARY)).toEqual(expect.arrayContaining([
-      'joshua_21_2',
-      'joshua_24_33',
       'ruth_1_1',
       'ruth_4_17',
       '1samuel_1_2',

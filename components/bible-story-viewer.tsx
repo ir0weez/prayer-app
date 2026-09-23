@@ -334,6 +334,14 @@ export function BibleStoryViewer({
     setShowCommentaryModal(false);
   };
 
+  const openCommentaryGroup = (index: number) => {
+    // A partially-peeked carousel page can be visually selected before the
+    // momentum callback has committed its index. Commit both pieces of state
+    // together so every group opens on its first tap, not only the first one.
+    setCommentarySlideIndex(index);
+    setExpandedCommentarySlide(index);
+  };
+
   const handleHighlight = async () => {
     setShowColorPicker(true);
   };
@@ -771,7 +779,9 @@ export function BibleStoryViewer({
                       <View key={`${group.startVerse}-${group.endVerse}`} style={{ width: commentarySlideWidth, paddingHorizontal: 20 }}>
                         {!isExpanded ? (
                           <Pressable
-                            onPress={() => setExpandedCommentarySlide(index)}
+                            onPress={() => openCommentaryGroup(index)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open ${formatCommentaryRange(group.startVerse, group.endVerse)} commentary`}
                             style={({ pressed }) => [{ borderRadius: 18, backgroundColor: cardColor, paddingHorizontal: 18, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: pressed ? 0.8 : 1 }]}
                           >
                             <View style={{ flex: 1, paddingRight: 12 }}>

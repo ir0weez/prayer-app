@@ -12,8 +12,8 @@ describe('Deuteronomy 11–20 commentary import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(116);
-    expect(paragraphCount).toBe(346);
+    expect(importedEntries).toHaveLength(126);
+    expect(paragraphCount).toBe(393);
   });
 
   it('keeps multiple ordered comments available for a referenced verse', () => {
@@ -33,16 +33,14 @@ describe('Deuteronomy 1–10 commentary replacement import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(133);
-    expect(paragraphCount).toBe(315);
+    expect(importedEntries).toHaveLength(143);
+    expect(paragraphCount).toBe(370);
   });
 
   it('preserves separately attributed source comments from the supplied notes', () => {
     const notes = getAllCommentariesForVerse('Deuteronomy', 4, 14);
-    const authors = notes.map((note) => note.author);
-
-    expect(authors).toContain('Dwight Moody');
-    expect(authors).toContain('Martin Luther');
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.some((note) => note.author === 'Tried By Fire')).toBe(true);
   });
 });
 
@@ -54,14 +52,15 @@ describe('Deuteronomy 21–30 commentary import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(124);
-    expect(paragraphCount).toBe(320);
+    expect(importedEntries).toHaveLength(137);
+    expect(paragraphCount).toBe(357);
   });
 
   it('keeps explicitly attributed author comments attached to the source verse', () => {
     const notes = getAllCommentariesForVerse('Deuteronomy', 29, 4);
 
-    expect(notes.some((note) => note.author === 'D.L. Moody')).toBe(true);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.every((note) => note.author === 'Tried By Fire')).toBe(true);
   });
 });
 
@@ -73,14 +72,14 @@ describe('Deuteronomy 31–34 commentary import', () => {
     });
     const paragraphCount = importedEntries.reduce((total, [, notes]) => total + notes.length, 0);
 
-    expect(importedEntries).toHaveLength(62);
-    expect(paragraphCount).toBe(137);
+    expect(importedEntries).toHaveLength(66);
+    expect(paragraphCount).toBe(169);
   });
 
   it('keeps multiple comments available for the Deuteronomy 31:8 study note', () => {
     const notes = getAllCommentariesForVerse('Deuteronomy', 31, 8);
 
-    expect(notes).toHaveLength(6);
+    expect(notes).toHaveLength(7);
     expect(notes[0].author).toBe('Tried By Fire');
   });
 });

@@ -6,6 +6,10 @@ import {
   CLEANED_GENESIS_CHAPTERS,
   type CleanedCommentarySection,
 } from './commentary-cleaned-genesis';
+import {
+  CLEANED_DEUTERONOMY_BY_VERSE,
+  CLEANED_DEUTERONOMY_CHAPTERS,
+} from './commentary-cleaned-deuteronomy';
 
 export interface CommentaryNote {
   id: string;
@@ -26,9 +30,15 @@ export interface CommentaryNote {
 
 const COMMENTARY_STORAGE_KEY = 'prayer_circle_commentary';
 
-// Default commentary data - structured as arrays of notes per verse
+// Default commentary data - structured as arrays of notes per verse. The
+// cleaned source files replace earlier imports for their books so each verse
+// has one authoritative, source-ordered set of notes.
+const IMPORTED_COMMENTARY_WITHOUT_CLEANED_BOOKS = Object.fromEntries(
+  Object.entries(IMPORTED_COMMENTARY).filter(([key]) => !/^deuteronomy_\d+_\d+$/.test(key)),
+);
+
 const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
-  ...IMPORTED_COMMENTARY,
+  ...IMPORTED_COMMENTARY_WITHOUT_CLEANED_BOOKS,
   'genesis_1_1': [
     {
       id: 'genesis_1_1_para1',
@@ -55527,7 +55537,14 @@ Genesis 5:18`,
   ],
   ...IMPORTED_COMMENTARY_NEW,
   ...CLEANED_GENESIS_BY_VERSE,
+  ...CLEANED_DEUTERONOMY_BY_VERSE,
 };
+
+for (const key of Object.keys(DEFAULT_COMMENTARY)) {
+  if (/^deuteronomy_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_DEUTERONOMY_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+}
 
 // Export the default commentary data
 export { DEFAULT_COMMENTARY };
@@ -55536,13 +55553,27 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   if (book.trim().toLowerCase() === 'genesis') {
     return CLEANED_GENESIS_CHAPTERS[chapter] ?? [];
   }
+  if (book.trim().toLowerCase() === 'deuteronomy') {
+    return CLEANED_DEUTERONOMY_CHAPTERS[chapter] ?? [];
+  }
   return [];
 }
 
 // Get all commentaries for a specific verse
 export function getAllCommentariesForVerse(book: string, chapter: number, verse: number): CommentaryNote[] {
   const key = `${book.toLowerCase().replace(/\s+/g, '')}_${chapter}_${verse}`;
-  return DEFAULT_COMMENTARY[key] || [];
+  const direct = DEFAULT_COMMENTARY[key];
+  if (direct) return direct;
+
+  const normalizedBook = book.toLowerCase().replace(/\s+/g, '');
+  return Object.values(DEFAULT_COMMENTARY)
+    .flat()
+    .filter((note) =>
+      note.book.toLowerCase().replace(/\s+/g, '') === normalizedBook &&
+      note.chapter === chapter &&
+      note.startVerse <= verse &&
+      note.endVerse >= verse,
+    );
 }
 
 // Get commentary by ID

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
-SOURCE = Path('/home/ubuntu/upload/Genesis_cleaned.txt')
-OUTPUT = Path('/home/ubuntu/recreated-prayer-app/lib/commentary-cleaned-genesis.ts')
+SOURCE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('/home/ubuntu/upload/Genesis_cleaned.txt')
+BOOK_SLUG = SOURCE.stem.replace('_cleaned', '').lower().replace(' ', '_')
+BOOK_CONSTANT = re.sub(r'[^A-Z0-9]+', '_', BOOK_SLUG.upper()).strip('_')
+OUTPUT = Path('/home/ubuntu/recreated-prayer-app/lib') / f'commentary-cleaned-{BOOK_SLUG}.ts'
 
 CHAPTER_RE = re.compile(r'^Chapter\s+(\d+)\s*$')
 SUBSECTION_RE = re.compile(r'^Ver\.?\s+(\d+)(?:-(\d+))?:\s*(.*?)\s*$')
@@ -89,7 +92,7 @@ def parse() -> tuple[list[dict], dict[str, list[dict]]]:
         kind = 'comment' if current_mode == 'comment' else 'quote'
         intro = current_section['id'].endswith('-intro')
         note = make_note(
-            f"genesis_{chapter}_{verse_start}_{'intro' if intro else current_section['id']}_{note_counter}",
+            f"{BOOK_SLUG}_{chapter}_{verse_start}_{'intro' if intro else current_section['id']}_{note_counter}",
             book, chapter, verse_start, verse_end, text, kind,
             current_section['id'], current_section['title'], intro,
         )
@@ -152,21 +155,21 @@ def parse() -> tuple[list[dict], dict[str, list[dict]]]:
 notes, chapters = parse()
 by_verse: dict[str, list[dict]] = {}
 for note in notes:
-    key = f"genesis_{note['chapter']}_{note['verse']}"
+    key = f"{BOOK_SLUG}_{note['chapter']}_{note['verse']}"
     by_verse.setdefault(key, []).append(note)
 
 # TypeScript literals are generated as JSON because the source text must remain exact.
-output = "import type { CommentaryNote } from './commentary-data';\n\nexport type CleanedCommentaryEntry = CommentaryNote & {\n  kind: 'comment' | 'quote';\n  sectionId: string;\n  sectionTitle: string;\n  isIntroduction: boolean;\n  verseLabel: string;\n};\n\nexport type CleanedCommentarySection = {\n  id: string;\n  title: string;\n  startVerse: number;\n  endVerse: number;\n  entries: CleanedCommentaryEntry[];\n};\n\nexport const CLEANED_GENESIS_BY_VERSE: Record<string, CleanedCommentaryEntry[]> = " + json.dumps(by_verse, ensure_ascii=False, indent=2) + ";\n\nexport const CLEANED_GENESIS_CHAPTERS: Record<number, CleanedCommentarySection[]> = " + json.dumps({int(k.split('-')[1]): v for k, v in chapters.items() if k.count('-') == 1}, ensure_ascii=False, indent=2) + ";\n"
+output = f"import type {{ CommentaryNote }} from './commentary-data';\n\nexport type CleanedCommentaryEntry = CommentaryNote & {{\n  kind: 'comment' | 'quote';\n  sectionId: string;\n  sectionTitle: string;\n  isIntroduction: boolean;\n  verseLabel: string;\n}};\n\nexport type CleanedCommentarySection = {{\n  id: string;\n  title: string;\n  startVerse: number;\n  endVerse: number;\n  entries: CleanedCommentaryEntry[];\n}};\n\nexport const CLEANED_{BOOK_CONSTANT}_BY_VERSE: Record<string, CleanedCommentaryEntry[]> = " + json.dumps(by_verse, ensure_ascii=False, indent=2) + f";\n\nexport const CLEANED_{BOOK_CONSTANT}_CHAPTERS: Record<number, CleanedCommentarySection[]> = " + json.dumps({int(k.split('-')[1]): v for k, v in chapters.items() if k.count('-') == 1}, ensure_ascii=False, indent=2) + ";\n"
 # The chapter map above excludes intro keys; add all chapter sections in original order explicitly.
 chapter_map: dict[int, list[dict]] = {}
 for key, sections in chapters.items():
-    if key.startswith('genesis-'):
+    if key.startswith(f'{BOOK_SLUG}-'):
         chapter_map.setdefault(int(key.split('-')[1]), []).extend(sections)
 # ensure introductions are first, then the subsection sections already in source order
 for chapter_num, sections in chapter_map.items():
     intros = [s for s in sections if s['id'].endswith('-intro')]
     regular = [s for s in sections if not s['id'].endswith('-intro')]
     chapter_map[chapter_num] = intros + regular
-output = output.rsplit('export const CLEANED_GENESIS_CHAPTERS', 1)[0] + "export const CLEANED_GENESIS_CHAPTERS: Record<number, CleanedCommentarySection[]> = " + json.dumps(chapter_map, ensure_ascii=False, indent=2) + ';\n'
+output = output.rsplit(f'export const CLEANED_{BOOK_CONSTANT}_CHAPTERS', 1)[0] + f"export const CLEANED_{BOOK_CONSTANT}_CHAPTERS: Record<number, CleanedCommentarySection[]> = " + json.dumps(chapter_map, ensure_ascii=False, indent=2) + ';\n'
 OUTPUT.write_text(output, encoding='utf-8')
 print(json.dumps({'chapters': len(chapter_map), 'notes': len(notes), 'sections': sum(len(v) for v in chapter_map.values()), 'quotes': sum(1 for n in notes if n['kind'] == 'quote')}, indent=2))

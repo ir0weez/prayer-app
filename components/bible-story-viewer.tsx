@@ -76,12 +76,13 @@ export function BibleStoryViewer({
   const [commentarySlideIndex, setCommentarySlideIndex] = useState(0);
   const [expandedCommentarySlide, setExpandedCommentarySlide] = useState<number | null>(null);
   const commentaryCarouselRef = useRef<ScrollView>(null);
+  const { width, height } = Dimensions.get('window');
+  const commentarySlideWidth = expandedCommentarySlide === null ? Math.max(width - 40, 280) : width;
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
   const [structuredCommentarySections, setStructuredCommentarySections] = useState<CleanedCommentarySection[]>([]);
   const [isLoadingCommentary, setIsLoadingCommentary] = useState(false);
   const [showChapterComplete, setShowChapterComplete] = useState(false);
-  const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
     if (visible && section) {
@@ -102,6 +103,14 @@ export function BibleStoryViewer({
       requestAnimationFrame(() => commentaryCarouselRef.current?.scrollTo({ x: 0, y: 0, animated: false }));
     }
   }, [showCommentaryModal, section?.id]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => commentaryCarouselRef.current?.scrollTo({
+      x: commentarySlideIndex * commentarySlideWidth,
+      y: 0,
+      animated: false,
+    }));
+  }, [commentarySlideIndex, commentarySlideWidth]);
 
   const checkHighlightStatus = async () => {
     if (!section || !section.verses || section.verses.length === 0) return;
@@ -198,7 +207,6 @@ export function BibleStoryViewer({
   const studyCommentaryGroups = commentaryGroups.filter(
     (group) => group.endVerse >= section.startVerse && group.startVerse <= section.endVerse,
   );
-  const commentarySlideWidth = Math.max(width - 40, 280);
   const renderCommentaryCard = (comment: CommentaryNote, idx: number, total: number) => (
     comment.quoteStyle === 'inline' ? (
       <Text key={comment.id} style={{ fontSize: 14, lineHeight: 22, color: '#666', fontStyle: 'italic', marginBottom: 16 }}>
@@ -753,34 +761,40 @@ export function BibleStoryViewer({
                     const previewText = versePreview.length > 62 ? `${versePreview.slice(0, 62).trimEnd()}…` : versePreview;
                     return (
                       <View key={`${group.startVerse}-${group.endVerse}`} style={{ width: commentarySlideWidth, paddingHorizontal: 20 }}>
-                        <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 1.5, borderColor: isExpanded ? `${cardColor}66` : cardColor, backgroundColor: isExpanded ? 'white' : cardColor }}>
+                        {!isExpanded ? (
                           <Pressable
-                            onPress={() => setExpandedCommentarySlide(isExpanded ? null : index)}
-                            style={({ pressed }) => [{ paddingHorizontal: 18, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: pressed ? 0.8 : 1 }]}
+                            onPress={() => setExpandedCommentarySlide(index)}
+                            style={({ pressed }) => [{ borderRadius: 18, backgroundColor: cardColor, paddingHorizontal: 18, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: pressed ? 0.8 : 1 }]}
                           >
                             <View style={{ flex: 1, paddingRight: 12 }}>
-                              <Text style={{ color: isExpanded ? cardColor : 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
+                              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
                                 Ver. {group.startVerse}-{group.endVerse}
                               </Text>
-                              <Text style={{ color: isExpanded ? '#111' : 'white', fontSize: 18, fontWeight: '800', marginBottom: 5 }}>
+                              <Text style={{ color: 'white', fontSize: 18, fontWeight: '800', marginBottom: 5 }}>
                                 {formatCommentaryRange(group.startVerse, group.endVerse)}
                               </Text>
-                              {!isExpanded && <Text numberOfLines={2} style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, lineHeight: 19, fontWeight: '600' }}>
+                              <Text numberOfLines={2} style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, lineHeight: 19, fontWeight: '600' }}>
                                 {group.comments.length} {group.comments.length === 1 ? 'note' : 'notes'} · {previewText ? `'${previewText}'` : 'No verse text'}
-                              </Text>}
+                              </Text>
                             </View>
-                            <MaterialIcons name={isExpanded ? 'expand-less' : 'expand-more'} size={26} color={isExpanded ? cardColor : 'white'} />
+                            <MaterialIcons name="expand-more" size={26} color="white" />
                           </Pressable>
-                          {isExpanded && (
+                        ) : (
+                          <View>
+                            <Pressable
+                              onPress={() => setExpandedCommentarySlide(null)}
+                              style={({ pressed }) => [{ paddingVertical: 8, opacity: pressed ? 0.65 : 1 }]}
+                            >
+                              <Text style={{ fontSize: 14, fontWeight: '800', color: cardColor }}>
+                                Ver. {group.startVerse}-{group.endVerse}
+                              </Text>
+                            </Pressable>
                             <ScrollView
                               nestedScrollEnabled
                               showsVerticalScrollIndicator
-                              style={{ maxHeight: 390, backgroundColor: 'white' }}
-                              contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }}
+                              style={{ maxHeight: 390 }}
+                              contentContainerStyle={{ paddingBottom: 18 }}
                             >
-                              <Text style={{ fontSize: 14, fontWeight: '800', color: cardColor, marginBottom: 12 }}>
-                                Ver. {group.startVerse}-{group.endVerse}
-                              </Text>
                               {groupVerses.map((verse) => (
                                 <Text key={verse.verse} style={{ fontSize: 15, lineHeight: 24, color: '#333', fontFamily: 'Georgia', marginBottom: 14 }}>
                                   <Text style={{ fontWeight: '700', fontFamily: undefined }}>{verse.verse} </Text>{verse.text}
@@ -790,8 +804,8 @@ export function BibleStoryViewer({
                                 {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
                               </View>
                             </ScrollView>
-                          )}
-                        </View>
+                          </View>
+                        )}
                       </View>
                     );
                   })}

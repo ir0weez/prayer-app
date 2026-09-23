@@ -71,6 +71,7 @@ export function BibleStoryViewer({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<'yellow' | 'green' | 'pink' | 'blue'>('yellow');
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
+  const [commentarySlideIndex, setCommentarySlideIndex] = useState(0);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
   const [structuredCommentarySections, setStructuredCommentarySections] = useState<CleanedCommentarySection[]>([]);
@@ -90,6 +91,9 @@ export function BibleStoryViewer({
     loadCommentary();
     checkHighlightStatus();
   }, [currentVerseIndex]);
+  useEffect(() => {
+    if (showCommentaryModal) setCommentarySlideIndex(0);
+  }, [showCommentaryModal, section?.id]);
 
   const checkHighlightStatus = async () => {
     if (!section || !section.verses || section.verses.length === 0) return;
@@ -183,6 +187,11 @@ export function BibleStoryViewer({
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
   const commentaryGroups = isBibleStudyMode ? groupCommentariesByRange(commentaries) : [];
+  const studyCommentaryGroups = commentaryGroups.filter(
+    (group) => group.endVerse >= section.startVerse && group.startVerse <= section.endVerse,
+  );
+  const commentarySlideWidth = Math.max(width - 40, 280);
+  const subsectionHeading = `Ver. ${section.startVerse}-${section.endVerse}: ${section.title}`;
   const renderCommentaryCard = (comment: CommentaryNote, idx: number, total: number) => (
     comment.quoteStyle === 'inline' ? (
       <Text key={comment.id} style={{ fontSize: 14, lineHeight: 22, color: '#666', fontStyle: 'italic', marginBottom: 16 }}>
@@ -690,8 +699,8 @@ export function BibleStoryViewer({
                 marginBottom: 16,
               }}
             >
-              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111' }}>
-                Commentary {isBibleStudyMode && `(${verseRange})`}
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#111', flex: 1, marginRight: 12 }} numberOfLines={2}>
+                {isBibleStudyMode ? section.title : `Commentary ${verseRange}`}
               </Text>
               <Pressable
                 onPress={() => setShowCommentaryModal(false)}
@@ -707,40 +716,56 @@ export function BibleStoryViewer({
             </View>
 
             {/* Scrollable content */}
-            <ScrollView
+            {isBibleStudyMode ? (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginBottom: 10, marginHorizontal: -20 }}
+                  contentOffset={{ x: commentarySlideIndex * commentarySlideWidth, y: 0 }}
+                  onMomentumScrollEnd={(event) => {
+                    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / commentarySlideWidth);
+                    setCommentarySlideIndex(Math.max(0, Math.min(nextIndex, Math.max(studyCommentaryGroups.length - 1, 0))));
+                  }}
+                >
+                  {studyCommentaryGroups.map((group) => {
+                    const groupVerses = section.verses.filter(
+                      (verse) => verse.verse >= group.startVerse && verse.verse <= group.endVerse,
+                    );
+                    return (
+                      <View key={`${group.startVerse}-${group.endVerse}`} style={{ width: commentarySlideWidth, paddingHorizontal: 20 }}>
+                        <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingBottom: 12 }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 14 }}>
+                            {subsectionHeading}
+                          </Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#555', marginBottom: 10 }}>
+                            {formatCommentaryRange(group.startVerse, group.endVerse)}
+                          </Text>
+                          {groupVerses.map((verse) => (
+                            <Text key={verse.verse} style={{ fontSize: 15, lineHeight: 24, color: '#333', fontFamily: 'Georgia', marginBottom: 14 }}>
+                              <Text style={{ fontWeight: '700', fontFamily: undefined }}>{verse.verse} </Text>{verse.text}
+                            </Text>
+                          ))}
+                          <View style={{ borderTopWidth: 1, borderTopColor: '#E0E0E0', paddingTop: 16 }}>
+                            {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+                {studyCommentaryGroups.length > 1 && (
+                  <Text style={{ textAlign: 'center', color: '#888', fontSize: 12, marginBottom: 8 }}>
+                    {commentarySlideIndex + 1} of {studyCommentaryGroups.length} · Swipe for next group
+                  </Text>
+                )}
+              </>
+            ) : <ScrollView
               style={{ marginBottom: 16 }}
               showsVerticalScrollIndicator={true}
             >
-              {isBibleStudyMode ? (
-                structuredCommentarySections.length > 0 ? (
-                  structuredCommentarySections.map((subsection) => (
-                    <View key={subsection.id} style={{ marginBottom: 24 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
-                        {subsection.title}
-                      </Text>
-                      {subsection.entries.map((comment, idx) => (
-                        <React.Fragment key={comment.id}>
-                          {!comment.isIntroduction && (idx === 0 || subsection.entries[idx - 1].verseLabel !== comment.verseLabel) ? (
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#555', marginBottom: 10 }}>
-                              {comment.verseLabel.includes('-') ? 'Verses' : 'Verse'} {comment.verseLabel}
-                            </Text>
-                          ) : null}
-                          {renderCommentaryCard(comment, idx, subsection.entries.length)}
-                        </React.Fragment>
-                      ))}
-                    </View>
-                  ))
-                ) : (
-                  commentaryGroups.map((group) => (
-                    <View key={`${group.startVerse}-${group.endVerse}`} style={{ marginBottom: 24 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
-                        {formatCommentaryRange(group.startVerse, group.endVerse)}
-                      </Text>
-                      {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
-                    </View>
-                  ))
-                )
-              ) : commentaries.length > 0 ? (
+              {commentaries.length > 0 ? (
                 <>
                   {commentaries.map((comment, idx) => comment.quoteStyle === 'inline' ? (
                     <Text key={comment.id} style={{ fontSize: 14, lineHeight: 22, color: '#666', fontStyle: 'italic', marginBottom: 16 }}>
@@ -811,7 +836,7 @@ export function BibleStoryViewer({
                   </Text>
                 </View>
               )}
-            </ScrollView>
+            </ScrollView>}
 
             {/* Action buttons */}
             {commentaries.length > 0 && (

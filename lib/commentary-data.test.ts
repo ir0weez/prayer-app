@@ -153,3 +153,12 @@ describe('Joshua 21–24, Ruth, 1 Samuel, and 2 Samuel commentary import', () =>
     expect(notes[0].author).toBe('Tried By Fire');
   });
 });
+
+describe('commentary subsection ranges', () => {
+  it('stores both Genesis 1:5 notes under the source Genesis 1:3–5 subsection', () => {
+    const notes = getAllCommentariesForVerse('Genesis', 1, 5);
+
+    expect(notes).toHaveLength(2);
+    expect(notes.every((note) => note.startVerse === 3 && note.endVerse === 5)).toBe(true);
+  });
+});

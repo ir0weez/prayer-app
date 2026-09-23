@@ -23,7 +23,7 @@ import {
   toggleBookmark,
   CommentaryNote,
 } from '@/lib/commentary-data';
-import { groupCommentariesByVerse } from '@/lib/commentary-grouping';
+import { formatCommentaryRange, groupCommentariesByRange } from '@/lib/commentary-grouping';
 
 interface BibleStoryViewerProps {
   visible: boolean;
@@ -153,9 +153,7 @@ export function BibleStoryViewer({
     ? section.verses[section.verses.length - 1] 
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
-  const commentaryGroups = isBibleStudyMode
-    ? groupCommentariesByVerse(section.verses, commentaries)
-    : [];
+  const commentaryGroups = isBibleStudyMode ? groupCommentariesByRange(commentaries) : [];
 
   const handleSectionFinished = async () => {
     // Auto-bookmark the last verse of this section
@@ -635,11 +633,11 @@ export function BibleStoryViewer({
             >
               {isBibleStudyMode ? (
                 commentaryGroups.map((group) => (
-                  <View key={group.verse} style={{ marginBottom: 24 }}>
+                  <View key={`${group.startVerse}-${group.endVerse}`} style={{ marginBottom: 24 }}>
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
-                      Verse {group.verse}
+                      {formatCommentaryRange(group.startVerse, group.endVerse)}
                     </Text>
-                    {group.comments.length > 0 ? group.comments.map((comment, idx) => (
+                    {group.comments.map((comment, idx) => (
                       <View key={comment.id} style={{ marginBottom: idx < group.comments.length - 1 ? 24 : 0 }}>
                         {/* Commentator info */}
                         <View
@@ -687,11 +685,7 @@ export function BibleStoryViewer({
                           {comment.text}
                         </Text>
                       </View>
-                    )) : (
-                      <Text style={{ fontSize: 14, color: '#999', marginBottom: 4 }}>
-                        No notes yet.
-                      </Text>
-                    )}
+                    ))}
                   </View>
                 ))
               ) : commentaries.length > 0 ? (

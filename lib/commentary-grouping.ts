@@ -1,25 +1,40 @@
-import type { BibleVerse } from "./bible-section-parser";
 import type { CommentaryNote } from "./commentary-data";
 
-export type CommentaryVerseGroup = {
-  verse: number;
+export type CommentaryRangeGroup = {
+  startVerse: number;
+  endVerse: number;
   comments: CommentaryNote[];
 };
 
 /**
- * Groups already-loaded commentary by its stored verse number.
- * The section is the source of truth for which verse headings appear, so
- * verses without notes are retained in the result.
+ * Groups already-loaded commentary by each note's source-defined subsection range.
+ * Notes are sorted by the beginning of their range, while their original order
+ * within each range is preserved. Duplicate note IDs are ignored defensively.
  */
-export function groupCommentariesByVerse(
-  verses: BibleVerse[],
-  comments: CommentaryNote[],
-): CommentaryVerseGroup[] {
-  return verses
-    .filter((verse): verse is BibleVerse & { verse: number } => typeof verse.verse === "number")
-    .sort((a, b) => a.verse - b.verse)
-    .map((verse) => ({
-      verse: verse.verse,
-      comments: comments.filter((comment) => comment.verse === verse.verse),
-    }));
+export function groupCommentariesByRange(comments: CommentaryNote[]): CommentaryRangeGroup[] {
+  const groups = new Map<string, CommentaryRangeGroup>();
+  const seen = new Set<string>();
+
+  for (const comment of comments) {
+    if (seen.has(comment.id)) continue;
+    seen.add(comment.id);
+
+    const startVerse = comment.startVerse ?? comment.verse;
+    const endVerse = comment.endVerse ?? comment.verse;
+    const key = `${startVerse}-${endVerse}`;
+    const group = groups.get(key);
+    if (group) {
+      group.comments.push(comment);
+    } else {
+      groups.set(key, { startVerse, endVerse, comments: [comment] });
+    }
+  }
+
+  return [...groups.values()].sort(
+    (a, b) => a.startVerse - b.startVerse || a.endVerse - b.endVerse,
+  );
+}
+
+export function formatCommentaryRange(startVerse: number, endVerse: number): string {
+  return startVerse === endVerse ? `Verse ${startVerse}` : `Verses ${startVerse}-${endVerse}`;
 }

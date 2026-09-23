@@ -81,23 +81,10 @@ export function BibleChapterViewer({
   const chapterIntroduction = getStructuredCommentarySections(book, chapter).find(
     (candidate) => candidate.title === 'Introduction',
   );
-  const introductionSection: BibleSection | null = chapterIntroduction && chapterIntroduction.entries.length > 0
-    ? {
-        id: `${book}-${chapter}-introduction`,
-        title: 'Introduction',
-        startVerse: 0,
-        endVerse: 0,
-        verses: [],
-        isIntroduction: true,
-      }
-    : null;
   const [isBibleStudyMode, setIsBibleStudyMode] = useState(false);
   const [commentariesBySection, setCommentariesBySection] = useState<Record<string, any[]>>({});
   const [showRecapModal, setShowRecapModal] = useState(false);
   const [recapSection, setRecapSection] = useState<BibleSection | null>(null);
-  const displayedSections = isBibleStudyMode && introductionSection
-    ? [introductionSection, ...sections]
-    : sections;
 
   const handleSectionComplete = async () => {
     // Mark section as complete in AsyncStorage
@@ -555,7 +542,7 @@ export function BibleChapterViewer({
             >
               {/* Bible Stories Bar - scrolls with content */}
               <BibleStoriesBar
-                sections={displayedSections}
+                sections={sections}
                 onSectionPress={(section, isCompleted) => {
                   if (isCompleted) {
                     // Show recap for completed sections
@@ -567,9 +554,33 @@ export function BibleChapterViewer({
                     setStoryViewerVisible(true);
                   }
                 }}
-                completedSections={isBibleStudyMode && introductionSection ? completedSections.map((index) => index + 1) : completedSections}
+                completedSections={completedSections}
                 book={book}
               />
+
+              {isBibleStudyMode && chapterIntroduction && chapterIntroduction.entries.length > 0 && (
+                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 4, padding: 16, borderRadius: 14, backgroundColor: colors.surface }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 }}>
+                    Introduction
+                  </Text>
+                  {chapterIntroduction.entries.map((entry, index) => (
+                    entry.quoteStyle === 'inline' ? (
+                      <Text key={entry.id} style={{ fontSize: 14, lineHeight: 22, color: colors.muted, fontStyle: 'italic', marginBottom: index < chapterIntroduction.entries.length - 1 ? 12 : 0 }}>
+                        {entry.text}
+                      </Text>
+                    ) : (
+                      <View key={entry.id} style={{ marginBottom: index < chapterIntroduction.entries.length - 1 ? 16 : 0 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 5 }}>
+                          {entry.authorHandle || entry.author}
+                        </Text>
+                        <Text style={{ fontSize: 15, lineHeight: 24, color: colors.foreground }}>
+                          {entry.text}
+                        </Text>
+                      </View>
+                    )
+                  ))}
+                </View>
+              )}
 
               {/* Verses */}
               <View style={{ padding: 16 }}>
@@ -907,8 +918,8 @@ export function BibleChapterViewer({
               onChapterComplete={onMarkComplete}
               version={version}
               isBibleStudyMode={isBibleStudyMode}
-              isLastSection={displayedSections.length > 0 && selectedSection.id === displayedSections[displayedSections.length - 1].id}
-              sections={displayedSections}
+              isLastSection={sections.length > 0 && selectedSection.id === sections[sections.length - 1].id}
+              sections={sections}
               onSectionChange={setSelectedSection}
               onSectionComplete={handleSectionComplete}
             />

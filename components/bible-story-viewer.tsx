@@ -203,7 +203,7 @@ export function BibleStoryViewer({
     ? section.verses[section.verses.length - 1] 
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
-  const commentaryGroups = isBibleStudyMode ? groupCommentariesByRange(commentaries) : [];
+  const commentaryGroups = groupCommentariesByRange(commentaries);
   const studyCommentaryGroups = commentaryGroups.filter(
     (group) => group.endVerse >= section.startVerse && group.startVerse <= section.endVerse,
   );
@@ -741,7 +741,7 @@ export function BibleStoryViewer({
             </View>
 
             {/* Scrollable content */}
-            {isBibleStudyMode ? (
+            {(isBibleStudyMode || studyCommentaryGroups.length > 0) ? (
               <>
                 <ScrollView
                   ref={commentaryCarouselRef}

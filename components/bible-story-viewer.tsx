@@ -26,7 +26,7 @@ import {
 } from '@/lib/commentary-data';
 import { formatCommentaryRange, groupCommentariesByRange } from '@/lib/commentary-grouping';
 
-const COMMENTARY_CARD_COLORS = ['#F59E0B', '#EF4444', '#F97316', '#EAB308', '#10B981', '#3B82F6', '#8B5CF6'];
+const COMMENTARY_CARD_COLOR = '#7C3AED'; // People tab Family accent
 import type { CleanedCommentarySection } from '@/lib/commentary-cleaned-genesis';
 
 interface BibleStoryViewerProps {
@@ -658,8 +658,8 @@ export function BibleStoryViewer({
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
+            justifyContent: 'flex-end',
+            alignItems: 'stretch',
           }}
         >
           {/* Backdrop - tap to close */}
@@ -678,12 +678,13 @@ export function BibleStoryViewer({
           <View
             style={{
               backgroundColor: 'white',
-              borderRadius: 24,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
               paddingHorizontal: 20,
               paddingTop: 16,
               paddingBottom: 32,
-              width: '92%',
-              maxHeight: '72%',
+              width: '100%',
+              maxHeight: '68%',
               zIndex: 10,
             }}
           >
@@ -747,7 +748,7 @@ export function BibleStoryViewer({
                       (verse) => verse.verse >= group.startVerse && verse.verse <= group.endVerse,
                     );
                     const isExpanded = expandedCommentarySlide === index;
-                    const cardColor = COMMENTARY_CARD_COLORS[index % COMMENTARY_CARD_COLORS.length];
+                    const cardColor = COMMENTARY_CARD_COLOR;
                     return (
                       <View key={`${group.startVerse}-${group.endVerse}`} style={{ width: commentarySlideWidth, paddingHorizontal: 20 }}>
                         <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 1.5, borderColor: isExpanded ? `${cardColor}66` : cardColor, backgroundColor: isExpanded ? 'white' : cardColor }}>

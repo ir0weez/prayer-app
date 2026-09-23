@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IMPORTED_COMMENTARY } from './commentary-imported';
 
 export interface CommentaryNote {
   id: string;
@@ -19,6 +20,7 @@ const COMMENTARY_STORAGE_KEY = 'prayer_circle_commentary';
 
 // Default commentary data - structured as arrays of notes per verse
 const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
+  ...IMPORTED_COMMENTARY,
   'genesis_1_1': [
     {
       id: 'genesis_1_1_para1',

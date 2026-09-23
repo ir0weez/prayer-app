@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_COMMENTARY, getAllCommentariesForVerse } from './commentary-data';
+import { IMPORTED_COMMENTARY } from './commentary-imported';
 
 describe('Deuteronomy 11–20 commentary import', () => {
   it('covers the supplied ten-chapter range with the parsed verse and paragraph totals', () => {
@@ -122,5 +123,33 @@ describe('Joshua 11–20 commentary import', () => {
     expect(notes).toHaveLength(7);
     expect(notes[0].author).toBe('Tried By Fire');
     expect(notes[0].text).toContain('"Hazor" means "Castle."');
+  });
+});
+
+describe('Joshua 21–24, Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
+  it('imports all continuation notes into the verse lookup', () => {
+    const importedNotes = Object.values(IMPORTED_COMMENTARY).flat();
+
+    expect(Object.keys(IMPORTED_COMMENTARY)).toHaveLength(989);
+    expect(importedNotes).toHaveLength(1619);
+    expect(Object.keys(DEFAULT_COMMENTARY)).toEqual(expect.arrayContaining([
+      'joshua_21_2',
+      'joshua_24_33',
+      'ruth_1_1',
+      'ruth_4_17',
+      '1samuel_1_2',
+      '1samuel_31_13',
+      '2samuel_1_2',
+      '2samuel_24_25',
+    ]));
+  });
+
+  it('preserves note order and verse attribution for the new books', () => {
+    const notes = getAllCommentariesForVerse('2 Samuel', 11, 1);
+
+    expect(notes).toHaveLength(1);
+    expect(notes[0].id).toBe('2samuel_11_1_para1');
+    expect(notes[0].verse).toBe(1);
+    expect(notes[0].author).toBe('Tried By Fire');
   });
 });

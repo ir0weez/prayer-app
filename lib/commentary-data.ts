@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IMPORTED_COMMENTARY } from './commentary-imported';
 import { IMPORTED_COMMENTARY_NEW } from './commentary-imported-new';
+import {
+  CLEANED_GENESIS_BY_VERSE,
+  CLEANED_GENESIS_CHAPTERS,
+  type CleanedCommentarySection,
+} from './commentary-cleaned-genesis';
 
 export interface CommentaryNote {
   id: string;
@@ -55521,10 +55526,18 @@ Genesis 5:18`,
     },
   ],
   ...IMPORTED_COMMENTARY_NEW,
+  ...CLEANED_GENESIS_BY_VERSE,
 };
 
 // Export the default commentary data
 export { DEFAULT_COMMENTARY };
+
+export function getStructuredCommentarySections(book: string, chapter: number): CleanedCommentarySection[] {
+  if (book.trim().toLowerCase() === 'genesis') {
+    return CLEANED_GENESIS_CHAPTERS[chapter] ?? [];
+  }
+  return [];
+}
 
 // Get all commentaries for a specific verse
 export function getAllCommentariesForVerse(book: string, chapter: number, verse: number): CommentaryNote[] {

@@ -19,11 +19,13 @@ import { isVerseHighlighted, addHighlight, removeHighlight } from '@/lib/bible-h
 import {
   getCommentary,
   getAllCommentariesForVerse,
+  getStructuredCommentarySections,
   toggleLike,
   toggleBookmark,
   CommentaryNote,
 } from '@/lib/commentary-data';
 import { formatCommentaryRange, groupCommentariesByRange } from '@/lib/commentary-grouping';
+import type { CleanedCommentarySection } from '@/lib/commentary-cleaned-genesis';
 
 interface BibleStoryViewerProps {
   visible: boolean;
@@ -71,6 +73,7 @@ export function BibleStoryViewer({
   const [showCommentaryModal, setShowCommentaryModal] = useState(false);
   const [isCommentaryLiked, setIsCommentaryLiked] = useState(false);
   const [commentaries, setCommentaries] = useState<CommentaryNote[]>([]);
+  const [structuredCommentarySections, setStructuredCommentarySections] = useState<CleanedCommentarySection[]>([]);
   const [isLoadingCommentary, setIsLoadingCommentary] = useState(false);
   const [showChapterComplete, setShowChapterComplete] = useState(false);
   const { width, height } = Dimensions.get('window');
@@ -106,6 +109,21 @@ export function BibleStoryViewer({
     if (isBibleStudyMode) {
       // In study mode, load commentary for ALL verses and combine them
       const allComments: CommentaryNote[] = [];
+      const structuredSections = getStructuredCommentarySections(book, chapter);
+      const visibleStructuredSections = structuredSections.filter((candidate) => {
+        if (candidate.title === 'Introduction') return true;
+        return candidate.endVerse >= section.verses[0].verse && candidate.startVerse <= section.verses[section.verses.length - 1].verse;
+      });
+      setStructuredCommentarySections(visibleStructuredSections);
+      if (visibleStructuredSections.length > 0) {
+        for (const candidate of visibleStructuredSections) {
+          allComments.push(...candidate.entries);
+        }
+        setCommentaries(allComments);
+        setIsCommentaryLiked(allComments.length > 0 ? (allComments[0]?.isLikedByUser ?? false) : false);
+        setIsLoadingCommentary(false);
+        return;
+      }
       for (const verse of section.verses) {
         if (verse.verse) {
           const data = await getAllCommentariesForVerse(book, chapter, verse.verse);
@@ -115,6 +133,7 @@ export function BibleStoryViewer({
       setCommentaries(allComments);
       setIsCommentaryLiked(allComments.length > 0 ? (allComments[0]?.isLikedByUser ?? false) : false);
     } else {
+      setStructuredCommentarySections([]);
       // In normal mode, load commentary for the current verse
       const verseToLoad = section.verses[currentVerseIndex];
       if (!verseToLoad || !verseToLoad.verse) {
@@ -154,6 +173,41 @@ export function BibleStoryViewer({
     : section.verses[currentVerseIndex];
   const isLastVerse = currentVerseIndex === section.verses.length - 1;
   const commentaryGroups = isBibleStudyMode ? groupCommentariesByRange(commentaries) : [];
+  const renderCommentaryCard = (comment: CommentaryNote, idx: number, total: number) => (
+    <View key={comment.id} style={{ marginBottom: idx < total - 1 ? 24 : 0 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 16,
+          paddingBottom: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: '#E0E0E0',
+        }}
+      >
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: '#E8F5E9',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <MaterialIcons name="person" size={24} color="#2D8659" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>{comment.author}</Text>
+          <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{comment.authorHandle}</Text>
+        </View>
+      </View>
+      <Text style={{ fontSize: 15, lineHeight: 24, color: '#333', marginBottom: 20 }}>
+        {comment.text}
+      </Text>
+    </View>
+  );
 
   const handleSectionFinished = async () => {
     // Auto-bookmark the last verse of this section
@@ -632,62 +686,34 @@ export function BibleStoryViewer({
               showsVerticalScrollIndicator={true}
             >
               {isBibleStudyMode ? (
-                commentaryGroups.map((group) => (
-                  <View key={`${group.startVerse}-${group.endVerse}`} style={{ marginBottom: 24 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
-                      {formatCommentaryRange(group.startVerse, group.endVerse)}
-                    </Text>
-                    {group.comments.map((comment, idx) => (
-                      <View key={comment.id} style={{ marginBottom: idx < group.comments.length - 1 ? 24 : 0 }}>
-                        {/* Commentator info */}
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 12,
-                            marginBottom: 16,
-                            paddingBottom: 16,
-                            borderBottomWidth: 1,
-                            borderBottomColor: '#E0E0E0',
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: 24,
-                              backgroundColor: '#E8F5E9',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <MaterialIcons name="person" size={24} color="#2D8659" />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#111' }}>
-                              {comment.author}
+                structuredCommentarySections.length > 0 ? (
+                  structuredCommentarySections.map((subsection) => (
+                    <View key={subsection.id} style={{ marginBottom: 24 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
+                        {subsection.title}
+                      </Text>
+                      {subsection.entries.map((comment, idx) => (
+                        <React.Fragment key={comment.id}>
+                          {!comment.isIntroduction && (idx === 0 || subsection.entries[idx - 1].verseLabel !== comment.verseLabel) ? (
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#555', marginBottom: 10 }}>
+                              {comment.verseLabel.includes('-') ? 'Verses' : 'Verse'} {comment.verseLabel}
                             </Text>
-                            <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                              {comment.authorHandle}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Commentary text */}
-                        <Text
-                          style={{
-                            fontSize: 15,
-                            lineHeight: 24,
-                            color: '#333',
-                            marginBottom: 20,
-                          }}
-                        >
-                          {comment.text}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ))
+                          ) : null}
+                          {renderCommentaryCard(comment, idx, subsection.entries.length)}
+                        </React.Fragment>
+                      ))}
+                    </View>
+                  ))
+                ) : (
+                  commentaryGroups.map((group) => (
+                    <View key={`${group.startVerse}-${group.endVerse}`} style={{ marginBottom: 24 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 12 }}>
+                        {formatCommentaryRange(group.startVerse, group.endVerse)}
+                      </Text>
+                      {group.comments.map((comment, idx) => renderCommentaryCard(comment, idx, group.comments.length))}
+                    </View>
+                  ))
+                )
               ) : commentaries.length > 0 ? (
                 <>
                   {commentaries.map((comment, idx) => (

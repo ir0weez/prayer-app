@@ -85,7 +85,7 @@ def parse_book(book: str, lines: list[str]) -> tuple[list[dict], dict[int, list[
             current = {'id': f'{bs}-{chapter}-{start}-{end}', 'title': m.group(3), 'startVerse': start, 'endVerse': end, 'entries': [], 'intro': False}
             sections.setdefault(chapter, []).append(current); verse = None; mode = None; continue
         m = VERSE_RE.match(line)
-        if m:
+        if m and m.group('book').strip() == book:
             flush(); verse = (int(m.group('start')), int(m.group('end') or m.group('start'))); mode = None; continue
         m = COMMENT_RE.match(line)
         if m:
@@ -121,7 +121,7 @@ def emit(book: str, notes: list[dict], sections: dict[int, list[dict]]):
 
 def main():
     lines = SOURCE.read_text(encoding='utf-8').replace('\r', '').replace('\f', '\n').splitlines()
-    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes'}; books: dict[str, list[str]] = {}; current = None
+    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon'}; books: dict[str, list[str]] = {}; current = None
     for raw in lines:
         stripped = raw.strip()
         if stripped in known:

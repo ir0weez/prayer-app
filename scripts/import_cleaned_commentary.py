@@ -121,7 +121,7 @@ def emit(book: str, notes: list[dict], sections: dict[int, list[dict]]):
 
 def main():
     lines = SOURCE.read_text(encoding='utf-8').replace('\r', '').replace('\f', '\n').splitlines()
-    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon'}; books: dict[str, list[str]] = {}; current = None
+    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah'}; books: dict[str, list[str]] = {}; current = None
     for raw in lines:
         stripped = raw.strip()
         if stripped in known:

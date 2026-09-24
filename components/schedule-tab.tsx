@@ -53,7 +53,7 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
-import { createTimeOff, getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
@@ -1038,6 +1038,7 @@ export function ScheduleTab({
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
   const [showViewMenu, setShowViewMenu] = useState(false); // Dropdown menu toggle
   const [showTimeOffModal, setShowTimeOffModal] = useState(false); // Time-off modal visibility
+  const [timeOffEditId, setTimeOffEditId] = useState<string | null>(null);
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]); // List of time-off periods
   const [currentDisplayAlbumId, setCurrentDisplayAlbumId] = useState<string | null>(null);
   const [albumHistory, setAlbumHistory] = useState<StoredWorshipAlbum[]>([]);
@@ -2142,22 +2143,6 @@ export function ScheduleTab({
     }
   };
 
-  const markSelectedDayAsTimeOff = async () => {
-    if (!isDateDuringTimeOff(timeOffList, selectedDate)) {
-      await createTimeOff('Time Off', 'personal', selectedDate, selectedDate);
-      setTimeOffList(await getAllTimeOff());
-    }
-  };
-
-  const markSelectedWeekAsTimeOff = async () => {
-    const dates = getWeekDates(selectedDate);
-    const missing = dates.filter((date) => !isDateDuringTimeOff(timeOffList, date));
-    if (missing.length > 0) {
-      await createTimeOff('Time Off', 'personal', missing[0], missing[missing.length - 1]);
-      setTimeOffList(await getAllTimeOff());
-    }
-  };
-
   const handleSaveWorshipAlbum = async () => {
     try {
       if (!formTitle.trim()) {
@@ -2689,7 +2674,20 @@ export function ScheduleTab({
           );
         }
         case "time-off":
-          return <TimeOffCard timeOff={item.data} />;
+          return (
+            <View>
+              <TimeOffCard
+                timeOff={item.data}
+                onPress={() => {
+                  setTimeOffEditId(item.data.id);
+                  setShowTimeOffModal(true);
+                }}
+              />
+              <Text style={{ color: colors.muted, fontSize: 11, marginTop: -4, marginBottom: 12, paddingHorizontal: 4 }}>
+                Days inside a time-off entry show only your off events.
+              </Text>
+            </View>
+          );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
         case "todo":
@@ -3212,12 +3210,6 @@ export function ScheduleTab({
                       {dateHeader.dayName}
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
-                    {isDateDuringTimeOff(timeOffList, selectedDate) && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E1F5FE', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
-                        <MaterialIcons name="event-busy" size={14} color="#01579B" />
-                        <Text style={{ color: '#01579B', fontSize: 11, fontWeight: '800' }}>TIME OFF</Text>
-                      </View>
-                    )}
                     {/* Today button moved to bottom - see renderItem */}
                     <DateTimePicker
                       value={selectedDate}
@@ -3226,14 +3218,6 @@ export function ScheduleTab({
                       label="Jump to date"
                       compact
                     />
-                    <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                      <Pressable onPress={markSelectedDayAsTimeOff} style={({ pressed }) => [{ backgroundColor: isDateDuringTimeOff(timeOffList, selectedDate) ? colors.primary : colors.background, borderColor: colors.primary, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7, opacity: pressed ? 0.7 : 1 }]}> 
-                        <MaterialIcons name="event-busy" size={16} color={isDateDuringTimeOff(timeOffList, selectedDate) ? '#FFFFFF' : colors.primary} />
-                      </Pressable>
-                      <Pressable onPress={markSelectedWeekAsTimeOff} style={({ pressed }) => [{ backgroundColor: colors.background, borderColor: colors.primary, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7, opacity: pressed ? 0.7 : 1 }]}> 
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800' }}>Week off</Text>
-                      </Pressable>
-                    </View>
                   </View>
                   <View style={scheduleStyles.dateStrip}>
                     {weekDates.map((date) => {
@@ -3252,9 +3236,10 @@ export function ScheduleTab({
                           <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
                             {getDayNumber(date)}
                           </Text>
-                          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+                          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}> 
                             {getShortDayName(date)}
                           </Text>
+                          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
                         </Pressable>
                       );
                     })}
@@ -3319,24 +3304,6 @@ export function ScheduleTab({
                     isCompleted: m.isCompleted,
                   });
                 });
-                // Add time-off (all-day blocks)
-                timeOffList.forEach(to => {
-                  const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
-                  const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
-                  const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
-                  const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
-                  const currentDate = new Date(date);
-                  if (currentDate >= toStart && currentDate <= toEnd) {
-                    blocks.push({
-                      id: `${dateStr}-timeoff-${to.id}`,
-                      title: to.title,
-                      startTime: '00:00',
-                      endTime: '23:59',
-                      color: to.color || colors.primary,
-                      type: 'time-off',
-                    });
-                  }
-                });
               }
               return blocks;
             })()}
@@ -3372,20 +3339,6 @@ export function ScheduleTab({
                   const key = dateStr;
                   if (!eventMap.has(key)) eventMap.set(key, []);
                   eventMap.get(key)!.push({ id: m.id, title: m.title, color: m.color || colors.primary, type: 'ministry', isCompleted: m.isCompleted });
-                }
-              });
-              // Add time-off
-              timeOffList.forEach(to => {
-                const [toStartYear, toStartMonth, toStartDay] = to.startDate.split('-').map(Number);
-                const [toEndYear, toEndMonth, toEndDay] = to.endDate.split('-').map(Number);
-                const toStart = new Date(toStartYear, toStartMonth - 1, toStartDay);
-                const toEnd = new Date(toEndYear, toEndMonth - 1, toEndDay);
-                let current = new Date(toStart);
-                while (current <= toEnd) {
-                  const dateStr = formatDateLocal(current);
-                  if (!eventMap.has(dateStr)) eventMap.set(dateStr, []);
-                  eventMap.get(dateStr)!.push({ id: to.id, title: to.title, color: to.color || colors.primary, type: 'time-off' });
-                  current.setDate(current.getDate() + 1);
                 }
               });
               return eventMap;
@@ -4597,7 +4550,11 @@ export function ScheduleTab({
       {/* Time-Off Modal */}
       <TimeOffModal
         visible={showTimeOffModal}
-        onClose={() => setShowTimeOffModal(false)}
+        initialEditId={timeOffEditId}
+        onClose={() => {
+          setShowTimeOffModal(false);
+          setTimeOffEditId(null);
+        }}
         onTimeOffUpdated={async () => {
           const updated = await getAllTimeOff();
           setTimeOffList(updated);
@@ -4676,6 +4633,12 @@ const scheduleStyles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 12,
+  },
+  timeOffDayMarker: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginTop: 4,
   },
   dateNum: {
     fontSize: 18,

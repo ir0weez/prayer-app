@@ -34,11 +34,12 @@ interface TimeOffModalProps {
   visible: boolean;
   onClose: () => void;
   onTimeOffUpdated?: () => void;
+  initialEditId?: string | null;
 }
 
 const TIME_OFF_TYPES: TimeOffType[] = ['vacation', 'sick', 'personal', 'sabbatical', 'other'];
 
-export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModalProps) {
+export function TimeOffModal({ visible, onClose, onTimeOffUpdated, initialEditId = null }: TimeOffModalProps) {
   const colors = useColors();
   const [timeOffList, setTimeOffList] = useState<TimeOff[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +59,12 @@ export function TimeOffModal({ visible, onClose, onTimeOffUpdated }: TimeOffModa
       loadTimeOff();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !initialEditId || loading) return;
+    const entry = timeOffList.find((item) => item.id === initialEditId);
+    if (entry) handleEdit(entry);
+  }, [visible, initialEditId, loading, timeOffList]);
 
   const loadTimeOff = async () => {
     setLoading(true);

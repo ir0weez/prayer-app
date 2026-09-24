@@ -3751,18 +3751,6 @@ export function ScheduleTab({
                       />
                     ))}
                   </View>
-                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>LINK PEOPLE (optional)</Text>
-                  <AvatarPeopleSelector
-                    people={people}
-                    selectedIds={formLinkedPeopleIds}
-                    onToggle={(personId) => {
-                      setFormLinkedPeopleIds((prev) =>
-                        prev.includes(personId)
-                          ? prev.filter((id) => id !== personId)
-                          : [...prev, personId]
-                      );
-                    }}
-                  />
                 </View>
               )}
               showsVerticalScrollIndicator={false}

@@ -38,6 +38,10 @@ import {
   CLEANED_PROVERBS_BY_VERSE,
   CLEANED_PROVERBS_CHAPTERS,
 } from './commentary-cleaned-proverbs';
+import {
+  CLEANED_ECCLESIASTES_BY_VERSE,
+  CLEANED_ECCLESIASTES_CHAPTERS,
+} from './commentary-cleaned-ecclesiastes';
 
 export interface CommentaryNote {
   id: string;
@@ -55574,6 +55578,7 @@ Genesis 5:18`,
   ...CLEANED_1KINGS_BY_VERSE,
   ...CLEANED_2KINGS_BY_VERSE,
   ...CLEANED_PROVERBS_BY_VERSE,
+  ...CLEANED_ECCLESIASTES_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
@@ -55599,6 +55604,9 @@ for (const key of Object.keys(DEFAULT_COMMENTARY)) {
     delete DEFAULT_COMMENTARY[key];
   }
   if (/^proverbs_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_PROVERBS_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^ecclesiastes_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_ECCLESIASTES_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55633,6 +55641,9 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === 'proverbs') {
     return CLEANED_PROVERBS_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === 'ecclesiastes') {
+    return CLEANED_ECCLESIASTES_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

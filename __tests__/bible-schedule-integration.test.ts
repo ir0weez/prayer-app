@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { UNIFIED_BIBLE_KEY, UnifiedBibleState } from '../lib/bible-unified';
+import { UNIFIED_BIBLE_KEY, UnifiedBibleState, loadUnifiedBible, getCurrentBibleDisplay } from '../lib/bible-unified';
 
 // Mock AsyncStorage
-const mockAsyncStorage = {
+const mockAsyncStorage = vi.hoisted(() => ({
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
-};
+}));
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: mockAsyncStorage,
@@ -233,6 +233,24 @@ describe('Bible Reading Schedule Integration', () => {
       const hasCurrentBook = Object.entries(state.bookStatuses).some(([_, status]) => status === 'current');
       
       expect(hasCurrentBook).toBe(true);
+    });
+
+    it('should migrate missing Song of Solomon chapters in an existing state', async () => {
+      mockAsyncStorage.getItem.mockImplementation(async (key: string) => {
+        if (key === UNIFIED_BIBLE_KEY) {
+          return JSON.stringify({
+            chapters: [],
+            bookStatuses: { 'Song of Solomon': 'current' },
+          });
+        }
+        return null;
+      });
+
+      const state = await loadUnifiedBible();
+      const songChapters = state.chapters.filter((chapter) => chapter.book === 'Song of Solomon');
+      expect(songChapters).toHaveLength(8);
+      expect(getCurrentBibleDisplay(state)).toBe('Song of Solomon 1');
+      expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(UNIFIED_BIBLE_KEY, expect.any(String));
     });
   });
 });

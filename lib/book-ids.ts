@@ -21,6 +21,7 @@ export const BOOK_IDS: { [key: string]: string } = {
   'Psalms': 'PSA',
   'Proverbs': 'PRO',
   'Ecclesiastes': 'ECC',
+  'Song of Solomon': 'SNG',
   'Isaiah': 'ISA',
   'Jeremiah': 'JER',
   'Lamentations': 'LAM',

@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { getCurrentBibleDisplay, BIBLE_BOOKS, CHAPTER_COUNTS } from '../lib/bible-unified';
 
 describe('getCurrentBibleDisplay', () => {
+  it('should return Song of Solomon with its first unread chapter', () => {
+    const result = getCurrentBibleDisplay({
+      bookStatuses: { 'Song of Solomon': 'current' },
+      chapters: [{ book: 'Song of Solomon', chapter: 1, isRead: false }],
+    });
+    expect(result).toBe('Song of Solomon 1');
+  });
+
   it('should return Lamentations with next unread chapter when Lamentations is current', () => {
     // Create a mock state with Lamentations marked as current
     const mockState = {

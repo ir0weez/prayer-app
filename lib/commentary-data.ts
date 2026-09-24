@@ -26,6 +26,14 @@ import {
   CLEANED_2SAMUEL_BY_VERSE,
   CLEANED_2SAMUEL_CHAPTERS,
 } from './commentary-cleaned-2samuel';
+import {
+  CLEANED_1KINGS_BY_VERSE,
+  CLEANED_1KINGS_CHAPTERS,
+} from './commentary-cleaned-1kings';
+import {
+  CLEANED_2KINGS_BY_VERSE,
+  CLEANED_2KINGS_CHAPTERS,
+} from './commentary-cleaned-2kings';
 
 export interface CommentaryNote {
   id: string;
@@ -55559,6 +55567,8 @@ Genesis 5:18`,
   ...CLEANED_RUTH_BY_VERSE,
   ...CLEANED_1SAMUEL_BY_VERSE,
   ...CLEANED_2SAMUEL_BY_VERSE,
+  ...CLEANED_1KINGS_BY_VERSE,
+  ...CLEANED_2KINGS_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
@@ -55575,6 +55585,12 @@ for (const key of Object.keys(DEFAULT_COMMENTARY)) {
     delete DEFAULT_COMMENTARY[key];
   }
   if (/^2samuel_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_2SAMUEL_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^1kings_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_1KINGS_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^2kings_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_2KINGS_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55600,6 +55616,12 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === '2 samuel') {
     return CLEANED_2SAMUEL_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === '1 kings') {
+    return CLEANED_1KINGS_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === '2 kings') {
+    return CLEANED_2KINGS_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

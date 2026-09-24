@@ -36,18 +36,18 @@ def attribution(text: str) -> str:
     return 'Someone'
 
 
-def note(book_slug: str, book: str, chapter: int, start: int, end: int, text: str, kind: str, section: dict, seq: int) -> dict:
+def note(book_slug: str, book: str, chapter: int, verse_start: int, verse_end: int, range_start: int, range_end: int, text: str, kind: str, section: dict, seq: int) -> dict:
     speaker = 'Tried By Fire' if kind == 'comment' else attribution(text)
     scripture = kind == 'quote' and bool(SCRIPTURE_ATTRIBUTION_RE.fullmatch(speaker))
     return {
-        'id': f"{book_slug}_{chapter}_{start}_{'intro' if section['intro'] else section['id']}_{seq}",
-        'book': book, 'chapter': chapter, 'verse': start, 'startVerse': start, 'endVerse': end,
+        'id': f"{book_slug}_{chapter}_{verse_start}_{'intro' if section['intro'] else section['id']}_{seq}",
+        'book': book, 'chapter': chapter, 'verse': verse_start, 'startVerse': range_start, 'endVerse': range_end,
         'author': speaker, 'authorHandle': '@TriedByFire' if kind == 'comment' else ('' if scripture else ('@' + speaker if speaker != 'Someone' else '@Someone')),
         'text': text, 'likes': 0, 'isLikedByUser': False, 'isBookmarkedByUser': False,
         'createdAt': '2026-09-23T00:00:00.000Z', 'kind': kind,
         'quoteStyle': 'inline' if scripture else ('profile' if kind == 'quote' else None),
         'sectionId': section['id'], 'sectionTitle': section['title'], 'isIntroduction': section['intro'],
-        'verseLabel': str(start) if start == end else f'{start}-{end}',
+        'verseLabel': str(verse_start) if verse_start == verse_end else f'{verse_start}-{verse_end}',
     }
 
 
@@ -67,8 +67,9 @@ def parse_book(book: str, lines: list[str]) -> tuple[list[dict], dict[int, list[
         text = clean(buffer[:]); buffer = []
         if not text or current is None:
             comment_number = None; return
-        seq += 1; start, end = verse or (current['startVerse'], current['endVerse'])
-        item = note(bs, book, chapter, start, end, text, 'comment' if mode == 'comment' else 'quote', current, seq)
+        seq += 1
+        verse_start, _verse_end = verse or (current['startVerse'], current['endVerse'])
+        item = note(bs, book, chapter, verse_start, _verse_end, current['startVerse'], current['endVerse'], text, 'comment' if mode == 'comment' else 'quote', current, seq)
         current['entries'].append(item); all_notes.append(item); comment_number = None
 
     for raw in lines:
@@ -120,7 +121,7 @@ def emit(book: str, notes: list[dict], sections: dict[int, list[dict]]):
 
 def main():
     lines = SOURCE.read_text(encoding='utf-8').replace('\r', '').replace('\f', '\n').splitlines()
-    known = {'1 Samuel', '2 Samuel'}; books: dict[str, list[str]] = {}; current = None
+    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings'}; books: dict[str, list[str]] = {}; current = None
     for raw in lines:
         stripped = raw.strip()
         if stripped in known:

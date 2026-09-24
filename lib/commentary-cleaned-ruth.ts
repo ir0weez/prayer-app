@@ -1,20 +1,7 @@
 import type { CommentaryNote } from './commentary-data';
 
-export type CleanedCommentaryEntry = CommentaryNote & {
-  kind: 'comment' | 'quote';
-  sectionId: string;
-  sectionTitle: string;
-  isIntroduction: boolean;
-  verseLabel: string;
-};
-
-export type CleanedCommentarySection = {
-  id: string;
-  title: string;
-  startVerse: number;
-  endVerse: number;
-  entries: CleanedCommentaryEntry[];
-};
+export type CleanedCommentaryEntry = CommentaryNote & { kind: 'comment' | 'quote'; sectionId: string; sectionTitle: string; isIntroduction: boolean; verseLabel: string; };
+export type CleanedCommentarySection = { id: string; title: string; startVerse: number; endVerse: number; entries: CleanedCommentaryEntry[]; };
 
 export const CLEANED_RUTH_BY_VERSE: Record<string, CleanedCommentaryEntry[]> = {
   "ruth_1_0": [

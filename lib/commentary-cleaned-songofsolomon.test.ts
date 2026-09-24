@@ -63,7 +63,7 @@ describe('cleaned Song of Solomon commentary', () => {
     const notes = getAllCommentariesForVerse('Song of Solomon', 1, 4);
     expect(notes.length).toBeGreaterThan(0);
     expect(notes[0]?.book).toBe('Song of Solomon');
-    expect(notes[0]?.startVerse).toBe(2);
+    expect(notes[0]?.startVerse).toBe(4);
     expect(notes[0]?.endVerse).toBe(4);
   });
 });

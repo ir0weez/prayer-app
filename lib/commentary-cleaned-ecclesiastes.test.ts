@@ -25,7 +25,7 @@ describe('cleaned Ecclesiastes commentary', () => {
     }
   });
 
-  it('preserves chapter-one subsection order and enclosing ranges', () => {
+  it('preserves chapter-one subsection order and exact verse-header ranges', () => {
     expect(CLEANED_ECCLESIASTES_CHAPTERS[1]?.map((section) => section.title)).toEqual([
       'Introduction',
       'Vanities of Life',
@@ -34,12 +34,12 @@ describe('cleaned Ecclesiastes commentary', () => {
     const firstNote = CLEANED_ECCLESIASTES_BY_VERSE['ecclesiastes_1_1']?.[0];
     expect(firstNote?.verse).toBe(1);
     expect(firstNote?.startVerse).toBe(1);
-    expect(firstNote?.endVerse).toBe(11);
+    expect(firstNote?.endVerse).toBe(1);
     expect(firstNote?.text).toContain('the “Preacher.”');
     const verseRangeNote = CLEANED_ECCLESIASTES_BY_VERSE['ecclesiastes_1_6']?.[0];
     expect(verseRangeNote?.verseLabel).toBe('6-7');
-    expect(verseRangeNote?.startVerse).toBe(1);
-    expect(verseRangeNote?.endVerse).toBe(11);
+    expect(verseRangeNote?.startVerse).toBe(6);
+    expect(verseRangeNote?.endVerse).toBe(7);
   });
 
   it('keeps Scripture quotations inline without a profile handle', () => {
@@ -56,7 +56,7 @@ describe('cleaned Ecclesiastes commentary', () => {
     const notes = getAllCommentariesForVerse('Ecclesiastes', 1, 10);
     expect(notes.length).toBeGreaterThan(0);
     expect(notes[0]?.book).toBe('Ecclesiastes');
-    expect(notes[0]?.startVerse).toBe(1);
-    expect(notes[0]?.endVerse).toBe(11);
+    expect(notes[0]?.startVerse).toBe(10);
+    expect(notes[0]?.endVerse).toBe(10);
   });
 });

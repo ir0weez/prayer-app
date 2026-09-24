@@ -28,7 +28,7 @@ describe('cleaned 1–2 Kings commentary', () => {
     }
   });
 
-  it('preserves 1 Kings source order and subsection ranges', () => {
+  it('preserves 1 Kings source order and exact verse-header ranges', () => {
     const chapterOne = CLEANED_1KINGS_CHAPTERS[1];
     expect(chapterOne?.map((section) => section.title)).toEqual([
       'Introduction',
@@ -45,11 +45,11 @@ describe('cleaned 1–2 Kings commentary', () => {
     ]);
     const firstNote = CLEANED_1KINGS_BY_VERSE['1kings_1_1']?.[0];
     expect(firstNote?.startVerse).toBe(1);
-    expect(firstNote?.endVerse).toBe(4);
+    expect(firstNote?.endVerse).toBe(1);
     expect(firstNote?.text).toContain("David is so old at this point");
     const groupedRange = CLEANED_1KINGS_BY_VERSE['1kings_1_2']?.[0];
-    expect(groupedRange?.startVerse).toBe(1);
-    expect(groupedRange?.endVerse).toBe(4);
+    expect(groupedRange?.startVerse).toBe(2);
+    expect(groupedRange?.endVerse).toBe(3);
   });
 
   it('preserves 2 Kings source order and the book transition', () => {
@@ -69,7 +69,7 @@ describe('cleaned 1–2 Kings commentary', () => {
     expect(getStructuredCommentarySections('2 Kings', 25)).toBe(CLEANED_2KINGS_CHAPTERS[25]);
     const notes = getAllCommentariesForVerse('2 Kings', 1, 2);
     expect(notes[0]?.book).toBe('2 Kings');
-    expect(notes[0]?.startVerse).toBe(1);
+    expect(notes[0]?.startVerse).toBe(2);
     expect(notes[0]?.endVerse).toBe(2);
   });
 });

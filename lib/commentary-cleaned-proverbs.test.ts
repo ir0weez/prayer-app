@@ -25,7 +25,7 @@ describe('cleaned Proverbs commentary', () => {
     }
   });
 
-  it('preserves chapter-one subsection order and source ranges', () => {
+  it('preserves chapter-one subsection order and exact verse-header ranges', () => {
     expect(CLEANED_PROVERBS_CHAPTERS[1]?.map((section) => section.title)).toEqual([
       'Introduction',
       'The Purpose and Plan For Writing',
@@ -35,12 +35,12 @@ describe('cleaned Proverbs commentary', () => {
     const firstNote = CLEANED_PROVERBS_BY_VERSE['proverbs_1_1']?.[0];
     expect(firstNote?.verse).toBe(1);
     expect(firstNote?.startVerse).toBe(1);
-    expect(firstNote?.endVerse).toBe(6);
+    expect(firstNote?.endVerse).toBe(1);
     expect(firstNote?.text).toContain('Solomon identifies himself');
     const verseRangeNote = CLEANED_PROVERBS_BY_VERSE['proverbs_1_2']?.[0];
     expect(verseRangeNote?.verseLabel).toBe('2-4');
-    expect(verseRangeNote?.startVerse).toBe(1);
-    expect(verseRangeNote?.endVerse).toBe(6);
+    expect(verseRangeNote?.startVerse).toBe(2);
+    expect(verseRangeNote?.endVerse).toBe(4);
   });
 
   it('keeps standalone quotes as separate quote entries', () => {
@@ -57,7 +57,7 @@ describe('cleaned Proverbs commentary', () => {
     const notes = getAllCommentariesForVerse('Proverbs', 1, 4);
     expect(notes.length).toBeGreaterThan(0);
     expect(notes[0]?.book).toBe('Proverbs');
-    expect(notes[0]?.startVerse).toBe(1);
-    expect(notes[0]?.endVerse).toBe(6);
+    expect(notes[0]?.startVerse).toBe(2);
+    expect(notes[0]?.endVerse).toBe(4);
   });
 });

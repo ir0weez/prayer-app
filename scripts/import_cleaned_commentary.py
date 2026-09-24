@@ -69,7 +69,8 @@ def parse_book(book: str, lines: list[str]) -> tuple[list[dict], dict[int, list[
             comment_number = None; return
         seq += 1
         verse_start, _verse_end = verse or (current['startVerse'], current['endVerse'])
-        item = note(bs, book, chapter, verse_start, _verse_end, current['startVerse'], current['endVerse'], text, 'comment' if mode == 'comment' else 'quote', current, seq)
+        range_start, range_end = verse or (current['startVerse'], current['endVerse'])
+        item = note(bs, book, chapter, verse_start, _verse_end, range_start, range_end, text, 'comment' if mode == 'comment' else 'quote', current, seq)
         current['entries'].append(item); all_notes.append(item); comment_number = None
 
     for raw in lines:
@@ -121,7 +122,7 @@ def emit(book: str, notes: list[dict], sections: dict[int, list[dict]]):
 
 def main():
     lines = SOURCE.read_text(encoding='utf-8').replace('\r', '').replace('\f', '\n').splitlines()
-    known = {'1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah'}; books: dict[str, list[str]] = {}; current = None
+    known = {'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah'}; books: dict[str, list[str]] = {}; current = None
     for raw in lines:
         stripped = raw.strip()
         if stripped in known:

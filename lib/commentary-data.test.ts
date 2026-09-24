@@ -198,8 +198,8 @@ describe('Genesis replacement and new book commentary import', () => {
     expect(getAllCommentariesForVerse('Proverbs', 31, 31).length).toBeGreaterThan(0);
   });
 
-  it('attaches new notes to their source subsection ranges', () => {
+  it('attaches new notes to their exact verse-header ranges', () => {
     const notes = getAllCommentariesForVerse('1 Kings', 1, 1);
-    expect(notes.every((note) => note.startVerse === 1 && note.endVerse === 4)).toBe(true);
+    expect(notes.every((note) => note.startVerse === 1 && note.endVerse === 1)).toBe(true);
   });
 });

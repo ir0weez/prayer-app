@@ -240,6 +240,9 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
+        {onEdit && (
+          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
+        )}
       </>
     );
   }
@@ -306,6 +309,9 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
+        {onEdit && (
+          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
+        )}
       </>
     );
   }
@@ -364,6 +370,9 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
+        {onEdit && (
+          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
+        )}
       </>
     );
   }
@@ -418,6 +427,9 @@ function EventCard({
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
       />
+      {onEdit && (
+        <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
+      )}
     </>
   );
 }

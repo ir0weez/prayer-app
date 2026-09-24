@@ -53,7 +53,8 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
-import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { createTimeOff, getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
+import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
@@ -159,6 +160,8 @@ function EventCard({
   showActiveNow?: boolean;
 }) {
   const colors = useColors();
+  const timeOffCardColor = getTimeOffEventColor(event);
+  const timeOffTextColor = readableTextColor(timeOffCardColor);
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
@@ -256,23 +259,24 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80 }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80 }]}>
+            {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
             <View style={eventStyles.illustratedContent}>
-              <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+              <Text style={[eventStyles.illustratedTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (
-                <Text style={[eventStyles.illustratedDescription, { color: '#FFFFFFEE' }]} numberOfLines={2}>
+                <Text style={[eventStyles.illustratedDescription, { color: event.isOffEvent ? `${timeOffTextColor}EE` : '#FFFFFFEE' }]} numberOfLines={2}>
                   {event.notes}
                 </Text>
               )}
               {event.startTime && (
-                <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
+                <Text style={[eventStyles.illustratedTime, { color: event.isOffEvent ? `${timeOffTextColor}DD` : '#FFFFFFDD' }]}>
                   {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
                 </Text>
               )}
               {event.location && (
                 <View style={eventStyles.illustratedLocationRow}>
-                  <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
-                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                  <MaterialIcons name="location-on" size={15} color={event.isOffEvent ? `${timeOffTextColor}BB` : '#FFFFFFBB'} />
+                  <Text style={[eventStyles.illustratedLocation, { color: event.isOffEvent ? `${timeOffTextColor}BB` : '#FFFFFFBB' }]} numberOfLines={1}>
                     {event.location}
                   </Text>
                 </View>
@@ -286,7 +290,7 @@ function EventCard({
                 </View>
               </View>
             )}
-            <MaterialIcons name={keyword.icon as any} size={48} color="#FFFFFF" style={{ opacity: 0.9 }} />
+            <MaterialIcons name={keyword.icon as any} size={48} color={event.isOffEvent ? timeOffTextColor : '#FFFFFF'} style={{ opacity: 0.9 }} />
           </View>
         </Pressable>
         <ContextMenu
@@ -312,10 +316,11 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.defaultCard, { backgroundColor: event.color || colors.primary, borderColor: event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
+        <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
+          {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={[eventStyles.defaultTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+            <Text style={[eventStyles.defaultTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
             {event.notes && (
               <Text style={[eventStyles.defaultDescription, { color: '#FFFFFFEE' }]} numberOfLines={2}>
                 {event.notes}
@@ -999,6 +1004,9 @@ export function ScheduleTab({
   const [formBibleBook, setFormBibleBook] = useState("Genesis");
   const [formBibleChapter, setFormBibleChapter] = useState("1");
   const [formColor, setFormColor] = useState("#6B7280"); // Default gray
+  const [formOffEvent, setFormOffEvent] = useState(false);
+  const [formPosterImage, setFormPosterImage] = useState<string | null>(null);
+  const [formPosterColor, setFormPosterColor] = useState<string | undefined>(undefined);
   const [formLinkedPeopleIds, setFormLinkedPeopleIds] = useState<string[]>([]); // People linked to current item
   const [formLinkedEventId, setFormLinkedEventId] = useState<string | null>(null); // Event linked to todo
   const [formLinkedMinistryId, setFormLinkedMinistryId] = useState<string | null>(null); // Ministry linked to todo
@@ -1557,7 +1565,10 @@ export function ScheduleTab({
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
-  const dayEvents = useMemo(() => getEventsForDate(events, selectedDate), [events, selectedDate]);
+  const dayEvents = useMemo(() => {
+    const isTimeOffDay = isDateDuringTimeOff(timeOffList, selectedDate);
+    return getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
+  }, [events, selectedDate, timeOffList]);
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
   const dayBirthdays = useMemo(() => getBirthdaysForDate(people, selectedDate), [people, selectedDate]);
@@ -1827,6 +1838,9 @@ export function ScheduleTab({
     setFormMinistryType("Outreach");
     setFormDueDate("");
     setFormColor("#6366F1"); // Reset to default indigo
+    setFormOffEvent(false);
+    setFormPosterImage(null);
+    setFormPosterColor(undefined);
     setFormLinkedPeopleIds([]);
     setFormLinkedEventId(null);
     setFormLinkedMinistryId(null);
@@ -1871,6 +1885,9 @@ export function ScheduleTab({
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
+      isOffEvent: formOffEvent,
+      posterImageUri: formPosterImage || undefined,
+      posterColor: formPosterColor,
     });
     if (formLinkedPeopleIds.length > 0) {
       newEvent.linkedPeopleIds = formLinkedPeopleIds;
@@ -2105,6 +2122,39 @@ export function ScheduleTab({
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const pickTimeOffPoster = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+        setFormPosterImage(uri);
+        setFormPosterColor(await extractPosterColor(uri, formColor));
+      }
+    } catch {
+      Alert.alert('Poster unavailable', 'The image could not be added. The selected event color will be used instead.');
+    }
+  };
+
+  const markSelectedDayAsTimeOff = async () => {
+    if (!isDateDuringTimeOff(timeOffList, selectedDate)) {
+      await createTimeOff('Time Off', 'personal', selectedDate, selectedDate);
+      setTimeOffList(await getAllTimeOff());
+    }
+  };
+
+  const markSelectedWeekAsTimeOff = async () => {
+    const dates = getWeekDates(selectedDate);
+    const missing = dates.filter((date) => !isDateDuringTimeOff(timeOffList, date));
+    if (missing.length > 0) {
+      await createTimeOff('Time Off', 'personal', missing[0], missing[missing.length - 1]);
+      setTimeOffList(await getAllTimeOff());
     }
   };
 
@@ -3158,10 +3208,16 @@ export function ScheduleTab({
                 {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
                 <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
                   <View style={scheduleStyles.dayHeaderContent}>
-                    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
+                    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}> 
                       {dateHeader.dayName}
                       <Text style={{ color: colors.error }}>•</Text>
                     </Text>
+                    {isDateDuringTimeOff(timeOffList, selectedDate) && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E1F5FE', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
+                        <MaterialIcons name="event-busy" size={14} color="#01579B" />
+                        <Text style={{ color: '#01579B', fontSize: 11, fontWeight: '800' }}>TIME OFF</Text>
+                      </View>
+                    )}
                     {/* Today button moved to bottom - see renderItem */}
                     <DateTimePicker
                       value={selectedDate}
@@ -3170,6 +3226,14 @@ export function ScheduleTab({
                       label="Jump to date"
                       compact
                     />
+                    <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                      <Pressable onPress={markSelectedDayAsTimeOff} style={({ pressed }) => [{ backgroundColor: isDateDuringTimeOff(timeOffList, selectedDate) ? colors.primary : colors.background, borderColor: colors.primary, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7, opacity: pressed ? 0.7 : 1 }]}> 
+                        <MaterialIcons name="event-busy" size={16} color={isDateDuringTimeOff(timeOffList, selectedDate) ? '#FFFFFF' : colors.primary} />
+                      </Pressable>
+                      <Pressable onPress={markSelectedWeekAsTimeOff} style={({ pressed }) => [{ backgroundColor: colors.background, borderColor: colors.primary, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7, opacity: pressed ? 0.7 : 1 }]}> 
+                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800' }}>Week off</Text>
+                      </Pressable>
+                    </View>
                   </View>
                   <View style={scheduleStyles.dateStrip}>
                     {weekDates.map((date) => {
@@ -3564,6 +3628,18 @@ export function ScheduleTab({
                         {detectEventKeyword(formTitle)!.label} card will be shown
                       </Text>
                     </View>
+                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingVertical: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.foreground, marginBottom: 2 }]}>OFF EVENT</Text>
+                      <Text style={{ color: colors.muted, fontSize: 12 }}>Show this event only on time-off days</Text>
+                    </View>
+                    <Switch value={formOffEvent} onValueChange={setFormOffEvent} trackColor={{ false: colors.border, true: colors.primary }} thumbColor="#FFFFFF" />
+                  </View>
+                  {formOffEvent && (
+                    <Pressable onPress={pickTimeOffPoster} style={({ pressed }) => [{ borderWidth: 1, borderColor: colors.primary, borderRadius: 12, height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14, opacity: pressed ? 0.75 : 1 }]}> 
+                      {formPosterImage ? <Image source={{ uri: formPosterImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <><MaterialIcons name="add-photo-alternate" size={32} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: '700', marginTop: 6 }}>Add poster</Text></>}
+                    </Pressable>
                   )}
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
                   <DateTimePicker

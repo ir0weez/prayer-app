@@ -15,6 +15,9 @@ export type ScheduleEvent = {
   id: string;
   title: string;
   date: string; // ISO YYYY-MM-DD
+  isOffEvent?: boolean; // Only appears on marked time-off days
+  posterImageUri?: string; // Optional poster/photo for time-off events
+  posterColor?: string; // Dominant poster color used for the card background
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
   reminderMinutesBefore?: number; // Optional local notification lead time

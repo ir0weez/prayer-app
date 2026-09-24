@@ -246,8 +246,72 @@ function EventCard({
 
   // Note: Removed full-bleed image rendering - using keyword card instead
 
+  // Off-events use the poster as a contained right-side visual, like the
+  // regular event icon. The card itself uses the poster's extracted color.
+  if (event.isOffEvent) {
+    return (
+      <>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onToggle();
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        >
+          <View style={[eventStyles.defaultCard, { backgroundColor: timeOffCardColor, borderColor: timeOffCardColor, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : 96 }]}> 
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[eventStyles.defaultTitle, { color: timeOffTextColor }]} numberOfLines={2}>{event.title}</Text>
+              {event.notes && (
+                <Text style={[eventStyles.defaultDescription, { color: `${timeOffTextColor}EE` }]} numberOfLines={2}>
+                  {event.notes}
+                </Text>
+              )}
+              {event.startTime && (
+                <Text style={[eventStyles.defaultTime, { color: `${timeOffTextColor}DD` }] }>
+                  {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
+                </Text>
+              )}
+              {event.location && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <MaterialIcons name="location-on" size={15} color={`${timeOffTextColor}CC`} />
+                  <Text style={{ color: `${timeOffTextColor}CC`, fontSize: 13 }} numberOfLines={1}>{event.location}</Text>
+                </View>
+              )}
+            </View>
+            {event.posterImageUri ? (
+              <Image
+                source={{ uri: event.posterImageUri }}
+                style={{ width: 86, height: 86, marginLeft: 12, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.16)' }}
+                contentFit="contain"
+              />
+            ) : (
+              <MaterialIcons name={(keyword?.icon || 'event') as any} size={48} color={timeOffTextColor} style={{ marginLeft: 12, opacity: 0.9 }} />
+            )}
+            {isLiveScheduledBlock && (
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
+                <NowPill />
+                <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: `${timeOffTextColor}55`, borderRadius: 3, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: timeOffTextColor, borderRadius: 3 }} />
+                </View>
+              </View>
+            )}
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
+    );
+  }
+
   // Active: illustrated card if keyword matches (fallback without image)
-  if (keyword && !event.isOffEvent) {
+  if (keyword) {
     return (
       <>
         <Pressable

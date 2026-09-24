@@ -54,9 +54,10 @@ export async function extractPosterColor(uri: string, fallback = DEFAULT_TIME_OF
 }
 
 export function getTimeOffEventColor(event: { posterColor?: string; color?: string }) {
-  // The color chosen in the event editor is authoritative. PosterColor is a
-  // fallback for older off-events or events created without an explicit color.
-  return event.color || event.posterColor || DEFAULT_TIME_OFF_EVENT_COLOR;
+  // The poster's extracted main color is authoritative for illustrated
+  // off-events. The selected event color remains the fallback when no poster
+  // color is available.
+  return event.posterColor || event.color || DEFAULT_TIME_OFF_EVENT_COLOR;
 }
 
 export function isTimeOffEventVisible(event: { isOffEvent?: boolean }, isTimeOffDay: boolean) {

@@ -247,7 +247,7 @@ function EventCard({
   // Note: Removed full-bleed image rendering - using keyword card instead
 
   // Active: illustrated card if keyword matches (fallback without image)
-  if (keyword) {
+  if (keyword && !event.isOffEvent) {
     return (
       <>
         <Pressable
@@ -316,18 +316,18 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}>
+          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}> 
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-          <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />
+          {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}
           <View style={{ flex: 1 }}>
             <Text style={[eventStyles.defaultTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
             {event.notes && (
-              <Text style={[eventStyles.defaultDescription, { color: '#FFFFFFEE' }]} numberOfLines={2}>
+              <Text style={[eventStyles.defaultDescription, { color: event.isOffEvent ? `${timeOffTextColor}EE` : '#FFFFFFEE' }]} numberOfLines={2}>
                 {event.notes}
               </Text>
             )}
             {event.startTime && (
-              <Text style={[eventStyles.defaultTime, { color: '#FFFFFFDD' }] }>
+              <Text style={[eventStyles.defaultTime, { color: event.isOffEvent ? `${timeOffTextColor}DD` : '#FFFFFFDD' }] }>
                 {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}

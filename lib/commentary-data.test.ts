@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_COMMENTARY, getAllCommentariesForVerse } from './commentary-data';
 import { IMPORTED_COMMENTARY } from './commentary-imported';
 import { IMPORTED_COMMENTARY_NEW } from './commentary-imported-new';
+import { CLEANED_1SAMUEL_BY_VERSE, CLEANED_1SAMUEL_CHAPTERS } from './commentary-cleaned-1samuel';
+import { CLEANED_2SAMUEL_BY_VERSE, CLEANED_2SAMUEL_CHAPTERS } from './commentary-cleaned-2samuel';
 
 describe('Deuteronomy 11–20 commentary import', () => {
   it('covers the supplied ten-chapter range with the parsed verse and paragraph totals', () => {
@@ -127,6 +129,27 @@ describe('Joshua 11–20 commentary import', () => {
 });
 
 describe('Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
+  it('imports every Samuel chapter with the introduction first', () => {
+    expect(Object.keys(CLEANED_1SAMUEL_CHAPTERS)).toHaveLength(31);
+    expect(Object.keys(CLEANED_2SAMUEL_CHAPTERS)).toHaveLength(24);
+    for (const chapters of [CLEANED_1SAMUEL_CHAPTERS, CLEANED_2SAMUEL_CHAPTERS]) {
+      for (const sections of Object.values(chapters)) {
+        expect(sections[0]?.title).toBe('Introduction');
+        expect(sections[0]?.entries.every((entry) => entry.isIntroduction)).toBe(true);
+      }
+    }
+  });
+
+  it('keeps Samuel subsection ranges and source order intact', () => {
+    const chapterOne = CLEANED_1SAMUEL_CHAPTERS[1];
+    expect(chapterOne.find((section) => section.title === "Hannah's Prayer")).toMatchObject({ startVerse: 1, endVerse: 18 });
+    expect(chapterOne.find((section) => section.title === 'The Birth of Samuel')).toMatchObject({ startVerse: 19, endVerse: 23 });
+    const notes = CLEANED_2SAMUEL_BY_VERSE['2samuel_1_1'];
+    expect(notes[0]?.id).toContain('2samuel_1_1_');
+    expect(notes[0]?.text).toContain('It seems that this man went out of his way');
+    expect(CLEANED_1SAMUEL_BY_VERSE['1samuel_1_1']?.every((entry) => entry.book === '1 Samuel')).toBe(true);
+  });
+
   it('imports all continuation notes into the verse lookup', () => {
     const importedNotes = Object.values(IMPORTED_COMMENTARY).flat();
 
@@ -135,10 +158,10 @@ describe('Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
     expect(Object.keys(DEFAULT_COMMENTARY)).toEqual(expect.arrayContaining([
       'ruth_1_1',
       'ruth_4_17',
-      '1samuel_1_2',
-      '1samuel_31_13',
-      '2samuel_1_2',
-      '2samuel_24_25',
+      '1samuel_1_1',
+      '1samuel_31_11',
+      '2samuel_1_1',
+      '2samuel_24_24',
     ]));
   });
 
@@ -146,7 +169,7 @@ describe('Ruth, 1 Samuel, and 2 Samuel commentary import', () => {
     const notes = getAllCommentariesForVerse('2 Samuel', 11, 1);
 
     expect(notes).toHaveLength(1);
-    expect(notes[0].id).toBe('2samuel_11_1_para1');
+    expect(notes[0].id).toContain('2samuel_11_1_');
     expect(notes[0].verse).toBe(1);
     expect(notes[0].author).toBe('Tried By Fire');
   });

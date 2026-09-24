@@ -18,6 +18,14 @@ import {
   CLEANED_RUTH_BY_VERSE,
   CLEANED_RUTH_CHAPTERS,
 } from './commentary-cleaned-ruth';
+import {
+  CLEANED_1SAMUEL_BY_VERSE,
+  CLEANED_1SAMUEL_CHAPTERS,
+} from './commentary-cleaned-1samuel';
+import {
+  CLEANED_2SAMUEL_BY_VERSE,
+  CLEANED_2SAMUEL_CHAPTERS,
+} from './commentary-cleaned-2samuel';
 
 export interface CommentaryNote {
   id: string;
@@ -43,7 +51,7 @@ const COMMENTARY_STORAGE_KEY = 'prayer_circle_commentary';
 // cleaned source files replace earlier imports for their books so each verse
 // has one authoritative, source-ordered set of notes.
 const IMPORTED_COMMENTARY_WITHOUT_CLEANED_BOOKS = Object.fromEntries(
-  Object.entries(IMPORTED_COMMENTARY).filter(([key]) => !/^(?:deuteronomy|joshua|ruth)_\d+_\d+$/.test(key)),
+  Object.entries(IMPORTED_COMMENTARY).filter(([key]) => !/^(?:deuteronomy|joshua|ruth|1samuel|2samuel)_\d+_\d+$/.test(key)),
 );
 
 const DEFAULT_COMMENTARY: Record<string, CommentaryNote[]> = {
@@ -55549,6 +55557,8 @@ Genesis 5:18`,
   ...CLEANED_DEUTERONOMY_BY_VERSE,
   ...CLEANED_JOSHUA_BY_VERSE,
   ...CLEANED_RUTH_BY_VERSE,
+  ...CLEANED_1SAMUEL_BY_VERSE,
+  ...CLEANED_2SAMUEL_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
@@ -55559,6 +55569,12 @@ for (const key of Object.keys(DEFAULT_COMMENTARY)) {
     delete DEFAULT_COMMENTARY[key];
   }
   if (/^ruth_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_RUTH_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^1samuel_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_1SAMUEL_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^2samuel_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_2SAMUEL_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55578,6 +55594,12 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === 'ruth') {
     return CLEANED_RUTH_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === '1 samuel') {
+    return CLEANED_1SAMUEL_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === '2 samuel') {
+    return CLEANED_2SAMUEL_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

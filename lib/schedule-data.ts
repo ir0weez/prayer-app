@@ -144,6 +144,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["soccer", "football"], label: "Soccer", emoji: "⚽", icon: "sports-soccer", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#4CAF50" },
   { keywords: ["game", "games"], label: "Game", emoji: "🎮", icon: "sports-esports", bgColor: "#EDE7F6", textColor: "#311B92", accentColor: "#673AB7" },
   { keywords: ["movie", "movies", "film"], label: "Movie", emoji: "🎬", icon: "movie", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#E91E63" },
+  { keywords: ["full moon"], label: "Full Moon", emoji: "🌕", icon: "brightness-3", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#5C6BC0" },
   { keywords: ["prayer", "pray"], label: "Prayer", emoji: "🙏", icon: "pan-tool", bgColor: "#EDE7F6", textColor: "#311B92", accentColor: "#673AB7" },
   { keywords: ["mission", "outreach", "volunteer"], label: "Outreach", emoji: "🌍❤️", icon: "public", bgColor: "#E0F7FA", textColor: "#006064", accentColor: "#00BCD4" },
   { keywords: ["concert", "music", "band"], label: "Concert", emoji: "🎶", icon: "music-note", bgColor: "#F9FBE7", textColor: "#33691E", accentColor: "#8BC34A" },

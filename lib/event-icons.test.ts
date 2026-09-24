@@ -123,6 +123,7 @@ describe("event-icons", () => {
         "sports-soccer",
         "sports-esports",
         "movie",
+        "brightness-3",
         "pan-tool",
         "public",
         "flight",
@@ -156,6 +157,13 @@ describe("event-icons", () => {
     it("should map movies to the movie icon", () => {
       const keyword = detectEventKeyword("Movie night");
       expect(keyword?.icon).toBe("movie");
+    });
+
+    it("should map Full Moon events to the moon icon", () => {
+      const keyword = detectEventKeyword("Full Moon");
+      expect(keyword).not.toBeNull();
+      expect(keyword?.label).toBe("Full Moon");
+      expect(keyword?.icon).toBe("brightness-3");
     });
 
     it("should detect dinner and return restaurant icon", () => {

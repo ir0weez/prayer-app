@@ -1040,6 +1040,7 @@ export function ScheduleTab({
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
   const [showMinistryForm, setShowMinistryForm] = useState(false);
 
@@ -1892,6 +1893,7 @@ export function ScheduleTab({
   };
 
   const resetForm = () => {
+    setEditingTodoId(null);
     setFormTitle("");
     setFormDate("");
     setFormStartTime("");
@@ -1923,6 +1925,25 @@ export function ScheduleTab({
     setEditingWorshipAlbumId(null);
     setFormBibleBook("Genesis");
     setFormBibleChapter("1");
+  };
+
+  const openEditTodo = (todo: ScheduleTodo) => {
+    setEditingTodoId(todo.id);
+    setFormTitle(todo.title);
+    setFormDate(todo.date);
+    setFormStartTime(todo.startTime || "");
+    setFormTodoNotificationsEnabled(todo.notificationsEnabled !== false);
+    setFormColor(todo.color || "#6366F1");
+    setFormTodoNotes(todo.notes || "");
+    setFormSubtasks(todo.subtasks || []);
+    setFormLinkedPeopleIds(todo.linkedPeopleIds || []);
+    setFormLinkedEventId(todo.linkedEventId || null);
+    setFormLinkedMinistryId(todo.linkedMinistryId || null);
+    setFormTodoTag(todo.tag || null);
+    setFormSubtaskTitle("");
+    setFormSubtaskDescription("");
+    setAddType("todo");
+    setShowAddModal(true);
   };
 
   const handleSaveEvent = () => {
@@ -2007,7 +2028,25 @@ export function ScheduleTab({
       newTodo.subtasks = formSubtasks;
     }
     setTodos((prev) => {
-      const updated = [...prev, newTodo];
+      const existingTodo = editingTodoId ? prev.find((todo) => todo.id === editingTodoId) : undefined;
+      const todoToSave: ScheduleTodo = existingTodo
+        ? {
+            ...newTodo,
+            id: existingTodo.id,
+            order: existingTodo.order,
+            isCompleted: existingTodo.isCompleted,
+            completedAt: existingTodo.completedAt,
+            linkedPeopleIds: formLinkedPeopleIds.length > 0 ? formLinkedPeopleIds : undefined,
+            linkedEventId: formLinkedEventId || undefined,
+            linkedMinistryId: formLinkedMinistryId || undefined,
+            tag: formTodoTag || undefined,
+            notes: formTodoNotes || undefined,
+            subtasks: formSubtasks.length > 0 ? formSubtasks : undefined,
+          }
+        : newTodo;
+      const updated = editingTodoId
+        ? prev.map((todo) => todo.id === editingTodoId ? todoToSave : todo)
+        : [...prev, todoToSave];
       // Auto-sort todos by time for the selected date
       return updated.sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -2768,14 +2807,7 @@ export function ScheduleTab({
               showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
               onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
-              onEdit={() => {
-                setFormTitle(item.data.title);
-                setFormDate(item.data.date);
-                setFormStartTime(item.data.startTime || "");
-                setFormTodoNotificationsEnabled(item.data.notificationsEnabled !== false);
-                setAddType("todo");
-                setShowAddModal(true);
-              }}
+              onEdit={() => openEditTodo(item.data)}
               onDelete={() => {
                 Alert.alert(
                   'Delete Todo',
@@ -3240,11 +3272,7 @@ export function ScheduleTab({
                         personalTodos={memoizedSummaryData.personalTodos}
                         onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
                         onAvatarPress={(todo) => {
-                          setFormTitle(todo.title);
-                          setFormDate(selectedDate);
-                          setFormStartTime(todo.dueTime || "");
-                          setAddType("todo");
-                          setShowAddModal(true);
+                          openEditTodo(todo);
                         }}
                         eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
                         ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
@@ -3751,7 +3779,7 @@ export function ScheduleTab({
               <Pressable onPress={() => { setAddType(null); resetForm(); }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <MaterialIcons name="close" size={28} color={colors.foreground} />
               </Pressable>
-              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>New Todo</Text>
+              <Text style={[scheduleStyles.formTitle, { color: colors.foreground }]}>{editingTodoId ? "Edit Todo" : "New Todo"}</Text>
               <Pressable onPress={handleSaveTodo} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>

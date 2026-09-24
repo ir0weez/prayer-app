@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -42,6 +42,18 @@ export function EventEditForm({
   const [formLocation, setFormLocation] = useState(event.location || "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#0a7ea4");
+
+  useEffect(() => {
+    if (!visible) return;
+    setFormTitle(event.title);
+    setFormDate(event.date);
+    setFormStartTime(event.startTime || "");
+    setFormEndTime(event.endTime || "");
+    setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
+    setFormLocation(event.location || "");
+    setFormNotes(event.notes || "");
+    setFormColor(event.color || "#0a7ea4");
+  }, [event, visible]);
 
   const handleStartTimeChange = (value: string) => {
     setFormStartTime(value);

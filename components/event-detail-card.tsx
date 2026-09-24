@@ -219,6 +219,7 @@ export function EventDetailCard({
           onSave={(updatedEvent) => {
             onEdit(updatedEvent);
             setEditFormVisible(false);
+            onClose();
           }}
         />
       )}

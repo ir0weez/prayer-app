@@ -54,6 +54,10 @@ import {
   CLEANED_OBADIAH_BY_VERSE,
   CLEANED_OBADIAH_CHAPTERS,
 } from './commentary-cleaned-obadiah';
+import {
+  CLEANED_JONAH_BY_VERSE,
+  CLEANED_JONAH_CHAPTERS,
+} from './commentary-cleaned-jonah';
 
 export interface CommentaryNote {
   id: string;
@@ -55594,6 +55598,7 @@ Genesis 5:18`,
   ...CLEANED_SONGOFSOLOMON_BY_VERSE,
   ...CLEANED_ISAIAH_BY_VERSE,
   ...CLEANED_OBADIAH_BY_VERSE,
+  ...CLEANED_JONAH_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
@@ -55631,6 +55636,9 @@ for (const key of Object.keys(DEFAULT_COMMENTARY)) {
     delete DEFAULT_COMMENTARY[key];
   }
   if (/^obadiah_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_OBADIAH_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^jonah_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_JONAH_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55677,6 +55685,9 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === 'obadiah') {
     return CLEANED_OBADIAH_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === 'jonah') {
+    return CLEANED_JONAH_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

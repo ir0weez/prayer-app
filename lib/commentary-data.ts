@@ -58,6 +58,10 @@ import {
   CLEANED_JONAH_BY_VERSE,
   CLEANED_JONAH_CHAPTERS,
 } from './commentary-cleaned-jonah';
+import {
+  CLEANED_MARK_BY_VERSE,
+  CLEANED_MARK_CHAPTERS,
+} from './commentary-cleaned-mark';
 
 export interface CommentaryNote {
   id: string;
@@ -55599,6 +55603,7 @@ Genesis 5:18`,
   ...CLEANED_ISAIAH_BY_VERSE,
   ...CLEANED_OBADIAH_BY_VERSE,
   ...CLEANED_JONAH_BY_VERSE,
+  ...CLEANED_MARK_BY_VERSE,
 };
 
 for (const key of Object.keys(DEFAULT_COMMENTARY)) {
@@ -55639,6 +55644,9 @@ for (const key of Object.keys(DEFAULT_COMMENTARY)) {
     delete DEFAULT_COMMENTARY[key];
   }
   if (/^jonah_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_JONAH_BY_VERSE, key)) {
+    delete DEFAULT_COMMENTARY[key];
+  }
+  if (/^mark_\d+_\d+$/.test(key) && !Object.prototype.hasOwnProperty.call(CLEANED_MARK_BY_VERSE, key)) {
     delete DEFAULT_COMMENTARY[key];
   }
 }
@@ -55688,6 +55696,9 @@ export function getStructuredCommentarySections(book: string, chapter: number): 
   }
   if (book.trim().toLowerCase() === 'jonah') {
     return CLEANED_JONAH_CHAPTERS[chapter] ?? [];
+  }
+  if (book.trim().toLowerCase() === 'mark') {
+    return CLEANED_MARK_CHAPTERS[chapter] ?? [];
   }
   return [];
 }

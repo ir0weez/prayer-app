@@ -36,7 +36,8 @@ import {
   type RelationshipType,
   type ReminderFrequency,
 } from "@/lib/prayercircle-data";
-import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -268,6 +269,8 @@ export default function PersonScreen() {
   const [showDateModal, setShowDateModal] = useState(false);
   const [draftLastReachedDate, setDraftLastReachedDate] = useState(getTodayISOString());
   const [draftLastMeetingLocation, setDraftLastMeetingLocation] = useState("");
+  const [draftReachedStampNote, setDraftReachedStampNote] = useState("");
+  const [reachedStamps, setReachedStamps] = useState<ReachedStamp[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftRelationship, setDraftRelationship] = useState<RelationshipType>("Friends");
@@ -289,6 +292,12 @@ export default function PersonScreen() {
   const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([]);
   const [selectedTodoColor, setSelectedTodoColor] = useState<string>("#8B5CF6");
   const TODO_COLORS = ["#8B5CF6", "#EF4444", "#10B981", "#F59E0B", "#3B82F6"];
+
+  useEffect(() => {
+    AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY)
+      .then((stored) => { if (stored) setReachedStamps(normalizeReachedStamps(JSON.parse(stored))); })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -461,6 +470,11 @@ export default function PersonScreen() {
     if (!personId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
+    if (currentPerson) {
+      const next = upsertReachedStamp(reachedStamps, { personId, personName: currentPerson.name, date: getTodayISOString() });
+      setReachedStamps(next);
+      AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+    }
   };
 
   const handleAddEmergencyPrayer = () => {
@@ -650,6 +664,7 @@ export default function PersonScreen() {
     if (!currentPerson) return;
     setDraftLastReachedDate(currentPerson.lastPrayedDate ?? getTodayISOString());
     setDraftLastMeetingLocation(currentPerson.lastMeetingLocation ?? "");
+    setDraftReachedStampNote(reachedStamps.find((stamp) => stamp.personId === currentPerson.id && stamp.date === getTodayISOString())?.note ?? "");
     setShowDateModal(true);
   };
 
@@ -667,6 +682,11 @@ export default function PersonScreen() {
     updatePeople((previousPeople) =>
       updatePersonLastReachedDate(previousPeople, personId, draftLastReachedDate, draftLastMeetingLocation),
     );
+    if (currentPerson && draftLastReachedDate === getTodayISOString()) {
+      const next = upsertReachedStamp(reachedStamps, { personId, personName: currentPerson.name, date: draftLastReachedDate, note: draftReachedStampNote });
+      setReachedStamps(next);
+      AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+    }
     setShowDateModal(false);
   };
 
@@ -766,6 +786,19 @@ export default function PersonScreen() {
           </View>
         </Pressable>
         <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
+
+        {reachedStamps.some((stamp) => stamp.personId === currentPerson.id) && (
+          <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: getThemeAwareColor("#FBF8FF", colors) }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800", marginBottom: 7 }}>Reached stamps</Text>
+            {reachedStamps.filter((stamp) => stamp.personId === currentPerson.id).slice().reverse().map((stamp) => (
+              <View key={stamp.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}>
+                <MaterialIcons name={iconName("verified")} size={16} color={colors.primary} />
+                <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700" }}>{formatIsoDateForDisplay(stamp.date)}</Text>
+                {!!stamp.note && <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 12 }}>{stamp.note}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
 
         <Pressable
           onPress={() => setShowEmergencyPrayerModal(true)}
@@ -1249,6 +1282,15 @@ export default function PersonScreen() {
               value={draftLastMeetingLocation}
               onChangeText={setDraftLastMeetingLocation}
               placeholder="e.g., Coffee shop, church, school"
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}
+            />
+            <Text style={styles.modalFieldLabel}>Stamp note (optional)</Text>
+            <TextInput
+              value={draftReachedStampNote}
+              onChangeText={setDraftReachedStampNote}
+              placeholder="e.g., phone call, coffee shop"
               placeholderTextColor={colors.muted}
               returnKeyType="done"
               style={[styles.modalInput, { backgroundColor: getThemeAwareColor("#FBF8FF", colors) }]}

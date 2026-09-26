@@ -98,7 +98,8 @@ import {
   type PersonalFast,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
@@ -452,6 +453,9 @@ export default function HomeScreen() {
   const [avatarComposer, setAvatarComposer] = useState<{ personId: string; kind: "praise" | "emergency" } | null>(null);
   const [avatarComposerText, setAvatarComposerText] = useState("");
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
+  const [reachedStamps, setReachedStamps] = useState<ReachedStamp[]>([]);
+  const [reachedStampEditor, setReachedStampEditor] = useState<{ personId: string; personName: string; date: string; stampId?: string } | null>(null);
+  const [reachedStampNote, setReachedStampNote] = useState("");
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
@@ -459,8 +463,8 @@ export default function HomeScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY)])
-      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos, storedJournal]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY), AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos, storedJournal, storedReachedStamps]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -474,6 +478,7 @@ export default function HomeScreen() {
         if (storedFasts) setFasts(normalizeFastsForStorage(JSON.parse(storedFasts)));
         if (storedScheduleTodos) setScheduleTodos(JSON.parse(storedScheduleTodos));
         if (storedJournal) setJournal(normalizePrayerJournalEntries(JSON.parse(storedJournal)));
+        if (storedReachedStamps) setReachedStamps(normalizeReachedStamps(JSON.parse(storedReachedStamps)));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -526,10 +531,25 @@ export default function HomeScreen() {
     }, [hasHydratedPeople, today]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY)
+        .then((stored) => {
+          if (stored) setReachedStamps(normalizeReachedStamps(JSON.parse(stored)));
+        })
+        .catch(() => undefined);
+    }, []),
+  );
+
   useEffect(() => {
     if (!hasHydratedPeople) return;
     AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people)).catch(() => undefined);
   }, [hasHydratedPeople, people]);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(reachedStamps)).catch(() => undefined);
+  }, [hasHydratedPeople, reachedStamps]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;
@@ -2204,6 +2224,8 @@ export default function HomeScreen() {
           notificationScheduleAction={notificationScheduleActionParam}
           notificationScheduleKind={notificationScheduleKindParam}
           notificationScheduleId={notificationScheduleIdParam}
+          reachedStamps={reachedStamps}
+          onReachedStampsChange={setReachedStamps}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {

@@ -53,10 +53,12 @@ import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
 import { BibleChapterViewer } from "./bible-chapter-viewer";
 import { TimeOffModal } from "./time-off-modal";
+import { ReachedStampRow } from "./reached-stamp-row";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
 import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
+import { removeReachedStamp, updateReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
 import {
   getDisplayedWorshipAlbum,
@@ -1073,6 +1075,8 @@ export function ScheduleTab({
   notificationScheduleAction,
   notificationScheduleKind,
   notificationScheduleId,
+  reachedStamps = [],
+  onReachedStampsChange,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -1091,6 +1095,8 @@ export function ScheduleTab({
   notificationScheduleAction?: string;
   notificationScheduleKind?: string;
   notificationScheduleId?: string;
+  reachedStamps?: ReachedStamp[];
+  onReachedStampsChange?: (stamps: ReachedStamp[]) => void;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
@@ -1183,6 +1189,8 @@ export function ScheduleTab({
   const [isWorshipExpansionHydrated, setIsWorshipExpansionHydrated] = useState(false);
   const [worshipTrackCompletions, setWorshipTrackCompletions] = useState<Record<string, boolean>>({});
   const [isWorshipTrackCompletionsHydrated, setIsWorshipTrackCompletionsHydrated] = useState(false);
+  const [editingReachedStamp, setEditingReachedStamp] = useState<ReachedStamp | null>(null);
+  const [reachedStampNote, setReachedStampNote] = useState("");
   const [editingWorshipAlbumId, setEditingWorshipAlbumId] = useState<string | null>(null);
   const albumHistoryRef = useRef<StoredWorshipAlbum[]>([]);
   const currentDisplayAlbumIdRef = useRef<string | null>(null);
@@ -3272,6 +3280,7 @@ export function ScheduleTab({
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             extraData={[selectedDate, listData, colors, currentAlbum, isWorshipExpanded]}
+            ListFooterComponent={<ReachedStampRow stamps={reachedStamps} onChange={onReachedStampsChange} />}
             contentContainerStyle={[
               scheduleStyles.listContent,
               {

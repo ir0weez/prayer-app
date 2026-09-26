@@ -14,6 +14,7 @@ import {
   addPrayerItem,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
+  getDaysSinceLastPrayedOnDate,
   getPrayerCheckInPeople,
   formatIsoDateForDisplay,
   formatLastReachedSummary,
@@ -137,6 +138,12 @@ describe("PrayerCircle local data helpers", () => {
     expect(getDaysSinceLastPrayed(today)).toBe(0);
     expect(getDaysSinceLastPrayed(yesterdayISO)).toBe(1);
     expect(getDaysSinceLastPrayed(null)).toBe(999);
+  });
+
+  it("calculates elapsed days relative to the selected schedule date", () => {
+    expect(getDaysSinceLastPrayedOnDate("2026-09-01", "2026-09-15")).toBe(14);
+    expect(getDaysSinceLastPrayedOnDate("2026-09-01", "2026-09-29")).toBe(28);
+    expect(getDaysSinceLastPrayedOnDate("2026-09-01", "2026-08-29")).toBe(0);
   });
 
   it("keeps an overdue contact on the schedule after the 14-day checkpoint", () => {

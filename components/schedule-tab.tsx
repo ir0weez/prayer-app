@@ -111,7 +111,7 @@ import {
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, getDaysSinceLastPrayedOnDate, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
@@ -949,7 +949,7 @@ function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
   );
 }
 
-function PrayerCheckInNotice({ people }: { people: Person[] }) {
+function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selectedDate: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const nameOpacity = useRef(new Animated.Value(1)).current;
   const attentionPulse = useRef(new Animated.Value(0)).current;
@@ -987,13 +987,14 @@ function PrayerCheckInNotice({ people }: { people: Person[] }) {
 
   if (people.length === 0) return null;
   const activePerson = people[activeIndex % people.length];
+  const daysSinceReached = activePerson ? getDaysSinceLastPrayedOnDate(activePerson.lastPrayedDate, selectedDate) : 0;
   const dotScale = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
   const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <View style={scheduleStyles.prayerCheckInNotice} accessibilityRole="text">
       <Animated.View style={[scheduleStyles.prayerCheckInDot, { opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
       <Animated.Text style={[scheduleStyles.prayerCheckInText, { opacity: nameOpacity }]} numberOfLines={1}>
-        {activePerson?.name} hasn’t been reached in the last 14 days.
+        {activePerson?.name} hasn’t been reached in {daysSinceReached} days.
       </Animated.Text>
     </View>
   );
@@ -3357,7 +3358,7 @@ export function ScheduleTab({
                   />
                 </View>
 
-                <PrayerCheckInNotice people={prayerCheckInPeople} />
+                <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
 
                 {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
                 <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
@@ -4720,11 +4721,11 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginHorizontal: 20,
-    marginTop: 4,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 2,
     paddingHorizontal: 8,
-    paddingVertical: 10,
-    minHeight: 44,
+    paddingVertical: 6,
+    minHeight: 38,
     backgroundColor: '#FFFFFF',
   },
   prayerCheckInDot: {

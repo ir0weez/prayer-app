@@ -166,6 +166,14 @@ export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
 
+export function getDaysSinceLastPrayedOnDate(lastPrayedDate: string | null, selectedDate: string): number {
+  if (!lastPrayedDate) return 0;
+  const lastReached = parseLocalIsoDate(lastPrayedDate);
+  const selected = parseLocalIsoDate(selectedDate);
+  if (!lastReached || !selected) return 0;
+  return Math.max(0, Math.floor((selected.getTime() - lastReached.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
 function parseLocalIsoDate(dateString: string): Date | null {
   const [year, month, day] = dateString.split('-').map(Number);
   if (![year, month, day].every(Number.isFinite)) return null;

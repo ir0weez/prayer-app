@@ -988,6 +988,13 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
 
   if (people.length === 0) return null;
   const activePerson = people[activeIndex % people.length];
+  const displayName = activePerson?.name
+    ? (() => {
+        const nameParts = activePerson.name.trim().split(/\s+/).filter(Boolean);
+        if (nameParts.length <= 1) return nameParts[0] ?? "";
+        return `${nameParts[0].charAt(0)}. ${nameParts.slice(1).join(" ")}`;
+      })()
+    : "";
   const daysSinceReached = activePerson ? getDaysSinceLastPrayedOnDate(activePerson.lastPrayedDate, selectedDate) : 0;
   const dotScale = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
   const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
@@ -995,7 +1002,7 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
     <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: colors.surface }]} accessibilityRole="text">
       <Animated.View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error, opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
       <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
-        {activePerson?.name} hasn’t been reached in {daysSinceReached} days.
+        {displayName} hasn’t been reached in {daysSinceReached} days.
       </Animated.Text>
     </View>
   );

@@ -1,13 +1,14 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Rect, Text as SvgText } from "react-native-svg";
 
 import { useColors } from "@/hooks/use-colors";
-import { formatIsoDateForDisplay, getTodayISOString, relationshipColors, type Person } from "@/lib/prayercircle-data";
+import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
 import { removeReachedStamp, updateReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 
-type StampVariation = { rotation: number; radius: number; dash: string; markOffset: number };
+type StampShape = "circle" | "oval" | "rounded-rectangle";
+type StampVariation = { rotation: number; radius: number; dash: string; markOffset: number; shape: StampShape };
 
 function hashStamp(value: string): number {
   let hash = 0;
@@ -15,13 +16,14 @@ function hashStamp(value: string): number {
   return Math.abs(hash);
 }
 
-function getStampVariation(stamp: ReachedStamp): StampVariation {
+export function getStampVariation(stamp: ReachedStamp): StampVariation {
   const hash = hashStamp(`${stamp.personId}:${stamp.personName}`);
   return {
     rotation: -4 + (hash % 9),
     radius: 52 + (hash % 3),
     dash: hash % 2 === 0 ? "2 3" : "1 4",
     markOffset: hash % 18,
+    shape: (["circle", "oval", "rounded-rectangle"] as StampShape[])[hash % 3],
   };
 }
 
@@ -38,8 +40,18 @@ function PassportStamp({ stamp, ink }: { stamp: ReachedStamp; ink: string }) {
     <View style={[styles.stampWrap, { transform: [{ rotate: `${variation.rotation}deg` }] }]}>
       <Svg width={124} height={124} viewBox="0 0 124 124">
         <G>
-          <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
-          <Circle cx="62" cy="62" r={variation.radius - 6} fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
+          {variation.shape === "circle" && <>
+            <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+            <Circle cx="62" cy="62" r={variation.radius - 6} fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
+          </>}
+          {variation.shape === "oval" && <>
+            <Ellipse cx="62" cy="62" rx="56" ry="48" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+            <Ellipse cx="62" cy="62" rx="50" ry="42" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
+          </>}
+          {variation.shape === "rounded-rectangle" && <>
+            <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+            <Rect x="14" y="20" width="96" height="84" rx="14" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
+          </>}
           <Circle cx={24 + variation.markOffset} cy="29" r="1.3" fill={ink} opacity={0.22} />
           <Circle cx="96" cy={84 + (variation.markOffset % 13)} r="1.1" fill={ink} opacity={0.2} />
           <Line x1="29" y1="94" x2="40" y2="91" stroke={ink} strokeWidth="1" opacity={0.18} />
@@ -57,15 +69,16 @@ function PassportStamp({ stamp, ink }: { stamp: ReachedStamp; ink: string }) {
 export function ReachedStampRow({
   stamps,
   people = [],
+  selectedDate,
   onChange,
 }: {
   stamps: ReachedStamp[];
   people?: Person[];
+  selectedDate: string;
   onChange?: (stamps: ReachedStamp[]) => void;
 }) {
   const colors = useColors();
-  const today = getTodayISOString();
-  const todayStamps = useMemo(() => stamps.filter((stamp) => stamp.date === today), [stamps, today]);
+  const selectedDayStamps = useMemo(() => stamps.filter((stamp) => stamp.date === selectedDate), [stamps, selectedDate]);
   const [editingStamp, setEditingStamp] = useState<ReachedStamp | null>(null);
   const [note, setNote] = useState("");
   const [showCollection, setShowCollection] = useState(false);
@@ -101,7 +114,7 @@ export function ReachedStampRow({
     setNote("");
   };
 
-  if (todayStamps.length === 0) return null;
+  if (selectedDayStamps.length === 0) return null;
 
   return (
     <View style={[styles.container, { borderTopColor: colors.border }]}>
@@ -116,7 +129,7 @@ export function ReachedStampRow({
         </Pressable>
       </View>
       <View style={styles.row}>
-        {todayStamps.map((stamp) => (
+        {selectedDayStamps.map((stamp) => (
           <Pressable
             key={stamp.id}
             accessibilityRole="button"

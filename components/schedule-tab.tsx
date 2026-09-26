@@ -950,6 +950,7 @@ function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
 }
 
 function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selectedDate: string }) {
+  const colors = useColors();
   const [activeIndex, setActiveIndex] = useState(0);
   const nameOpacity = useRef(new Animated.Value(1)).current;
   const attentionPulse = useRef(new Animated.Value(0)).current;
@@ -991,9 +992,9 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
   const dotScale = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
   const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
-    <View style={scheduleStyles.prayerCheckInNotice} accessibilityRole="text">
-      <Animated.View style={[scheduleStyles.prayerCheckInDot, { opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
-      <Animated.Text style={[scheduleStyles.prayerCheckInText, { opacity: nameOpacity }]} numberOfLines={1}>
+    <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: colors.surface }]} accessibilityRole="text">
+      <Animated.View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error, opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
+      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
         {activePerson?.name} hasn’t been reached in {daysSinceReached} days.
       </Animated.Text>
     </View>
@@ -4726,17 +4727,14 @@ const scheduleStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     minHeight: 38,
-    backgroundColor: '#FFFFFF',
   },
   prayerCheckInDot: {
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: '#EF4444',
   },
   prayerCheckInText: {
     flex: 1,
-    color: '#25213A',
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700',

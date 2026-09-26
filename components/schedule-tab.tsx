@@ -4729,11 +4729,11 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginHorizontal: 20,
-    marginTop: 5,
-    marginBottom: 5,
+    marginTop: 16,
+    marginBottom: 16,
     paddingHorizontal: 8,
-    paddingVertical: 6,
-    minHeight: 38,
+    paddingVertical: 0,
+    minHeight: 28,
   },
   prayerCheckInDot: {
     width: 9,
@@ -4757,7 +4757,8 @@ const scheduleStyles = StyleSheet.create({
   },
   summaryContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 2,
     borderBottomWidth: 0,
   },
   dateHeaderCard: {

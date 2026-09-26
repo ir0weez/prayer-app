@@ -3280,7 +3280,7 @@ export function ScheduleTab({
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             extraData={[selectedDate, listData, colors, currentAlbum, isWorshipExpanded]}
-            ListFooterComponent={<ReachedStampRow stamps={reachedStamps} onChange={onReachedStampsChange} />}
+            ListFooterComponent={<ReachedStampRow stamps={reachedStamps} people={people} onChange={onReachedStampsChange} />}
             contentContainerStyle={[
               scheduleStyles.listContent,
               {

@@ -992,7 +992,6 @@ function PrayerCheckInNotice({ people }: { people: Person[] }) {
   return (
     <View style={scheduleStyles.prayerCheckInNotice} accessibilityRole="text">
       <Animated.View style={[scheduleStyles.prayerCheckInDot, { opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
-      <MaterialIcons name="person-search" size={16} color="#7C3AED" />
       <Animated.Text style={[scheduleStyles.prayerCheckInText, { opacity: nameOpacity }]} numberOfLines={1}>
         {activePerson?.name} hasn’t been reached in the last 14 days.
       </Animated.Text>
@@ -4721,27 +4720,25 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginHorizontal: 20,
-    marginTop: 2,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    minHeight: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E7D9FF',
-    backgroundColor: '#F8F3FF',
+    marginTop: 4,
+    marginBottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    minHeight: 44,
+    backgroundColor: '#FFFFFF',
   },
   prayerCheckInDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
     backgroundColor: '#EF4444',
   },
   prayerCheckInText: {
     flex: 1,
-    color: '#7C3AED',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#25213A',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
   },
   scheduleTitle: {
     paddingHorizontal: 16,

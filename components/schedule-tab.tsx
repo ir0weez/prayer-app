@@ -4722,7 +4722,7 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginHorizontal: 20,
-    marginTop: 0,
+    marginTop: 8,
     marginBottom: 2,
     paddingHorizontal: 8,
     paddingVertical: 6,

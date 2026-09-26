@@ -149,11 +149,11 @@ describe("PrayerCircle local data helpers", () => {
     expect(getPrayerCheckInPeople(people, "2026-09-30")).toHaveLength(0);
   });
 
-  it("includes a never-reached person on the current date only", () => {
+  it("excludes a never-reached person from the checkpoint notice", () => {
     const people = addPerson(initialPeople, "Bob", "Family");
     const today = getTodayISOString();
 
-    expect(getPrayerCheckInPeople(people, today).map((person) => person.name)).toEqual(["Bob"]);
+    expect(getPrayerCheckInPeople(people, today)).toHaveLength(0);
     expect(getPrayerCheckInPeople(people, "1900-01-01")).toHaveLength(0);
   });
 

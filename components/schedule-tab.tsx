@@ -950,15 +950,52 @@ function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
 }
 
 function PrayerCheckInNotice({ people }: { people: Person[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const nameOpacity = useRef(new Animated.Value(1)).current;
+  const attentionPulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (people.length <= 1) {
+      setActiveIndex(0);
+      nameOpacity.setValue(1);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      Animated.timing(nameOpacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(({ finished }) => {
+        if (!finished) return;
+        setActiveIndex((current) => (current + 1) % people.length);
+        Animated.timing(nameOpacity, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      });
+    }, 3200);
+
+    return () => clearInterval(interval);
+  }, [nameOpacity, people.length]);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(attentionPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ]),
+        Animated.timing(attentionPulse, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [attentionPulse]);
+
   if (people.length === 0) return null;
-  const names = people.map((person) => person.name).join(', ');
-  const suffix = people.length === 1 ? "hasn't" : "haven't";
+  const activePerson = people[activeIndex % people.length];
+  const dotScale = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
+  const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <View style={scheduleStyles.prayerCheckInNotice} accessibilityRole="text">
+      <Animated.View style={[scheduleStyles.prayerCheckInDot, { opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
       <MaterialIcons name="person-search" size={16} color="#7C3AED" />
-      <Text style={scheduleStyles.prayerCheckInText} numberOfLines={2}>
-        {names} {suffix} been reached in the last 14 days.
-      </Text>
+      <Animated.Text style={[scheduleStyles.prayerCheckInText, { opacity: nameOpacity }]} numberOfLines={1}>
+        {activePerson?.name} hasn’t been reached in the last 14 days.
+      </Animated.Text>
     </View>
   );
 }
@@ -3243,7 +3280,6 @@ export function ScheduleTab({
             scrollEventThrottle={16}
             ListHeaderComponent={
               <>
-                <PrayerCheckInNotice people={prayerCheckInPeople} />
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
@@ -3322,6 +3358,7 @@ export function ScheduleTab({
                   />
                 </View>
 
+                <PrayerCheckInNotice people={prayerCheckInPeople} />
 
                 {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
                 <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
@@ -4684,8 +4721,15 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 2,
+    paddingTop: 4,
+    paddingBottom: 6,
+    minHeight: 28,
+  },
+  prayerCheckInDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
   },
   prayerCheckInText: {
     flex: 1,

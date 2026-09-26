@@ -181,7 +181,7 @@ export function getPrayerCheckInPeople(people: Person[], selectedDate: string, c
   if (!selected) return [];
 
   return people.filter((person) => {
-    if (!person.lastPrayedDate) return selectedDate === getTodayISOString();
+    if (!person.lastPrayedDate) return false;
     const lastReached = parseLocalIsoDate(person.lastPrayedDate);
     if (!lastReached) return false;
     const daysSince = Math.floor((selected.getTime() - lastReached.getTime()) / (1000 * 60 * 60 * 24));

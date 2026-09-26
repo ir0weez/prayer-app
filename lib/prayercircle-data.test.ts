@@ -14,6 +14,7 @@ import {
   addPrayerItem,
   getDailyPrayerProgress,
   getDaysSinceLastPrayed,
+  getPrayerCheckInPeople,
   formatIsoDateForDisplay,
   formatLastReachedSummary,
   getLastReachedAccentColor,
@@ -136,6 +137,24 @@ describe("PrayerCircle local data helpers", () => {
     expect(getDaysSinceLastPrayed(today)).toBe(0);
     expect(getDaysSinceLastPrayed(yesterdayISO)).toBe(1);
     expect(getDaysSinceLastPrayed(null)).toBe(999);
+  });
+
+  it("shows prayer check-ins only on 14-day checkpoints", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = updatePersonLastReachedDate(people, people[0].id, "2026-09-01");
+
+    expect(getPrayerCheckInPeople(people, "2026-09-14")).toHaveLength(0);
+    expect(getPrayerCheckInPeople(people, "2026-09-15").map((person) => person.name)).toEqual(["Alice"]);
+    expect(getPrayerCheckInPeople(people, "2026-09-29").map((person) => person.name)).toEqual(["Alice"]);
+    expect(getPrayerCheckInPeople(people, "2026-09-30")).toHaveLength(0);
+  });
+
+  it("includes a never-reached person on the current date only", () => {
+    const people = addPerson(initialPeople, "Bob", "Family");
+    const today = getTodayISOString();
+
+    expect(getPrayerCheckInPeople(people, today).map((person) => person.name)).toEqual(["Bob"]);
+    expect(getPrayerCheckInPeople(people, "1900-01-01")).toHaveLength(0);
   });
 
   it("returns first person if no one has been prayed for yet", () => {

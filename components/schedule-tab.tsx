@@ -111,7 +111,7 @@ import {
   removeScheduleTodo,
   partitionGroupedTodosForSchedule,
 } from "@/lib/schedule-data";
-import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, type PrayerItem } from "@/lib/prayercircle-data";
+import { getTodayISOString, type Person, getIconForTodo, getAllActiveEmergencyPrayers, getPrayerCheckInPeople, type PrayerItem } from "@/lib/prayercircle-data";
 import { WeeklyCalendarView } from "./weekly-calendar-view";
 import { getWeekStart, formatDateISO, formatDateLocal } from "@/lib/date-utils";
 import { MonthlyCalendarView } from "./monthly-calendar-view";
@@ -943,8 +943,22 @@ function MinistryCard({
 function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
   return (
     <View style={birthdayStyles.card}>
-      <Text style={birthdayStyles.emoji}>🎂</Text>
+      <MaterialIcons name="cake" size={22} color="#EA580C" />
       <Text style={birthdayStyles.text}>{birthday.personName}'s Birthday</Text>
+    </View>
+  );
+}
+
+function PrayerCheckInNotice({ people }: { people: Person[] }) {
+  if (people.length === 0) return null;
+  const names = people.map((person) => person.name).join(', ');
+  const suffix = people.length === 1 ? "hasn't" : "haven't";
+  return (
+    <View style={scheduleStyles.prayerCheckInNotice} accessibilityRole="text">
+      <MaterialIcons name="person-search" size={16} color="#7C3AED" />
+      <Text style={scheduleStyles.prayerCheckInText} numberOfLines={2}>
+        {names} {suffix} been reached in the last 14 days.
+      </Text>
     </View>
   );
 }
@@ -1650,6 +1664,7 @@ export function ScheduleTab({
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
   const dayBirthdays = useMemo(() => getBirthdaysForDate(people, selectedDate), [people, selectedDate]);
+  const prayerCheckInPeople = useMemo(() => getPrayerCheckInPeople(people, selectedDate), [people, selectedDate]);
   const missedTodos = useMemo(() => {
     const selectedDateStr = formatDateLocal(new Date(selectedDate));
     return todos
@@ -3228,6 +3243,7 @@ export function ScheduleTab({
             scrollEventThrottle={16}
             ListHeaderComponent={
               <>
+                <PrayerCheckInNotice people={prayerCheckInPeople} />
                 {/* Summary Card - Sticky Header Index 0 */}
                 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
                   {(() => {
@@ -4662,6 +4678,20 @@ export function ScheduleTab({
 const scheduleStyles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  prayerCheckInNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  prayerCheckInText: {
+    flex: 1,
+    color: '#7C3AED',
+    fontSize: 12,
+    fontWeight: '600',
   },
   scheduleTitle: {
     paddingHorizontal: 16,

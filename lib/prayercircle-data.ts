@@ -164,6 +164,31 @@ export function getDaysSinceLastPrayed(lastPrayedDate: string | null): number {
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
 }
 
+function parseLocalIsoDate(dateString: string): Date | null {
+  const [year, month, day] = dateString.split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+/**
+ * Returns people whose selected schedule date is an exact 14-day prayer
+ * check-in checkpoint from their last reached date.
+ */
+export function getPrayerCheckInPeople(people: Person[], selectedDate: string, cadenceDays = 14): Person[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate) || cadenceDays <= 0) return [];
+  const selected = parseLocalIsoDate(selectedDate);
+  if (!selected) return [];
+
+  return people.filter((person) => {
+    if (!person.lastPrayedDate) return selectedDate === getTodayISOString();
+    const lastReached = parseLocalIsoDate(person.lastPrayedDate);
+    if (!lastReached) return false;
+    const daysSince = Math.floor((selected.getTime() - lastReached.getTime()) / (1000 * 60 * 60 * 24));
+    return daysSince >= cadenceDays && daysSince % cadenceDays === 0;
+  });
+}
+
 // Helper: Format days since last reached for compact mobile display
 export function formatDaysSinceLastPrayer(daysSince: number): string {
   if (daysSince === 0) return "0d";

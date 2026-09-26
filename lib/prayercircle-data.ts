@@ -81,6 +81,7 @@ export type Person = {
   budgetTransactions?: BudgetTransaction[]; // Expense transactions
   isPraised?: boolean; // Whether praise is active for this person
   praiseExpiresAt?: string; // ISO datetime string for when praise expires
+  showInPrayerCheckIns?: boolean; // Whether overdue 14-day check-ins appear on the schedule
 };
 
 export type AddPersonOptions = {
@@ -93,6 +94,7 @@ export type AddPersonOptions = {
   reminderTag?: string;
   avatarLabel?: string;
   photoUri?: string;
+  showInPrayerCheckIns?: boolean;
 };
 
 export type JournalEntry = {
@@ -181,11 +183,11 @@ export function getPrayerCheckInPeople(people: Person[], selectedDate: string, c
   if (!selected) return [];
 
   return people.filter((person) => {
-    if (!person.lastPrayedDate) return false;
+    if (!person.lastPrayedDate || person.showInPrayerCheckIns === false) return false;
     const lastReached = parseLocalIsoDate(person.lastPrayedDate);
     if (!lastReached) return false;
     const daysSince = Math.floor((selected.getTime() - lastReached.getTime()) / (1000 * 60 * 60 * 24));
-    return daysSince >= cadenceDays && daysSince % cadenceDays === 0;
+    return daysSince >= cadenceDays;
   });
 }
 
@@ -594,6 +596,7 @@ export function normalizePeopleForStorage(people: Person[]): Person[] {
       lastMeetingLocation: normalizeOptionalText(person.lastMeetingLocation),
       lastPrayerCompletedDate: person.lastPrayerCompletedDate ?? null,
       isPersonal: person.isPersonal ?? false,
+      showInPrayerCheckIns: person.showInPrayerCheckIns ?? true,
       isPraised: person.isPraised ?? false,
       praiseExpiresAt: person.praiseExpiresAt ?? undefined,
     };
@@ -632,6 +635,7 @@ export function addPerson(
       avatarColor: colors.avatar,
       accentColor: colors.accent,
       lastPrayedDate: null,
+      showInPrayerCheckIns: options.showInPrayerCheckIns ?? true,
       lastPrayerCompletedDate: null,
       birthday: normalizeOptionalText(options.birthday),
       prayerNote: normalizeOptionalText(options.prayerNote),

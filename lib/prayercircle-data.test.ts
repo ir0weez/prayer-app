@@ -139,14 +139,21 @@ describe("PrayerCircle local data helpers", () => {
     expect(getDaysSinceLastPrayed(null)).toBe(999);
   });
 
-  it("shows prayer check-ins only on 14-day checkpoints", () => {
+  it("keeps an overdue contact on the schedule after the 14-day checkpoint", () => {
     let people = addPerson(initialPeople, "Alice", "Friends");
     people = updatePersonLastReachedDate(people, people[0].id, "2026-09-01");
 
     expect(getPrayerCheckInPeople(people, "2026-09-14")).toHaveLength(0);
     expect(getPrayerCheckInPeople(people, "2026-09-15").map((person) => person.name)).toEqual(["Alice"]);
     expect(getPrayerCheckInPeople(people, "2026-09-29").map((person) => person.name)).toEqual(["Alice"]);
-    expect(getPrayerCheckInPeople(people, "2026-09-30")).toHaveLength(0);
+    expect(getPrayerCheckInPeople(people, "2026-12-31").map((person) => person.name)).toEqual(["Alice"]);
+  });
+
+  it("honors a contact's schedule check-in dismissal toggle", () => {
+    let people = addPerson(initialPeople, "Alice", "Friends");
+    people = updatePersonLastReachedDate(people, people[0].id, "2026-09-01").map((person) => ({ ...person, showInPrayerCheckIns: false }));
+
+    expect(getPrayerCheckInPeople(people, "2026-10-01")).toHaveLength(0);
   });
 
   it("excludes a never-reached person from the checkpoint notice", () => {

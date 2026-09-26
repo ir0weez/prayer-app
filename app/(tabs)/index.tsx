@@ -382,6 +382,7 @@ export default function HomeScreen() {
   const [newPersonCustomRelationship, setNewPersonCustomRelationship] = useState("");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
+  const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
   const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
@@ -759,6 +760,7 @@ export default function HomeScreen() {
     setNewPersonCustomRelationship("");
     setNewPersonBirthday("");
     setNewPersonPhotoUri(undefined);
+    setNewPersonShowInPrayerCheckIns(true);
     setSelectedFamilyMemberIds([]);
     setNewPersonFamilyType(undefined);
     setFamilyRolesByPersonId({});
@@ -773,6 +775,7 @@ export default function HomeScreen() {
     setNewPersonCustomRelationship(RELATIONSHIP_ORDER.includes(person.relationship) ? "" : person.relationship);
     setNewPersonBirthday(person.birthday ? formatIsoDateForDisplay(person.birthday) : "");
     setNewPersonPhotoUri(person.photoUri);
+    setNewPersonShowInPrayerCheckIns(person.showInPrayerCheckIns !== false);
     setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
     const familyMembers = people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId);
     setSelectedFamilyMemberIds(familyMembers.filter((candidate) => candidate.id !== person.id).map((candidate) => candidate.id));
@@ -822,7 +825,7 @@ export default function HomeScreen() {
     let updatedPeople: Person[];
     if (editingPersonId) {
       updatedPeople = people.map((person) => person.id === editingPersonId
-        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonPhotoUri, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType }
+        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonPhotoUri, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType, showInPrayerCheckIns: newPersonShowInPrayerCheckIns }
         : person);
       updatedPeople = selectedFamilyMemberIds.length > 0
         ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : familyRolesByPersonId[id] ?? updatedPeople.find((person) => person.id === id)?.familyType])))
@@ -833,6 +836,7 @@ export default function HomeScreen() {
         reminderFrequency: "none",
         reminderDaysOfWeek: [],
         photoUri: newPersonPhotoUri,
+        showInPrayerCheckIns: newPersonShowInPrayerCheckIns,
         avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2),
       });
       const createdPerson = updatedPeople.find((person) => !people.some((existing) => existing.id === person.id));
@@ -2379,6 +2383,19 @@ export default function HomeScreen() {
             style={styles.textInput}
           />
           <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, paddingVertical: 10 }}>
+            <View style={{ flex: 1, paddingRight: 16 }}>
+              <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800" }}>Schedule check-ins</Text>
+              <Text style={styles.fieldHint}>Keep this contact visible after 14 days until they are reached.</Text>
+            </View>
+            <Switch
+              value={newPersonShowInPrayerCheckIns}
+              onValueChange={setNewPersonShowInPrayerCheckIns}
+              trackColor={{ false: "#D9D2E5", true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
 
           <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, pressed && styles.pressed]}>
             <Text style={styles.createFastButtonText}>{editingPersonId ? "Save Changes" : "Create Contact"}</Text>

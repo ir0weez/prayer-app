@@ -4758,7 +4758,7 @@ const scheduleStyles = StyleSheet.create({
   summaryContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 2,
+    paddingBottom: 0,
     borderBottomWidth: 0,
   },
   dateHeaderCard: {

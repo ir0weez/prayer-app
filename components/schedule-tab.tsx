@@ -2901,9 +2901,6 @@ export function ScheduleTab({
                   setShowTimeOffModal(true);
                 }}
               />
-              <Text style={{ color: colors.muted, fontSize: 11, marginTop: -4, marginBottom: 12, paddingHorizontal: 4 }}>
-                Days inside a time-off entry show only your off events.
-              </Text>
             </View>
           );
         case "birthday":

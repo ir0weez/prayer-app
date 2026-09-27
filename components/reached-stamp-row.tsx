@@ -66,6 +66,61 @@ function PassportStamp({ stamp, ink }: { stamp: ReachedStamp; ink: string }) {
   );
 }
 
+export function StampCollectionModal({
+  visible,
+  stamps,
+  people = [],
+  onClose,
+}: {
+  visible: boolean;
+  stamps: ReachedStamp[];
+  people?: Person[];
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const personById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
+  const monthGroups = useMemo(() => {
+    const grouped = new Map<string, ReachedStamp[]>();
+    stamps.forEach((stamp) => grouped.set(stamp.date.slice(0, 7), [...(grouped.get(stamp.date.slice(0, 7)) || []), stamp]));
+    return Array.from(grouped.entries()).sort(([a], [b]) => b.localeCompare(a));
+  }, [stamps]);
+  const highestMonthlyCount = Math.max(0, ...monthGroups.map(([, monthStamps]) => monthStamps.length));
+  const inkFor = (stamp: ReachedStamp) => relationshipColors[personById.get(stamp.personId)?.relationship || "Friends"].accent;
+
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={[styles.collectionModal, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Stamp collection</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.muted }]}>{stamps.length} stamps collected</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close stamp collection" onPress={onClose}>
+              <MaterialIcons name="close" size={24} color={colors.muted} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.collectionContent}>
+            {monthGroups.map(([month, monthStamps]) => (
+              <View key={month} style={[styles.monthGroup, { borderColor: colors.border }]}>
+                <View style={styles.monthHeader}>
+                  <Text style={[styles.monthTitle, { color: colors.foreground }]}>{getMonthLabel(month)}</Text>
+                  <View style={[styles.countPill, { backgroundColor: colors.primary }]}><Text style={styles.countText}>{monthStamps.length}</Text></View>
+                </View>
+                {monthStamps.length === highestMonthlyCount && <Text style={[styles.personalBest, { color: colors.primary }]}>Personal best</Text>}
+                <View style={styles.collectionStamps}>
+                  {monthStamps.map((stamp) => <PassportStamp key={stamp.id} stamp={stamp} ink={inkFor(stamp)} />)}
+                </View>
+              </View>
+            ))}
+            {monthGroups.length === 0 && <Text style={[styles.modalSubtitle, { color: colors.muted }]}>No stamps collected yet.</Text>}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export function ReachedStampRow({
   stamps,
   people = [],
@@ -83,12 +138,6 @@ export function ReachedStampRow({
   const [note, setNote] = useState("");
   const [showCollection, setShowCollection] = useState(false);
   const personById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
-  const monthGroups = useMemo(() => {
-    const grouped = new Map<string, ReachedStamp[]>();
-    stamps.forEach((stamp) => grouped.set(stamp.date.slice(0, 7), [...(grouped.get(stamp.date.slice(0, 7)) || []), stamp]));
-    return Array.from(grouped.entries()).sort(([a], [b]) => b.localeCompare(a));
-  }, [stamps]);
-  const highestMonthlyCount = Math.max(0, ...monthGroups.map(([, monthStamps]) => monthStamps.length));
 
   const inkFor = (stamp: ReachedStamp) => relationshipColors[personById.get(stamp.personId)?.relationship || "Friends"].accent;
 
@@ -142,33 +191,7 @@ export function ReachedStampRow({
           </Pressable>
         ))}
       </View>
-      <Modal transparent visible={showCollection} animationType="slide" onRequestClose={() => setShowCollection(false)}>
-        <View style={styles.overlay}>
-          <View style={[styles.collectionModal, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Stamp collection</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.muted }]}>{stamps.length} stamps collected</Text>
-              </View>
-              <Pressable onPress={() => setShowCollection(false)}><MaterialIcons name="close" size={24} color={colors.muted} /></Pressable>
-            </View>
-            <ScrollView contentContainerStyle={styles.collectionContent}>
-              {monthGroups.map(([month, monthStamps]) => (
-                <View key={month} style={[styles.monthGroup, { borderColor: colors.border }]}>
-                  <View style={styles.monthHeader}>
-                    <Text style={[styles.monthTitle, { color: colors.foreground }]}>{getMonthLabel(month)}</Text>
-                    <View style={[styles.countPill, { backgroundColor: colors.primary }]}><Text style={styles.countText}>{monthStamps.length}</Text></View>
-                  </View>
-                  {monthStamps.length === highestMonthlyCount && <Text style={[styles.personalBest, { color: colors.primary }]}>Personal best</Text>}
-                  <View style={styles.collectionStamps}>
-                    {monthStamps.map((stamp) => <PassportStamp key={stamp.id} stamp={stamp} ink={inkFor(stamp)} />)}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <StampCollectionModal visible={showCollection} stamps={stamps} people={people} onClose={() => setShowCollection(false)} />
       <Modal transparent visible={Boolean(editingStamp)} animationType="fade" onRequestClose={() => setEditingStamp(null)}>
         <View style={styles.overlay}>
           <View style={[styles.editModal, { backgroundColor: colors.surface }]}>

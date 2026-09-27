@@ -18,6 +18,7 @@ import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Ea
 
 import { ScreenContainer } from "@/components/screen-container";
 import { ScheduleTab } from "@/components/schedule-tab";
+import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
 import {
@@ -390,6 +391,7 @@ export default function HomeScreen() {
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
+  const [showStampCollection, setShowStampCollection] = useState(false);
 
   // Handle back gesture/button: go to People tab if on another tab
   useEffect(() => {
@@ -1954,8 +1956,11 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.settingsSectionLabel}>DATA</Text>
-      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
-        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}> 
+        <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
+          {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
+        </Pressable>
+        <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
         </Pressable>
         <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
@@ -2429,8 +2434,10 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}>
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
       {renderContent()}
+
+      <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
 
       {activeTab === "people" || activeTab === "home" ? (
         <Pressable

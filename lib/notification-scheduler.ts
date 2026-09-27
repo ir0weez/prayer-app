@@ -2,7 +2,8 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import type { Person, ReminderFrequency } from "./prayercircle-data";
-import { getPersonReminderFrequency, getUrgentPrayerItems } from "./prayercircle-data";
+import { getPersonReminderFrequency } from "./prayercircle-data";
+import { getPrayerNotificationBody } from "./notification-content";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "./schedule-data";
 import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "./schedule-data";
 import type { MonthlyExpenseRecord } from "./budget-data";
@@ -100,11 +101,7 @@ function parseTime(value?: string): { hour: number; minute: number } | null {
   return { hour, minute };
 }
 
-function prayerBody(person: Person): string {
-  const urgentPrayer = getUrgentPrayerItems(person)[0]?.title?.trim();
-  const tag = person.reminderTag?.trim();
-  return urgentPrayer || tag || "Take a moment to pray for this person";
-}
+export { getPrayerNotificationBody } from "./notification-content";
 
 function prayerTrigger(
   frequency: ReminderFrequency,
@@ -137,7 +134,7 @@ export function buildPrayerReminderPlans(people: Person[]): NotificationPlan[] {
         content: {
           // Notification titles are rendered bold by both iOS and Android.
           title: person.name,
-          body: prayerBody(person),
+          body: getPrayerNotificationBody(person),
           sound: "default",
           categoryIdentifier: PRAYER_NOTIFICATION_CATEGORY,
           data: { source: SOURCE, kind: PRAYER_KIND, personId: person.id },
@@ -341,6 +338,15 @@ async function cancelKind(kind: string): Promise<void> {
   );
 }
 
+async function dismissPresentedKind(kind: string): Promise<void> {
+  const presented = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(
+    presented
+      .filter((notification) => notification.request.content.data?.source === SOURCE && notification.request.content.data?.kind === kind)
+      .map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier)),
+  );
+}
+
 async function schedulePlans(plans: NotificationPlan[]): Promise<void> {
   await Promise.all(plans.map((plan) => Notifications.scheduleNotificationAsync(plan)));
 }
@@ -350,6 +356,10 @@ let scheduleSyncQueue: Promise<void> = Promise.resolve();
 
 async function syncPrayerReminderNotificationsNow(people: Person[]): Promise<void> {
   if (Platform.OS === "web") return;
+  // Android keeps delivered notifications in the shade even after their
+  // scheduled counterpart is cancelled. Dismiss old PrayerCircle cards too,
+  // otherwise a generic body can remain visible after an urgent item changes.
+  await dismissPresentedKind(PRAYER_KIND).catch(() => undefined);
   await cancelKind(PRAYER_KIND);
   const preferences = await getNotificationPreferences();
   if (!preferences.prayerRemindersEnabled) return;

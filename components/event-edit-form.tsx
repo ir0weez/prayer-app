@@ -7,10 +7,14 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  Switch,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
 import { useColors } from "@/hooks/use-colors";
 import { ScheduleEvent } from "@/lib/schedule-data";
+import { extractPosterColor } from "@/lib/poster-color";
 import { DateTimePicker } from "./date-time-picker";
 
 function addHourToTime(value: string) {
@@ -25,6 +29,7 @@ interface EventEditFormProps {
   visible: boolean;
   onClose: () => void;
   onSave: (updatedEvent: ScheduleEvent) => void;
+  isNew?: boolean;
 }
 
 export function EventEditForm({
@@ -32,6 +37,7 @@ export function EventEditForm({
   visible,
   onClose,
   onSave,
+  isNew = false,
 }: EventEditFormProps) {
   const colors = useColors();
   const [formTitle, setFormTitle] = useState(event.title);
@@ -42,6 +48,9 @@ export function EventEditForm({
   const [formLocation, setFormLocation] = useState(event.location || "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#0a7ea4");
+  const [formOffEvent, setFormOffEvent] = useState(event.isOffEvent === true);
+  const [formPosterImage, setFormPosterImage] = useState(event.posterImageUri || "");
+  const [formPosterColor, setFormPosterColor] = useState(event.posterColor);
 
   useEffect(() => {
     if (!visible) return;
@@ -53,6 +62,9 @@ export function EventEditForm({
     setFormLocation(event.location || "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#0a7ea4");
+    setFormOffEvent(event.isOffEvent === true);
+    setFormPosterImage(event.posterImageUri || "");
+    setFormPosterColor(event.posterColor);
   }, [event, visible]);
 
   const handleStartTimeChange = (value: string) => {
@@ -71,6 +83,9 @@ export function EventEditForm({
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
+      isOffEvent: formOffEvent,
+      posterImageUri: formPosterImage || undefined,
+      posterColor: formPosterColor,
     };
     onSave(updatedEvent);
     onClose();
@@ -85,6 +100,17 @@ export function EventEditForm({
     setFormLocation(event.location || "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#0a7ea4");
+    setFormOffEvent(event.isOffEvent === true);
+    setFormPosterImage(event.posterImageUri || "");
+    setFormPosterColor(event.posterColor);
+  };
+
+  const pickPoster = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    const uri = result.assets[0].uri;
+    setFormPosterImage(uri);
+    setFormPosterColor(await extractPosterColor(uri, formColor));
   };
 
   return (
@@ -100,7 +126,7 @@ export function EventEditForm({
             <MaterialIcons name="close" size={28} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Edit Event
+            {isNew ? "New Event" : "Edit Event"}
           </Text>
           <Pressable onPress={handleSave}>
             <Text style={[styles.saveButton, { color: colors.primary }]}>
@@ -126,6 +152,20 @@ export function EventEditForm({
               { color: colors.foreground, borderColor: colors.border },
             ]}
           />
+
+          <View style={[styles.offEventRow, { borderColor: formColor + "45", backgroundColor: formColor + "10" }]}>
+            <View style={styles.offEventCopy}>
+              <Text style={[styles.label, { color: colors.foreground, marginTop: 0, marginBottom: 2 }]}>OFF EVENT</Text>
+              <Text style={[styles.offEventHint, { color: colors.muted }]}>Show this event only on time-off days</Text>
+            </View>
+            <Switch value={formOffEvent} onValueChange={setFormOffEvent} trackColor={{ false: colors.border, true: formColor }} thumbColor="#FFFFFF" />
+          </View>
+
+          {formOffEvent && (
+            <Pressable onPress={pickPoster} style={[styles.posterPicker, { borderColor: formColor, backgroundColor: formColor + "10" }]}>
+              {formPosterImage ? <Image source={{ uri: formPosterImage }} style={styles.posterImage} contentFit="cover" /> : <><MaterialIcons name="add-photo-alternate" size={32} color={formColor} /><Text style={[styles.posterPrompt, { color: formColor }]}>Add poster</Text></>}
+            </Pressable>
+          )}
 
           {/* Date */}
           <Text style={[styles.label, { color: colors.muted }]}>DATE</Text>
@@ -313,6 +353,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
   },
+  offEventRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  offEventCopy: { flex: 1, paddingRight: 12 },
+  offEventHint: { fontSize: 12 },
+  posterPicker: {
+    height: 120,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginTop: 12,
+  },
+  posterImage: { width: "100%", height: "100%" },
+  posterPrompt: { fontWeight: "700", marginTop: 6 },
   colorGrid: {
     flexDirection: "row",
     gap: 12,

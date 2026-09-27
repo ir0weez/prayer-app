@@ -48,6 +48,7 @@ import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
 import { EventDetailCard } from "./event-detail-card";
+import { EventEditForm } from "./event-edit-form";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
 import { getAlbumPalette, WorshipAlbumDetail } from "./worship-album-detail";
@@ -148,6 +149,7 @@ function EventCard({
   event,
   onToggle,
   onEdit,
+  onOpenEdit,
   onDelete,
   people = [],
   liveNow,
@@ -156,6 +158,7 @@ function EventCard({
   event: ScheduleEvent;
   onToggle: () => void;
   onEdit?: (updatedEvent?: ScheduleEvent) => void;
+  onOpenEdit?: (event: ScheduleEvent) => void;
   onDelete?: () => void;
   people?: Person[];
   liveNow?: Date;
@@ -171,6 +174,14 @@ function EventCard({
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
   const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
+  const handleTap = () => {
+    if (onOpenEdit) {
+      onOpenEdit(event);
+      return;
+    }
+    onToggle();
+  };
+
   const handleLongPress = (eventData: any) => {
     const { pageX, pageY } = eventData.nativeEvent;
     setContextMenuPos({ x: pageX, y: pageY });
@@ -182,7 +193,7 @@ function EventCard({
     contextMenuActions.push({
       label: 'Edit',
       icon: 'edit',
-      onPress: () => setDetailCardVisible(true),
+      onPress: () => onOpenEdit ? onOpenEdit(event) : setDetailCardVisible(true),
     });
   }
   contextMenuActions.push({
@@ -216,7 +227,7 @@ function EventCard({
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            handleTap();
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -259,7 +270,7 @@ function EventCard({
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            handleTap();
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -325,7 +336,7 @@ function EventCard({
         <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          handleTap();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -385,7 +396,7 @@ function EventCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onToggle();
+          handleTap();
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -1118,8 +1129,32 @@ export function ScheduleTab({
   const [showAddModal, setShowAddModal] = useState(false);
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [editingMinistry, setEditingMinistry] = useState<ScheduleMinistry | null>(null);
   const [showMinistryForm, setShowMinistryForm] = useState(false);
+
+  const openEventEditor = (event: ScheduleEvent) => {
+    setEditingEvent(event);
+    setIsCreatingEvent(false);
+  };
+
+  const openNewEventEditor = () => {
+    setEditingEvent(createScheduleEvent({ title: "", date: selectedDate, color: "#0a7ea4" }));
+    setIsCreatingEvent(true);
+    setShowAddModal(false);
+    setAddType(null);
+  };
+
+  const closeEventEditor = () => {
+    setEditingEvent(null);
+    setIsCreatingEvent(false);
+  };
+
+  const saveUnifiedEvent = (updatedEvent: ScheduleEvent) => {
+    setEvents((current) => isCreatingEvent ? [...current, updatedEvent] : current.map((item) => item.id === updatedEvent.id ? updatedEvent : item));
+    closeEventEditor();
+  };
 
   useEffect(() => {
     if (notificationScheduleAction !== "schedule-complete" || !notificationScheduleKind || !notificationScheduleId) return;
@@ -2918,6 +2953,7 @@ export function ScheduleTab({
                   setEvents((prev: ScheduleEvent[]) => prev.map((e: ScheduleEvent) => e.id === updatedEvent.id ? updatedEvent : e));
                 }
               }}
+              onOpenEdit={openEventEditor}
               onDelete={() => {
                 Alert.alert(
                   'Delete Event',
@@ -3670,8 +3706,7 @@ export function ScheduleTab({
             </Pressable>
             <Pressable
               onPress={() => {
-                setAddType("event");
-                setShowAddModal(false);
+                openNewEventEditor();
               }}
               style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
             >
@@ -3720,6 +3755,14 @@ export function ScheduleTab({
           </View>
         </>
       )}
+
+      <EventEditForm
+        event={editingEvent || createScheduleEvent({ title: "", date: selectedDate, color: "#0a7ea4" })}
+        visible={editingEvent !== null}
+        isNew={isCreatingEvent}
+        onClose={closeEventEditor}
+        onSave={saveUnifiedEvent}
+      />
 
       {/* Add Modal - Event Form */}
       <Modal transparent visible={addType === "event"} animationType="slide" onRequestClose={() => { setAddType(null); resetForm(); }}>

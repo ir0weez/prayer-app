@@ -25,7 +25,6 @@ import {
   CommentaryNote,
 } from '@/lib/commentary-data';
 import { formatCommentaryRange, groupCommentariesByRange } from '@/lib/commentary-grouping';
-import { StudyModeVerseCards } from './study-mode-verse-cards';
 
 const COMMENTARY_CARD_COLOR = '#7C3AED'; // People tab Family accent
 import type { CleanedCommentarySection } from '@/lib/commentary-cleaned-genesis';
@@ -369,31 +368,6 @@ export function BibleStoryViewer({
       ? 'Intro'
       : `${section.verses[0].verse}-${section.verses[section.verses.length - 1].verse}`
     : `${currentVerse?.verse}`;
-
-  if (isBibleStudyMode) {
-    const currentSectionIndex = sections.findIndex((candidate) => candidate.id === section.id);
-    return (
-      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-        <SafeAreaView style={{ flex: 1 }}>
-          <StudyModeVerseCards
-            section={section}
-            book={book}
-            chapter={chapter}
-            version={version}
-            commentaries={commentaries}
-            sectionNumber={currentSectionIndex >= 0 ? currentSectionIndex + 1 : 1}
-            sectionCount={sections.length || 1}
-            onClose={onClose}
-            onPrevious={handlePreviousVerse}
-            onNext={handleNextVerse}
-            canGoPrevious={currentSectionIndex > 0}
-            canGoNext={currentSectionIndex >= 0 ? currentSectionIndex < sections.length - 1 : !isLastSection}
-            onComplete={onComplete}
-          />
-        </SafeAreaView>
-      </Modal>
-    );
-  }
 
   return (
     <>

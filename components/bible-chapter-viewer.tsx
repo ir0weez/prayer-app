@@ -20,6 +20,7 @@ import { HighlightColorPicker, HighlightColor, HIGHLIGHT_COLORS } from './highli
 import { parseBibleSections, createSectionsFromRanges, BibleSection } from '@/lib/bible-section-parser';
 import { loadCompletedSections, getSectionCompletionKey } from '@/lib/paragraph-sections';
 import { BibleStoryViewer } from './bible-story-viewer';
+import { StudyModeContentCards } from './study-mode-content-cards';
 import { BibleStoriesBar } from './bible-stories-bar';
 import { saveBookmark } from '@/lib/bible-bookmark';
 import { createDefaultParagraphs, loadCustomParagraphs, parseCustomParagraphs } from '@/lib/paragraph-sections';
@@ -585,87 +586,13 @@ export function BibleChapterViewer({
               {/* Verses */}
               <View style={{ padding: 16 }}>
               {isBibleStudyMode ? (
-                // Study Mode: Show verses grouped by commentary - CENTERED
-                <View style={{ alignItems: 'center', paddingHorizontal: 24 }}>
-                  {sections.map((section) => {
-                    // Dynamically split section based on which verses have commentary
-                    const subGroups: Array<{ verses: typeof section.verses; lastVerseNum: number }> = [];
-                    let currentGroup: typeof section.verses = [];
-                    
-                    section.verses.forEach((verse) => {
-                      currentGroup.push(verse);
-                      
-                      // Check if this verse has commentary
-                      const verseCommentary = commentariesBySection[`${book}-${chapter}-${verse.verse}`];
-                      if (verseCommentary && verseCommentary.length > 0) {
-                        // This verse has notes - end the group here
-                        subGroups.push({ verses: currentGroup, lastVerseNum: verse.verse });
-                        currentGroup = [];
-                      }
-                    });
-                    
-                    // If there are remaining verses without notes, group them with the last verse
-                    if (currentGroup.length > 0 && subGroups.length > 0) {
-                      const lastGroup = subGroups[subGroups.length - 1];
-                      lastGroup.verses = [...lastGroup.verses, ...currentGroup];
-                    } else if (currentGroup.length > 0) {
-                      // No commentary at all in this section
-                      subGroups.push({ verses: currentGroup, lastVerseNum: currentGroup[currentGroup.length - 1].verse });
-                    }
-                    
-                    return subGroups.map((subGroup, idx) => (
-                      <View key={`${section.id}-${idx}`} style={{ marginBottom: 24, width: '100%', alignItems: 'center' }}>
-                        {/* Verse range */}
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.muted, marginBottom: 12 }}>
-                          {subGroup.verses[0].verse}-{subGroup.verses[subGroup.verses.length - 1].verse}
-                        </Text>
-                        
-                        {/* Verses */}
-                        {subGroup.verses.map((verse) => (
-                          <View key={`study-${verse.verse}`} style={{ marginBottom: 12, alignItems: 'center', width: '100%' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
-                              <Text style={{ fontSize: 13, color: colors.muted, marginRight: 8, fontWeight: '600', minWidth: 24, textAlign: 'right' }}>
-                                {verse.verse}
-                              </Text>
-                              <Text
-                                style={{
-                                  fontSize: 16,
-                                  lineHeight: 26,
-                                  color: colors.foreground,
-                                  fontFamily: 'Georgia',
-                                  maxWidth: 300,
-                                  textAlign: 'center',
-                                }}
-                                selectable
-                              >
-                                {verse.text}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                        
-                        {/* Commentary for this sub-group */}
-                        {(() => {
-                          const verseCommentary = commentariesBySection[`${book}-${chapter}-${subGroup.lastVerseNum}`];
-                          return verseCommentary && verseCommentary.length > 0 ? (
-                            <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginTop: 16, width: '100%' }}>
-                              {verseCommentary.map((comment, cidx) => (
-                                <View key={comment.id} style={{ marginBottom: cidx < verseCommentary.length - 1 ? 12 : 0 }}>
-                                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 4 }}>
-                                    {comment.author}
-                                  </Text>
-                                  <Text style={{ fontSize: 14, lineHeight: 22, color: colors.foreground }}>
-                                    {comment.text}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          ) : null;
-                        })()}
-                      </View>
-                    ));
-                  })}
-                </View>
+                <StudyModeContentCards
+                  sections={sections}
+                  book={book}
+                  chapter={chapter}
+                  version={version}
+                  commentsByVerse={commentariesBySection}
+                />
               ) : (
                 // Normal Mode: Show verses one by one
                 verses.map((verse) => {

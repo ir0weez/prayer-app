@@ -41,6 +41,9 @@ importers:
       axios:
         specifier: ^1.13.2
         version: 1.13.2
+      base64-js:
+        specifier: ^1.5.1
+        version: 1.5.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -134,6 +137,9 @@ importers:
       jose:
         specifier: 6.1.0
         version: 6.1.0
+      jpeg-js:
+        specifier: ^0.4.4
+        version: 0.4.4
       mysql2:
         specifier: ^3.16.0
         version: 3.16.0
@@ -4296,6 +4302,9 @@ packages:
 
   jose@6.1.0:
     resolution: {integrity: sha512-TTQJyoEoKcC1lscpVDCSsVgYzUDg/0Bt3WE//WiTPK6uOCQC2KZS4MpugbMWt/zyjkopgZoXhZuCi00gLudfUA==}
+
+  jpeg-js@0.4.4:
+    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -10609,6 +10618,8 @@ snapshots:
   jiti@1.21.7: {}
 
   jose@6.1.0: {}
+
+  jpeg-js@0.4.4: {}
 
   js-tokens@4.0.0: {}
 

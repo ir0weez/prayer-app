@@ -1,7 +1,79 @@
+import { Platform } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { toByteArray } from 'base64-js';
+import jpeg from 'jpeg-js';
+
 export const DEFAULT_TIME_OFF_EVENT_COLOR = '#7C5CFF';
+
+type RgbaPixels = { data: Uint8Array | Uint8ClampedArray; width: number; height: number };
 
 function toHex(value: number) {
   return Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0');
+}
+
+function toColor(r: number, g: number, b: number) {
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function colorStats(r: number, g: number, b: number) {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return { brightness: (r * 299 + g * 587 + b * 114) / 1000, saturation: max === 0 ? 0 : (max - min) / max };
+}
+
+/**
+ * Chooses a representative poster color from decoded RGBA pixels.
+ * Near-white border/background pixels are down-weighted, while colorful
+ * clusters get a small boost so a pale poster is not mistaken for white.
+ */
+export function representativeColorFromRgba(pixels: RgbaPixels): string | null {
+  const buckets = new Map<string, { r: number; g: number; b: number; weight: number; count: number }>();
+  let fallbackR = 0;
+  let fallbackG = 0;
+  let fallbackB = 0;
+  let fallbackCount = 0;
+
+  for (let i = 0; i + 3 < pixels.data.length; i += 4) {
+    const alpha = pixels.data[i + 3];
+    if (alpha < 40) continue;
+    const r = pixels.data[i];
+    const g = pixels.data[i + 1];
+    const b = pixels.data[i + 2];
+    fallbackR += r;
+    fallbackG += g;
+    fallbackB += b;
+    fallbackCount += 1;
+
+    const { brightness, saturation } = colorStats(r, g, b);
+    const isNearWhite = brightness > 245 && saturation < 0.12;
+    const isNearBlack = brightness < 12 && saturation < 0.12;
+    if (isNearWhite || isNearBlack) continue;
+
+    // Quantize only for ranking; retain the real average for the final color.
+    const qr = Math.floor(r / 16) * 16;
+    const qg = Math.floor(g / 16) * 16;
+    const qb = Math.floor(b / 16) * 16;
+    const key = `${qr},${qg},${qb}`;
+    const bucket = buckets.get(key) ?? { r: 0, g: 0, b: 0, weight: 0, count: 0 };
+    const weight = 1 + saturation * 1.5;
+    bucket.r += r * weight;
+    bucket.g += g * weight;
+    bucket.b += b * weight;
+    bucket.weight += weight;
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  }
+
+  if (buckets.size > 0) {
+    const winner = [...buckets.values()].sort((a, b) => {
+      const scoreA = a.count * (1 + Math.min(a.weight / a.count, 2) * 0.35);
+      const scoreB = b.count * (1 + Math.min(b.weight / b.count, 2) * 0.35);
+      return scoreB - scoreA;
+    })[0];
+    return toColor(winner.r / winner.weight, winner.g / winner.weight, winner.b / winner.weight);
+  }
+
+  return fallbackCount ? toColor(fallbackR / fallbackCount, fallbackG / fallbackCount, fallbackB / fallbackCount) : null;
 }
 
 export function readableTextColor(background: string): '#FFFFFF' | '#171321' {
@@ -13,13 +85,22 @@ export function readableTextColor(background: string): '#FFFFFF' | '#171321' {
   return (r * 299 + g * 587 + b * 114) / 1000 > 155 ? '#171321' : '#FFFFFF';
 }
 
-/**
- * Extract a representative color without making poster selection fail. Web can
- * sample the decoded image through canvas; native builds retain the supplied
- * fallback because React Native does not expose decoded pixels in Expo Image.
- */
-export async function extractPosterColor(uri: string, fallback = DEFAULT_TIME_OFF_EVENT_COLOR): Promise<string> {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return fallback;
+async function decodePosterOnNative(uri: string): Promise<RgbaPixels | null> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 48 } }],
+      { compress: 1, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+    if (!result.base64) return null;
+    const decoded = jpeg.decode(toByteArray(result.base64), { useTArray: true });
+    return { data: decoded.data, width: decoded.width, height: decoded.height };
+  } catch {
+    return null;
+  }
+}
+
+async function decodePosterOnWeb(uri: string): Promise<RgbaPixels | null> {
   try {
     const image = new Image();
     image.crossOrigin = 'anonymous';
@@ -28,35 +109,28 @@ export async function extractPosterColor(uri: string, fallback = DEFAULT_TIME_OF
       image.onload = () => resolve();
       image.onerror = () => reject(new Error('Unable to decode poster'));
     });
-    const size = 24;
+    const size = 32;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext('2d');
-    if (!context) return fallback;
+    if (!context) return null;
     context.drawImage(image, 0, 0, size, size);
-    const pixels = context.getImageData(0, 0, size, size).data;
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    let count = 0;
-    for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i + 3] < 40) continue;
-      r += pixels[i];
-      g += pixels[i + 1];
-      b += pixels[i + 2];
-      count += 1;
-    }
-    return count ? `#${toHex(r / count)}${toHex(g / count)}${toHex(b / count)}` : fallback;
+    return { data: context.getImageData(0, 0, size, size).data, width: size, height: size };
   } catch {
-    return fallback;
+    return null;
   }
 }
 
+/** Extract a representative color from an attached poster on web and native builds. */
+export async function extractPosterColor(uri: string, fallback = DEFAULT_TIME_OFF_EVENT_COLOR): Promise<string> {
+  const pixels = Platform.OS === 'web' && typeof document !== 'undefined'
+    ? await decodePosterOnWeb(uri)
+    : await decodePosterOnNative(uri);
+  return representativeColorFromRgba(pixels ?? { data: new Uint8Array(), width: 0, height: 0 }) ?? fallback;
+}
+
 export function getTimeOffEventColor(event: { posterColor?: string; color?: string }) {
-  // The poster's extracted main color is authoritative for illustrated
-  // off-events. The selected event color remains the fallback when no poster
-  // color is available.
   return event.posterColor || event.color || DEFAULT_TIME_OFF_EVENT_COLOR;
 }
 

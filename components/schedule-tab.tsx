@@ -1140,7 +1140,7 @@ export function ScheduleTab({
   };
 
   const openNewEventEditor = () => {
-    setEditingEvent(createScheduleEvent({ title: "", date: selectedDate, color: "#0a7ea4" }));
+    setEditingEvent(createScheduleEvent({ title: "", date: selectedDate, color: "#6B7280" }));
     setIsCreatingEvent(true);
     setShowAddModal(false);
     setAddType(null);
@@ -3757,7 +3757,7 @@ export function ScheduleTab({
       )}
 
       <EventEditForm
-        event={editingEvent || createScheduleEvent({ title: "", date: selectedDate, color: "#0a7ea4" })}
+        event={editingEvent || createScheduleEvent({ title: "", date: selectedDate, color: "#6B7280" })}
         visible={editingEvent !== null}
         isNew={isCreatingEvent}
         onClose={closeEventEditor}

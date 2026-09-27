@@ -47,7 +47,7 @@ export function EventEditForm({
   const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(event.reminderMinutesBefore ?? 0);
   const [formLocation, setFormLocation] = useState(event.location || "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
-  const [formColor, setFormColor] = useState(event.color || "#0a7ea4");
+  const [formColor, setFormColor] = useState(event.color || "#6B7280");
   const [formOffEvent, setFormOffEvent] = useState(event.isOffEvent === true);
   const [formPosterImage, setFormPosterImage] = useState(event.posterImageUri || "");
   const [formPosterColor, setFormPosterColor] = useState(event.posterColor);
@@ -61,7 +61,7 @@ export function EventEditForm({
     setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
     setFormLocation(event.location || "");
     setFormNotes(event.notes || "");
-    setFormColor(event.color || "#0a7ea4");
+    setFormColor(event.color || "#6B7280");
     setFormOffEvent(event.isOffEvent === true);
     setFormPosterImage(event.posterImageUri || "");
     setFormPosterColor(event.posterColor);
@@ -99,7 +99,7 @@ export function EventEditForm({
     setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
     setFormLocation(event.location || "");
     setFormNotes(event.notes || "");
-    setFormColor(event.color || "#0a7ea4");
+    setFormColor(event.color || "#6B7280");
     setFormOffEvent(event.isOffEvent === true);
     setFormPosterImage(event.posterImageUri || "");
     setFormPosterColor(event.posterColor);
@@ -260,12 +260,13 @@ export function EventEditForm({
           <Text style={[styles.label, { color: colors.muted }]}>COLOR</Text>
           <View style={styles.colorGrid}>
             {[
-              "#0a7ea4",
-              "#6366F1",
-              "#EC4899",
-              "#F59E0B",
+              "#6B7280",
+              "#EF4444",
+              "#F97316",
+              "#FBBF24",
               "#10B981",
-              "#8B5CF6",
+              "#3B82F6",
+              "#A855F7",
             ].map((color) => (
               <Pressable
                 key={color}

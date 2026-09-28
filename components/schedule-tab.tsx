@@ -47,7 +47,6 @@ import { NowIndicator, NowPill } from "./now-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
-import { EventDetailCard } from "./event-detail-card";
 import { EventEditForm } from "./event-edit-form";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
@@ -148,7 +147,6 @@ function iconName(name: string) {
 function EventCard({
   event,
   onToggle,
-  onEdit,
   onOpenEdit,
   onDelete,
   people = [],
@@ -157,7 +155,6 @@ function EventCard({
 }: {
   event: ScheduleEvent;
   onToggle: () => void;
-  onEdit?: (updatedEvent?: ScheduleEvent) => void;
   onOpenEdit?: (event: ScheduleEvent) => void;
   onDelete?: () => void;
   people?: Person[];
@@ -170,7 +167,6 @@ function EventCard({
   const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
-  const [detailCardVisible, setDetailCardVisible] = useState(false);
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
   const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
@@ -179,28 +175,19 @@ function EventCard({
   };
 
   const handleLongPress = (eventData: any) => {
-    if (onOpenEdit) {
-      onOpenEdit(event);
-      return;
-    }
     const { pageX, pageY } = eventData.nativeEvent;
     setContextMenuPos({ x: pageX, y: pageY });
     setContextMenuVisible(true);
   };
 
   const contextMenuActions: ContextMenuAction[] = [];
-  if (onEdit) {
+  if (onOpenEdit) {
     contextMenuActions.push({
       label: 'Edit',
       icon: 'edit',
-      onPress: () => onOpenEdit ? onOpenEdit(event) : setDetailCardVisible(true),
+      onPress: () => onOpenEdit(event),
     });
   }
-  contextMenuActions.push({
-    label: event.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
-    icon: event.isCompleted ? 'close-circle' : 'check-circle',
-    onPress: onToggle,
-  });
   if (onDelete) {
     contextMenuActions.push({
       label: 'Delete',
@@ -253,9 +240,6 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
-        {onEdit && (
-          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
-        )}
       </>
     );
   }
@@ -322,9 +306,6 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
-        {onEdit && (
-          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
-        )}
       </>
     );
   }
@@ -383,9 +364,6 @@ function EventCard({
           actions={contextMenuActions}
           onDismiss={() => setContextMenuVisible(false)}
         />
-        {onEdit && (
-          <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
-        )}
       </>
     );
   }
@@ -440,9 +418,6 @@ function EventCard({
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
       />
-      {onEdit && (
-        <EventDetailCard event={event} people={people} visible={detailCardVisible} onClose={() => setDetailCardVisible(false)} onEdit={onEdit} />
-      )}
     </>
   );
 }
@@ -2945,11 +2920,6 @@ export function ScheduleTab({
               event={item.data}
               people={people}
               onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
-              onEdit={(updatedEvent) => {
-                if (updatedEvent) {
-                  setEvents((prev: ScheduleEvent[]) => prev.map((e: ScheduleEvent) => e.id === updatedEvent.id ? updatedEvent : e));
-                }
-              }}
               onOpenEdit={openEventEditor}
               onDelete={() => {
                 Alert.alert(
@@ -3031,7 +3001,6 @@ export function ScheduleTab({
                   return updated;
                 });
               }}
-              onEdit={() => {}}
               onDelete={() => {
                 Alert.alert(
                   'Delete Bible Study',

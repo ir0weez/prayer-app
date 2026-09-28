@@ -175,14 +175,14 @@ function EventCard({
   const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
   const handleTap = () => {
-    if (onOpenEdit) {
-      onOpenEdit(event);
-      return;
-    }
     onToggle();
   };
 
   const handleLongPress = (eventData: any) => {
+    if (onOpenEdit) {
+      onOpenEdit(event);
+      return;
+    }
     const { pageX, pageY } = eventData.nativeEvent;
     setContextMenuPos({ x: pageX, y: pageY });
     setContextMenuVisible(true);

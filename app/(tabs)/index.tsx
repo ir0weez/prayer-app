@@ -2411,19 +2411,6 @@ export default function HomeScreen() {
           />
           <Text style={styles.fieldHint}>Format: MM-DD-YYYY (e.g., 03-15-1990)</Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, paddingVertical: 10 }}>
-            <View style={{ flex: 1, paddingRight: 16 }}>
-              <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800" }}>Schedule check-ins</Text>
-              <Text style={styles.fieldHint}>Keep this contact visible after 14 days until they are reached.</Text>
-            </View>
-            <Switch
-              value={newPersonShowInPrayerCheckIns}
-              onValueChange={setNewPersonShowInPrayerCheckIns}
-              trackColor={{ false: "#D9D2E5", true: colors.primary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
           <Pressable onPress={handleSavePerson} style={({ pressed }) => [styles.createFastButton, { marginTop: 18, marginBottom: 20 }, pressed && styles.pressed]}>
             <Text style={styles.createFastButtonText}>{editingPersonId ? "Save Changes" : "Create Contact"}</Text>
           </Pressable>

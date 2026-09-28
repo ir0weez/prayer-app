@@ -5,7 +5,7 @@ import * as Notifications from "expo-notifications";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
@@ -387,6 +387,14 @@ export default function PersonScreen() {
 
   const updatePeople = (updater: (previousPeople: Person[]) => Person[]) => {
     setPeople((previousPeople) => updater(previousPeople));
+  };
+
+  const handleToggleScheduleCheckIns = (enabled: boolean) => {
+    if (!personId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updatePeople((previousPeople) => previousPeople.map((person) => (
+      person.id === personId ? { ...person, showInPrayerCheckIns: enabled } : person
+    )));
   };
 
   const handleAddItem = () => {
@@ -785,6 +793,18 @@ export default function PersonScreen() {
             <Text style={styles.actionButtonBadgeText}>{daysSinceLastReached === 999 ? "—" : formatDaysSinceLastPrayer(daysSinceLastReached)}</Text>
           </View>
         </Pressable>
+        <View style={styles.scheduleCheckInsRow}>
+          <View style={styles.scheduleCheckInsCopy}>
+            <Text style={styles.scheduleCheckInsLabel}>Schedule check-ins</Text>
+            <Text style={styles.scheduleCheckInsHint}>Keep this contact visible after 14 days until they are reached</Text>
+          </View>
+          <Switch
+            value={currentPerson.showInPrayerCheckIns !== false}
+            onValueChange={handleToggleScheduleCheckIns}
+            trackColor={{ false: "#D9D2E5", true: colors.primary }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
         <Text style={styles.longPressHint}>Tap to set today. Long-press to choose a previous date.</Text>
 
         {reachedStamps.some((stamp) => stamp.personId === currentPerson.id) && (
@@ -1591,6 +1611,39 @@ function createStyles(themeColors: any) {
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 15,
+  },
+  scheduleCheckInsRow: {
+    minHeight: 62,
+    marginHorizontal: 22,
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: SURFACE,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  scheduleCheckInsCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 4,
+  },
+  scheduleCheckInsLabel: {
+    color: DEEP_TEXT,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 19,
+  },
+  scheduleCheckInsHint: {
+    color: MUTED_TEXT,
+    fontSize: 11,
+    fontWeight: "500",
+    lineHeight: 15,
+    marginTop: 2,
   },
   longPressHint: {
     marginHorizontal: 26,

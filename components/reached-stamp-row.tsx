@@ -78,6 +78,7 @@ export function StampCollectionModal({
   onClose: () => void;
 }) {
   const colors = useColors();
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const personById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const monthGroups = useMemo(() => {
     const grouped = new Map<string, ReachedStamp[]>();
@@ -86,6 +87,17 @@ export function StampCollectionModal({
   }, [stamps]);
   const highestMonthlyCount = Math.max(0, ...monthGroups.map(([, monthStamps]) => monthStamps.length));
   const inkFor = (stamp: ReachedStamp) => relationshipColors[personById.get(stamp.personId)?.relationship || "Friends"].accent;
+  const personGroupsForMonth = (month: string, monthStamps: ReachedStamp[]) => {
+    const grouped = new Map<string, ReachedStamp[]>();
+    monthStamps.forEach((stamp) => {
+      const key = stamp.personId || stamp.personName;
+      grouped.set(key, [...(grouped.get(key) || []), stamp]);
+    });
+    return Array.from(grouped.entries()).map(([key, personStamps]) => ({
+      key: `${month}-${key}`,
+      stamps: personStamps.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
+    }));
+  };
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -109,7 +121,41 @@ export function StampCollectionModal({
                 </View>
                 {monthStamps.length === highestMonthlyCount && <Text style={[styles.personalBest, { color: colors.primary }]}>Personal best</Text>}
                 <View style={styles.collectionStamps}>
-                  {monthStamps.map((stamp) => <PassportStamp key={stamp.id} stamp={stamp} ink={inkFor(stamp)} />)}
+                  {personGroupsForMonth(month, monthStamps).map((personGroup) => {
+                    const representative = personGroup.stamps[0];
+                    const isStacked = personGroup.stamps.length > 1;
+                    const isExpanded = expandedGroups[personGroup.key] === true;
+                    return (
+                      <View key={personGroup.key} style={styles.collectionStampGroup}>
+                        <Pressable
+                          accessibilityRole={isStacked ? "button" : undefined}
+                          accessibilityLabel={isStacked ? `${representative.personName}, ${personGroup.stamps.length} stamps` : `Stamp for ${representative.personName}`}
+                          onPress={isStacked ? () => setExpandedGroups((previous) => ({ ...previous, [personGroup.key]: !isExpanded })) : undefined}
+                          style={({ pressed }) => [styles.collectionStampButton, pressed && isStacked && { opacity: 0.7 }]}
+                        >
+                          <PassportStamp stamp={representative} ink={inkFor(representative)} />
+                          {isStacked && (
+                            <View style={[styles.stackCountBadge, { backgroundColor: colors.primary }]}>
+                              <Text style={styles.stackCountText}>×{personGroup.stamps.length}</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                        {isExpanded && (
+                          <View style={[styles.expandedStampList, { borderTopColor: colors.border }]}>
+                            {personGroup.stamps.map((stamp) => (
+                              <View key={stamp.id} style={styles.expandedStampItem}>
+                                <PassportStamp stamp={stamp} ink={inkFor(stamp)} />
+                                <View style={styles.expandedStampMeta}>
+                                  <Text style={[styles.expandedStampDate, { color: colors.foreground }]}>{formatIsoDateForDisplay(stamp.date)}</Text>
+                                  <Text numberOfLines={2} style={[styles.expandedStampNote, { color: colors.muted }]}>{stamp.note || "Reached"}</Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             ))}
@@ -233,6 +279,15 @@ const styles = StyleSheet.create({
   countText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
   personalBest: { marginTop: 3, fontSize: 10, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
   collectionStamps: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 5 },
+  collectionStampGroup: { alignItems: "center", marginHorizontal: 2, marginBottom: 6 },
+  collectionStampButton: { width: 124, height: 124, alignItems: "center", justifyContent: "center", position: "relative" },
+  stackCountBadge: { position: "absolute", top: 2, right: 1, minWidth: 30, height: 24, paddingHorizontal: 6, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" },
+  stackCountText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
+  expandedStampList: { width: "100%", borderTopWidth: 1, marginTop: 3, paddingTop: 5, alignItems: "center" },
+  expandedStampItem: { alignItems: "center", marginBottom: 4 },
+  expandedStampMeta: { alignItems: "center", marginTop: -2, paddingHorizontal: 4 },
+  expandedStampDate: { fontSize: 11, fontWeight: "800" },
+  expandedStampNote: { maxWidth: 116, fontSize: 10, fontWeight: "600", textAlign: "center", marginTop: 1 },
   input: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 14 },
   modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 4 },
   secondary: { minWidth: 82, minHeight: 42, borderWidth: 1, borderRadius: 10, alignItems: "center", justifyContent: "center" },

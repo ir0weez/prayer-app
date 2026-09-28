@@ -695,9 +695,17 @@ function getLastName(fullName: string): string {
   return parts.length > 1 ? parts[parts.length - 1] : parts[0];
 }
 
+// Keep family members in their original order within each role tier.
+export function sortFamilyMembers(members: Person[]): Person[] {
+  const spouses = members.filter((member) => member.familyType === "Spouse");
+  const children = members.filter((member) => member.familyType === "Child");
+  const others = members.filter((member) => member.familyType !== "Spouse" && member.familyType !== "Child");
+  return [...spouses, ...children, ...others];
+}
+
 // Helper: Get family members (people with the same familyId)
 export function getFamilyMembers(people: Person[], familyId: string): Person[] {
-  return people.filter((p) => p.familyId === familyId);
+  return sortFamilyMembers(people.filter((p) => p.familyId === familyId));
 }
 
 // Helper: Get all family groups
@@ -713,7 +721,7 @@ export function getFamilyGroups(people: Person[]): Array<{ familyId: string; fam
   return Array.from(grouped.entries()).map(([familyId, members]) => ({
     familyId,
     familyName: members[0]?.familyName || "Family",
-    members,
+    members: sortFamilyMembers(members),
   }));
 }
 

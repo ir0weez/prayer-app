@@ -27,6 +27,7 @@ import {
   updatePersonLastReachedDate,
   updatePersonReminderWithTime,
   groupIntoFamily,
+  sortFamilyMembers,
   ungroupFromFamily,
   addEmergencyPrayer,
   addPersonalTodo,
@@ -376,7 +377,7 @@ export default function PersonScreen() {
   );
 
   const familyMembers = useMemo(
-    () => currentPerson?.familyId ? people.filter((p) => p.familyId === currentPerson.familyId) : [],
+    () => currentPerson?.familyId ? sortFamilyMembers(people.filter((p) => p.familyId === currentPerson.familyId)) : [],
     [people, currentPerson],
   );
 

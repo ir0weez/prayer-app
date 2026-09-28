@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
-import { type Person } from "@/lib/prayercircle-data";
+import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { togglePrayerItemDone, ungroupFromFamily } from "@/lib/prayercircle-data";
@@ -28,7 +28,7 @@ export default function FamilyScreen() {
         if (peopleJson) {
           const allPeople: Person[] = JSON.parse(peopleJson);
           setPeople(allPeople);
-          const members = allPeople.filter((p) => p.familyId === familyId);
+          const members = sortFamilyMembers(allPeople.filter((p) => p.familyId === familyId));
           // Always reset and auto-select first member when familyId changes
           if (members.length > 0) {
             setSelectedMemberId(members[0].id);
@@ -50,7 +50,7 @@ export default function FamilyScreen() {
 
 
   // Derive family members from full people array
-  const familyMembers = useMemo(() => people.filter((p) => p.familyId === familyId), [people, familyId]);
+  const familyMembers = useMemo(() => sortFamilyMembers(people.filter((p) => p.familyId === familyId)), [people, familyId]);
   const familyName = familyMembers[0]?.familyName || "Family";
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
 
@@ -133,7 +133,7 @@ export default function FamilyScreen() {
 
   const handleUngroupFamily = () => {
     if (!familyId) return;
-    const familyMembers = people.filter((p) => p.familyId === familyId);
+    const familyMembers = sortFamilyMembers(people.filter((p) => p.familyId === familyId));
     Alert.alert(
       "Disband Family Group?",
       `This will remove all ${familyMembers.length} members from the family group. They will become individual contacts.`,

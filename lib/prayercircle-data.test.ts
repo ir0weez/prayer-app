@@ -44,7 +44,9 @@ import {
   updatePersonPhoto,
   updatePersonReminder,
   updatePersonReminderWithTime,
+  type Person,
   groupIntoFamily,
+  sortFamilyMembers,
   ungroupFromFamily,
 } from "./prayercircle-data";
 
@@ -500,6 +502,34 @@ describe("PrayerCircle local data helpers", () => {
     expect(grouped[0].familyType).toBe("Spouse");
     expect(grouped[1].familyType).toBe("Child");
     expect(grouped[0].familyName).toBe("Alice Family");
+  });
+
+  it("sorts family members by spouse, child, then other while preserving order within tiers", () => {
+    const members = [
+      { id: "child-1", name: "Child One", familyType: "Child" },
+      { id: "other-1", name: "Other One" },
+      { id: "spouse-1", name: "Spouse One", familyType: "Spouse" },
+      { id: "child-2", name: "Child Two", familyType: "Child" },
+      { id: "spouse-2", name: "Spouse Two", familyType: "Spouse" },
+      { id: "other-2", name: "Other Two", familyType: "Other" },
+    ] as Person[];
+
+    expect(sortFamilyMembers(members).map((member) => member.id)).toEqual([
+      "spouse-1",
+      "spouse-2",
+      "child-1",
+      "child-2",
+      "other-1",
+      "other-2",
+    ]);
+    expect(members.map((member) => member.id)).toEqual([
+      "child-1",
+      "other-1",
+      "spouse-1",
+      "child-2",
+      "spouse-2",
+      "other-2",
+    ]);
   });
 
   it("groups multiple people into an existing family and preserves familyType", () => {

@@ -64,6 +64,7 @@ import {
   type FamilyType,
   relationshipColors,
   groupIntoFamily,
+  sortFamilyMembers,
   ungroupFromFamily,
   removePerson,
   removeExpiredEmergencyPrayersFromAll,
@@ -745,7 +746,7 @@ export default function HomeScreen() {
         grouped.set(person.familyId, members);
       }
     });
-    return Array.from(grouped.values());
+    return Array.from(grouped.values()).map(sortFamilyMembers);
   }, [people]);
 
   const ungroupedPeople = useMemo(() => people.filter((p) => !p.familyId), [people]);

@@ -17,6 +17,9 @@ import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
+import { SHINY_ACHIEVEMENTS, SHINY_AVATARS } from "@/lib/avatar-system";
+import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
@@ -149,6 +152,7 @@ type AppSettings = {
 type PersonalProfile = {
   name: string;
   photoUri?: string;
+  avatarAsset?: string;
   birthday?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
@@ -175,7 +179,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   budgetRemindersEnabled: true,
   budgetReminderDaysBefore: 1,
 };
-const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -260,6 +264,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
     return {
       name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
       photoUri: typeof parsed.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : undefined,
+      avatarAsset: typeof parsed.avatarAsset === "string" && parsed.avatarAsset.trim() ? parsed.avatarAsset.trim() : undefined,
       fastingStreak: typeof parsed.fastingStreak === "number" && parsed.fastingStreak > 0 ? Math.floor(parsed.fastingStreak) : 0,
       personalPrayerStreak: typeof parsed.personalPrayerStreak === "number" && parsed.personalPrayerStreak > 0 ? Math.floor(parsed.personalPrayerStreak) : 0,
       fastingStatus,
@@ -385,6 +390,8 @@ export default function HomeScreen() {
   const [newPersonCustomRelationship, setNewPersonCustomRelationship] = useState("");
   const [newPersonBirthday, setNewPersonBirthday] = useState("");
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
+  const [newPersonAvatarAsset, setNewPersonAvatarAsset] = useState<string | undefined>(undefined);
+  const [showPersonAvatarPicker, setShowPersonAvatarPicker] = useState(false);
   const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
@@ -393,6 +400,8 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
+  const [achievementState, setAchievementState] = useState<AchievementState>(DEFAULT_ACHIEVEMENT_STATE);
+  const [newAchievementIds, setNewAchievementIds] = useState<string[]>([]);
 
   // Handle back gesture/button: go to People tab if on another tab
   useEffect(() => {
@@ -414,10 +423,34 @@ export default function HomeScreen() {
   const [draftStatusText, setDraftStatusText] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    let active = true;
+    Promise.all([loadAchievementState(), AsyncStorage.getItem("WORSHIP_ALBUMS_KEY")]).then(async ([storedState, albumsRaw]) => {
+      let savedAlbumCount = 0;
+      try { savedAlbumCount = albumsRaw ? (JSON.parse(albumsRaw) as Array<{ isSaved?: boolean }>).filter((album) => album.isSaved).length : 0; } catch { savedAlbumCount = 0; }
+      const personalTodos = people.flatMap((person) => person.personalTodos || []);
+      const result = await unlockQualifiedAchievements(storedState, qualifyAchievements({
+        todos: personalTodos.map(() => ({ tag: "personal" })),
+        savedAlbumCount,
+        streak: streakRecord.streak,
+        fasts,
+        tags: personalTodos.length ? ["personal"] : [],
+      }));
+      if (!active) return;
+      setAchievementState(result.state);
+      const pending = result.newlyUnlocked.filter((id) => !storedState.celebratedAchievementIds.includes(id));
+      if (pending.length) setNewAchievementIds(pending);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [fasts, hasHydratedPeople, people, streakRecord.streak]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [draftProfileName, setDraftProfileName] = useState(DEFAULT_PROFILE.name);
   const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
+  const [draftProfileAvatarAsset, setDraftProfileAvatarAsset] = useState<string | undefined>(undefined);
+  const [showProfileAvatarPicker, setShowProfileAvatarPicker] = useState(false);
+  const [profilePickerInitialTab, setProfilePickerInitialTab] = useState<"90s" | "Shiny">("90s");
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [draftFastName, setDraftFastName] = useState("");
   const [draftFastStartDate, setDraftFastStartDate] = useState(formatIsoToMmDdYyyy(today));
@@ -783,6 +816,7 @@ export default function HomeScreen() {
     setNewPersonCustomRelationship("");
     setNewPersonBirthday("");
     setNewPersonPhotoUri(undefined);
+    setNewPersonAvatarAsset(undefined);
     setNewPersonShowInPrayerCheckIns(true);
     setSelectedFamilyMemberIds([]);
     setNewPersonFamilyType(undefined);
@@ -798,6 +832,7 @@ export default function HomeScreen() {
     setNewPersonCustomRelationship(RELATIONSHIP_ORDER.includes(person.relationship) ? "" : person.relationship);
     setNewPersonBirthday(person.birthday ? formatIsoDateForDisplay(person.birthday) : "");
     setNewPersonPhotoUri(person.photoUri);
+    setNewPersonAvatarAsset(person.avatarAsset);
     setNewPersonShowInPrayerCheckIns(person.showInPrayerCheckIns !== false);
     setShowCustomRelationshipInput(!RELATIONSHIP_ORDER.includes(person.relationship));
     const familyMembers = people.filter((candidate) => candidate.familyId && candidate.familyId === person.familyId);
@@ -832,6 +867,7 @@ export default function HomeScreen() {
 
     if (!result.canceled && result.assets[0]?.uri) {
       setNewPersonPhotoUri(result.assets[0].uri);
+      setNewPersonAvatarAsset(undefined);
     }
   };
 
@@ -848,7 +884,7 @@ export default function HomeScreen() {
     let updatedPeople: Person[];
     if (editingPersonId) {
       updatedPeople = people.map((person) => person.id === editingPersonId
-        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonPhotoUri, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType, showInPrayerCheckIns: newPersonShowInPrayerCheckIns }
+        ? { ...person, name: newPersonName.trim(), relationship: finalRelationship as RelationshipType, birthday: normalizedBirthday || undefined, photoUri: newPersonAvatarAsset ? undefined : newPersonPhotoUri, avatarAsset: newPersonPhotoUri ? undefined : newPersonAvatarAsset, avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2), familyType: newPersonFamilyType, showInPrayerCheckIns: newPersonShowInPrayerCheckIns }
         : person);
       updatedPeople = selectedFamilyMemberIds.length > 0
         ? groupIntoFamily(updatedPeople, [editingPersonId, ...selectedFamilyMemberIds], Object.fromEntries([editingPersonId, ...selectedFamilyMemberIds].map((id) => [id, id === editingPersonId ? newPersonFamilyType : familyRolesByPersonId[id] ?? updatedPeople.find((person) => person.id === id)?.familyType])))
@@ -858,7 +894,8 @@ export default function HomeScreen() {
         birthday: normalizedBirthday,
         reminderFrequency: "none",
         reminderDaysOfWeek: [],
-        photoUri: newPersonPhotoUri,
+        photoUri: newPersonAvatarAsset ? undefined : newPersonPhotoUri,
+        avatarAsset: newPersonPhotoUri ? undefined : newPersonAvatarAsset,
         showInPrayerCheckIns: newPersonShowInPrayerCheckIns,
         avatarLabel: newPersonName.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2),
       });
@@ -1079,33 +1116,7 @@ export default function HomeScreen() {
   }, [notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
-    const label = getAvatarText(person);
-    const isEmoji = /\p{Emoji}/u.test(label);
-    const textSize = isEmoji ? size * 0.46 : size * 0.3;
-
-    return (
-      <View
-        style={[
-          styles.avatar,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: person.photoUri ? person.avatarColor : person.accentColor,
-            borderColor: "transparent",
-            borderWidth: 0,
-          },
-        ]}
-      >
-        {person.photoUri ? (
-          <Image source={{ uri: person.photoUri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
-        ) : (
-          <Text style={[styles.avatarText, { fontSize: textSize, color: "#FFFFFF" }]}>
-            {label}
-          </Text>
-        )}
-      </View>
-    );
+    return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={size} fallbackColor={person.accentColor} />;
   };
 
   const renderStoryPerson = (person: Person) => {
@@ -1452,13 +1463,7 @@ export default function HomeScreen() {
                       delayLongPress={500}
                       style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}
                     >
-                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: fastAvatarColorFromStatus || colors.primary }]}>
-                        {profile.photoUri ? (
-                          <Image source={{ uri: profile.photoUri }} style={{ width: 66, height: 66, borderRadius: 33 }} />
-                        ) : (
-                          <MaterialIcons name={iconName("person")} size={32} color="#FFFFFF" />
-                        )}
-                      </View>
+                      <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={66} fallbackColor={fastAvatarColorFromStatus || colors.primary} />
                     </Pressable>
                   </View>
                   <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}>
@@ -1627,6 +1632,7 @@ export default function HomeScreen() {
   const openProfileEditor = () => {
     setDraftProfileName(profile.name);
     setDraftProfilePhotoUri(profile.photoUri);
+    setDraftProfileAvatarAsset(profile.avatarAsset);
     setShowProfileEditor(true);
   };
 
@@ -1637,7 +1643,7 @@ export default function HomeScreen() {
       aspect: [1, 1],
       quality: 0.85,
     });
-    if (!result.canceled && result.assets[0]?.uri) setDraftProfilePhotoUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]?.uri) { setDraftProfilePhotoUri(result.assets[0].uri); setDraftProfileAvatarAsset(undefined); }
   };
 
   const handleSaveProfile = () => {
@@ -1646,7 +1652,7 @@ export default function HomeScreen() {
       Alert.alert("Add your name", "Enter a name before saving your profile.");
       return;
     }
-    setProfile((previous) => ({ ...previous, name, photoUri: draftProfilePhotoUri }));
+    setProfile((previous) => ({ ...previous, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset }));
     setShowProfileEditor(false);
   };
 
@@ -1853,9 +1859,7 @@ export default function HomeScreen() {
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
               <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-                <View style={[styles.profileAvatar, { backgroundColor: colors.primary }]}>
-                  {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileAvatarImage} /> : <MaterialIcons name={iconName("person")} size={40} color="#FFFFFF" />}
-                </View>
+                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
               </Pressable>
             </View>
             <View style={styles.profileNameAndBirthdayContainer}>
@@ -2286,19 +2290,15 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.addContent}>
-          <Pressable onPress={handlePickNewPersonPhoto} style={({ pressed }) => [styles.photoArea, pressed && styles.pressed]}>
-            <View style={styles.photoCircle}>
-              {newPersonPhotoUri ? (
-                <Image source={{ uri: newPersonPhotoUri }} style={styles.photoPreview} />
-              ) : (
-                <MaterialIcons name={iconName("photo-camera")} size={34} color={colors.primary} />
-              )}
-              <View style={styles.photoBadge}>
-                <MaterialIcons name={iconName("add")} size={21} color="#FFFFFF" />
-              </View>
-            </View>
-            <Text style={styles.photoPrompt}>{newPersonPhotoUri ? "Change photo" : "Tap to add a photo"}</Text>
-          </Pressable>
+          <Text style={styles.fieldLabel}>AVATAR</Text>
+          <View style={{ alignItems: "center", marginBottom: 12 }}>
+            <AvatarImage id={editingPersonId || "new-person"} name={newPersonName} avatarAsset={newPersonAvatarAsset} photoUri={newPersonPhotoUri} size={104} fallbackColor={colors.surface} />
+            <Text style={[styles.photoPrompt, { marginTop: 8 }]}>{newPersonPhotoUri ? "Uploaded photo" : newPersonAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
+            <Pressable onPress={handlePickNewPersonPhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
+            <Pressable onPress={() => setShowPersonAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
+          </View>
 
           <Text style={styles.fieldLabel}>NAME</Text>
           <TextInput
@@ -2417,6 +2417,7 @@ export default function HomeScreen() {
           </Pressable>
 
         </ScrollView>
+        <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={achievementState.unlockedAvatarIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
       </ScreenContainer>
     );
   }
@@ -2426,6 +2427,17 @@ export default function HomeScreen() {
       {renderContent()}
 
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
+      <Modal transparent visible={newAchievementIds.length > 0} animationType="fade" onRequestClose={() => setNewAchievementIds([])}>
+        <View style={{ flex: 1, backgroundColor: "rgba(15,12,24,0.55)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <View style={{ width: "100%", maxWidth: 360, borderRadius: 26, padding: 22, alignItems: "center", backgroundColor: colors.surface }}>
+            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "900", letterSpacing: 1.4 }}>ACHIEVEMENT UNLOCKED!</Text>
+            <Text style={{ color: colors.foreground, fontSize: 26, fontWeight: "900", textAlign: "center", marginTop: 8 }}>{SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])?.name}</Text>
+            {SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0]) && <Image source={SHINY_AVATARS[SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])!.avatarId as keyof typeof SHINY_AVATARS]} style={{ width: 170, height: 170, marginVertical: 14 }} />}
+            <Text style={{ color: colors.muted, textAlign: "center", lineHeight: 20 }}>{SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])?.hint}</Text>
+            <Pressable onPress={() => { setNewAchievementIds([]); setProfilePickerInitialTab("Shiny"); setShowProfileAvatarPicker(true); }} style={{ marginTop: 18, backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 28, paddingVertical: 12 }}><Text style={{ color: "#fff", fontWeight: "900" }}>View</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {activeTab === "people" || activeTab === "home" ? (
         <Pressable
@@ -2489,15 +2501,20 @@ export default function HomeScreen() {
               <Text style={styles.sheetTitle}>Edit Profile</Text>
               <Pressable onPress={handleSaveProfile}><Text style={styles.sheetDone}>Save</Text></Pressable>
             </View>
-            <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [styles.profilePhotoEditor, pressed && styles.pressed]}>
-              {draftProfilePhotoUri ? <Image source={{ uri: draftProfilePhotoUri }} style={styles.profilePhotoEditorImage} /> : <MaterialIcons name={iconName("add-a-photo")} size={34} color={colors.primary} />}
-              <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Change profile picture" : "Add profile picture"}</Text>
-            </Pressable>
+            <View style={{ alignItems: "center", marginBottom: 12 }}>
+              <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} photoUri={draftProfilePhotoUri} size={104} />
+              <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Uploaded photo" : draftProfileAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
+              <Pressable onPress={handlePickProfilePhoto} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("photo-library")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable>
+              <Pressable onPress={() => setShowProfileAvatarPicker(true)} style={({ pressed }) => [{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 11 }, pressed && styles.pressed]}><MaterialIcons name={iconName("pets")} size={18} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: "800" }}>Choose avatar</Text></Pressable>
+            </View>
             <Text style={styles.fieldLabel}>NAME</Text>
             <TextInput value={draftProfileName} onChangeText={setDraftProfileName} placeholder="Your name" placeholderTextColor="#73808B" returnKeyType="done" style={styles.textInput} />
           </View>
         </View>
       </Modal>
+      <AvatarPicker visible={showProfileAvatarPicker} initialAvatarAsset={draftProfileAvatarAsset} initialTab={profilePickerInitialTab} unlockedShinyIds={achievementState.unlockedAvatarIds} onClose={() => { setShowProfileAvatarPicker(false); setProfilePickerInitialTab("90s"); }} onSelect={(asset) => { setDraftProfileAvatarAsset(asset); setDraftProfilePhotoUri(undefined); }} />
 
       <Modal transparent visible={showFastCreator || showFastEditor} animationType="slide" onRequestClose={() => { setShowFastCreator(false); setShowFastEditor(false); }}>
         <View style={styles.sheetOverlay}>

@@ -15,6 +15,7 @@ import { useColors } from "@/hooks/use-colors";
 import { ScheduleMinistry } from "@/lib/schedule-data";
 import { Person } from "@/lib/prayercircle-data";
 import { MinistryEditForm } from "./ministry-edit-form";
+import { AvatarImage } from "./avatar-system";
 
 interface MinistryDetailCardProps {
   ministry: ScheduleMinistry;
@@ -200,23 +201,7 @@ export function MinistryDetailCard({
                 <View style={styles.peopleList}>
                   {linkedPeople.map((person) => (
                     <View key={person.id} style={styles.personItem}>
-                      {person.photoUri ? (
-                        <Image
-                          source={{ uri: person.photoUri }}
-                          style={styles.personAvatar}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.personAvatar,
-                            { backgroundColor: colors.primary },
-                          ]}
-                        >
-                          <Text style={styles.personInitial}>
-                            {person.name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
+                      <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={36} fallbackColor={colors.primary} style={styles.personAvatar} />
                       <Text style={[styles.personName, { color: colors.foreground }]}>
                         {person.name}
                       </Text>

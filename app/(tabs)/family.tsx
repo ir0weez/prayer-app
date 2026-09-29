@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View, Image, FlatList, Alert, StyleSheet, 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
+import { AvatarImage } from "@/components/avatar-system";
 import { sortFamilyMembers, type Person } from "@/lib/prayercircle-data";
 import { useColors } from "@/hooks/use-colors";
 import { PEOPLE_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -212,13 +213,7 @@ export default function FamilyScreen() {
         {/* Hero Section */}
         <View style={[styles.heroSection, { backgroundColor: colors.surface }]}>
           <View style={styles.avatarContainer}>
-            {selectedMember.photoUri ? (
-              <Image source={{ uri: selectedMember.photoUri }} style={styles.heroAvatar} />
-            ) : (
-              <View style={[styles.heroAvatar, { backgroundColor: selectedMember.avatarColor }]}>
-                <Text style={styles.heroAvatarText}>{selectedMember.initials}</Text>
-              </View>
-            )}
+            <AvatarImage id={selectedMember.id} name={selectedMember.name} gender={selectedMember.gender} avatarAsset={selectedMember.avatarAsset} photoUri={selectedMember.photoUri} size={96} fallbackColor={selectedMember.avatarColor} />
           </View>
           <Text style={[styles.heroName, { color: colors.foreground }]}>{selectedMember.name}</Text>
           <Text style={[styles.heroType, { color: colors.primary }]}>{selectedMember.familyType || "Family"}</Text>
@@ -294,13 +289,7 @@ export default function FamilyScreen() {
                     ],
                   ]}
                 >
-                  <View style={[styles.memberAvatarImage, { backgroundColor: member.photoUri ? "transparent" : member.avatarColor }]}>
-                    {member.photoUri ? (
-                      <Image source={{ uri: member.photoUri }} style={styles.memberAvatarImagePhoto} />
-                    ) : (
-                      <Text style={styles.memberAvatarText}>{member.initials}</Text>
-                    )}
-                  </View>
+                  <AvatarImage id={member.id} name={member.name} gender={member.gender} avatarAsset={member.avatarAsset} photoUri={member.photoUri} size={44} fallbackColor={member.avatarColor} />
                 </Pressable>
               ))}
             </ScrollView>

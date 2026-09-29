@@ -2,7 +2,7 @@ import type { Person } from "./prayercircle-data";
 
 export type PrayerJournalTaggedPerson = Pick<
   Person,
-  "id" | "name" | "initials" | "avatarColor" | "accentColor" | "photoUri"
+  "id" | "name" | "initials" | "avatarColor" | "accentColor" | "photoUri" | "avatarAsset" | "gender"
 >;
 
 export type PrayerJournalReply = {

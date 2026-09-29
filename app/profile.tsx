@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -40,6 +42,7 @@ import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-stora
 type PersonalProfile = {
   name: string;
   photoUri?: string;
+  avatarAsset?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -50,6 +53,7 @@ type PersonalProfile = {
 const DEFAULT_PROFILE: PersonalProfile = {
   name: "Your Profile",
   photoUri: undefined,
+  avatarAsset: undefined,
   fastingStreak: 0,
   personalPrayerStreak: 0,
   fastingStatus: "not-set",
@@ -97,6 +101,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       ...parsed,
       name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
       photoUri: typeof parsed.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : undefined,
+      avatarAsset: typeof parsed.avatarAsset === "string" && parsed.avatarAsset.trim() ? parsed.avatarAsset.trim() : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -122,6 +127,7 @@ export default function ProfileScreen() {
   const colors = useColors();
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
@@ -173,6 +179,22 @@ export default function ProfileScreen() {
   );
 
   const selectedFast = useMemo(() => fasts.find((fast) => fast.id === selectedFastId) ?? getActiveFast(fasts, today), [fasts, selectedFastId, today]);
+
+  const handleUploadProfileAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (!result.canceled && result.assets[0]?.uri) {
+      const next = { ...profile, photoUri: result.assets[0].uri, avatarAsset: undefined };
+      setProfile(next);
+      await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
+      setShowAvatarPicker(false);
+    }
+  };
+
+  const handleSelectProfileAvatar = async (avatarAsset?: string) => {
+    const next = { ...profile, photoUri: undefined, avatarAsset };
+    setProfile(next);
+    await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
+  };
   const selectedFastType = selectedFast ? FAST_TYPES.find((entry) => entry.type === selectedFast.type) : undefined;
   const selectedFastProgress = selectedFast ? getFastProgress(selectedFast) : null;
   const selectedFastStreak = selectedFast ? calculateFastStreak(selectedFast, today) : 0;
@@ -399,9 +421,7 @@ export default function ProfileScreen() {
 
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            <View style={dynamicStyles.profileAvatar}>
-              {profile.photoUri ? <Image source={{ uri: profile.photoUri }} style={styles.profileImage} /> : <MaterialIcons name={iconName("person")} size={42} color="#FFFFFF" />}
-            </View>
+            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
               <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
@@ -596,6 +616,7 @@ export default function ProfileScreen() {
           </>
         ) : null}
       </ScrollView>
+      <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => {
         setShowFastCreator(false);

@@ -67,6 +67,8 @@ export type Person = {
   reminderTag?: string;
   avatarLabel?: string;
   photoUri?: string;
+  avatarAsset?: string;
+  gender?: "m" | "f";
   prayerItems: PrayerItem[];
   familyId?: string; // ID of the family group this person belongs to (if any)
   familyName?: string; // Display name for the family group (e.g., "Gutierrez Family")
@@ -94,6 +96,8 @@ export type AddPersonOptions = {
   reminderTag?: string;
   avatarLabel?: string;
   photoUri?: string;
+  avatarAsset?: string;
+  gender?: "m" | "f";
   showInPrayerCheckIns?: boolean;
 };
 
@@ -548,7 +552,16 @@ export function updatePersonPhoto(
       ? {
           ...p,
           photoUri: normalizeOptionalText(photoUri),
+          avatarAsset: undefined,
         }
+      : p,
+  );
+}
+
+export function updatePersonAvatarAsset(people: Person[], personId: string, avatarAsset?: string): Person[] {
+  return people.map((p) =>
+    p.id === personId
+      ? { ...p, avatarAsset: normalizeOptionalText(avatarAsset), photoUri: undefined }
       : p,
   );
 }
@@ -650,6 +663,7 @@ export function addPerson(
       reminderTag: normalizeOptionalText(options.reminderTag),
       avatarLabel: normalizeOptionalText(options.avatarLabel),
       photoUri: normalizeOptionalText(options.photoUri),
+      avatarAsset: normalizeOptionalText(options.avatarAsset),
       reminderFrequency,
       reminderDayOfMonth: reminderFrequency === "monthly" ? reminderDayOfMonth : undefined,
       reminderTime: reminderFrequency === "none" ? undefined : normalizeOptionalText(options.reminderTime),
@@ -657,6 +671,7 @@ export function addPerson(
       personalTodos: [],
       reminderDaysOfWeek: reminderFrequency === "weekly" ? reminderDaysOfWeek : [],
       isPersonal: false,
+      gender: options.gender,
     },
   ];
 }

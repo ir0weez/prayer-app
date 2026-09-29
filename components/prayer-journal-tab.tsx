@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DateTimePicker } from "@/components/date-time-picker";
+import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import type { Person } from "@/lib/prayercircle-data";
 import {
@@ -46,14 +47,7 @@ function createId(prefix: string): string {
 }
 
 function TaggedAvatar({ person }: { person: PrayerJournalTaggedPerson }) {
-  if (person.photoUri) {
-    return <Image source={{ uri: person.photoUri }} style={styles.taggedAvatarImage} contentFit="cover" />;
-  }
-  return (
-    <View style={[styles.taggedAvatarFallback, { backgroundColor: person.avatarColor }]}>
-      <Text style={[styles.taggedAvatarInitials, { color: person.accentColor }]}>{person.initials}</Text>
-    </View>
-  );
+  return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={38} fallbackColor={person.avatarColor} />;
 }
 
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {

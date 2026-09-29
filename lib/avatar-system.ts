@@ -119,6 +119,17 @@ export const SHINY_AVATARS = {
   "tiger-shiny": require("@/assets/avatars/shiny/avatar-tiger-shiny.webp"),
 } as const;
 
+export const SHINY_AVATAR_THUMBNAILS = {
+  "bull-shiny": require("@/assets/avatars/thumbs/avatar-bull-shiny.webp"),
+  "dragon-shiny": require("@/assets/avatars/thumbs/avatar-dragon-shiny.webp"),
+  "kangaroo-shiny": require("@/assets/avatars/thumbs/avatar-kangaroo-shiny.webp"),
+  "lion-shiny": require("@/assets/avatars/thumbs/avatar-lion-shiny.webp"),
+  "owl-shiny": require("@/assets/avatars/thumbs/avatar-owl-shiny.webp"),
+  "parrot-shiny": require("@/assets/avatars/thumbs/avatar-parrot-shiny.webp"),
+  "prayercircle-shiny": require("@/assets/avatars/thumbs/avatar-prayercircle-shiny.webp"),
+  "tiger-shiny": require("@/assets/avatars/thumbs/avatar-tiger-shiny.webp"),
+} as const;
+
 export type ShinyAvatarId = keyof typeof SHINY_AVATARS;
 
 export const SHINY_ACHIEVEMENTS = [

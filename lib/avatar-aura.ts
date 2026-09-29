@@ -25,7 +25,10 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
 };
 
 export function getAvatarAura(avatarAsset?: string, auraId?: string): AvatarAuraDefinition | undefined {
-  const candidate = (auraId || avatarAsset || "").replace(/^avatar-/, "").replace(/\.webp$/, "") as ShinyAvatarId;
+  // The aura belongs to the active avatar, never to a stale persisted auraId.
+  // This prevents a previously selected shiny aura from appearing around a
+  // regular pack avatar or an uploaded profile photo.
+  const candidate = (avatarAsset || "").replace(/^avatar-/, "").replace(/\.webp$/, "") as ShinyAvatarId;
   return AVATAR_AURAS[candidate];
 }
 
@@ -41,14 +44,16 @@ export function auraRingStyle(aura: AvatarAuraDefinition | undefined, size: numb
   if (!aura) return undefined;
   return {
     position: "absolute",
+    left: animated ? -5 : -3,
+    top: animated ? -5 : -3,
     width: size + (animated ? 10 : 6),
     height: size + (animated ? 10 : 6),
     borderRadius: (size + (animated ? 10 : 6)) / 2,
-    borderWidth: animated ? 2 : 1.5,
+    borderWidth: 2,
     borderColor: aura.glowColor,
     shadowColor: aura.glowColor,
-    shadowOpacity: animated ? 0.8 : 0.35,
-    shadowRadius: animated ? 10 : 4,
+    shadowOpacity: animated ? 0.65 : 0.3,
+    shadowRadius: animated ? 8 : 3,
     shadowOffset: { width: 0, height: 0 },
     elevation: animated ? 6 : 2,
   };

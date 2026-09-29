@@ -751,7 +751,7 @@ export default function PersonScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileSection}>
-          <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor }} />
+          <AvatarImage id={currentPerson.id} name={currentPerson.name} gender={currentPerson.gender} avatarAsset={currentPerson.avatarAsset} photoUri={currentPerson.photoUri} size={96} fallbackColor={currentPerson.avatarColor} style={{ borderWidth: 3, borderColor: currentPerson.accentColor, borderRadius: 48, backgroundColor: "transparent" }} />
           <Text style={styles.personName}>{currentPerson.name}</Text>
           <Text style={[styles.personRelationship, { color: currentPerson.accentColor }]}>{currentPerson.relationship}</Text>
           {currentPerson.birthday && (

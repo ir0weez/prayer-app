@@ -116,6 +116,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
         {style !== "Shiny" && <View style={styles.genderRow}>{(["all", "m", "f"] as const).map((value) => <Pressable key={value} onPress={() => setSelectedGender(value)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === value && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: selectedGender === value ? "#fff" : colors.foreground, fontWeight: "800" }}>{value === "all" ? "All" : value === "m" ? "Male" : "Female"}</Text></Pressable>)}</View>}
         {style === "Shiny" ? (
           <FlatList
+            key="shiny-avatar-grid"
             data={SHINY_ACHIEVEMENTS}
             keyExtractor={(achievement) => achievement.id}
             numColumns={2}
@@ -127,11 +128,14 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
             removeClippedSubviews
             renderItem={({ item: achievement }) => {
               const isUnlocked = unlocked.has(achievement.avatarId);
-              return <Pressable onPress={() => isUnlocked ? select(achievement.avatarId) : undefined} style={[styles.shinyCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><Image source={SHINY_AVATAR_THUMBNAILS[achievement.avatarId as keyof typeof SHINY_AVATAR_THUMBNAILS]} style={[styles.shinyImage, !isUnlocked && { opacity: 0.18 }]} /><Text style={[styles.shinyName, { color: colors.foreground }]}>{isUnlocked ? achievement.name : "Locked"}</Text><Text style={[styles.hint, { color: colors.muted }]}>{achievement.hint}</Text></Pressable>;
+              const thumbnail = SHINY_AVATAR_THUMBNAILS[achievement.avatarId as keyof typeof SHINY_AVATAR_THUMBNAILS];
+              if (!thumbnail) return null;
+              return <Pressable onPress={() => isUnlocked ? select(achievement.avatarId) : undefined} style={[styles.shinyCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><Image source={thumbnail} style={[styles.shinyImage, !isUnlocked && { opacity: 0.18 }]} /><Text style={[styles.shinyName, { color: colors.foreground }]}>{isUnlocked ? achievement.name : "Locked"}</Text><Text style={[styles.hint, { color: colors.muted }]}>{achievement.hint}</Text></Pressable>;
             }}
           />
         ) : (
           <FlatList
+            key="regular-avatar-grid"
             data={regular}
             keyExtractor={(avatar) => avatar.id}
             numColumns={3}

@@ -140,11 +140,11 @@ export function avatarDefinitionById(id?: string) { return AVATAR_DEFINITIONS.fi
 
 export function getAvatarDefinitionForPerson(id: string, gender?: AvatarGender, avatarAsset?: string) {
   const selected = avatarDefinitionById(avatarAsset);
-  if (selected) return selected;
-  const candidates = gender ? AVATAR_DEFINITIONS.filter((avatar) => avatar.gender === gender) : AVATAR_DEFINITIONS;
-  if (!candidates.length) return undefined;
-  let hash = 0; for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return candidates[hash % candidates.length];
+  // Keep the original initials circle until the user explicitly chooses a
+  // bundled avatar. The arguments remain in this API for caller compatibility.
+  void id;
+  void gender;
+  return selected;
 }
 
 export function getAvatarAssetForPerson(id: string, gender?: AvatarGender, avatarAsset?: string) {

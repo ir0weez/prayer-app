@@ -21,14 +21,14 @@ export function StackedAvatar({ people, size = 48 }: StackedAvatarProps) {
     <View style={[styles.container, { width: Math.max(totalWidth, largeSize) }]}>
       {spouses.map((person, index) => (
         <View key={person.id} style={[styles.avatarWrapper, { width: largeSize, height: largeSize, left: index * (largeSize - overlapLarge), zIndex: spouses.length - index }]}>
-          <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} fallbackColor={person.avatarColor} style={styles.borderedAvatar} />
+          <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} fallbackColor={person.avatarColor} />
         </View>
       ))}
       {displayChildren.length > 0 && (
         <View style={[styles.childrenContainer, { left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25, top: 12 }]}>
           {displayChildren.map((person, index) => (
             <View key={person.id} style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: index * (smallSize - overlapSmall), zIndex: displayChildren.length - index, opacity: 1 - index * 0.4 }]}>
-              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={smallSize} fallbackColor={person.avatarColor} style={styles.borderedAvatar} />
+              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={smallSize} fallbackColor={person.avatarColor} />
             </View>
           ))}
           {overflowCount > 0 && <View style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: displayChildren.length * (smallSize - overlapSmall), opacity: 0.4 }]}><View style={[styles.overflowAvatar, { width: smallSize, height: smallSize, borderRadius: smallSize / 2 }]}><Text style={[styles.avatarText, { fontSize: smallSize * 0.3 }]}>+{overflowCount}</Text></View></View>}
@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
   avatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
   childrenContainer: { position: "absolute", height: 32 },
   smallAvatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
-  borderedAvatar: { borderWidth: 2, borderColor: "#fff" },
   overflowAvatar: { justifyContent: "center", alignItems: "center", backgroundColor: "#999", borderWidth: 2, borderColor: "#fff" },
   avatarText: { fontWeight: "600", color: "#fff" },
 });

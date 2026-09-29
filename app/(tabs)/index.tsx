@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
@@ -813,6 +813,11 @@ export default function HomeScreen() {
       };
     }).filter((section) => section.people.length > 0 || (section.familyGroups && section.familyGroups.length > 0));
   }, [ungroupedPeople, familyGroups]);
+  const peopleRows = useMemo(() => relationshipSections.flatMap((section) => [
+    { key: `section-${section.title}`, kind: "section" as const, section },
+    ...(section.familyGroups ?? []).map((familyMembers) => ({ key: `family-${familyMembers[0]?.familyId ?? familyMembers[0]?.id ?? section.title}`, kind: "family" as const, section, familyMembers })),
+    ...section.people.map((person, index) => ({ key: `person-${person.id}`, kind: "person" as const, section, person, index })),
+  ]), [relationshipSections]);
 
 
   const resetAddPersonForm = () => {
@@ -1122,7 +1127,7 @@ export default function HomeScreen() {
   }, [notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, router]);
 
   const renderAvatar = (person: Person, size: number, story = false) => {
-    return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={size} fallbackColor={person.accentColor} />;
+    return <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={size} thumbnail fallbackColor={person.accentColor} />;
   };
 
   const renderStoryPerson = (person: Person) => {
@@ -1367,236 +1372,93 @@ export default function HomeScreen() {
     );
   };
 
+  const renderPeoplePrayerHeader = () => (
+    <View>
+      {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
+        <>
+          <Text style={styles.subheading}>PRAY TODAY</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
+            {visiblePrayTodayList.map(renderStoryPerson)}
+            {duePersonalTodos.map(({ contact, todo }) => (
+              <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
+                <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
+                <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPeople((previousPeople: Person[]) => previousPeople.map((person: Person) => person.id === contact.id ? completePersonalTodo(person, todo.id) : person)); }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+                  <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
+                </Pressable>
+              </View>
+            ))}
+            {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter((todo) => !todo.isCompleted && todo.date && todo.date.split("T")[0] === getTodayISOString()).map((todo) => {
+              const todoTime = todo.startTime ? (() => { const [h, m] = todo.startTime.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; })() : null;
+              return <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
+                <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
+                <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setScheduleTodos((previousTodos) => previousTodos.map((t) => t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t)); }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+                  <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
+                  {todoTime && <View style={[{ position: "absolute", bottom: -8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: todo.color || colors.primary }]}><Text style={{ fontSize: 10, fontWeight: "600", color: "#FFFFFF" }}>{todoTime}</Text></View>}
+                </Pressable>
+              </View>;
+            })}
+            {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
+              <View key="completion-celebration" style={styles.storyItem}>
+                <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
+                <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
+                {pendingFastAction && <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}><UndoCountdownBar color={colors.primary} /></Pressable>}
+              </View>
+            )}
+          </ScrollView>
+        </>
+      )}
+    </View>
+  );
+
+  const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection) => {
+    const accent = relationshipColors[section.title].accent;
+    const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
+    return <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45`, overflow: "hidden" }}>
+      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
+      {familyMembers.map((member, memberIdx) => {
+        const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
+        const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
+        const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
+        const complete = hasPersonCompletedPrayerToday(member, today);
+        return <Pressable key={member.id} onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
+          {renderAvatar(member, 44)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
+          {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
+        </Pressable>;
+      })}
+      <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}><Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
+    </ReAnimated.View>;
+  };
+
+  const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {
+    if (item.kind === "section") return <View style={styles.sectionBlock}><Text style={[styles.relationshipTitle, { color: relationshipColors[item.section.title].accent }]}>{item.section.title.toUpperCase()}</Text></View>;
+    if (item.kind === "person") return renderPersonCard(item.person, item.index, item.section.people);
+    const familyId = item.familyMembers[0]?.familyId || "";
+    const isExpanded = expandedFamilyId === familyId;
+    return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}</View>;
+  };
+
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <View>
-          <Text style={styles.appTitle}>PrayerCircle</Text>
-          <Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
-        </View>
-        <View style={styles.headerStats}>
-          <View style={styles.statItem}>
-            <MaterialIcons name={iconName("local-fire-department")} size={30} color={colors.primary} />
-            <Text style={styles.statNumber}>{streak}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <MaterialIcons name={iconName("chat-bubble")} size={28} color={colors.primary} />
-            <Text style={styles.statNumber}>{remainingPrayTodayCount}</Text>
-          </View>
-        </View>
+        <View><Text style={styles.appTitle}>PrayerCircle</Text><Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text></View>
+        <View style={styles.headerStats}><View style={styles.statItem}><MaterialIcons name={iconName("local-fire-department")} size={30} color={colors.primary} /><Text style={styles.statNumber}>{streak}</Text></View><View style={styles.statItem}><MaterialIcons name={iconName("chat-bubble")} size={28} color={colors.primary} /><Text style={styles.statNumber}>{remainingPrayTodayCount}</Text></View></View>
       </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.peopleContent}>
-        {visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0 ? (
-          <>
-            <Text style={styles.subheading}>PRAY TODAY</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
-              {visiblePrayTodayList.map(renderStoryPerson)}
-              {duePersonalTodos.map(({ contact, todo }) => (
-                <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
-                  <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
-                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setPeople((previousPeople: Person[]) =>
-                        previousPeople.map((person: Person) =>
-                          person.id === contact.id ? completePersonalTodo(person, todo.id) : person
-                        )
-                      );
-                    }}
-                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
-                  >
-                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
-                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
-                        <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  </Pressable>
-                </View>
-              ))}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter(todo => {
-                if (todo.isCompleted) return false;
-                if (!todo.date) return false;
-                const todoDate = todo.date.split('T')[0];
-                const todayDate = getTodayISOString();
-                return todoDate === todayDate;
-              }).map((todo) => {
-                const todoTime = todo.startTime ? (() => {
-                  const [h, m] = todo.startTime.split(':').map(Number);
-                  const ampm = h >= 12 ? 'PM' : 'AM';
-                  const displayH = h % 12 || 12;
-                  return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
-                })() : null;
-                return (
-                <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
-                  <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}>
-                    <Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setScheduleTodos((previousTodos) =>
-                        previousTodos.map((t) =>
-                          t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t
-                        )
-                      );
-                    }}
-                    style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}
-                  >
-                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}>
-                      <View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}>
-                        <MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" />
-                      </View>
-                    </View>
-                    {todoTime && (
-                      <View style={[{ position: 'absolute', bottom: -8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: todo.color || colors.primary }]}>
-                        <Text style={[{ fontSize: 10, fontWeight: '600', color: '#FFFFFF' }]}>{todoTime}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                </View>
-              );
-              })}
-              {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
-                <View key="completion-celebration" style={styles.storyItem}>
-                  <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}>
-                    <PulsingGlow isActive={remainingPrayTodayCount === 0 && prayTodayList.length > 0} color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} />
-                    <Pressable
-                      onPress={handleCompleteFast}
-                      onLongPress={handleMissFast}
-                      delayLongPress={500}
-                      style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}
-                    >
-                      <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={66} fallbackColor={fastAvatarColorFromStatus || colors.primary} />
-                    </Pressable>
-                  </View>
-                  <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}>
-                    <MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" />
-                    <Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text>
-                  </View>
-                  {/* Speech bubble removed - will be replaced with better UX */}
-                  {pendingFastAction && (
-                    <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}>
-                      <UndoCountdownBar color={colors.primary} />
-                    </Pressable>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-          </>
-        ) : null}
-
-        {relationshipSections.length > 0 || familyGroups.length > 0 ? (
-          <>
-            {relationshipSections.map((section) => (
-              <View key={section.title} style={styles.sectionBlock}>
-                <Text style={[styles.relationshipTitle, { color: relationshipColors[section.title].accent }]}>{section.title.toUpperCase()}</Text>
-                {section.familyGroups && section.familyGroups.map((familyMembers) => {
-                  const familyId = familyMembers[0]?.familyId || "";
-                  const isExpanded = expandedFamilyId === familyId;
-                  return (
-                    <View key={familyId}>
-                      {renderFamilyCard(familyMembers, undefined, isExpanded)}
-                      {isExpanded && (
-                        <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${relationshipColors[section.title].accent}45`, overflow: 'hidden' }}>
-                          {(() => {
-                            const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
-                            const completionRatio = familyMembers.length ? completedMembers / familyMembers.length : 0;
-                            return (
-                              <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}>
-                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                  <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text>
-                                  <Text style={{ color: relationshipColors[section.title].accent, fontSize: 12, fontWeight: "800" }}>{Math.round(completionRatio * 100)}%</Text>
-                                </View>
-                                <View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${relationshipColors[section.title].accent}18`, overflow: "hidden" }}>
-                                  <View style={{ width: `${Math.round(completionRatio * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: relationshipColors[section.title].accent }} />
-                                </View>
-                              </View>
-                            );
-                          })()}
-                          {familyMembers.map((member, memberIdx) => {
-                            const isLast = memberIdx === familyMembers.length - 1;
-                            const activeEmergencies = getAllActiveEmergencyPrayers(people);
-                            const memberEmergency = activeEmergencies.find((ep) => ep.person.id === member.id);
-                            const emergencyCountdown = memberEmergency ? emergencyCountdowns[memberEmergency.item.id] : undefined;
-                            const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
-                            const memberReachColor = daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member);
-                            const memberReachProgress = getReachProgressRatio(daysSince);
-                            const reachText = daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince);
-                            return (
-                              <Pressable
-                                key={member.id}
-                                onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })}
-                                style={({ pressed }) => [{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  paddingVertical: 12,
-                                  paddingHorizontal: 16,
-                                  borderBottomWidth: isLast ? 0 : 1,
-                                  borderBottomColor: colors.border,
-                                  backgroundColor: pressed ? colors.primary + '15' : 'transparent',
-                                }]}
-                              >
-                                {renderAvatar(member, 44)}
-                                  <View style={{ flex: 1, marginLeft: 12 }}>
-                                    <Text numberOfLines={1} style={styles.personName}>{member.name}</Text>
-                                  <Text numberOfLines={1} style={styles.personMeta}>
-                                    {formatLastReachedSummary(member)}
-                                  </Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                                  {emergencyCountdown ? (
-                                    <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={memberEmergency ? getEmergencyPrayerProgress(memberEmergency.item.emergencyExpiresAt) : 0} />
-                                  ) : (
-                                    <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}>
-                                      <View style={[styles.reachPillFill, { backgroundColor: memberReachColor, width: `${Math.round(memberReachProgress * 100)}%` }]} />
-                                      <Text style={[styles.reachPillText, (daysSince === 999 || memberReachProgress < 0.42) && styles.reachPillTextMuted]}>{reachText}</Text>
-                                    </View>
-                                  )}
-                                </View>
-                                <Pressable
-                                  onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    const memberIsComplete = hasPersonCompletedPrayerToday(member, today);
-                                    const completedMembers = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length;
-                                    // Grouped cards stay silent while checking individual members.
-                                    // Play the pop only when this tap completes the entire group.
-                                    if (!memberIsComplete && completedMembers === familyMembers.length - 1) playVerifiedPop();
-                                    setPeople((previousPeople) => hasPersonCompletedPrayerToday(member, today) ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id));
-                                  }}
-                                  hitSlop={8}
-                                  style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
-                                >
-                                  {hasPersonCompletedPrayerToday(member, today) && <MaterialIcons name={iconName("check")} size={16} color={relationshipColors[section.title].accent} />}
-                                </Pressable>
-                              </Pressable>
-                            );
-                          })}
-                          <Pressable
-                            onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))}
-                            style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: relationshipColors[section.title].accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}
-                          >
-                            <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text>
-                          </Pressable>
-                        </ReAnimated.View>
-                      )}
-                    </View>
-                  );
-                })}
-                {section.people.map((person, idx) => renderPersonCard(person, idx, section.people))}
-              </View>
-            ))}
-          </>
-        ) : (
-          <View style={styles.emptyStateCard}>
-            <MaterialIcons name={iconName("groups")} size={46} color={colors.primary} />
-            <Text style={styles.emptyTitle}>No people yet</Text>
-            <Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text>
-          </View>
-        )}
-      </ScrollView>
+      <FlatList
+        data={peopleRows}
+        renderItem={renderPeopleRow}
+        keyExtractor={(item) => item.key}
+        ListHeaderComponent={renderPeoplePrayerHeader}
+        ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
+        contentContainerStyle={styles.peopleContent}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        updateCellsBatchingPeriod={40}
+        removeClippedSubviews={Platform.OS === "android"}
+        keyboardShouldPersistTaps="handled"
+      />
     </View>
   );
 

@@ -23,6 +23,7 @@ type AvatarImageProps = {
   style?: StyleProp<ViewStyle>;
   imageStyle?: StyleProp<ImageStyle>;
   fallbackColor?: string;
+  thumbnail?: boolean;
   auraId?: string;
   auraMode?: "static" | "animated" | "none";
 };
@@ -38,7 +39,7 @@ const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number;
   prismatic: [{ left: 0, top: 8, size: 4, color: "accent" }, { left: 52, top: 12, size: 4, color: "secondary" }, { left: 8, top: 48, size: 3, color: "accent" }, { left: 48, top: 48, size: 3, color: "primary" }],
 };
 
-export function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, auraId, auraMode = "static" }: AvatarImageProps) {
+export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, thumbnail = false, auraId, auraMode = "static" }: AvatarImageProps) {
   const colors = useColors();
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
   const aura = getAvatarAura(avatarAsset, auraId);
@@ -68,11 +69,11 @@ export function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48
       {aura && auraMode !== "none" && <Animated.View style={[auraRingStyle(aura, size, animated), animated && { transform: [{ scale: pulse }] }]} pointerEvents="none" />}
       {aura && animated && particles.map((particle, index) => <View key={`${aura.id}-particle-${index}`} pointerEvents="none" style={[styles.auraParticle, { left: particle.left, top: particle.top, width: particle.size, height: particle.size, borderRadius: particle.size / 2, backgroundColor: particleColor(particle.color) }]} />)}
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }}>
-        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: colors.foreground, fontWeight: "800" }}>{initials}</Text>}
+        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
       </View>
     </View>
   );
-}
+});
 
 type AvatarPickerProps = {
   visible: boolean;

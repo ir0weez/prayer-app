@@ -21,14 +21,18 @@ export const StackedAvatar = React.memo(function StackedAvatar({ people, size = 
     <View style={[styles.container, { width: Math.max(totalWidth, largeSize) }]}>
       {spouses.map((person, index) => (
         <View key={person.id} style={[styles.avatarWrapper, { width: largeSize, height: largeSize, left: index * (largeSize - overlapLarge), zIndex: spouses.length - index }]}>
-          <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} thumbnail fallbackColor={person.avatarColor} />
+          <View style={styles.avatarRing}>
+            <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} thumbnail fallbackColor={person.avatarColor} />
+          </View>
         </View>
       ))}
       {displayChildren.length > 0 && (
         <View style={[styles.childrenContainer, { left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25, top: 12 }]}>
           {displayChildren.map((person, index) => (
             <View key={person.id} style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: index * (smallSize - overlapSmall), zIndex: displayChildren.length - index, opacity: 1 - index * 0.4 }]}>
-              <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={smallSize} thumbnail fallbackColor={person.avatarColor} />
+              <View style={styles.avatarRing}>
+                <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={smallSize} thumbnail fallbackColor={person.avatarColor} />
+              </View>
             </View>
           ))}
           {overflowCount > 0 && <View style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: displayChildren.length * (smallSize - overlapSmall), opacity: 0.4 }]}><View style={[styles.overflowAvatar, { width: smallSize, height: smallSize, borderRadius: smallSize / 2 }]}><Text style={[styles.avatarText, { fontSize: smallSize * 0.3 }]}>+{overflowCount}</Text></View></View>}
@@ -41,6 +45,7 @@ export const StackedAvatar = React.memo(function StackedAvatar({ people, size = 
 const styles = StyleSheet.create({
   container: { position: "relative", height: 64 },
   avatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
+  avatarRing: { borderWidth: 1.5, borderColor: "#FFFFFF", borderRadius: 999, backgroundColor: "transparent" },
   childrenContainer: { position: "absolute", height: 32 },
   smallAvatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
   overflowAvatar: { justifyContent: "center", alignItems: "center", backgroundColor: "#999", borderWidth: 2, borderColor: "#fff" },

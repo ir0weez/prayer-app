@@ -83,7 +83,7 @@ import {
   togglePrayerItemDone,
   togglePrayerItemUrgent,
 } from "@/lib/prayercircle-data";
-import { SCHEDULE_TODOS_KEY, type ScheduleTodo } from "@/lib/schedule-data";
+import { SCHEDULE_EVENTS_KEY, SCHEDULE_MINISTRIES_KEY, SCHEDULE_TODOS_KEY } from "@/lib/schedule-data";
 import { getBudgetMonthTotals, normalizeRecurringExpenses } from "@/lib/budget-data";
 import {
   calculateFastStreak,
@@ -426,16 +426,18 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!hasHydratedPeople) return;
     let active = true;
-    Promise.all([loadAchievementState(), AsyncStorage.getItem("WORSHIP_ALBUMS_KEY")]).then(async ([storedState, albumsRaw]) => {
+    Promise.all([loadAchievementState(), AsyncStorage.getItem("WORSHIP_ALBUMS_KEY"), AsyncStorage.getItem(SCHEDULE_EVENTS_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY)]).then(async ([storedState, albumsRaw, eventsRaw, todosRaw, ministriesRaw]) => {
       let savedAlbumCount = 0;
       try { savedAlbumCount = albumsRaw ? (JSON.parse(albumsRaw) as Array<{ isSaved?: boolean }>).filter((album) => album.isSaved).length : 0; } catch { savedAlbumCount = 0; }
       const personalTodos = people.flatMap((person) => person.personalTodos || []);
+      const parseList = (raw: string | null) => { try { return raw ? JSON.parse(raw) as Array<{ tag?: string }> : []; } catch { return []; } };
+      const scheduledItems = [...parseList(eventsRaw), ...parseList(todosRaw), ...parseList(ministriesRaw)];
       const result = await unlockQualifiedAchievements(storedState, qualifyAchievements({
-        todos: personalTodos.map(() => ({ tag: "personal" })),
+        todos: [...scheduledItems, ...personalTodos.map(() => ({ tag: "personal" }))],
         savedAlbumCount,
         streak: streakRecord.streak,
         fasts,
-        tags: personalTodos.length ? ["personal"] : [],
+        tags: [...scheduledItems.map((item) => item.tag).filter((tag): tag is string => Boolean(tag)), ...(personalTodos.length ? ["personal"] : [])],
       }));
       if (!active) return;
       setAchievementState(result.state);

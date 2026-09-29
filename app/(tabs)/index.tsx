@@ -1777,13 +1777,13 @@ export default function HomeScreen() {
         {activeFast && (
           <View style={[styles.fastProgressInCard, { backgroundColor: auraWashColor(profileAura, "30") || colors.primary }]}>
             <View style={styles.fastProgressHeader}>
-              <Text style={styles.fastProgressLabel}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
-              <Text style={styles.fastProgressType}>{activeFast.type}</Text>
+              <Text style={[styles.fastProgressLabel, profileAura && { color: colors.foreground }]}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
+              <Text style={[styles.fastProgressType, profileAura && { color: colors.muted }]}>{activeFast.type}</Text>
             </View>
             <View style={styles.fastProgressBarContainer}>
               <AnimatedWavyProgressBar
                 progress={Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}
-                color={profileAura?.glowColor || "#FFFFFF"}
+                color={profileAura ? colors.foreground : "#FFFFFF"}
               />
             </View>
           </View>

@@ -354,6 +354,14 @@ export default function ProfileScreen() {
       backgroundColor: auraWashColor(profileAura, "24") || `${colors.primary}15`,
       borderColor: profileAura?.glowColor || `${colors.primary}30`,
     },
+    profileName: {
+      ...styles.profileName,
+      color: colors.foreground,
+    },
+    profileSubtitle: {
+      ...styles.profileSubtitle,
+      color: colors.muted,
+    },
     profileAvatar: {
       ...styles.profileAvatar,
       backgroundColor: colors.primary,
@@ -428,8 +436,8 @@ export default function ProfileScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
             <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
-              <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
-              <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
+              <Text style={dynamicStyles.profileName}>{profile.name}</Text>
+              <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
             </View>
           </View>
           <View style={styles.profileButtons}>

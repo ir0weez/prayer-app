@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   AVATAR_DEFINITIONS,
@@ -11,6 +11,7 @@ import {
   type AvatarStyle,
 } from "@/lib/avatar-system";
 import { useColors } from "@/hooks/use-colors";
+import { auraRingStyle, getAvatarAura, type AvatarAuraStyle } from "@/lib/avatar-aura";
 
 type AvatarImageProps = {
   id: string;
@@ -22,15 +23,53 @@ type AvatarImageProps = {
   style?: StyleProp<ViewStyle>;
   imageStyle?: StyleProp<ImageStyle>;
   fallbackColor?: string;
+  auraId?: string;
+  auraMode?: "static" | "animated" | "none";
 };
 
-export function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor }: AvatarImageProps) {
+const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number; size: number; color: "primary" | "secondary" | "accent" }>> = {
+  rays: [{ left: 8, top: -3, size: 4, color: "secondary" }, { left: 46, top: 2, size: 3, color: "accent" }],
+  rings: [],
+  "stained-glass": [{ left: 2, top: 10, size: 4, color: "accent" }, { left: 50, top: 36, size: 4, color: "secondary" }, { left: 20, top: 52, size: 3, color: "accent" }],
+  embers: [{ left: 5, top: 38, size: 4, color: "primary" }, { left: 48, top: 20, size: 3, color: "accent" }, { left: 32, top: -2, size: 3, color: "secondary" }],
+  stars: [{ left: 0, top: 12, size: 3, color: "secondary" }, { left: 52, top: 8, size: 3, color: "primary" }, { left: 46, top: 48, size: 2, color: "secondary" }],
+  dust: [{ left: 4, top: 24, size: 3, color: "primary" }, { left: 52, top: 28, size: 3, color: "secondary" }, { left: 18, top: -1, size: 2, color: "accent" }],
+  radiant: [{ left: 8, top: -2, size: 3, color: "secondary" }, { left: 48, top: 6, size: 3, color: "accent" }],
+  prismatic: [{ left: 0, top: 8, size: 4, color: "accent" }, { left: 52, top: 12, size: 4, color: "secondary" }, { left: 8, top: 48, size: 3, color: "accent" }, { left: 48, top: 48, size: 3, color: "primary" }],
+};
+
+export function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, auraId, auraMode = "static" }: AvatarImageProps) {
   const colors = useColors();
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
+  const aura = getAvatarAura(avatarAsset, auraId);
+  const [reducedMotion, setReducedMotion] = React.useState(false);
+  const pulse = React.useRef(new Animated.Value(1)).current;
+  React.useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((value) => { if (mounted) setReducedMotion(value); }).catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
+  React.useEffect(() => {
+    if (!aura || auraMode !== "animated" || reducedMotion) { pulse.stopAnimation(); pulse.setValue(1); return; }
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1.08, duration: 1200, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [aura, auraMode, pulse, reducedMotion]);
+  const animated = Boolean(aura && auraMode === "animated" && !reducedMotion);
+  const particles = aura ? AURA_PARTICLES[aura.style] : [];
+  const particleColor = (kind: "primary" | "secondary" | "accent") => kind === "primary" ? aura?.glowColor : kind === "secondary" ? aura?.secondaryColor : aura?.accentColors[0];
   const initials = name?.trim().split(/\s+/).map((part) => part[0]).join("").toUpperCase().slice(0, 2) || "?";
   return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }, style]}>
-      {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: colors.foreground, fontWeight: "800" }}>{initials}</Text>}
+    <View style={[{ width: size, height: size, alignItems: "center", justifyContent: "center" }, style]}>
+      {aura && auraMode !== "none" && <Animated.View style={[auraRingStyle(aura, size, animated), animated && { transform: [{ scale: pulse }] }]} pointerEvents="none" />}
+      {aura && animated && particles.map((particle, index) => <View key={`${aura.id}-particle-${index}`} pointerEvents="none" style={[styles.auraParticle, { left: particle.left, top: particle.top, width: particle.size, height: particle.size, borderRadius: particle.size / 2, backgroundColor: particleColor(particle.color) }]} />)}
+      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }}>
+        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: colors.foreground, fontWeight: "800" }}>{initials}</Text>}
+      </View>
     </View>
   );
 }
@@ -80,6 +119,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
 }
 
 const styles = StyleSheet.create({
+  auraParticle: { position: "absolute", zIndex: 3, shadowColor: "#FFFFFF", shadowOpacity: 0.9, shadowRadius: 4, elevation: 3 },
   modal: { flex: 1, paddingTop: 52, paddingHorizontal: 18 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   title: { fontSize: 24, fontWeight: "900" },

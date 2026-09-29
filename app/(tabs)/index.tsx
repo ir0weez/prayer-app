@@ -19,6 +19,7 @@ import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Ea
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS } from "@/lib/avatar-system";
+import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
@@ -153,6 +154,7 @@ type PersonalProfile = {
   name: string;
   photoUri?: string;
   avatarAsset?: string;
+  auraId?: string;
   birthday?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
@@ -179,7 +181,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   budgetRemindersEnabled: true,
   budgetReminderDaysBefore: 1,
 };
-const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
+const DEFAULT_PROFILE: PersonalProfile = { name: "Your Profile", photoUri: undefined, avatarAsset: undefined, auraId: undefined, fastingStreak: 0, personalPrayerStreak: 0, fastingStatus: "not-set", lastFastingDate: null, lastPersonalPrayerDate: null, statusText: undefined, statusPhotoUri: undefined, statusColor: "#0A86B8", statusExpiresAt: null };
 
 function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
@@ -265,6 +267,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
       photoUri: typeof parsed.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : undefined,
       avatarAsset: typeof parsed.avatarAsset === "string" && parsed.avatarAsset.trim() ? parsed.avatarAsset.trim() : undefined,
+      auraId: typeof parsed.auraId === "string" && parsed.auraId.trim() ? parsed.auraId.trim() : undefined,
       fastingStreak: typeof parsed.fastingStreak === "number" && parsed.fastingStreak > 0 ? Math.floor(parsed.fastingStreak) : 0,
       personalPrayerStreak: typeof parsed.personalPrayerStreak === "number" && parsed.personalPrayerStreak > 0 ? Math.floor(parsed.personalPrayerStreak) : 0,
       fastingStatus,
@@ -709,6 +712,7 @@ export default function HomeScreen() {
   // Note: activeFastStreak is now kept in sync with profile.fastingStreak via useEffect
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
+  const profileAura = useMemo(() => getAvatarAura(profile.avatarAsset, profile.auraId), [profile.avatarAsset, profile.auraId]);
   const activeFastTodayStatus = activeFast?.dayStatuses[today];
 
   // Derive fast avatar color from the persisted fast status
@@ -1654,7 +1658,7 @@ export default function HomeScreen() {
       Alert.alert("Add your name", "Enter a name before saving your profile.");
       return;
     }
-    setProfile((previous) => ({ ...previous, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset }));
+    setProfile((previous) => ({ ...previous, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset, auraId: draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined }));
     setShowProfileEditor(false);
   };
 
@@ -1856,12 +1860,12 @@ export default function HomeScreen() {
   const renderSettingsScreen = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
-      <View style={[styles.profileSettingsCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+      <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : colors.surface }]}>
         <View style={styles.profileCardTop}>
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
               <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
+                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
               </Pressable>
             </View>
             <View style={styles.profileNameAndBirthdayContainer}>
@@ -1909,7 +1913,7 @@ export default function HomeScreen() {
         </View>
 
         {activeFast && (
-          <View style={[styles.fastProgressInCard, { backgroundColor: colors.primary }]}>
+          <View style={[styles.fastProgressInCard, { backgroundColor: auraWashColor(profileAura, "30") || colors.primary }]}>
             <View style={styles.fastProgressHeader}>
               <Text style={styles.fastProgressLabel}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
               <Text style={styles.fastProgressType}>{activeFast.type}</Text>
@@ -1917,7 +1921,7 @@ export default function HomeScreen() {
             <View style={styles.fastProgressBarContainer}>
               <AnimatedWavyProgressBar
                 progress={Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}
-                color="#FFFFFF"
+                color={profileAura?.glowColor || "#FFFFFF"}
               />
             </View>
           </View>
@@ -2504,7 +2508,7 @@ export default function HomeScreen() {
               <Pressable onPress={handleSaveProfile}><Text style={styles.sheetDone}>Save</Text></Pressable>
             </View>
             <View style={{ alignItems: "center", marginBottom: 12 }}>
-              <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} photoUri={draftProfilePhotoUri} size={104} />
+              <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} auraId={draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined} auraMode="animated" photoUri={draftProfilePhotoUri} size={104} />
               <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Uploaded photo" : draftProfileAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>

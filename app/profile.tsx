@@ -38,11 +38,13 @@ import {
   removeFastDayStatus,
 } from "@/lib/prayercircle-fasting";
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
+import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 
 type PersonalProfile = {
   name: string;
   photoUri?: string;
   avatarAsset?: string;
+  auraId?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -54,6 +56,7 @@ const DEFAULT_PROFILE: PersonalProfile = {
   name: "Your Profile",
   photoUri: undefined,
   avatarAsset: undefined,
+  auraId: undefined,
   fastingStreak: 0,
   personalPrayerStreak: 0,
   fastingStatus: "not-set",
@@ -102,6 +105,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : DEFAULT_PROFILE.name,
       photoUri: typeof parsed.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : undefined,
       avatarAsset: typeof parsed.avatarAsset === "string" && parsed.avatarAsset.trim() ? parsed.avatarAsset.trim() : undefined,
+      auraId: typeof parsed.auraId === "string" && parsed.auraId.trim() ? parsed.auraId.trim() : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -179,11 +183,12 @@ export default function ProfileScreen() {
   );
 
   const selectedFast = useMemo(() => fasts.find((fast) => fast.id === selectedFastId) ?? getActiveFast(fasts, today), [fasts, selectedFastId, today]);
+  const profileAura = useMemo(() => getAvatarAura(profile.avatarAsset, profile.auraId), [profile.avatarAsset, profile.auraId]);
 
   const handleUploadProfileAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!result.canceled && result.assets[0]?.uri) {
-      const next = { ...profile, photoUri: result.assets[0].uri, avatarAsset: undefined };
+      const next = { ...profile, photoUri: result.assets[0].uri, avatarAsset: undefined, auraId: undefined };
       setProfile(next);
       await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
       setShowAvatarPicker(false);
@@ -191,7 +196,7 @@ export default function ProfileScreen() {
   };
 
   const handleSelectProfileAvatar = async (avatarAsset?: string) => {
-    const next = { ...profile, photoUri: undefined, avatarAsset };
+    const next = { ...profile, photoUri: undefined, avatarAsset, auraId: avatarAsset?.endsWith("-shiny") ? avatarAsset : undefined };
     setProfile(next);
     await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
   };
@@ -346,8 +351,8 @@ export default function ProfileScreen() {
     },
     profileCard: {
       ...styles.profileCard,
-      backgroundColor: `${colors.primary}15`,
-      borderColor: `${colors.primary}30`,
+      backgroundColor: auraWashColor(profileAura, "24") || `${colors.primary}15`,
+      borderColor: profileAura?.glowColor || `${colors.primary}30`,
     },
     profileAvatar: {
       ...styles.profileAvatar,
@@ -421,7 +426,7 @@ export default function ProfileScreen() {
 
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
+            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={[styles.profileName, { color: colors.foreground }]}>{profile.name}</Text>
               <Text style={[styles.profileSubtitle, { color: colors.muted }]}>Personal prayers, fasts, and daily streak tracking</Text>
@@ -482,7 +487,7 @@ export default function ProfileScreen() {
               <Text style={[styles.previousFastPercentage, { color: colors.primary }]}>{lastCompletedFastPercentage}%</Text>
             </View>
             <View style={styles.previousFastProgressTrack}>
-              <View style={[styles.previousFastProgressFill, { width: `${lastCompletedFastPercentage}%`, backgroundColor: colors.primary }]} />
+              <View style={[styles.previousFastProgressFill, { width: `${lastCompletedFastPercentage}%`, backgroundColor: profileAura?.glowColor || colors.primary }]} />
             </View>
             <Text style={styles.previousFastDays}>{lastCompletedFastProgress.completed}/{lastCompletedFastProgress.total} days completed</Text>
             <Text style={styles.previousFastFocusLabel}>FOCUS ITEMS</Text>

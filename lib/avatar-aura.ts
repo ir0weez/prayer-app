@@ -24,6 +24,17 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
   "prayercircle-shiny": { id: "prayercircle-shiny", label: "Mr. Prayer Circle", glowColor: "#E5E7EB", secondaryColor: "#C4B5FD", accentColors: ["#F472B6", "#60A5FA", "#34D399", "#FBBF24"], style: "prismatic", ringCount: 2 },
 };
 
+/** Used only for the personal profile when its active avatar is a regular pack avatar or photo. */
+export const PERSONAL_PROFILE_AURA: AvatarAuraDefinition = {
+  id: "lion-shiny",
+  label: "Personal Avatar",
+  glowColor: "#8557D9",
+  secondaryColor: "#B99AF2",
+  accentColors: ["#D9C7FF", "#A78BFA"],
+  style: "rays",
+  ringCount: 1,
+};
+
 export function getAvatarAura(avatarAsset?: string, auraId?: string): AvatarAuraDefinition | undefined {
   // The aura belongs to the active avatar, never to a stale persisted auraId.
   // This prevents a previously selected shiny aura from appearing around a
@@ -52,9 +63,9 @@ export function auraRingStyle(aura: AvatarAuraDefinition | undefined, size: numb
     borderWidth: 2,
     borderColor: aura.glowColor,
     shadowColor: aura.glowColor,
-    shadowOpacity: animated ? 0.65 : 0.3,
-    shadowRadius: animated ? 8 : 3,
+    shadowOpacity: animated ? 0.8 : 0.65,
+    shadowRadius: animated ? 10 : 8,
     shadowOffset: { width: 0, height: 0 },
-    elevation: animated ? 6 : 2,
+    elevation: animated ? 8 : 4,
   };
 }

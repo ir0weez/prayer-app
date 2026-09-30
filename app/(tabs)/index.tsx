@@ -359,6 +359,8 @@ export default function HomeScreen() {
   const notificationScheduleIdParam = Array.isArray(routeParams.notificationScheduleId) ? routeParams.notificationScheduleId[0] : routeParams.notificationScheduleId;
   const handledEditPersonId = useRef<string | null>(null);
   const handledNotificationAction = useRef<string | null>(null);
+  const prayTodayScrollRef = useRef<ScrollView>(null);
+  const prayTodayScrollOffset = useRef(0);
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -1377,7 +1379,21 @@ export default function HomeScreen() {
       {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
         <>
           <Text style={styles.subheading}>PRAY TODAY</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyScroller}>
+          <ScrollView
+            ref={prayTodayScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.storyScroller}
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              prayTodayScrollOffset.current = event.nativeEvent.contentOffset.x;
+            }}
+            onContentSizeChange={() => {
+              if (prayTodayScrollOffset.current > 0) {
+                prayTodayScrollRef.current?.scrollTo({ x: prayTodayScrollOffset.current, animated: false });
+              }
+            }}
+          >
             {visiblePrayTodayList.map(renderStoryPerson)}
             {duePersonalTodos.map(({ contact, todo }) => (
               <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
@@ -1448,7 +1464,7 @@ export default function HomeScreen() {
         data={peopleRows}
         renderItem={renderPeopleRow}
         keyExtractor={(item) => item.key}
-        ListHeaderComponent={renderPeoplePrayerHeader}
+        ListHeaderComponent={<View>{renderPeoplePrayerHeader()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
         contentContainerStyle={styles.peopleContent}
         showsVerticalScrollIndicator={false}

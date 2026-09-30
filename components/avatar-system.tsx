@@ -12,7 +12,7 @@ import {
   type AvatarStyle,
 } from "@/lib/avatar-system";
 import { useColors } from "@/hooks/use-colors";
-import { auraRingStyle, getAvatarAura, type AvatarAuraStyle } from "@/lib/avatar-aura";
+import { auraRingStyle, getAvatarAura, PERSONAL_PROFILE_AURA, type AvatarAuraStyle } from "@/lib/avatar-aura";
 
 type AvatarImageProps = {
   id: string;
@@ -45,7 +45,7 @@ export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, a
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
   const shinySource = avatarAsset ? SHINY_AVATARS[avatarAsset as keyof typeof SHINY_AVATARS] : undefined;
   const shinyThumbnail = avatarAsset ? SHINY_AVATAR_THUMBNAILS[avatarAsset as keyof typeof SHINY_AVATAR_THUMBNAILS] : undefined;
-  const aura = getAvatarAura(avatarAsset, auraId);
+  const aura = getAvatarAura(avatarAsset, auraId) ?? (id === "profile" ? PERSONAL_PROFILE_AURA : undefined);
   const [reducedMotion, setReducedMotion] = React.useState(false);
   const pulse = React.useRef(new Animated.Value(1)).current;
   React.useEffect(() => {

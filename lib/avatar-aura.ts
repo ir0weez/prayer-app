@@ -36,6 +36,25 @@ export const PERSONAL_PROFILE_AURA: AvatarAuraDefinition = {
   ringCount: 1,
 };
 
+export const PERSONAL_PROFILE_AURA_TIERS: Record<"purple" | "bronze" | "silver" | "gold", AvatarAuraDefinition> = {
+  purple: PERSONAL_PROFILE_AURA,
+  bronze: { id: "personal-bronze", label: "Bronze", glowColor: "#CD7F32", secondaryColor: "#F0B27A", accentColors: ["#FFE0B2", "#A95C20"], style: "rays", ringCount: 1 },
+  silver: { id: "personal-silver", label: "Silver", glowColor: "#A8B0BA", secondaryColor: "#E5E7EB", accentColors: ["#FFFFFF", "#CBD5E1"], style: "rays", ringCount: 1 },
+  gold: { id: "personal-gold", label: "Gold", glowColor: "#D4AF37", secondaryColor: "#FFE9A6", accentColors: ["#FFF8D6", "#B8860B"], style: "rays", ringCount: 1 },
+};
+
+export function getPersonalProfileAuraTier(level: number): "purple" | "bronze" | "silver" | "gold" {
+  const safeLevel = Math.max(1, Math.floor(level));
+  if (safeLevel >= 50) return "gold";
+  if (safeLevel >= 26) return "silver";
+  if (safeLevel >= 3) return "bronze";
+  return "purple";
+}
+
+export function getPersonalProfileAura(avatarAsset?: string, auraId?: string, level = 1): AvatarAuraDefinition {
+  return getAvatarAura(avatarAsset, auraId) ?? PERSONAL_PROFILE_AURA_TIERS[getPersonalProfileAuraTier(level)];
+}
+
 export function getAvatarAura(avatarAsset?: string, auraId?: string): AvatarAuraDefinition | undefined {
   // The aura belongs to the active avatar, never to a stale persisted auraId.
   // This prevents a previously selected shiny aura from appearing around a

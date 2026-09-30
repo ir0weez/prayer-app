@@ -1466,7 +1466,7 @@ export default function HomeScreen() {
             })}
             {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
               <View key="completion-celebration" style={styles.storyItem}>
-                <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
+                <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
                 <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
                 {pendingFastAction && <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}><UndoCountdownBar color={colors.primary} /></Pressable>}
               </View>
@@ -1826,7 +1826,7 @@ export default function HomeScreen() {
           <View style={styles.profileCardTopLeft}>
             <View style={styles.profileAvatarContainer}>
               <Pressable onPress={openProfileEditor} style={({ pressed }) => [styles.profileAvatarButton, pressed && styles.pressed]}>
-                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
+                <AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={xpProgress.level} photoUri={profile.photoUri} size={64} fallbackColor={colors.primary} />
               </Pressable>
             </View>
             <View style={styles.profileNameAndBirthdayContainer}>
@@ -2509,7 +2509,7 @@ export default function HomeScreen() {
               <Pressable onPress={handleSaveProfile}><Text style={styles.sheetDone}>Save</Text></Pressable>
             </View>
             <View style={{ alignItems: "center", marginBottom: 12 }}>
-              <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} auraId={draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined} auraMode="animated" photoUri={draftProfilePhotoUri} size={104} />
+              <AvatarImage id="profile" name={draftProfileName} avatarAsset={draftProfileAvatarAsset} auraId={draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined} auraMode="animated" profileLevel={xpProgress.level} photoUri={draftProfilePhotoUri} size={104} />
               <Text style={styles.photoPrompt}>{draftProfilePhotoUri ? "Uploaded photo" : draftProfileAvatarAsset ? "Pack avatar" : "Default avatar"}</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>

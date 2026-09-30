@@ -40,7 +40,7 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
-import { awardXP } from "@/lib/xp-engine";
+import { awardXP, loadXPState } from "@/lib/xp-engine";
 
 type PersonalProfile = {
   name: string;
@@ -147,10 +147,12 @@ export default function ProfileScreen() {
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [lastBibleReadDate, setLastBibleReadDate] = useState<string | null>(null);
   const [bookStatuses, setBookStatuses] = useState<Record<string, string>>({});
+  const [profileLevel, setProfileLevel] = useState(1);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      loadXPState().then((state) => { if (isActive) setProfileLevel(state.level); }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -442,7 +444,7 @@ export default function ProfileScreen() {
 
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
+            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>

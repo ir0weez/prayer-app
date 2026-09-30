@@ -13,7 +13,7 @@ import {
 } from "@/lib/avatar-system";
 import { BOOK_AVATAR_BY_ID, BOOK_AVATAR_DEFINITIONS } from "@/lib/book-avatars";
 import { useColors } from "@/hooks/use-colors";
-import { auraRingStyle, getAvatarAura, PERSONAL_PROFILE_AURA, type AvatarAuraStyle } from "@/lib/avatar-aura";
+import { auraRingStyle, getAvatarAura, getPersonalProfileAura, type AvatarAuraStyle } from "@/lib/avatar-aura";
 
 type AvatarImageProps = {
   id: string;
@@ -28,6 +28,7 @@ type AvatarImageProps = {
   thumbnail?: boolean;
   auraId?: string;
   auraMode?: "static" | "animated" | "none";
+  profileLevel?: number;
 };
 
 const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number; size: number; color: "primary" | "secondary" | "accent" }>> = {
@@ -41,13 +42,13 @@ const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number;
   prismatic: [{ left: 0, top: 8, size: 4, color: "accent" }, { left: 52, top: 12, size: 4, color: "secondary" }, { left: 8, top: 48, size: 3, color: "accent" }, { left: 48, top: 48, size: 3, color: "primary" }],
 };
 
-export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, thumbnail = false, auraId, auraMode = "static" }: AvatarImageProps) {
+export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, thumbnail = false, auraId, auraMode = "static", profileLevel = 1 }: AvatarImageProps) {
   const colors = useColors();
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
   const bookDefinition = avatarAsset ? BOOK_AVATAR_BY_ID[avatarAsset] : undefined;
   const shinySource = avatarAsset ? SHINY_AVATARS[avatarAsset as keyof typeof SHINY_AVATARS] : undefined;
   const shinyThumbnail = avatarAsset ? SHINY_AVATAR_THUMBNAILS[avatarAsset as keyof typeof SHINY_AVATAR_THUMBNAILS] : undefined;
-  const aura = getAvatarAura(avatarAsset, auraId) ?? (id === "profile" ? PERSONAL_PROFILE_AURA : undefined);
+  const aura = id === "profile" ? getPersonalProfileAura(avatarAsset, auraId, profileLevel) : getAvatarAura(avatarAsset, auraId);
   const [reducedMotion, setReducedMotion] = React.useState(false);
   const pulse = React.useRef(new Animated.Value(1)).current;
   React.useEffect(() => {

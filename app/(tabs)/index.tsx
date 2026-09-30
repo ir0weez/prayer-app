@@ -110,6 +110,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
+import { awardXP, DEFAULT_XP_STATE, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -408,6 +409,8 @@ export default function HomeScreen() {
   const [showStampCollection, setShowStampCollection] = useState(false);
   const [achievementState, setAchievementState] = useState<AchievementState>(DEFAULT_ACHIEVEMENT_STATE);
   const [newAchievementIds, setNewAchievementIds] = useState<string[]>([]);
+  const [xpState, setXpState] = useState<XpState>(DEFAULT_XP_STATE);
+  const [levelUpNumber, setLevelUpNumber] = useState<number | null>(null);
 
   // Handle back gesture/button: go to People tab if on another tab
   useEffect(() => {
@@ -503,6 +506,23 @@ export default function HomeScreen() {
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
+  const xpShimmer = useRef(new Animated.Value(0)).current;
+
+  const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string) => {
+    try {
+      const result = await awardXP(action, idempotencyKey);
+      if (!result.awarded) return;
+      setXpState(result.state);
+      if (result.levelUp) setLevelUpNumber(result.state.level);
+    } catch {
+      // XP is additive and must never interrupt the action that earned it.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    loadXPState().then(setXpState).catch(() => undefined);
+  }, [hasHydratedPeople]);
 
   useEffect(() => {
     let isMounted = true;
@@ -569,6 +589,7 @@ export default function HomeScreen() {
           }
         })
         .catch(() => undefined);
+      loadXPState().then(setXpState).catch(() => undefined);
       return () => {
         isActive = false;
       };
@@ -659,6 +680,13 @@ export default function HomeScreen() {
   const colors = useColors();
   const { colorScheme } = useThemeContext();
   const styles = createStyles(colors);
+  const xpProgress = useMemo(() => getXPProgress(xpState), [xpState]);
+
+  useEffect(() => {
+    const animation = Animated.loop(Animated.timing(xpShimmer, { toValue: 1, duration: 1800, useNativeDriver: true }));
+    animation.start();
+    return () => animation.stop();
+  }, [xpShimmer]);
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
   const visiblePrayTodayList = useMemo(
@@ -963,7 +991,8 @@ export default function HomeScreen() {
     });
     setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
     delete undoTimers.current[personId];
-  }, [maybeAdvanceStreak]);
+    void awardExperience("scheduled-prayer", `${today}:${personId}`);
+  }, [awardExperience, maybeAdvanceStreak, today]);
 
   const handleMarkPrayTodayPerson = (personId: string) => {
     const targetPerson = people.find((person) => person.id === personId);
@@ -989,7 +1018,8 @@ export default function HomeScreen() {
     setFasts(updatedFasts);
     setPendingFastAction(null);
     delete undoTimers.current['fast'];
-  }, [activeFast, fasts, today]);
+    if (action === "completed") void awardExperience("fasting-day", `${activeFast.id}:${today}`);
+  }, [activeFast, awardExperience, fasts, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
@@ -1014,6 +1044,14 @@ export default function HomeScreen() {
     setPendingFastAction(null);
   };
 
+  const handleReachedStampsChange = useCallback((nextStamps: ReachedStamp[]) => {
+    const previousIds = new Set(reachedStamps.map((stamp) => stamp.id));
+    nextStamps.filter((stamp) => !previousIds.has(stamp.id)).forEach((stamp) => {
+      void awardExperience("reached-stamp", stamp.id);
+    });
+    setReachedStamps(nextStamps);
+  }, [awardExperience, reachedStamps]);
+
   const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPeople((previousPeople) => {
@@ -1035,6 +1073,7 @@ export default function HomeScreen() {
       AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updatedPeople))).catch(() => undefined);
       return updatedPeople;
     });
+    void awardExperience("scheduled-prayer", `${today}:${personId}`);
   };
 
   const handleUndoPraise = (personId: string) => {
@@ -1068,6 +1107,7 @@ export default function HomeScreen() {
       return updatedPeople;
     });
     setAvatarActionPersonId(null);
+    void awardExperience("scheduled-prayer", `${today}:${personId}`);
   };
 
   const handleRemoveEmergencyPrayer = (personId: string) => {
@@ -1827,20 +1867,18 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {activeFast && (
-          <View style={[styles.fastProgressInCard, { backgroundColor: auraWashColor(profileAura, "30") || colors.primary }]}>
-            <View style={styles.fastProgressHeader}>
-              <Text style={[styles.fastProgressLabel, profileAura && { color: colors.foreground }]}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
-              <Text style={[styles.fastProgressType, profileAura && { color: colors.muted }]}>{activeFast.type}</Text>
-            </View>
-            <View style={styles.fastProgressBarContainer}>
-              <AnimatedWavyProgressBar
-                progress={Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}
-                color={profileAura ? colors.foreground : "#FFFFFF"}
-              />
+        <View style={[styles.fastProgressInCard, { backgroundColor: profileAura ? auraWashColor(profileAura, "18") : colors.background, borderColor: colors.border, borderWidth: 1 }]}>
+          <View style={styles.fastProgressHeader}>
+            <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level}</Text>
+            <Text style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
+          </View>
+          <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border }]}>
+            <View style={{ width: `${xpProgress.percentage}%`, height: "100%", overflow: "hidden", backgroundColor: colors.primary, borderRadius: 6 }}>
+              <Animated.View style={{ width: 70, height: "100%", backgroundColor: "rgba(255,255,255,0.42)", transform: [{ translateX: xpShimmer.interpolate({ inputRange: [0, 1], outputRange: [-70, 260] }) }] }} />
             </View>
           </View>
-        )}
+          <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>{xpProgress.currentXP} / {xpProgress.requiredXP} XP to next level</Text>
+        </View>
 
         <View style={[styles.fastingStatsRow, { borderTopColor: colors.border }]}>
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#22C55E" }]}>{activeFastProgress?.completed ?? 0}</Text><Text style={styles.settingsStatLabel}>Completed</Text></View>
@@ -1849,6 +1887,26 @@ export default function HomeScreen() {
           <View style={styles.settingsStatDivider} />
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
+      </View>
+
+      <Text style={styles.settingsSectionLabel}>FASTING</Text>
+      <View style={[styles.settingsCard, { borderColor: colors.border, padding: 16 }]}>
+        {activeFast ? (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <View>
+                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800" }}>{activeFast.name}</Text>
+                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }}>{activeFast.type} · {activeFast.durationDays} days</Text>
+              </View>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "800" }}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
+            </View>
+            <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border, height: 10 }]}>
+              <View style={{ width: `${Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}%`, height: "100%", backgroundColor: profileAura?.glowColor || colors.primary, borderRadius: 6 }} />
+            </View>
+          </>
+        ) : (
+          <Text style={{ color: colors.muted, fontSize: 13 }}>No active fast. Start one from your profile.</Text>
+        )}
       </View>
 
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
@@ -1939,6 +1997,8 @@ export default function HomeScreen() {
               setFasts([]);
               setStreakRecord({ streak: 0, lastCompletedDate: null });
               setProfile(DEFAULT_PROFILE);
+              AsyncStorage.removeItem("prayercircle.xp.v1").catch(() => undefined);
+              AsyncStorage.removeItem("prayercircle.xp-awards.v1").catch(() => undefined);
               AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
               AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
               AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
@@ -2157,7 +2217,8 @@ export default function HomeScreen() {
           notificationScheduleKind={notificationScheduleKindParam}
           notificationScheduleId={notificationScheduleIdParam}
           reachedStamps={reachedStamps}
-          onReachedStampsChange={setReachedStamps}
+          onReachedStampsChange={handleReachedStampsChange}
+          onAwardXP={awardExperience}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {
@@ -2361,6 +2422,20 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
+      <Modal transparent visible={levelUpNumber !== null} animationType="fade" onRequestClose={() => setLevelUpNumber(null)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(10,8,24,0.68)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <View style={{ width: "100%", maxWidth: 360, borderRadius: 24, padding: 26, alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary }}>
+            <Animated.View style={{ width: 92, height: 92, borderRadius: 46, alignItems: "center", justifyContent: "center", backgroundColor: `${colors.primary}22`, borderWidth: 3, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: 0.75, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 10 }}>
+              <Text style={{ color: colors.primary, fontSize: 28, fontWeight: "900" }}>{levelUpNumber}</Text>
+            </Animated.View>
+            <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: "900", marginTop: 18 }}>Level up!</Text>
+            <Text style={{ color: colors.muted, fontSize: 15, marginTop: 6, textAlign: "center" }}>You reached Level {levelUpNumber}</Text>
+            <Pressable onPress={() => setLevelUpNumber(null)} style={({ pressed }) => [{ marginTop: 22, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 20, backgroundColor: colors.primary }, pressed && { opacity: 0.75 }]}>
+              <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Continue</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       {activeTab === "people" || activeTab === "home" ? (
         <Pressable
           onPress={() => {

@@ -128,6 +128,7 @@ import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
+import type { XpAction } from "@/lib/xp-engine";
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
 const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1';
@@ -1063,6 +1064,7 @@ export function ScheduleTab({
   notificationScheduleId,
   reachedStamps = [],
   onReachedStampsChange,
+  onAwardXP,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -1083,6 +1085,7 @@ export function ScheduleTab({
   notificationScheduleId?: string;
   reachedStamps?: ReachedStamp[];
   onReachedStampsChange?: (stamps: ReachedStamp[]) => void;
+  onAwardXP?: (action: XpAction, idempotencyKey: string) => void;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
@@ -2838,6 +2841,7 @@ export function ScheduleTab({
                               if (nextChapter) {
                                 try {
                                   const updated = await markChapterAsRead(book, nextChapter.chapter, false);
+                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`);
                                   setBibleState(updated);
                                   await syncUnifiedBibleToAllOldSystems(updated);
                                   const newDisplay = getCurrentBibleDisplay(updated);
@@ -2889,7 +2893,10 @@ export function ScheduleTab({
               ministries={ministries}
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
-              onToggle={() => setTodos((prev) => toggleTodoCompleted(prev, item.data.id))}
+              onToggle={() => {
+                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id);
+                setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
+              }}
               liveNow={clockNow}
               showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
@@ -2919,7 +2926,10 @@ export function ScheduleTab({
             <EventCard
               event={item.data}
               people={people}
-              onToggle={() => setEvents((prev) => toggleEventCompleted(prev, item.data.id))}
+              onToggle={() => {
+                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id);
+                setEvents((prev) => toggleEventCompleted(prev, item.data.id));
+              }}
               onOpenEdit={openEventEditor}
               onDelete={() => {
                 Alert.alert(
@@ -2947,7 +2957,10 @@ export function ScheduleTab({
             <MinistryCard
               ministry={item.data}
               people={people}
-              onToggle={() => setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id))}
+              onToggle={() => {
+                if (!item.data.isCompleted) onAwardXP?.("ministry-task", item.data.id);
+                setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id));
+              }}
               onEdit={() => {
                 // Open ministry form in edit mode
                 setEditingMinistry(item.data);
@@ -3134,6 +3147,7 @@ export function ScheduleTab({
                           if (nextChapter) {
                             try {
                               const updated = await markChapterAsRead(book, nextChapter.chapter, false);
+                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`);
                               setBibleState(updated);
                               // Sync to old systems
                               await syncUnifiedBibleToAllOldSystems(updated);
@@ -3584,7 +3598,7 @@ export function ScheduleTab({
                       {isActive && (
                         <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}>
                           <Pressable
-                            onPress={() => setTodos((current) => toggleTodoCompleted(current, todo.id))}
+                            onPress={() => { if (!todo.isCompleted) onAwardXP?.("schedule-todo-event", todo.id); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
                           >
                             <MaterialIcons name="check" size={17} color="#FFFFFF" />
@@ -4690,6 +4704,7 @@ export function ScheduleTab({
           try {
             // Mark the chapter as read in the unified Bible system
             const updated = await markChapterAsRead(bibleBook, bibleChapter, false);
+            onAwardXP?.("daily-reading", `${bibleBook}:${bibleChapter}`);
             setBibleState(updated);
             // Sync to old systems (Bible tracker, etc.)
             await syncUnifiedBibleToAllOldSystems(updated);

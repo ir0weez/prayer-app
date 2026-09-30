@@ -40,6 +40,7 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
+import { awardXP } from "@/lib/xp-engine";
 
 type PersonalProfile = {
   name: string;
@@ -231,6 +232,9 @@ export default function ProfileScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (status === "completed" && selectedFast.dayStatuses[dateString] !== "completed") {
+      void awardXP("fasting-day", `${selectedFast.id}:${dateString}`).catch(() => undefined);
+    }
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
   };
 

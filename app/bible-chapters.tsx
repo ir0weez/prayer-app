@@ -7,6 +7,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { loadUnifiedBible, saveUnifiedBible, setCurrentBook, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
+import { awardXP } from '@/lib/xp-engine';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -226,6 +227,7 @@ export default function BibleChaptersScreen() {
 
     // Add animation trigger for newly marked chapters
     if (!readChapters.has(chapterId)) {
+      void awardXP("daily-reading", chapterId).catch(() => undefined);
       setJustMarkedAsRead(prev => new Set([...prev, chapterId]));
       setTimeout(() => {
         setJustMarkedAsRead(prev => {

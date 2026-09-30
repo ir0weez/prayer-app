@@ -568,9 +568,9 @@ function TodoItem({
           accessibilityRole="checkbox"
           accessibilityLabel={`Mark ${todo.title} incomplete`}
           accessibilityState={{ checked: true }}
-          onPress={() => {
+          onPress={(event) => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -606,7 +606,7 @@ function TodoItem({
                     onPress={(event) => {
                       event.stopPropagation?.();
                       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      onToggle();
+                      onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
@@ -674,9 +674,9 @@ function TodoItem({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Mark ${todo.title} complete`}
-                  onPress={() => {
+                  onPress={(event) => {
                     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    onToggle();
+                    onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
                   }}
                   style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}
                 >
@@ -691,9 +691,9 @@ function TodoItem({
         </View>
       ) : (
         <Pressable
-          onPress={() => {
+          onPress={(event) => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -832,9 +832,9 @@ function MinistryCard({
     return (
       <>
         <Pressable
-          onPress={() => {
+          onPress={(event) => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onToggle();
+            onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}

@@ -1685,9 +1685,41 @@ export default function HomeScreen() {
 
   const handleImportData = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
-      if (result.canceled || !result.assets?.[0]?.uri) return;
-      const raw = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      let raw: string | null = null;
+      if (Platform.OS === "web") {
+        raw = await new Promise<string | null>((resolve, reject) => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".json,application/json";
+          input.style.display = "none";
+          input.onchange = () => {
+            const file = input.files?.[0];
+            input.remove();
+            if (!file) {
+              resolve(null);
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") resolve(reader.result);
+              else reject(new Error("The selected backup could not be read as text."));
+            };
+            reader.onerror = () => reject(reader.error ?? new Error("The selected backup could not be read."));
+            reader.readAsText(file);
+          };
+          input.onerror = () => {
+            input.remove();
+            reject(new Error("The browser could not open the file picker."));
+          };
+          document.body.appendChild(input);
+          input.click();
+        });
+      } else {
+        const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
+        if (result.canceled || !result.assets?.[0]?.uri) return;
+        raw = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+      }
+      if (raw === null) return;
       const parsed: unknown = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || (parsed as { format?: unknown }).format !== "prayercircle-backup") {
         Alert.alert("Invalid backup", "Choose a PrayerCircle JSON backup file.");

@@ -113,6 +113,7 @@ import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
+import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -146,7 +147,7 @@ type RelationshipSection = {
 
 type AppSettings = {
   demoMode: boolean;
-  colorTheme: "default" | "ocean" | "forest" | "sunset" | "rose";
+  colorTheme: AccentThemeId;
   prayerRemindersEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
@@ -244,8 +245,7 @@ function parseStoredSettings(value: string | null): AppSettings {
   if (!value) return DEFAULT_SETTINGS;
   try {
     const parsed = JSON.parse(value) as Partial<AppSettings>;
-    const validThemes = ["default", "ocean", "forest", "sunset", "rose"];
-    const colorTheme = validThemes.includes(parsed.colorTheme || "") ? (parsed.colorTheme as AppSettings["colorTheme"]) : "default";
+    const colorTheme = normalizeAccentThemeId(parsed.colorTheme);
     const validAdvanceMinutes = [0, 5, 15, 30, 60];
     const defaultEventReminderMinutes = Number(parsed.defaultEventReminderMinutes);
     return {
@@ -509,6 +509,7 @@ export default function HomeScreen() {
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
   const xpShimmer = useRef(new Animated.Value(0)).current;
+  const { colorScheme, setAccentTheme } = useThemeContext();
 
   const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string) => {
     try {
@@ -525,6 +526,10 @@ export default function HomeScreen() {
     if (!hasHydratedPeople) return;
     loadXPState().then(setXpState).catch(() => undefined);
   }, [hasHydratedPeople]);
+
+  useEffect(() => {
+    if (hasHydratedPeople) setAccentTheme(settings.colorTheme);
+  }, [hasHydratedPeople, setAccentTheme, settings.colorTheme]);
 
   useEffect(() => {
     let isMounted = true;
@@ -680,7 +685,6 @@ export default function HomeScreen() {
   }, [people]);
 
   const colors = useColors();
-  const { colorScheme } = useThemeContext();
   const styles = createStyles(colors);
   const xpProgress = useMemo(() => getXPProgress(xpState), [xpState]);
   const levelBadgeFrame = useMemo(() => getXPLevelBadgeFrame(xpProgress.level), [xpProgress.level]);
@@ -1938,7 +1942,7 @@ export default function HomeScreen() {
       <Text style={styles.settingsSectionLabel}>APPEARANCE</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("palette", "Color Theme", settings.colorTheme.charAt(0).toUpperCase() + settings.colorTheme.slice(1))}
+          {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
       </View>
@@ -2647,29 +2651,32 @@ export default function HomeScreen() {
               <View style={{ width: 50 }} />
             </View>
             <ScrollView contentContainerStyle={styles.themeOptions}>
-              {[
-                { id: "default", name: "Default", description: "Original PrayerCircle purple theme", color: "#8557D9" },
-                { id: "ocean", name: "Ocean", description: "Calming blue and teal theme", color: "#0A86B8" },
-                { id: "forest", name: "Forest", description: "Natural green and earth tones", color: "#2E8B3C" },
-                { id: "sunset", name: "Sunset", description: "Warm orange and coral theme", color: "#F25700" },
-                { id: "rose", name: "Rose", description: "Elegant pink and rose theme", color: "#C91463" },
-              ].map((theme) => (
+              {ACCENT_THEMES.map((theme) => {
+                const unlocked = xpProgress.level >= theme.unlockLevel;
+                return (
                 <Pressable
                   key={theme.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !unlocked, selected: settings.colorTheme === theme.id }}
                   onPress={() => {
-                    setSettings((prev) => ({ ...prev, colorTheme: theme.id as AppSettings["colorTheme"] }));
+                    if (!unlocked) return;
+                    const nextTheme = normalizeAccentThemeId(theme.id);
+                    setSettings((prev) => ({ ...prev, colorTheme: nextTheme }));
+                    setAccentTheme(nextTheme);
                     setShowThemeSheet(false);
                   }}
-                  style={({ pressed }) => [styles.themeOption, pressed && styles.pressed, settings.colorTheme === theme.id && { borderColor: theme.color, borderWidth: 2 }]}
+                  style={({ pressed }) => [styles.themeOption, !unlocked && { opacity: 0.48 }, pressed && unlocked && styles.pressed, settings.colorTheme === theme.id && { borderColor: theme.swatch, borderWidth: 2 }]}
                 >
-                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.color }]} />
+                  <View style={[styles.themeColorSwatch, { backgroundColor: theme.swatch }]} />
                   <View style={styles.themeOptionText}>
                     <Text style={styles.themeOptionName}>{theme.name}</Text>
                     <Text style={styles.themeOptionDescription}>{theme.description}</Text>
+                    {!unlocked && <Text style={styles.themeOptionDescription}>Unlocks at Level {theme.unlockLevel}</Text>}
                   </View>
-                  {settings.colorTheme === theme.id && <MaterialIcons name={iconName("check-circle")} size={24} color={theme.color} />}
+                  {settings.colorTheme === theme.id && <MaterialIcons name={iconName("check-circle")} size={24} color={theme.swatch} />}
                 </Pressable>
-              ))}
+                );
+              })}
             </ScrollView>
           </View>
         </View>

@@ -40,6 +40,7 @@ import {
 } from "@/lib/prayercircle-data";
 import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
+import { awardXP } from "@/lib/xp-engine";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -476,7 +477,7 @@ export default function PersonScreen() {
     updatePeople((previousPeople) => markPersonPrayed(previousPeople, personId));
   };
 
-  const handleMarkReachedToday = () => {
+  const handleMarkReachedToday = (position?: { x: number; y: number }) => {
     if (!personId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updatePeople((previousPeople) => updatePersonLastReachedDate(previousPeople, personId, getTodayISOString()));
@@ -484,6 +485,8 @@ export default function PersonScreen() {
       const next = upsertReachedStamp(reachedStamps, { personId, personName: currentPerson.name, date: getTodayISOString() });
       setReachedStamps(next);
       AsyncStorage.setItem(REACHED_STAMPS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      const created = next.find((stamp) => !reachedStamps.some((previous) => previous.id === stamp.id));
+      if (created) void awardXP("reached-stamp", created.id, position).catch(() => undefined);
     }
   };
 
@@ -778,7 +781,7 @@ export default function PersonScreen() {
         </Pressable>
 
         <Pressable
-          onPress={handleMarkReachedToday}
+          onPress={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
           onLongPress={openLastReachedDateModal}
           delayLongPress={350}
           style={({ pressed }) => [styles.actionButton, { backgroundColor: lastReachedColor }, pressed && styles.pressed]}

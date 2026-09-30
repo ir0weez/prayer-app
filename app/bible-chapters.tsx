@@ -7,7 +7,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, Pressable, Text, StyleSheet, Alert, Modal, FlatList } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { loadUnifiedBible, saveUnifiedBible, setCurrentBook, UNIFIED_BIBLE_KEY, type UnifiedBibleState } from '@/lib/bible-unified';
-import { awardXP } from '@/lib/xp-engine';
+import { awardXP, revokeXP } from '@/lib/xp-engine';
 
 const BIBLE_BOOKS = [
   { name: 'Genesis', chapters: 50 },
@@ -211,7 +211,7 @@ export default function BibleChaptersScreen() {
     return book ? book.chapters : 0;
   };
 
-  const toggleChapter = (bookName: string, chapterNum: number) => {
+  const toggleChapter = (bookName: string, chapterNum: number, position?: { x: number; y: number }) => {
     const chapterId = `${bookName}-${chapterNum}`;
     const newChapters = new Set(readChapters);
 
@@ -227,7 +227,7 @@ export default function BibleChaptersScreen() {
 
     // Add animation trigger for newly marked chapters
     if (!readChapters.has(chapterId)) {
-      void awardXP("daily-reading", chapterId).catch(() => undefined);
+      void awardXP("daily-reading", chapterId, position).catch(() => undefined);
       setJustMarkedAsRead(prev => new Set([...prev, chapterId]));
       setTimeout(() => {
         setJustMarkedAsRead(prev => {
@@ -236,6 +236,8 @@ export default function BibleChaptersScreen() {
           return updated;
         });
       }, 600);
+    } else {
+      void revokeXP("daily-reading", chapterId, position).catch(() => undefined);
     }
 
     // Check if all chapters are now read and auto-complete the book
@@ -465,7 +467,7 @@ export default function BibleChaptersScreen() {
                           console.error('Error toggling bookmark:', error);
                         }
                       }}
-                      onPress={() => toggleChapter(book.name, chapterNum)}
+                      onPress={(event) => toggleChapter(book.name, chapterNum, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
                       style={({ pressed }) => [
                         styles.chapterButton,
                         {

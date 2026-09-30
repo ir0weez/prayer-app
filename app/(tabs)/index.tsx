@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
@@ -507,18 +507,27 @@ export default function HomeScreen() {
   const [reachedStampNote, setReachedStampNote] = useState("");
 
   const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingPrayerPositions = useRef<Record<string, XpGainPosition | undefined>>({});
   const fastAvatarPulse = useRef(new Animated.Value(1)).current;
   const xpShimmer = useRef(new Animated.Value(0)).current;
   const { colorScheme, setAccentTheme } = useThemeContext();
 
-  const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string) => {
+  const awardExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
     try {
-      const result = await awardXP(action, idempotencyKey);
+      const result = await awardXP(action, idempotencyKey, position);
       if (!result.awarded) return;
       setXpState(result.state);
       if (result.levelUp) setLevelUpNumber(result.state.level);
     } catch {
       // XP is additive and must never interrupt the action that earned it.
+    }
+  }, []);
+  const revokeExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
+    try {
+      const result = await revokeXP(action, idempotencyKey, position);
+      if (result.awarded) setXpState(result.state);
+    } catch {
+      // Cosmetic reversal feedback must never block the underlying action.
     }
   }, []);
 
@@ -1002,13 +1011,15 @@ export default function HomeScreen() {
     });
     setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
     delete undoTimers.current[personId];
-    void awardExperience("scheduled-prayer", `${today}:${personId}`);
+    void awardExperience("scheduled-prayer", `${today}:${personId}`, pendingPrayerPositions.current[personId]);
+    delete pendingPrayerPositions.current[personId];
   }, [awardExperience, maybeAdvanceStreak, today]);
 
-  const handleMarkPrayTodayPerson = (personId: string) => {
+  const handleMarkPrayTodayPerson = (personId: string, position?: XpGainPosition) => {
     const targetPerson = people.find((person) => person.id === personId);
     if (!targetPerson || pendingPrayerIds.includes(personId) || hasPersonCompletedPrayerToday(targetPerson, today)) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    pendingPrayerPositions.current[personId] = position;
     setPendingPrayerIds((previousIds) => [...previousIds, personId]);
     undoTimers.current[personId] = setTimeout(() => commitPrayTodayPerson(personId), UNDO_COUNTDOWN_MS);
   };
@@ -1060,8 +1071,11 @@ export default function HomeScreen() {
     nextStamps.filter((stamp) => !previousIds.has(stamp.id)).forEach((stamp) => {
       void awardExperience("reached-stamp", stamp.id);
     });
+    reachedStamps.filter((stamp) => !nextStamps.some((next) => next.id === stamp.id)).forEach((stamp) => {
+      void revokeExperience("reached-stamp", stamp.id);
+    });
     setReachedStamps(nextStamps);
-  }, [awardExperience, reachedStamps]);
+  }, [awardExperience, reachedStamps, revokeExperience]);
 
   const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1089,6 +1103,7 @@ export default function HomeScreen() {
 
   const handleUndoPraise = (personId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void revokeExperience("scheduled-prayer", `${today}:${personId}`);
     setPeople((previousPeople) => {
       const updatedPeople = previousPeople.map((person) => {
         if (person.id === personId) {
@@ -1123,6 +1138,7 @@ export default function HomeScreen() {
 
   const handleRemoveEmergencyPrayer = (personId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void revokeExperience("scheduled-prayer", `${today}:${personId}`);
     setPeople((previousPeople) => {
       const now = Date.now();
       const updatedPeople = previousPeople.map((person) =>
@@ -1400,10 +1416,13 @@ export default function HomeScreen() {
                   </View>
                 )}
                 <Pressable
-                  onPress={() => {
+                  onPress={(event) => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    if (!hasPersonCompletedPrayerToday(person, today)) playVerifiedPop();
-                    setPeople((previousPeople) => hasPersonCompletedPrayerToday(person, today) ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id));
+                    const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+                    const completed = hasPersonCompletedPrayerToday(person, today);
+                    if (!completed) { playVerifiedPop(); void awardExperience("scheduled-prayer", `${today}:${person.id}`, position); }
+                    else void revokeExperience("scheduled-prayer", `${today}:${person.id}`, position);
+                    setPeople((previousPeople) => completed ? unmarkPersonPrayed(previousPeople, person.id) : markPersonPrayed(previousPeople, person.id));
                   }}
                   hitSlop={8}
                   style={({ pressed }) => [{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: relationshipStyle.accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}
@@ -1496,7 +1515,7 @@ export default function HomeScreen() {
         return <Pressable key={member.id} onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
           {renderAvatar(member, 44)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
           {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
+          <Pressable onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
         </Pressable>;
       })}
       <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}><Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
@@ -2249,6 +2268,7 @@ export default function HomeScreen() {
           reachedStamps={reachedStamps}
           onReachedStampsChange={handleReachedStampsChange}
           onAwardXP={awardExperience}
+          onRevokeXP={revokeExperience}
           showWorshipAlbumForm={showWorshipAlbumForm}
           onShowWorshipAlbumForm={setShowWorshipAlbumForm}
           onTodoComplete={(todoId) => {

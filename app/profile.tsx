@@ -40,7 +40,7 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
-import { awardXP, loadXPState } from "@/lib/xp-engine";
+import { awardXP, loadXPState, revokeXP } from "@/lib/xp-engine";
 
 type PersonalProfile = {
   name: string;
@@ -228,15 +228,15 @@ export default function ProfileScreen() {
     AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify(nextFasts)).catch(() => undefined);
   };
 
-  const setFastStatus = (dateString: string, status: FastDayStatus) => {
+  const setFastStatus = (dateString: string, status: FastDayStatus, position?: { x: number; y: number }) => {
     if (!selectedFast) {
       setShowFastCreator(true);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (status === "completed" && selectedFast.dayStatuses[dateString] !== "completed") {
-      void awardXP("fasting-day", `${selectedFast.id}:${dateString}`).catch(() => undefined);
-    }
+    const previousStatus = selectedFast.dayStatuses[dateString];
+    if (status === "completed" && previousStatus !== "completed") void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+    if (status !== "completed" && previousStatus === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
   };
 
@@ -277,6 +277,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: () => {
             if (!selectedFast) return;
+            if (selectedFast.dayStatuses[today] === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${today}`).catch(() => undefined);
             persistFasts(removeFastDayStatus(fasts, selectedFast.id, today));
           },
         },
@@ -565,7 +566,7 @@ export default function ProfileScreen() {
 
             <Text style={styles.sectionLabel}>TODAY</Text>
             <View style={styles.todayActions}>
-              <Pressable onPress={() => setFastStatus(today, "completed")} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
+              <Pressable onPress={(event) => setFastStatus(today, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
                 <Text style={styles.todayButtonText}>Successful Day</Text>
               </Pressable>
@@ -580,7 +581,7 @@ export default function ProfileScreen() {
                 const status = selectedFast.dayStatuses[dateString];
                 const isToday = dateString === today;
                 return (
-                  <Pressable key={dateString} onPress={() => setFastStatus(dateString, "completed")} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? colors.primary : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
+                  <Pressable key={dateString} onPress={(event) => setFastStatus(dateString, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? colors.primary : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
                     <Text style={[styles.calendarDayNumber, status && styles.calendarDayNumberActive]}>{index + 1}</Text>
                     <Text style={[styles.calendarDayDate, status && styles.calendarDayDateActive]}>{formatIsoToMmDdYyyy(dateString).slice(0, 5)}</Text>
                   </Pressable>

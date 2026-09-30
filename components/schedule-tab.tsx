@@ -128,7 +128,7 @@ import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
-import type { XpAction } from "@/lib/xp-engine";
+import type { XpAction, XpGainPosition } from "@/lib/xp-engine";
 
 const LEGACY_BIBLE_BOOK_STATUS_KEY = 'bibleBookStatus'; // Legacy storage key for book statuses
 const WORSHIP_EXPANSION_STATE_KEY = 'prayercircle.schedule.worship.expansion.v1';
@@ -155,7 +155,7 @@ function EventCard({
   showActiveNow = false,
 }: {
   event: ScheduleEvent;
-  onToggle: () => void;
+  onToggle: (position?: XpGainPosition) => void;
   onOpenEdit?: (event: ScheduleEvent) => void;
   onDelete?: () => void;
   people?: Person[];
@@ -171,8 +171,9 @@ function EventCard({
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;
   const isLiveScheduledBlock = Boolean(showActiveNow && liveCursor?.activeItemId === event.id && !event.isCompleted);
 
-  const handleTap = () => {
-    onToggle();
+  const handleTap = (event?: any) => {
+    const n = event?.nativeEvent;
+    onToggle(n && { x: n.pageX, y: n.pageY });
   };
 
   const handleLongPress = (eventData: any) => {
@@ -213,9 +214,9 @@ function EventCard({
     return (
       <>
         <Pressable
-          onPress={() => {
+          onPress={(event) => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            handleTap();
+            handleTap(event);
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -253,9 +254,9 @@ function EventCard({
     return (
       <>
         <Pressable
-          onPress={() => {
+          onPress={(event) => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            handleTap();
+            handleTap(event);
           }}
           onLongPress={handleLongPress}
           delayLongPress={500}
@@ -316,9 +317,9 @@ function EventCard({
     return (
       <>
         <Pressable
-        onPress={() => {
+        onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          handleTap();
+          handleTap(event);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -373,9 +374,9 @@ function EventCard({
   return (
     <>
       <Pressable
-        onPress={() => {
+        onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          handleTap();
+          handleTap(event);
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -440,8 +441,8 @@ function TodoItem({
   showActiveNow = false,
 }: {
   todo: ScheduleTodo;
-  onToggle: () => void;
-  onToggleSubtask?: (subtaskId: string) => void;
+  onToggle: (position?: XpGainPosition) => void;
+  onToggleSubtask?: (subtaskId: string, position?: XpGainPosition) => void;
   onToggleGroupExpansion?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -654,7 +655,7 @@ function TodoItem({
                     key={subtask.id}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: subtask.isCompleted }}
-                    onPress={() => onToggleSubtask?.(subtask.id)}
+                    onPress={(event) => onToggleSubtask?.(subtask.id, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
                     style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: index < groupedSubtasks.length - 1 ? 1 : 0, borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                   >
                     <MaterialIcons name={subtask.isCompleted ? 'check-box' : 'check-box-outline-blank'} size={19} color={groupAccentColor} />
@@ -743,7 +744,7 @@ function MinistryCard({
   people = [],
 }: {
   ministry: ScheduleMinistry;
-  onToggle: () => void;
+  onToggle: (position?: XpGainPosition) => void;
   onEdit?: (updatedMinistry?: ScheduleMinistry) => void;
   onDelete?: () => void;
   people?: Person[];
@@ -1065,6 +1066,7 @@ export function ScheduleTab({
   reachedStamps = [],
   onReachedStampsChange,
   onAwardXP,
+  onRevokeXP,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -1085,7 +1087,8 @@ export function ScheduleTab({
   notificationScheduleId?: string;
   reachedStamps?: ReachedStamp[];
   onReachedStampsChange?: (stamps: ReachedStamp[]) => void;
-  onAwardXP?: (action: XpAction, idempotencyKey: string) => void;
+  onAwardXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
+  onRevokeXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
@@ -2785,7 +2788,7 @@ export function ScheduleTab({
                       <View style={{ gap: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable
-                        onPress={async () => {
+                        onPress={async (event) => {
                           if (item.data?.state) {
                             const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                             if (book) {
@@ -2833,7 +2836,7 @@ export function ScheduleTab({
                       </Pressable>
 
                       <Pressable
-                        onPress={async () => {
+                        onPress={async (event) => {
                           if (item.data?.state) {
                             const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                             if (book) {
@@ -2841,7 +2844,7 @@ export function ScheduleTab({
                               if (nextChapter) {
                                 try {
                                   const updated = await markChapterAsRead(book, nextChapter.chapter, false);
-                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`);
+                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
                                   setBibleState(updated);
                                   await syncUnifiedBibleToAllOldSystems(updated);
                                   const newDisplay = getCurrentBibleDisplay(updated);
@@ -2893,13 +2896,19 @@ export function ScheduleTab({
               ministries={ministries}
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
-              onToggle={() => {
-                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id);
+              onToggle={(position) => {
+                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id, position);
+                else onRevokeXP?.("schedule-todo-event", item.data.id, position);
                 setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
               }}
               liveNow={clockNow}
               showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
-              onToggleSubtask={(subtaskId) => setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId))}
+              onToggleSubtask={(subtaskId, position) => {
+                const subtask = item.data.subtasks?.find((entry: { id: string; isCompleted: boolean }) => entry.id === subtaskId);
+                if (subtask?.isCompleted) onRevokeXP?.("schedule-todo-event", `${item.data.id}:${subtaskId}`, position);
+                else onAwardXP?.("schedule-todo-event", `${item.data.id}:${subtaskId}`, position);
+                setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId));
+              }}
               onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
               onEdit={() => openEditTodo(item.data)}
               onDelete={() => {
@@ -2926,8 +2935,9 @@ export function ScheduleTab({
             <EventCard
               event={item.data}
               people={people}
-              onToggle={() => {
-                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id);
+              onToggle={(position) => {
+                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id, position);
+                else onRevokeXP?.("schedule-todo-event", item.data.id, position);
                 setEvents((prev) => toggleEventCompleted(prev, item.data.id));
               }}
               onOpenEdit={openEventEditor}
@@ -2957,8 +2967,9 @@ export function ScheduleTab({
             <MinistryCard
               ministry={item.data}
               people={people}
-              onToggle={() => {
-                if (!item.data.isCompleted) onAwardXP?.("ministry-task", item.data.id);
+              onToggle={(position) => {
+                if (!item.data.isCompleted) onAwardXP?.("ministry-task", item.data.id, position);
+                else onRevokeXP?.("ministry-task", item.data.id, position);
                 setMinistries((prev) => toggleMinistryCompleted(prev, item.data.id));
               }}
               onEdit={() => {
@@ -3139,7 +3150,7 @@ export function ScheduleTab({
                     })()}
                   </View>
                   <Pressable
-                    onPress={async () => {
+                    onPress={async (pressEvent) => {
                       if (item.data?.state) {
                         const book = Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0];
                         if (book) {
@@ -3147,7 +3158,7 @@ export function ScheduleTab({
                           if (nextChapter) {
                             try {
                               const updated = await markChapterAsRead(book, nextChapter.chapter, false);
-                                  onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`);
+                              onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`, { x: pressEvent.nativeEvent.pageX, y: pressEvent.nativeEvent.pageY });
                               setBibleState(updated);
                               // Sync to old systems
                               await syncUnifiedBibleToAllOldSystems(updated);
@@ -3598,7 +3609,7 @@ export function ScheduleTab({
                       {isActive && (
                         <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}>
                           <Pressable
-                            onPress={() => { if (!todo.isCompleted) onAwardXP?.("schedule-todo-event", todo.id); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
+                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) onAwardXP?.("schedule-todo-event", todo.id, position); else onRevokeXP?.("schedule-todo-event", todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
                           >
                             <MaterialIcons name="check" size={17} color="#FFFFFF" />

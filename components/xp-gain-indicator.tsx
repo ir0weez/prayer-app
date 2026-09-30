@@ -51,11 +51,11 @@ export function XpGainIndicator() {
             pointerEvents="none"
             style={[
               styles.pill,
-              { backgroundColor: colors.primary, left, top, bottom },
+              { backgroundColor: gain.direction === "revoke" ? colors.error : colors.primary, left, top, bottom, opacity: gain.direction === "revoke" ? 0.82 : 1 },
               { opacity: gain.animation, transform: [{ translateY: gain.animation.interpolate({ inputRange: [0, 1], outputRange: [0, -34] }) }, { scale: gain.animation.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.94, 1, 1] }) }] },
             ]}
           >
-            <Text style={styles.text}>+{gain.points} XP</Text>
+            <Text style={styles.text}>{gain.direction === "revoke" ? "−" : "+"}{gain.points} XP</Text>
           </Animated.View>
         );
       })}

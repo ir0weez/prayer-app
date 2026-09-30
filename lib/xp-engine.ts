@@ -25,7 +25,7 @@ export type XpAwardResult = {
 };
 
 export type XpGainPosition = { x: number; y: number };
-export type XpGainEvent = { id: string; points: number; position?: XpGainPosition };
+export type XpGainEvent = { id: string; points: number; direction: "gain" | "revoke"; position?: XpGainPosition };
 type XpGainListener = (event: XpGainEvent) => void;
 const xpGainListeners = new Set<XpGainListener>();
 let nextXpGainId = 0;
@@ -35,8 +35,8 @@ export function subscribeXPGain(listener: XpGainListener): () => void {
   return () => xpGainListeners.delete(listener);
 }
 
-function emitXPGain(points: number, position?: XpGainPosition) {
-  const event: XpGainEvent = { id: `xp-gain-${Date.now()}-${nextXpGainId++}`, points, position };
+function emitXPGain(points: number, direction: XpGainEvent["direction"], position?: XpGainPosition) {
+  const event: XpGainEvent = { id: `xp-gain-${Date.now()}-${nextXpGainId++}`, points, direction, position };
   xpGainListeners.forEach((listener) => listener(event));
 }
 
@@ -159,7 +159,46 @@ export async function awardXP(action: XpAction, idempotencyKey: string, position
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
     AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
   ]);
-  emitXPGain(result.points, position);
+  emitXPGain(result.points, "gain", position);
+  return result;
+}
+/** Removes one completed action from the ledger and reverses its XP exactly once. */
+export async function revokeXP(action: XpAction, idempotencyKey: string, position?: XpGainPosition): Promise<XpAwardResult> {
+  const [storedState, storedAwards] = await Promise.all([
+    AsyncStorage.getItem(XP_STORAGE_KEY),
+    AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
+  ]);
+  let awards: string[] = [];
+  try {
+    const parsed = storedAwards ? JSON.parse(storedAwards) : [];
+    if (Array.isArray(parsed)) awards = parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    awards = [];
+  }
+  const key = `${action}:${idempotencyKey}`;
+  let parsedState: unknown = null;
+  try {
+    parsedState = storedState ? JSON.parse(storedState) : null;
+  } catch {
+    parsedState = null;
+  }
+  const current = normalizeXPState(parsedState);
+  if (!awards.includes(key)) {
+    return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
+  }
+  const totalXP = Math.max(0, current.totalXP - XP_ACTION_POINTS[action]);
+  const result: XpAwardResult = {
+    state: { totalXP, level: getLevelForXP(totalXP) },
+    awarded: true,
+    points: XP_ACTION_POINTS[action],
+    previousLevel: current.level,
+    levelUp: false,
+  };
+  await Promise.all([
+    AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
+    AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify(awards.filter((awardKey) => awardKey !== key))),
+  ]);
+  emitXPGain(result.points, "revoke", position);
   return result;
 }
 

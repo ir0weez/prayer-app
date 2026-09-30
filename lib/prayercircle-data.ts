@@ -272,6 +272,16 @@ export function hasActivePraise(person: Person, now = new Date()): boolean {
   return Number.isFinite(expiresAt) && expiresAt > now.getTime();
 }
 
+/** Returns whether any of a person's emergency prayers are still within their 24-hour window. */
+export function hasActiveEmergencyPrayer(person: Person, now = new Date()): boolean {
+  const nowMillis = now.getTime();
+  return person.prayerItems.some((item) => {
+    if (!item.isEmergency || !item.emergencyExpiresAt) return false;
+    const expiresAt = new Date(item.emergencyExpiresAt).getTime();
+    return Number.isFinite(expiresAt) && expiresAt > nowMillis;
+  });
+}
+
 // Helper: Get list of people to pray for today
 export function getPrayTodayList(people: Person[], todayDayOfWeek: number, todayDayOfMonth = new Date().getDate()): Person[] {
   const now = new Date();
@@ -280,10 +290,7 @@ export function getPrayTodayList(people: Person[], todayDayOfWeek: number, today
     if (shouldPrayForTodayByReminder(person, todayDayOfWeek, todayDayOfMonth)) return true;
     
     // Include if has active emergency prayer
-    const hasActiveEmergency = person.prayerItems.some((item) => 
-      item.isEmergency && item.emergencyExpiresAt && new Date(item.emergencyExpiresAt) > now
-    );
-    if (hasActiveEmergency) return true;
+    if (hasActiveEmergencyPrayer(person, now)) return true;
     
     // Include if has active praise
     if (hasActivePraise(person, now)) return true;
@@ -319,7 +326,19 @@ export function shouldKeepVisibleInPrayToday(
   isPending = false,
   now = new Date(),
 ): boolean {
-  return isPending || !hasPersonCompletedPrayerToday(person, dateString) || hasActivePraise(person, now);
+  return isPending || !hasPersonCompletedPrayerToday(person, dateString) || hasActiveEmergencyPrayer(person, now) || hasActivePraise(person, now);
+}
+
+/** Stable priority ordering for the Pray Today avatar bar. */
+export function sortPrayTodayListByPriority(people: Person[], now = new Date()): Person[] {
+  return people
+    .map((person, index) => ({
+      person,
+      index,
+      priority: hasActiveEmergencyPrayer(person, now) ? 2 : hasActivePraise(person, now) ? 1 : 0,
+    }))
+    .sort((a, b) => b.priority - a.priority || a.index - b.index)
+    .map(({ person }) => person);
 }
 
 // Helper: Get daily prayer progress

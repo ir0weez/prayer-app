@@ -56,6 +56,8 @@ import {
   getLastReachedAccentColor,
   getPrayTodayList,
   hasActivePraise,
+  hasActiveEmergencyPrayer,
+  sortPrayTodayListByPriority,
   getTodayISOString,
   getUrgentPrayerItems,
   hasPersonCompletedPrayerToday,
@@ -690,7 +692,10 @@ export default function HomeScreen() {
   const prayTodayList = useMemo(() => getPrayTodayList(people, todayDayOfWeek, todayDayOfMonth), [people, todayDayOfMonth, todayDayOfWeek]);
   const personalContacts = useMemo(() => getPersonalContacts(people), [people]);
   const visiblePrayTodayList = useMemo(
-    () => prayTodayList.filter((person) => shouldKeepVisibleInPrayToday(person, today, pendingPrayerIds.includes(person.id))),
+    () => sortPrayTodayListByPriority(
+      prayTodayList.filter((person) => shouldKeepVisibleInPrayToday(person, today, pendingPrayerIds.includes(person.id))),
+      new Date(),
+    ),
     [pendingPrayerIds, prayTodayList, today],
   );
   const duePersonalTodos = useMemo(() => {
@@ -1175,9 +1180,14 @@ export default function HomeScreen() {
 
   const renderStoryPerson = (person: Person) => {
     const urgentItems = getUrgentPrayerItems(person);
-    const emergencyPrayers = person.prayerItems.filter((item) => item.isEmergency);
+    const hasActiveEmergency = hasActiveEmergencyPrayer(person);
+    const emergencyPrayers = person.prayerItems.filter((item) => {
+      if (!item.isEmergency || !item.emergencyExpiresAt) return false;
+      const expiresAt = new Date(item.emergencyExpiresAt).getTime();
+      return Number.isFinite(expiresAt) && expiresAt > Date.now();
+    });
     const displayItem = emergencyPrayers.length > 0 ? emergencyPrayers[0] : urgentItems[0];
-    const isEmergency = emergencyPrayers.length > 0;
+    const isEmergency = hasActiveEmergency && emergencyPrayers.length > 0;
     const emergencyCountdown = isEmergency && displayItem?.emergencyExpiresAt ? emergencyCountdowns[displayItem.id] || 0 : 0;
     const praiseCountdown = person.isPraised && person.praiseExpiresAt ? (praiseCountdowns[person.id] || 0) : 0;
     const isPending = pendingPrayerIds.includes(person.id);

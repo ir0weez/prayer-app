@@ -21,6 +21,8 @@ import {
   getLastReachedAccentColor,
   getNextPrayerPerson,
   getPrayTodayList,
+  addEmergencyPrayer,
+  hasActiveEmergencyPrayer,
   hasActivePraise,
   getReminderScheduleText,
   getUrgentPrayerItems,
@@ -28,6 +30,7 @@ import {
   getIconForTodo,
   hasPersonCompletedPrayerToday,
   shouldKeepVisibleInPrayToday,
+  sortPrayTodayListByPriority,
   getInitialState,
   initialJournal,
   initialPeople,
@@ -227,6 +230,33 @@ describe("PrayerCircle local data helpers", () => {
     expect(hasActivePraise(praised[0], now)).toBe(true);
     expect(getPrayTodayList(praised, 2, 10)).toEqual(praised);
     expect(shouldKeepVisibleInPrayToday(praised[0], getTodayISOString(), false, now)).toBe(true);
+  });
+  it("keeps an active emergency person in Pray Today after their daily prayer is complete", () => {
+    const now = new Date();
+    const people = addPerson(initialPeople, "Alice", "Friends");
+    const prayed = markPersonPrayed(people, people[0].id);
+    const emergency = addEmergencyPrayer(prayed[0], "Urgent need");
+
+    expect(hasPersonCompletedPrayerToday(emergency)).toBe(true);
+    expect(hasActiveEmergencyPrayer(emergency, now)).toBe(true);
+    expect(getPrayTodayList([emergency], 2, 10)).toEqual([emergency]);
+    expect(shouldKeepVisibleInPrayToday(emergency, getTodayISOString(), false, now)).toBe(true);
+  });
+  it("orders active emergency people before active praise people in Pray Today", () => {
+    const now = new Date();
+    let people = addPerson(initialPeople, "Normal", "Friends");
+    people = addPerson(people, "Praise", "Friends");
+    people = addPerson(people, "Emergency", "Friends");
+    const prayed = people.map((person) => markPersonPrayed([person], person.id)[0]);
+    const praiseExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const prioritized = [
+      { ...prayed[0] },
+      { ...prayed[1], isPraised: true, praiseExpiresAt },
+      addEmergencyPrayer(prayed[2], "Urgent need"),
+    ];
+
+    const sorted = sortPrayTodayListByPriority(prioritized, now);
+    expect(sorted.map((person) => person.name)).toEqual(["Emergency", "Praise", "Normal"]);
   });
 
   it("filters people by active reminder day of week", () => {

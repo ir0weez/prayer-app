@@ -6,6 +6,26 @@ export type ReachedStamp = {
   note?: string;
 };
 
+export type ReachedStampSkin = "classic" | "postmark" | "linen" | "embossed";
+
+export const REACHED_STAMP_SKIN_STORAGE_KEY = "prayercircle.reached-stamp-skin.v1";
+
+export const REACHED_STAMP_SKINS: Array<{ id: ReachedStampSkin; name: string; unlockLevel: number }> = [
+  { id: "classic", name: "Classic", unlockLevel: 1 },
+  { id: "postmark", name: "Postmark", unlockLevel: 5 },
+  { id: "linen", name: "Linen", unlockLevel: 15 },
+  { id: "embossed", name: "Embossed", unlockLevel: 35 },
+];
+
+export function getUnlockedReachedStampSkins(level: number): ReachedStampSkin[] {
+  const safeLevel = Math.max(1, Math.floor(level));
+  return REACHED_STAMP_SKINS.filter((skin) => safeLevel >= skin.unlockLevel).map((skin) => skin.id);
+}
+
+export function normalizeReachedStampSkin(value: unknown): ReachedStampSkin {
+  return REACHED_STAMP_SKINS.some((skin) => skin.id === value) ? value as ReachedStampSkin : "classic";
+}
+
 function cleanText(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();

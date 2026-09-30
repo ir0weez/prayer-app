@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeReachedStamps, removeReachedStamp, updateReachedStamp, upsertReachedStamp } from "./reached-stamps";
+import { getUnlockedReachedStampSkins, normalizeReachedStampSkin, normalizeReachedStamps, removeReachedStamp, updateReachedStamp, upsertReachedStamp } from "./reached-stamps";
 
 describe("reached stamps", () => {
   it("normalizes valid history and skips malformed entries", () => {
@@ -23,5 +23,21 @@ describe("reached stamps", () => {
     const edited = updateReachedStamp(stamps, stamps[0].id, "phone call");
     expect(edited[0].note).toBe("phone call");
     expect(removeReachedStamp(edited, stamps[0].id)).toEqual([]);
+  });
+
+  it("unlocks alternate stamp skins at XP levels 5, 15, and 35", () => {
+    expect(getUnlockedReachedStampSkins(1)).toEqual(["classic"]);
+    expect(getUnlockedReachedStampSkins(4)).toEqual(["classic"]);
+    expect(getUnlockedReachedStampSkins(5)).toEqual(["classic", "postmark"]);
+    expect(getUnlockedReachedStampSkins(14)).toEqual(["classic", "postmark"]);
+    expect(getUnlockedReachedStampSkins(15)).toEqual(["classic", "postmark", "linen"]);
+    expect(getUnlockedReachedStampSkins(34)).toEqual(["classic", "postmark", "linen"]);
+    expect(getUnlockedReachedStampSkins(35)).toEqual(["classic", "postmark", "linen", "embossed"]);
+  });
+
+  it("falls back to the default skin for invalid persisted values", () => {
+    expect(normalizeReachedStampSkin("postmark")).toBe("postmark");
+    expect(normalizeReachedStampSkin("unknown")).toBe("classic");
+    expect(normalizeReachedStampSkin(null)).toBe("classic");
   });
 });

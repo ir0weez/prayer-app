@@ -1,11 +1,13 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Rect, Text as SvgText } from "react-native-svg";
 
 import { useColors } from "@/hooks/use-colors";
 import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
-import { removeReachedStamp, updateReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
+import { getUnlockedReachedStampSkins, normalizeReachedStampSkin, REACHED_STAMP_SKIN_STORAGE_KEY, REACHED_STAMP_SKINS, removeReachedStamp, updateReachedStamp, type ReachedStamp, type ReachedStampSkin } from "@/lib/reached-stamps";
+import { loadXPState } from "@/lib/xp-engine";
 
 type StampShape = "circle" | "oval" | "rounded-rectangle";
 type StampVariation = { rotation: number; radius: number; dash: string; markOffset: number; shape: StampShape };
@@ -32,7 +34,7 @@ function getMonthLabel(monthKey: string): string {
   return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-function PassportStamp({ stamp, ink }: { stamp: ReachedStamp; ink: string }) {
+function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; ink: string; skin?: ReachedStampSkin }) {
   const variation = getStampVariation(stamp);
   const shortName = stamp.personName.length > 18 ? `${stamp.personName.slice(0, 17)}…` : stamp.personName;
   const shortNote = stamp.note && stamp.note.length > 17 ? `${stamp.note.slice(0, 16)}…` : stamp.note;
@@ -52,6 +54,12 @@ function PassportStamp({ stamp, ink }: { stamp: ReachedStamp; ink: string }) {
             <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
             <Rect x="14" y="20" width="96" height="84" rx="14" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
           </>}
+          {skin === "postmark" && <Line x1="20" y1="102" x2="103" y2="22" stroke={ink} strokeWidth="1.2" strokeDasharray="4 4" opacity={0.25} />}
+          {skin === "linen" && <>
+            <Line x1="25" y1="40" x2="42" y2="23" stroke={ink} strokeWidth="0.8" opacity={0.2} />
+            <Line x1="82" y1="101" x2="99" y2="84" stroke={ink} strokeWidth="0.8" opacity={0.2} />
+          </>}
+          {skin === "embossed" && variation.shape === "circle" && <Circle cx="62" cy="62" r={variation.radius - 10} fill="none" stroke={ink} strokeWidth="0.8" opacity={0.35} />}
           <Circle cx={24 + variation.markOffset} cy="29" r="1.3" fill={ink} opacity={0.22} />
           <Circle cx="96" cy={84 + (variation.markOffset % 13)} r="1.1" fill={ink} opacity={0.2} />
           <Line x1="29" y1="94" x2="40" y2="91" stroke={ink} strokeWidth="1" opacity={0.18} />
@@ -71,14 +79,42 @@ export function StampCollectionModal({
   stamps,
   people = [],
   onClose,
+  skin: controlledSkin,
+  onSkinChange,
 }: {
   visible: boolean;
   stamps: ReachedStamp[];
   people?: Person[];
   onClose: () => void;
+  skin?: ReachedStampSkin;
+  onSkinChange?: (skin: ReachedStampSkin) => void;
 }) {
   const colors = useColors();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [storedSkin, setStoredSkin] = useState<ReachedStampSkin>("classic");
+  const [xpLevel, setXpLevel] = useState(1);
+  const selectedSkin = controlledSkin ?? storedSkin;
+  const unlockedSkins = useMemo(() => getUnlockedReachedStampSkins(xpLevel), [xpLevel]);
+  useEffect(() => {
+    if (!visible) return;
+    void Promise.all([loadXPState(), AsyncStorage.getItem(REACHED_STAMP_SKIN_STORAGE_KEY)]).then(([xpState, savedSkin]) => {
+      setXpLevel(xpState.level);
+      const nextSkin = normalizeReachedStampSkin(savedSkin);
+      if (getUnlockedReachedStampSkins(xpState.level).includes(nextSkin)) {
+        setStoredSkin(nextSkin);
+        onSkinChange?.(nextSkin);
+      } else {
+        setStoredSkin("classic");
+        onSkinChange?.("classic");
+      }
+    }).catch(() => undefined);
+  }, [onSkinChange, visible]);
+  const selectSkin = (nextSkin: ReachedStampSkin) => {
+    if (!unlockedSkins.includes(nextSkin)) return;
+    setStoredSkin(nextSkin);
+    onSkinChange?.(nextSkin);
+    void AsyncStorage.setItem(REACHED_STAMP_SKIN_STORAGE_KEY, nextSkin);
+  };
   const personById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const monthGroups = useMemo(() => {
     const grouped = new Map<string, ReachedStamp[]>();
@@ -112,6 +148,20 @@ export function StampCollectionModal({
               <MaterialIcons name="close" size={24} color={colors.muted} />
             </Pressable>
           </View>
+          <View style={styles.skinPickerSection}>
+            <Text style={[styles.skinPickerLabel, { color: colors.muted }]}>STAMP SKIN</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.skinPickerRow}>
+              {REACHED_STAMP_SKINS.map((skinOption) => {
+                const unlocked = unlockedSkins.includes(skinOption.id);
+                const active = selectedSkin === skinOption.id;
+                return <Pressable key={skinOption.id} accessibilityRole="button" accessibilityLabel={`${skinOption.name} stamp skin${unlocked ? "" : `, unlocks at level ${skinOption.unlockLevel}`}`} onPress={() => selectSkin(skinOption.id)} style={[styles.skinOption, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary + "18" : colors.background, opacity: unlocked ? 1 : 0.5 }]}>
+                  <MaterialIcons name={unlocked ? (active ? "check-circle" : "verified") : "lock"} size={14} color={active ? colors.primary : colors.muted} />
+                  <Text style={[styles.skinOptionText, { color: active ? colors.primary : colors.foreground }]}>{skinOption.name}</Text>
+                  {!unlocked && <Text style={[styles.skinUnlockText, { color: colors.muted }]}>Lv {skinOption.unlockLevel}</Text>}
+                </Pressable>;
+              })}
+            </ScrollView>
+          </View>
           <ScrollView contentContainerStyle={styles.collectionContent}>
             {monthGroups.map(([month, monthStamps]) => (
               <View key={month} style={[styles.monthGroup, { borderColor: colors.border }]}>
@@ -133,7 +183,7 @@ export function StampCollectionModal({
                           onPress={isStacked ? () => setExpandedGroups((previous) => ({ ...previous, [personGroup.key]: !isExpanded })) : undefined}
                           style={({ pressed }) => [styles.collectionStampButton, pressed && isStacked && { opacity: 0.7 }]}
                         >
-                          <PassportStamp stamp={representative} ink={inkFor(representative)} />
+                          <PassportStamp stamp={representative} ink={inkFor(representative)} skin={selectedSkin} />
                           {isStacked && (
                             <View style={[styles.stackCountBadge, { backgroundColor: colors.primary }]}>
                               <Text style={styles.stackCountText}>×{personGroup.stamps.length}</Text>
@@ -144,7 +194,7 @@ export function StampCollectionModal({
                           <View style={[styles.expandedStampList, { borderTopColor: colors.border }]}>
                             {personGroup.stamps.map((stamp) => (
                               <View key={stamp.id} style={styles.expandedStampItem}>
-                                <PassportStamp stamp={stamp} ink={inkFor(stamp)} />
+                                <PassportStamp stamp={stamp} ink={inkFor(stamp)} skin={selectedSkin} />
                                 <View style={styles.expandedStampMeta}>
                                   <Text style={[styles.expandedStampDate, { color: colors.foreground }]}>{formatIsoDateForDisplay(stamp.date)}</Text>
                                   <Text numberOfLines={2} style={[styles.expandedStampNote, { color: colors.muted }]}>{stamp.note || "Reached"}</Text>
@@ -183,7 +233,12 @@ export function ReachedStampRow({
   const [editingStamp, setEditingStamp] = useState<ReachedStamp | null>(null);
   const [note, setNote] = useState("");
   const [showCollection, setShowCollection] = useState(false);
+  const [stampSkin, setStampSkin] = useState<ReachedStampSkin>("classic");
   const personById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
+
+  useEffect(() => {
+    void AsyncStorage.getItem(REACHED_STAMP_SKIN_STORAGE_KEY).then((savedSkin) => setStampSkin(normalizeReachedStampSkin(savedSkin))).catch(() => undefined);
+  }, []);
 
   const inkFor = (stamp: ReachedStamp) => relationshipColors[personById.get(stamp.personId)?.relationship || "Friends"].accent;
 
@@ -233,11 +288,11 @@ export function ReachedStampRow({
             delayLongPress={350}
             style={({ pressed }) => [styles.stampButton, pressed && { opacity: 0.65, transform: [{ scale: 0.97 }] }]}
           >
-            <PassportStamp stamp={stamp} ink={inkFor(stamp)} />
+            <PassportStamp stamp={stamp} ink={inkFor(stamp)} skin={stampSkin} />
           </Pressable>
         ))}
       </View>
-      <StampCollectionModal visible={showCollection} stamps={stamps} people={people} onClose={() => setShowCollection(false)} />
+      <StampCollectionModal visible={showCollection} stamps={stamps} people={people} skin={stampSkin} onSkinChange={setStampSkin} onClose={() => setShowCollection(false)} />
       <Modal transparent visible={Boolean(editingStamp)} animationType="fade" onRequestClose={() => setEditingStamp(null)}>
         <View style={styles.overlay}>
           <View style={[styles.editModal, { backgroundColor: colors.surface }]}>
@@ -271,6 +326,12 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, paddingBottom: 10 },
   modalTitle: { fontSize: 19, fontWeight: "900" },
   modalSubtitle: { fontSize: 13, fontWeight: "600", marginTop: 2 },
+  skinPickerSection: { paddingHorizontal: 18, paddingTop: 2, paddingBottom: 4, gap: 6 },
+  skinPickerLabel: { fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
+  skinPickerRow: { gap: 7, paddingRight: 18 },
+  skinOption: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, borderWidth: 1, borderRadius: 16 },
+  skinOptionText: { fontSize: 11, fontWeight: "800" },
+  skinUnlockText: { fontSize: 9, fontWeight: "700" },
   collectionContent: { padding: 18, paddingTop: 6, gap: 12 },
   monthGroup: { borderWidth: 1, borderRadius: 14, padding: 10 },
   monthHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

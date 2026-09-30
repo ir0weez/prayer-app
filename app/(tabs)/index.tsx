@@ -19,6 +19,7 @@ import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Ea
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS } from "@/lib/avatar-system";
+import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
 import { ScheduleTab } from "@/components/schedule-tab";
@@ -457,7 +458,7 @@ export default function HomeScreen() {
   const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
   const [draftProfileAvatarAsset, setDraftProfileAvatarAsset] = useState<string | undefined>(undefined);
   const [showProfileAvatarPicker, setShowProfileAvatarPicker] = useState(false);
-  const [profilePickerInitialTab, setProfilePickerInitialTab] = useState<"90s" | "Shiny">("90s");
+  const [profilePickerInitialTab, setProfilePickerInitialTab] = useState<"90s" | "Shiny" | "Books">("90s");
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [draftFastName, setDraftFastName] = useState("");
   const [draftFastStartDate, setDraftFastStartDate] = useState(formatIsoToMmDdYyyy(today));
@@ -1536,7 +1537,7 @@ export default function HomeScreen() {
       Alert.alert("Add your name", "Enter a name before saving your profile.");
       return;
     }
-    setProfile((previous) => ({ ...previous, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset, auraId: draftProfileAvatarAsset?.endsWith("-shiny") ? draftProfileAvatarAsset : undefined }));
+    setProfile((previous) => ({ ...previous, name, photoUri: draftProfileAvatarAsset ? undefined : draftProfilePhotoUri, avatarAsset: draftProfilePhotoUri ? undefined : draftProfileAvatarAsset, auraId: draftProfileAvatarAsset?.endsWith("-shiny") || draftProfileAvatarAsset?.startsWith("book-") ? draftProfileAvatarAsset : undefined }));
     setShowProfileEditor(false);
   };
 
@@ -1804,6 +1805,10 @@ export default function HomeScreen() {
                   );
                 })()}
               </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 13, backgroundColor: colors.primary + '16', borderWidth: 1, borderColor: colors.primary + '35' }}>
+                <MaterialIcons name="collections-bookmark" size={14} color={colors.primary} />
+                <Text style={{ marginLeft: 5, fontSize: 11, fontWeight: '800', color: colors.primary }}>{unlockedBookIds.length}/66 Books collected</Text>
+              </View>
             </View>
           </View>
           <View style={styles.profileCardTopRight}>
@@ -1961,6 +1966,7 @@ export default function HomeScreen() {
   const [bookStatuses, setBookStatuses] = useState<any>({});
   const [bibleLastReadDate, setBibleLastReadDate] = useState<string | null>(null);
   const [currentBibleDisplay, setCurrentBibleDisplay] = useState<string>('Genesis 1');
+  const unlockedBookIds = useMemo(() => getCompletedBookAvatarIds(bookStatuses), [bookStatuses]);
 
   const loadBibleAndBudgetData = useCallback(async () => {
     try {
@@ -2333,7 +2339,7 @@ export default function HomeScreen() {
           </Pressable>
 
         </ScrollView>
-        <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={achievementState.unlockedAvatarIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
+        <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
       </ScreenContainer>
     );
   }
@@ -2430,7 +2436,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-      <AvatarPicker visible={showProfileAvatarPicker} initialAvatarAsset={draftProfileAvatarAsset} initialTab={profilePickerInitialTab} unlockedShinyIds={achievementState.unlockedAvatarIds} onClose={() => { setShowProfileAvatarPicker(false); setProfilePickerInitialTab("90s"); }} onSelect={(asset) => { setDraftProfileAvatarAsset(asset); setDraftProfilePhotoUri(undefined); }} />
+      <AvatarPicker visible={showProfileAvatarPicker} initialAvatarAsset={draftProfileAvatarAsset} initialTab={profilePickerInitialTab} unlockedShinyIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => { setShowProfileAvatarPicker(false); setProfilePickerInitialTab("90s"); }} onSelect={(asset) => { setDraftProfileAvatarAsset(asset); setDraftProfilePhotoUri(undefined); }} />
 
       <Modal transparent visible={showFastCreator || showFastEditor} animationType="slide" onRequestClose={() => { setShowFastCreator(false); setShowFastEditor(false); }}>
         <View style={styles.sheetOverlay}>

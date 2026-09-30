@@ -11,6 +11,7 @@ import {
   type AvatarGender,
   type AvatarStyle,
 } from "@/lib/avatar-system";
+import { BOOK_AVATAR_BY_ID, BOOK_AVATAR_DEFINITIONS } from "@/lib/book-avatars";
 import { useColors } from "@/hooks/use-colors";
 import { auraRingStyle, getAvatarAura, PERSONAL_PROFILE_AURA, type AvatarAuraStyle } from "@/lib/avatar-aura";
 
@@ -43,6 +44,7 @@ const AURA_PARTICLES: Record<AvatarAuraStyle, Array<{ left: number; top: number;
 export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, avatarAsset, photoUri, size = 48, style, imageStyle, fallbackColor, thumbnail = false, auraId, auraMode = "static" }: AvatarImageProps) {
   const colors = useColors();
   const definition = getAvatarDefinitionForPerson(id, gender, avatarAsset);
+  const bookDefinition = avatarAsset ? BOOK_AVATAR_BY_ID[avatarAsset] : undefined;
   const shinySource = avatarAsset ? SHINY_AVATARS[avatarAsset as keyof typeof SHINY_AVATARS] : undefined;
   const shinyThumbnail = avatarAsset ? SHINY_AVATAR_THUMBNAILS[avatarAsset as keyof typeof SHINY_AVATAR_THUMBNAILS] : undefined;
   const aura = getAvatarAura(avatarAsset, auraId) ?? (id === "profile" ? PERSONAL_PROFILE_AURA : undefined);
@@ -72,7 +74,7 @@ export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, a
       {aura && auraMode !== "none" && <Animated.View style={[auraRingStyle(aura, size, animated), animated && { transform: [{ scale: pulse }] }]} pointerEvents="none" />}
       {aura && animated && particles.map((particle, index) => <View key={`${aura.id}-particle-${index}`} pointerEvents="none" style={[styles.auraParticle, { left: particle.left, top: particle.top, width: particle.size, height: particle.size, borderRadius: particle.size / 2, backgroundColor: particleColor(particle.color) }]} />)}
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }}>
-        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
+        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : bookDefinition ? <Image source={thumbnail ? bookDefinition.thumbnail : bookDefinition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
       </View>
     </View>
   );
@@ -86,20 +88,24 @@ type AvatarPickerProps = {
   onClose: () => void;
   onSelect: (avatarAsset: string | undefined) => void;
   onUpload?: () => void;
-  initialTab?: AvatarStyle | "Shiny";
+  unlockedBookIds?: string[];
+  initialTab?: AvatarStyle | "Shiny" | "Books";
 };
 
 const STYLE_LABELS: Record<AvatarStyle, string> = { "90s": "90s", "1920s": "1920s", "1950s": "1950s", "1970s": "1970s", "1980s": "1980s", Y2K: "Y2K" };
 
-export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShinyIds = [], onClose, onSelect, onUpload, initialTab = "90s" }: AvatarPickerProps) {
+export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShinyIds = [], unlockedBookIds = [], onClose, onSelect, onUpload, initialTab = "90s" }: AvatarPickerProps) {
   const colors = useColors();
-  const [style, setStyle] = useState<AvatarStyle | "Shiny">(initialTab);
+  const [style, setStyle] = useState<AvatarStyle | "Shiny" | "Books">(initialTab);
   const [selectedGender, setSelectedGender] = useState<AvatarGender | "all">(gender || "all");
   const [selected, setSelected] = useState<string | undefined>(initialAvatarAsset);
   useEffect(() => { if (visible) { setSelected(initialAvatarAsset); setStyle(initialTab); setSelectedGender(gender || "all"); } }, [gender, initialAvatarAsset, initialTab, visible]);
   const unlocked = new Set(unlockedShinyIds);
+  const unlockedBooks = new Set(unlockedBookIds);
   const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style && (selectedGender === "all" || avatar.gender === selectedGender)), [style, selectedGender]);
+  const books = useMemo(() => BOOK_AVATAR_DEFINITIONS, []);
   const selectedDefinition = getAvatarDefinitionForPerson("picker", gender, selected);
+  const selectedBook = selected ? BOOK_AVATAR_BY_ID[selected] : undefined;
   const select = (asset?: string) => { setSelected(asset); onSelect(asset); onClose(); };
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -107,14 +113,32 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
         <View style={styles.header}><Text style={[styles.title, { color: colors.foreground }]}>Choose avatar</Text><Pressable onPress={onClose}><MaterialIcons name="close" size={28} color={colors.foreground} /></Pressable></View>
         <View style={[styles.previewRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <AvatarImage id="picker" avatarAsset={selected} gender={gender} size={64} />
-          <View style={{ flex: 1 }}><Text style={[styles.previewLabel, { color: colors.muted }]}>SELECTED AVATAR</Text><Text style={[styles.previewName, { color: colors.foreground }]}>{selectedDefinition?.animal || "Default"}</Text></View>
+          <View style={{ flex: 1 }}><Text style={[styles.previewLabel, { color: colors.muted }]}>SELECTED AVATAR</Text><Text style={[styles.previewName, { color: colors.foreground }]}>{selectedBook?.book || selectedDefinition?.animal || "Default"}</Text></View>
           <View style={{ gap: 6 }}><Pressable onPress={onUpload} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable><Pressable onPress={() => select(undefined)} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Default</Text></Pressable></View>
         </View>
         <ScrollView horizontal style={styles.tabsScroll} contentContainerStyle={styles.tabs} showsHorizontalScrollIndicator={false} bounces={false} nestedScrollEnabled>
-          {[...STYLE_ORDER, "Shiny" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" ? "Shiny" : STYLE_LABELS[tab]}</Text></Pressable>)}
+          {[...STYLE_ORDER, "Books" as const, "Shiny" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" || tab === "Books" ? tab : STYLE_LABELS[tab]}</Text></Pressable>)}
         </ScrollView>
-        {style !== "Shiny" && <View style={styles.genderRow}>{(["all", "m", "f"] as const).map((value) => <Pressable key={value} onPress={() => setSelectedGender(value)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === value && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: selectedGender === value ? "#fff" : colors.foreground, fontWeight: "800" }}>{value === "all" ? "All" : value === "m" ? "Male" : "Female"}</Text></Pressable>)}</View>}
-        {style === "Shiny" ? (
+        {style !== "Shiny" && style !== "Books" && <View style={styles.genderRow}>{(["all", "m", "f"] as const).map((value) => <Pressable key={value} onPress={() => setSelectedGender(value)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === value && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: selectedGender === value ? "#fff" : colors.foreground, fontWeight: "800" }}>{value === "all" ? "All" : value === "m" ? "Male" : "Female"}</Text></Pressable>)}</View>}
+        {style === "Books" ? (
+          <FlatList
+            key="book-avatar-grid"
+            data={books}
+            keyExtractor={(book) => book.id}
+            numColumns={3}
+            columnWrapperStyle={styles.gridRow}
+            contentContainerStyle={styles.grid}
+            extraData={[selected, unlockedBookIds]}
+            initialNumToRender={9}
+            maxToRenderPerBatch={9}
+            windowSize={5}
+            removeClippedSubviews
+            renderItem={({ item: book }) => {
+              const isUnlocked = unlockedBooks.has(book.id);
+              return <Pressable onPress={() => isUnlocked && select(book.id)} style={[styles.avatarCard, { borderColor: selected === book.id ? colors.primary : colors.border, backgroundColor: colors.surface }, selected === book.id && { borderWidth: 3 }, !isUnlocked && { opacity: 0.55 }]}><Image source={book.thumbnail} style={styles.avatarImage} /><Text numberOfLines={1} style={[styles.avatarName, { color: colors.foreground }]}>{isUnlocked ? book.book : "Locked"}</Text><Text numberOfLines={1} style={[styles.bookHint, { color: colors.muted }]}>{isUnlocked ? "Collected" : "Complete book"}</Text></Pressable>;
+            }}
+          />
+        ) : style === "Shiny" ? (
           <FlatList
             key="shiny-avatar-grid"
             data={SHINY_ACHIEVEMENTS}
@@ -177,4 +201,5 @@ const styles = StyleSheet.create({
   shinyImage: { width: 118, height: 118, borderRadius: 59 },
   shinyName: { fontWeight: "900", marginTop: 5 },
   hint: { fontSize: 11, textAlign: "center", marginTop: 4 },
+  bookHint: { fontSize: 10, textAlign: "center", marginTop: 3 },
 });

@@ -39,6 +39,7 @@ import {
 } from "@/lib/prayercircle-fasting";
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
+import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 
 type PersonalProfile = {
   name: string;
@@ -144,6 +145,7 @@ export default function ProfileScreen() {
   const [draftFastFocusItems, setDraftFastFocusItems] = useState<string[]>([]);
   const [currentBibleBook, setCurrentBibleBook] = useState<string | null>(null);
   const [lastBibleReadDate, setLastBibleReadDate] = useState<string | null>(null);
+  const [bookStatuses, setBookStatuses] = useState<Record<string, string>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -168,6 +170,7 @@ export default function ProfileScreen() {
           // Load Bible reading info
           if (storedBibleStatus) {
             const statuses = JSON.parse(storedBibleStatus);
+            setBookStatuses(statuses);
             const currentEntry = Object.entries(statuses).find(([_, s]) => s === 'current');
             setCurrentBibleBook(currentEntry ? currentEntry[0] : null);
           }
@@ -184,6 +187,7 @@ export default function ProfileScreen() {
 
   const selectedFast = useMemo(() => fasts.find((fast) => fast.id === selectedFastId) ?? getActiveFast(fasts, today), [fasts, selectedFastId, today]);
   const profileAura = useMemo(() => getAvatarAura(profile.avatarAsset, profile.auraId), [profile.avatarAsset, profile.auraId]);
+  const unlockedBookIds = useMemo(() => getCompletedBookAvatarIds(bookStatuses), [bookStatuses]);
 
   const handleUploadProfileAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.85 });
@@ -196,7 +200,7 @@ export default function ProfileScreen() {
   };
 
   const handleSelectProfileAvatar = async (avatarAsset?: string) => {
-    const next = { ...profile, photoUri: undefined, avatarAsset, auraId: avatarAsset?.endsWith("-shiny") ? avatarAsset : undefined };
+    const next = { ...profile, photoUri: undefined, avatarAsset, auraId: avatarAsset?.endsWith("-shiny") || avatarAsset?.startsWith("book-") ? avatarAsset : undefined };
     setProfile(next);
     await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(next));
   };
@@ -629,7 +633,7 @@ export default function ProfileScreen() {
           </>
         ) : null}
       </ScrollView>
-      <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
+      <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
 
       <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => {
         setShowFastCreator(false);

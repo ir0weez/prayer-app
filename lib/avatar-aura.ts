@@ -1,10 +1,11 @@
 import type { StyleProp, ViewStyle } from "react-native";
 import type { ShinyAvatarId } from "@/lib/avatar-system";
+import { BOOK_AVATAR_AURAS } from "./book-avatar-aura";
 
 export type AvatarAuraStyle = "rays" | "rings" | "stained-glass" | "embers" | "stars" | "dust" | "radiant" | "prismatic";
 
 export type AvatarAuraDefinition = {
-  id: ShinyAvatarId;
+  id: string;
   label: string;
   glowColor: string;
   secondaryColor: string;
@@ -40,10 +41,10 @@ export function getAvatarAura(avatarAsset?: string, auraId?: string): AvatarAura
   // This prevents a previously selected shiny aura from appearing around a
   // regular pack avatar or an uploaded profile photo.
   const candidate = (avatarAsset || "").replace(/^avatar-/, "").replace(/\.webp$/, "") as ShinyAvatarId;
-  return AVATAR_AURAS[candidate];
+  return AVATAR_AURAS[candidate] ?? BOOK_AVATAR_AURAS[candidate];
 }
 
-export function getAvatarAuraId(avatarAsset?: string): ShinyAvatarId | undefined {
+export function getAvatarAuraId(avatarAsset?: string): string | undefined {
   return getAvatarAura(avatarAsset)?.id;
 }
 

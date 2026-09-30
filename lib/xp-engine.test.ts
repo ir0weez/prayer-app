@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyXPAward, getLevelForXP, getXPProgress, xpRequiredForLevel } from "./xp-engine";
+import { applyXPAward, getLevelForXP, getXPLevelTitle, getXPProgress, xpRequiredForLevel } from "./xp-engine";
 
 describe("XP engine", () => {
   it("uses cumulative level thresholds", () => {
@@ -21,5 +21,19 @@ describe("XP engine", () => {
     expect(result.state).toEqual({ totalXP: 105, level: 2 });
     expect(result.points).toBe(10);
     expect(result.levelUp).toBe(true);
+  });
+
+  it("maps levels to titles and uses Faithful beyond level 10", () => {
+    expect(getXPLevelTitle(1)).toBe("Seeker");
+    expect(getXPLevelTitle(2)).toBe("Listener");
+    expect(getXPLevelTitle(3)).toBe("Servant");
+    expect(getXPLevelTitle(4)).toBe("Laborer");
+    expect(getXPLevelTitle(5)).toBe("Watchman");
+    expect(getXPLevelTitle(6)).toBe("Steward");
+    expect(getXPLevelTitle(7)).toBe("Soldier");
+    expect(getXPLevelTitle(8)).toBe("Intercessor");
+    expect(getXPLevelTitle(9)).toBe("Overcomer");
+    expect(getXPLevelTitle(10)).toBe("Faithful");
+    expect(getXPLevelTitle(11)).toBe("Faithful");
   });
 });

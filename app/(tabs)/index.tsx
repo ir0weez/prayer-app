@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelTitle, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -1879,7 +1879,7 @@ export default function HomeScreen() {
 
         <View style={[styles.fastProgressInCard, { backgroundColor: profileAura ? auraWashColor(profileAura, "18") : colors.background, borderColor: colors.border, borderWidth: 1 }]}>
           <View style={styles.fastProgressHeader}>
-            <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level}</Text>
+            <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
             <Text style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
           </View>
           <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border }]}>

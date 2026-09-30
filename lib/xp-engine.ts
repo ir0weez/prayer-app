@@ -26,6 +26,19 @@ export type XpAwardResult = {
 
 export const DEFAULT_XP_STATE: XpState = { totalXP: 0, level: 1 };
 
+export const XP_LEVEL_TITLES: Record<number, string> = {
+  1: "Seeker",
+  2: "Listener",
+  3: "Servant",
+  4: "Laborer",
+  5: "Watchman",
+  6: "Steward",
+  7: "Soldier",
+  8: "Intercessor",
+  9: "Overcomer",
+  10: "Faithful",
+};
+
 export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "scheduled-prayer": 10,
   "schedule-todo-event": 5,
@@ -34,6 +47,11 @@ export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "fasting-day": 10,
   "ministry-task": 50,
 };
+
+export function getXPLevelTitle(level: number): string {
+  const safeLevel = Math.max(1, Math.floor(level));
+  return XP_LEVEL_TITLES[safeLevel] ?? XP_LEVEL_TITLES[10];
+}
 
 /** Cumulative XP required to arrive at a level. Level 1 starts at zero. */
 export function xpRequiredForLevel(level: number): number {

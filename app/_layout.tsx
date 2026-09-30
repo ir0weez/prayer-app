@@ -25,6 +25,7 @@ import {
   NOTIFICATION_ACTIONS,
   snoozeScheduleNotification,
 } from "@/lib/notification-scheduler";
+import { XpGainIndicator } from "@/components/xp-gain-indicator";
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -135,6 +136,7 @@ function RootLayoutContent() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
           </Stack>
+          <XpGainIndicator />
           <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         </QueryClientProvider>
       </trpc.Provider>

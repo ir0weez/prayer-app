@@ -24,6 +24,22 @@ export type XpAwardResult = {
   levelUp: boolean;
 };
 
+export type XpGainPosition = { x: number; y: number };
+export type XpGainEvent = { id: string; points: number; position?: XpGainPosition };
+type XpGainListener = (event: XpGainEvent) => void;
+const xpGainListeners = new Set<XpGainListener>();
+let nextXpGainId = 0;
+
+export function subscribeXPGain(listener: XpGainListener): () => void {
+  xpGainListeners.add(listener);
+  return () => xpGainListeners.delete(listener);
+}
+
+function emitXPGain(points: number, position?: XpGainPosition) {
+  const event: XpGainEvent = { id: `xp-gain-${Date.now()}-${nextXpGainId++}`, points, position };
+  xpGainListeners.forEach((listener) => listener(event));
+}
+
 export const DEFAULT_XP_STATE: XpState = { totalXP: 0, level: 1 };
 
 export const XP_LEVEL_TITLES: Record<number, string> = {
@@ -121,7 +137,7 @@ export async function loadXPState(): Promise<XpState> {
  * the requested { totalXP, level } shape; the separate ledger prevents duplicate
  * awards when a screen rehydrates or a completion callback fires twice.
  */
-export async function awardXP(action: XpAction, idempotencyKey: string): Promise<XpAwardResult> {
+export async function awardXP(action: XpAction, idempotencyKey: string, position?: XpGainPosition): Promise<XpAwardResult> {
   const [storedState, storedAwards] = await Promise.all([
     AsyncStorage.getItem(XP_STORAGE_KEY),
     AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
@@ -143,6 +159,7 @@ export async function awardXP(action: XpAction, idempotencyKey: string): Promise
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
     AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
   ]);
+  emitXPGain(result.points, position);
   return result;
 }
 

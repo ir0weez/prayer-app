@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyXPAward, getLevelForXP, getXPLevelTitle, getXPProgress, xpRequiredForLevel } from "./xp-engine";
+import { applyXPAward, getLevelForXP, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, xpRequiredForLevel } from "./xp-engine";
 
 describe("XP engine", () => {
   it("uses cumulative level thresholds", () => {
@@ -35,5 +35,18 @@ describe("XP engine", () => {
     expect(getXPLevelTitle(9)).toBe("Overcomer");
     expect(getXPLevelTitle(10)).toBe("Faithful");
     expect(getXPLevelTitle(11)).toBe("Faithful");
+  });
+
+  it("unlocks level badge frames at the requested thresholds", () => {
+    expect(getXPLevelBadgeFrame(1)).toBe("plain");
+    expect(getXPLevelBadgeFrame(24)).toBe("plain");
+    expect(getXPLevelBadgeFrame(25)).toBe("ring");
+    expect(getXPLevelBadgeFrame(49)).toBe("ring");
+    expect(getXPLevelBadgeFrame(50)).toBe("double-ring");
+    expect(getXPLevelBadgeFrame(74)).toBe("double-ring");
+    expect(getXPLevelBadgeFrame(75)).toBe("ornate");
+    expect(getXPLevelBadgeFrame(99)).toBe("ornate");
+    expect(getXPLevelBadgeFrame(100)).toBe("radiant");
+    expect(getXPLevelBadgeFrame(150)).toBe("radiant");
   });
 });

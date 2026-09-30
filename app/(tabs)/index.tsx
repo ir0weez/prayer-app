@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelTitle, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, type XpAction, type XpState } from "@/lib/xp-engine";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
 
@@ -683,6 +683,8 @@ export default function HomeScreen() {
   const { colorScheme } = useThemeContext();
   const styles = createStyles(colors);
   const xpProgress = useMemo(() => getXPProgress(xpState), [xpState]);
+  const levelBadgeFrame = useMemo(() => getXPLevelBadgeFrame(xpProgress.level), [xpProgress.level]);
+  const levelBadgeFrameColor = levelBadgeFrame === "ornate" || levelBadgeFrame === "radiant" ? "#D4A72C" : colors.primary;
 
   useEffect(() => {
     const animation = Animated.loop(Animated.timing(xpShimmer, { toValue: 1, duration: 1800, useNativeDriver: true }));
@@ -1879,7 +1881,21 @@ export default function HomeScreen() {
 
         <View style={[styles.fastProgressInCard, { backgroundColor: profileAura ? auraWashColor(profileAura, "18") : colors.background, borderColor: colors.border, borderWidth: 1 }]}>
           <View style={styles.fastProgressHeader}>
-            <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
+            <View style={styles.levelBadgeFrameSlot}>
+              {levelBadgeFrame === "plain" ? (
+                <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
+              ) : (
+                <View style={[styles.levelBadgeFrame, { borderColor: levelBadgeFrameColor, borderWidth: levelBadgeFrame === "double-ring" ? 2 : 1.5 }] }>
+                  {(levelBadgeFrame === "double-ring" || levelBadgeFrame === "ornate") && <View style={[styles.levelBadgeFrameInner, { borderColor: levelBadgeFrameColor }]} />}
+                  {levelBadgeFrame === "ornate" && <>
+                    <View style={[styles.levelBadgeOrnament, styles.levelBadgeOrnamentTop, { backgroundColor: levelBadgeFrameColor }]} />
+                    <View style={[styles.levelBadgeOrnament, styles.levelBadgeOrnamentBottom, { backgroundColor: levelBadgeFrameColor }]} />
+                  </>}
+                  {levelBadgeFrame === "radiant" && <Animated.View pointerEvents="none" style={[styles.levelBadgeRadiant, { borderColor: levelBadgeFrameColor, opacity: xpShimmer.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.55, 1, 0.55] }) }]} />}
+                  <Text style={[styles.fastProgressLabel, { color: colors.foreground }]}>Level {xpProgress.level} · {getXPLevelTitle(xpProgress.level)}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.fastProgressType, { color: colors.muted }]}>{xpState.totalXP} XP · {xpProgress.requiredXP - xpProgress.currentXP} to Level {xpProgress.nextLevel}</Text>
           </View>
           <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border }]}>
@@ -3213,6 +3229,57 @@ function createStyles(colors: any) {
     borderTopWidth: 0,
     borderBottomWidth: 0,
     gap: 8,
+  },
+  levelBadgeFrameSlot: {
+    flex: 1,
+    minHeight: 28,
+    justifyContent: "center",
+  },
+  levelBadgeFrame: {
+    minHeight: 28,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    borderRadius: 9,
+    position: "relative",
+  },
+  levelBadgeFrameInner: {
+    position: "absolute",
+    top: 3,
+    bottom: 3,
+    left: 3,
+    right: 3,
+    borderWidth: 1,
+    borderRadius: 6,
+  },
+  levelBadgeOrnament: {
+    position: "absolute",
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+  levelBadgeOrnamentTop: {
+    top: -3,
+    left: "50%" as any,
+    marginLeft: -2.5,
+  },
+  levelBadgeOrnamentBottom: {
+    bottom: -3,
+    left: "50%" as any,
+    marginLeft: -2.5,
+  },
+  levelBadgeRadiant: {
+    position: "absolute",
+    top: -4,
+    bottom: -4,
+    left: -4,
+    right: -4,
+    borderWidth: 2,
+    borderRadius: 13,
+    shadowColor: "#D4A72C",
+    shadowOpacity: 0.85,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 0 },
   },
   fastProgressHeader: {
     flexDirection: "row",

@@ -53,6 +53,18 @@ export function getXPLevelTitle(level: number): string {
   return XP_LEVEL_TITLES[safeLevel] ?? XP_LEVEL_TITLES[10];
 }
 
+export type XPLevelBadgeFrame = "plain" | "ring" | "double-ring" | "ornate" | "radiant";
+
+/** Cosmetic frame unlocked by the user's current XP level. */
+export function getXPLevelBadgeFrame(level: number): XPLevelBadgeFrame {
+  const safeLevel = Math.max(1, Math.floor(level));
+  if (safeLevel >= 100) return "radiant";
+  if (safeLevel >= 75) return "ornate";
+  if (safeLevel >= 50) return "double-ring";
+  if (safeLevel >= 25) return "ring";
+  return "plain";
+}
+
 /** Cumulative XP required to arrive at a level. Level 1 starts at zero. */
 export function xpRequiredForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));

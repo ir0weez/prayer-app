@@ -1229,30 +1229,25 @@ export default function HomeScreen() {
 
     return (
       <View key={`story-${person.id}`} style={styles.storyPersonItem}>
-        <View style={styles.storyBadgeSlot}>
+        <View style={styles.storyAvatarAnchor}>
+          <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
+            <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
+          </Pressable>
           {showEmergencyBadge ? (
-            <View style={[styles.storyTagInBadge, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }] }>
+              <View style={[styles.storyAvatarBadge, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }] }>
               <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
               <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(emergencyCountdown)}</Text>
             </View>
           ) : showPraiseBadge ? (
-            <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTagInBadge, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }] }>
+            <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyAvatarBadge, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }] }>
               <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, { color: "#1E40AF" }]}>{person.praiseNote?.trim() || "Praise"}</Text>
               <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(praiseCountdown)}</Text>
             </Pressable>
           ) : showUrgentBubble ? (
-            <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTagInBadge, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
+            <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarBadge, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
               <Text numberOfLines={1} style={[styles.storyTagText, { color: "#7C3AED" }]}>{urgentItems[0]?.title}</Text>
             </Pressable>
-          ) : <View style={styles.storyBadgeSpacer} />}
-        </View>
-        <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPersonAvatarButton, pressed && styles.pressed]}>
-          <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
-        </Pressable>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>
-          {getPrayTodayDisplayName(person.name)}
-        </Text>
-        <View style={styles.storyActionSlot}>
+          ) : null}
           {isPending ? (
             <Pressable onPress={() => handleUndoPrayTodayPerson(person.id)} style={({ pressed }) => [styles.undoCountdownPill, pressed && styles.pressed]}>
               <UndoCountdownTimer color={colors.primary} variant="pill" />
@@ -1301,14 +1296,17 @@ export default function HomeScreen() {
             </Pressable>
             </>
           )}
+          {isShowingCompletionAnimation && (
+            <PrayerCompletionAnimation
+              isActive={isShowingCompletionAnimation}
+              color={person.accentColor}
+              onComplete={() => setCompletedPrayerAnimationId(null)}
+            />
+          )}
         </View>
-        {isShowingCompletionAnimation && (
-          <PrayerCompletionAnimation
-            isActive={isShowingCompletionAnimation}
-            color={person.accentColor}
-            onComplete={() => setCompletedPrayerAnimationId(null)}
-          />
-        )}
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>
+          {getPrayTodayDisplayName(person.name)}
+        </Text>
       </View>
     );
   };
@@ -2795,7 +2793,7 @@ function createStyles(colors: any) {
   },
   storyItem: {
     width: 94,
-    height: 110,
+    height: 146,
     marginRight: 2,
     alignItems: "center",
     justifyContent: "center",
@@ -2803,27 +2801,25 @@ function createStyles(colors: any) {
   },
   storyPersonItem: {
     width: 94,
-    height: 156,
+    height: 104,
     marginRight: 2,
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
+    position: "relative",
   },
-  storyBadgeSlot: {
+  storyAvatarAnchor: {
     width: 94,
-    height: 30,
+    height: 76,
     alignItems: "center",
     justifyContent: "flex-start",
-  },
-  storyBadgeSpacer: {
-    width: 94,
-    height: 30,
+    position: "relative",
   },
   storyAvatarButton: {
     marginTop: 17,
     alignItems: "center",
     justifyContent: "center",
   },
-  storyPersonAvatarButton: {
+  storyAvatarOverlayButton: {
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2864,12 +2860,15 @@ function createStyles(colors: any) {
     alignItems: "center",
     justifyContent: "center",
   },
-  storyTagInBadge: {
+  storyAvatarBadge: {
+    position: "absolute",
+    top: -8,
+    right: 0,
     zIndex: 4,
-    width: 92,
-    minHeight: 30,
-    paddingHorizontal: 4,
-    paddingVertical: 3,
+    minHeight: 28,
+    maxWidth: 140,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: "#D36B72",
@@ -2894,6 +2893,9 @@ function createStyles(colors: any) {
     lineHeight: 13,
   },
   storyPlus: {
+    position: "absolute",
+    right: 0,
+    bottom: -6,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -2904,17 +2906,10 @@ function createStyles(colors: any) {
     borderColor: colors.background,
     zIndex: 10,
   },
-  storyActionSlot: {
-    width: 94,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
   storyActionPicker: {
     position: "absolute",
-    bottom: 34,
-    left: -18,
+    bottom: 28,
+    left: -16,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -2941,8 +2936,12 @@ function createStyles(colors: any) {
     borderColor: colors.background,
   },
   undoCountdownPill: {
+    position: "absolute",
+    right: 0,
+    bottom: -8,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 6,
   },
   fastUndoCountdownPill: {
     position: "absolute",

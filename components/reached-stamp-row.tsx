@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import Svg, { Circle, Ellipse, G, Line, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 
 import { useColors } from "@/hooks/use-colors";
 import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
@@ -54,7 +54,27 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
             <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
             <Rect x="14" y="20" width="96" height="84" rx="14" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
           </>}
-          {skin === "postmark" && <Line x1="20" y1="102" x2="103" y2="22" stroke={ink} strokeWidth="1.2" strokeDasharray="4 4" opacity={0.25} />}
+          {skin === "postmark" && <>
+            {/* Postal cancellation waves slash diagonally across the stamp. */}
+            <G opacity={0.3} fill="none" stroke={ink} strokeLinecap="round">
+              <Path d="M 12 101 Q 31 91 50 79 T 88 54 T 113 25" strokeWidth="1.4" />
+              <Path d="M 10 108 Q 29 98 48 86 T 86 61 T 111 32" strokeWidth="1.1" />
+              <Path d="M 16 92 Q 35 82 54 70 T 92 45 T 116 17" strokeWidth="0.9" strokeDasharray="3 2" />
+              <Path d="M 20 113 Q 39 103 58 91 T 96 66 T 118 40" strokeWidth="0.8" strokeDasharray="1 3" />
+            </G>
+            {/* Circular postal date seal, kept offset from the person/date text. */}
+            <G opacity={0.42} fill="none" stroke={ink}>
+              <Circle cx="91" cy="40" r="20" strokeWidth="1.5" />
+              <Circle cx="91" cy="40" r="16" strokeWidth="0.8" strokeDasharray="2 2" />
+            </G>
+            <SvgText x="91" y="38" textAnchor="middle" fill={ink} fontSize="5.5" fontWeight="900" letterSpacing="0.5" opacity={0.62}>REACHED</SvgText>
+            <SvgText x="91" y="46" textAnchor="middle" fill={ink} fontSize="5.5" fontWeight="900" opacity={0.62}>{formatIsoDateForDisplay(stamp.date)}</SvgText>
+            {/* Small broken marks imitate uneven, transferred ink. */}
+            <G fill={ink} opacity={0.18}>
+              <Circle cx="18" cy="31" r="1.1" /><Circle cx="23" cy="28" r="0.7" /><Circle cx="106" cy="76" r="1" />
+              <Circle cx="111" cy="72" r="0.6" /><Circle cx="36" cy="105" r="0.7" /><Circle cx="42" cy="101" r="0.5" />
+            </G>
+          </>}
           {skin === "linen" && <>
             <Line x1="25" y1="40" x2="42" y2="23" stroke={ink} strokeWidth="0.8" opacity={0.2} />
             <Line x1="82" y1="101" x2="99" y2="84" stroke={ink} strokeWidth="0.8" opacity={0.2} />

@@ -220,6 +220,12 @@ function getAvatarText(person: Person) {
   return person.avatarLabel ?? person.initials ?? person.name.substring(0, 2).toUpperCase();
 }
 
+function getPrayTodayDisplayName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] || "Unnamed";
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
 function getAvatarPaletteColor(person: Person) {
   const seed = person.id || person.name;
   const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -1245,6 +1251,9 @@ export default function HomeScreen() {
         <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>
+          {getPrayTodayDisplayName(person.name)}
+        </Text>
         {!isPending && (
           <>
             {avatarActionPersonId === person.id && !showPraiseBadge && !showEmergencyBadge && (
@@ -2782,13 +2791,14 @@ function createStyles(colors: any) {
   },
   storyItem: {
     width: 94,
-    height: 110,
+    height: 146,
     marginRight: 2,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     position: "relative",
   },
   storyAvatarButton: {
+    marginTop: 17,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2804,6 +2814,14 @@ function createStyles(colors: any) {
   },
   storyRingComplete: {
     borderColor: "#31C48D",
+  },
+  storyPersonName: {
+    width: 78,
+    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "700",
+    textAlign: "center",
   },
   storyTag: {
     position: "absolute",
@@ -2855,7 +2873,7 @@ function createStyles(colors: any) {
     backgroundColor: "#31C48D",
   },
   storyItemPending: {
-    height: 132,
+    height: 146,
   },
   storyPlusPending: {
     bottom: 38,
@@ -2891,7 +2909,7 @@ function createStyles(colors: any) {
   },
   undoCountdownPill: {
     position: "absolute",
-    top: 104,
+    top: 116,
     left: 14,
     alignItems: "center",
     justifyContent: "center",

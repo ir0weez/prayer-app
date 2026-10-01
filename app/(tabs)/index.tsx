@@ -1228,34 +1228,37 @@ export default function HomeScreen() {
     const showUrgentBubble = urgentItems.length > 0 && !isEmergency && !showPraiseBadge && !isPending;
 
     return (
-      <View key={`story-${person.id}`} style={[styles.storyItem, isPending && styles.storyItemPending]}>
-        {isPending ? (
-          <Pressable onPress={() => handleUndoPrayTodayPerson(person.id)} style={({ pressed }) => [styles.undoCountdownPill, pressed && styles.pressed]}>
-            <UndoCountdownTimer color={colors.primary} variant="pill" />
-          </Pressable>
-        ) : showEmergencyBadge ? (
-          <View style={[styles.storyTag, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }] }>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
-            <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(emergencyCountdown)}</Text>
-          </View>
-        ) : showPraiseBadge ? (
-          <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }] }>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, { color: "#1E40AF" }]}>{person.praiseNote?.trim() || "Praise"}</Text>
-            <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(praiseCountdown)}</Text>
-          </Pressable>
-        ) : showUrgentBubble ? (
-          <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTag, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
-            <Text numberOfLines={1} style={[styles.storyTagText, { color: "#7C3AED" }]}>{urgentItems[0]?.title}</Text>
-          </Pressable>
-        ) : null}
-        <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
+      <View key={`story-${person.id}`} style={styles.storyPersonItem}>
+        <View style={styles.storyBadgeSlot}>
+          {showEmergencyBadge ? (
+            <View style={[styles.storyTagInBadge, { backgroundColor: "#FEE2E2", borderColor: "#EF4444" }] }>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, styles.emergencyPrayerTitle, { color: "#DC2626" }]}>{displayItem?.title?.trim() || "Emergency prayer"}</Text>
+              <Text style={[styles.storyTagText, { color: "#DC2626", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(emergencyCountdown)}</Text>
+            </View>
+          ) : showPraiseBadge ? (
+            <Pressable onPress={() => handleUndoPraise(person.id)} style={({ pressed }) => [styles.storyTagInBadge, { backgroundColor: "#DBEAFE", borderColor: "#3B82F6" }, pressed && { opacity: 0.7 }] }>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.storyTagText, { color: "#1E40AF" }]}>{person.praiseNote?.trim() || "Praise"}</Text>
+              <Text style={[styles.storyTagText, { color: "#1E40AF", marginLeft: 4, fontSize: 10, fontWeight: "600" }]}>{formatEmergencyPrayerCountdown(praiseCountdown)}</Text>
+            </Pressable>
+          ) : showUrgentBubble ? (
+            <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyTagInBadge, { backgroundColor: "#F3E8FF", borderColor: "#A78BFA" }, pressed && { opacity: 0.7 }]}>
+              <Text numberOfLines={1} style={[styles.storyTagText, { color: "#7C3AED" }]}>{urgentItems[0]?.title}</Text>
+            </Pressable>
+          ) : <View style={styles.storyBadgeSpacer} />}
+        </View>
+        <Pressable onPress={() => handleMarkPrayTodayPerson(person.id)} style={({ pressed }) => [styles.storyPersonAvatarButton, pressed && styles.pressed]}>
           <View style={[styles.storyRing, { borderColor: person.accentColor }, isPrayedToday && styles.storyRingComplete]}>{renderAvatar(person, 66, true)}</View>
         </Pressable>
         <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>
           {getPrayTodayDisplayName(person.name)}
         </Text>
-        {!isPending && (
-          <>
+        <View style={styles.storyActionSlot}>
+          {isPending ? (
+            <Pressable onPress={() => handleUndoPrayTodayPerson(person.id)} style={({ pressed }) => [styles.undoCountdownPill, pressed && styles.pressed]}>
+              <UndoCountdownTimer color={colors.primary} variant="pill" />
+            </Pressable>
+          ) : (
+            <>
             {avatarActionPersonId === person.id && !showPraiseBadge && !showEmergencyBadge && (
               <View style={styles.storyActionPicker}>
                 <Pressable
@@ -1296,8 +1299,9 @@ export default function HomeScreen() {
             >
               <MaterialIcons name={iconName(showPraiseBadge ? "thumb-up" : showEmergencyBadge ? "local-fire-department" : "add")} size={showPraiseBadge || showEmergencyBadge ? 20 : 24} color="#FFFFFF" />
             </Pressable>
-          </>
-        )}
+            </>
+          )}
+        </View>
         {isShowingCompletionAnimation && (
           <PrayerCompletionAnimation
             isActive={isShowingCompletionAnimation}
@@ -2791,14 +2795,35 @@ function createStyles(colors: any) {
   },
   storyItem: {
     width: 94,
-    height: 146,
+    height: 110,
+    marginRight: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  storyPersonItem: {
+    width: 94,
+    height: 156,
     marginRight: 2,
     alignItems: "center",
     justifyContent: "flex-start",
-    position: "relative",
+  },
+  storyBadgeSlot: {
+    width: 94,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  storyBadgeSpacer: {
+    width: 94,
+    height: 30,
   },
   storyAvatarButton: {
     marginTop: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyPersonAvatarButton: {
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2839,6 +2864,19 @@ function createStyles(colors: any) {
     alignItems: "center",
     justifyContent: "center",
   },
+  storyTagInBadge: {
+    zIndex: 4,
+    width: 92,
+    minHeight: 30,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#D36B72",
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   storyTagText: {
     color: "#C75D67",
     fontSize: 11,
@@ -2856,9 +2894,6 @@ function createStyles(colors: any) {
     lineHeight: 13,
   },
   storyPlus: {
-    position: "absolute",
-    right: 3,
-    bottom: 2,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -2869,18 +2904,16 @@ function createStyles(colors: any) {
     borderColor: colors.background,
     zIndex: 10,
   },
-  storyPlusDone: {
-    backgroundColor: "#31C48D",
-  },
-  storyItemPending: {
-    height: 146,
-  },
-  storyPlusPending: {
-    bottom: 38,
+  storyActionSlot: {
+    width: 94,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   storyActionPicker: {
     position: "absolute",
-    bottom: 46,
+    bottom: 34,
     left: -18,
     flexDirection: "row",
     alignItems: "center",
@@ -2908,12 +2941,8 @@ function createStyles(colors: any) {
     borderColor: colors.background,
   },
   undoCountdownPill: {
-    position: "absolute",
-    top: 116,
-    left: 14,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 6,
   },
   fastUndoCountdownPill: {
     position: "absolute",

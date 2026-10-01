@@ -1507,7 +1507,7 @@ export default function HomeScreen() {
             {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
               <View key="completion-celebration" style={styles.storyPersonItem}>
                 <View style={styles.storyAvatarAnchor}>
-                  <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
+                  <View style={{ position: "relative", width: 86, height: 86, marginTop: -5, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
                   <View style={[styles.fastingStreakBadge, styles.storyFastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
                 </View>
                 <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>{getPrayTodayDisplayName(profile.name)}</Text>
@@ -2803,15 +2803,17 @@ function createStyles(colors: any) {
     height: 146,
     marginRight: 2,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingTop: 35,
     position: "relative",
   },
   storyPersonItem: {
     width: 94,
-    height: 104,
+    height: 146,
     marginRight: 2,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingTop: 35,
     position: "relative",
   },
   storyAvatarAnchor: {

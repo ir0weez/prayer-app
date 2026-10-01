@@ -1484,26 +1484,33 @@ export default function HomeScreen() {
             {visiblePrayTodayList.map(renderStoryPerson)}
             {duePersonalTodos.map(({ contact, todo }) => (
               <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
-                <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
-                <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPeople((previousPeople: Person[]) => previousPeople.map((person: Person) => person.id === contact.id ? completePersonalTodo(person, todo.id) : person)); }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-                  <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
-                </Pressable>
+                <View style={styles.storyAvatarAnchor}>
+                  <View style={[styles.storyAvatarBadge, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
+                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPeople((previousPeople: Person[]) => previousPeople.map((person: Person) => person.id === contact.id ? completePersonalTodo(person, todo.id) : person)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
+                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
+                  </Pressable>
+                </View>
               </View>
             ))}
             {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && scheduleTodos.filter((todo) => !todo.isCompleted && todo.date && todo.date.split("T")[0] === getTodayISOString()).map((todo) => {
               const todoTime = todo.startTime ? (() => { const [h, m] = todo.startTime.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; })() : null;
               return <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
-                <View style={[styles.storyTag, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
-                <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setScheduleTodos((previousTodos) => previousTodos.map((t) => t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t)); }} style={({ pressed }) => [styles.storyAvatarButton, pressed && styles.pressed]}>
-                  <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
-                  {todoTime && <View style={[{ position: "absolute", bottom: -8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: todo.color || colors.primary }]}><Text style={{ fontSize: 10, fontWeight: "600", color: "#FFFFFF" }}>{todoTime}</Text></View>}
-                </Pressable>
+                <View style={styles.storyAvatarAnchor}>
+                  <View style={[styles.storyAvatarBadge, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
+                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setScheduleTodos((previousTodos) => previousTodos.map((t) => t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
+                    <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
+                  </Pressable>
+                  {todoTime && <View style={[styles.storyTodoTime, { backgroundColor: todo.color || colors.primary }]}><Text style={styles.storyTodoTimeText}>{todoTime}</Text></View>}
+                </View>
               </View>;
             })}
             {remainingPrayTodayCount === 0 && prayTodayList.length > 0 && activeFast && (
-              <View key="completion-celebration" style={styles.storyItem}>
-                <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
-                <View style={[styles.fastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
+              <View key="completion-celebration" style={styles.storyPersonItem}>
+                <View style={styles.storyAvatarAnchor}>
+                  <View style={{ position: "relative", width: 86, height: 86, alignItems: "center", justifyContent: "center" }}><PulsingGlow isActive color={fastAvatarColorFromStatus || colors.primary} size={86} intensity={0.3} /><Pressable onPress={handleCompleteFast} onLongPress={handleMissFast} delayLongPress={500} style={({ pressed }) => [styles.storyRing, { borderColor: fastAvatarColorFromStatus || colors.primary, borderWidth: 3 }, pressed && styles.pressed]}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} photoUri={profile.photoUri} profileLevel={xpProgress.level} size={66} thumbnail fallbackColor={fastAvatarColorFromStatus || colors.primary} /></Pressable></View>
+                  <View style={[styles.fastingStreakBadge, styles.storyFastingStreakBadge, { backgroundColor: colors.primary }]}><MaterialIcons name={iconName("local-fire-department")} size={16} color="#FFFFFF" /><Text style={styles.streakBadgeText}>{profile.fastingStreak}</Text></View>
+                </View>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storyPersonName, { color: colors.foreground }]}>{getPrayTodayDisplayName(profile.name)}</Text>
                 {pendingFastAction && <Pressable onPress={handleUndoFastAction} style={styles.fastUndoCountdownPill}><UndoCountdownBar color={colors.primary} /></Pressable>}
               </View>
             )}
@@ -2875,6 +2882,20 @@ function createStyles(colors: any) {
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+  },
+  storyTodoTime: {
+    position: "absolute",
+    right: 0,
+    bottom: -6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 6,
+  },
+  storyTodoTimeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   storyTagText: {
     color: "#C75D67",
@@ -4308,6 +4329,10 @@ function createStyles(colors: any) {
     backgroundColor: '#FF6B35',
     flexDirection: 'row',
     gap: 2,
+  },
+  storyFastingStreakBadge: {
+    right: 0,
+    bottom: -6,
   },
   fastingStatusBubble: {
     position: 'absolute',

@@ -6,6 +6,7 @@ import Animated, {
   withRepeat,
   withTiming,
   withSpring,
+  withDelay,
   Easing,
   interpolate,
   Extrapolation,
@@ -64,6 +65,8 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
   const glowAnimation = useSharedValue(0);
   // Celebration: a seedling planted at the end of the bar when it fills.
   const sproutGrow = useSharedValue(0);
+  const stemGrow = useSharedValue(0);
+  const leafGrow = useSharedValue(0);
   const sproutSway = useSharedValue(0);
   const rippleScale = useSharedValue(0.5);
   const rippleOpacity = useSharedValue(0);
@@ -88,30 +91,37 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
     }
   }, [isComplete, glowAnimation]);
 
-  // Sprout celebration: spring up with a bounce when the bar first fills,
-  // sway gently while it stays full, sink away when it drops below full.
+  // Sprout celebration, staged like real growth: the container rises, the stem
+  // grows up out of the bar, then the leaves pop with a springy delay, and the
+  // seedling sways gently while the bar stays full.
   useEffect(() => {
     if (isComplete && !wasComplete.current) {
-      sproutGrow.value = withSpring(1, { damping: 7, stiffness: 170 });
-      sproutSway.value = withRepeat(
-        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
+      sproutGrow.value = 0;
+      stemGrow.value = 0;
+      leafGrow.value = 0;
+      sproutGrow.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.ease) });
+      stemGrow.value = withSpring(1, { damping: 12, stiffness: 110 });
+      leafGrow.value = withDelay(200, withSpring(1, { damping: 7, stiffness: 200 }));
+      sproutSway.value = withDelay(
+        700,
+        withRepeat(withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.ease) }), -1, true)
       );
       rippleScale.value = 0.5;
       rippleOpacity.value = 0.7;
       rippleScale.value = withTiming(1.9, { duration: 900, easing: Easing.out(Easing.ease) });
       rippleOpacity.value = withTiming(0, { duration: 900, easing: Easing.out(Easing.ease) });
       burst.value = 0;
-      burst.value = withTiming(1, { duration: 750, easing: Easing.out(Easing.ease) });
+      burst.value = withDelay(150, withTiming(1, { duration: 750, easing: Easing.out(Easing.ease) }));
     } else if (!isComplete && wasComplete.current) {
       sproutGrow.value = withTiming(0, { duration: 180 });
+      stemGrow.value = withTiming(0, { duration: 180 });
+      leafGrow.value = withTiming(0, { duration: 180 });
       sproutSway.value = withTiming(0, { duration: 180 });
       rippleOpacity.value = 0;
       burst.value = withTiming(0, { duration: 120 });
     }
     wasComplete.current = isComplete;
-  }, [isComplete, sproutGrow, sproutSway, rippleScale, rippleOpacity, burst]);
+  }, [isComplete, sproutGrow, stemGrow, leafGrow, sproutSway, rippleScale, rippleOpacity, burst]);
 
   const glowStyle = useAnimatedStyle(() => {
     const shadowOpacity = interpolate(
@@ -148,9 +158,29 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
       opacity: grow,
       transform: [
         { translateY: interpolate(grow, [0, 1], [16, 0], Extrapolation.CLAMP) },
-        { scale: Math.max(grow, 0.001) },
         { rotate: `${interpolate(sproutSway.value, [0, 1], [-5, 5], Extrapolation.CLAMP)}deg` },
       ],
+    };
+  });
+
+  // Stem grows upward with its base pinned in the bar.
+  const STEM_H = 18;
+  const stemStyle = useAnimatedStyle(() => {
+    const s = Math.max(stemGrow.value, 0.001);
+    return {
+      transform: [
+        { translateY: (1 - s) * (STEM_H / 2) },
+        { scaleY: s },
+      ],
+    };
+  });
+
+  // Leaves + bud pop in with a springy overshoot after the stem.
+  const leafStyle = useAnimatedStyle(() => {
+    const s = Math.max(leafGrow.value, 0.001);
+    return {
+      opacity: leafGrow.value,
+      transform: [{ scale: s }],
     };
   });
 
@@ -206,9 +236,9 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {
               position: "absolute",
               right: 0,
-              bottom: -4,
-              width: 26,
-              height: 34,
+              bottom: -3,
+              width: 30,
+              height: 40,
               alignItems: "center",
               justifyContent: "flex-end",
             },
@@ -235,51 +265,79 @@ export function ScheduleProgressBar({ completed, total, label = "Progress" }: Sc
             {BURST_PARTICLES.map((p, i) => (
               <BurstParticle key={i} burst={burst} grow={sproutGrow} x={p.x} y={p.y} />
             ))}
-            {/* Stem, planted into the bar */}
-            <View
-              style={{
-                width: 3.5,
-                height: 15,
-                borderRadius: 2,
-                backgroundColor: "#16A34A",
-              }}
-            />
-            {/* Leaves */}
+            {/* Soil mound so the seedling reads as planted in the bar */}
             <View
               style={{
                 position: "absolute",
-                bottom: 13,
-                left: 0,
-                width: 14,
-                height: 8,
-                borderRadius: 5,
-                backgroundColor: "#22C55E",
-                transform: [{ rotate: "-28deg" }],
+                bottom: 4,
+                width: 13,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "#15803D",
               }}
             />
-            <View
-              style={{
-                position: "absolute",
-                bottom: 13,
-                right: 0,
-                width: 14,
-                height: 8,
-                borderRadius: 5,
-                backgroundColor: "#4ADE80",
-                transform: [{ rotate: "28deg" }],
-              }}
+            {/* Stem grows upward with its base pinned in the bar */}
+            <Animated.View
+              style={[
+                {
+                  width: 5,
+                  height: 18,
+                  borderRadius: 2.5,
+                  backgroundColor: "#16A34A",
+                },
+                stemStyle,
+              ]}
             />
-            {/* Bud */}
-            <View
-              style={{
-                position: "absolute",
-                bottom: 19,
-                width: 7,
-                height: 7,
-                borderRadius: 4,
-                backgroundColor: "#86EFAC",
-              }}
-            />
+            {/* Leaves + bud pop in after the stem */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  bottom: 15,
+                  left: 0,
+                  right: 0,
+                  height: 22,
+                  alignItems: "center",
+                },
+                leafStyle,
+              ]}
+              pointerEvents="none"
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 2,
+                  left: 1,
+                  width: 15,
+                  height: 9,
+                  borderRadius: 5,
+                  backgroundColor: "#22C55E",
+                  transform: [{ rotate: "-28deg" }],
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 2,
+                  right: 1,
+                  width: 15,
+                  height: 9,
+                  borderRadius: 5,
+                  backgroundColor: "#4ADE80",
+                  transform: [{ rotate: "28deg" }],
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 12,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: "#86EFAC",
+                }}
+              />
+            </Animated.View>
           </Animated.View>
       </View>
     </View>

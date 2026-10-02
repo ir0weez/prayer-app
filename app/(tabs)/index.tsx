@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, penalizeXP, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
@@ -537,6 +537,14 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const penalizeExperience = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
+    try {
+      const result = await penalizeXP(points, idempotencyKey, position);
+      if (result.awarded) setXpState(result.state);
+    } catch {
+      // XP is additive and must never interrupt the action that earned it.
+    }
+  }, []);
   useEffect(() => {
     if (!hasHydratedPeople) return;
     loadXPState().then(setXpState).catch(() => undefined);
@@ -1024,7 +1032,7 @@ export default function HomeScreen() {
   const handleMarkPrayTodayPerson = (personId: string, position?: XpGainPosition) => {
     const targetPerson = people.find((person) => person.id === personId);
     if (!targetPerson || pendingPrayerIds.includes(personId) || hasPersonCompletedPrayerToday(targetPerson, today)) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     pendingPrayerPositions.current[personId] = position;
     setPendingPrayerIds((previousIds) => [...previousIds, personId]);
     undoTimers.current[personId] = setTimeout(() => commitPrayTodayPerson(personId), UNDO_COUNTDOWN_MS);
@@ -1047,7 +1055,8 @@ export default function HomeScreen() {
     setPendingFastAction(null);
     delete undoTimers.current['fast'];
     if (action === "completed") void awardExperience("fasting-day", `${activeFast.id}:${today}`);
-  }, [activeFast, awardExperience, fasts, today]);
+    else void penalizeExperience(25, `fasting-day-missed:${activeFast.id}:${today}`);
+  }, [activeFast, awardExperience, fasts, penalizeExperience, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
@@ -1486,7 +1495,7 @@ export default function HomeScreen() {
               <View key={`personal-todo-${todo.id}`} style={styles.storyItem}>
                 <View style={styles.storyAvatarAnchor}>
                   <View style={[styles.storyAvatarBadge, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
-                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPeople((previousPeople: Person[]) => previousPeople.map((person: Person) => person.id === contact.id ? completePersonalTodo(person, todo.id) : person)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
+                  <Pressable onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setPeople((previousPeople: Person[]) => previousPeople.map((person: Person) => person.id === contact.id ? completePersonalTodo(person, todo.id) : person)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
                     <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
                   </Pressable>
                 </View>
@@ -1497,7 +1506,7 @@ export default function HomeScreen() {
               return <View key={`schedule-todo-${todo.id}`} style={styles.storyItem}>
                 <View style={styles.storyAvatarAnchor}>
                   <View style={[styles.storyAvatarBadge, { backgroundColor: "#FFFFFF", borderColor: todo.color || colors.primary }]}><Text numberOfLines={1} style={[styles.storyTagText, { color: todo.color || colors.primary }]}>{todo.title}</Text></View>
-                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setScheduleTodos((previousTodos) => previousTodos.map((t) => t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
+                  <Pressable onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setScheduleTodos((previousTodos) => previousTodos.map((t) => t.id === todo.id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t)); }} style={({ pressed }) => [styles.storyAvatarOverlayButton, pressed && styles.pressed]}>
                     <View style={[styles.storyRing, { borderColor: todo.color || colors.primary }]}><View style={[styles.avatar, { width: 66, height: 66, borderRadius: 33, backgroundColor: todo.color || colors.primary }]}><MaterialIcons name={iconName(getIconForTodo(todo.title))} size={32} color="#FFFFFF" /></View></View>
                   </Pressable>
                   {todoTime && <View style={[styles.storyTodoTime, { backgroundColor: todo.color || colors.primary }]}><Text style={styles.storyTodoTimeText}>{todoTime}</Text></View>}

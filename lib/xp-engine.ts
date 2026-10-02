@@ -6,6 +6,7 @@ const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
 export type XpAction =
   | "scheduled-prayer"
   | "schedule-todo-event"
+  | "schedule-todo-event-late"
   | "daily-reading"
   | "reached-stamp"
   | "fasting-day"
@@ -58,9 +59,10 @@ export const XP_LEVEL_TITLES: Record<number, string> = {
 export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "scheduled-prayer": 10,
   "schedule-todo-event": 5,
+  "schedule-todo-event-late": 1,
   "daily-reading": 10,
   "reached-stamp": 15,
-  "fasting-day": 10,
+  "fasting-day": 25,
   "ministry-task": 50,
 };
 
@@ -197,6 +199,50 @@ export async function revokeXP(action: XpAction, idempotencyKey: string, positio
   await Promise.all([
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
     AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify(awards.filter((awardKey) => awardKey !== key))),
+  ]);
+  emitXPGain(result.points, "revoke", position);
+  return result;
+}
+
+/**
+ * Subtracts points exactly once for an idempotency key (e.g. a missed fast day).
+ * Unlike revokeXP this is not tied to a previous award. Total XP never drops below 0.
+ */
+export async function penalizeXP(points: number, idempotencyKey: string, position?: XpGainPosition): Promise<XpAwardResult> {
+  const [storedState, storedAwards] = await Promise.all([
+    AsyncStorage.getItem(XP_STORAGE_KEY),
+    AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
+  ]);
+  let awards: string[] = [];
+  try {
+    const parsed = storedAwards ? JSON.parse(storedAwards) : [];
+    if (Array.isArray(parsed)) awards = parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    awards = [];
+  }
+  const key = `penalty:${idempotencyKey}`;
+  let parsedState: unknown = null;
+  try {
+    parsedState = storedState ? JSON.parse(storedState) : null;
+  } catch {
+    parsedState = null;
+  }
+  const current = normalizeXPState(parsedState);
+  if (awards.includes(key)) {
+    return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
+  }
+  const penalty = Math.max(0, Math.floor(points));
+  const totalXP = Math.max(0, current.totalXP - penalty);
+  const result: XpAwardResult = {
+    state: { totalXP, level: getLevelForXP(totalXP) },
+    awarded: true,
+    points: penalty,
+    previousLevel: current.level,
+    levelUp: false,
+  };
+  await Promise.all([
+    AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
+    AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
   ]);
   emitXPGain(result.points, "revoke", position);
   return result;

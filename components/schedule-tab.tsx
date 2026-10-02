@@ -605,7 +605,7 @@ function TodoItem({
                     accessibilityState={{ checked: todo.isCompleted }}
                     onPress={(event) => {
                       event.stopPropagation?.();
-                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
                     }}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
@@ -692,7 +692,7 @@ function TodoItem({
       ) : (
         <Pressable
           onPress={(event) => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
           }}
           onLongPress={handleLongPress}
@@ -1093,6 +1093,15 @@ export function ScheduleTab({
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
+  // Completing a task dated before today earns only +1 XP instead of the usual +5.
+  const xpActionForDate = (date?: string): XpAction =>
+    date && date < today ? "schedule-todo-event-late" : "schedule-todo-event";
+  // Revoke both ledger keys: a task completed on time but unchecked after
+  // midnight was recorded under the regular key, and vice versa.
+  const revokeTodoXP = (id: string, position?: XpGainPosition) => {
+    onRevokeXP?.("schedule-todo-event-late", id, position);
+    onRevokeXP?.("schedule-todo-event", id, position);
+  };
   const [clockNow, setClockNow] = useState(() => new Date());
   const router = useRouter();
   const [bibleViewerVisible, setBibleViewerVisible] = useState(false);
@@ -2897,16 +2906,16 @@ export function ScheduleTab({
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
               onToggle={(position) => {
-                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id, position);
-                else onRevokeXP?.("schedule-todo-event", item.data.id, position);
+                if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
+                else revokeTodoXP(item.data.id, position);
                 setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
               }}
               liveNow={clockNow}
               showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId, position) => {
                 const subtask = item.data.subtasks?.find((entry: { id: string; isCompleted: boolean }) => entry.id === subtaskId);
-                if (subtask?.isCompleted) onRevokeXP?.("schedule-todo-event", `${item.data.id}:${subtaskId}`, position);
-                else onAwardXP?.("schedule-todo-event", `${item.data.id}:${subtaskId}`, position);
+                if (subtask?.isCompleted) revokeTodoXP(`${item.data.id}:${subtaskId}`, position);
+                else onAwardXP?.(xpActionForDate(item.data.date), `${item.data.id}:${subtaskId}`, position);
                 setTodos((prev) => toggleSubtaskCompleted(prev, item.data.id, subtaskId));
               }}
               onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, item.data.id))}
@@ -2936,8 +2945,8 @@ export function ScheduleTab({
               event={item.data}
               people={people}
               onToggle={(position) => {
-                if (!item.data.isCompleted) onAwardXP?.("schedule-todo-event", item.data.id, position);
-                else onRevokeXP?.("schedule-todo-event", item.data.id, position);
+                if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
+                else revokeTodoXP(item.data.id, position);
                 setEvents((prev) => toggleEventCompleted(prev, item.data.id));
               }}
               onOpenEdit={openEventEditor}
@@ -3609,7 +3618,7 @@ export function ScheduleTab({
                       {isActive && (
                         <View style={[scheduleStyles.missedTodoActions, { backgroundColor: colors.surface }]}>
                           <Pressable
-                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) onAwardXP?.("schedule-todo-event", todo.id, position); else onRevokeXP?.("schedule-todo-event", todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
+                            onPress={(event) => { const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; if (!todo.isCompleted) onAwardXP?.(xpActionForDate(todo.date), todo.id, position); else revokeTodoXP(todo.id, position); setTodos((current) => toggleTodoCompleted(current, todo.id)); }}
                             style={({ pressed }) => [scheduleStyles.missedTodoActionButton, { backgroundColor: colors.success }, pressed && { opacity: 0.72 }]}
                           >
                             <MaterialIcons name="check" size={17} color="#FFFFFF" />

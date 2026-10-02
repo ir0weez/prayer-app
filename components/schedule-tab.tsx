@@ -26,6 +26,9 @@ import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ReAnimated, {
+  FadeIn,
+  SlideInLeft,
+  SlideInRight,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -1140,6 +1143,10 @@ export function ScheduleTab({
   const colors = useColors();
   const today = getTodayISOString();
   const [selectedDate, setSelectedDate] = useState(today);
+  // Direction of the last week-strip swipe: 1 = swiped left (next week),
+  // -1 = swiped right (prev week), 0 = no slide (tap / jump). Drives the
+  // week-change transition animation.
+  const [weekSlideDir, setWeekSlideDir] = useState<0 | 1 | -1>(0);
   // Completing a task dated before today earns only +1 XP instead of the usual +5.
   const xpActionForDate = (date?: string): XpAction =>
     date && date < today ? "schedule-todo-event-late" : "schedule-todo-event";
@@ -1513,8 +1520,8 @@ export function ScheduleTab({
         Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -60) handleSwipeLeft();
-        else if (gestureState.dx > 60) handleSwipeRight();
+        if (gestureState.dx < -60) { setWeekSlideDir(1); handleSwipeLeft(); }
+        else if (gestureState.dx > 60) { setWeekSlideDir(-1); handleSwipeRight(); }
       },
     })
   ).current;
@@ -2873,13 +2880,24 @@ export function ScheduleTab({
     {/* Today button moved to bottom - see renderItem */}
     <DateTimePicker
       value={selectedDate}
-      onChange={setSelectedDate}
+      onChange={(d) => { setWeekSlideDir(0); setSelectedDate(d); }}
       mode="date"
       label="Jump to date"
       compact
     />
   </View>
   <View style={scheduleStyles.dateStrip} {...weekStripPanResponder.panHandlers}>
+    <ReAnimated.View
+      key={weekDates[0]}
+      entering={
+        weekSlideDir === 1
+          ? SlideInRight.duration(240)
+          : weekSlideDir === -1
+            ? SlideInLeft.duration(240)
+            : FadeIn.duration(200)
+      }
+      style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}
+    >
     {weekDates.map((date) => {
       const isSelected = date === selectedDate;
       const isToday = date === today;
@@ -2903,10 +2921,11 @@ export function ScheduleTab({
         </Pressable>
       );
     })}
+    </ReAnimated.View>
   </View>
       </View>
     </>
-  ), [colors, dateHeader, weekDates, selectedDate, today]);
+  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
@@ -3651,7 +3670,7 @@ export function ScheduleTab({
               }
               return blocks;
             })()}
-            onDayPress={(date) => setSelectedDate(formatDateLocal(date))}
+            onDayPress={(date) => { setWeekSlideDir(0); setSelectedDate(formatDateLocal(date)); }}
           />
         ) : (
           <MonthlyCalendarView
@@ -3687,7 +3706,7 @@ export function ScheduleTab({
               });
               return eventMap;
             })()}
-            onDayPress={(date) => setSelectedDate(formatDateLocal(date))}
+            onDayPress={(date) => { setWeekSlideDir(0); setSelectedDate(formatDateLocal(date)); }}
           />
         )}
         </ReAnimated.View>
@@ -3807,7 +3826,7 @@ export function ScheduleTab({
       {/* Floating Today Button - Over Tab Bar */}
       {selectedDate !== today && (
         <Pressable
-          onPress={() => setSelectedDate(today)}
+          onPress={() => { setWeekSlideDir(0); setSelectedDate(today); }}
           style={({ pressed }) => [
             scheduleStyles.floatingTodayButton,
             {

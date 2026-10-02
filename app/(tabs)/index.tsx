@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -144,6 +144,27 @@ type RelationshipSection = {
   people: Person[];
   familyGroups?: Person[][];
 };
+
+// Panel that visibly unfurls downward when it mounts: measures its content,
+// then animates height 0 -> full with a clip, so rows are revealed top-down.
+function UnfurlPanel({ children, outerStyle }: { children: React.ReactNode; outerStyle?: object }) {
+  const [contentHeight, setContentHeight] = useState(0);
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.cubic) });
+  }, [progress]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: contentHeight * progress.value,
+    opacity: progress.value,
+  }));
+  return (
+    <ReAnimated.View style={[outerStyle, animatedStyle, { overflow: "hidden" }]} exiting={FadeOut.duration(180)}>
+      <View onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}>
+        {children}
+      </View>
+    </ReAnimated.View>
+  );
+}
 
 type AppSettings = {
   demoMode: boolean;
@@ -1544,7 +1565,7 @@ export default function HomeScreen() {
   const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection) => {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
-    return <ReAnimated.View entering={FadeIn.duration(300).springify()} style={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45`, overflow: "hidden" }}>
+    return <UnfurlPanel outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
       {familyMembers.map((member, memberIdx) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
@@ -1560,7 +1581,7 @@ export default function HomeScreen() {
         </ReAnimated.View>;
       })}
       <Pressable onPress={() => setPeople((previousPeople) => familyMembers.reduce((updatedPeople, member) => markPersonPrayed(updatedPeople, member.id), previousPeople))} style={({ pressed }) => [{ marginHorizontal: 14, marginTop: 6, marginBottom: 12, minHeight: 38, borderRadius: 8, backgroundColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.8 }]}><Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800" }}>✓  Mark as Complete</Text></Pressable>
-    </ReAnimated.View>;
+    </UnfurlPanel>;
   };
 
   const renderPeopleRow = ({ item }: { item: (typeof peopleRows)[number] }) => {

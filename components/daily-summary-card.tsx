@@ -29,7 +29,8 @@ interface DailySummaryCardProps {
   selectedDate?: string;
   onBibleStudyDayChange?: (dayName: string) => void;
   onDeleteBibleStudyDay?: (dayName: string) => void;
-  /** Bottom padding of the card; defaults to 24. Schedule passes 12 for a tighter fit. */
+  /** Bottom padding of the card; defaults to 24. Schedule passes 0 (its inner
+      block already carries a 16px bottom margin). */
   bottomPadding?: number;
 }
 

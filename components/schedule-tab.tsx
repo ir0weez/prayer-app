@@ -2709,7 +2709,7 @@ export function ScheduleTab({
   const renderScheduleSummary = () => (
     <>
 {/* Summary Card - Sticky Header Index 0 */}
-<View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
+<View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingBottom: 32 }]}>
   {(() => {
     // The summary and timeline share one scheduled-commitment rule:
     // completing an item does not make its reserved time available again.
@@ -2778,16 +2778,15 @@ export function ScheduleTab({
     );
   })()}
 
-  {/* Last-reached notice: sits above the progress bar so the sliding sheet's
-      overlap never covers it */}
-  <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
-
   {/* Progress Bar */}
   <ScheduleProgressBar
     completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
     total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
     label="Tasks & Events"
   />
+  {/* Last-reached notice: back in its original spot at the top of the date bar.
+      The container's bottom padding keeps the sliding sheet's 28px overlap clear of it. */}
+  <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
 </View>
     </>
   );

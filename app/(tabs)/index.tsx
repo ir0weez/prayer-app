@@ -145,23 +145,21 @@ type RelationshipSection = {
   familyGroups?: Person[][];
 };
 
-// Panel that visibly unfurls downward when it mounts: measures its content,
-// then animates height 0 -> full with a clip, so rows are revealed top-down.
+// Panel that visibly unfurls downward when it mounts: animates maxHeight
+// 0 -> large with a clip, so rows are revealed top-down. No measurement
+// needed, so it can't get stuck at zero height.
 function UnfurlPanel({ children, outerStyle }: { children: React.ReactNode; outerStyle?: object }) {
-  const [contentHeight, setContentHeight] = useState(0);
   const progress = useSharedValue(0);
   useEffect(() => {
-    progress.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.cubic) });
+    progress.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) });
   }, [progress]);
   const animatedStyle = useAnimatedStyle(() => ({
-    height: contentHeight * progress.value,
+    maxHeight: progress.value * 1200,
     opacity: progress.value,
   }));
   return (
     <ReAnimated.View style={[outerStyle, animatedStyle, { overflow: "hidden" }]} exiting={FadeOut.duration(180)}>
-      <View onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}>
-        {children}
-      </View>
+      {children}
     </ReAnimated.View>
   );
 }

@@ -2846,10 +2846,10 @@ export function ScheduleTab({
     </>
   );
 
-  const renderDateHeaderCard = useCallback(() => (
+  const renderDateHeaderCard = useCallback((cardStyle?: object) => (
     <>
       {/* Date Header Card - sticky sheet header */}
-      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
+      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
     <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}> 
       {dateHeader.dayName}
@@ -3546,7 +3546,7 @@ export function ScheduleTab({
                 transform: [{ translateY: fixedHeaderTranslateY }],
               }}
             >
-              {renderDateHeaderCard()}
+              {renderDateHeaderCard({ borderTopLeftRadius: 0, borderTopRightRadius: 0 })}
             </Animated.View>
             <Animated.FlatList
               style={{ flex: 1, position: "relative", zIndex: 1 }}

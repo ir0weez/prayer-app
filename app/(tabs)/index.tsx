@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, SlideInDown, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -1552,7 +1552,9 @@ export default function HomeScreen() {
         const daysSince = getDaysSinceLastPrayed(member.lastPrayedDate);
         const complete = hasPersonCompletedPrayerToday(member, today);
         return <Pressable key={member.id} onPress={() => router.push({ pathname: "/person", params: { personId: member.id } })} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: memberIdx === familyMembers.length - 1 ? 0 : 1, borderBottomColor: colors.border, backgroundColor: pressed ? colors.primary + "15" : "transparent" }]}>
-          {renderAvatar(member, 48)}<View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
+          <ReAnimated.View entering={SlideInDown.duration(380).delay(memberIdx * 70).springify()}>
+            {renderAvatar(member, 48)}
+          </ReAnimated.View><View style={{ flex: 1, marginLeft: 12 }}><Text numberOfLines={1} style={styles.personName}>{member.name}</Text><Text numberOfLines={1} style={styles.personMeta}>{formatLastReachedSummary(member)}</Text></View>
           {emergencyCountdown ? <EmergencyPrayerPill timeRemaining={formatEmergencyPrayerCountdown(emergencyCountdown)} progress={emergency ? getEmergencyPrayerProgress(emergency.item.emergencyExpiresAt) : 0} /> : <View style={[styles.reachPill, daysSince === 999 && styles.reachPillEmpty]}><View style={[styles.reachPillFill, { backgroundColor: daysSince === 999 ? "#E7E0EE" : getLastReachedAccentColor(member), width: `${Math.round(getReachProgressRatio(daysSince) * 100)}%` }]} /><Text style={[styles.reachPillText, (daysSince === 999 || getReachProgressRatio(daysSince) < 0.42) && styles.reachPillTextMuted]}>{daysSince === 999 ? "—" : formatDaysSinceLastPrayer(daysSince)}</Text></View>}
           <Pressable onPress={(event) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const position = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY }; const count = familyMembers.filter((familyMember) => hasPersonCompletedPrayerToday(familyMember, today)).length; if (!complete && count === familyMembers.length - 1) playVerifiedPop(); if (complete) void revokeExperience("scheduled-prayer", `${today}:${member.id}`, position); else void awardExperience("scheduled-prayer", `${today}:${member.id}`, position); setPeople((previousPeople) => complete ? unmarkPersonPrayed(previousPeople, member.id) : markPersonPrayed(previousPeople, member.id)); }} hitSlop={8} style={({ pressed }) => [{ width: 24, height: 24, marginLeft: 10, borderRadius: 12, borderWidth: 1.5, borderColor: accent, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.65 }]}>{complete && <MaterialIcons name={iconName("check")} size={16} color={accent} />}</Pressable>
         </Pressable>;

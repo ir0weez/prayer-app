@@ -930,11 +930,57 @@ function MinistryCard({
 }
 
 // ─── Birthday Card Component ─────────────────────────────────────────────────
+const BIRTHDAY_CONFETTI = [
+  { top: 12, right: 16, size: 7, color: "#F59E0B" },
+  { top: 26, right: 34, size: 5, color: "#EC4899" },
+  { top: 14, right: 48, size: 6, color: "#22C55E" },
+  { top: 34, right: 18, size: 5, color: "#3B82F6" },
+  { top: 40, right: 44, size: 7, color: "#A855F7" },
+];
+
+function getBirthdayAge(birthday: BirthdayEvent): number | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(birthday.originalBirthday.trim());
+  const y = /^(\d{4})-\d{2}-\d{2}$/.exec(birthday.date);
+  if (!m || !y) return null;
+  const age = parseInt(y[1], 10) - parseInt(m[3], 10);
+  return age > 0 && age < 130 ? age : null;
+}
+
 function BirthdayCard({ birthday }: { birthday: BirthdayEvent }) {
+  const colors = useColors();
+  const firstName = birthday.personName.trim().split(/\s+/).filter(Boolean)[0] ?? birthday.personName;
+  const age = getBirthdayAge(birthday);
   return (
-    <View style={birthdayStyles.card}>
-      <MaterialIcons name="cake" size={22} color="#EA580C" />
-      <Text style={birthdayStyles.text}>{birthday.personName}'s Birthday</Text>
+    <View style={[birthdayStyles.card, { backgroundColor: "rgba(245, 158, 11, 0.10)", borderColor: "rgba(245, 158, 11, 0.35)" }]}>
+      {BIRTHDAY_CONFETTI.map((c, i) => (
+        <View
+          key={i}
+          style={{
+            position: "absolute",
+            top: c.top,
+            right: c.right,
+            width: c.size,
+            height: c.size,
+            borderRadius: c.size / 2,
+            backgroundColor: c.color,
+            opacity: 0.55,
+          }}
+          pointerEvents="none"
+        />
+      ))}
+      <View style={birthdayStyles.iconBadge}>
+        <MaterialIcons name="cake" size={24} color="#EA580C" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[birthdayStyles.headline, { color: colors.foreground }]}>
+          Happy Birthday, {firstName}!
+        </Text>
+        {age !== null && (
+          <Text style={[birthdayStyles.subline, { color: colors.muted }]}>
+            Turns {age} today
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -5601,19 +5647,31 @@ const birthdayStyles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 4,
     gap: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#FFC10730",
+    borderRadius: 16,
+    borderWidth: 1,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    overflow: "hidden",
   },
-  emoji: {
-    fontSize: 22,
+  iconBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "rgba(245, 158, 11, 0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  text: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#F57F17",
+  headline: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  subline: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
   },
 });
 

@@ -1484,6 +1484,14 @@ export function ScheduleTab({
     outputRange: [0, -DAY_HEADER_HEIGHT],
     extrapolate: "clamp",
   });
+  // Pinned day-strip header: hidden above the screen until the sheet's own
+  // date header scrolls to the top, then docks in its place.
+  const fixedHeaderDockPoint = Math.max(0, scheduleSummaryHeight - SHEET_OVERLAP);
+  const fixedHeaderTranslateY = scrollY.interpolate({
+    inputRange: [fixedHeaderDockPoint - 1, fixedHeaderDockPoint],
+    outputRange: [-400, 0],
+    extrapolate: "clamp",
+  });
 
   // Swipe between days
   const swipeTranslateX = useSharedValue(0);
@@ -3526,6 +3534,20 @@ export function ScheduleTab({
             >
               {renderScheduleSummary()}
             </View>
+            {/* Pinned date header: docks the day strip once the sheet scrolls up.
+                (stickyHeaderIndices breaks Pressable taps on Android after scrolling.) */}
+            <Animated.View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 2,
+                transform: [{ translateY: fixedHeaderTranslateY }],
+              }}
+            >
+              {renderDateHeaderCard()}
+            </Animated.View>
             <Animated.FlatList
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
@@ -3540,7 +3562,6 @@ export function ScheduleTab({
                 return <View style={{ backgroundColor: colors.surface }}>{element}</View>;
               }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
-              stickyHeaderIndices={[1]}
             ListFooterComponent={
               <View style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: "hidden" }}>
                 <ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />

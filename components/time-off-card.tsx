@@ -22,9 +22,10 @@ export function TimeOffCard({ timeOff, onPress }: TimeOffCardProps) {
       const endDate = new Date(timeOff.endDate);
       endDate.setHours(0, 0, 0, 0);
       
-      // If time-off hasn't started yet, show 0
+      // If time-off hasn't started yet, count down to the start date
       if (today < startDate) {
-        setDaysRemaining(0);
+        const untilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        setDaysRemaining(Math.max(0, untilStart));
         return;
       }
       

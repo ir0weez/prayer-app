@@ -2778,6 +2778,10 @@ export function ScheduleTab({
     );
   })()}
 
+  {/* Last-reached notice: sits above the progress bar so the sliding sheet's
+      overlap never covers it */}
+  <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
+
   {/* Progress Bar */}
   <ScheduleProgressBar
     completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
@@ -2785,8 +2789,6 @@ export function ScheduleTab({
     label="Tasks & Events"
   />
 </View>
-
-<PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
     </>
   );
 
@@ -3480,11 +3482,6 @@ export function ScheduleTab({
             </View>
             <Animated.FlatList
               style={{ flex: 1, position: "relative", zIndex: 1 }}
-              // box-none: the list itself never claims touches, so the fixed
-              // summary behind the transparent spacer stays tappable; drags
-              // that begin on the sheet's own rows still bubble up to the
-              // ScrollView and scroll normally.
-              pointerEvents="box-none"
               data={scheduleSheetData}
               keyExtractor={(item) => item.id}
               renderItem={(info) => {

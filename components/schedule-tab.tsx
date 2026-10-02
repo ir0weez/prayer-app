@@ -3480,18 +3480,35 @@ export function ScheduleTab({
             </View>
             <Animated.FlatList
               style={{ flex: 1, position: "relative", zIndex: 1 }}
+              // box-none: the list itself never claims touches, so the fixed
+              // summary behind the transparent spacer stays tappable; drags
+              // that begin on the sheet's own rows still bubble up to the
+              // ScrollView and scroll normally.
+              pointerEvents="box-none"
               data={scheduleSheetData}
               keyExtractor={(item) => item.id}
-              renderItem={renderItem}
+              renderItem={(info) => {
+                const element = renderItem(info);
+                // The date header is the sheet's own top (it carries the surface
+                // background + rounded top corners). Every other row gets a
+                // full-bleed surface wrapper so the sheet is one continuous card
+                // that cleanly slides over the fixed summary behind it.
+                if (info.item.type === "date-header") return element;
+                return <View style={{ backgroundColor: colors.surface }}>{element}</View>;
+              }}
               extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
               stickyHeaderIndices={[1]}
-            ListFooterComponent={<ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />}
+            ListFooterComponent={
+              <View style={{ backgroundColor: colors.surface, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: "hidden" }}>
+                <ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />
+              </View>
+            }
             contentContainerStyle={[
               scheduleStyles.listContent,
               {
                 paddingTop: 0,
                 paddingBottom: 120,
-                backgroundColor: colors.surface,
+                backgroundColor: "transparent",
               },
             ]}
             showsVerticalScrollIndicator={false}

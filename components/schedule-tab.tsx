@@ -4782,8 +4782,8 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 10,
+    marginBottom: 10,
     paddingHorizontal: 8,
     paddingVertical: 0,
     minHeight: 28,
@@ -4817,7 +4817,7 @@ const scheduleStyles = StyleSheet.create({
   dateHeaderCard: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 6,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
     borderBottomWidth: 0,
@@ -4833,7 +4833,7 @@ const scheduleStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 10,
   },
   dayName: {
     fontSize: 48,
@@ -4855,7 +4855,7 @@ const scheduleStyles = StyleSheet.create({
   dateStrip: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   dateItem: {
     alignItems: "center",

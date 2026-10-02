@@ -29,6 +29,8 @@ interface DailySummaryCardProps {
   selectedDate?: string;
   onBibleStudyDayChange?: (dayName: string) => void;
   onDeleteBibleStudyDay?: (dayName: string) => void;
+  /** Bottom padding of the card; defaults to 24. Schedule passes 12 for a tighter fit. */
+  bottomPadding?: number;
 }
 
 // Map icon names from getIconForTodo to Material Icons
@@ -65,6 +67,7 @@ export function DailySummaryCard({
   selectedDate,
   onBibleStudyDayChange,
   onDeleteBibleStudyDay,
+  bottomPadding = 24,
   personalTodos = [],
   onTodoComplete,
   onAvatarPress,
@@ -171,7 +174,7 @@ export function DailySummaryCard({
       style={{
         paddingHorizontal: 24,
         paddingTop: 16,
-        paddingBottom: 24,
+        paddingBottom: bottomPadding,
         transform: [{ translateY: slideAnim }],
         opacity: opacityAnim,
       }}

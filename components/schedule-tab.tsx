@@ -2773,7 +2773,7 @@ export function ScheduleTab({
         availableTimeString={availableTimeString}
         userProfilePhoto={userProfilePhoto}
         prayerStreak={prayerStreak}
-
+        bottomPadding={12}
       />
     );
   })()}
@@ -4835,7 +4835,7 @@ const scheduleStyles = StyleSheet.create({
     gap: 6,
     marginHorizontal: 20,
     marginTop: 0,
-    marginBottom: 8,
+    marginBottom: 0,
     paddingHorizontal: 8,
     paddingVertical: 0,
     minHeight: 28,

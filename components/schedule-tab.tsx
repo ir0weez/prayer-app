@@ -4783,7 +4783,7 @@ const scheduleStyles = StyleSheet.create({
     gap: 6,
     marginHorizontal: 20,
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 4,
     paddingHorizontal: 8,
     paddingVertical: 0,
     minHeight: 28,
@@ -4816,7 +4816,7 @@ const scheduleStyles = StyleSheet.create({
   },
   dateHeaderCard: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 6,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,

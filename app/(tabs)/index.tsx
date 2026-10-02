@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
@@ -543,6 +543,14 @@ export default function HomeScreen() {
       setXpState(result.state);
     } catch {
       // Heart loss is cosmetic and must never interrupt the action.
+    }
+  }, [today]);
+  const restoreHeartExperience = useCallback(async (idempotencyKey: string, position?: XpGainPosition) => {
+    try {
+      const result = await restoreHeart(idempotencyKey, today, position);
+      setXpState(result.state);
+    } catch {
+      // Heart restore is cosmetic and must never interrupt the action.
     }
   }, [today]);
   useEffect(() => {
@@ -1054,9 +1062,13 @@ export default function HomeScreen() {
     setFasts(updatedFasts);
     setPendingFastAction(null);
     delete undoTimers.current['fast'];
-    if (action === "completed") void awardExperience("fasting-day", `${activeFast.id}:${today}`);
+    if (action === "completed") {
+      void awardExperience("fasting-day", `${activeFast.id}:${today}`);
+      // Marking successful after a miss gives the heart back.
+      void restoreHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
+    }
     else void loseHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
-  }, [activeFast, awardExperience, fasts, loseHeartExperience, today]);
+  }, [activeFast, awardExperience, fasts, loseHeartExperience, restoreHeartExperience, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;

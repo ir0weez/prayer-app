@@ -28,7 +28,7 @@ export type XpAwardResult = {
 };
 
 export type XpGainPosition = { x: number; y: number };
-export type XpGainEvent = { id: string; points: number; direction: "gain" | "revoke" | "heart-loss"; position?: XpGainPosition; leveledDown?: boolean };
+export type XpGainEvent = { id: string; points: number; direction: "gain" | "revoke" | "heart-loss" | "heart-gain"; position?: XpGainPosition; leveledDown?: boolean };
 type XpGainListener = (event: XpGainEvent) => void;
 const xpGainListeners = new Set<XpGainListener>();
 let nextXpGainId = 0;
@@ -45,6 +45,11 @@ function emitXPGain(points: number, direction: XpGainEvent["direction"], positio
 
 function emitHeartLoss(leveledDown: boolean, position?: XpGainPosition) {
   const event: XpGainEvent = { id: `xp-heart-${Date.now()}-${nextXpGainId++}`, points: 1, direction: "heart-loss", position, leveledDown };
+  xpGainListeners.forEach((listener) => listener(event));
+}
+
+function emitHeartGain(position?: XpGainPosition) {
+  const event: XpGainEvent = { id: `xp-heart-${Date.now()}-${nextXpGainId++}`, points: 1, direction: "heart-gain", position };
   xpGainListeners.forEach((listener) => listener(event));
 }
 
@@ -325,4 +330,49 @@ export async function loseHeart(idempotencyKey: string, todayStr: string, positi
 
 export async function clearXPState(): Promise<void> {
   await AsyncStorage.multiRemove([XP_STORAGE_KEY, XP_AWARDS_STORAGE_KEY]);
+}
+
+export type HeartRestoreResult = {
+  state: XpState;
+  restored: boolean;
+};
+
+/**
+ * Restores one heart for an idempotency key that previously lost one (e.g. a
+ * missed fast day later marked successful). Removes the key so a later miss
+ * can deduct again. Hearts never exceed the level's max; the popup only fires
+ * when the heart count actually increases.
+ */
+export async function restoreHeart(idempotencyKey: string, todayStr: string, position?: XpGainPosition): Promise<HeartRestoreResult> {
+  const [storedState, storedAwards] = await Promise.all([
+    AsyncStorage.getItem(XP_STORAGE_KEY),
+    AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
+  ]);
+  let awards: string[] = [];
+  try {
+    const parsed = storedAwards ? JSON.parse(storedAwards) : [];
+    if (Array.isArray(parsed)) awards = parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    awards = [];
+  }
+  const key = `heart-loss:${idempotencyKey}`;
+  let parsedState: unknown = null;
+  try {
+    parsedState = storedState ? JSON.parse(storedState) : null;
+  } catch {
+    parsedState = null;
+  }
+  const current = applyDailyHeartRegen(normalizeXPState(parsedState), todayStr);
+  if (!awards.includes(key)) {
+    await AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(current));
+    return { state: current, restored: false };
+  }
+  const hearts = Math.min(maxHeartsForLevel(current.level), current.hearts + 1);
+  const next: XpState = { ...current, hearts };
+  await Promise.all([
+    AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(next)),
+    AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify(awards.filter((awardKey) => awardKey !== key))),
+  ]);
+  if (hearts > current.hearts) emitHeartGain(position);
+  return { state: next, restored: true };
 }

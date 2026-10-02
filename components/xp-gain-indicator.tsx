@@ -51,11 +51,11 @@ export function XpGainIndicator() {
             pointerEvents="none"
             style={[
               styles.pill,
-              { backgroundColor: gain.direction === "gain" ? colors.primary : colors.error, left, top, bottom, opacity: gain.direction === "gain" ? 1 : 0.82 },
+              { backgroundColor: gain.direction === "gain" ? colors.primary : gain.direction === "heart-gain" ? "#31C48D" : colors.error, left, top, bottom, opacity: gain.direction === "gain" ? 1 : 0.82 },
               { opacity: gain.animation, transform: [{ translateY: gain.animation.interpolate({ inputRange: [0, 1], outputRange: [0, -34] }) }, { scale: gain.animation.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.94, 1, 1] }) }] },
             ]}
           >
-            <Text style={styles.text}>{gain.direction === "heart-loss" ? "−1 ♥" : `${gain.direction === "revoke" ? "−" : "+"}${gain.points} XP`}</Text>
+            <Text style={styles.text}>{gain.direction === "heart-loss" ? "−1 ♥" : gain.direction === "heart-gain" ? "+1 ♥" : `${gain.direction === "revoke" ? "−" : "+"}${gain.points} XP`}</Text>
           </Animated.View>
         );
       })}

@@ -40,7 +40,7 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
-import { awardXP, loadXPState, revokeXP } from "@/lib/xp-engine";
+import { awardXP, loadXPState, loseHeart, restoreHeart, revokeXP } from "@/lib/xp-engine";
 
 type PersonalProfile = {
   name: string;
@@ -126,6 +126,12 @@ function getStatusIcon(status?: FastDayStatus) {
   if (status === "skipped") return "pause";
   if (status === "missed") return "close";
   return "radio-button-unchecked";
+}
+
+function getFastDayButtonLabel(status?: FastDayStatus) {
+  if (status === "missed") return "Unsuccessful Day";
+  if (status === "skipped") return "Skipped Day";
+  return "Successful Day";
 }
 
 export default function ProfileScreen() {
@@ -235,8 +241,14 @@ export default function ProfileScreen() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const previousStatus = selectedFast.dayStatuses[dateString];
-    if (status === "completed" && previousStatus !== "completed") void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+    const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
+    if (status === "completed" && previousStatus !== "completed") {
+      void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+      // Marking successful after a miss gives the heart back.
+      void restoreHeart(heartKey, today, position).catch(() => undefined);
+    }
     if (status !== "completed" && previousStatus === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+    if (status === "missed" && previousStatus !== "missed") void loseHeart(heartKey, today, position).catch(() => undefined);
     persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
   };
 
@@ -278,6 +290,7 @@ export default function ProfileScreen() {
           onPress: () => {
             if (!selectedFast) return;
             if (selectedFast.dayStatuses[today] === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${today}`).catch(() => undefined);
+            if (selectedFast.dayStatuses[today] === "missed") void restoreHeart(`fasting-day-missed:${selectedFast.id}:${today}`, today).catch(() => undefined);
             persistFasts(removeFastDayStatus(fasts, selectedFast.id, today));
           },
         },
@@ -568,7 +581,7 @@ export default function ProfileScreen() {
             <View style={styles.todayActions}>
               <Pressable onPress={(event) => setFastStatus(today, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
-                <Text style={styles.todayButtonText}>Successful Day</Text>
+                <Text style={styles.todayButtonText}>{getFastDayButtonLabel(selectedFast.dayStatuses[today])}</Text>
               </Pressable>
               <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>

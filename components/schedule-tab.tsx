@@ -1505,15 +1505,44 @@ export function ScheduleTab({
     setSelectedDate((prev) => addDays(prev, -7));
   }, []);
 
-  // Swipe the week strip horizontally to move between calendar weeks
-  // (same weekday, previous/next week). Vertical moves are left to the list.
-  const weekStripPanResponder = useRef(
+  // Week-strip carousel: the strip follows the finger; past ~1/4 of its width
+  // it snaps to the adjacent week (same weekday). Vertical moves stay with the list.
+  const weekDragX = useSharedValue(0);
+  const weekStripWidth = useSharedValue(0);
+  const [weekStripMeasuredW, setWeekStripMeasuredW] = useState(0);
+  const weekRowAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -weekStripWidth.value + weekDragX.value }],
+  }));
+  const weekCarouselPanResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+        Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+      onPanResponderMove: (_, gestureState) => {
+        const w = weekStripWidth.value || 1;
+        weekDragX.value = Math.max(-w, Math.min(w, gestureState.dx));
+      },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -60) handleSwipeLeft();
-        else if (gestureState.dx > 60) handleSwipeRight();
+        const w = weekStripWidth.value || 1;
+        const threshold = w * 0.25;
+        const goNext = gestureState.dx < -threshold || gestureState.vx < -0.5;
+        const goPrev = gestureState.dx > threshold || gestureState.vx > 0.5;
+        if (goNext || goPrev) {
+          const target = goNext ? -w : w;
+          const advance = goNext ? handleSwipeLeft : handleSwipeRight;
+          weekDragX.value = withTiming(target, { duration: 220 }, (finished) => {
+            if (finished) {
+              runOnJS(() => {
+                weekDragX.value = 0;
+                advance();
+              })();
+            }
+          });
+        } else {
+          weekDragX.value = withTiming(0, { duration: 200 });
+        }
+      },
+      onPanResponderTerminate: () => {
+        weekDragX.value = withTiming(0, { duration: 200 });
       },
     })
   ).current;
@@ -1806,6 +1835,8 @@ export function ScheduleTab({
   // Derived data for selected date
   const dateHeader = useMemo(() => formatDateHeader(selectedDate), [selectedDate]);
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
+  const prevWeekDates = useMemo(() => getWeekDates(addDays(selectedDate, -7)), [selectedDate]);
+  const nextWeekDates = useMemo(() => getWeekDates(addDays(selectedDate, 7)), [selectedDate]);
   const dayEvents = useMemo(() => {
     const isTimeOffDay = isDateDuringTimeOff(timeOffList, selectedDate);
     return getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
@@ -2860,6 +2891,34 @@ export function ScheduleTab({
     </>
   );
 
+  const renderWeekCells = useCallback((dates: string[]) => (
+    <>
+      {dates.map((date) => {
+        const isSelected = date === selectedDate;
+        const isToday = date === today;
+        return (
+          <Pressable
+            key={date}
+            onPress={() => setSelectedDate(date)}
+            style={({ pressed }) => [
+              scheduleStyles.dateItem,
+              isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+              {getDayNumber(date)}
+            </Text>
+            <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+              {getShortDayName(date)}
+            </Text>
+            {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
+          </Pressable>
+        );
+      })}
+    </>
+  ), [colors, selectedDate, today, timeOffList]);
+
   const renderDateHeaderCard = useCallback((cardStyle?: object) => (
     <>
       {/* Date Header Card - sticky sheet header */}
@@ -2878,34 +2937,32 @@ export function ScheduleTab({
       compact
     />
   </View>
-  <View style={scheduleStyles.dateStrip} {...weekStripPanResponder.panHandlers}>
-    {weekDates.map((date) => {
-      const isSelected = date === selectedDate;
-      const isToday = date === today;
-      return (
-        <Pressable
-          key={date}
-          onPress={() => setSelectedDate(date)}
-          style={({ pressed }) => [
-            scheduleStyles.dateItem,
-            isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-            {getDayNumber(date)}
-          </Text>
-          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}> 
-            {getShortDayName(date)}
-          </Text>
-          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
-        </Pressable>
-      );
-    })}
-    </View>
+  <View
+    style={[scheduleStyles.dateStrip, { overflow: "hidden" }]}
+    {...weekCarouselPanResponder.panHandlers}
+    onLayout={(event) => {
+      const w = event.nativeEvent.layout.width;
+      weekStripWidth.value = w;
+      setWeekStripMeasuredW(w);
+    }}
+  >
+    {weekStripMeasuredW > 0 && (
+      <ReAnimated.View style={[{ flexDirection: "row", width: "300%" }, weekRowAnimatedStyle]}>
+        <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
+          {renderWeekCells(prevWeekDates)}
+        </View>
+        <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
+          {renderWeekCells(weekDates)}
+        </View>
+        <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
+          {renderWeekCells(nextWeekDates)}
+        </View>
+      </ReAnimated.View>
+    )}
+  </View>
       </View>
     </>
-  ), [colors, dateHeader, weekDates, selectedDate, today]);
+  ), [colors, dateHeader, weekDates, prevWeekDates, nextWeekDates, selectedDate, today, renderWeekCells, weekRowAnimatedStyle]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {

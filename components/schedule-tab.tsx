@@ -1425,6 +1425,9 @@ export function ScheduleTab({
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
+  // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
+  const SHEET_OVERLAP = 28;
+  const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],
     outputRange: [1, 0],
@@ -2694,9 +2697,165 @@ export function ScheduleTab({
     return items;
   }, [dayBirthdays, dayTodos, dayEvents, dayMinistries, bibleStudies, selectedDate, bibleState, chapterSummary, currentAlbum, clockNow]);
 
+  // Joi-style sheet: the sticky date header leads the sheet; an empty-state item
+  // preserves the "no items" message now that data always carries the header.
+  const scheduleSheetData = useMemo(() => {
+    const headerItem = { type: "date-header", id: "schedule-date-header", data: null };
+    if (listData.length === 0) return [headerItem, { type: "schedule-empty", id: "schedule-empty", data: null }];
+    return [headerItem, ...listData];
+  }, [listData]);
+
+  // Joi-style sheet: summary sits fixed behind; the schedule card slides up over it.
+  const renderScheduleSummary = () => (
+    <>
+{/* Summary Card - Sticky Header Index 0 */}
+<View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
+  {(() => {
+    // The summary and timeline share one scheduled-commitment rule:
+    // completing an item does not make its reserved time available again.
+    const scheduledItems = [
+      ...getTodosForDate(todos, selectedDate)
+        .filter((t) => t.startTime)
+        .map((t) => ({ ...t })),
+      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
+      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
+      ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
+    ];
+    const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
+    const todoSummaryCounts = getTodoSummaryCounts(getTodosForDate(todos, selectedDate));
+
+    const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
+    // Format as "Xh Ym" instead of just hours
+    const availableHours = Math.floor(totalAvailableMinutes / 60);
+    const availableMinutes = totalAvailableMinutes % 60;
+    const availableTimeString = availableMinutes > 0 ? `${availableHours}h ${availableMinutes}m` : `${availableHours}h`;
+
+
+
+    return (
+      <DailySummaryCard
+        remainingTodos={todoSummaryCounts.remaining}
+        remainingPrayers={memoizedSummaryData.remainingPrayers}
+        fastingStatus={memoizedSummaryData.fastingStatus}
+        budgetAmount={memoizedSummaryData.budgetAmount}
+        peopleToReach={memoizedSummaryData.peopleToReach}
+        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, selectedDate)}
+        bibleStudyDays={getUniqueBibleStudyDays(bibleStudies, ministries, events)}
+        selectedBibleStudyDay={selectedBibleStudyDay}
+        selectedDate={selectedDate}
+        onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}
+        onDeleteBibleStudyDay={(dayName) => {
+          // Remove all Bible studies, ministries, and events for this day of week
+          setBibleStudies(prev => prev.filter(s => {
+            const d = new Date(s.date);
+            return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
+          }));
+          // Remove Read/Bible Study ministries for this day
+          setMinistries(prev => prev.filter(m => {
+            if ((m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
+              const d = new Date(m.date);
+              return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
+            }
+            return true;
+          }));
+          // Reset selection
+          setSelectedBibleStudyDay(null);
+        }}
+        personalTodos={memoizedSummaryData.personalTodos}
+        onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
+        onAvatarPress={(todo) => {
+          openEditTodo(todo);
+        }}
+        eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
+        ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
+        userName={userName}
+        availableHours={availableHours}
+        availableTimeString={availableTimeString}
+        userProfilePhoto={userProfilePhoto}
+        prayerStreak={prayerStreak}
+
+      />
+    );
+  })()}
+
+  {/* Progress Bar */}
+  <ScheduleProgressBar
+    completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
+    total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
+    label="Tasks & Events"
+  />
+</View>
+
+<PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
+    </>
+  );
+
+  const renderDateHeaderCard = useCallback(() => (
+    <>
+      {/* Date Header Card - sticky sheet header */}
+      <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
+  <View style={scheduleStyles.dayHeaderContent}>
+    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}> 
+      {dateHeader.dayName}
+      <Text style={{ color: colors.error }}>•</Text>
+    </Text>
+    {/* Today button moved to bottom - see renderItem */}
+    <DateTimePicker
+      value={selectedDate}
+      onChange={setSelectedDate}
+      mode="date"
+      label="Jump to date"
+      compact
+    />
+  </View>
+  <View style={scheduleStyles.dateStrip}>
+    {weekDates.map((date) => {
+      const isSelected = date === selectedDate;
+      const isToday = date === today;
+      return (
+        <Pressable
+          key={date}
+          onPress={() => setSelectedDate(date)}
+          style={({ pressed }) => [
+            scheduleStyles.dateItem,
+            isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
+            {getDayNumber(date)}
+          </Text>
+          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}> 
+            {getShortDayName(date)}
+          </Text>
+          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
+        </Pressable>
+      );
+    })}
+    </View>
+      </View>
+    </>
+  ), [colors, dateHeader, weekDates, selectedDate, today]);
+
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
       switch (item.type) {
+        case "date-header": {
+          return renderDateHeaderCard();
+        }
+        case "schedule-empty": {
+          return (
+            <View style={scheduleStyles.emptyState}>
+              <MaterialIcons name="event-note" size={48} color={colors.muted} />
+              <Text style={[scheduleStyles.emptyText, { color: colors.muted }]}>
+                No items for this day
+              </Text>
+              <Text style={[scheduleStyles.emptySubtext, { color: colors.muted }]}>
+                Tap + to add an event, todo, or ministry
+              </Text>
+            </View>
+          );
+        }
         case "personal-study-card": {
           const hasCurrentBook = Object.values(item.data.state.bookStatuses).some((status) => status === 'current');
           return (
@@ -3207,7 +3366,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard]
   );
 
   return (
@@ -3311,11 +3470,21 @@ export function ScheduleTab({
       {/* Content area */}
       <ReAnimated.View style={[{ flex: 1 }]}>
         {viewMode === 'day' ? (
-          <Animated.FlatList
-            data={listData}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            extraData={[selectedDate, listData, colors, currentAlbum, isWorshipExpanded]}
+          <View style={{ flex: 1 }}>
+            {/* Fixed summary behind the sliding sheet (Joi-style) */}
+            <View
+              style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 0 }}
+              onLayout={(event) => setScheduleSummaryHeight(event.nativeEvent.layout.height)}
+            >
+              {renderScheduleSummary()}
+            </View>
+            <Animated.FlatList
+              style={{ flex: 1, position: "relative", zIndex: 1 }}
+              data={scheduleSheetData}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              extraData={[selectedDate, listData, scheduleSheetData, colors, currentAlbum, isWorshipExpanded]}
+              stickyHeaderIndices={[1]}
             ListFooterComponent={<ReachedStampRow stamps={reachedStamps} people={people} selectedDate={selectedDate} onChange={onReachedStampsChange} />}
             contentContainerStyle={[
               scheduleStyles.listContent,
@@ -3332,144 +3501,13 @@ export function ScheduleTab({
             )}
             scrollEventThrottle={16}
             ListHeaderComponent={
-              <>
-                {/* Summary Card - Sticky Header Index 0 */}
-                <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background }]}>
-                  {(() => {
-                    // The summary and timeline share one scheduled-commitment rule:
-                    // completing an item does not make its reserved time available again.
-                    const scheduledItems = [
-                      ...getTodosForDate(todos, selectedDate)
-                        .filter((t) => t.startTime)
-                        .map((t) => ({ ...t })),
-                      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
-                      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
-                      ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
-                    ];
-                    const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
-                    const todoSummaryCounts = getTodoSummaryCounts(getTodosForDate(todos, selectedDate));
-
-                    const totalAvailableMinutes = activeSummaryBlocks.reduce((sum, b) => sum + b.durationMinutes, 0);
-                    // Format as "Xh Ym" instead of just hours
-                    const availableHours = Math.floor(totalAvailableMinutes / 60);
-                    const availableMinutes = totalAvailableMinutes % 60;
-                    const availableTimeString = availableMinutes > 0 ? `${availableHours}h ${availableMinutes}m` : `${availableHours}h`;
-
-
-
-                    return (
-                      <DailySummaryCard
-                        remainingTodos={todoSummaryCounts.remaining}
-                        remainingPrayers={memoizedSummaryData.remainingPrayers}
-                        fastingStatus={memoizedSummaryData.fastingStatus}
-                        budgetAmount={memoizedSummaryData.budgetAmount}
-                        peopleToReach={memoizedSummaryData.peopleToReach}
-                        currentBibleStudy={getLastChapterRead(ministries, bibleStudies, events, selectedDate)}
-                        bibleStudyDays={getUniqueBibleStudyDays(bibleStudies, ministries, events)}
-                        selectedBibleStudyDay={selectedBibleStudyDay}
-                        selectedDate={selectedDate}
-                        onBibleStudyDayChange={(dayName) => setSelectedBibleStudyDay(dayName)}
-                        onDeleteBibleStudyDay={(dayName) => {
-                          // Remove all Bible studies, ministries, and events for this day of week
-                          setBibleStudies(prev => prev.filter(s => {
-                            const d = new Date(s.date);
-                            return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
-                          }));
-                          // Remove Read/Bible Study ministries for this day
-                          setMinistries(prev => prev.filter(m => {
-                            if ((m.type === 'Read' || m.type === 'Bible Study') && m.bibleBook && m.bibleChapter) {
-                              const d = new Date(m.date);
-                              return d.toLocaleDateString('en-US', { weekday: 'long' }) !== dayName;
-                            }
-                            return true;
-                          }));
-                          // Reset selection
-                          setSelectedBibleStudyDay(null);
-                        }}
-                        personalTodos={memoizedSummaryData.personalTodos}
-                        onTodoComplete={memoizedSummaryData.onTodoComplete || onTodoComplete}
-                        onAvatarPress={(todo) => {
-                          openEditTodo(todo);
-                        }}
-                        eventCount={getEventsForDate(events, selectedDate).filter(e => !e.isCompleted).length}
-                        ministryCount={getMinistriesForDate(ministries, selectedDate).filter(m => !m.isCompleted).length}
-                        userName={userName}
-                        availableHours={availableHours}
-                        availableTimeString={availableTimeString}
-                        userProfilePhoto={userProfilePhoto}
-                        prayerStreak={prayerStreak}
-
-                      />
-                    );
-                  })()}
-
-                  {/* Progress Bar */}
-                  <ScheduleProgressBar
-                    completed={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).completed + getEventsForDate(events, selectedDate).filter(e => e.isCompleted).length}
-                    total={getTodoSummaryCounts(getTodosForDate(todos, selectedDate)).total + getEventsForDate(events, selectedDate).length}
-                    label="Tasks & Events"
-                  />
-                </View>
-
-                <PrayerCheckInNotice people={prayerCheckInPeople} selectedDate={selectedDate} />
-
-                {/* Date Header Card - Sticky Header Index 1, scrolls over summary */}
-                <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }]}>
-                  <View style={scheduleStyles.dayHeaderContent}>
-                    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}> 
-                      {dateHeader.dayName}
-                      <Text style={{ color: colors.error }}>•</Text>
-                    </Text>
-                    {/* Today button moved to bottom - see renderItem */}
-                    <DateTimePicker
-                      value={selectedDate}
-                      onChange={setSelectedDate}
-                      mode="date"
-                      label="Jump to date"
-                      compact
-                    />
-                  </View>
-                  <View style={scheduleStyles.dateStrip}>
-                    {weekDates.map((date) => {
-                      const isSelected = date === selectedDate;
-                      const isToday = date === today;
-                      return (
-                        <Pressable
-                          key={date}
-                          onPress={() => setSelectedDate(date)}
-                          style={({ pressed }) => [
-                            scheduleStyles.dateItem,
-                            isSelected && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5 },
-                            pressed && { opacity: 0.7 },
-                          ]}
-                        >
-                          <Text style={[scheduleStyles.dateNum, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}>
-                            {getDayNumber(date)}
-                          </Text>
-                          <Text style={[scheduleStyles.dateDayName, { color: isSelected ? colors.foreground : colors.muted }, isToday && !isSelected && { color: colors.primary }]}> 
-                            {getShortDayName(date)}
-                          </Text>
-                          {isDateDuringTimeOff(timeOffList, date) && <View style={[scheduleStyles.timeOffDayMarker, { backgroundColor: colors.primary }]} />}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-
-              </>
-            }
-            ListEmptyComponent={
-              <View style={scheduleStyles.emptyState}>
-                <MaterialIcons name="event-note" size={48} color={colors.muted} />
-                <Text style={[scheduleStyles.emptyText, { color: colors.muted }]}>
-                  No items for this day
-                </Text>
-                <Text style={[scheduleStyles.emptySubtext, { color: colors.muted }]}>
-                  Tap + to add an event, todo, or ministry
-                </Text>
-              </View>
+              <View
+                pointerEvents="none"
+                style={{ height: Math.max(0, scheduleSummaryHeight - SHEET_OVERLAP) }}
+              />
             }
           />
+          </View>
         ) : viewMode === 'week' ? (
           <WeeklyCalendarView
             selectedDate={new Date(selectedDate)}
@@ -4816,10 +4854,10 @@ const scheduleStyles = StyleSheet.create({
   },
   dateHeaderCard: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 6,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderBottomWidth: 0,
   },
   dayHeaderCardOverlay: {

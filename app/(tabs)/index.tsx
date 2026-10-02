@@ -148,11 +148,16 @@ type RelationshipSection = {
 // Panel that visibly unfurls downward when it mounts: animates maxHeight
 // 0 -> large with a clip, so rows are revealed top-down. No measurement
 // needed, so it can't get stuck at zero height.
-function UnfurlPanel({ children, outerStyle }: { children: React.ReactNode; outerStyle?: object }) {
+function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactNode; outerStyle?: object; closing?: boolean }) {
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) });
   }, [progress]);
+  useEffect(() => {
+    if (closing) {
+      progress.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+    }
+  }, [closing, progress]);
   const animatedStyle = useAnimatedStyle(() => ({
     maxHeight: progress.value * 1200,
     opacity: progress.value,
@@ -521,6 +526,28 @@ export default function HomeScreen() {
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
   const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+  const [closingFamilyId, setClosingFamilyId] = useState<string | null>(null);
+  const familyCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Toggle a family group: opening unfurls the panel; closing folds it back
+  // up first and only unmounts after the animation finishes.
+  const toggleFamilyExpanded = (familyId: string) => {
+    if (familyCloseTimeout.current) {
+      clearTimeout(familyCloseTimeout.current);
+      familyCloseTimeout.current = null;
+    }
+    if (expandedFamilyId === familyId) {
+      setClosingFamilyId(familyId);
+      familyCloseTimeout.current = setTimeout(() => {
+        setExpandedFamilyId(null);
+        setClosingFamilyId(null);
+        familyCloseTimeout.current = null;
+      }, 320);
+    } else {
+      setClosingFamilyId(null);
+      setExpandedFamilyId(familyId);
+    }
+  };
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
   const [avatarActionPersonId, setAvatarActionPersonId] = useState<string | null>(null);
@@ -1406,7 +1433,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => setExpandedFamilyId(expandedFamilyId === familyId ? null : familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         <View style={styles.personInfo}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
@@ -1560,10 +1587,10 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection) => {
+  const renderExpandedFamily = (familyMembers: Person[], section: RelationshipSection, closing?: boolean) => {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
-    return <UnfurlPanel outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
+    return <UnfurlPanel closing={closing} outerStyle={{ marginHorizontal: 12, marginTop: -10, marginBottom: 10, backgroundColor: colors.background, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: `${accent}45` }}>
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} complete</Text><Text style={{ color: accent, fontSize: 12, fontWeight: "800" }}>{Math.round((completedMembers / familyMembers.length) * 100)}%</Text></View><View style={{ height: 6, marginTop: 8, borderRadius: 3, backgroundColor: `${accent}18`, overflow: "hidden" }}><View style={{ width: `${Math.round((completedMembers / familyMembers.length) * 100)}%`, height: "100%", borderRadius: 3, backgroundColor: accent }} /></View></View>
       {familyMembers.map((member, memberIdx) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
@@ -1587,7 +1614,8 @@ export default function HomeScreen() {
     if (item.kind === "person") return renderPersonCard(item.person, item.index, item.section.people);
     const familyId = item.familyMembers[0]?.familyId || "";
     const isExpanded = expandedFamilyId === familyId;
-    return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}</View>;
+    const isClosing = closingFamilyId === familyId;
+    return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}</View>;
   };
 
   const renderPeopleScreen = () => (

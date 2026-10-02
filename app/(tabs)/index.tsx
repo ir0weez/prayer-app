@@ -112,7 +112,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, penalizeXP, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
+import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
@@ -537,18 +537,18 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const penalizeExperience = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
+  const loseHeartExperience = useCallback(async (idempotencyKey: string, position?: XpGainPosition) => {
     try {
-      const result = await penalizeXP(points, idempotencyKey, position);
-      if (result.awarded) setXpState(result.state);
+      const result = await loseHeart(idempotencyKey, today, position);
+      setXpState(result.state);
     } catch {
-      // XP is additive and must never interrupt the action that earned it.
+      // Heart loss is cosmetic and must never interrupt the action.
     }
-  }, []);
+  }, [today]);
   useEffect(() => {
     if (!hasHydratedPeople) return;
-    loadXPState().then(setXpState).catch(() => undefined);
-  }, [hasHydratedPeople]);
+    loadXPState(today).then(setXpState).catch(() => undefined);
+  }, [hasHydratedPeople, today]);
 
   useEffect(() => {
     if (hasHydratedPeople) setAccentTheme(settings.colorTheme);
@@ -1055,8 +1055,8 @@ export default function HomeScreen() {
     setPendingFastAction(null);
     delete undoTimers.current['fast'];
     if (action === "completed") void awardExperience("fasting-day", `${activeFast.id}:${today}`);
-    else void penalizeExperience(25, `fasting-day-missed:${activeFast.id}:${today}`);
-  }, [activeFast, awardExperience, fasts, penalizeExperience, today]);
+    else void loseHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
+  }, [activeFast, awardExperience, fasts, loseHeartExperience, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
@@ -1749,6 +1749,20 @@ export default function HomeScreen() {
     });
   };
 
+  // react-native-web's Alert.alert is a no-op, so on web/Electron builds the
+  // backup import/export confirmations use the browser's native dialogs.
+  // Native iOS/Android keeps the Alert.alert button flows.
+  const notifyAlert = (title: string, message: string): void => {
+    const dialog = (globalThis as any).alert;
+    if (typeof dialog === "function") dialog(`${title}\n\n${message}`);
+    else Alert.alert(title, message);
+  };
+  const confirmDialog = (title: string, message: string): boolean => {
+    const dialog = (globalThis as any).confirm;
+    if (typeof dialog === "function") return dialog(`${title}\n\n${message}`);
+    return true;
+  };
+
   const handleExportData = async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
@@ -1767,7 +1781,7 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error("PrayerCircle export failed", error);
-      Alert.alert("Export failed", "PrayerCircle could not create the backup file. Please try again.");
+      notifyAlert("Export failed", "PrayerCircle could not create the backup file. Please try again.");
     }
   };
 
@@ -1825,48 +1839,55 @@ export default function HomeScreen() {
       if (raw === null) return;
       const parsed: unknown = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || (parsed as { format?: unknown }).format !== "prayercircle-backup") {
-        Alert.alert("Invalid backup", "Choose a PrayerCircle JSON backup file.");
+        notifyAlert("Invalid backup", "Choose a PrayerCircle JSON backup file.");
         return;
       }
       const storageValue = (parsed as { storage?: unknown }).storage;
       if (!storageValue || typeof storageValue !== "object" || Array.isArray(storageValue)) {
-        Alert.alert("Invalid backup", "This backup does not contain valid app data.");
+        notifyAlert("Invalid backup", "This backup does not contain valid app data.");
         return;
       }
       const entries = Object.entries(storageValue as Record<string, unknown>);
       if (!entries.every(([, value]) => value === null || typeof value === "string")) {
-        Alert.alert("Invalid backup", "Some backup values are not valid JSON strings.");
+        notifyAlert("Invalid backup", "Some backup values are not valid JSON strings.");
         return;
       }
-      Alert.alert("Restore backup?", "This will replace the data currently stored on this device.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Restore", style: "destructive", onPress: async () => {
-          try {
-            const photos = (parsed as { photos?: unknown }).photos;
-            const restoredStorage = await restorePhotoBackup(Object.fromEntries(entries) as Record<string, string | null>, photos);
-            const restoredEntries = Object.entries(restoredStorage);
-            await AsyncStorage.multiSet(restoredEntries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
-            const imported = Object.fromEntries(restoredEntries);
-            const readJson = <T,>(key: string, fallback: T): T => {
-              try { return imported[key] ? JSON.parse(imported[key] as string) as T : fallback; } catch { return fallback; }
-            };
-            setPeople(readJson(PEOPLE_STORAGE_KEY, []));
-            setJournal(readJson(JOURNAL_STORAGE_KEY, []));
-            setFasts(readJson(FASTS_STORAGE_KEY, []));
-            setStreakRecord(readJson(PRAYER_STREAK_STORAGE_KEY, { streak: 0, lastCompletedDate: null }));
-            setProfile(readJson(PROFILE_STORAGE_KEY, DEFAULT_PROFILE));
-            setSettings(readJson(APP_SETTINGS_STORAGE_KEY, settings));
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Backup restored", "Your PrayerCircle data has been restored. Reopen the Schedule tab to refresh imported schedule or worship data.");
-          } catch (error) {
-            console.error("PrayerCircle import failed", error);
-            Alert.alert("Restore failed", "PrayerCircle could not restore that backup.");
-          }
-        } },
-      ]);
+      const doRestore = async () => {
+        try {
+          const photos = (parsed as { photos?: unknown }).photos;
+          const restoredStorage = await restorePhotoBackup(Object.fromEntries(entries) as Record<string, string | null>, photos);
+          const restoredEntries = Object.entries(restoredStorage);
+          await AsyncStorage.multiSet(restoredEntries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+          const imported = Object.fromEntries(restoredEntries);
+          const readJson = <T,>(key: string, fallback: T): T => {
+            try { return imported[key] ? JSON.parse(imported[key] as string) as T : fallback; } catch { return fallback; }
+          };
+          setPeople(readJson(PEOPLE_STORAGE_KEY, []));
+          setJournal(readJson(JOURNAL_STORAGE_KEY, []));
+          setFasts(readJson(FASTS_STORAGE_KEY, []));
+          setStreakRecord(readJson(PRAYER_STREAK_STORAGE_KEY, { streak: 0, lastCompletedDate: null }));
+          setProfile(readJson(PROFILE_STORAGE_KEY, DEFAULT_PROFILE));
+          setSettings(readJson(APP_SETTINGS_STORAGE_KEY, settings));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          notifyAlert("Backup restored", "Your PrayerCircle data has been restored. Reopen the Schedule tab to refresh imported schedule or worship data.");
+        } catch (error) {
+          console.error("PrayerCircle import failed", error);
+          notifyAlert("Restore failed", "PrayerCircle could not restore that backup.");
+        }
+      };
+      if (Platform.OS === "web") {
+        if (confirmDialog("Restore backup?", "This will replace the data currently stored on this device.")) {
+          await doRestore();
+        }
+      } else {
+        Alert.alert("Restore backup?", "This will replace the data currently stored on this device.", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Restore", style: "destructive", onPress: () => { void doRestore(); } },
+        ]);
+      }
     } catch (error) {
       console.error("PrayerCircle import failed", error);
-      Alert.alert("Import failed", "PrayerCircle could not read that backup file.");
+      notifyAlert("Import failed", "PrayerCircle could not read that backup file.");
     }
   };
 
@@ -1953,7 +1974,19 @@ export default function HomeScreen() {
               <Animated.View style={{ width: 70, height: "100%", backgroundColor: "rgba(255,255,255,0.42)", transform: [{ translateX: xpShimmer.interpolate({ inputRange: [0, 1], outputRange: [-70, 260] }) }] }} />
             </View>
           </View>
-          <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>{xpProgress.currentXP} / {xpProgress.requiredXP} XP to next level</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+            <Text style={{ color: colors.muted, fontSize: 11 }}>{xpProgress.currentXP} / {xpProgress.requiredXP} XP to next level</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+              {Array.from({ length: maxHeartsForLevel(xpProgress.level) }, (_, heartIndex) => (
+                <MaterialIcons
+                  key={heartIndex}
+                  name={heartIndex < xpState.hearts ? "favorite" : "favorite-border"}
+                  size={15}
+                  color={heartIndex < xpState.hearts ? "#EF4444" : colors.muted}
+                />
+              ))}
+            </View>
+          </View>
         </View>
 
         <View style={[styles.fastingStatsRow, { borderTopColor: colors.border }]}>

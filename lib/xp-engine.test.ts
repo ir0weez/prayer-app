@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyXPAward, getLevelForXP, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, xpRequiredForLevel } from "./xp-engine";
+import { applyDailyHeartRegen, applyXPAward, getLevelForXP, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, maxHeartsForLevel, normalizeXPState, xpRequiredForLevel } from "./xp-engine";
 
 describe("XP engine", () => {
   it("uses cumulative level thresholds", () => {
@@ -13,12 +13,12 @@ describe("XP engine", () => {
   });
 
   it("calculates progress within the current level", () => {
-    expect(getXPProgress({ totalXP: 150, level: 2 })).toMatchObject({ level: 2, currentXP: 50, requiredXP: 200, percentage: 25, nextLevel: 3 });
+    expect(getXPProgress({ totalXP: 150, level: 2, hearts: 4, lastHeartRegenDate: null })).toMatchObject({ level: 2, currentXP: 50, requiredXP: 200, percentage: 25, nextLevel: 3 });
   });
 
   it("awards the configured points and reports level-ups", () => {
-    const result = applyXPAward({ totalXP: 95, level: 1 }, "scheduled-prayer");
-    expect(result.state).toEqual({ totalXP: 105, level: 2 });
+    const result = applyXPAward({ totalXP: 95, level: 1, hearts: 4, lastHeartRegenDate: null }, "scheduled-prayer");
+    expect(result.state).toEqual({ totalXP: 105, level: 2, hearts: 4, lastHeartRegenDate: null });
     expect(result.points).toBe(10);
     expect(result.levelUp).toBe(true);
   });
@@ -48,5 +48,35 @@ describe("XP engine", () => {
     expect(getXPLevelBadgeFrame(99)).toBe("ornate");
     expect(getXPLevelBadgeFrame(100)).toBe("radiant");
     expect(getXPLevelBadgeFrame(150)).toBe("radiant");
+  });
+
+  it("grants +1 max heart at levels 25/50/75/100", () => {
+    expect(maxHeartsForLevel(1)).toBe(4);
+    expect(maxHeartsForLevel(24)).toBe(4);
+    expect(maxHeartsForLevel(25)).toBe(5);
+    expect(maxHeartsForLevel(50)).toBe(6);
+    expect(maxHeartsForLevel(75)).toBe(7);
+    expect(maxHeartsForLevel(100)).toBe(8);
+  });
+
+  it("backfills hearts for stored states that predate them", () => {
+    expect(normalizeXPState({ totalXP: 500 })).toMatchObject({ hearts: 4 });
+    expect(normalizeXPState(null)).toMatchObject({ hearts: 4, lastHeartRegenDate: null });
+  });
+
+  it("regenerates +1 heart per elapsed day up to the max", () => {
+    const base = { totalXP: 0, level: 1, hearts: 1, lastHeartRegenDate: "2026-09-28" };
+    expect(applyDailyHeartRegen(base, "2026-09-29").hearts).toBe(2);
+    expect(applyDailyHeartRegen(base, "2026-10-05").hearts).toBe(4);
+    expect(applyDailyHeartRegen(base, "2026-09-28").hearts).toBe(1);
+    expect(applyDailyHeartRegen({ ...base, lastHeartRegenDate: null }, "2026-09-29")).toMatchObject({ hearts: 1, lastHeartRegenDate: "2026-09-29" });
+  });
+
+  it("grants the milestone heart immediately on crossing into a milestone level", () => {
+    // Level 25 starts at 30000 XP; award from just below it.
+    const before = { totalXP: 29990, level: 24, hearts: 4, lastHeartRegenDate: null };
+    const result = applyXPAward(before, "fasting-day");
+    expect(result.state.level).toBe(25);
+    expect(result.state.hearts).toBe(5);
   });
 });

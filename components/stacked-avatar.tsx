@@ -18,16 +18,9 @@ export const StackedAvatar = React.memo(function StackedAvatar({ people, size = 
   if (displayChildren.length) totalWidth += smallSize * 0.5 + smallSize + Math.max(0, displayChildren.length - 1) * (smallSize - overlapSmall);
   if (overflowCount > 0) totalWidth += smallSize * 0.5;
   return (
-    <View style={[styles.container, { width: Math.max(totalWidth, largeSize) }]}>
-      {spouses.map((person, index) => (
-        <View key={person.id} style={[styles.avatarWrapper, { width: largeSize, height: largeSize, left: index * (largeSize - overlapLarge), zIndex: spouses.length - index }]}>
-          <View style={styles.avatarRing}>
-            <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} thumbnail fallbackColor={person.avatarColor} />
-          </View>
-        </View>
-      ))}
+    <View style={[styles.container, { width: Math.max(totalWidth, largeSize), height: largeSize }]}>
       {displayChildren.length > 0 && (
-        <View style={[styles.childrenContainer, { left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25, top: 12 }]}>
+        <View style={[styles.childrenContainer, { left: spouses.length * (largeSize - overlapLarge) + smallSize * 0.25, top: (largeSize - smallSize) / 2, height: smallSize, zIndex: 0 }]}>
           {displayChildren.map((person, index) => (
             <View key={person.id} style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: index * (smallSize - overlapSmall), zIndex: displayChildren.length - index, opacity: 1 - index * 0.4 }]}>
               <View style={styles.avatarRing}>
@@ -38,15 +31,22 @@ export const StackedAvatar = React.memo(function StackedAvatar({ people, size = 
           {overflowCount > 0 && <View style={[styles.smallAvatarWrapper, { width: smallSize, height: smallSize, left: displayChildren.length * (smallSize - overlapSmall), opacity: 0.4 }]}><View style={[styles.overflowAvatar, { width: smallSize, height: smallSize, borderRadius: smallSize / 2 }]}><Text style={[styles.avatarText, { fontSize: smallSize * 0.3 }]}>+{overflowCount}</Text></View></View>}
         </View>
       )}
+      {spouses.map((person, index) => (
+        <View key={person.id} style={[styles.avatarWrapper, { width: largeSize, height: largeSize, left: index * (largeSize - overlapLarge), zIndex: spouses.length - index + 1 }]}>
+          <View style={styles.avatarRing}>
+            <AvatarImage id={person.id} name={person.name} gender={person.gender} avatarAsset={person.avatarAsset} photoUri={person.photoUri} size={largeSize} thumbnail fallbackColor={person.avatarColor} />
+          </View>
+        </View>
+      ))}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  container: { position: "relative", height: 64 },
+  container: { position: "relative" },
   avatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
   avatarRing: { borderWidth: 1.5, borderColor: "#FFFFFF", borderRadius: 999, backgroundColor: "transparent" },
-  childrenContainer: { position: "absolute", height: 32 },
+  childrenContainer: { position: "absolute" },
   smallAvatarWrapper: { position: "absolute", justifyContent: "center", alignItems: "center" },
   overflowAvatar: { justifyContent: "center", alignItems: "center", backgroundColor: "#999", borderWidth: 2, borderColor: "#fff" },
   avatarText: { fontWeight: "600", color: "#fff" },

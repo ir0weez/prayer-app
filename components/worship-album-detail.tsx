@@ -6,6 +6,10 @@ import { useColors } from '@/hooks/use-colors';
 import type { StoredWorshipAlbum } from '@/lib/worship-album-state';
 
 export function getAlbumPalette(album: StoredWorshipAlbum) {
+  // Colors extracted from the actual cover art always win.
+  if (album.coverPalette?.surface && album.coverPalette?.control && album.coverPalette?.border) {
+    return album.coverPalette;
+  }
   const title = album.title.toLowerCase();
   const artist = album.artist.toLowerCase();
   const identity = `${title} ${artist}`;

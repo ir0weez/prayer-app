@@ -10,6 +10,8 @@ export type StoredWorshipAlbum = {
   isSaved?: boolean;
   createdAt?: string;
   addedAt?: string;
+  /** Colors extracted from the cover art; preferred by getAlbumPalette. */
+  coverPalette?: { surface: string; control: string; border: string };
 };
 
 export type WorshipAlbumState = {

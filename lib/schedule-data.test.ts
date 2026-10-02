@@ -321,12 +321,16 @@ describe("schedule-data", () => {
   });
 
   describe("getWeekDates", () => {
-    it("returns 7 dates centered on given date", () => {
-      const dates = getWeekDates("2026-05-30");
+    it("returns the Sunday-Saturday week containing the given date", () => {
+      const dates = getWeekDates("2026-05-30"); // a Saturday
       expect(dates).toHaveLength(7);
-      expect(dates[3]).toBe("2026-05-30");
-      expect(dates[0]).toBe("2026-05-27");
-      expect(dates[6]).toBe("2026-06-02");
+      expect(dates[0]).toBe("2026-05-24"); // Sunday
+      expect(dates[6]).toBe("2026-05-30"); // Saturday
+    });
+    it("returns the same week for a mid-week date", () => {
+      const dates = getWeekDates("2026-05-27"); // a Wednesday
+      expect(dates[0]).toBe("2026-05-24");
+      expect(dates[6]).toBe("2026-05-30");
     });
   });
 

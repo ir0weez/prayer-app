@@ -340,15 +340,16 @@ export function getBirthdaysForDate(people: Array<{ name: string; birthday?: str
   return results;
 }
 
-// Get dates for the week strip (7 days starting from a given date)
-export function getWeekDates(centerDate: string): string[] {
-  const center = new Date(`${centerDate}T00:00:00Z`);
+// Get dates for the week strip (Sunday-Saturday calendar week containing the given date)
+export function getWeekDates(date: string): string[] {
+  const d = new Date(`${date}T00:00:00Z`);
+  const sunday = new Date(d);
+  sunday.setUTCDate(d.getUTCDate() - d.getUTCDay());
   const dates: string[] = [];
-  // Start 3 days before center
-  for (let i = -3; i <= 3; i++) {
-    const d = new Date(center);
-    d.setUTCDate(center.getUTCDate() + i);
-    dates.push(d.toISOString().split("T")[0]);
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(sunday);
+    dt.setUTCDate(sunday.getUTCDate() + i);
+    dates.push(dt.toISOString().split("T")[0]);
   }
   return dates;
 }

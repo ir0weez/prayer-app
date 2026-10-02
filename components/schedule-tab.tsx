@@ -10,6 +10,7 @@ import {
   Dimensions,
   FlatList,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -1504,6 +1505,19 @@ export function ScheduleTab({
     setSelectedDate((prev) => addDays(prev, -7));
   }, []);
 
+  // Swipe the week strip horizontally to move between calendar weeks
+  // (same weekday, previous/next week). Vertical moves are left to the list.
+  const weekStripPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -60) handleSwipeLeft();
+        else if (gestureState.dx > 60) handleSwipeRight();
+      },
+    })
+  ).current;
+
 
 
   // Helper function to parse Bible reference from text (e.g., "1 Corinthians 1" -> {book: "1 Corinthians", chapter: "1"})
@@ -2851,9 +2865,9 @@ export function ScheduleTab({
       {/* Date Header Card - sticky sheet header */}
       <View style={[scheduleStyles.dateHeaderCard, { backgroundColor: colors.surface }, cardStyle]}>
   <View style={scheduleStyles.dayHeaderContent}>
-    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}> 
+    <Text style={[scheduleStyles.dayName, { color: colors.foreground }]}>
       {dateHeader.dayName}
-      <Text style={{ color: colors.error }}>•</Text>
+      {selectedDate === today && <Text style={{ color: colors.error }}>•</Text>}
     </Text>
     {/* Today button moved to bottom - see renderItem */}
     <DateTimePicker
@@ -2864,7 +2878,7 @@ export function ScheduleTab({
       compact
     />
   </View>
-  <View style={scheduleStyles.dateStrip}>
+  <View style={scheduleStyles.dateStrip} {...weekStripPanResponder.panHandlers}>
     {weekDates.map((date) => {
       const isSelected = date === selectedDate;
       const isToday = date === today;

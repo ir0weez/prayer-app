@@ -415,6 +415,67 @@ function Sparkle({ delay, size, style }: { delay: number; size: number; style: a
   );
 }
 
+// Material 3 Switch: 52x32 track, animated thumb with check icon.
+function M3Switch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
+  const colors = useColors();
+  const progress = useSharedValue(value ? 1 : 0);
+  useEffect(() => {
+    progress.value = withTiming(value ? 1 : 0, { duration: 200, easing: Easing.out(Easing.ease) });
+  }, [value]);
+  const trackStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.border, colors.primary]
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.muted, colors.primary]
+    ),
+  }));
+  const thumbStyle = useAnimatedStyle(() => ({
+    width: 16 + progress.value * 8,
+    height: 16 + progress.value * 8,
+    transform: [{ translateX: progress.value * 20 }],
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [colors.muted, "#FFFFFF"]
+    ),
+  }));
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+  return (
+    <Pressable
+      onPress={() => onValueChange(!value)}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+    >
+      <ReAnimated.View style={[{
+        width: 52,
+        height: 32,
+        borderRadius: 16,
+        borderWidth: 2,
+        justifyContent: "center",
+        paddingHorizontal: 4,
+      }, trackStyle]}>
+        <ReAnimated.View style={[{
+          borderRadius: 12,
+          alignItems: "center",
+          justifyContent: "center",
+        }, thumbStyle]}>
+          <ReAnimated.View style={iconStyle}>
+            <MaterialIcons name={iconName("check")} size={12} color={colors.primary} />
+          </ReAnimated.View>
+        </ReAnimated.View>
+      </ReAnimated.View>
+    </Pressable>
+  );
+}
+
 function FlameSpark({ size = 18 }: { size?: number }) {
   const flicker = useSharedValue(0);
   useEffect(() => {
@@ -2283,15 +2344,15 @@ export default function HomeScreen() {
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
-        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.demoMode ? "#FFFFFF" : "#4F6470"} />)}
+        {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />)}
       </View>
 
 
       <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
-        {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.prayerRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
-        {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.eventRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
-        {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} trackColor={{ false: "#C7EDF6", true: colors.primary }} thumbColor={settings.budgetRemindersEnabled ? "#FFFFFF" : "#4F6470"} />)}
+        {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
+        {renderSettingsRow("event", "Scheduled event reminders", "Notify me about events on my schedule", "normal", <M3Switch value={settings.eventRemindersEnabled} onValueChange={(eventRemindersEnabled) => setSettings((previous) => ({ ...previous, eventRemindersEnabled }))} />)}
+        {renderSettingsRow("attach-money", "Budget due reminders", "Notify me one day before unpaid bills are due", "normal", <M3Switch value={settings.budgetRemindersEnabled} onValueChange={(budgetRemindersEnabled) => setSettings((previous) => ({ ...previous, budgetRemindersEnabled }))} />)}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
           <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>
@@ -2319,6 +2380,14 @@ export default function HomeScreen() {
         <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
         </Pressable>
+
+
+
+
+      </View>
+
+      <Text style={[styles.settingsSectionLabel, { color: "#EF4444" }]}>DANGER ZONE</Text>
+      <View style={[styles.settingsCard, { borderColor: "#EF444440" }]}>
         <Pressable onPress={() => {
           Alert.alert("Reset Today's Prayers", "Uncheck all items for today?", [
             { text: "Cancel", style: "cancel" },
@@ -2346,16 +2415,6 @@ export default function HomeScreen() {
           ]);
         }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
-        </Pressable>
-        <Pressable onPress={() => {
-          Alert.alert("Restore Invisible Contacts", "This will restore any contacts that were accidentally hidden or deleted.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Restore", onPress: () => {
-              Alert.alert("No Hidden Contacts", "All your contacts are visible. If you believe contacts are missing, please check your backup.");
-            } },
-          ]);
-        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("visibility", "Restore Invisible Contacts", "Make hidden contacts visible again", "normal")}
         </Pressable>
         <Pressable onPress={() => {
           Alert.alert("Clear All Data", "This will permanently delete all people, families, prayer items, reminders, and journal entries. This action cannot be undone.", [

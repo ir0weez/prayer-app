@@ -181,7 +181,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     <Pressable
       delayLongPress={500}
       onLongPress={() => showEntryActions(item)}
-      style={({ pressed }) => [styles.entryCard, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.longPressed]}
+      style={({ pressed }) => [styles.entryCard, { backgroundColor: colors.surface }, pressed && styles.longPressed]}
     >
       <View style={styles.entryTopRow}>
         <Text style={[styles.entryDate, { color: colors.muted }]}>{formatPrayerJournalDate(item.date)}</Text>
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingBottom: 140 },
   emptyListContent: { flexGrow: 1 },
   sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: "700", marginTop: 18, marginBottom: 8, marginLeft: 4 },
-  entryCard: { borderWidth: 1, borderRadius: 20, padding: 16, marginBottom: 14 },
+  entryCard: { borderRadius: 12, padding: 16, marginBottom: 12, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
   entryTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   entryDate: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
   holdHint: { fontSize: 11, lineHeight: 15, fontWeight: "600", opacity: 0.78 },

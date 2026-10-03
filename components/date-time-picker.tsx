@@ -80,7 +80,7 @@ export function DateTimePicker({
     const years = Array.from({ length: currentYear + 10 - 1900 + 1 }, (_, i) => 1900 + i);
 
     return (
-      <View style={[pickerStyles.container, { backgroundColor: colors.background }]}>
+      <View style={[pickerStyles.container, { backgroundColor: colors.surface }]}>
         <View style={[pickerStyles.header, { borderBottomColor: colors.border }]}>
           <Text style={[pickerStyles.headerText, { color: colors.foreground }]}>
             {label}
@@ -386,10 +386,11 @@ const pickerStyles = StyleSheet.create({
   input: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderBottomWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 8,
     marginBottom: 12,
   },
@@ -403,8 +404,8 @@ const pickerStyles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     maxHeight: "80%",
   },
   header: {
@@ -435,7 +436,7 @@ const pickerStyles = StyleSheet.create({
     alignItems: "center",
   },
   selectedPickerItem: {
-    borderRadius: 10,
+    borderRadius: 16,
     marginHorizontal: 4,
   },
   pickerItemText: {

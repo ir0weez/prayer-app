@@ -1414,7 +1414,7 @@ export default function HomeScreen() {
 
   // Animated styles for the active card's color fill (defined here where `colors` exists).
   const cardFillOverlayStyle = useAnimatedStyle(() => ({
-    height: `${cardFillProgress.value * 100}%`,
+    transform: [{ translateY: `${(1 - cardFillProgress.value) * 100}%` }],
   }));
   const cardFillTitleStyle = useAnimatedStyle(() => {
     const t = interpolate(cardFillProgress.value, [0.7, 0.9], [0, 1], Extrapolation.CLAMP);
@@ -1466,12 +1466,21 @@ export default function HomeScreen() {
             pointerEvents="none"
             style={[
               {
+
                 position: "absolute",
+
                 left: 0,
+
                 right: 0,
+
+                top: 0,
+
                 bottom: 0,
+
                 backgroundColor: familyRelationship.accent,
+
               },
+
               cardFillOverlayStyle,
             ]}
           />

@@ -1704,19 +1704,14 @@ export default function HomeScreen() {
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={styles.headerStatPills}>
-          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
-            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-            <Text style={styles.pillStatTextVertical}>{streak}</Text>
-          </View>
-          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
-            <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
-            <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
-          </View>
+        <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+          <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+          <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+          <Text style={styles.pillStatTextVertical}>{streak}</Text>
+          <View style={styles.pillDividerHorizontal} />
+          <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
+          <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
         </View>
       </ReAnimated.View>
       <FlatList
@@ -3039,10 +3034,6 @@ function createStyles(colors: any) {
     shadowRadius: 12,
     elevation: 5,
   },
-  headerStatPills: {
-    flexDirection: "row",
-    gap: 8,
-  },
   statPillVertical: {
     flexDirection: "column",
     alignItems: "center",
@@ -3085,11 +3076,11 @@ function createStyles(colors: any) {
     fontWeight: "800",
     marginRight: 6,
   },
-  pillDivider: {
-    width: 1,
-    height: 16,
+  pillDividerHorizontal: {
+    height: 1,
+    width: 24,
     backgroundColor: "rgba(255,255,255,0.3)",
-    marginHorizontal: 4,
+    marginVertical: 4,
   },
   header: {
     minHeight: 88,

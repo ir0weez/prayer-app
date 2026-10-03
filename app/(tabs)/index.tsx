@@ -157,7 +157,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
   }, [progress]);
   useEffect(() => {
     if (closing) {
-      progress.value = withTiming(0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+      progress.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
     }
   }, [closing, progress]);
   const animatedStyle = useAnimatedStyle(() => ({

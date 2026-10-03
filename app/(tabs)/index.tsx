@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -371,6 +371,20 @@ function AnimatedWavyProgressBar({ progress, color }: { progress: number; color:
 
 function UndoCountdownBar({ color }: { color: string }) {
   return <UndoCountdownTimer color={color} />;
+}
+
+// Rolling odometer number: old value slides up, new rises from below.
+function RollingNumber({ value, textStyle }: { value: number | string; textStyle: any }) {
+  return (
+    <View style={{ overflow: "hidden", height: 20, justifyContent: "center" }}>
+      <ReAnimated.View
+        key={String(value)}
+        entering={SlideInUp.springify().damping(16).stiffness(220)}
+        exiting={SlideOutUp.duration(200)}>
+        <Text style={textStyle}>{value}</Text>
+      </ReAnimated.View>
+    </View>
+  );
 }
 
 export default function HomeScreen() {
@@ -1715,8 +1729,12 @@ export default function HomeScreen() {
             exiting={ZoomOut.duration(180)}
             style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
             <MaterialIcons name={iconName("check")} size={18} color="#FFFFFF" />
-            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-            <Text style={styles.m3DoneText}>{streak}</Text>
+            <ReAnimated.View
+              key={`flame-${streak}`}
+              entering={ZoomIn.springify().damping(7).stiffness(200).delay(150)}>
+              <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+            </ReAnimated.View>
+            <RollingNumber value={streak} textStyle={styles.m3DoneText} />
           </ReAnimated.View>
         ) : (
           <ReAnimated.View

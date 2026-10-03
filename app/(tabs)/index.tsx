@@ -416,9 +416,26 @@ function Sparkle({ delay, size, style }: { delay: number; size: number; style: a
 }
 
 function FlameSpark({ size = 18 }: { size?: number }) {
+  const flicker = useSharedValue(0);
+  useEffect(() => {
+    flicker.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 900, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      false
+    );
+  }, []);
+  const flickerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + flicker.value * 0.08 }],
+    opacity: 1 - flicker.value * 0.12,
+  }));
   return (
     <View style={{ width: size + 4, height: size + 4, justifyContent: "center", alignItems: "center" }}>
-      <MaterialIcons name={iconName("local-fire-department")} size={size} color="#FFFFFF" />
+      <ReAnimated.View style={flickerStyle}>
+        <MaterialIcons name={iconName("local-fire-department")} size={size} color="#FFFFFF" />
+      </ReAnimated.View>
       <Sparkle delay={0} size={8} style={{ position: "absolute", top: 0, right: 1 }} />
       <Sparkle delay={600} size={6} style={{ position: "absolute", top: size * 0.4, left: 0 }} />
       <Sparkle delay={1200} size={7} style={{ position: "absolute", bottom: 1, right: size * 0.3 }} />

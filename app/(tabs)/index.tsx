@@ -1479,13 +1479,13 @@ export default function HomeScreen() {
         )}
         <View style={styles.personInfo}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
+            <ReAnimated.Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }]}>{familyName}</ReAnimated.Text>
             {isFamilyComplete && <VerifiedBadge />}
           </View>
-          <Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
+          <ReAnimated.Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
             {lastReachedDate ? formatIsoDateForDisplay(lastReachedDate) : `${completedMembers} of ${familyMembers.length} complete`}
-          </Text>
-          {lastReachedDate && <Text numberOfLines={1} style={[(isExpanded || closingFamilyId === familyId) ? cardFillSubStyle : { color: "#FFFFFF" }, { fontSize: 10, lineHeight: 14, fontWeight: "600" }]}>{completedMembers} of {familyMembers.length} complete</Text>}
+          </ReAnimated.Text>
+          {lastReachedDate && <ReAnimated.Text numberOfLines={1} style={[(isExpanded || closingFamilyId === familyId) ? cardFillSubStyle : { color: "#FFFFFF" }, { fontSize: 10, lineHeight: 14, fontWeight: "600" }]}>{completedMembers} of {familyMembers.length} complete</ReAnimated.Text>}
         </View>
         {(isExpanded || closingFamilyId === familyId) ? (
           <ReAnimated.View style={[{ marginLeft: 8, marginRight: 20, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end", overflow: "hidden" }, cardFillAvatarStyle]}>

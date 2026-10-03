@@ -1414,9 +1414,7 @@ export default function HomeScreen() {
 
   // Animated styles for the active card's color fill (defined here where `colors` exists).
   const cardFillOverlayStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleY: cardFillProgress.value }],
-    borderBottomLeftRadius: interpolate(cardFillProgress.value, [0, 1], [0, 14]),
-    borderBottomRightRadius: interpolate(cardFillProgress.value, [0, 1], [0, 14]),
+    height: `${cardFillProgress.value * 100}%`,
   }));
   const cardFillTitleStyle = useAnimatedStyle(() => ({
     color: interpolateColor(cardFillProgress.value, [0, 1], [colors.foreground, "#FFFFFF"]),
@@ -1424,10 +1422,13 @@ export default function HomeScreen() {
   const cardFillSubStyle = useAnimatedStyle(() => ({
     color: interpolateColor(cardFillProgress.value, [0, 1], [colors.muted, "#FFFFFF"]),
   }));
-  const cardFillAvatarStyle = useAnimatedStyle(() => ({
-    opacity: cardFillProgress.value,
-    width: 150 * cardFillProgress.value,
-  }));
+  const cardFillAvatarStyle = useAnimatedStyle(() => {
+    const p = cardFillProgress.value;
+    return {
+      opacity: interpolate(p, [0.65, 1], [0, 1]),
+      width: 150 * interpolate(p, [0.6, 1], [0, 1]),
+    };
+  });
 
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
@@ -1467,11 +1468,10 @@ export default function HomeScreen() {
                 position: "absolute",
                 left: 0,
                 right: 0,
-                top: 0,
                 bottom: 0,
                 backgroundColor: familyRelationship.accent,
-                borderRadius: 14,
-                transformOrigin: "bottom",
+                borderTopLeftRadius: 14,
+                borderTopRightRadius: 14,
               },
               cardFillOverlayStyle,
             ]}

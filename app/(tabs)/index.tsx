@@ -437,6 +437,7 @@ export default function HomeScreen() {
   const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+  const tabTransition = useSharedValue(1);
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
@@ -2482,6 +2483,18 @@ export default function HomeScreen() {
   const navFirstLayout = useRef(true);
   const tabOrder: AppTab[] = ["people", "schedule", "journal", "settings"];
   const activeTabIndex = activeTab === "home" ? 0 : tabOrder.indexOf(activeTab);
+  const prevTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (prevTabRef.current !== activeTab) {
+      prevTabRef.current = activeTab;
+      tabTransition.value = 0;
+      tabTransition.value = withTiming(1, { duration: 400, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+    }
+  }, [activeTab, tabTransition]);
+  const tabContentStyle = useAnimatedStyle(() => ({
+    opacity: tabTransition.value,
+    transform: [{ translateY: (1 - tabTransition.value) * 12 }],
+  }));
 
   useEffect(() => {
     if (navWidth <= 0) return;
@@ -2667,7 +2680,9 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
-      {renderContent()}
+      <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
+        {renderContent()}
+      </ReAnimated.View>
 
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
       <Modal transparent visible={newAchievementIds.length > 0} animationType="fade" onRequestClose={() => setNewAchievementIds([])}>

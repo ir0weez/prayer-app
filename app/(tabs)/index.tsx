@@ -492,6 +492,12 @@ export default function HomeScreen() {
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
   const tabTransition = useSharedValue(1);
+  // Preserve Schedule UI state across lazy tab mounts.
+  const [scheduleSelectedDate, setScheduleSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const scheduleScrollY = useRef(0);
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
@@ -2549,14 +2555,22 @@ export default function HomeScreen() {
 
 
   const renderContent = () => {
-    // All tabs stay mounted; visibility toggles to avoid remount/refresh on switch.
+    // Lazy mounting: only the active tab is mounted. Schedule state is preserved
+    // in parent refs/props so it doesn't visibly refresh on switch.
     return (
       <>
-        <View style={{ flex: 1, display: (activeTab === "people" || activeTab === "home") ? "flex" : "none" }}>
-          {renderPeopleScreen()}
-        </View>
-        <View style={{ flex: 1, display: activeTab === "schedule" ? "flex" : "none" }}>
-          <ScheduleTab
+        {(activeTab === "people" || activeTab === "home") && (
+          <View style={{ flex: 1 }}>
+            {renderPeopleScreen()}
+          </View>
+        )}
+        {activeTab === "schedule" && (
+          <View style={{ flex: 1 }}>
+            <ScheduleTab
+              selectedDate={scheduleSelectedDate}
+              onSelectedDateChange={setScheduleSelectedDate}
+              initialScrollY={scheduleScrollY.current}
+              onScrollYChange={(y) => { scheduleScrollY.current = y; }}
           people={people}
           fasts={fasts}
           remainingTodos={scheduleSummaryData.remainingTodos}
@@ -2591,14 +2605,19 @@ export default function HomeScreen() {
             });
             setPeople(updatedPeople);
           }}
-        />
-        </View>
-        <View style={{ flex: 1, display: activeTab === "journal" ? "flex" : "none" }}>
-          <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
-        </View>
-        <View style={{ flex: 1, display: activeTab === "settings" ? "flex" : "none" }}>
-          {renderSettingsScreen()}
-        </View>
+          />
+          </View>
+        )}
+        {activeTab === "journal" && (
+          <View style={{ flex: 1 }}>
+            <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
+          </View>
+        )}
+        {activeTab === "settings" && (
+          <View style={{ flex: 1 }}>
+            {renderSettingsScreen()}
+          </View>
+        )}
       </>
     );
   };

@@ -1117,6 +1117,10 @@ export function ScheduleTab({
   onReachedStampsChange,
   onAwardXP,
   onRevokeXP,
+  selectedDate: propSelectedDate,
+  onSelectedDateChange,
+  initialScrollY = 0,
+  onScrollYChange,
 }: {
   people: Person[];
   fasts: PersonalFast[];
@@ -1139,10 +1143,24 @@ export function ScheduleTab({
   onReachedStampsChange?: (stamps: ReachedStamp[]) => void;
   onAwardXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
   onRevokeXP?: (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => void;
+  selectedDate?: string;
+  onSelectedDateChange?: (date: string) => void;
+  initialScrollY?: number;
+  onScrollYChange?: (y: number) => void;
 }) {
   const colors = useColors();
   const today = getTodayISOString();
-  const [selectedDate, setSelectedDate] = useState(today);
+  // selectedDate is lifted to parent for lazy tab mounting.
+  const [internalDate, setInternalDate] = useState(today);
+  const selectedDate = propSelectedDate ?? internalDate;
+  const setSelectedDate = (update: string | ((prev: string) => string)) => {
+    const newDate = typeof update === "function" ? update(selectedDate) : update;
+    if (onSelectedDateChange) {
+      onSelectedDateChange(newDate);
+    } else {
+      setInternalDate(newDate);
+    }
+  };
   // Direction of the last week-strip swipe: 1 = swiped left (next week),
   // -1 = swiped right (prev week), 0 = no slide (tap / jump). Drives the
   // week-change transition animation.
@@ -1479,6 +1497,16 @@ export function ScheduleTab({
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
+  const mainListRef = useRef<any>(null);
+  // Restore scroll position on remount (lazy tab mounting).
+  useEffect(() => {
+    if (initialScrollY > 0 && mainListRef.current) {
+      const t = setTimeout(() => {
+        mainListRef.current?.scrollToOffset({ offset: initialScrollY, animated: false });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, []);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
   const SHEET_OVERLAP = 28;
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
@@ -3583,8 +3611,11 @@ export function ScheduleTab({
               {renderDateHeaderCard({ borderTopLeftRadius: 0, borderTopRightRadius: 0 })}
             </Animated.View>
             <Animated.FlatList
+              ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
+              onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
+              onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               keyExtractor={(item) => item.id}
               renderItem={(info) => {
                 const element = renderItem(info);

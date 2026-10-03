@@ -1697,15 +1697,17 @@ export default function HomeScreen() {
   };
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
-      <ReAnimated.View style={[styles.floatingPill, pillAnimatedStyle, { backgroundColor: `${colors.primary}E6` }]}>
-        <View>
+      <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
+        <View style={[styles.floatingPill, { backgroundColor: `${colors.primary}E6` }]}>
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={styles.pillStats}>
-          <MaterialIcons name={iconName("local-fire-department")} size={20} color="#FFFFFF" />
+        <View style={[styles.statPill, { backgroundColor: `${colors.primary}E6` }]}>
+          <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
           <Text style={styles.pillStatText}>{streak}</Text>
-          <MaterialIcons name={iconName("chat-bubble")} size={18} color="#FFFFFF" />
+        </View>
+        <View style={[styles.statPill, { backgroundColor: `${colors.primary}E6` }]}>
+          <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
           <Text style={styles.pillStatText}>{remainingPrayTodayCount}</Text>
         </View>
       </ReAnimated.View>
@@ -3009,18 +3011,21 @@ function createStyles(colors: any) {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  floatingPill: {
+  floatingHeaderRow: {
     position: "absolute",
     top: 12,
     left: 16,
     right: 16,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
+    zIndex: 10,
+  },
+  floatingPill: {
+    flex: 1,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    zIndex: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,

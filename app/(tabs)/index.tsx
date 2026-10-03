@@ -2428,7 +2428,8 @@ export default function HomeScreen() {
       tabPillX.value = target;
       navFirstLayout.current = false;
     } else {
-      tabPillX.value = withSpring(target, { damping: 22, stiffness: 380 });
+      // M3 Expressive emphasized easing: liquid and smooth, no bounce.
+      tabPillX.value = withTiming(target, { duration: 400, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
     }
   }, [activeTabIndex, navWidth, tabPillX]);
 

@@ -1679,25 +1679,45 @@ export default function HomeScreen() {
     return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{(isExpanded || isClosing) && renderExpandedFamily(item.familyMembers, item.section, isClosing)}</View>;
   };
 
+  const pillVisible = useSharedValue(1);
+  const lastScrollY = useSharedValue(0);
+  const pillAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: pillVisible.value,
+    transform: [{ translateY: (1 - pillVisible.value) * -24 }],
+  }));
+  const handlePeopleScroll = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const dy = y - lastScrollY.value;
+    lastScrollY.value = y;
+    if (dy > 8 && y > 60) {
+      pillVisible.value = withTiming(0, { duration: 200 });
+    } else if (dy < -8) {
+      pillVisible.value = withTiming(1, { duration: 200 });
+    }
+  };
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
-      <BlurView
-        intensity={80}
-        tint={colorScheme === "dark" ? "dark" : "light"}
-        experimentalBlurMethod="dimezisBlurView"
-        style={[styles.header, styles.glassHeader, { backgroundColor: `${colors.surface}CC`, borderBottomColor: colors.border }]}
-      >
-        <View style={styles.glassHighlight} />
-        <View><Text style={styles.appTitle}>PrayerCircle</Text><Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text></View>
-        <View style={styles.headerStats}><View style={[styles.statPill, { backgroundColor: `${colors.primary}2E` }]}><MaterialIcons name={iconName("local-fire-department")} size={20} color={colors.primary} /><Text style={[styles.statNumber, { color: colors.primary }]}>{streak}</Text></View><View style={[styles.statPill, { backgroundColor: `${colors.primary}2E` }]}><MaterialIcons name={iconName("chat-bubble")} size={18} color={colors.primary} /><Text style={[styles.statNumber, { color: colors.primary }]}>{remainingPrayTodayCount}</Text></View></View>
-      </BlurView>
+      <ReAnimated.View style={[styles.floatingPill, pillAnimatedStyle, { backgroundColor: `${colors.primary}E6` }]}>
+        <View>
+          <Text style={styles.pillTitle}>PrayerCircle</Text>
+          <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
+        </View>
+        <View style={styles.pillStats}>
+          <MaterialIcons name={iconName("local-fire-department")} size={20} color="#FFFFFF" />
+          <Text style={styles.pillStatText}>{streak}</Text>
+          <MaterialIcons name={iconName("chat-bubble")} size={18} color="#FFFFFF" />
+          <Text style={styles.pillStatText}>{remainingPrayTodayCount}</Text>
+        </View>
+      </ReAnimated.View>
       <FlatList
         data={peopleRows}
         renderItem={renderPeopleRow}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={<View>{renderPeoplePrayerHeader()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
-        contentContainerStyle={[styles.peopleContent, { paddingTop: 124 }]}
+        contentContainerStyle={[styles.peopleContent, { paddingTop: 84 }]}
+        onScroll={handlePeopleScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
@@ -2989,21 +3009,46 @@ function createStyles(colors: any) {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  glassHeader: {
+  floatingPill: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 12,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
     zIndex: 10,
-    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  glassHighlight: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.25)",
+  pillTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  pillSubtitle: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 1,
+  },
+  pillStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pillStatText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    marginRight: 6,
   },
   header: {
     minHeight: 88,

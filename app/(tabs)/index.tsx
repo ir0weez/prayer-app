@@ -1681,6 +1681,7 @@ export default function HomeScreen() {
 
   const pillVisible = useSharedValue(1);
   const lastScrollY = useSharedValue(0);
+  const statsMerged = useSharedValue(0);
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pillVisible.value,
     transform: [{ translateY: (1 - pillVisible.value) * -24 }],
@@ -1695,29 +1696,36 @@ export default function HomeScreen() {
       pillVisible.value = withTiming(1, { duration: 200 });
     }
   };
+  useEffect(() => {
+    const isDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
+    statsMerged.value = withTiming(isDone ? 1 : 0, { duration: 500, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+  }, [prayedTodayCount, dailyPrayerProgress.total, statsMerged]);
+  const statsPillsStyle = useAnimatedStyle(() => ({
+    gap: interpolate(statsMerged.value, [0, 1], [8, -4], Extrapolation.CLAMP),
+  }));
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
         <View style={[styles.floatingPill, { overflow: "hidden" }]}>
           <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={styles.headerStatPills}>
+        <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle]}>
           <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
             <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
             <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
             <Text style={styles.pillStatTextVertical}>{streak}</Text>
           </View>
           <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
             <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
             <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
             <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
           </View>
-        </View>
+        </ReAnimated.View>
       </ReAnimated.View>
       <FlatList
         data={peopleRows}
@@ -2769,9 +2777,8 @@ export default function HomeScreen() {
       ) : null}
 
       <BlurView
-        intensity={100}
+        intensity={80}
         tint={colorScheme === "dark" ? "dark" : "light"}
-        experimentalBlurMethod="dimezisBlurView"
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
         style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}4D` }]}
       >

@@ -13,7 +13,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -372,18 +372,20 @@ function UndoCountdownBar({ color }: { color: string }) {
   return <UndoCountdownTimer color={color} />;
 }
 
-// Rolling odometer number: old value slides up, new rises from below.
-function RollingNumber({ value, textStyle }: { value: number | string; textStyle: any }) {
-  return (
-    <View style={{ overflow: "hidden", height: 20, justifyContent: "center" }}>
-      <ReAnimated.View
-        key={String(value)}
-        entering={SlideInUp.springify().damping(16).stiffness(220)}
-        exiting={SlideOutUp.duration(200)}>
-        <Text style={textStyle}>{value}</Text>
-      </ReAnimated.View>
-    </View>
+// Duolingo-style count-up: number ticks smoothly from old to new.
+function CountUpNumber({ value, textStyle }: { value: number; textStyle: any }) {
+  const animatedValue = useSharedValue(value);
+  const [display, setDisplay] = useState(value);
+  useAnimatedReaction(
+    () => animatedValue.value,
+    (current) => {
+      runOnJS(setDisplay)(Math.round(current));
+    }
   );
+  useEffect(() => {
+    animatedValue.value = withTiming(value, { duration: 700, easing: Easing.out(Easing.ease) });
+  }, [value]);
+  return <Text style={textStyle}>{display}</Text>;
 }
 
 // Flame with twinkling sparks (Joi-style).
@@ -1786,7 +1788,7 @@ export default function HomeScreen() {
           </ReAnimated.View>
           <ReAnimated.View style={[styles.m3DoneChipOverlay, chipTransformStyle, { backgroundColor: colors.primary }]}>
             <FlameSpark size={18} />
-            <RollingNumber value={streak} textStyle={styles.m3DoneText} />
+            <CountUpNumber value={streak} textStyle={styles.m3DoneText} />
             <Text style={styles.m3DoneLabel}>Streak</Text>
           </ReAnimated.View>
         </View>

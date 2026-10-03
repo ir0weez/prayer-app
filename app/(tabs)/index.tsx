@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -386,6 +386,45 @@ function RollingNumber({ value, textStyle }: { value: number | string; textStyle
     </View>
   );
 }
+
+// Flame with twinkling sparks (Joi-style).
+function Sparkle({ delay, size, style }: { delay: number; size: number; style: any }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 900, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      )
+    );
+  }, [delay]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value * 0.9,
+    transform: [{ scale: 0.4 + progress.value * 0.6 }],
+  }));
+  return (
+    <ReAnimated.View style={[style, animatedStyle]}>
+      <MaterialIcons name="auto-awesome" size={size} color="#FFFFFF" />
+    </ReAnimated.View>
+  );
+}
+
+function FlameSpark({ size = 18 }: { size?: number }) {
+  return (
+    <View style={{ width: size + 10, height: size + 10, justifyContent: "center", alignItems: "center" }}>
+      <MaterialIcons name={iconName("local-fire-department")} size={size} color="#FFFFFF" />
+      <Sparkle delay={0} size={8} style={{ position: "absolute", top: 0, right: 1 }} />
+      <Sparkle delay={600} size={6} style={{ position: "absolute", top: size * 0.4, left: 0 }} />
+      <Sparkle delay={1200} size={7} style={{ position: "absolute", bottom: 1, right: size * 0.3 }} />
+    </View>
+  );
+}
+
 
 export default function HomeScreen() {
   const verifiedPopPlayer = useAudioPlayer(require("@/assets/verified-pop.wav"));
@@ -1728,7 +1767,7 @@ export default function HomeScreen() {
             entering={FadeIn.duration(220).easing(Easing.bezier(0.05, 0.7, 0.1, 1))}
             exiting={FadeOut.duration(160)}
             style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
-            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+            <FlameSpark size={18} />
             <RollingNumber value={streak} textStyle={styles.m3DoneText} />
             <Text style={styles.m3DoneLabel}>Streak</Text>
           </ReAnimated.View>

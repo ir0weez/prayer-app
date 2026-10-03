@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -529,6 +529,11 @@ export default function HomeScreen() {
   const [closingFamilyId, setClosingFamilyId] = useState<string | null>(null);
   const familyCloseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Card color fill: the accent pours in from the bottom as the group closes,
+  // and drains back down as it opens. Only the active card renders the overlay.
+  const cardFillProgress = useSharedValue(1);
+  const fillEasing = Easing.bezier(0.05, 0.7, 0.1, 1);
+
   // Toggle a family group: opening unfurls the panel; closing folds it back
   // up first and only unmounts after the animation finishes.
   const toggleFamilyExpanded = (familyId: string) => {
@@ -538,6 +543,7 @@ export default function HomeScreen() {
     }
     if (expandedFamilyId === familyId) {
       setClosingFamilyId(familyId);
+      cardFillProgress.value = withTiming(1, { duration: 450, easing: fillEasing });
       familyCloseTimeout.current = setTimeout(() => {
         setExpandedFamilyId(null);
         setClosingFamilyId(null);
@@ -546,6 +552,8 @@ export default function HomeScreen() {
     } else {
       setClosingFamilyId(null);
       setExpandedFamilyId(familyId);
+      cardFillProgress.value = 1;
+      cardFillProgress.value = withTiming(0, { duration: 450, easing: fillEasing });
     }
   };
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
@@ -1404,6 +1412,23 @@ export default function HomeScreen() {
     setFamilyActionMembers(familyMembers);
   };
 
+  // Animated styles for the active card's color fill (defined here where `colors` exists).
+  const cardFillOverlayStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: cardFillProgress.value }],
+    borderBottomLeftRadius: interpolate(cardFillProgress.value, [0, 1], [0, 14]),
+    borderBottomRightRadius: interpolate(cardFillProgress.value, [0, 1], [0, 14]),
+  }));
+  const cardFillTitleStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(cardFillProgress.value, [0, 1], [colors.foreground, "#FFFFFF"]),
+  }));
+  const cardFillSubStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(cardFillProgress.value, [0, 1], [colors.muted, "#FFFFFF"]),
+  }));
+  const cardFillAvatarStyle = useAnimatedStyle(() => ({
+    opacity: cardFillProgress.value,
+    width: 150 * cardFillProgress.value,
+  }));
+
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
     const familyName = familyMembers[0]?.familyName || "Family";
@@ -1433,18 +1458,42 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: isExpanded ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        {(isExpanded || closingFamilyId === familyId) && (
+          <ReAnimated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                backgroundColor: familyRelationship.accent,
+                borderRadius: 14,
+                transformOrigin: "bottom",
+              },
+              cardFillOverlayStyle,
+            ]}
+          />
+        )}
         <View style={styles.personInfo}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text numberOfLines={1} style={[styles.personName, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
+            <Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }]}>{familyName}</Text>
             {isFamilyComplete && <VerifiedBadge />}
           </View>
-          <Text numberOfLines={1} style={[styles.personMeta, { color: isExpanded ? colors.foreground : "#FFFFFF", fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
+          <Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
             {lastReachedDate ? formatIsoDateForDisplay(lastReachedDate) : `${completedMembers} of ${familyMembers.length} complete`}
           </Text>
-          {lastReachedDate && <Text numberOfLines={1} style={{ color: isExpanded ? colors.muted : "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "600" }}>{completedMembers} of {familyMembers.length} complete</Text>}
+          {lastReachedDate && <Text numberOfLines={1} style={[(isExpanded || closingFamilyId === familyId) ? cardFillSubStyle : { color: "#FFFFFF" }, { fontSize: 10, lineHeight: 14, fontWeight: "600" }]}>{completedMembers} of {familyMembers.length} complete</Text>}
         </View>
-        {!isExpanded && <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>}
+        {(isExpanded || closingFamilyId === familyId) ? (
+          <ReAnimated.View style={[{ marginLeft: 8, marginRight: 20, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end", overflow: "hidden" }, cardFillAvatarStyle]}>
+            <StackedAvatar people={familyMembers} size={46} />
+          </ReAnimated.View>
+        ) : (
+          <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>
+        )}
         </Pressable>
       </ReAnimated.View>
     );

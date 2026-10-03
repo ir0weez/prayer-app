@@ -1689,7 +1689,7 @@ export default function HomeScreen() {
       >
         <View style={styles.glassHighlight} />
         <View><Text style={styles.appTitle}>PrayerCircle</Text><Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text></View>
-        <View style={styles.headerStats}><View style={styles.statItem}><MaterialIcons name={iconName("local-fire-department")} size={30} color={colors.primary} /><Text style={styles.statNumber}>{streak}</Text></View><View style={styles.statItem}><MaterialIcons name={iconName("chat-bubble")} size={28} color={colors.primary} /><Text style={styles.statNumber}>{remainingPrayTodayCount}</Text></View></View>
+        <View style={styles.headerStats}><View style={[styles.statPill, { backgroundColor: `${colors.primary}2E` }]}><MaterialIcons name={iconName("local-fire-department")} size={20} color={colors.primary} /><Text style={[styles.statNumber, { color: colors.primary }]}>{streak}</Text></View><View style={[styles.statPill, { backgroundColor: `${colors.primary}2E` }]}><MaterialIcons name={iconName("chat-bubble")} size={18} color={colors.primary} /><Text style={[styles.statNumber, { color: colors.primary }]}>{remainingPrayTodayCount}</Text></View></View>
       </BlurView>
       <FlatList
         data={peopleRows}
@@ -2438,10 +2438,14 @@ export default function HomeScreen() {
   };
 
   const renderContent = () => {
-    if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
-    if (activeTab === "schedule") {
-      return (
-        <ScheduleTab
+    // All tabs stay mounted; visibility toggles to avoid remount/refresh on switch.
+    return (
+      <>
+        <View style={{ flex: 1, display: (activeTab === "people" || activeTab === "home") ? "flex" : "none" }}>
+          {renderPeopleScreen()}
+        </View>
+        <View style={{ flex: 1, display: activeTab === "schedule" ? "flex" : "none" }}>
+          <ScheduleTab
           people={people}
           fasts={fasts}
           remainingTodos={scheduleSummaryData.remainingTodos}
@@ -2477,10 +2481,15 @@ export default function HomeScreen() {
             setPeople(updatedPeople);
           }}
         />
-      );
-    }
-    if (activeTab === "journal") return <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />;
-    return renderSettingsScreen();
+        </View>
+        <View style={{ flex: 1, display: activeTab === "journal" ? "flex" : "none" }}>
+          <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
+        </View>
+        <View style={{ flex: 1, display: activeTab === "settings" ? "flex" : "none" }}>
+          {renderSettingsScreen()}
+        </View>
+      </>
+    );
   };
 
   // ---- Expressive glass tab bar: the active pill slides between tabs on a spring ----
@@ -2734,7 +2743,7 @@ export default function HomeScreen() {
         tint={colorScheme === "dark" ? "dark" : "light"}
         experimentalBlurMethod="dimezisBlurView"
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}D9` }]}
+        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}99` }]}
       >
         {/* sliding expressive pill */}
         <ReAnimated.View
@@ -3031,6 +3040,14 @@ function createStyles(colors: any) {
   statItem: {
     alignItems: "center",
     minWidth: 26,
+  },
+  statPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    gap: 6,
   },
   statNumber: {
     marginTop: 2,

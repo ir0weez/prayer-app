@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
@@ -2842,12 +2841,17 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <BlurView
-        intensity={80}
-        tint={colorScheme === "dark" ? "dark" : "light"}
-        experimentalBlurMethod="dimezisBlurView"
+      <View
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}4D` }]}
+        style={[styles.bottomNav, {
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          elevation: 3,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }]}
       >
         {/* sliding expressive pill */}
         <ReAnimated.View
@@ -2863,25 +2867,12 @@ export default function HomeScreen() {
             tabPillAnimatedStyle,
           ]}
         />
-        {/* liquid-glass top highlight */}
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: 1,
-            left: 20,
-            right: 20,
-            height: 1,
-            borderRadius: 1,
-            backgroundColor: "#FFFFFF",
-            opacity: colorScheme === "dark" ? 0.25 : 0.6,
-          }}
-        />
+
         {renderTab("people", "People", "groups")}
         {renderTab("schedule", "Schedule", "event-note")}
         {renderTab("journal", "Journal", "article")}
         {renderTab("settings", "Settings", "settings")}
-      </BlurView>
+      </View>
 
       <Modal
         transparent

@@ -2563,7 +2563,6 @@ export default function HomeScreen() {
   }, [activeTab, tabTransition]);
   const tabContentStyle = useAnimatedStyle(() => ({
     opacity: tabTransition.value,
-    transform: [{ translateY: (1 - tabTransition.value) * 12 }],
   }));
 
   useEffect(() => {

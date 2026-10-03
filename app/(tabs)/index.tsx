@@ -2488,56 +2488,64 @@ export default function HomeScreen() {
     );
   };
 
+  // Memoize tab elements so inactive tabs don't re-render on switch.
+  const peopleTabElement = useMemo(() => renderPeopleScreen(), [people, prayedTodayCount, dailyPrayerProgress, streak, remainingPrayTodayCount, colors, colorScheme, peopleRows]);
+  const journalTabElement = useMemo(() => <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />, [journal, people]);
+  const settingsTabElement = useMemo(() => renderSettingsScreen(), [settings, colors, people]);
+  const scheduleTabElement = useMemo(() => (
+    <ScheduleTab
+      people={people}
+      fasts={fasts}
+      remainingTodos={scheduleSummaryData.remainingTodos}
+      remainingPrayers={scheduleSummaryData.remainingPrayers}
+      fastingStatus={scheduleSummaryData.fastingStatus}
+      budgetAmount={scheduleSummaryData.budgetAmount}
+      peopleToReach={scheduleSummaryData.peopleToReach}
+      currentBibleStudy={scheduleSummaryData.currentBibleStudy}
+      personalTodos={scheduleSummaryData.sortedIncompleteTodos}
+      eventRemindersEnabled={settings.eventRemindersEnabled}
+      defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
+      notificationScheduleAction={notificationScheduleActionParam}
+      notificationScheduleKind={notificationScheduleKindParam}
+      notificationScheduleId={notificationScheduleIdParam}
+      reachedStamps={reachedStamps}
+      onReachedStampsChange={handleReachedStampsChange}
+      onAwardXP={awardExperience}
+      onRevokeXP={revokeExperience}
+      showWorshipAlbumForm={showWorshipAlbumForm}
+      onShowWorshipAlbumForm={setShowWorshipAlbumForm}
+      onTodoComplete={(todoId) => {
+        const updatedPeople = people.map(p => {
+          if (p.isPersonal) {
+            return {
+              ...p,
+              personalTodos: p.personalTodos?.map(t =>
+                t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
+              ) || [],
+            };
+          }
+          return p;
+        });
+        setPeople(updatedPeople);
+      }}
+    />
+  ), [people, fasts, scheduleSummaryData, settings.eventRemindersEnabled, settings.defaultEventReminderMinutes, notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, reachedStamps, showWorshipAlbumForm]);
+
   const renderContent = () => {
     // All tabs stay mounted; visibility toggles to avoid remount/refresh on switch.
     return (
       <>
         <View style={{ flex: 1, display: (activeTab === "people" || activeTab === "home") ? "flex" : "none" }}>
-          {renderPeopleScreen()}
+          {peopleTabElement}
         </View>
         <View style={{ flex: 1, display: activeTab === "schedule" ? "flex" : "none" }}>
-          <ScheduleTab
-          people={people}
-          fasts={fasts}
-          remainingTodos={scheduleSummaryData.remainingTodos}
-          remainingPrayers={scheduleSummaryData.remainingPrayers}
-          fastingStatus={scheduleSummaryData.fastingStatus}
-          budgetAmount={scheduleSummaryData.budgetAmount}
-          peopleToReach={scheduleSummaryData.peopleToReach}
-          currentBibleStudy={scheduleSummaryData.currentBibleStudy}
-          personalTodos={scheduleSummaryData.sortedIncompleteTodos}
-          eventRemindersEnabled={settings.eventRemindersEnabled}
-          defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
-          notificationScheduleAction={notificationScheduleActionParam}
-          notificationScheduleKind={notificationScheduleKindParam}
-          notificationScheduleId={notificationScheduleIdParam}
-          reachedStamps={reachedStamps}
-          onReachedStampsChange={handleReachedStampsChange}
-          onAwardXP={awardExperience}
-          onRevokeXP={revokeExperience}
-          showWorshipAlbumForm={showWorshipAlbumForm}
-          onShowWorshipAlbumForm={setShowWorshipAlbumForm}
-          onTodoComplete={(todoId) => {
-            const updatedPeople = people.map(p => {
-              if (p.isPersonal) {
-                return {
-                  ...p,
-                  personalTodos: p.personalTodos?.map(t =>
-                    t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
-                  ) || [],
-                };
-              }
-              return p;
-            });
-            setPeople(updatedPeople);
-          }}
-        />
+          {scheduleTabElement}
         </View>
         <View style={{ flex: 1, display: activeTab === "journal" ? "flex" : "none" }}>
-          <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
+          {journalTabElement}
         </View>
         <View style={{ flex: 1, display: activeTab === "settings" ? "flex" : "none" }}>
-          {renderSettingsScreen()}
+          {settingsTabElement}
         </View>
       </>
     );

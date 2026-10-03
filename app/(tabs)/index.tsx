@@ -1704,14 +1704,19 @@ export default function HomeScreen() {
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-          <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
-          <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-          <Text style={styles.pillStatTextVertical}>{streak}</Text>
-          <View style={styles.pillDividerHorizontal} />
-          <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
-          <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
+        <View style={styles.headerStatPills}>
+          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+            <Text style={styles.pillStatTextVertical}>{streak}</Text>
+          </View>
+          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
+            <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
+            <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
+          </View>
         </View>
       </ReAnimated.View>
       <FlatList
@@ -2768,7 +2773,7 @@ export default function HomeScreen() {
         tint={colorScheme === "dark" ? "dark" : "light"}
         experimentalBlurMethod="dimezisBlurView"
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        style={[styles.bottomNav, { borderColor: colors.border }]}
+        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}4D` }]}
       >
         {/* sliding expressive pill */}
         <ReAnimated.View
@@ -3033,6 +3038,10 @@ function createStyles(colors: any) {
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 5,
+  },
+  headerStatPills: {
+    flexDirection: "row",
+    gap: 8,
   },
   statPillVertical: {
     flexDirection: "column",

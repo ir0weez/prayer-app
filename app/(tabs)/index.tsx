@@ -437,6 +437,7 @@ export default function HomeScreen() {
   const [familyRolesByPersonId, setFamilyRolesByPersonId] = useState<Record<string, FamilyType | undefined>>({});
   const [showCustomRelationshipInput, setShowCustomRelationshipInput] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("people");
+
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
   const [achievementState, setAchievementState] = useState<AchievementState>(DEFAULT_ACHIEVEMENT_STATE);
@@ -2255,6 +2256,41 @@ export default function HomeScreen() {
   const [bookStatuses, setBookStatuses] = useState<any>({});
   const [bibleLastReadDate, setBibleLastReadDate] = useState<string | null>(null);
   const [currentBibleDisplay, setCurrentBibleDisplay] = useState<string>('Genesis 1');
+
+  // Memoized schedule summary data (avoids re-sorting/filtering on every render).
+  const scheduleSummaryData = useMemo(() => {
+    const personalPerson = people.find(p => p.isPersonal);
+    const allPersonalTodos = personalPerson?.personalTodos || [];
+    const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
+    const sortedIncompleteTodos = [...incompleteTodos].sort((a, b) => {
+      const timeA = a.scheduledTime || '23:59';
+      const timeB = b.scheduledTime || '23:59';
+      return timeA.localeCompare(timeB);
+    });
+    const totalPrayers = prayTodayList.length;
+    const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
+    const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const peopleToReach = people.filter(p => {
+      if (p.isPersonal) return false;
+      if (!p.lastPrayedDate) return false;
+      return p.lastPrayedDate <= fourteenDaysAgo;
+    }).length;
+    const totalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
+    const totalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
+    let fastingStatus = 'not-selected';
+    if (activeFastTodayStatus === 'completed') fastingStatus = 'complete';
+    else if (activeFastTodayStatus === 'missed') fastingStatus = 'missed';
+    else if (activeFastTodayStatus === 'skipped') fastingStatus = 'skipped';
+    return {
+      sortedIncompleteTodos,
+      remainingTodos: incompleteTodos.length,
+      remainingPrayers: totalPrayers - completedPrayers,
+      peopleToReach,
+      budgetAmount: totalBudgeted - totalSpent,
+      fastingStatus,
+      currentBibleStudy: currentBibleDisplay,
+    };
+  }, [people, prayTodayList, today, budgetCategories, budgetTransactions, activeFastTodayStatus, currentBibleDisplay]);
   const unlockedBookIds = useMemo(() => getCompletedBookAvatarIds(bookStatuses), [bookStatuses]);
 
   const loadBibleAndBudgetData = useCallback(async () => {
@@ -2397,49 +2433,17 @@ export default function HomeScreen() {
   const renderContent = () => {
     if (activeTab === "people" || activeTab === "home") return renderPeopleScreen();
     if (activeTab === "schedule") {
-      // Compute summary data for the DailySummaryCard
-      const personalPerson = people.find(p => p.isPersonal);
-      const allPersonalTodos = personalPerson?.personalTodos || [];
-      const incompleteTodos = allPersonalTodos.filter(t => !t.isDone);
-      const sortedIncompleteTodos = [...incompleteTodos].sort((a, b) => {
-        const timeA = a.scheduledTime || '23:59';
-        const timeB = b.scheduledTime || '23:59';
-        return timeA.localeCompare(timeB);
-      });
-      const totalPrayers = prayTodayList.length;
-      const completedPrayers = prayTodayList.filter(p => hasPersonCompletedPrayerToday(p, today)).length;
-      const scheduleRemainingPrayers = totalPrayers - completedPrayers;
-      const scheduleRemainingTodos = incompleteTodos.length;
-      let scheduleFastingStatus = 'not-selected';
-      if (activeFastTodayStatus === 'completed') scheduleFastingStatus = 'complete';
-      else if (activeFastTodayStatus === 'missed') scheduleFastingStatus = 'missed';
-      else if (activeFastTodayStatus === 'skipped') scheduleFastingStatus = 'skipped';
-      // Calculate people to reach out to (only those who HAVE been marked and are past 14 days)
-      const fourteenDaysAgo = new Date(new Date(today).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const schedulePeopleToReach = people.filter(p => {
-        if (p.isPersonal) return false; // Don't count personal profile
-        if (!p.lastPrayedDate) return false; // Don't count people never marked
-        return p.lastPrayedDate <= fourteenDaysAgo;
-      }).length;
-
-      // Calculate total budget and spent from AsyncStorage data
-      const scheduleTotalBudgeted = budgetCategories.reduce((sum: number, cat: any) => sum + cat.budgetedAmount, 0);
-      const scheduleTotalSpent = budgetTransactions.reduce((sum: number, trans: any) => sum + trans.amount, 0);
-      const scheduleBudgetAmount = scheduleTotalBudgeted - scheduleTotalSpent;
-      // Use the currentBibleDisplay from state (which is loaded from unified Bible system)
-      const scheduleCurrentBibleStudy = currentBibleDisplay;
-
       return (
         <ScheduleTab
           people={people}
           fasts={fasts}
-          remainingTodos={scheduleRemainingTodos}
-          remainingPrayers={scheduleRemainingPrayers}
-          fastingStatus={scheduleFastingStatus}
-          budgetAmount={scheduleBudgetAmount}
-          peopleToReach={schedulePeopleToReach}
-          currentBibleStudy={scheduleCurrentBibleStudy}
-          personalTodos={sortedIncompleteTodos}
+          remainingTodos={scheduleSummaryData.remainingTodos}
+          remainingPrayers={scheduleSummaryData.remainingPrayers}
+          fastingStatus={scheduleSummaryData.fastingStatus}
+          budgetAmount={scheduleSummaryData.budgetAmount}
+          peopleToReach={scheduleSummaryData.peopleToReach}
+          currentBibleStudy={scheduleSummaryData.currentBibleStudy}
+          personalTodos={scheduleSummaryData.sortedIncompleteTodos}
           eventRemindersEnabled={settings.eventRemindersEnabled}
           defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
           notificationScheduleAction={notificationScheduleActionParam}

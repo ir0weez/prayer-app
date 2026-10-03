@@ -1681,8 +1681,7 @@ export default function HomeScreen() {
 
   const pillVisible = useSharedValue(1);
   const lastScrollY = useSharedValue(0);
-  const statsMerged = useSharedValue(0);
-  const statsSlide = useSharedValue(0);
+
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pillVisible.value,
     transform: [{ translateY: (1 - pillVisible.value) * -24 }],
@@ -1697,49 +1696,35 @@ export default function HomeScreen() {
       pillVisible.value = withTiming(1, { duration: 200 });
     }
   };
-  useEffect(() => {
-    const isDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
-    statsMerged.value = withTiming(isDone ? 1 : 0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
-    statsSlide.value = withTiming(isDone ? 1 : 0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
-  }, [prayedTodayCount, dailyPrayerProgress.total, statsMerged, statsSlide]);
-  const statsPillsStyle = useAnimatedStyle(() => ({
-    gap: interpolate(statsSlide.value, [0, 1], [8, 0], Extrapolation.CLAMP),
-  }));
-  const containerBgOpacity = useAnimatedStyle(() => ({
-    opacity: statsMerged.value,
-  }));
-  const containerRadius = useAnimatedStyle(() => ({
-    borderRadius: interpolate(statsMerged.value, [0, 1], [999, 22], Extrapolation.CLAMP),
-  }));
+
+
+
+
 
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { overflow: "hidden" }]}>
-          <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <View style={[styles.floatingPill, { backgroundColor: colors.surface }]}>
           <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <ReAnimated.View style={[styles.headerStatsContainer, containerRadius, { overflow: "hidden" }]}>
-          <ReAnimated.View style={[StyleSheet.absoluteFill, containerBgOpacity]}>
-            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
-          </ReAnimated.View>
-          <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle]}>
-            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
-              <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
-              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
+        {(prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0) ? (
+          <View style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
+            <MaterialIcons name={iconName("check")} size={18} color="#FFFFFF" />
+            <Text style={styles.m3DoneText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed</Text>
+          </View>
+        ) : (
+          <View style={styles.m3StatsRow}>
+            <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
+              <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
+              <Text style={[styles.m3StatText, { color: colors.foreground }]}>{streak}</Text>
             </View>
-            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
-              <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
-              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
+            <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
+              <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.primary} />
+              <Text style={[styles.m3StatText, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
-          </ReAnimated.View>
-        </ReAnimated.View>
+          </View>
+        )}
       </ReAnimated.View>
       <FlatList
         data={peopleRows}
@@ -3055,17 +3040,44 @@ function createStyles(colors: any) {
   floatingPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 999,
+    borderRadius: 28,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 5,
   },
-  headerStatsContainer: {
+  m3StatsRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 0,
+    gap: 8,
+  },
+  m3StatChip: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 2,
+  },
+  m3StatText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  m3DoneChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
+    gap: 8,
+  },
+  m3DoneText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
   },
   headerStatPills: {
     flexDirection: "row",

@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -1682,6 +1682,7 @@ export default function HomeScreen() {
   const pillVisible = useSharedValue(1);
   const lastScrollY = useSharedValue(0);
   const statsMerged = useSharedValue(0);
+  const statsSlide = useSharedValue(0);
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pillVisible.value,
     transform: [{ translateY: (1 - pillVisible.value) * -24 }],
@@ -1698,16 +1699,23 @@ export default function HomeScreen() {
   };
   useEffect(() => {
     const isDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
-    statsMerged.value = withTiming(isDone ? 1 : 0, { duration: 500, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
-  }, [prayedTodayCount, dailyPrayerProgress.total, statsMerged]);
+    if (isDone) {
+      statsSlide.value = withTiming(1, { duration: 350, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+      statsMerged.value = withDelay(200, withTiming(1, { duration: 300, easing: Easing.bezier(0.05, 0.7, 0.1, 1) }));
+    } else {
+      statsMerged.value = withTiming(0, { duration: 250 });
+      statsSlide.value = withDelay(150, withTiming(0, { duration: 350, easing: Easing.bezier(0.05, 0.7, 0.1, 1) }));
+    }
+  }, [prayedTodayCount, dailyPrayerProgress.total, statsMerged, statsSlide]);
   const statsPillsStyle = useAnimatedStyle(() => ({
-    gap: interpolate(statsMerged.value, [0, 1], [8, 0], Extrapolation.CLAMP),
+    gap: interpolate(statsSlide.value, [0, 1], [8, 0], Extrapolation.CLAMP),
   }));
   const separatePillsOpacity = useAnimatedStyle(() => ({
     opacity: 1 - statsMerged.value,
   }));
   const mergedBoxOpacity = useAnimatedStyle(() => ({
     opacity: statsMerged.value,
+    transform: [{ scale: interpolate(statsMerged.value, [0, 1], [0.85, 1], Extrapolation.CLAMP) }],
   }));
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
@@ -1721,17 +1729,20 @@ export default function HomeScreen() {
           <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle, separatePillsOpacity]}>
             <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
               <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
               <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
             </View>
             <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
               <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
               <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
           </ReAnimated.View>
           <ReAnimated.View style={[styles.mergedStatBox, mergedBoxOpacity]}>
             <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.55)" }]} />
             <View style={styles.mergedStatRow}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>

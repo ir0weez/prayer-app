@@ -417,7 +417,7 @@ function Sparkle({ delay, size, style }: { delay: number; size: number; style: a
 
 function FlameSpark({ size = 18 }: { size?: number }) {
   return (
-    <View style={{ width: size + 10, height: size + 10, justifyContent: "center", alignItems: "center" }}>
+    <View style={{ width: size + 4, height: size + 4, justifyContent: "center", alignItems: "center" }}>
       <MaterialIcons name={iconName("local-fire-department")} size={size} color="#FFFFFF" />
       <Sparkle delay={0} size={8} style={{ position: "absolute", top: 0, right: 1 }} />
       <Sparkle delay={600} size={6} style={{ position: "absolute", top: size * 0.4, left: 0 }} />
@@ -3145,10 +3145,10 @@ function createStyles(colors: any) {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 16,
-    gap: 8,
+    gap: 5,
   },
   m3DoneText: {
     color: "#FFFFFF",

@@ -1700,20 +1700,20 @@ export default function HomeScreen() {
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
         <View style={[styles.floatingPill, { overflow: "hidden" }]}>
           <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <View style={styles.headerStatPills}>
           <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
             <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
             <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
             <Text style={styles.pillStatTextVertical}>{streak}</Text>
           </View>
           <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
             <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}4D` }]} />
             <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
             <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
           </View>
@@ -2773,7 +2773,7 @@ export default function HomeScreen() {
         tint={colorScheme === "dark" ? "dark" : "light"}
         experimentalBlurMethod="dimezisBlurView"
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}66` }]}
+        style={[styles.bottomNav, { borderColor: colors.border }]}
       >
         {/* sliding expressive pill */}
         <ReAnimated.View

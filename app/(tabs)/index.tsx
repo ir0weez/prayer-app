@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -1709,12 +1709,21 @@ export default function HomeScreen() {
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         {(prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0) ? (
-          <View style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
+          <ReAnimated.View
+            key="m3done"
+            entering={ZoomIn.springify().damping(14).stiffness(180)}
+            exiting={ZoomOut.duration(180)}
+            style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
             <MaterialIcons name={iconName("check")} size={18} color="#FFFFFF" />
-            <Text style={styles.m3DoneText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed</Text>
-          </View>
+            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+            <Text style={styles.m3DoneText}>{streak}</Text>
+          </ReAnimated.View>
         ) : (
-          <View style={styles.m3StatsRow}>
+          <ReAnimated.View
+            key="m3stats"
+            entering={ZoomIn.springify().damping(14).stiffness(180)}
+            exiting={ZoomOut.duration(180)}
+            style={styles.m3StatsRow}>
             <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{streak}</Text>
@@ -1723,7 +1732,7 @@ export default function HomeScreen() {
               <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
-          </View>
+          </ReAnimated.View>
         )}
       </ReAnimated.View>
       <FlatList

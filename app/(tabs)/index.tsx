@@ -3105,11 +3105,6 @@ function createStyles(colors: any) {
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
   },
   m3StatsContainer: {
     position: "relative",

@@ -138,6 +138,8 @@ function VerifiedBadge() {
   );
 }
 
+const AnimatedPressable = ReAnimated.createAnimatedComponent(Pressable);
+
 
 type RelationshipSection = {
   title: RelationshipType;
@@ -1425,6 +1427,10 @@ export default function HomeScreen() {
   const cardFillAvatarStyle = useAnimatedStyle(() => ({
     opacity: interpolate(cardFillProgress.value, [0.7, 1], [0, 1], Extrapolation.CLAMP),
   }));
+  const cardFillCornersStyle = useAnimatedStyle(() => ({
+    borderBottomLeftRadius: interpolate(cardFillProgress.value, [0.8, 1], [0, 14], Extrapolation.CLAMP),
+    borderBottomRightRadius: interpolate(cardFillProgress.value, [0.8, 1], [0, 14], Extrapolation.CLAMP),
+  }));
 
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
@@ -1455,7 +1461,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <AnimatedPressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, (isExpanded || closingFamilyId === familyId) && cardFillCornersStyle, pressed && styles.pressed]}>
         {(isExpanded || closingFamilyId === familyId) && (
           <ReAnimated.View
             pointerEvents="none"
@@ -1488,7 +1494,7 @@ export default function HomeScreen() {
         ) : (
           <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>
         )}
-        </Pressable>
+        </AnimatedPressable>
       </ReAnimated.View>
     );
   };

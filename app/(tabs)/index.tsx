@@ -1703,14 +1703,11 @@ export default function HomeScreen() {
   const statsPillsStyle = useAnimatedStyle(() => ({
     gap: interpolate(statsMerged.value, [0, 1], [8, 0], Extrapolation.CLAMP),
   }));
-  const mergedBoxStyle = useAnimatedStyle(() => ({
-    borderRadius: interpolate(statsMerged.value, [0, 1], [999, 20], Extrapolation.CLAMP),
+  const separatePillsOpacity = useAnimatedStyle(() => ({
+    opacity: 1 - statsMerged.value,
   }));
-  const pillBgFadeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(statsMerged.value, [0, 1], [1, 0], Extrapolation.CLAMP),
-  }));
-  const mergedBgStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(statsMerged.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+  const mergedBoxOpacity = useAnimatedStyle(() => ({
+    opacity: statsMerged.value,
   }));
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
@@ -1720,25 +1717,31 @@ export default function HomeScreen() {
           <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle, mergedBoxStyle, { overflow: "hidden" }]}>
-          <ReAnimated.View style={[StyleSheet.absoluteFill, mergedBgStyle]}>
-            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <View style={styles.headerStatsContainer}>
+          <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle, separatePillsOpacity]}>
+            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
+              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
+            </View>
+            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
+              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
+            </View>
           </ReAnimated.View>
-          <View style={[styles.statPillVertical]}>
-            <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgFadeStyle, { overflow: "hidden", borderRadius: 999 }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            </ReAnimated.View>
-            <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
-            <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
-          </View>
-          <View style={[styles.statPillVertical]}>
-            <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgFadeStyle, { overflow: "hidden", borderRadius: 999 }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            </ReAnimated.View>
-            <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
-            <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
-          </View>
-        </ReAnimated.View>
+          <ReAnimated.View style={[styles.mergedStatBox, mergedBoxOpacity]}>
+            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={styles.mergedStatRow}>
+              <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.foreground} />
+              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
+            </View>
+            <View style={styles.mergedStatRow}>
+              <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.foreground} />
+              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
+            </View>
+          </ReAnimated.View>
+        </View>
       </ReAnimated.View>
       <FlatList
         data={peopleRows}
@@ -2488,64 +2491,58 @@ export default function HomeScreen() {
     );
   };
 
-  // Memoize tab elements so inactive tabs don't re-render on switch.
-  const peopleTabElement = useMemo(() => renderPeopleScreen(), [people, prayedTodayCount, dailyPrayerProgress, streak, remainingPrayTodayCount, colors, colorScheme, peopleRows]);
-  const journalTabElement = useMemo(() => <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />, [journal, people]);
-  const settingsTabElement = useMemo(() => renderSettingsScreen(), [settings, colors, people]);
-  const scheduleTabElement = useMemo(() => (
-    <ScheduleTab
-      people={people}
-      fasts={fasts}
-      remainingTodos={scheduleSummaryData.remainingTodos}
-      remainingPrayers={scheduleSummaryData.remainingPrayers}
-      fastingStatus={scheduleSummaryData.fastingStatus}
-      budgetAmount={scheduleSummaryData.budgetAmount}
-      peopleToReach={scheduleSummaryData.peopleToReach}
-      currentBibleStudy={scheduleSummaryData.currentBibleStudy}
-      personalTodos={scheduleSummaryData.sortedIncompleteTodos}
-      eventRemindersEnabled={settings.eventRemindersEnabled}
-      defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
-      notificationScheduleAction={notificationScheduleActionParam}
-      notificationScheduleKind={notificationScheduleKindParam}
-      notificationScheduleId={notificationScheduleIdParam}
-      reachedStamps={reachedStamps}
-      onReachedStampsChange={handleReachedStampsChange}
-      onAwardXP={awardExperience}
-      onRevokeXP={revokeExperience}
-      showWorshipAlbumForm={showWorshipAlbumForm}
-      onShowWorshipAlbumForm={setShowWorshipAlbumForm}
-      onTodoComplete={(todoId) => {
-        const updatedPeople = people.map(p => {
-          if (p.isPersonal) {
-            return {
-              ...p,
-              personalTodos: p.personalTodos?.map(t =>
-                t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
-              ) || [],
-            };
-          }
-          return p;
-        });
-        setPeople(updatedPeople);
-      }}
-    />
-  ), [people, fasts, scheduleSummaryData, settings.eventRemindersEnabled, settings.defaultEventReminderMinutes, notificationScheduleActionParam, notificationScheduleKindParam, notificationScheduleIdParam, reachedStamps, showWorshipAlbumForm]);
+
 
   const renderContent = () => {
     // All tabs stay mounted; visibility toggles to avoid remount/refresh on switch.
     return (
       <>
         <View style={{ flex: 1, display: (activeTab === "people" || activeTab === "home") ? "flex" : "none" }}>
-          {peopleTabElement}
+          {renderPeopleScreen()}
         </View>
         <View style={{ flex: 1, display: activeTab === "schedule" ? "flex" : "none" }}>
-          {scheduleTabElement}
+          <ScheduleTab
+          people={people}
+          fasts={fasts}
+          remainingTodos={scheduleSummaryData.remainingTodos}
+          remainingPrayers={scheduleSummaryData.remainingPrayers}
+          fastingStatus={scheduleSummaryData.fastingStatus}
+          budgetAmount={scheduleSummaryData.budgetAmount}
+          peopleToReach={scheduleSummaryData.peopleToReach}
+          currentBibleStudy={scheduleSummaryData.currentBibleStudy}
+          personalTodos={scheduleSummaryData.sortedIncompleteTodos}
+          eventRemindersEnabled={settings.eventRemindersEnabled}
+          defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
+          notificationScheduleAction={notificationScheduleActionParam}
+          notificationScheduleKind={notificationScheduleKindParam}
+          notificationScheduleId={notificationScheduleIdParam}
+          reachedStamps={reachedStamps}
+          onReachedStampsChange={handleReachedStampsChange}
+          onAwardXP={awardExperience}
+          onRevokeXP={revokeExperience}
+          showWorshipAlbumForm={showWorshipAlbumForm}
+          onShowWorshipAlbumForm={setShowWorshipAlbumForm}
+          onTodoComplete={(todoId) => {
+            const updatedPeople = people.map(p => {
+              if (p.isPersonal) {
+                return {
+                  ...p,
+                  personalTodos: p.personalTodos?.map(t =>
+                    t.id === todoId ? { ...t, isDone: !t.isDone, completedAt: !t.isDone ? new Date().toISOString() : undefined } : t
+                  ) || [],
+                };
+              }
+              return p;
+            });
+            setPeople(updatedPeople);
+          }}
+        />
         </View>
         <View style={{ flex: 1, display: activeTab === "journal" ? "flex" : "none" }}>
-          {journalTabElement}
+          <PrayerJournalTab entries={journal} people={people} onChange={setJournal} />
         </View>
         <View style={{ flex: 1, display: activeTab === "settings" ? "flex" : "none" }}>
-          {settingsTabElement}
+          {renderSettingsScreen()}
         </View>
       </>
     );
@@ -3067,9 +3064,31 @@ function createStyles(colors: any) {
     shadowRadius: 12,
     elevation: 5,
   },
+  headerStatsContainer: {
+    position: "relative",
+    justifyContent: "center",
+  },
   headerStatPills: {
     flexDirection: "row",
     gap: 8,
+  },
+  mergedStatBox: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  mergedStatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   statPillVertical: {
     flexDirection: "column",

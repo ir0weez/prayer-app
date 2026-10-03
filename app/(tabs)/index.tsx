@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
+import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInUp, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, Easing, useSharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
@@ -532,7 +532,7 @@ export default function HomeScreen() {
   // Card color fill: the accent pours in from the bottom as the group closes,
   // and drains back down as it opens. Only the active card renders the overlay.
   const cardFillProgress = useSharedValue(1);
-  const fillEasing = Easing.bezier(0.05, 0.7, 0.1, 1);
+  const fillEasing = Easing.out(Easing.quad);
 
   // Toggle a family group: opening unfurls the panel; closing folds it back
   // up first and only unmounts after the animation finishes.
@@ -543,17 +543,17 @@ export default function HomeScreen() {
     }
     if (expandedFamilyId === familyId) {
       setClosingFamilyId(familyId);
-      cardFillProgress.value = withTiming(1, { duration: 450, easing: fillEasing });
+      cardFillProgress.value = withTiming(1, { duration: 380, easing: fillEasing });
       familyCloseTimeout.current = setTimeout(() => {
         setExpandedFamilyId(null);
         setClosingFamilyId(null);
         familyCloseTimeout.current = null;
-      }, 470);
+      }, 400);
     } else {
       setClosingFamilyId(null);
       setExpandedFamilyId(familyId);
       cardFillProgress.value = 1;
-      cardFillProgress.value = withTiming(0, { duration: 450, easing: fillEasing });
+      cardFillProgress.value = withTiming(0, { duration: 380, easing: fillEasing });
     }
   };
   const [familyActionMembers, setFamilyActionMembers] = useState<Person[] | null>(null);
@@ -1425,8 +1425,8 @@ export default function HomeScreen() {
   const cardFillAvatarStyle = useAnimatedStyle(() => {
     const p = cardFillProgress.value;
     return {
-      opacity: interpolate(p, [0.65, 1], [0, 1]),
-      width: 150 * interpolate(p, [0.6, 1], [0, 1]),
+      opacity: interpolate(p, [0.65, 1], [0, 1], Extrapolation.CLAMP),
+      width: 150 * interpolate(p, [0.6, 1], [0, 1], Extrapolation.CLAMP),
     };
   });
 
@@ -1459,7 +1459,7 @@ export default function HomeScreen() {
 
     return (
       <ReAnimated.View key={familyId} entering={FadeIn.duration(400).delay(familyIndex * 50).springify()}>
-        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
+        <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [styles.personCard, { backgroundColor: (isExpanded || closingFamilyId === familyId) ? colors.surface : familyRelationship.accent, overflow: (isExpanded || closingFamilyId === familyId) ? "hidden" : "visible", borderColor: isExpanded ? `${familyRelationship.accent}55` : familyRelationship.accent, borderWidth: 1.5 }, isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pressed && styles.pressed]}>
         {(isExpanded || closingFamilyId === familyId) && (
           <ReAnimated.View
             pointerEvents="none"
@@ -1470,8 +1470,6 @@ export default function HomeScreen() {
                 right: 0,
                 bottom: 0,
                 backgroundColor: familyRelationship.accent,
-                borderTopLeftRadius: 14,
-                borderTopRightRadius: 14,
               },
               cardFillOverlayStyle,
             ]}

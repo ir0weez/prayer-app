@@ -155,7 +155,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
   }, [progress]);
   useEffect(() => {
     if (closing) {
-      progress.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) });
+      progress.value = withTiming(0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
     }
   }, [closing, progress]);
   const animatedStyle = useAnimatedStyle(() => ({
@@ -542,7 +542,7 @@ export default function HomeScreen() {
         setExpandedFamilyId(null);
         setClosingFamilyId(null);
         familyCloseTimeout.current = null;
-      }, 320);
+      }, 470);
     } else {
       setClosingFamilyId(null);
       setExpandedFamilyId(familyId);

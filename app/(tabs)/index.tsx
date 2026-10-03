@@ -1747,7 +1747,10 @@ export default function HomeScreen() {
   }));
   const chipTransformStyle = useAnimatedStyle(() => ({
     opacity: statsProgress.value,
-    transform: [{ scale: 0.65 + statsProgress.value * 0.35 }],
+    width: interpolate(statsProgress.value, [0, 1], [56, 148], Extrapolation.CLAMP),
+  }));
+  const chipContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(statsProgress.value, [0.4, 1], [0, 1], Extrapolation.CLAMP),
   }));
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pillVisible.value,
@@ -1787,9 +1790,11 @@ export default function HomeScreen() {
             </View>
           </ReAnimated.View>
           <ReAnimated.View style={[styles.m3DoneChipOverlay, chipTransformStyle, { backgroundColor: colors.primary }]}>
-            <FlameSpark size={18} />
-            <CountUpNumber value={streak} textStyle={styles.m3DoneText} />
-            <Text style={styles.m3DoneLabel}>Streak</Text>
+            <ReAnimated.View style={[styles.m3DoneChipContent, chipContentStyle]}>
+              <FlameSpark size={18} />
+              <CountUpNumber value={streak} textStyle={styles.m3DoneText} />
+              <Text style={styles.m3DoneLabel}>Streak</Text>
+            </ReAnimated.View>
           </ReAnimated.View>
         </View>
       </ReAnimated.View>
@@ -3099,7 +3104,7 @@ function createStyles(colors: any) {
   floatingPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 28,
+    borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -3121,12 +3126,17 @@ function createStyles(colors: any) {
     right: 0,
     top: 0,
     bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  m3DoneChipContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    gap: 8,
+    paddingHorizontal: 12,
+    gap: 5,
   },
   m3StatChip: {
     flexDirection: "column",

@@ -1429,7 +1429,7 @@ export default function HomeScreen() {
     return { color: interpolateColor(t, [0, 1], [colors.muted, "#FFFFFF"]) };
   });
   const cardFillAvatarStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(cardFillProgress.value, [0.6, 1], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(cardFillProgress.value, [0.5, 1], [0, 1], Extrapolation.CLAMP),
   }));
   const renderFamilyCard = (familyMembers: Person[], index?: number, isExpanded?: boolean) => {
     if (familyMembers.length === 0) return null;
@@ -1496,9 +1496,11 @@ export default function HomeScreen() {
           {lastReachedDate && <ReAnimated.Text numberOfLines={1} style={[(isExpanded || closingFamilyId === familyId) ? cardFillSubStyle : { color: "#FFFFFF" }, { fontSize: 10, lineHeight: 14, fontWeight: "600" }]}>{completedMembers} of {familyMembers.length} complete</ReAnimated.Text>}
         </View>
         {(isExpanded || closingFamilyId === familyId) ? (
-          <ReAnimated.View pointerEvents="none" renderToHardwareTextureAndroid={true} style={[{ position: "absolute", right: 20, top: 0, bottom: 0, width: 150, justifyContent: "center", alignItems: "flex-end" }, cardFillAvatarStyle]}>
-            <StackedAvatar people={familyMembers} size={46} />
-          </ReAnimated.View>
+          <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}>
+            <ReAnimated.View style={cardFillAvatarStyle}>
+              <StackedAvatar people={familyMembers} size={46} />
+            </ReAnimated.View>
+          </View>
         ) : (
           <View style={{ marginLeft: 8, marginRight: 20, width: 150, height: 58, alignSelf: "center", justifyContent: "center", alignItems: "flex-end" }}><StackedAvatar people={familyMembers} size={46} /></View>
         )}

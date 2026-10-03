@@ -1698,16 +1698,25 @@ export default function HomeScreen() {
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
-        <View style={[styles.floatingPill, { backgroundColor: `${colors.primary}E6` }]}>
+        <View style={[styles.floatingPill, { overflow: "hidden" }]}>
+          <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
           <Text style={styles.pillTitle}>PrayerCircle</Text>
           <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={[styles.statPill, { backgroundColor: `${colors.primary}E6` }]}>
-          <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-          <Text style={styles.pillStatText}>{streak}</Text>
-          <View style={styles.pillDivider} />
-          <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
-          <Text style={[styles.pillStatText, { marginRight: 0 }]}>{remainingPrayTodayCount}</Text>
+        <View style={styles.headerStatPills}>
+          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
+            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
+            <Text style={styles.pillStatTextVertical}>{streak}</Text>
+          </View>
+          <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}A6` }]} />
+            <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
+            <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
+          </View>
         </View>
       </ReAnimated.View>
       <FlatList
@@ -2760,11 +2769,11 @@ export default function HomeScreen() {
       ) : null}
 
       <BlurView
-        intensity={82}
+        intensity={100}
         tint={colorScheme === "dark" ? "dark" : "light"}
         experimentalBlurMethod="dimezisBlurView"
         onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
-        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}99` }]}
+        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}66` }]}
       >
         {/* sliding expressive pill */}
         <ReAnimated.View
@@ -3016,12 +3025,11 @@ function createStyles(colors: any) {
     left: 16,
     right: 16,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
     zIndex: 10,
   },
   floatingPill: {
-    flex: 1,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
@@ -3030,6 +3038,29 @@ function createStyles(colors: any) {
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 5,
+  },
+  headerStatPills: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  statPillVertical: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    gap: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  pillStatTextVertical: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
   },
   pillTitle: {
     color: "#FFFFFF",

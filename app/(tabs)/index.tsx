@@ -1711,9 +1711,7 @@ export default function HomeScreen() {
   const containerRadius = useAnimatedStyle(() => ({
     borderRadius: interpolate(statsMerged.value, [0, 1], [999, 22], Extrapolation.CLAMP),
   }));
-  const pillBgOpacity = useAnimatedStyle(() => ({
-    opacity: 1 - statsMerged.value,
-  }));
+
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
@@ -1725,22 +1723,18 @@ export default function HomeScreen() {
         <ReAnimated.View style={[styles.headerStatsContainer, containerRadius, { overflow: "hidden" }]}>
           <ReAnimated.View style={[StyleSheet.absoluteFill, containerBgOpacity]}>
             <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.55)" }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
           </ReAnimated.View>
           <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle]}>
-            <View style={[styles.statPillVertical]}>
-              <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgOpacity, { overflow: "hidden", borderRadius: 999 }]}>
-                <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
-              </ReAnimated.View>
+            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
               <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
             </View>
-            <View style={[styles.statPillVertical]}>
-              <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgOpacity, { overflow: "hidden", borderRadius: 999 }]}>
-                <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
-              </ReAnimated.View>
+            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
               <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>

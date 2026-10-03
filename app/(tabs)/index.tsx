@@ -1716,31 +1716,27 @@ export default function HomeScreen() {
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
       <ReAnimated.View style={[styles.floatingHeaderRow, pillAnimatedStyle]}>
         <View style={[styles.floatingPill, { overflow: "hidden" }]}>
-          <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
-          <Text style={styles.pillTitle}>PrayerCircle</Text>
-          <Text style={styles.pillSubtitle}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
+          <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+          <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
+          <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
         <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle, mergedBoxStyle, { overflow: "hidden" }]}>
           <ReAnimated.View style={[StyleSheet.absoluteFill, mergedBgStyle]}>
-            <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
+            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
           </ReAnimated.View>
           <View style={[styles.statPillVertical]}>
             <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgFadeStyle, { overflow: "hidden", borderRadius: 999 }]}>
-              <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
             </ReAnimated.View>
-            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-            <Text style={styles.pillStatTextVertical}>{streak}</Text>
+            <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
+            <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
           </View>
           <View style={[styles.statPillVertical]}>
             <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgFadeStyle, { overflow: "hidden", borderRadius: 999 }]}>
-              <BlurView intensity={70} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.primary}B3` }]} />
+              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
             </ReAnimated.View>
-            <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
-            <Text style={styles.pillStatTextVertical}>{remainingPrayTodayCount}</Text>
+            <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
+            <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
           </View>
         </ReAnimated.View>
       </ReAnimated.View>
@@ -3082,18 +3078,15 @@ function createStyles(colors: any) {
     elevation: 5,
   },
   pillStatTextVertical: {
-    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "800",
   },
   pillTitle: {
-    color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 0.3,
   },
   pillSubtitle: {
-    color: "rgba(255,255,255,0.85)",
     fontSize: 12,
     fontWeight: "600",
     marginTop: 1,

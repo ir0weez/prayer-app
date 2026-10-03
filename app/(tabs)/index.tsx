@@ -1681,17 +1681,23 @@ export default function HomeScreen() {
 
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <BlurView
+        intensity={80}
+        tint={colorScheme === "dark" ? "dark" : "light"}
+        experimentalBlurMethod="dimezisBlurView"
+        style={[styles.header, styles.glassHeader, { backgroundColor: `${colors.surface}CC`, borderBottomColor: colors.border }]}
+      >
+        <View style={styles.glassHighlight} />
         <View><Text style={styles.appTitle}>PrayerCircle</Text><Text style={styles.progressText}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text></View>
         <View style={styles.headerStats}><View style={styles.statItem}><MaterialIcons name={iconName("local-fire-department")} size={30} color={colors.primary} /><Text style={styles.statNumber}>{streak}</Text></View><View style={styles.statItem}><MaterialIcons name={iconName("chat-bubble")} size={28} color={colors.primary} /><Text style={styles.statNumber}>{remainingPrayTodayCount}</Text></View></View>
-      </View>
+      </BlurView>
       <FlatList
         data={peopleRows}
         renderItem={renderPeopleRow}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={<View>{renderPeoplePrayerHeader()}</View>}
         ListEmptyComponent={<View style={styles.emptyStateCard}><MaterialIcons name={iconName("groups")} size={46} color={colors.primary} /><Text style={styles.emptyTitle}>No people yet</Text><Text style={styles.emptyDescription}>Your first download starts clean. Tap the purple plus button to add someone to your prayer circle.</Text></View>}
-        contentContainerStyle={styles.peopleContent}
+        contentContainerStyle={[styles.peopleContent, { paddingTop: 124 }]}
         showsVerticalScrollIndicator={false}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
@@ -2973,6 +2979,22 @@ function createStyles(colors: any) {
   peopleScreen: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  glassHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    overflow: "hidden",
+  },
+  glassHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
   },
   header: {
     minHeight: 88,

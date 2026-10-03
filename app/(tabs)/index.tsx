@@ -2413,16 +2413,41 @@ export default function HomeScreen() {
     return renderSettingsScreen();
   };
 
+  // ---- Expressive glass tab bar: the active pill slides between tabs on a spring ----
+  const [navWidth, setNavWidth] = useState(0);
+  const tabPillX = useSharedValue(0);
+  const navFirstLayout = useRef(true);
+  const tabOrder: AppTab[] = ["people", "schedule", "journal", "settings"];
+  const activeTabIndex = activeTab === "home" ? 0 : tabOrder.indexOf(activeTab);
+
+  useEffect(() => {
+    if (navWidth <= 0) return;
+    const tabW = (navWidth - 6) / 4;
+    const target = Math.max(0, activeTabIndex) * tabW;
+    if (navFirstLayout.current) {
+      tabPillX.value = target;
+      navFirstLayout.current = false;
+    } else {
+      tabPillX.value = withSpring(target, { damping: 22, stiffness: 380 });
+    }
+  }, [activeTabIndex, navWidth, tabPillX]);
+
+  const tabPillAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tabPillX.value }],
+    width: navWidth > 0 ? (navWidth - 6) / 4 - 12 : 0,
+  }));
+
   const renderTab = (tab: AppTab, label: string, icon: string) => {
-    const isActive = activeTab === tab;
+    const isActive = activeTab === tab || (tab === "people" && activeTab === "home");
     return (
       <Pressable
         key={tab}
         onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setActiveTab(tab);
           setShowAddPerson(false);
         }}
-        style={({ pressed }) => [styles.tabItem, isActive && { backgroundColor: colors.primary }, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}
       >
         <MaterialIcons name={iconName(icon)} size={28} color={isActive ? "#FFFFFF" : "#5F6670"} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{label}</Text>
@@ -2619,7 +2644,41 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <BlurView intensity={82} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+      <BlurView
+        intensity={82}
+        tint={colorScheme === "dark" ? "dark" : "light"}
+        experimentalBlurMethod="dimezisBlurView"
+        onLayout={(event) => setNavWidth(event.nativeEvent.layout.width)}
+        style={[styles.bottomNav, { borderColor: colors.border, backgroundColor: `${colors.surface}D9` }]}
+      >
+        {/* sliding expressive pill */}
+        <ReAnimated.View
+          style={[
+            {
+              position: "absolute",
+              left: 9,
+              top: 4,
+              bottom: 4,
+              borderRadius: 18,
+              backgroundColor: colors.primary,
+            },
+            tabPillAnimatedStyle,
+          ]}
+        />
+        {/* liquid-glass top highlight */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 1,
+            left: 20,
+            right: 20,
+            height: 1,
+            borderRadius: 1,
+            backgroundColor: "#FFFFFF",
+            opacity: colorScheme === "dark" ? 0.25 : 0.6,
+          }}
+        />
         {renderTab("people", "People", "groups")}
         {renderTab("schedule", "Schedule", "event-note")}
         {renderTab("journal", "Journal", "article")}

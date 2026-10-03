@@ -1725,22 +1725,18 @@ export default function HomeScreen() {
         {(prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0) ? (
           <ReAnimated.View
             key="m3done"
-            entering={ZoomIn.springify().damping(14).stiffness(180)}
-            exiting={ZoomOut.duration(180)}
+            entering={FadeIn.duration(220).easing(Easing.bezier(0.05, 0.7, 0.1, 1))}
+            exiting={FadeOut.duration(160)}
             style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
-            <MaterialIcons name={iconName("check")} size={18} color="#FFFFFF" />
-            <ReAnimated.View
-              key={`flame-${streak}`}
-              entering={ZoomIn.springify().damping(7).stiffness(200).delay(150)}>
-              <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
-            </ReAnimated.View>
+            <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
             <RollingNumber value={streak} textStyle={styles.m3DoneText} />
+            <Text style={styles.m3DoneLabel}>Streak</Text>
           </ReAnimated.View>
         ) : (
           <ReAnimated.View
             key="m3stats"
-            entering={ZoomIn.springify().damping(14).stiffness(180)}
-            exiting={ZoomOut.duration(180)}
+            entering={FadeIn.duration(220).easing(Easing.bezier(0.05, 0.7, 0.1, 1))}
+            exiting={FadeOut.duration(160)}
             style={styles.m3StatsRow}>
             <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
@@ -3105,6 +3101,11 @@ function createStyles(colors: any) {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
+  },
+  m3DoneLabel: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
+    fontWeight: "600",
   },
   headerStatPills: {
     flexDirection: "row",

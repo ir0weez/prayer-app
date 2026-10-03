@@ -1734,7 +1734,20 @@ export default function HomeScreen() {
 
   const pillVisible = useSharedValue(1);
   const lastScrollY = useSharedValue(0);
+  const statsProgress = useSharedValue(0);
 
+  const _isStatsDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
+  useEffect(() => {
+    statsProgress.value = withTiming(_isStatsDone ? 1 : 0, { duration: 320, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+  }, [_isStatsDone, statsProgress]);
+  const pillsTransformStyle = useAnimatedStyle(() => ({
+    opacity: 1 - statsProgress.value,
+    transform: [{ scale: 1 - statsProgress.value * 0.06 }],
+  }));
+  const chipTransformStyle = useAnimatedStyle(() => ({
+    opacity: statsProgress.value,
+    transform: [{ scale: 0.65 + statsProgress.value * 0.35 }],
+  }));
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pillVisible.value,
     transform: [{ translateY: (1 - pillVisible.value) * -24 }],
@@ -1761,22 +1774,8 @@ export default function HomeScreen() {
           <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        {(prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0) ? (
-          <ReAnimated.View
-            key="m3done"
-            entering={FadeIn.duration(220).easing(Easing.bezier(0.05, 0.7, 0.1, 1))}
-            exiting={FadeOut.duration(160)}
-            style={[styles.m3DoneChip, { backgroundColor: colors.primary }]}>
-            <FlameSpark size={18} />
-            <RollingNumber value={streak} textStyle={styles.m3DoneText} />
-            <Text style={styles.m3DoneLabel}>Streak</Text>
-          </ReAnimated.View>
-        ) : (
-          <ReAnimated.View
-            key="m3stats"
-            entering={FadeIn.duration(220).easing(Easing.bezier(0.05, 0.7, 0.1, 1))}
-            exiting={FadeOut.duration(160)}
-            style={styles.m3StatsRow}>
+        <View style={styles.m3StatsContainer}>
+          <ReAnimated.View style={[styles.m3StatsRow, pillsTransformStyle]}>
             <View style={[styles.m3StatChip, { backgroundColor: colors.surface }]}>
               <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.primary} />
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{streak}</Text>
@@ -1786,7 +1785,12 @@ export default function HomeScreen() {
               <Text style={[styles.m3StatText, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
           </ReAnimated.View>
-        )}
+          <ReAnimated.View style={[styles.m3DoneChipOverlay, chipTransformStyle, { backgroundColor: colors.primary }]}>
+            <FlameSpark size={18} />
+            <RollingNumber value={streak} textStyle={styles.m3DoneText} />
+            <Text style={styles.m3DoneLabel}>Streak</Text>
+          </ReAnimated.View>
+        </View>
       </ReAnimated.View>
       <FlatList
         data={peopleRows}
@@ -3109,9 +3113,26 @@ function createStyles(colors: any) {
     shadowRadius: 12,
     elevation: 5,
   },
+  m3StatsContainer: {
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
   m3StatsRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+  },
+  m3DoneChipOverlay: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    borderRadius: 16,
     gap: 8,
   },
   m3StatChip: {

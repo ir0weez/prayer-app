@@ -1418,14 +1418,20 @@ export default function HomeScreen() {
   const cardFillOverlayStyle = useAnimatedStyle(() => ({
     height: `${cardFillProgress.value * 100}%`,
   }));
-  const cardFillTitleStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(cardFillProgress.value, [0, 1], [colors.foreground, "#FFFFFF"]),
-  }));
-  const cardFillSubStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(cardFillProgress.value, [0, 1], [colors.muted, "#FFFFFF"]),
-  }));
+  const cardFillTitleStyle = useAnimatedStyle(() => {
+    const t = interpolate(cardFillProgress.value, [0.7, 0.9], [0, 1], Extrapolation.CLAMP);
+    return { color: interpolateColor(t, [0, 1], [colors.foreground, "#FFFFFF"]) };
+  });
+  const cardFillMetaStyle = useAnimatedStyle(() => {
+    const t = interpolate(cardFillProgress.value, [0.5, 0.7], [0, 1], Extrapolation.CLAMP);
+    return { color: interpolateColor(t, [0, 1], [colors.foreground, "#FFFFFF"]) };
+  });
+  const cardFillSubStyle = useAnimatedStyle(() => {
+    const t = interpolate(cardFillProgress.value, [0.3, 0.5], [0, 1], Extrapolation.CLAMP);
+    return { color: interpolateColor(t, [0, 1], [colors.muted, "#FFFFFF"]) };
+  });
   const cardFillAvatarStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(cardFillProgress.value, [0.7, 1], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(cardFillProgress.value, [0.8, 1], [0, 1], Extrapolation.CLAMP),
   }));
   const cardFillCornersStyle = useAnimatedStyle(() => ({
     borderBottomLeftRadius: interpolate(cardFillProgress.value, [0.8, 1], [0, 14], Extrapolation.CLAMP),
@@ -1482,7 +1488,7 @@ export default function HomeScreen() {
             <ReAnimated.Text numberOfLines={1} style={[styles.personName, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 13, lineHeight: 17 }]}>{familyName}</ReAnimated.Text>
             {isFamilyComplete && <VerifiedBadge />}
           </View>
-          <ReAnimated.Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillTitleStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
+          <ReAnimated.Text numberOfLines={1} style={[styles.personMeta, (isExpanded || closingFamilyId === familyId) ? cardFillMetaStyle : { color: "#FFFFFF" }, { fontSize: 17, lineHeight: 21, fontWeight: "800", marginTop: 1 }]}>
             {lastReachedDate ? formatIsoDateForDisplay(lastReachedDate) : `${completedMembers} of ${familyMembers.length} complete`}
           </ReAnimated.Text>
           {lastReachedDate && <ReAnimated.Text numberOfLines={1} style={[(isExpanded || closingFamilyId === familyId) ? cardFillSubStyle : { color: "#FFFFFF" }, { fontSize: 10, lineHeight: 14, fontWeight: "600" }]}>{completedMembers} of {familyMembers.length} complete</ReAnimated.Text>}

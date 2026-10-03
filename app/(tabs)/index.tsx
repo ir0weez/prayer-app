@@ -1705,10 +1705,9 @@ export default function HomeScreen() {
         <View style={[styles.statPill, { backgroundColor: `${colors.primary}E6` }]}>
           <MaterialIcons name={iconName("local-fire-department")} size={18} color="#FFFFFF" />
           <Text style={styles.pillStatText}>{streak}</Text>
-        </View>
-        <View style={[styles.statPill, { backgroundColor: `${colors.primary}E6` }]}>
+          <View style={styles.pillDivider} />
           <MaterialIcons name={iconName("chat-bubble")} size={16} color="#FFFFFF" />
-          <Text style={styles.pillStatText}>{remainingPrayTodayCount}</Text>
+          <Text style={[styles.pillStatText, { marginRight: 0 }]}>{remainingPrayTodayCount}</Text>
         </View>
       </ReAnimated.View>
       <FlatList
@@ -3054,6 +3053,12 @@ function createStyles(colors: any) {
     fontSize: 14,
     fontWeight: "800",
     marginRight: 6,
+  },
+  pillDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    marginHorizontal: 4,
   },
   header: {
     minHeight: 88,

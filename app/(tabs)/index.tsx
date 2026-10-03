@@ -1699,23 +1699,20 @@ export default function HomeScreen() {
   };
   useEffect(() => {
     const isDone = prayedTodayCount >= dailyPrayerProgress.total && dailyPrayerProgress.total > 0;
-    if (isDone) {
-      statsSlide.value = withTiming(1, { duration: 350, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
-      statsMerged.value = withDelay(200, withTiming(1, { duration: 300, easing: Easing.bezier(0.05, 0.7, 0.1, 1) }));
-    } else {
-      statsMerged.value = withTiming(0, { duration: 250 });
-      statsSlide.value = withDelay(150, withTiming(0, { duration: 350, easing: Easing.bezier(0.05, 0.7, 0.1, 1) }));
-    }
+    statsMerged.value = withTiming(isDone ? 1 : 0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
+    statsSlide.value = withTiming(isDone ? 1 : 0, { duration: 450, easing: Easing.bezier(0.05, 0.7, 0.1, 1) });
   }, [prayedTodayCount, dailyPrayerProgress.total, statsMerged, statsSlide]);
   const statsPillsStyle = useAnimatedStyle(() => ({
     gap: interpolate(statsSlide.value, [0, 1], [8, 0], Extrapolation.CLAMP),
   }));
-  const separatePillsOpacity = useAnimatedStyle(() => ({
-    opacity: 1 - statsMerged.value,
-  }));
-  const mergedBoxOpacity = useAnimatedStyle(() => ({
+  const containerBgOpacity = useAnimatedStyle(() => ({
     opacity: statsMerged.value,
-    transform: [{ scale: interpolate(statsMerged.value, [0, 1], [0.85, 1], Extrapolation.CLAMP) }],
+  }));
+  const containerRadius = useAnimatedStyle(() => ({
+    borderRadius: interpolate(statsMerged.value, [0, 1], [999, 22], Extrapolation.CLAMP),
+  }));
+  const pillBgOpacity = useAnimatedStyle(() => ({
+    opacity: 1 - statsMerged.value,
   }));
   const renderPeopleScreen = () => (
     <View style={[styles.peopleScreen, { backgroundColor: colors.background }]}>
@@ -1725,34 +1722,30 @@ export default function HomeScreen() {
           <Text style={[styles.pillTitle, { color: colors.foreground }]}>PrayerCircle</Text>
           <Text style={[styles.pillSubtitle, { color: colors.muted }]}>{prayedTodayCount}/{dailyPrayerProgress.total} prayed today</Text>
         </View>
-        <View style={styles.headerStatsContainer}>
-          <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle, separatePillsOpacity]}>
-            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
+        <ReAnimated.View style={[styles.headerStatsContainer, containerRadius, { overflow: "hidden" }]}>
+          <ReAnimated.View style={[StyleSheet.absoluteFill, containerBgOpacity]}>
+            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.55)" }]} />
+          </ReAnimated.View>
+          <ReAnimated.View style={[styles.headerStatPills, statsPillsStyle]}>
+            <View style={[styles.statPillVertical]}>
+              <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgOpacity, { overflow: "hidden", borderRadius: 999 }]}>
+                <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
+              </ReAnimated.View>
               <MaterialIcons name={iconName("local-fire-department")} size={18} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
             </View>
-            <View style={[styles.statPillVertical, { overflow: "hidden" }]}>
-              <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
+            <View style={[styles.statPillVertical]}>
+              <ReAnimated.View style={[StyleSheet.absoluteFill, pillBgOpacity, { overflow: "hidden", borderRadius: 999 }]}>
+                <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)" }]} />
+              </ReAnimated.View>
               <MaterialIcons name={iconName("chat-bubble")} size={16} color={colors.foreground} />
               <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
             </View>
           </ReAnimated.View>
-          <ReAnimated.View style={[styles.mergedStatBox, mergedBoxOpacity]}>
-            <BlurView intensity={80} tint={colorScheme === "dark" ? "dark" : "light"} experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colorScheme === "dark" ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.55)" }]} />
-            <View style={styles.mergedStatRow}>
-              <MaterialIcons name={iconName("local-fire-department")} size={16} color={colors.foreground} />
-              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{streak}</Text>
-            </View>
-            <View style={styles.mergedStatRow}>
-              <MaterialIcons name={iconName("chat-bubble")} size={14} color={colors.foreground} />
-              <Text style={[styles.pillStatTextVertical, { color: colors.foreground }]}>{remainingPrayTodayCount}</Text>
-            </View>
-          </ReAnimated.View>
-        </View>
+        </ReAnimated.View>
       </ReAnimated.View>
       <FlatList
         data={peopleRows}
@@ -3076,31 +3069,15 @@ function createStyles(colors: any) {
     elevation: 5,
   },
   headerStatsContainer: {
-    position: "relative",
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 0,
   },
   headerStatPills: {
     flexDirection: "row",
     gap: 8,
   },
-  mergedStatBox: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  mergedStatRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
+
   statPillVertical: {
     flexDirection: "column",
     alignItems: "center",

@@ -376,27 +376,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   {people.length === 0 ? (
                     <Text style={[styles.noPeopleText, { color: colors.muted }]}>Add contacts from the People tab to tag them here.</Text>
                   ) : null}
-                  <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 16 }]}>Color</Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
-                    {["#9E9E9E", "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#3B82F6", "#8B5CF6"].map((c) => (
-                      <Pressable
-                        key={c}
-                        onPress={() => setDraftColor(draftColor === c ? undefined : c)}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          backgroundColor: c,
-                          borderWidth: draftColor === c ? 3 : 0,
-                          borderColor: colors.foreground,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {draftColor === c && <MaterialIcons name="check" size={20} color="#FFFFFF" />}
-                      </Pressable>
-                    ))}
-                  </View>
+
                 </View>
               }
               renderItem={({ item }) => {
@@ -427,16 +407,39 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                 );
               }}
               ListFooterComponent={
-                <Pressable
-                  disabled={!draftBody.trim()}
-                  onPress={handleSaveEntry}
+                <View>
+                  <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 8 }]}>Color</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8, marginBottom: 16 }}>
+                    {["#9E9E9E", "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#3B82F6", "#8B5CF6"].map((c) => (
+                      <Pressable
+                        key={c}
+                        onPress={() => setDraftColor(draftColor === c ? undefined : c)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor: c,
+                          borderWidth: draftColor === c ? 3 : 0,
+                          borderColor: colors.foreground,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {draftColor === c && <MaterialIcons name="check" size={20} color="#FFFFFF" />}
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable
+                    disabled={!draftBody.trim()}
+                    onPress={handleSaveEntry}
                   style={({ pressed }) => [
                     styles.saveEntryButton,
                     { backgroundColor: colors.primary, opacity: draftBody.trim() ? (pressed ? 0.82 : 1) : 0.22 },
                   ]}
                 >
                   <Text style={styles.saveEntryButtonText}>Save Entry</Text>
-                </Pressable>
+                  </Pressable>
+                </View>
               }
             />
           </SafeAreaView>

@@ -3026,43 +3026,6 @@ export default function HomeScreen() {
           </Pressable>
 
         </ScrollView>
-        {/* Floating Prayer Time button — hides when Pray Today is complete */}
-        {remainingPrayTodayCount > 0 && (
-          <Pressable
-            onPress={() => setShowPrayerSession(true)}
-            style={{
-              position: "absolute",
-              bottom: 100,
-              left: 20,
-              right: 20,
-              backgroundColor: colors.primary,
-              borderRadius: 28,
-              paddingVertical: 14,
-              paddingHorizontal: 24,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              elevation: 6,
-              shadowColor: "#000",
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 4 },
-            }}
-          >
-            <MaterialIcons name="timer" size={20} color="#FFFFFF" />
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>Prayer Time</Text>
-          </Pressable>
-        )}
-        <PrayerSession
-          visible={showPrayerSession}
-          people={prayablePrayTodayList}
-          onPray={(personId) => {
-            // Directly commit the prayer (no undo in focused session)
-            commitPrayTodayPerson(personId);
-          }}
-          onClose={() => setShowPrayerSession(false)}
-        />
         <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={achievementState.unlockedAvatarIds} unlockedHeroIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
       </ScreenContainer>
     );
@@ -3342,6 +3305,42 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      {/* Floating Prayer Time button — hides when Pray Today is complete */}
+      {remainingPrayTodayCount > 0 && (
+        <Pressable
+          onPress={() => setShowPrayerSession(true)}
+          style={{
+            position: "absolute",
+            bottom: 100,
+            left: 20,
+            right: 20,
+            backgroundColor: colors.primary,
+            borderRadius: 28,
+            paddingVertical: 14,
+            paddingHorizontal: 24,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            elevation: 6,
+            shadowColor: "#000",
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+          }}
+        >
+          <MaterialIcons name="timer" size={20} color="#FFFFFF" />
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>Prayer Time</Text>
+        </Pressable>
+      )}
+      <PrayerSession
+        visible={showPrayerSession}
+        people={prayablePrayTodayList}
+        onPray={(personId) => {
+          commitPrayTodayPerson(personId);
+        }}
+        onClose={() => setShowPrayerSession(false)}
+      />
     </ScreenContainer>
   );
 }

@@ -1818,15 +1818,6 @@ export default function HomeScreen() {
           <View style={{ marginBottom: 8 }}>
             <Text style={styles.subheading}>PRAY TODAY</Text>
           </View>
-          {prayablePrayTodayList.length > 0 && (
-            <Pressable
-              onPress={() => setShowPrayerSession(true)}
-              style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
-            >
-              <MaterialIcons name="timer" size={18} color="#FFFFFF" />
-              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Start Prayer Time</Text>
-            </Pressable>
-          )}
           <ScrollView
             ref={prayTodayScrollRef}
             horizontal
@@ -3035,6 +3026,32 @@ export default function HomeScreen() {
           </Pressable>
 
         </ScrollView>
+        {/* Floating Prayer Time button — hides when Pray Today is complete */}
+        {prayablePrayTodayList.length > 0 && !showPrayerSession && (
+          <Pressable
+            onPress={() => setShowPrayerSession(true)}
+            style={{
+              position: "absolute",
+              bottom: 100,
+              alignSelf: "center",
+              backgroundColor: colors.primary,
+              borderRadius: 28,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              elevation: 6,
+              shadowColor: "#000",
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+            }}
+          >
+            <MaterialIcons name="timer" size={20} color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>Prayer Time</Text>
+          </Pressable>
+        )}
         <PrayerSession
           visible={showPrayerSession}
           people={prayablePrayTodayList}
@@ -3062,7 +3079,6 @@ export default function HomeScreen() {
         showcaseCardId={profile.showcaseCardId}
         onSetShowcase={(cardId) => setProfile((prev) => ({ ...prev, showcaseCardId: cardId }))}
       />
-      <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
       <CardPackOpening
         achievementIds={newAchievementIds}
         onClose={() => setNewAchievementIds([])}

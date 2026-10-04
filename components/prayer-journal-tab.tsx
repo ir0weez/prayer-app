@@ -65,6 +65,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const [draftTaggedPersonIds, setDraftTaggedPersonIds] = useState<string[]>([]);
   const [draftReply, setDraftReply] = useState("");
   const [draftColor, setDraftColor] = useState<string | undefined>(undefined);
+  const [tagSearch, setTagSearch] = useState("");
 
   const filteredEntries = useMemo(
     () => filterPrayerJournalEntries(entries, bookmarksOnly),
@@ -90,6 +91,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftBody("");
     setDraftTaggedPersonIds([]);
     setDraftColor(undefined);
+    setTagSearch("");
   };
 
   const startEditEntry = (entry: PrayerJournalEntry) => {
@@ -352,10 +354,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               </Pressable>
             </View>
             <FlatList
-              data={people}
+              data={people.filter((p) => p.name.toLowerCase().includes(tagSearch.toLowerCase()))}
               keyExtractor={(person) => person.id}
-              numColumns={2}
-              columnWrapperStyle={styles.peopleColumn}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.composerContent}
@@ -373,6 +373,21 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Entry Date</Text>
                   <DateTimePicker value={draftDate} onChange={setDraftDate} mode="date" label="Entry Date" />
                   <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>
+                    <MaterialIcons name="search" size={20} color={colors.muted} />
+                    <TextInput
+                      value={tagSearch}
+                      onChangeText={setTagSearch}
+                      placeholder="Search people..."
+                      placeholderTextColor={colors.muted}
+                      style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
+                    />
+                    {tagSearch.length > 0 && (
+                      <Pressable onPress={() => setTagSearch("")}>
+                        <MaterialIcons name="close" size={20} color={colors.muted} />
+                      </Pressable>
+                    )}
+                  </View>
                   {people.length === 0 ? (
                     <Text style={[styles.noPeopleText, { color: colors.muted }]}>Add contacts from the People tab to tag them here.</Text>
                   ) : null}
@@ -390,19 +405,45 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                           : [...current, item.id],
                       )
                     }
-                    style={({ pressed }) => [
-                      styles.personChip,
-                      {
-                        backgroundColor: isSelected ? colors.primary : colors.surface,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      },
-                      pressed && styles.pressed,
-                    ]}
+                    style={({ pressed }) => [{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      backgroundColor: isSelected ? `${colors.primary}14` : "transparent",
+                    }, pressed && { opacity: 0.7 }]}
                   >
-                    <Text numberOfLines={1} style={[styles.personChipText, { color: isSelected ? "#FFFFFF" : colors.foreground }]}>
+                    <View style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: item.avatarColor || colors.primary,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}>
+                      {item.photoUri ? (
+                        <Image source={{ uri: item.photoUri }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                      ) : (
+                        <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>{item.initials}</Text>
+                      )}
+                    </View>
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: colors.foreground }}>
                       {item.name}
                     </Text>
-                    {isSelected ? <MaterialIcons name="check" size={16} color="#FFFFFF" /> : null}
+                    <View style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: isSelected ? colors.primary : colors.muted,
+                      backgroundColor: isSelected ? colors.primary : "transparent",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      {isSelected && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
+                    </View>
                   </Pressable>
                 );
               }}

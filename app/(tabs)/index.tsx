@@ -1812,7 +1812,7 @@ export default function HomeScreen() {
         <>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={styles.subheading}>PRAY TODAY</Text>
-            {visiblePrayTodayList.length > 0 && (
+            {visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id)).length > 0 && (
               <Pressable
                 onPress={() => setShowPrayerSession(true)}
                 style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
@@ -3045,7 +3045,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
+    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
       <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
         {renderContent()}
       </ReAnimated.View>

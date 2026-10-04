@@ -137,7 +137,7 @@ function RootLayoutContent() {
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <XpGainIndicator />
-          <StatusBar hidden={true} />
+          <StatusBar hidden={false} />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>

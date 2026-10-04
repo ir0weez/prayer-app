@@ -96,13 +96,13 @@ export function CardPackOpening({ achievementIds, onClose, onViewCollection }: P
             <Text style={{ color: RARITY_COLORS[card.rarity], fontSize: 14, fontWeight: "900", letterSpacing: 1.5, marginBottom: 16 }}>
               {card.rarity.toUpperCase()} CARD!
             </Text>
-            <View style={{ width: 220, height: 319 }}>
+            <View style={{ width: 220, height: 330 }}>
               {/* Card back (rotates away) */}
               <Animated.View
                 style={{
                   position: "absolute",
                   width: 220,
-                  height: 319,
+                  height: 330,
                   transform: [{ rotateY: backRotate }],
                   opacity: backOpacity,
                   borderRadius: 14,
@@ -121,7 +121,7 @@ export function CardPackOpening({ achievementIds, onClose, onViewCollection }: P
                 style={{
                   position: "absolute",
                   width: 220,
-                  height: 319,
+                  height: 330,
                   transform: [{ rotateY: frontRotate }],
                   opacity: frontOpacity,
                   backfaceVisibility: "hidden",

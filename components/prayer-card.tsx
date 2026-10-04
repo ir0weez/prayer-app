@@ -2,19 +2,17 @@ import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { type PrayerCard } from "@/lib/card-system";
-import { useColors } from "@/hooks/use-colors";
 
 type Props = {
   card: PrayerCard;
   earned: boolean;
   width?: number;
-  compact?: boolean;
   onPress?: () => void;
 };
 
-export function PrayerCardView({ card, earned, width = 160, compact = false, onPress }: Props) {
-  const colors = useColors();
-  const height = width * 1.45;
+export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
+  // Full card images are 3:4.5 ratio (tall). Use contain to avoid cropping.
+  const height = width * 1.5;
 
   // Locked: dark silhouette with hint.
   if (!earned) {
@@ -33,8 +31,8 @@ export function PrayerCardView({ card, earned, width = 160, compact = false, onP
           padding: 8,
         }}
       >
-        <MaterialIcons name="help-outline" size={compact ? 28 : 40} color="#555555" />
-        <Text style={{ color: "#555555", fontSize: compact ? 10 : 12, textAlign: "center", marginTop: 8, lineHeight: 14 }}>
+        <MaterialIcons name="help-outline" size={32} color="#555555" />
+        <Text style={{ color: "#555555", fontSize: 10, textAlign: "center", marginTop: 8, lineHeight: 14 }}>
           {getHint(card)}
         </Text>
       </View>
@@ -57,10 +55,14 @@ export function PrayerCardView({ card, earned, width = 160, compact = false, onP
         height,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: "#141414",
+        backgroundColor: "#0a0a0a",
       }}
     >
-      <Image source={card.art} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+      <Image
+        source={card.art}
+        style={{ width: "100%", height: "100%" }}
+        contentFit="contain"
+      />
     </View>
   );
 

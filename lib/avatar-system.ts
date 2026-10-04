@@ -310,7 +310,11 @@ export const AVATAR_DEFINITIONS: AvatarDefinition[] = [
 
 export const SHINY_AVATARS = {
   "bull-shiny": require("@/assets/avatars/shiny/avatar-bull-shiny.webp"),
+  "camel-shiny": require("@/assets/avatars/shiny/avatar-camel-shiny.webp"),
+  "dove-shiny": require("@/assets/avatars/shiny/avatar-dove-shiny.webp"),
   "dragon-shiny": require("@/assets/avatars/shiny/avatar-dragon-shiny.webp"),
+  "eagle-shiny": require("@/assets/avatars/shiny/avatar-eagle-shiny.webp"),
+  "fox-shiny": require("@/assets/avatars/shiny/avatar-fox-shiny.webp"),
   "kangaroo-shiny": require("@/assets/avatars/shiny/avatar-kangaroo-shiny.webp"),
   "lion-shiny": require("@/assets/avatars/shiny/avatar-lion-shiny.webp"),
   "owl-shiny": require("@/assets/avatars/shiny/avatar-owl-shiny.webp"),
@@ -321,7 +325,11 @@ export const SHINY_AVATARS = {
 
 export const SHINY_AVATAR_THUMBNAILS = {
   "bull-shiny": require("@/assets/avatars/thumbs/avatar-bull-shiny.webp"),
+  "camel-shiny": require("@/assets/avatars/thumbs/avatar-camel-shiny.webp"),
+  "dove-shiny": require("@/assets/avatars/thumbs/avatar-dove-shiny.webp"),
   "dragon-shiny": require("@/assets/avatars/thumbs/avatar-dragon-shiny.webp"),
+  "eagle-shiny": require("@/assets/avatars/thumbs/avatar-eagle-shiny.webp"),
+  "fox-shiny": require("@/assets/avatars/thumbs/avatar-fox-shiny.webp"),
   "kangaroo-shiny": require("@/assets/avatars/thumbs/avatar-kangaroo-shiny.webp"),
   "lion-shiny": require("@/assets/avatars/thumbs/avatar-lion-shiny.webp"),
   "owl-shiny": require("@/assets/avatars/thumbs/avatar-owl-shiny.webp"),
@@ -336,6 +344,10 @@ export const SHINY_ACHIEVEMENTS = [
   { id: "first-task", name: "Dawn Lion", hint: "Schedule your first task", avatarId: "lion-shiny", title: "First Task" },
   { id: "full-set", name: "Triune Dragon", hint: "Schedule one task of each type", avatarId: "dragon-shiny", title: "Full Set" },
   { id: "curator", name: "Psalm Parrot", hint: "Save your first album", avatarId: "parrot-shiny", title: "Curator" },
+  { id: "streak-7", name: "Ember Fox", hint: "Reach a 7-day prayer streak", avatarId: "fox-shiny", title: "7-Day Streak" },
+  { id: "streak-21", name: "Covenant Eagle", hint: "Reach a 21-day prayer streak", avatarId: "eagle-shiny", title: "21-Day Streak" },
+  { id: "fast-7", name: "Desert Camel", hint: "Complete a 7-day fast", avatarId: "camel-shiny", title: "7-Day Fast" },
+  { id: "fast-21", name: "Manna Dove", hint: "Complete a 21-day fast", avatarId: "dove-shiny", title: "21-Day Fast" },
   { id: "streak-50", name: "Burning Bush Tiger", hint: "Reach a 50-day prayer streak", avatarId: "tiger-shiny", title: "50-Day Streak" },
   { id: "streak-100", name: "Heavens Owl", hint: "Reach a 100-day prayer streak", avatarId: "owl-shiny", title: "100-Day Streak" },
   { id: "fast-40", name: "Wilderness Kangaroo", hint: "Complete a 40-day fast", avatarId: "kangaroo-shiny", title: "40-Day Fast" },

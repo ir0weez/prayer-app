@@ -32,8 +32,12 @@ export function qualifyAchievements(input: { todos?: Array<{ tag?: string }>; ot
   if (taskCount > 0) result.push("first-task");
   if (["ministry", "event", "family", "therapy", "personal"].every((tag) => tags.has(tag))) result.push("full-set");
   if ((input.savedAlbumCount || 0) > 0) result.push("curator");
+  if ((input.streak || 0) >= 7) result.push("streak-7");
+  if ((input.streak || 0) >= 21) result.push("streak-21");
   if ((input.streak || 0) >= 50) result.push("streak-50");
   if ((input.streak || 0) >= 100) result.push("streak-100");
+  if (completedFastAtLeast(input.fasts || [], 7)) result.push("fast-7");
+  if (completedFastAtLeast(input.fasts || [], 21)) result.push("fast-21");
   if (completedFastAtLeast(input.fasts || [], 40)) result.push("fast-40");
   if (completedFastAtLeast(input.fasts || [], 100)) result.push("fast-100");
   if (completedFastAtLeast(input.fasts || [], 365)) result.push("fast-365");

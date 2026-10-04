@@ -1815,18 +1815,18 @@ export default function HomeScreen() {
     <View>
       {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
         <>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <View style={{ marginBottom: 8 }}>
             <Text style={styles.subheading}>PRAY TODAY</Text>
-            {prayablePrayTodayList.length > 0 && (
-              <Pressable
-                onPress={() => setShowPrayerSession(true)}
-                style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
-              >
-                <MaterialIcons name="timer" size={16} color="#FFFFFF" />
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Prayer Time</Text>
-              </Pressable>
-            )}
           </View>
+          {prayablePrayTodayList.length > 0 && (
+            <Pressable
+              onPress={() => setShowPrayerSession(true)}
+              style={{ backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
+            >
+              <MaterialIcons name="timer" size={18} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Start Prayer Time</Text>
+            </Pressable>
+          )}
           <ScrollView
             ref={prayTodayScrollRef}
             horizontal

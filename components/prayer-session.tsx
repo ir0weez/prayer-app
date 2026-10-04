@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { BackHandler, Modal, Pressable, StatusBar, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as NavigationBar from "expo-navigation-bar";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import type { Person } from "@/lib/prayercircle-data";
@@ -35,9 +34,8 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
       setElapsedSeconds(0);
       setPrayedCount(0);
       setIsFinished(false);
-      // Hide status bar and navigation bar for immersive prayer time
+      // Hide status bar for immersive prayer time
       StatusBar.setHidden(true);
-      NavigationBar.setVisibilityAsync("hidden").catch(() => {});
       // Start timer
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
@@ -50,9 +48,8 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
       return () => {
         backHandler.remove();
         if (timerRef.current) clearInterval(timerRef.current);
-        // Restore UI
+        // Restore status bar
         StatusBar.setHidden(false);
-        NavigationBar.setVisibilityAsync("visible").catch(() => {});
       };
     }
     return () => {

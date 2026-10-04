@@ -17,6 +17,7 @@ import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOut
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
+import { PrayerSession } from "@/components/prayer-session";
 import { SHINY_ACHIEVEMENTS, SHINY_AVATARS } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
@@ -637,6 +638,7 @@ export default function HomeScreen() {
   const [newPersonPhotoUri, setNewPersonPhotoUri] = useState<string | undefined>(undefined);
   const [newPersonAvatarAsset, setNewPersonAvatarAsset] = useState<string | undefined>(undefined);
   const [showPersonAvatarPicker, setShowPersonAvatarPicker] = useState(false);
+  const [showPrayerSession, setShowPrayerSession] = useState(false);
   const [newPersonShowInPrayerCheckIns, setNewPersonShowInPrayerCheckIns] = useState(true);
   const [selectedFamilyMemberIds, setSelectedFamilyMemberIds] = useState<string[]>([]);
   const [newPersonFamilyType, setNewPersonFamilyType] = useState<"Spouse" | "Child" | "Other" | undefined>(undefined);
@@ -1808,7 +1810,18 @@ export default function HomeScreen() {
     <View>
       {(visiblePrayTodayList.length > 0 || remainingPrayTodayCount === 0) && (
         <>
-          <Text style={styles.subheading}>PRAY TODAY</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <Text style={styles.subheading}>PRAY TODAY</Text>
+            {visiblePrayTodayList.length > 0 && (
+              <Pressable
+                onPress={() => setShowPrayerSession(true)}
+                style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <MaterialIcons name="timer" size={16} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Prayer Time</Text>
+              </Pressable>
+            )}
+          </View>
           <ScrollView
             ref={prayTodayScrollRef}
             horizontal
@@ -3017,6 +3030,15 @@ export default function HomeScreen() {
           </Pressable>
 
         </ScrollView>
+        <PrayerSession
+          visible={showPrayerSession}
+          people={visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id))}
+          onPray={(personId) => {
+            // Directly commit the prayer (no undo in focused session)
+            commitPrayTodayPerson(personId);
+          }}
+          onClose={() => setShowPrayerSession(false)}
+        />
         <AvatarPicker visible={showPersonAvatarPicker} initialAvatarAsset={newPersonAvatarAsset} unlockedShinyIds={achievementState.unlockedAvatarIds} unlockedHeroIds={achievementState.unlockedAvatarIds} unlockedBookIds={unlockedBookIds} onClose={() => setShowPersonAvatarPicker(false)} onSelect={(asset) => { setNewPersonAvatarAsset(asset); setNewPersonPhotoUri(undefined); }} />
       </ScreenContainer>
     );

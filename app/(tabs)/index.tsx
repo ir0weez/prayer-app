@@ -21,6 +21,7 @@ import { SHINY_ACHIEVEMENTS, SHINY_AVATARS } from "@/lib/avatar-system";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
+import { CardBinder } from "@/components/card-binder";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
@@ -650,6 +651,7 @@ export default function HomeScreen() {
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
+  const [showCardBinder, setShowCardBinder] = useState(false);
   const [achievementState, setAchievementState] = useState<AchievementState>(DEFAULT_ACHIEVEMENT_STATE);
   const [newAchievementIds, setNewAchievementIds] = useState<string[]>([]);
   const [xpState, setXpState] = useState<XpState>(DEFAULT_XP_STATE);
@@ -2468,6 +2470,9 @@ export default function HomeScreen() {
         <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
         </Pressable>
+        <Pressable onPress={() => setShowCardBinder(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("style", "Card Collection", "View your earned Bible cards")}
+        </Pressable>
         <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
         </Pressable>
@@ -3006,6 +3011,8 @@ export default function HomeScreen() {
       </ReAnimated.View>
 
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
+      <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
+      <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
       <Modal transparent visible={newAchievementIds.length > 0} animationType="fade" onRequestClose={() => setNewAchievementIds([])}>
         <View style={{ flex: 1, backgroundColor: "rgba(15,12,24,0.55)", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <View style={{ width: "100%", maxWidth: 360, borderRadius: 26, padding: 22, alignItems: "center", backgroundColor: colors.surface }}>

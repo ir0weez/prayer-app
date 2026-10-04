@@ -1,0 +1,98 @@
+import { useEffect, useState } from "react";
+import { FlatList, Modal, Pressable, SafeAreaView, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { PRAYER_CARDS, RARITY_LABELS, type CardRarity } from "@/lib/card-system";
+import { loadAchievementState } from "@/lib/avatar-achievements";
+import { type AchievementId } from "@/lib/avatar-system";
+import { PrayerCardView } from "./prayer-card";
+import { useColors } from "@/hooks/use-colors";
+
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+};
+
+const RARITY_ORDER: CardRarity[] = ["common", "rare", "epic", "legendary"];
+
+export function CardBinder({ visible, onClose }: Props) {
+  const colors = useColors();
+  const [unlockedIds, setUnlockedIds] = useState<AchievementId[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      loadAchievementState().then((state) => setUnlockedIds(state.unlockedAchievementIds));
+    }
+  }, [visible]);
+
+  const selectedCard = PRAYER_CARDS.find((c) => c.id === selectedCardId);
+  const earnedCount = PRAYER_CARDS.filter((c) => unlockedIds.includes(c.achievementId as AchievementId)).length;
+
+  // Group by rarity.
+  const grouped = RARITY_ORDER.map((rarity) => ({
+    rarity,
+    cards: PRAYER_CARDS.filter((c) => c.rarity === rarity),
+  }));
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Pressable onPress={onClose} style={{ marginRight: 12 }}>
+            <MaterialIcons name="arrow-back" size={24} color={colors.foreground} />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "800" }}>Card Collection</Text>
+            <Text style={{ color: colors.muted, fontSize: 12 }}>{earnedCount} of {PRAYER_CARDS.length} earned</Text>
+          </View>
+        </View>
+
+        <FlatList
+          data={grouped}
+          keyExtractor={(g) => g.rarity}
+          contentContainerStyle={{ padding: 16 }}
+          renderItem={({ item: group }) => (
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "800", marginBottom: 10, textTransform: "uppercase" }}>
+                {RARITY_LABELS[group.rarity]}
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                {group.cards.map((card) => {
+                  const earned = unlockedIds.includes(card.achievementId as AchievementId);
+                  return (
+                    <PrayerCardView
+                      key={card.id}
+                      card={card}
+                      earned={earned}
+                      width={110}
+                      onPress={() => earned && setSelectedCardId(card.id)}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        />
+
+        {/* Card detail modal */}
+        <Modal visible={!!selectedCard} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center" }} onPress={() => setSelectedCardId(null)}>
+            {selectedCard && (
+              <View onStartShouldSetResponder={() => true}>
+                <PrayerCardView card={selectedCard} earned width={240} />
+                <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 14, fontStyle: "italic", textAlign: "center" }}>
+                    "{selectedCard.flavor}"
+                  </Text>
+                  <Text style={{ color: "#FFFFFF", fontSize: 12, textAlign: "center", marginTop: 4, opacity: 0.7 }}>
+                    {selectedCard.scripture}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </Modal>
+      </SafeAreaView>
+    </Modal>
+  );
+}

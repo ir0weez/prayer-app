@@ -33,26 +33,26 @@ export function qualifyAchievements(input: { todos?: Array<{ tag?: string }>; ot
   if (["ministry", "event", "family", "therapy", "personal"].every((tag) => tags.has(tag))) result.push("full-set");
   if ((input.savedAlbumCount || 0) > 0) result.push("curator");
   const streak = input.streak || 0;
-  if (streak >= 5) result.push("streak-5");
+  if (streak >= 5) { result.push("streak-5"); result.push("evo-david-1"); }
   if (streak >= 7) result.push("streak-7");
-  if (streak >= 10) result.push("streak-10");
-  if (streak >= 15) result.push("streak-15");
-  if (streak >= 20) result.push("streak-20");
+  if (streak >= 10) { result.push("streak-10"); result.push("evo-paul-1"); }
+  if (streak >= 15) { result.push("streak-15"); result.push("evo-david-2"); }
+  if (streak >= 20) { result.push("streak-20"); result.push("evo-paul-2"); }
   if (streak >= 21) result.push("streak-21");
   if (streak >= 25) result.push("streak-25");
-  if (streak >= 30) result.push("streak-30");
-  if (streak >= 50) result.push("streak-50");
+  if (streak >= 30) { result.push("streak-30"); result.push("evo-david-3"); }
+  if (streak >= 50) { result.push("streak-50"); result.push("evo-paul-3"); }
   if (streak >= 75) result.push("streak-75");
   if (streak >= 100) result.push("streak-100");
   const fasts = input.fasts || [];
-  if (completedFastAtLeast(fasts, 5)) result.push("fast-5");
+  if (completedFastAtLeast(fasts, 5)) { result.push("fast-5"); result.push("evo-peter-1"); }
   if (completedFastAtLeast(fasts, 7)) result.push("fast-7");
   if (completedFastAtLeast(fasts, 10)) result.push("fast-10");
-  if (completedFastAtLeast(fasts, 15)) result.push("fast-15");
+  if (completedFastAtLeast(fasts, 15)) { result.push("fast-15"); result.push("evo-peter-2"); }
   if (completedFastAtLeast(fasts, 20)) result.push("fast-20");
   if (completedFastAtLeast(fasts, 21)) result.push("fast-21");
   if (completedFastAtLeast(fasts, 25)) result.push("fast-25");
-  if (completedFastAtLeast(fasts, 30)) result.push("fast-30");
+  if (completedFastAtLeast(fasts, 30)) { result.push("fast-30"); result.push("evo-peter-3"); }
   if (completedFastAtLeast(fasts, 40)) result.push("fast-40");
   if (completedFastAtLeast(fasts, 60)) result.push("fast-60");
   if (completedFastAtLeast(fasts, 100)) result.push("fast-100");

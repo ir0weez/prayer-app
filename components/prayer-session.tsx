@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { BackHandler, Modal, Pressable, StatusBar, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as NavigationBar from "expo-navigation-bar";
 import { AvatarImage } from "@/components/avatar-system";
 import { useColors } from "@/hooks/use-colors";
 import type { Person } from "@/lib/prayercircle-data";
@@ -27,17 +28,32 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
   const [isFinished, setIsFinished] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Reset when opened
+  // Reset when opened, setup immersive mode and back handler
   useEffect(() => {
     if (visible) {
       setCurrentIndex(0);
       setElapsedSeconds(0);
       setPrayedCount(0);
       setIsFinished(false);
+      // Hide status bar and navigation bar for immersive prayer time
+      StatusBar.setHidden(true);
+      NavigationBar.setVisibilityAsync("hidden").catch(() => {});
       // Start timer
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
       }, 1000);
+      // Block Android back button during prayer session
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        return true; // Prevent default back behavior
+      });
+      return () => {
+        backHandler.remove();
+        if (timerRef.current) clearInterval(timerRef.current);
+        // Restore UI
+        StatusBar.setHidden(false);
+        NavigationBar.setVisibilityAsync("visible").catch(() => {});
+      };
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);

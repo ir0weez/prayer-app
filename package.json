@@ -50,6 +50,7 @@
     "expo-image-picker": "~17.0.10",
     "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.12",
+    "expo-navigation-bar": "^57.0.3",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",

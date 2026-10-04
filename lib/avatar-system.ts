@@ -349,6 +349,15 @@ export const HERO_AVATARS = {
   "moody-hero": require("@/assets/avatars/heroes/avatar-moody-hero.webp"),
 } as const;
 
+export const SHINY_HERO_AVATARS = {
+  "jesus-shiny-hero": require("@/assets/avatars/shiny-heroes/avatar-jesus-shiny-hero.webp"),
+  "abraham-shiny-hero": require("@/assets/avatars/shiny-heroes/avatar-abraham-shiny-hero.webp"),
+  "joseph-shiny-hero": require("@/assets/avatars/shiny-heroes/avatar-joseph-shiny-hero.webp"),
+  "david-shiny-hero": require("@/assets/avatars/shiny-heroes/avatar-david-shiny-hero.webp"),
+} as const;
+
+export type ShinyHeroAvatarId = keyof typeof SHINY_HERO_AVATARS;
+
 export type HeroAvatarId = keyof typeof HERO_AVATARS;
 
 export const HERO_ACHIEVEMENTS = [
@@ -400,10 +409,14 @@ export const SHINY_ACHIEVEMENTS = [
   { id: "fast-40", name: "Wilderness Kangaroo", hint: "Complete a 40-day fast", avatarId: "kangaroo-shiny", title: "40-Day Fast" },
   { id: "fast-100", name: "Armor of God Bull", hint: "Complete a 100-day fast", avatarId: "bull-shiny", title: "100-Day Fast" },
   { id: "fast-365", name: "Mr. Prayer Circle", hint: "Complete a 365-day fast", avatarId: "prayercircle-shiny", title: "365-Day Fast" },
+  { id: "streak-100", name: "Jesus", hint: "Reach a 100-day prayer streak", avatarId: "jesus-shiny-hero", title: "Jesus" },
+  { id: "fast-60", name: "Abraham", hint: "Complete a 60-day fast", avatarId: "abraham-shiny-hero", title: "Abraham" },
+  { id: "fast-30", name: "Joseph", hint: "Complete a 30-day fast", avatarId: "joseph-shiny-hero", title: "Joseph" },
+  { id: "streak-30", name: "David", hint: "Reach a 30-day prayer streak", avatarId: "david-shiny-hero", title: "David" },
 ] as const;
 export type AchievementId = (typeof SHINY_ACHIEVEMENTS)[number]["id"];
 
-const STYLE_ORDER: AvatarStyle[] = ["90s", "1920s", "1950s", "1970s", "1980s", "Y2K"];
+const STYLE_ORDER: AvatarStyle[] = ["1920s", "1950s", "1970s", "1980s", "90s", "Y2K"];
 export { STYLE_ORDER };
 
 export function avatarDefinitionById(id?: string) { return AVATAR_DEFINITIONS.find((avatar) => avatar.id === id); }

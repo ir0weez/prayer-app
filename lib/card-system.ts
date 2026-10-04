@@ -21,6 +21,7 @@ export type PrayerCard = {
   scripture: string;
   art: any;
   fullArt: any;
+  thumbnail: any;
 };
 
 export const CARD_RARITY_HP: Record<CardRarity, number> = {
@@ -47,6 +48,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Daniel 6:22",
     art: require("@/assets/cards/card-daniels-courage.webp"),
     fullArt: require("@/assets/cards/card-daniels-courage-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-daniels-courage.webp"),
   },
   {
     id: "davids-song",
@@ -64,6 +66,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Psalm 8:3",
     art: require("@/assets/cards/card-davids-song.webp"),
     fullArt: require("@/assets/cards/card-davids-song-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-davids-song.webp"),
   },
   {
     id: "three-in-one",
@@ -81,6 +84,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Matthew 28:19",
     art: require("@/assets/cards/card-three-in-one.webp"),
     fullArt: require("@/assets/cards/card-three-in-one-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-three-in-one.webp"),
   },
   {
     id: "samsons-torch",
@@ -98,6 +102,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Judges 15:5",
     art: require("@/assets/cards/card-samsons-torch.webp"),
     fullArt: require("@/assets/cards/card-samsons-torch-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-samsons-torch.webp"),
   },
   {
     id: "pilgrims-path",
@@ -115,6 +120,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Hebrews 11:10",
     art: require("@/assets/cards/card-pilgrims-path.webp"),
     fullArt: require("@/assets/cards/card-pilgrims-path-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-pilgrims-path.webp"),
   },
   {
     id: "eagles-wings",
@@ -132,6 +138,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Isaiah 40:31",
     art: require("@/assets/cards/card-eagles-wings.webp"),
     fullArt: require("@/assets/cards/card-eagles-wings-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-eagles-wings.webp"),
   },
   {
     id: "olive-branch",
@@ -149,6 +156,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Genesis 8:11",
     art: require("@/assets/cards/card-olive-branch.webp"),
     fullArt: require("@/assets/cards/card-olive-branch-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-olive-branch.webp"),
   },
   {
     id: "bread-from-heaven",
@@ -166,6 +174,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Exodus 16:15",
     art: require("@/assets/cards/card-bread-from-heaven.webp"),
     fullArt: require("@/assets/cards/card-bread-from-heaven-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-bread-from-heaven.webp"),
   },
   {
     id: "holy-ground",
@@ -183,6 +192,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Exodus 3:5",
     art: require("@/assets/cards/card-holy-ground.webp"),
     fullArt: require("@/assets/cards/card-holy-ground-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-holy-ground.webp"),
   },
   {
     id: "full-armor",
@@ -200,6 +210,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Ephesians 6:13",
     art: require("@/assets/cards/card-full-armor.webp"),
     fullArt: require("@/assets/cards/card-full-armor-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-full-armor.webp"),
   },
   {
     id: "night-watch",
@@ -217,6 +228,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Psalm 19:1",
     art: require("@/assets/cards/card-night-watch.webp"),
     fullArt: require("@/assets/cards/card-night-watch-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-night-watch.webp"),
   },
   {
     id: "gethsemane",
@@ -234,6 +246,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Luke 22:42",
     art: require("@/assets/cards/card-gethsemane.webp"),
     fullArt: require("@/assets/cards/card-gethsemane-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-gethsemane.webp"),
   },
   // --- 5-day milestone cards: Streak track ---
   {
@@ -252,6 +265,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Acts 1:14",
     art: require("@/assets/cards/card-upper-room.webp"),
     fullArt: require("@/assets/cards/card-upper-room-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-upper-room.webp"),
   },
   {
     id: "carmels-fire",
@@ -269,6 +283,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "1 Kings 18:38",
     art: require("@/assets/cards/card-carmels-fire.webp"),
     fullArt: require("@/assets/cards/card-carmels-fire-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-carmels-fire.webp"),
   },
   {
     id: "nehemiahs-watch",
@@ -286,6 +301,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Nehemiah 2:4",
     art: require("@/assets/cards/card-nehemiahs-watch.webp"),
     fullArt: require("@/assets/cards/card-nehemiahs-watch-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-nehemiahs-watch.webp"),
   },
   {
     id: "midnight-hymn",
@@ -303,6 +319,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Acts 16:25",
     art: require("@/assets/cards/card-midnight-hymn.webp"),
     fullArt: require("@/assets/cards/card-midnight-hymn-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-midnight-hymn.webp"),
   },
   {
     id: "wilderness-prayer",
@@ -320,6 +337,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Luke 5:16",
     art: require("@/assets/cards/card-wilderness-prayer.webp"),
     fullArt: require("@/assets/cards/card-wilderness-prayer-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-wilderness-prayer.webp"),
   },
   {
     id: "lords-prayer",
@@ -337,6 +355,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Matthew 6:9",
     art: require("@/assets/cards/card-lords-prayer.webp"),
     fullArt: require("@/assets/cards/card-lords-prayer-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-lords-prayer.webp"),
   },
   {
     id: "cloud-witnesses",
@@ -354,6 +373,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Hebrews 12:1",
     art: require("@/assets/cards/card-cloud-witnesses.webp"),
     fullArt: require("@/assets/cards/card-cloud-witnesses-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-cloud-witnesses.webp"),
   },
   // --- 5-day milestone cards: Fast track ---
   {
@@ -372,6 +392,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Esther 4:16",
     art: require("@/assets/cards/card-esthers-courage.webp"),
     fullArt: require("@/assets/cards/card-esthers-courage-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-esthers-courage.webp"),
   },
   {
     id: "daniels-resolve",
@@ -389,6 +410,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Daniel 1:8",
     art: require("@/assets/cards/card-daniels-resolve.webp"),
     fullArt: require("@/assets/cards/card-daniels-resolve-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-daniels-resolve.webp"),
   },
   {
     id: "ninevehs-mercy",
@@ -406,6 +428,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Jonah 3:10",
     art: require("@/assets/cards/card-ninevehs-mercy.webp"),
     fullArt: require("@/assets/cards/card-ninevehs-mercy-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-ninevehs-mercy.webp"),
   },
   {
     id: "elijahs-strength",
@@ -423,6 +446,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "1 Kings 19:8",
     art: require("@/assets/cards/card-elijahs-strength.webp"),
     fullArt: require("@/assets/cards/card-elijahs-strength-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-elijahs-strength.webp"),
   },
   {
     id: "sinais-glory",
@@ -440,6 +464,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Exodus 34:29",
     art: require("@/assets/cards/card-sinais-glory.webp"),
     fullArt: require("@/assets/cards/card-sinais-glory-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-sinais-glory.webp"),
   },
   {
     id: "temptations-end",
@@ -457,6 +482,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Matthew 4:11",
     art: require("@/assets/cards/card-temptations-end.webp"),
     fullArt: require("@/assets/cards/card-temptations-end-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-temptations-end.webp"),
   },
   {
     id: "intercession",
@@ -474,6 +500,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Exodus 17:12",
     art: require("@/assets/cards/card-intercession.webp"),
     fullArt: require("@/assets/cards/card-intercession-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-intercession.webp"),
   },
   // --- Evolution Line: David ---
   {
@@ -492,6 +519,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "1 Samuel 16:11",
     art: require("@/assets/cards/card-david-shepherd.webp"),
     fullArt: require("@/assets/cards/card-david-shepherd-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-david-shepherd.webp"),
   },
   {
     id: "david-giant-slayer",
@@ -509,6 +537,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "1 Samuel 17:47",
     art: require("@/assets/cards/card-david-giant-slayer.webp"),
     fullArt: require("@/assets/cards/card-david-giant-slayer-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-david-giant-slayer.webp"),
   },
   {
     id: "david-king",
@@ -526,6 +555,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "2 Samuel 5:4",
     art: require("@/assets/cards/card-david-king.webp"),
     fullArt: require("@/assets/cards/card-david-king-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-david-king.webp"),
   },
   // --- Evolution Line: Peter ---
   {
@@ -544,6 +574,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Matthew 4:19",
     art: require("@/assets/cards/card-peter-fisherman.webp"),
     fullArt: require("@/assets/cards/card-peter-fisherman-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-peter-fisherman.webp"),
   },
   {
     id: "peter-denier",
@@ -561,6 +592,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Luke 22:62",
     art: require("@/assets/cards/card-peter-denier.webp"),
     fullArt: require("@/assets/cards/card-peter-denier-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-peter-denier.webp"),
   },
   {
     id: "peter-restored",
@@ -578,6 +610,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "John 21:17",
     art: require("@/assets/cards/card-peter-restored.webp"),
     fullArt: require("@/assets/cards/card-peter-restored-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-peter-restored.webp"),
   },
   // --- Evolution Line: Paul ---
   {
@@ -596,6 +629,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Acts 9:1",
     art: require("@/assets/cards/card-saul-persecutor.webp"),
     fullArt: require("@/assets/cards/card-saul-persecutor-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-saul-persecutor.webp"),
   },
   {
     id: "saul-blinded",
@@ -613,6 +647,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "Acts 9:3",
     art: require("@/assets/cards/card-saul-blinded.webp"),
     fullArt: require("@/assets/cards/card-saul-blinded-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-saul-blinded.webp"),
   },
   {
     id: "paul-apostle",
@@ -630,6 +665,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     scripture: "2 Timothy 4:7",
     art: require("@/assets/cards/card-paul-apostle.webp"),
     fullArt: require("@/assets/cards/card-paul-apostle-full.webp"),
+    thumbnail: require("@/assets/cards/thumbs/card-paul-apostle.webp"),
   },
 ];
 

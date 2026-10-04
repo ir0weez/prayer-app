@@ -8,9 +8,10 @@ type Props = {
   earned: boolean;
   width?: number;
   onPress?: () => void;
+  useThumbnail?: boolean;
 };
 
-export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
+export function PrayerCardView({ card, earned, width = 160, onPress, useThumbnail }: Props) {
   // Full card images are 3:4.5 ratio (tall). Use contain to avoid cropping.
   const height = width * 1.5;
 
@@ -59,7 +60,7 @@ export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
       }}
     >
       <Image
-        source={card.fullArt}
+        source={useThumbnail ? card.thumbnail : card.fullArt}
         style={{ width, height }}
         resizeMode="cover"
       />

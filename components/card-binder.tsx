@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dimensions, FlatList, Modal, Pressable, SafeAreaView, Text, View } from "react-native";
+import { Dimensions, FlatList, Modal, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { PRAYER_CARDS, RARITY_LABELS, type CardRarity } from "@/lib/card-system";
 import { loadAchievementState } from "@/lib/avatar-achievements";
@@ -68,6 +68,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
                       card={card}
                       earned={earned}
                       width={110}
+                      useThumbnail
                       onPress={() => setSelectedCardId(card.id)}
                     />
                   );
@@ -82,8 +83,8 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.85)", alignItems: "center", justifyContent: "center", padding: 24 }}>
             <Pressable style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setSelectedCardId(null)} />
             {selectedCard && (
-              <View style={{ alignItems: "center", maxHeight: "90%" }}>
-                <PrayerCardView card={selectedCard} earned width={Dimensions.get("window").width * 0.85} />
+              <ScrollView contentContainerStyle={{ alignItems: "center", paddingVertical: 20 }} style={{ maxHeight: "90%", width: "100%" }}>
+                <PrayerCardView card={selectedCard} earned width={Dimensions.get("window").width * 0.8} />
                 <Text style={{ color: "#FFFFFF", fontSize: 14, fontStyle: "italic", textAlign: "center", marginTop: 16, paddingHorizontal: 16 }}>
                   "{selectedCard.flavor}"
                 </Text>
@@ -106,7 +107,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
                 >
                   <Text style={{ color: colors.muted, fontWeight: "600" }}>Close</Text>
                 </Pressable>
-              </View>
+              </ScrollView>
             )}
           </View>
         </Modal>

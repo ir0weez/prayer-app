@@ -8,6 +8,7 @@ import {
   SHINY_ACHIEVEMENTS,
   SHINY_AVATARS,
   SHINY_AVATAR_THUMBNAILS,
+  SHINY_HERO_AVATARS,
   STYLE_ORDER,
   getAvatarDefinitionForPerson,
   type AvatarGender,
@@ -51,6 +52,7 @@ export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, a
   const shinySource = avatarAsset ? SHINY_AVATARS[avatarAsset as keyof typeof SHINY_AVATARS] : undefined;
   const shinyThumbnail = avatarAsset ? SHINY_AVATAR_THUMBNAILS[avatarAsset as keyof typeof SHINY_AVATAR_THUMBNAILS] : undefined;
   const heroSource = avatarAsset ? HERO_AVATARS[avatarAsset as keyof typeof HERO_AVATARS] : undefined;
+  const shinyHeroSource = avatarAsset ? SHINY_HERO_AVATARS[avatarAsset as keyof typeof SHINY_HERO_AVATARS] : undefined;
   const aura = id === "profile" ? getPersonalProfileAura(avatarAsset, auraId, profileLevel) : getAvatarAura(avatarAsset, auraId);
   const [reducedMotion, setReducedMotion] = React.useState(false);
   const pulse = React.useRef(new Animated.Value(1)).current;
@@ -78,7 +80,7 @@ export const AvatarImage = React.memo(function AvatarImage({ id, name, gender, a
       {aura && auraMode !== "none" && <Animated.View style={[auraRingStyle(aura, size, animated), animated && { transform: [{ scale: pulse }] }]} pointerEvents="none" />}
       {aura && animated && particles.map((particle, index) => <View key={`${aura.id}-particle-${index}`} pointerEvents="none" style={[styles.auraParticle, { left: particle.left, top: particle.top, width: particle.size, height: particle.size, borderRadius: particle.size / 2, backgroundColor: particleColor(particle.color) }]} />)}
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: fallbackColor || colors.surface }}>
-        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : bookDefinition ? <Image source={thumbnail ? bookDefinition.thumbnail : bookDefinition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : heroSource ? <Image source={heroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
+        {photoUri ? <Image source={{ uri: photoUri }} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : definition ? <Image source={thumbnail ? definition.thumbnail : definition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : bookDefinition ? <Image source={thumbnail ? bookDefinition.thumbnail : bookDefinition.source} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinySource ? <Image source={thumbnail ? shinyThumbnail : shinySource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : heroSource ? <Image source={heroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : shinyHeroSource ? <Image source={shinyHeroSource} style={[{ width: "100%", height: "100%" }, imageStyle]} /> : <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>{initials}</Text>}
       </View>
     </View>
   );
@@ -123,7 +125,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
           <View style={{ gap: 6 }}><Pressable onPress={onUpload} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable><Pressable onPress={() => select(undefined)} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Default</Text></Pressable></View>
         </View>
         <ScrollView horizontal style={styles.tabsScroll} contentContainerStyle={styles.tabs} showsHorizontalScrollIndicator={false} bounces={false} nestedScrollEnabled>
-          {[...STYLE_ORDER, "Books" as const, "Shiny" as const, "Heroes" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" || tab === "Books" || tab === "Heroes" ? tab : STYLE_LABELS[tab]}</Text></Pressable>)}
+          {[...STYLE_ORDER, "Books" as const, "Heroes" as const, "Shiny" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" || tab === "Books" || tab === "Heroes" ? tab : STYLE_LABELS[tab]}</Text></Pressable>)}
         </ScrollView>
         {style !== "Shiny" && style !== "Books" && style !== "Heroes" && <View style={styles.genderRow}>{(["all", "m", "f"] as const).map((value) => <Pressable key={value} onPress={() => setSelectedGender(value)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === value && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: selectedGender === value ? "#fff" : colors.foreground, fontWeight: "800" }}>{value === "all" ? "All" : value === "m" ? "Male" : "Female"}</Text></Pressable>)}</View>}
         {style === "Books" ? (
@@ -158,7 +160,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
             removeClippedSubviews
             renderItem={({ item: achievement }) => {
               const isUnlocked = unlocked.has(achievement.avatarId);
-              const thumbnail = SHINY_AVATAR_THUMBNAILS[achievement.avatarId as keyof typeof SHINY_AVATAR_THUMBNAILS];
+              const thumbnail = SHINY_AVATAR_THUMBNAILS[achievement.avatarId as keyof typeof SHINY_AVATAR_THUMBNAILS] || SHINY_HERO_AVATARS[achievement.avatarId as keyof typeof SHINY_HERO_AVATARS];
               if (!thumbnail) return null;
               return <Pressable onPress={() => isUnlocked ? select(achievement.avatarId) : undefined} style={[styles.shinyCard, { borderColor: colors.border, backgroundColor: colors.surface }]}><Image source={thumbnail} style={[styles.shinyImage, !isUnlocked && { opacity: 0.18 }]} /><Text style={[styles.shinyName, { color: colors.foreground }]}>{isUnlocked ? achievement.name : "Locked"}</Text><Text style={[styles.hint, { color: colors.muted }]}>{achievement.hint}</Text></Pressable>;
             }}

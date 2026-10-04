@@ -1041,7 +1041,7 @@ export default function HomeScreen() {
     }
     return null;
   }, [personalContacts, visiblePrayTodayList, duePersonalTodos]);
-  const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList), [prayTodayList]);
+  const dailyPrayerProgress = useMemo(() => getDailyPrayerProgress(prayTodayList, todayDayOfWeek, todayDayOfMonth), [prayTodayList, todayDayOfWeek, todayDayOfMonth]);
   const pendingPrayerCount = pendingPrayerIds.filter((personId) => prayTodayList.some((person) => person.id === personId)).length;
   const streak = streakRecord.streak;
   const prayedTodayCount = Math.min(dailyPrayerProgress.total, dailyPrayerProgress.prayed + pendingPrayerCount);

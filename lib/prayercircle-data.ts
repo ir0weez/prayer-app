@@ -341,11 +341,15 @@ export function sortPrayTodayListByPriority(people: Person[], now = new Date()):
     .map(({ person }) => person);
 }
 
-// Helper: Get daily prayer progress
-export function getDailyPrayerProgress(prayTodayList: Person[]): { prayed: number; total: number } {
+// Helper: Get daily prayer progress (scheduled prayers only, not emergency/praise)
+export function getDailyPrayerProgress(prayTodayList: Person[], todayDayOfWeek?: number, todayDayOfMonth?: number): { prayed: number; total: number } {
   const today = getTodayISOString();
-  const prayed = prayTodayList.filter((p) => hasPersonCompletedPrayerToday(p, today)).length;
-  return { prayed, total: prayTodayList.length };
+  // Only count scheduled prayers, not emergency or praise
+  const scheduledList = todayDayOfWeek !== undefined
+    ? prayTodayList.filter((p) => shouldPrayForTodayByReminder(p, todayDayOfWeek, todayDayOfMonth ?? new Date().getDate()))
+    : prayTodayList;
+  const prayed = scheduledList.filter((p) => hasPersonCompletedPrayerToday(p, today)).length;
+  return { prayed, total: scheduledList.length };
 }
 
 // Helper: Get next person who needs prayer

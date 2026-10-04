@@ -142,7 +142,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
         ) : style === "Shiny" ? (
           <FlatList
             key="shiny-avatar-grid"
-            data={SHINY_ACHIEVEMENTS}
+            data={SHINY_ACHIEVEMENTS.filter((a) => "avatarId" in a)}
             keyExtractor={(achievement) => achievement.id}
             numColumns={2}
             columnWrapperStyle={styles.gridRow}

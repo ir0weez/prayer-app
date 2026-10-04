@@ -27,6 +27,18 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
   "kangaroo-shiny": { id: "kangaroo-shiny", label: "Wilderness Kangaroo", glowColor: "#C89B3C", secondaryColor: "#F4D58D", accentColors: ["#FFE7A8", "#D6A84F"], style: "dust", ringCount: 1 },
   "bull-shiny": { id: "bull-shiny", label: "Armor of God Bull", glowColor: "#FFF8D6", secondaryColor: "#F4D77B", accentColors: ["#FFFFFF", "#FFEAA7"], style: "radiant", ringCount: 1 },
   "prayercircle-shiny": { id: "prayercircle-shiny", label: "Mr. Prayer Circle", glowColor: "#E5E7EB", secondaryColor: "#C4B5FD", accentColors: ["#F472B6", "#60A5FA", "#34D399", "#FBBF24"], style: "prismatic", ringCount: 2 },
+  "upper-room-shiny": { id: "upper-room-shiny", label: "Upper Room", glowColor: "#FFD700", secondaryColor: "#FFA500", accentColors: ["#FFD700", "#FFA500"], style: "rays", ringCount: 2 },
+  "carmels-fire-shiny": { id: "carmels-fire-shiny", label: "Carmel's Fire", glowColor: "#FF4500", secondaryColor: "#FFD700", accentColors: ["#FF4500", "#FFD700"], style: "embers", ringCount: 2 },
+  "nehemiahs-watch-shiny": { id: "nehemiahs-watch-shiny", label: "Nehemiah's Watch", glowColor: "#4169E1", secondaryColor: "#87CEEB", accentColors: ["#4169E1", "#87CEEB"], style: "rings", ringCount: 2 },
+  "midnight-hymn-shiny": { id: "midnight-hymn-shiny", label: "Midnight Hymn", glowColor: "#9370DB", secondaryColor: "#BA55D3", accentColors: ["#9370DB", "#BA55D3"], style: "stars", ringCount: 2 },
+  "wilderness-prayer-shiny": { id: "wilderness-prayer-shiny", label: "Wilderness Prayer", glowColor: "#D2691E", secondaryColor: "#F4A460", accentColors: ["#D2691E", "#F4A460"], style: "dust", ringCount: 2 },
+  "lords-prayer-shiny": { id: "lords-prayer-shiny", label: "Lord's Prayer", glowColor: "#FFD700", secondaryColor: "#FFFFFF", accentColors: ["#FFD700", "#FFFFFF"], style: "radiant", ringCount: 2 },
+  "cloud-witnesses-shiny": { id: "cloud-witnesses-shiny", label: "Cloud of Witnesses", glowColor: "#87CEEB", secondaryColor: "#FFFFFF", accentColors: ["#87CEEB", "#FFFFFF"], style: "rings", ringCount: 3 },
+  "esthers-courage-shiny": { id: "esthers-courage-shiny", label: "Esther's Courage", glowColor: "#FF69B4", secondaryColor: "#FFD700", accentColors: ["#FF69B4", "#FFD700"], style: "rays", ringCount: 2 },
+  "daniels-resolve-shiny": { id: "daniels-resolve-shiny", label: "Daniel's Resolve", glowColor: "#4169E1", secondaryColor: "#FFD700", accentColors: ["#4169E1", "#FFD700"], style: "rings", ringCount: 2 },
+  "ninevehs-mercy-shiny": { id: "ninevehs-mercy-shiny", label: "Nineveh's Mercy", glowColor: "#20B2AA", secondaryColor: "#87CEEB", accentColors: ["#20B2AA", "#87CEEB"], style: "dust", ringCount: 2 },
+  "elijahs-strength-shiny": { id: "elijahs-strength-shiny", label: "Elijah's Strength", glowColor: "#FF4500", secondaryColor: "#FFD700", accentColors: ["#FF4500", "#FFD700"], style: "embers", ringCount: 2 },
+  "sinais-glory-shiny": { id: "sinais-glory-shiny", label: "Sinai's Glory", glowColor: "#FFD700", secondaryColor: "#FFA500", accentColors: ["#FFD700", "#FFA500"], style: "radiant", ringCount: 3 },
 };
 
 /** Used only for the personal profile when its active avatar is a regular pack avatar or photo. */

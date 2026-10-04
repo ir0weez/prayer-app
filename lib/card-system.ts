@@ -44,7 +44,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He knelt and prayed, and the lions slept.",
     scripture: "Daniel 6:22",
-    art: require("@/assets/cards/card-daniels-courage.webp"),
+    art: require("@/assets/cards/card-daniels-courage-full.webp"),
   },
   {
     id: "davids-song",
@@ -60,7 +60,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He sang to the Lord under a sky full of stars.",
     scripture: "Psalm 8:3",
-    art: require("@/assets/cards/card-davids-song.webp"),
+    art: require("@/assets/cards/card-davids-song-full.webp"),
   },
   {
     id: "three-in-one",
@@ -76,7 +76,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "Three streams, one river of light.",
     scripture: "Matthew 28:19",
-    art: require("@/assets/cards/card-three-in-one.webp"),
+    art: require("@/assets/cards/card-three-in-one-full.webp"),
   },
   {
     id: "samsons-torch",
@@ -92,7 +92,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "Three hundred torches lit the night.",
     scripture: "Judges 15:5",
-    art: require("@/assets/cards/card-samsons-torch.webp"),
+    art: require("@/assets/cards/card-samsons-torch-full.webp"),
   },
   {
     id: "pilgrims-path",
@@ -108,7 +108,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He walked by faith toward a city he could not yet see.",
     scripture: "Hebrews 11:10",
-    art: require("@/assets/cards/card-pilgrims-path.webp"),
+    art: require("@/assets/cards/card-pilgrims-path-full.webp"),
   },
   {
     id: "eagles-wings",
@@ -124,7 +124,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "You will soar on wings like eagles.",
     scripture: "Isaiah 40:31",
-    art: require("@/assets/cards/card-eagles-wings.webp"),
+    art: require("@/assets/cards/card-eagles-wings-full.webp"),
   },
   {
     id: "olive-branch",
@@ -140,7 +140,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "The dove returned, and hope came with it.",
     scripture: "Genesis 8:11",
-    art: require("@/assets/cards/card-olive-branch.webp"),
+    art: require("@/assets/cards/card-olive-branch-full.webp"),
   },
   {
     id: "bread-from-heaven",
@@ -156,7 +156,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "Every morning, grace fell like dew.",
     scripture: "Exodus 16:15",
-    art: require("@/assets/cards/card-bread-from-heaven.webp"),
+    art: require("@/assets/cards/card-bread-from-heaven-full.webp"),
   },
   {
     id: "holy-ground",
@@ -172,7 +172,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "The bush burned, and was not consumed.",
     scripture: "Exodus 3:5",
-    art: require("@/assets/cards/card-holy-ground.webp"),
+    art: require("@/assets/cards/card-holy-ground-full.webp"),
   },
   {
     id: "full-armor",
@@ -204,7 +204,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "I watch through the night, and the stars preach.",
     scripture: "Psalm 19:1",
-    art: require("@/assets/cards/card-night-watch.webp"),
+    art: require("@/assets/cards/card-night-watch-full.webp"),
   },
   {
     id: "gethsemane",
@@ -220,7 +220,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He prayed more earnestly, and surrendered everything.",
     scripture: "Luke 22:42",
-    art: require("@/assets/cards/card-gethsemane.webp"),
+    art: require("@/assets/cards/card-gethsemane-full.webp"),
   },
   // --- 5-day milestone cards: Streak track ---
   {
@@ -237,7 +237,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "They continued with one accord in prayer.",
     scripture: "Acts 1:14",
-    art: require("@/assets/cards/card-upper-room.webp"),
+    art: require("@/assets/cards/card-upper-room-full.webp"),
   },
   {
     id: "carmels-fire",
@@ -253,7 +253,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "The fire of the Lord fell and consumed everything.",
     scripture: "1 Kings 18:38",
-    art: require("@/assets/cards/card-carmels-fire.webp"),
+    art: require("@/assets/cards/card-carmels-fire-full.webp"),
   },
   {
     id: "nehemiahs-watch",
@@ -269,7 +269,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He prayed to the God of heaven, then he rebuilt.",
     scripture: "Nehemiah 2:4",
-    art: require("@/assets/cards/card-nehemiahs-watch.webp"),
+    art: require("@/assets/cards/card-nehemiahs-watch-full.webp"),
   },
   {
     id: "midnight-hymn",
@@ -285,7 +285,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "At midnight they prayed and sang praises.",
     scripture: "Acts 16:25",
-    art: require("@/assets/cards/card-midnight-hymn.webp"),
+    art: require("@/assets/cards/card-midnight-hymn-full.webp"),
   },
   {
     id: "wilderness-prayer",
@@ -301,7 +301,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He withdrew to the wilderness and prayed.",
     scripture: "Luke 5:16",
-    art: require("@/assets/cards/card-wilderness-prayer.webp"),
+    art: require("@/assets/cards/card-wilderness-prayer-full.webp"),
   },
   {
     id: "lords-prayer",
@@ -317,7 +317,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He taught them how to pray, and heaven listened.",
     scripture: "Matthew 6:9",
-    art: require("@/assets/cards/card-lords-prayer.webp"),
+    art: require("@/assets/cards/card-lords-prayer-full.webp"),
   },
   {
     id: "cloud-witnesses",
@@ -333,7 +333,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "Surrounded by witnesses, run with endurance.",
     scripture: "Hebrews 12:1",
-    art: require("@/assets/cards/card-cloud-witnesses.webp"),
+    art: require("@/assets/cards/card-cloud-witnesses-full.webp"),
   },
   // --- 5-day milestone cards: Fast track ---
   {
@@ -350,7 +350,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "She fasted three days, then approached the king.",
     scripture: "Esther 4:16",
-    art: require("@/assets/cards/card-esthers-courage.webp"),
+    art: require("@/assets/cards/card-esthers-courage-full.webp"),
   },
   {
     id: "daniels-resolve",
@@ -366,7 +366,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He purposed in his heart not to defile himself.",
     scripture: "Daniel 1:8",
-    art: require("@/assets/cards/card-daniels-resolve.webp"),
+    art: require("@/assets/cards/card-daniels-resolve-full.webp"),
   },
   {
     id: "ninevehs-mercy",
@@ -382,7 +382,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "They fasted, and God saw their works.",
     scripture: "Jonah 3:10",
-    art: require("@/assets/cards/card-ninevehs-mercy.webp"),
+    art: require("@/assets/cards/card-ninevehs-mercy-full.webp"),
   },
   {
     id: "elijahs-strength",
@@ -398,7 +398,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He went in the strength of that food forty days.",
     scripture: "1 Kings 19:8",
-    art: require("@/assets/cards/card-elijahs-strength.webp"),
+    art: require("@/assets/cards/card-elijahs-strength-full.webp"),
   },
   {
     id: "sinais-glory",
@@ -414,7 +414,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "His face shone from being with God.",
     scripture: "Exodus 34:29",
-    art: require("@/assets/cards/card-sinais-glory.webp"),
+    art: require("@/assets/cards/card-sinais-glory-full.webp"),
   },
   {
     id: "temptations-end",
@@ -430,7 +430,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He was tempted, He overcame, angels came.",
     scripture: "Matthew 4:11",
-    art: require("@/assets/cards/card-temptations-end.webp"),
+    art: require("@/assets/cards/card-temptations-end-full.webp"),
   },
   {
     id: "intercession",
@@ -446,7 +446,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "His hands held up until the battle was won.",
     scripture: "Exodus 17:12",
-    art: require("@/assets/cards/card-intercession.webp"),
+    art: require("@/assets/cards/card-intercession-full.webp"),
   },
   // --- Evolution Line: David ---
   {
@@ -463,7 +463,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He was a shepherd boy with a harp and a sling.",
     scripture: "1 Samuel 16:11",
-    art: require("@/assets/cards/card-david-shepherd.webp"),
+    art: require("@/assets/cards/card-david-shepherd-full.webp"),
   },
   {
     id: "david-giant-slayer",
@@ -479,7 +479,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "The battle is the Lord's, and He gave him the victory.",
     scripture: "1 Samuel 17:47",
-    art: require("@/assets/cards/card-david-giant-slayer.webp"),
+    art: require("@/assets/cards/card-david-giant-slayer-full.webp"),
   },
   {
     id: "david-king",
@@ -495,7 +495,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "From shepherd to king, his heart stayed after God.",
     scripture: "2 Samuel 5:4",
-    art: require("@/assets/cards/card-david-king.webp"),
+    art: require("@/assets/cards/card-david-king-full.webp"),
   },
   // --- Evolution Line: Peter ---
   {
@@ -512,7 +512,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He left his nets to follow Jesus.",
     scripture: "Matthew 4:19",
-    art: require("@/assets/cards/card-peter-fisherman.webp"),
+    art: require("@/assets/cards/card-peter-fisherman-full.webp"),
   },
   {
     id: "peter-denier",
@@ -528,7 +528,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He wept bitterly, but grace was not done with him.",
     scripture: "Luke 22:62",
-    art: require("@/assets/cards/card-peter-denier.webp"),
+    art: require("@/assets/cards/card-peter-denier-full.webp"),
   },
   {
     id: "peter-restored",
@@ -544,7 +544,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "Three times denied, three times restored.",
     scripture: "John 21:17",
-    art: require("@/assets/cards/card-peter-restored.webp"),
+    art: require("@/assets/cards/card-peter-restored-full.webp"),
   },
   // --- Evolution Line: Paul ---
   {
@@ -561,7 +561,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "He breathed threats against the disciples.",
     scripture: "Acts 9:1",
-    art: require("@/assets/cards/card-saul-persecutor.webp"),
+    art: require("@/assets/cards/card-saul-persecutor-full.webp"),
   },
   {
     id: "saul-blinded",
@@ -577,7 +577,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "A light from heaven stopped him in his tracks.",
     scripture: "Acts 9:3",
-    art: require("@/assets/cards/card-saul-blinded.webp"),
+    art: require("@/assets/cards/card-saul-blinded-full.webp"),
   },
   {
     id: "paul-apostle",
@@ -593,7 +593,7 @@ export const PRAYER_CARDS: PrayerCard[] = [
     ],
     flavor: "From persecutor to apostle, grace rewrote his story.",
     scripture: "2 Timothy 4:7",
-    art: require("@/assets/cards/card-paul-apostle.webp"),
+    art: require("@/assets/cards/card-paul-apostle-full.webp"),
   },
 ];
 

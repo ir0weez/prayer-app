@@ -22,6 +22,7 @@ import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
 import { CardBinder } from "@/components/card-binder";
+import { CardPackOpening } from "@/components/card-pack-opening";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
@@ -3013,17 +3014,11 @@ export default function HomeScreen() {
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
       <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
       <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
-      <Modal transparent visible={newAchievementIds.length > 0} animationType="fade" onRequestClose={() => setNewAchievementIds([])}>
-        <View style={{ flex: 1, backgroundColor: "rgba(15,12,24,0.55)", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <View style={{ width: "100%", maxWidth: 360, borderRadius: 26, padding: 22, alignItems: "center", backgroundColor: colors.surface }}>
-            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "900", letterSpacing: 1.4 }}>ACHIEVEMENT UNLOCKED!</Text>
-            <Text style={{ color: colors.foreground, fontSize: 26, fontWeight: "900", textAlign: "center", marginTop: 8 }}>{SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])?.name}</Text>
-            {SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0]) && <Image source={SHINY_AVATARS[SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])!.avatarId as keyof typeof SHINY_AVATARS]} style={{ width: 170, height: 170, marginVertical: 14 }} />}
-            <Text style={{ color: colors.muted, textAlign: "center", lineHeight: 20 }}>{SHINY_ACHIEVEMENTS.find((item) => item.id === newAchievementIds[0])?.hint}</Text>
-            <Pressable onPress={() => { setNewAchievementIds([]); setProfilePickerInitialTab("Shiny"); setShowProfileAvatarPicker(true); }} style={{ marginTop: 18, backgroundColor: colors.primary, borderRadius: 16, paddingHorizontal: 28, paddingVertical: 12 }}><Text style={{ color: "#fff", fontWeight: "900" }}>View</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
+      <CardPackOpening
+        achievementId={newAchievementIds.length > 0 ? newAchievementIds[0] : null}
+        onClose={() => setNewAchievementIds([])}
+        onViewCollection={() => setShowCardBinder(true)}
+      />
 
       <Modal transparent visible={levelUpNumber !== null} animationType="fade" onRequestClose={() => setLevelUpNumber(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(10,8,24,0.68)", alignItems: "center", justifyContent: "center", padding: 24 }}>

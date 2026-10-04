@@ -1524,7 +1524,7 @@ export function ScheduleTab({
   // date header scrolls to the top, then docks in its place.
   const fixedHeaderDockPoint = Math.max(0, scheduleSummaryHeight - SHEET_OVERLAP);
   const fixedHeaderTranslateY = scrollY.interpolate({
-    inputRange: [fixedHeaderDockPoint - 1, fixedHeaderDockPoint],
+    inputRange: [fixedHeaderDockPoint - 20, fixedHeaderDockPoint],
     outputRange: [-400, 0],
     extrapolate: "clamp",
   });

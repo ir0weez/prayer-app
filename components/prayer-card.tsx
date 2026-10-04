@@ -86,19 +86,17 @@ export function PrayerCardView({ card, earned, width = 160, compact = false, onP
       }}
     >
       <View style={{ flex: 1, borderWidth: 1, borderColor: earned ? rarityColor : "#333333", borderRadius: 6, padding: 8 }}>
-        <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 6 }}>
-          <Text
-            numberOfLines={1}
-            style={{ flex: 1, color: earned ? goldText : mutedText, fontSize: 14, fontWeight: "700", fontFamily: "serif" }}
-          >
-            {earned ? card.name : "???"}
+        <Text
+          numberOfLines={2}
+          style={{ color: earned ? goldText : mutedText, fontSize: 15, fontWeight: "700", fontFamily: "serif", marginBottom: 2 }}
+        >
+          {earned ? card.name : "???"}
+        </Text>
+        {earned && (
+          <Text style={{ color: mutedText, fontSize: 10, fontWeight: "600", marginBottom: 6 }}>
+            {card.hp} HP · {card.type}
           </Text>
-          {earned && (
-            <Text style={{ color: mutedText, fontSize: 10, fontWeight: "600", marginLeft: 4 }}>
-              {card.hp} HP
-            </Text>
-          )}
-        </View>
+        )}
 
         <View
           style={{
@@ -148,13 +146,10 @@ export function PrayerCardView({ card, earned, width = 160, compact = false, onP
         )}
 
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-            <Text style={{ color: earned ? rarityColor : mutedText, fontSize: 9, fontWeight: "800", letterSpacing: 1 }}>
+          <View style={{ marginTop: 6 }}>
+            <Text style={{ color: earned ? rarityColor : mutedText, fontSize: 9, fontWeight: "800", letterSpacing: 1, textAlign: "center" }}>
               {RARITY_LABELS[card.rarity].toUpperCase()}
             </Text>
-            {earned && (
-              <Text style={{ color: mutedText, fontSize: 9 }}>{card.type}</Text>
-            )}
           </View>
         </View>
       </View>

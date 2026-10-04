@@ -58,7 +58,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
               <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "800", marginBottom: 10, textTransform: "uppercase" }}>
                 {RARITY_LABELS[group.rarity]}
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
                 {group.cards.map((card) => {
                   const earned = unlockedIds.includes(card.achievementId as AchievementId);
                   return (
@@ -66,7 +66,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
                       key={card.id}
                       card={card}
                       earned={earned}
-                      width={110}
+                      width={165}
                       compact
                       onPress={() => setSelectedCardId(card.id)}
                     />

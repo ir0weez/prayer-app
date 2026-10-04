@@ -56,13 +56,14 @@ export function PrayerCardView({ card, earned, width = 160, onPress, useThumbnai
         height,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: "#0a0a0a",
+        backgroundColor: "#2a2a2a",
       }}
     >
       <Image
         source={useThumbnail ? card.thumbnail : card.fullArt}
         style={{ width, height }}
         resizeMode="cover"
+        fadeDuration={0}
       />
     </View>
   );

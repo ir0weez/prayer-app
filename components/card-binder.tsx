@@ -20,10 +20,15 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
   const colors = useColors();
   const [unlockedIds, setUnlockedIds] = useState<AchievementId[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [achievementsLoaded, setAchievementsLoaded] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      loadAchievementState().then((state) => setUnlockedIds(state.unlockedAchievementIds));
+      setAchievementsLoaded(false);
+      loadAchievementState().then((state) => {
+        setUnlockedIds(state.unlockedAchievementIds);
+        setAchievementsLoaded(true);
+      });
     }
   }, [visible]);
 
@@ -49,6 +54,11 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
           </View>
         </View>
 
+        {!achievementsLoaded ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>
+            <Text style={{ color: colors.muted, fontSize: 14 }}>Loading collection...</Text>
+          </View>
+        ) : (
         <FlatList
           data={grouped}
           keyExtractor={(g) => g.rarity}
@@ -77,6 +87,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
             </View>
           )}
         />
+        )}
 
         {/* Card detail modal */}
         <Modal visible={!!selectedCard} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>

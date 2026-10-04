@@ -6,26 +6,34 @@ import { PrayerCardView } from "./prayer-card";
 import { useColors } from "@/hooks/use-colors";
 
 type Props = {
-  achievementId: string | null;
+  achievementIds: string[];
   onClose: () => void;
   onViewCollection: () => void;
 };
 
-export function CardPackOpening({ achievementId, onClose, onViewCollection }: Props) {
+export function CardPackOpening({ achievementIds, onClose, onViewCollection }: Props) {
   const colors = useColors();
+  const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
+  const achievementId = achievementIds[index] || null;
   const card = achievementId ? getCardByAchievementId(achievementId) : undefined;
+  const hasMore = index < achievementIds.length - 1;
 
   useEffect(() => {
-    if (achievementId) {
-      setRevealed(false);
-      flipAnim.setValue(0);
-      scaleAnim.setValue(0.9);
-    }
-  }, [achievementId]);
+    setIndex(0);
+    setRevealed(false);
+    flipAnim.setValue(0);
+    scaleAnim.setValue(0.9);
+  }, [achievementIds.join(",")]);
+
+  const resetForCard = () => {
+    setRevealed(false);
+    flipAnim.setValue(0);
+    scaleAnim.setValue(0.9);
+  };
 
   const handleReveal = () => {
     if (revealed) return;
@@ -36,6 +44,15 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
     ]).start();
   };
 
+  const handleNext = () => {
+    if (hasMore) {
+      setIndex(index + 1);
+      resetForCard();
+    } else {
+      onClose();
+    }
+  };
+
   // Card back: rotates 0 -> 90deg (edge-on), fades out.
   const backRotate = flipAnim.interpolate({ inputRange: [0, 0.5], outputRange: ["0deg", "90deg"] });
   const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0] });
@@ -43,11 +60,16 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
   const frontRotate = flipAnim.interpolate({ inputRange: [0.5, 1], outputRange: ["90deg", "0deg"] });
   const frontOpacity = flipAnim.interpolate({ inputRange: [0.5, 1], outputRange: [0, 1] });
 
-  if (!card) return null;
+  if (!card || achievementIds.length === 0) return null;
 
   return (
-    <Modal transparent visible={!!achievementId} animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: "rgba(10,8,20,0.85)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <Modal transparent visible={achievementIds.length > 0} animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(10,8,20,0.9)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        {achievementIds.length > 1 && (
+          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 12 }}>
+            Card {index + 1} of {achievementIds.length}
+          </Text>
+        )}
         {!revealed ? (
           <Pressable onPress={handleReveal} style={{ alignItems: "center" }}>
             <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "900", letterSpacing: 1.5, marginBottom: 16 }}>
@@ -115,18 +137,29 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
               {card.scripture}
             </Text>
             <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
-              <Pressable
-                onPress={onClose}
-                style={{ backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
-              >
-                <Text style={{ color: colors.foreground, fontWeight: "800" }}>Close</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { onClose(); onViewCollection(); }}
-                style={{ backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>View Collection</Text>
-              </Pressable>
+              {hasMore ? (
+                <Pressable
+                  onPress={handleNext}
+                  style={{ backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 12 }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Next Card</Text>
+                </Pressable>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={onClose}
+                    style={{ backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                  >
+                    <Text style={{ color: colors.foreground, fontWeight: "800" }}>Close</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => { onClose(); onViewCollection(); }}
+                    style={{ backgroundColor: colors.primary, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>View Collection</Text>
+                  </Pressable>
+                </>
+              )}
             </View>
           </Animated.View>
         )}

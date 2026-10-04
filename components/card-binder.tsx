@@ -79,31 +79,36 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
 
         {/* Card detail modal */}
         <Modal visible={!!selectedCard} transparent animationType="fade" onRequestClose={() => setSelectedCardId(null)}>
-          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center" }} onPress={() => setSelectedCardId(null)}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.85)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <Pressable style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setSelectedCardId(null)} />
             {selectedCard && (
-              <View onStartShouldSetResponder={() => true}>
-                <PrayerCardView card={selectedCard} earned width={240} />
-                <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
-                  <Text style={{ color: "#FFFFFF", fontSize: 14, fontStyle: "italic", textAlign: "center" }}>
-                    "{selectedCard.flavor}"
-                  </Text>
-                  <Text style={{ color: "#FFFFFF", fontSize: 12, textAlign: "center", marginTop: 4, opacity: 0.7 }}>
-                    {selectedCard.scripture}
-                  </Text>
-                  {onSetShowcase && (
-                    <Pressable
-                      onPress={() => { onSetShowcase(selectedCard.id); setSelectedCardId(null); }}
-                      style={{ marginTop: 12, backgroundColor: showcaseCardId === selectedCard.id ? colors.border : colors.primary, borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
-                    >
-                      <Text style={{ color: showcaseCardId === selectedCard.id ? colors.muted : "#FFFFFF", fontWeight: "800" }}>
-                        {showcaseCardId === selectedCard.id ? "Showcased on Profile" : "Showcase on Profile"}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
+              <View style={{ alignItems: "center", maxHeight: "90%" }}>
+                <PrayerCardView card={selectedCard} earned width={220} />
+                <Text style={{ color: "#FFFFFF", fontSize: 14, fontStyle: "italic", textAlign: "center", marginTop: 16, paddingHorizontal: 16 }}>
+                  "{selectedCard.flavor}"
+                </Text>
+                <Text style={{ color: "#FFFFFF", fontSize: 12, textAlign: "center", marginTop: 4, opacity: 0.7 }}>
+                  {selectedCard.scripture}
+                </Text>
+                {onSetShowcase && (
+                  <Pressable
+                    onPress={() => { onSetShowcase(selectedCard.id); setSelectedCardId(null); }}
+                    style={{ marginTop: 16, backgroundColor: showcaseCardId === selectedCard.id ? colors.border : colors.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, alignItems: "center" }}
+                  >
+                    <Text style={{ color: showcaseCardId === selectedCard.id ? colors.muted : "#FFFFFF", fontWeight: "800" }}>
+                      {showcaseCardId === selectedCard.id ? "Showcased on Profile" : "Showcase on Profile"}
+                    </Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => setSelectedCardId(null)}
+                  style={{ marginTop: 12, paddingVertical: 8, paddingHorizontal: 24 }}
+                >
+                  <Text style={{ color: colors.muted, fontWeight: "600" }}>Close</Text>
+                </Pressable>
               </View>
             )}
-          </Pressable>
+          </View>
         </Modal>
       </SafeAreaView>
     </Modal>

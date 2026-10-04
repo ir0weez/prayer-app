@@ -3037,7 +3037,7 @@ export default function HomeScreen() {
       />
       <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
       <CardPackOpening
-        achievementId={newAchievementIds.length > 0 ? newAchievementIds[0] : null}
+        achievementIds={newAchievementIds}
         onClose={() => setNewAchievementIds([])}
         onViewCollection={() => setShowCardBinder(true)}
       />

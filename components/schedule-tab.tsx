@@ -1545,11 +1545,11 @@ export function ScheduleTab({
   const weekStripPanResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+        Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2,
       onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -60) { setWeekSlideDir(1); handleSwipeLeft(); }
-        else if (gestureState.dx > 60) { setWeekSlideDir(-1); handleSwipeRight(); }
+        if (gestureState.dx < -45) { setWeekSlideDir(1); handleSwipeLeft(); }
+        else if (gestureState.dx > 45) { setWeekSlideDir(-1); handleSwipeRight(); }
       },
     })
   ).current;

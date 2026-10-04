@@ -22,6 +22,7 @@ import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
 import { CardBinder } from "@/components/card-binder";
+import { getCardById } from "@/lib/card-system";
 import { CardPackOpening } from "@/components/card-pack-opening";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
@@ -186,6 +187,7 @@ type PersonalProfile = {
   avatarAsset?: string;
   auraId?: string;
   birthday?: string;
+  showcaseCardId?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -312,6 +314,7 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       statusPhotoUri: typeof parsed.statusPhotoUri === "string" ? parsed.statusPhotoUri : undefined,
       statusExpiresAt: typeof parsed.statusExpiresAt === "string" ? parsed.statusExpiresAt : undefined,
       statusColor: typeof parsed.statusColor === "string" ? parsed.statusColor : undefined,
+      showcaseCardId: typeof parsed.showcaseCardId === "string" ? parsed.showcaseCardId : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -2300,6 +2303,20 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
+              {profile.showcaseCardId && (() => {
+                const showcaseCard = getCardById(profile.showcaseCardId);
+                if (!showcaseCard) return null;
+                return (
+                  <Pressable onPress={() => setShowCardBinder(true)} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border }}>
+                    <Image source={showcaseCard.art} style={{ width: 40, height: 56, borderRadius: 6 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{showcaseCard.name}</Text>
+                      <Text style={{ color: colors.muted, fontSize: 11 }}>{showcaseCard.subtitle} · {showcaseCard.rarity}</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+                  </Pressable>
+                );
+              })()}
               {/* Bible Reading Info Pill */}
               <View style={{ marginTop: 6, position: 'relative', alignSelf: 'flex-start' }}>
                 {(() => {
@@ -3012,7 +3029,12 @@ export default function HomeScreen() {
       </ReAnimated.View>
 
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
-      <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
+      <CardBinder
+        visible={showCardBinder}
+        onClose={() => setShowCardBinder(false)}
+        showcaseCardId={profile.showcaseCardId}
+        onSetShowcase={(cardId) => setProfile((prev) => ({ ...prev, showcaseCardId: cardId }))}
+      />
       <CardBinder visible={showCardBinder} onClose={() => setShowCardBinder(false)} />
       <CardPackOpening
         achievementId={newAchievementIds.length > 0 ? newAchievementIds[0] : null}

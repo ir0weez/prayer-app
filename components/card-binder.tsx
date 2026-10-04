@@ -10,11 +10,13 @@ import { useColors } from "@/hooks/use-colors";
 type Props = {
   visible: boolean;
   onClose: () => void;
+  showcaseCardId?: string;
+  onSetShowcase?: (cardId: string) => void;
 };
 
 const RARITY_ORDER: CardRarity[] = ["common", "rare", "epic", "legendary"];
 
-export function CardBinder({ visible, onClose }: Props) {
+export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: Props) {
   const colors = useColors();
   const [unlockedIds, setUnlockedIds] = useState<AchievementId[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -87,6 +89,16 @@ export function CardBinder({ visible, onClose }: Props) {
                   <Text style={{ color: "#FFFFFF", fontSize: 12, textAlign: "center", marginTop: 4, opacity: 0.7 }}>
                     {selectedCard.scripture}
                   </Text>
+                  {onSetShowcase && (
+                    <Pressable
+                      onPress={() => { onSetShowcase(selectedCard.id); setSelectedCardId(null); }}
+                      style={{ marginTop: 12, backgroundColor: showcaseCardId === selectedCard.id ? colors.border : colors.primary, borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
+                    >
+                      <Text style={{ color: showcaseCardId === selectedCard.id ? colors.muted : "#FFFFFF", fontWeight: "800" }}>
+                        {showcaseCardId === selectedCard.id ? "Showcased on Profile" : "Showcase on Profile"}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
             )}

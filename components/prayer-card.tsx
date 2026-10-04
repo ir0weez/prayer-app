@@ -61,7 +61,7 @@ export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
       <Image
         source={card.art}
         style={{ width: "100%", height: "100%" }}
-        contentFit="contain"
+        contentFit="cover"
       />
     </View>
   );

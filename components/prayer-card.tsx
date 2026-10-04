@@ -1,4 +1,4 @@
-import { Image } from "expo-image";
+import { Image } from "react-native";
 import { Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { type PrayerCard } from "@/lib/card-system";
@@ -59,9 +59,9 @@ export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
       }}
     >
       <Image
-        source={card.art}
+        source={card.fullArt}
         style={{ width: "100%", height: "100%" }}
-        contentFit="cover"
+        resizeMode="cover"
       />
     </View>
   );

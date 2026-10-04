@@ -2427,12 +2427,35 @@ export default function HomeScreen() {
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
           <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "700", marginBottom: 4 }}>Default event alert</Text>
           <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>Use this lead time for new scheduled events</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {[0, 5, 15, 30, 60].map((minutes) => (
-              <Pressable key={minutes} onPress={() => setSettings((previous) => ({ ...previous, defaultEventReminderMinutes: minutes }))} style={{ borderWidth: 1, borderColor: settings.defaultEventReminderMinutes === minutes ? colors.primary : colors.border, backgroundColor: settings.defaultEventReminderMinutes === minutes ? `${colors.primary}18` : colors.surface, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 }}>
-                <Text style={{ color: settings.defaultEventReminderMinutes === minutes ? colors.primary : colors.foreground, fontWeight: "700", fontSize: 12 }}>{minutes === 0 ? "At start" : `${minutes} min`}</Text>
-              </Pressable>
-            ))}
+          <View style={{ flexDirection: "row", borderWidth: 1, borderColor: colors.border, borderRadius: 20, overflow: "hidden" }}>
+            {[0, 5, 15, 30, 60].map((minutes, index) => {
+              const isSelected = settings.defaultEventReminderMinutes === minutes;
+              return (
+                <Pressable
+                  key={minutes}
+                  onPress={() => setSettings((previous) => ({ ...previous, defaultEventReminderMinutes: minutes }))}
+                  style={({ pressed }) => [{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    paddingHorizontal: 4,
+                    backgroundColor: isSelected ? `${colors.primary}22` : colors.surface,
+                    borderLeftWidth: index > 0 ? 1 : 0,
+                    borderLeftColor: colors.border,
+                  }, pressed && { opacity: 0.7 }]}
+                >
+                  {isSelected && <MaterialIcons name="check" size={14} color={colors.primary} style={{ marginRight: 4 }} />}
+                  <Text
+                    numberOfLines={1}
+                    style={{ color: isSelected ? colors.primary : colors.foreground, fontWeight: "600", fontSize: 12 }}
+                  >
+                    {minutes === 0 ? "At start" : `${minutes}m`}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
           <Pressable onPress={handleTestNotification} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
             {renderSettingsRow("notifications", "Test notification", "Send a test alert in about 10 seconds")}

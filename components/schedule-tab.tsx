@@ -3972,7 +3972,7 @@ export function ScheduleTab({
                     onChangeText={setFormTitle}
                     placeholder="e.g., Church Service, BBQ, Bible Study"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   {formTitle.trim() && detectEventKeyword(formTitle) && (
@@ -4029,7 +4029,7 @@ export function ScheduleTab({
                     onChangeText={setFormLocation}
                     placeholder="Optional"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES</Text>
@@ -4038,7 +4038,7 @@ export function ScheduleTab({
                     onChangeText={setFormNotes}
                     placeholder="Optional"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, minHeight: 80 }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary, minHeight: 80 }]}
                     multiline
                     returnKeyType="done"
                   />
@@ -4088,7 +4088,7 @@ export function ScheduleTab({
                 onChangeText={setFormTitle}
                 placeholder="e.g., Buy groceries, Call pastor"
                 placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
                 onSubmitEditing={handleSaveTodo}
               />
@@ -4143,7 +4143,7 @@ export function ScheduleTab({
                 onChangeText={setFormTodoNotes}
                 placeholder="Add any notes or details for this todo"
                 placeholderTextColor={colors.muted}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, minHeight: 80, textAlignVertical: 'top' }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary, minHeight: 80, textAlignVertical: 'top' }]}
                 multiline
                 numberOfLines={4}
               />
@@ -4179,7 +4179,7 @@ export function ScheduleTab({
                   onChangeText={setFormSubtaskDescription}
                   placeholder="Details for this step (optional)"
                   placeholderTextColor={colors.muted}
-                  style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, marginTop: 8, marginBottom: 0, minHeight: 52 }]}
+                  style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary, marginTop: 8, marginBottom: 0, minHeight: 52 }]}
                   multiline
                   numberOfLines={2}
                   textAlignVertical="top"
@@ -4346,7 +4346,7 @@ export function ScheduleTab({
                     onChangeText={setFormTitle}
                     placeholder="e.g., Youth Group, Prayer Meeting"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TYPE OF MINISTRY</Text>
@@ -4409,7 +4409,7 @@ export function ScheduleTab({
                     onChangeText={setFormLocation}
                     placeholder="e.g., Main Campus, Room 201"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>BIBLE BOOK & CHAPTER (optional)</Text>
@@ -4419,7 +4419,7 @@ export function ScheduleTab({
                       onChangeText={setFormBibleBook}
                       placeholder="e.g., Genesis"
                       placeholderTextColor={colors.muted}
-                      style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary, flex: 1 }]}
                       returnKeyType="done"
                     />
                     <TextInput
@@ -4427,7 +4427,7 @@ export function ScheduleTab({
                       onChangeText={setFormBibleChapter}
                       placeholder="Ch."
                       placeholderTextColor={colors.muted}
-                      style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border, width: 60 }]}
+                      style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary, width: 60 }]}
                       keyboardType="number-pad"
                       returnKeyType="done"
                     />
@@ -4507,7 +4507,7 @@ export function ScheduleTab({
                     placeholder="1"
                     placeholderTextColor={colors.muted}
                     keyboardType="number-pad"
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>DATE</Text>
@@ -4544,7 +4544,7 @@ export function ScheduleTab({
                     onChangeText={setFormNotes}
                     placeholder="e.g., Focus on verses 1-10"
                     placeholderTextColor={colors.muted}
-                    style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
                 </View>
@@ -4602,7 +4602,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formTitle}
                 onChangeText={setFormTitle}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -4612,7 +4612,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formNotes}
                 onChangeText={setFormNotes}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -4733,7 +4733,7 @@ export function ScheduleTab({
                 placeholderTextColor={colors.muted}
                 value={formSongLink}
                 onChangeText={setFormSongLink}
-                style={[scheduleStyles.formInput, { color: colors.foreground, borderColor: colors.border }]}
+                style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                 returnKeyType="done"
               />
 
@@ -5423,11 +5423,12 @@ const scheduleStyles = StyleSheet.create({
     marginTop: 16,
   },
   formInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
   },
   formRow: {
     flexDirection: "row",

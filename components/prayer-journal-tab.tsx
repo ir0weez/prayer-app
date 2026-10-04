@@ -64,6 +64,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   });
   const [draftTaggedPersonIds, setDraftTaggedPersonIds] = useState<string[]>([]);
   const [draftReply, setDraftReply] = useState("");
+  const [draftColor, setDraftColor] = useState<string | undefined>(undefined);
 
   const filteredEntries = useMemo(
     () => filterPrayerJournalEntries(entries, bookmarksOnly),
@@ -88,6 +89,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setEditingEntryId(null);
     setDraftBody("");
     setDraftTaggedPersonIds([]);
+    setDraftColor(undefined);
   };
 
   const startEditEntry = (entry: PrayerJournalEntry) => {
@@ -95,6 +97,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftBody(entry.body);
     setDraftDate(entry.date);
     setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
+    setDraftColor(entry.color);
     setShowEntryComposer(true);
   };
 
@@ -103,8 +106,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
     onChange(
       editingEntryId
-        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople })
-        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople }, createId("journal")),
+        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor })
+        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor }, createId("journal")),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     closeEntryComposer();
@@ -181,7 +184,15 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     <Pressable
       delayLongPress={500}
       onLongPress={() => showEntryActions(item)}
-      style={({ pressed }) => [styles.entryCard, { backgroundColor: colors.surface }, pressed && styles.longPressed]}
+      style={({ pressed }) => [
+        styles.entryCard,
+        {
+          backgroundColor: item.color ? `${item.color}14` : colors.surface,
+          borderLeftWidth: item.color ? 4 : 0,
+          borderLeftColor: item.color,
+        },
+        pressed && styles.longPressed,
+      ]}
     >
       <View style={styles.entryTopRow}>
         <Text style={[styles.entryDate, { color: colors.muted }]}>{formatPrayerJournalDate(item.date)}</Text>
@@ -357,7 +368,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                     placeholderTextColor={colors.muted}
                     multiline
                     textAlignVertical="top"
-                    style={[styles.prayerInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]}
+                    style={[styles.prayerInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                   />
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Entry Date</Text>
                   <DateTimePicker value={draftDate} onChange={setDraftDate} mode="date" label="Entry Date" />
@@ -365,6 +376,27 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   {people.length === 0 ? (
                     <Text style={[styles.noPeopleText, { color: colors.muted }]}>Add contacts from the People tab to tag them here.</Text>
                   ) : null}
+                  <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 16 }]}>Color</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
+                    {["#9E9E9E", "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#3B82F6", "#8B5CF6"].map((c) => (
+                      <Pressable
+                        key={c}
+                        onPress={() => setDraftColor(draftColor === c ? undefined : c)}
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          backgroundColor: c,
+                          borderWidth: draftColor === c ? 3 : 0,
+                          borderColor: colors.foreground,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {draftColor === c && <MaterialIcons name="check" size={20} color="#FFFFFF" />}
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               }
               renderItem={({ item }) => {
@@ -558,7 +590,7 @@ const styles = StyleSheet.create({
   emptyButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(21, 16, 29, 0.48)" },
-  composerSheet: { height: "92%", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
+  composerSheet: { height: "92%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
   replySheet: { height: "78%", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
   composerHeader: {
     minHeight: 66,
@@ -571,7 +603,7 @@ const styles = StyleSheet.create({
   composerTitle: { fontSize: 21, lineHeight: 27, fontWeight: "800" },
   doneText: { fontSize: 16, lineHeight: 22, fontWeight: "800", paddingVertical: 10 },
   composerContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 28 },
-  prayerInput: { minHeight: 150, borderWidth: 1, borderRadius: 18, padding: 16, fontSize: 17, lineHeight: 24 },
+  prayerInput: { minHeight: 150, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, padding: 16, fontSize: 17, lineHeight: 24 },
   fieldLabel: { marginTop: 20, marginBottom: 10, fontSize: 16, lineHeight: 21, fontWeight: "800" },
   peopleLabel: { marginTop: 22 },
   noPeopleText: { fontSize: 14, lineHeight: 20, marginBottom: 8 },

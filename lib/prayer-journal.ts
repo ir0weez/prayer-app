@@ -21,6 +21,7 @@ export type PrayerJournalEntry = {
   replies: PrayerJournalReply[];
   createdAt: string;
   updatedAt: string;
+  color?: string;
 };
 
 export type PrayerJournalGroup = {
@@ -129,7 +130,7 @@ export function sortPrayerJournalEntries(entries: PrayerJournalEntry[]): PrayerJ
 
 export function createPrayerJournalEntry(
   entries: PrayerJournalEntry[],
-  input: { body: string; date?: string; taggedPeople?: Person[] },
+  input: { body: string; date?: string; taggedPeople?: Person[]; color?: string },
   entryId: string,
   now = new Date(),
 ): PrayerJournalEntry[] {
@@ -146,6 +147,7 @@ export function createPrayerJournalEntry(
     replies: [],
     createdAt,
     updatedAt: createdAt,
+    color: input.color,
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -153,7 +155,7 @@ export function createPrayerJournalEntry(
 export function updatePrayerJournalEntry(
   entries: PrayerJournalEntry[],
   entryId: string,
-  input: { body: string; date: string; taggedPeople?: Person[] },
+  input: { body: string; date: string; taggedPeople?: Person[]; color?: string },
   now = new Date(),
 ): PrayerJournalEntry[] {
   const body = input.body.trim();

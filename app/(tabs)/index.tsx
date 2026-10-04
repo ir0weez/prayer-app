@@ -415,6 +415,75 @@ function Sparkle({ delay, size, style }: { delay: number; size: number; style: a
   );
 }
 
+// Material 3 Basic Dialog: 28dp radius, tonal buttons.
+function M3Dialog({
+  visible,
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onDismiss,
+  destructive = false,
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onDismiss: () => void;
+  destructive?: boolean;
+}) {
+  const colors = useColors();
+  if (!visible) return null;
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onDismiss}>
+      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.32)", justifyContent: "center", alignItems: "center", padding: 24 }} onPress={onDismiss}>
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: 28,
+            padding: 24,
+            width: "100%",
+            maxWidth: 400,
+            elevation: 3,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+          }}
+        >
+          <Text style={{ fontSize: 22, fontWeight: "500", color: colors.foreground, marginBottom: 12 }}>{title}</Text>
+          <Text style={{ fontSize: 15, lineHeight: 22, color: colors.muted, marginBottom: 20 }}>{message}</Text>
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
+            <Pressable
+              onPress={onDismiss}
+              style={({ pressed }) => [{
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 20,
+              }, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "600", color: colors.primary }}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { onConfirm(); onDismiss(); }}
+              style={({ pressed }) => [{
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 20,
+                backgroundColor: destructive ? "#EF4444" : colors.primary,
+              }, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#FFFFFF" }}>{confirmLabel}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // Material 3 Switch: 52x32 track, animated thumb with check icon.
 function M3Switch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
   const colors = useColors();
@@ -576,6 +645,8 @@ export default function HomeScreen() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
   const scheduleScrollY = useRef(0);
+  // M3 dialog state for Danger Zone confirmations.
+  const [dangerDialog, setDangerDialog] = useState<"reset" | "notifications" | "clear" | null>(null);
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
@@ -2388,55 +2459,13 @@ export default function HomeScreen() {
 
       <Text style={[styles.settingsSectionLabel, { color: "#EF4444" }]}>DANGER ZONE</Text>
       <View style={[styles.settingsCard, { borderColor: "#EF444440" }]}>
-        <Pressable onPress={() => {
-          Alert.alert("Reset Today's Prayers", "Uncheck all items for today?", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Reset",
-              style: "destructive",
-              onPress: () => {
-                const today = getTodayISOString();
-                const updated = people.map((p) => ({
-                  ...p,
-                  lastPrayerCompletedDate: p.lastPrayerCompletedDate === today ? null : p.lastPrayerCompletedDate,
-                }));
-                setPeople(updated);
-                AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updated))).catch(() => undefined);
-              },
-            },
-          ]);
-        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={() => setDangerDialog("reset")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("cancel", "Reset Today's Prayers", "Uncheck all items for today", "danger")}
         </Pressable>
-        <Pressable onPress={() => {
-          Alert.alert("Clear Notifications", "Remove all scheduled notifications?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Clear", style: "destructive", onPress: () => { clearAllScheduledNotifications().catch(() => undefined); } },
-          ]);
-        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={() => setDangerDialog("notifications")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("notifications", "Clear All Notifications", "Remove all scheduled notifications", "danger")}
         </Pressable>
-        <Pressable onPress={() => {
-          Alert.alert("Clear All Data", "This will permanently delete all people, families, prayer items, reminders, and journal entries. This action cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete All", style: "destructive", onPress: () => {
-              setPeople([]);
-              setJournal([]);
-              setFasts([]);
-              setStreakRecord({ streak: 0, lastCompletedDate: null });
-              setProfile(DEFAULT_PROFILE);
-              AsyncStorage.removeItem("prayercircle.xp.v1").catch(() => undefined);
-              AsyncStorage.removeItem("prayercircle.xp-awards.v1").catch(() => undefined);
-              AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-              AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-              AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
-              AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
-              AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("Data Cleared", "All app data has been deleted. The app is now reset to its initial state.");
-            } },
-          ]);
-        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={() => setDangerDialog("clear")} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("delete-forever", "Clear All Data", "Delete all people, families, and prayer items", "danger")}
         </Pressable>
       </View>
@@ -2445,6 +2474,55 @@ export default function HomeScreen() {
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("favorite", "PrayerCircle", "Version 1.0.0 · Pray for the people you love")}
       </View>
+      <M3Dialog
+        visible={dangerDialog === "reset"}
+        title="Reset Today's Prayers"
+        message="Uncheck all items for today?"
+        confirmLabel="Reset"
+        destructive
+        onDismiss={() => setDangerDialog(null)}
+        onConfirm={() => {
+          const today = getTodayISOString();
+          const updated = people.map((p) => ({
+            ...p,
+            lastPrayerCompletedDate: p.lastPrayerCompletedDate === today ? null : p.lastPrayerCompletedDate,
+          }));
+          setPeople(updated);
+          AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(normalizePeopleForStorage(updated))).catch(() => undefined);
+        }}
+      />
+      <M3Dialog
+        visible={dangerDialog === "notifications"}
+        title="Clear Notifications"
+        message="Remove all scheduled notifications?"
+        confirmLabel="Clear"
+        destructive
+        onDismiss={() => setDangerDialog(null)}
+        onConfirm={() => { clearAllScheduledNotifications().catch(() => undefined); }}
+      />
+      <M3Dialog
+        visible={dangerDialog === "clear"}
+        title="Clear All Data"
+        message="This will permanently delete all people, families, prayer items, reminders, and journal entries. This action cannot be undone."
+        confirmLabel="Delete All"
+        destructive
+        onDismiss={() => setDangerDialog(null)}
+        onConfirm={() => {
+          setPeople([]);
+          setJournal([]);
+          setFasts([]);
+          setStreakRecord({ streak: 0, lastCompletedDate: null });
+          setProfile(DEFAULT_PROFILE);
+          AsyncStorage.removeItem("prayercircle.xp.v1").catch(() => undefined);
+          AsyncStorage.removeItem("prayercircle.xp-awards.v1").catch(() => undefined);
+          AsyncStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+          AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+          AsyncStorage.setItem(FASTS_STORAGE_KEY, JSON.stringify([])).catch(() => undefined);
+          AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 0, lastCompletedDate: null })).catch(() => undefined);
+          AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(DEFAULT_PROFILE)).catch(() => undefined);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+      />
     </ScrollView>
   );
 

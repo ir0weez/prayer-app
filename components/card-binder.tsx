@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FlatList, Modal, Pressable, SafeAreaView, Text, View } from "react-native";
+import { Dimensions, FlatList, Modal, Pressable, SafeAreaView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { PRAYER_CARDS, RARITY_LABELS, type CardRarity } from "@/lib/card-system";
 import { loadAchievementState } from "@/lib/avatar-achievements";
@@ -59,7 +59,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
               <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "800", marginBottom: 10, textTransform: "uppercase" }}>
                 {RARITY_LABELS[group.rarity]}
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 {group.cards.map((card) => {
                   const earned = unlockedIds.includes(card.achievementId as AchievementId);
                   return (
@@ -67,7 +67,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
                       key={card.id}
                       card={card}
                       earned={earned}
-                      width={165}
+                      width={110}
                       onPress={() => setSelectedCardId(card.id)}
                     />
                   );
@@ -83,7 +83,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
             <Pressable style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setSelectedCardId(null)} />
             {selectedCard && (
               <View style={{ alignItems: "center", maxHeight: "90%" }}>
-                <PrayerCardView card={selectedCard} earned width={220} />
+                <PrayerCardView card={selectedCard} earned width={Dimensions.get("window").width * 0.85} />
                 <Text style={{ color: "#FFFFFF", fontSize: 14, fontStyle: "italic", textAlign: "center", marginTop: 16, paddingHorizontal: 16 }}>
                   "{selectedCard.flavor}"
                 </Text>

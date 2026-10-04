@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Image, Modal, Pressable, Text, View } from "react-native";
+import { Animated, Dimensions, Image, Modal, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { getCardByAchievementId, RARITY_COLORS } from "@/lib/card-system";
 import { useColors } from "@/hooks/use-colors";
@@ -90,7 +90,7 @@ export function CardPackOpening({ achievementIds, onClose, onViewCollection }: P
             </Text>
             <Image
               source={card.fullArt}
-              style={{ width: 220, height: 330, borderRadius: 8 }}
+              style={{ width: Dimensions.get("window").width * 0.8, height: Dimensions.get("window").width * 0.8 * 1.5, borderRadius: 8 }}
               resizeMode="contain"
             />
             <Text style={{ color: "#FFFFFF", fontSize: 13, fontStyle: "italic", textAlign: "center", marginTop: 12, paddingHorizontal: 20 }}>

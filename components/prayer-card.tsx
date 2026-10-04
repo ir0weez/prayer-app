@@ -60,7 +60,7 @@ export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
     >
       <Image
         source={card.fullArt}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width, height }}
         resizeMode="cover"
       />
     </View>

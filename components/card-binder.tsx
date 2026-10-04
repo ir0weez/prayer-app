@@ -53,6 +53,7 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
           data={grouped}
           keyExtractor={(g) => g.rarity}
           contentContainerStyle={{ padding: 16 }}
+          removeClippedSubviews={false}
           renderItem={({ item: group }) => (
             <View style={{ marginBottom: 20 }}>
               <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "800", marginBottom: 10, textTransform: "uppercase" }}>

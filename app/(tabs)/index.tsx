@@ -1008,6 +1008,11 @@ export default function HomeScreen() {
     ),
     [pendingPrayerIds, prayTodayList, today],
   );
+  // People who still need prayer (not completed, not pending) — drives Prayer Time button + session
+  const prayablePrayTodayList = useMemo(
+    () => visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id)),
+    [visiblePrayTodayList, pendingPrayerIds, today],
+  );
   const duePersonalTodos = useMemo(() => {
     // Only show personal to-dos after all prayer requests are completed
     if (visiblePrayTodayList.length > 0) {
@@ -1812,7 +1817,7 @@ export default function HomeScreen() {
         <>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={styles.subheading}>PRAY TODAY</Text>
-            {visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id)).length > 0 && (
+            {prayablePrayTodayList.length > 0 && (
               <Pressable
                 onPress={() => setShowPrayerSession(true)}
                 style={{ backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 6 }}
@@ -3032,7 +3037,7 @@ export default function HomeScreen() {
         </ScrollView>
         <PrayerSession
           visible={showPrayerSession}
-          people={visiblePrayTodayList.filter((person) => !hasPersonCompletedPrayerToday(person, today) && !pendingPrayerIds.includes(person.id))}
+          people={prayablePrayTodayList}
           onPray={(personId) => {
             // Directly commit the prayer (no undo in focused session)
             commitPrayTodayPerson(personId);

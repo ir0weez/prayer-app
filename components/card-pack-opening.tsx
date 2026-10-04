@@ -15,7 +15,7 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
   const colors = useColors();
   const [revealed, setRevealed] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   const card = achievementId ? getCardByAchievementId(achievementId) : undefined;
 
@@ -23,7 +23,7 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
     if (achievementId) {
       setRevealed(false);
       flipAnim.setValue(0);
-      scaleAnim.setValue(0.8);
+      scaleAnim.setValue(0.9);
     }
   }, [achievementId]);
 
@@ -31,20 +31,17 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
     if (revealed) return;
     setRevealed(true);
     Animated.parallel([
-      Animated.timing(flipAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(flipAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
     ]).start();
   };
 
-  const flipInterpolate = flipAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "180deg"],
-  });
-
-  const backInterpolate = flipAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["180deg", "360deg"],
-  });
+  // Card back: rotates 0 -> 90deg (edge-on), fades out.
+  const backRotate = flipAnim.interpolate({ inputRange: [0, 0.5], outputRange: ["0deg", "90deg"] });
+  const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0] });
+  // Card front: rotates 90 -> 0deg (edge-on to flat), fades in.
+  const frontRotate = flipAnim.interpolate({ inputRange: [0.5, 1], outputRange: ["90deg", "0deg"] });
+  const frontOpacity = flipAnim.interpolate({ inputRange: [0.5, 1], outputRange: [0, 1] });
 
   if (!card) return null;
 
@@ -56,7 +53,6 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
             <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "900", letterSpacing: 1.5, marginBottom: 16 }}>
               NEW CARD EARNED!
             </Text>
-            {/* Card back */}
             <View
               style={{
                 width: 200,
@@ -78,9 +74,40 @@ export function CardPackOpening({ achievementId, onClose, onViewCollection }: Pr
             <Text style={{ color: RARITY_COLORS[card.rarity], fontSize: 14, fontWeight: "900", letterSpacing: 1.5, marginBottom: 16 }}>
               {card.rarity.toUpperCase()} CARD!
             </Text>
-            <Animated.View style={{ transform: [{ rotateY: flipInterpolate }] }}>
-              <PrayerCardView card={card} earned width={220} />
-            </Animated.View>
+            <View style={{ width: 220, height: 319 }}>
+              {/* Card back (rotates away) */}
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  width: 220,
+                  height: 319,
+                  transform: [{ rotateY: backRotate }],
+                  opacity: backOpacity,
+                  borderRadius: 14,
+                  backgroundColor: colors.primary,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 3,
+                  borderColor: "#FFFFFF",
+                  backfaceVisibility: "hidden",
+                }}
+              >
+                <MaterialIcons name="style" size={64} color="#FFFFFF" />
+              </Animated.View>
+              {/* Card front (rotates in) */}
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  width: 220,
+                  height: 319,
+                  transform: [{ rotateY: frontRotate }],
+                  opacity: frontOpacity,
+                  backfaceVisibility: "hidden",
+                }}
+              >
+                <PrayerCardView card={card} earned width={220} />
+              </Animated.View>
+            </View>
             <Text style={{ color: "#FFFFFF", fontSize: 13, fontStyle: "italic", textAlign: "center", marginTop: 16, paddingHorizontal: 20 }}>
               "{card.flavor}"
             </Text>

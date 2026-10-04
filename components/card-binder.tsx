@@ -67,7 +67,8 @@ export function CardBinder({ visible, onClose, showcaseCardId, onSetShowcase }: 
                       card={card}
                       earned={earned}
                       width={110}
-                      onPress={() => earned && setSelectedCardId(card.id)}
+                      compact
+                      onPress={() => setSelectedCardId(card.id)}
                     />
                   );
                 })}

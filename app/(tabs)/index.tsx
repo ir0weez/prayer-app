@@ -3027,19 +3027,21 @@ export default function HomeScreen() {
 
         </ScrollView>
         {/* Floating Prayer Time button — hides when Pray Today is complete */}
-        {prayablePrayTodayList.length > 0 && !showPrayerSession && (
+        {prayablePrayTodayList.length > 0 && (
           <Pressable
             onPress={() => setShowPrayerSession(true)}
             style={{
               position: "absolute",
               bottom: 100,
-              alignSelf: "center",
+              left: 20,
+              right: 20,
               backgroundColor: colors.primary,
               borderRadius: 28,
               paddingVertical: 14,
               paddingHorizontal: 24,
               flexDirection: "row",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
               elevation: 6,
               shadowColor: "#000",

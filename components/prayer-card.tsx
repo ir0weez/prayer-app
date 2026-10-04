@@ -14,81 +14,100 @@ type Props = {
 export function PrayerCardView({ card, earned, width = 160, onPress }: Props) {
   const colors = useColors();
   const rarityColor = RARITY_COLORS[card.rarity];
-  const height = width * 1.4;
+  const height = width * 1.45;
+
+  // Premium dark card design.
+  const cardBg = "#141414";
+  const goldText = "#D4AF37";
+  const mutedText = "#888888";
 
   const body = (
     <View
       style={{
         width,
         height,
-        borderRadius: 12,
+        borderRadius: 10,
         overflow: "hidden",
-        backgroundColor: colors.surface,
+        backgroundColor: cardBg,
         borderWidth: 2,
-        borderColor: earned ? rarityColor : colors.border,
-        opacity: earned ? 1 : 0.55,
+        borderColor: earned ? rarityColor : "#333333",
+        opacity: earned ? 1 : 0.5,
+        padding: 8,
       }}
     >
+      {/* Name + HP */}
+      <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 6 }}>
+        <Text
+          numberOfLines={1}
+          style={{ flex: 1, color: earned ? goldText : mutedText, fontSize: 13, fontWeight: "700", fontFamily: "serif" }}
+        >
+          {earned ? card.name : "???"}
+        </Text>
+        {earned && (
+          <Text style={{ color: mutedText, fontSize: 10, fontWeight: "600", marginLeft: 4 }}>
+            {card.hp} HP
+          </Text>
+        )}
+      </View>
+
       {/* Art */}
-      <View style={{ height: height * 0.52, backgroundColor: colors.border }}>
+      <View
+        style={{
+          height: height * 0.48,
+          borderRadius: 6,
+          overflow: "hidden",
+          backgroundColor: "#0a0a0a",
+          borderWidth: 1,
+          borderColor: earned ? rarityColor : "#333333",
+        }}
+      >
         {earned ? (
           <Image source={card.art} style={{ width: "100%", height: "100%" }} contentFit="cover" />
         ) : (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <MaterialIcons name="help-outline" size={40} color={colors.muted} />
+            <MaterialIcons name="help-outline" size={36} color={mutedText} />
           </View>
         )}
-        {/* HP badge */}
-        {earned && (
-          <View
-            style={{
-              position: "absolute",
-              top: 6,
-              right: 6,
-              backgroundColor: "rgba(0,0,0,0.65)",
-              borderRadius: 10,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "800" }}>{card.hp} HP</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Name */}
-      <View style={{ paddingHorizontal: 8, paddingTop: 6 }}>
-        <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>
-          {earned ? card.name : "???"}
-        </Text>
-        <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 10, marginTop: 1 }}>
-          {earned ? card.subtitle : card.moves ? "" : ""}
-          {earned ? null : getHint(card)}
-        </Text>
       </View>
 
       {/* Moves */}
-      {earned && (
-        <View style={{ paddingHorizontal: 8, paddingTop: 4, gap: 3 }}>
-          {card.moves.map((move) => (
-            <View key={move.name} style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text numberOfLines={1} style={{ flex: 1, color: colors.foreground, fontSize: 10, fontWeight: "600" }}>
+      {earned ? (
+        <View style={{ marginTop: 8 }}>
+          {card.moves.map((move, i) => (
+            <View
+              key={move.name}
+              style={{
+                flexDirection: "row",
+                alignItems: "baseline",
+                paddingVertical: 4,
+                borderBottomWidth: i === 0 ? 1 : 0,
+                borderBottomColor: "#2a2a2a",
+              }}
+            >
+              <Text numberOfLines={1} style={{ flex: 1, color: "#CCCCCC", fontSize: 11, fontFamily: "serif" }}>
                 {move.name}
               </Text>
-              <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "700" }}>{move.damage}</Text>
+              <Text style={{ color: goldText, fontSize: 12, fontWeight: "700" }}>{move.damage}</Text>
             </View>
           ))}
         </View>
+      ) : (
+        <View style={{ marginTop: 8 }}>
+          <Text style={{ color: mutedText, fontSize: 10, textAlign: "center", lineHeight: 14 }}>
+            {getHint(card)}
+          </Text>
+        </View>
       )}
 
-      {/* Rarity */}
-      <View style={{ flex: 1, justifyContent: "flex-end", paddingHorizontal: 8, paddingBottom: 6 }}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: earned ? rarityColor : colors.muted, marginRight: 4 }} />
-          <Text style={{ color: earned ? rarityColor : colors.muted, fontSize: 9, fontWeight: "800", textTransform: "uppercase" }}>
-            {RARITY_LABELS[card.rarity]}
+      {/* Rarity + Type */}
+      <View style={{ flex: 1, justifyContent: "flex-end" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={{ color: earned ? rarityColor : mutedText, fontSize: 9, fontWeight: "800", letterSpacing: 1 }}>
+            {RARITY_LABELS[card.rarity].toUpperCase()}
           </Text>
-          <Text style={{ color: colors.muted, fontSize: 9, marginLeft: 4 }}>{card.type}</Text>
+          {earned && (
+            <Text style={{ color: mutedText, fontSize: 9 }}>{card.type}</Text>
+          )}
         </View>
       </View>
     </View>

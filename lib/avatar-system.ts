@@ -338,6 +338,30 @@ export const SHINY_AVATAR_THUMBNAILS = {
   "tiger-shiny": require("@/assets/avatars/thumbs/avatar-tiger-shiny.webp"),
 } as const;
 
+export const HERO_AVATARS = {
+  "david-hero": require("@/assets/avatars/heroes/avatar-david-hero.webp"),
+  "moses-hero": require("@/assets/avatars/heroes/avatar-moses-hero.webp"),
+  "paul-hero": require("@/assets/avatars/heroes/avatar-paul-hero.webp"),
+  "peter-hero": require("@/assets/avatars/heroes/avatar-peter-hero.webp"),
+  "esther-hero": require("@/assets/avatars/heroes/avatar-esther-hero.webp"),
+  "daniel-hero": require("@/assets/avatars/heroes/avatar-daniel-hero.webp"),
+  "spurgeon-hero": require("@/assets/avatars/heroes/avatar-spurgeon-hero.webp"),
+  "moody-hero": require("@/assets/avatars/heroes/avatar-moody-hero.webp"),
+} as const;
+
+export type HeroAvatarId = keyof typeof HERO_AVATARS;
+
+export const HERO_ACHIEVEMENTS = [
+  { id: "evo-david-3", name: "David", hint: "Reach a 30-day prayer streak", avatarId: "david-hero", title: "David the King" },
+  { id: "fast-40", name: "Moses", hint: "Complete a 40-day fast", avatarId: "moses-hero", title: "Moses" },
+  { id: "evo-paul-3", name: "Paul", hint: "Reach a 50-day prayer streak", avatarId: "paul-hero", title: "Paul the Apostle" },
+  { id: "evo-peter-3", name: "Peter", hint: "Complete a 30-day fast", avatarId: "peter-hero", title: "Peter the Restored" },
+  { id: "fast-5", name: "Esther", hint: "Complete a 5-day fast", avatarId: "esther-hero", title: "Esther" },
+  { id: "fast-10", name: "Daniel", hint: "Complete a 10-day fast", avatarId: "daniel-hero", title: "Daniel" },
+  { id: "fast-100", name: "Spurgeon", hint: "Complete a 100-day fast", avatarId: "spurgeon-hero", title: "Charles Spurgeon" },
+  { id: "streak-100", name: "Moody", hint: "Reach a 100-day prayer streak", avatarId: "moody-hero", title: "D.L. Moody" },
+] as const;
+
 export type ShinyAvatarId = keyof typeof SHINY_AVATARS;
 
 export const SHINY_ACHIEVEMENTS = [

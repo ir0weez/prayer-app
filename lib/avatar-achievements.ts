@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SHINY_ACHIEVEMENTS, type AchievementId } from "./avatar-system";
+import { HERO_ACHIEVEMENTS, SHINY_ACHIEVEMENTS, type AchievementId } from "./avatar-system";
 import type { PersonalFast } from "./prayercircle-fasting";
 
 export const AVATAR_ACHIEVEMENTS_STORAGE_KEY = "prayercircle.achievements.v1";
@@ -12,7 +12,9 @@ export function normalizeAchievementState(value: unknown): AchievementState {
   const valid = new Set(SHINY_ACHIEVEMENTS.map((entry) => entry.id));
   const ids = Array.isArray(parsed.unlockedAchievementIds) ? parsed.unlockedAchievementIds.filter((id): id is AchievementId => typeof id === "string" && valid.has(id as AchievementId)) : [];
   const avatars = ids.map((id) => (SHINY_ACHIEVEMENTS.find((entry) => entry.id === id) as any)?.avatarId).filter(Boolean);
-  return { unlockedAchievementIds: [...new Set(ids)], unlockedAvatarIds: [...new Set([...(parsed.unlockedAvatarIds || []), ...avatars])], celebratedAchievementIds: Array.isArray(parsed.celebratedAchievementIds) ? parsed.celebratedAchievementIds.filter((id): id is AchievementId => typeof id === "string" && valid.has(id as AchievementId)) : [] };
+  const heroAvatars = ids.map((id) => (HERO_ACHIEVEMENTS.find((entry) => entry.id === id) as any)?.avatarId).filter(Boolean);
+  const allAvatars = [...avatars, ...heroAvatars];
+  return { unlockedAchievementIds: [...new Set(ids)], unlockedAvatarIds: [...new Set([...(parsed.unlockedAvatarIds || []), ...allAvatars])], celebratedAchievementIds: Array.isArray(parsed.celebratedAchievementIds) ? parsed.celebratedAchievementIds.filter((id): id is AchievementId => typeof id === "string" && valid.has(id as AchievementId)) : [] };
 }
 
 export async function loadAchievementState(): Promise<AchievementState> {
@@ -65,7 +67,9 @@ export async function unlockQualifiedAchievements(current: AchievementState, qua
   if (!newlyUnlocked.length) return { state: current, newlyUnlocked };
   const unlockedAchievementIds = [...current.unlockedAchievementIds, ...newlyUnlocked];
   const newAvatarIds = newlyUnlocked.map((id) => (SHINY_ACHIEVEMENTS.find((entry) => entry.id === id) as any)?.avatarId).filter(Boolean);
-  const unlockedAvatarIds = [...new Set([...current.unlockedAvatarIds, ...newAvatarIds])];
+  const newHeroIds = newlyUnlocked.map((id) => (HERO_ACHIEVEMENTS.find((entry) => entry.id === id) as any)?.avatarId).filter(Boolean);
+  const allNewIds = [...newAvatarIds, ...newHeroIds];
+  const unlockedAvatarIds = [...new Set([...current.unlockedAvatarIds, ...allNewIds])];
   const next = { ...current, unlockedAchievementIds, unlockedAvatarIds };
   await saveAchievementState(next);
   return { state: next, newlyUnlocked };

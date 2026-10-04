@@ -371,6 +371,14 @@ export const HERO_AVATARS = {
   "daniel-hero": require("@/assets/avatars/heroes/avatar-daniel-hero.webp"),
   "spurgeon-hero": require("@/assets/avatars/heroes/avatar-spurgeon-hero.webp"),
   "moody-hero": require("@/assets/avatars/heroes/avatar-moody-hero.webp"),
+  "noah-hero": require("@/assets/avatars/heroes/avatar-noah-hero.webp"),
+  "elijah-hero": require("@/assets/avatars/heroes/avatar-elijah-hero.webp"),
+  "samuel-hero": require("@/assets/avatars/heroes/avatar-samuel-hero.webp"),
+  "ruth-hero": require("@/assets/avatars/heroes/avatar-ruth-hero.webp"),
+  "johnbaptist-hero": require("@/assets/avatars/heroes/avatar-johnbaptist-hero.webp"),
+  "mary-hero": require("@/assets/avatars/heroes/avatar-mary-hero.webp"),
+  "luther-hero": require("@/assets/avatars/heroes/avatar-luther-hero.webp"),
+  "corrie-hero": require("@/assets/avatars/heroes/avatar-corrie-hero.webp"),
 } as const;
 
 export const SHINY_HERO_AVATARS = {
@@ -393,6 +401,14 @@ export const HERO_ACHIEVEMENTS = [
   { id: "fast-10", name: "Daniel", hint: "Complete a 10-day fast", avatarId: "daniel-hero", title: "Daniel" },
   { id: "fast-100", name: "Spurgeon", hint: "Complete a 100-day fast", avatarId: "spurgeon-hero", title: "Charles Spurgeon" },
   { id: "streak-100", name: "Moody", hint: "Reach a 100-day prayer streak", avatarId: "moody-hero", title: "D.L. Moody" },
+  { id: "fast-7", name: "Noah", hint: "Complete a 7-day fast", avatarId: "noah-hero", title: "Noah the Ark Builder" },
+  { id: "fast-21", name: "Elijah", hint: "Complete a 21-day fast", avatarId: "elijah-hero", title: "Elijah the Prophet" },
+  { id: "streak-15", name: "Samuel", hint: "Reach a 15-day prayer streak", avatarId: "samuel-hero", title: "Samuel the Prophet" },
+  { id: "streak-7", name: "Ruth", hint: "Reach a 7-day prayer streak", avatarId: "ruth-hero", title: "Ruth the Loyal" },
+  { id: "fast-30", name: "John the Baptist", hint: "Complete a 30-day fast", avatarId: "johnbaptist-hero", title: "John the Baptist" },
+  { id: "streak-25", name: "Mary", hint: "Reach a 25-day prayer streak", avatarId: "mary-hero", title: "Mary the Mother" },
+  { id: "streak-50", name: "Luther", hint: "Reach a 50-day prayer streak", avatarId: "luther-hero", title: "Martin Luther" },
+  { id: "fast-60", name: "Corrie", hint: "Complete a 60-day fast", avatarId: "corrie-hero", title: "Corrie ten Boom" },
 ] as const;
 
 export type ShinyAvatarId = keyof typeof SHINY_AVATARS;

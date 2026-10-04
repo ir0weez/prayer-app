@@ -3045,7 +3045,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-background" style={[styles.root, { backgroundColor: colors.background }]}> 
       <ReAnimated.View style={[{ flex: 1 }, tabContentStyle]}>
         {renderContent()}
       </ReAnimated.View>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Modal, Pressable, StatusBar, Text, View } from "react-native";
+import { BackHandler, Modal, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { AvatarImage } from "@/components/avatar-system";
@@ -27,15 +27,13 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
   const [isFinished, setIsFinished] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Reset when opened, setup immersive mode and back handler
+  // Reset when opened, setup back handler
   useEffect(() => {
     if (visible) {
       setCurrentIndex(0);
       setElapsedSeconds(0);
       setPrayedCount(0);
       setIsFinished(false);
-      // Hide status bar for immersive prayer time
-      StatusBar.setHidden(true);
       // Start timer
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
@@ -48,8 +46,6 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
       return () => {
         backHandler.remove();
         if (timerRef.current) clearInterval(timerRef.current);
-        // Restore status bar
-        StatusBar.setHidden(false);
       };
     }
     return () => {

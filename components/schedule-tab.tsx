@@ -1528,6 +1528,11 @@ export function ScheduleTab({
     outputRange: [-400, 0],
     extrapolate: "clamp",
   });
+  const fixedHeaderOpacity = scrollY.interpolate({
+    inputRange: [fixedHeaderDockPoint - 20, fixedHeaderDockPoint],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
   // Swipe between days
   const swipeTranslateX = useSharedValue(0);
@@ -3606,6 +3611,7 @@ export function ScheduleTab({
                 right: 0,
                 zIndex: 2,
                 transform: [{ translateY: fixedHeaderTranslateY }],
+                opacity: fixedHeaderOpacity,
               }}
             >
               {renderDateHeaderCard({ borderTopLeftRadius: 0, borderTopRightRadius: 0 })}

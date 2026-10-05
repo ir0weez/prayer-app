@@ -3305,13 +3305,13 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-      {/* Floating Prayer Time button — hides when Pray Today is complete */}
-      {remainingPrayTodayCount > 0 && (
+      {/* Floating Prayer Time button — only on People tab, hides when Pray Today is complete */}
+      {activeTab === "people" && remainingPrayTodayCount > 0 && (
         <Pressable
           onPress={() => setShowPrayerSession(true)}
           style={{
             position: "absolute",
-            bottom: 110,
+            bottom: 140,
             alignSelf: "center",
             backgroundColor: colors.primary,
             borderRadius: 24,

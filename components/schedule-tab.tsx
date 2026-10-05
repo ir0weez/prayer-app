@@ -1520,19 +1520,6 @@ export function ScheduleTab({
     outputRange: [0, -DAY_HEADER_HEIGHT],
     extrapolate: "clamp",
   });
-  // Pinned day-strip header: hidden above the screen until the sheet's own
-  // date header scrolls to the top, then docks in its place.
-  const fixedHeaderDockPoint = Math.max(0, scheduleSummaryHeight - SHEET_OVERLAP);
-  const fixedHeaderTranslateY = scrollY.interpolate({
-    inputRange: [fixedHeaderDockPoint - 20, fixedHeaderDockPoint],
-    outputRange: [-400, 0],
-    extrapolate: "clamp",
-  });
-  const fixedHeaderOpacity = scrollY.interpolate({
-    inputRange: [fixedHeaderDockPoint - 20, fixedHeaderDockPoint],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
 
   // Swipe between days
   const swipeTranslateX = useSharedValue(0);
@@ -3601,21 +3588,6 @@ export function ScheduleTab({
             >
               {renderScheduleSummary()}
             </View>
-            {/* Pinned date header: docks the day strip once the sheet scrolls up.
-                (stickyHeaderIndices breaks Pressable taps on Android after scrolling.) */}
-            <Animated.View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 2,
-                transform: [{ translateY: fixedHeaderTranslateY }],
-                opacity: fixedHeaderOpacity,
-              }}
-            >
-              {renderDateHeaderCard({ borderTopLeftRadius: 0, borderTopRightRadius: 0 })}
-            </Animated.View>
             <Animated.FlatList
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}

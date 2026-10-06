@@ -64,12 +64,14 @@ describe("XP engine", () => {
     expect(normalizeXPState(null)).toMatchObject({ hearts: 4, lastHeartRegenDate: null });
   });
 
-  it("regenerates +1 heart per elapsed day up to the max", () => {
-    const base = { totalXP: 0, level: 1, hearts: 1, lastHeartRegenDate: "2026-09-28" };
-    expect(applyDailyHeartRegen(base, "2026-09-29").hearts).toBe(2);
-    expect(applyDailyHeartRegen(base, "2026-10-05").hearts).toBe(4);
-    expect(applyDailyHeartRegen(base, "2026-09-28").hearts).toBe(1);
-    expect(applyDailyHeartRegen({ ...base, lastHeartRegenDate: null }, "2026-09-29")).toMatchObject({ hearts: 1, lastHeartRegenDate: "2026-09-29" });
+  it("resets hearts to full every Sunday (not daily)", () => {
+    const base = { totalXP: 0, level: 1, hearts: 1, lastHeartRegenDate: null };
+    // 2026-10-04 was a Sunday — hearts reset to max (4 for level 1)
+    expect(applyDailyHeartRegen(base, "2026-10-04").hearts).toBe(4);
+    // Monday — no reset
+    expect(applyDailyHeartRegen(base, "2026-10-05").hearts).toBe(1);
+    // Already reset this Sunday — no double reset
+    expect(applyDailyHeartRegen({ ...base, lastHeartRegenDate: "2026-10-04" }, "2026-10-04").hearts).toBe(1);
   });
 
   it("grants the milestone heart immediately on crossing into a milestone level", () => {

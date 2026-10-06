@@ -386,6 +386,26 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
+        {/* Time to leave: dashed outline above event (in event color) */}
+        {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
+          <View
+            style={{
+              borderWidth: 2,
+              borderStyle: "dashed",
+              borderColor: event.color || colors.primary,
+              borderRadius: 12,
+              paddingVertical: event.travelTimeMinutes <= 30 ? 6 : 12,
+              paddingHorizontal: 12,
+              marginBottom: 6,
+              alignItems: "center",
+              backgroundColor: (event.color || colors.primary) + "15",
+            }}
+          >
+            <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
+              {event.travelTimeMinutes} min to get there
+            </Text>
+          </View>
+        )}
           <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}> 
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}
@@ -1237,6 +1257,7 @@ export function ScheduleTab({
   const [formTodoNotificationsEnabled, setFormTodoNotificationsEnabled] = useState(true);
   const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(0);
   const [formLocation, setFormLocation] = useState("");
+  const [formTravelTimeMinutes, setFormTravelTimeMinutes] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
   const [formDueDate, setFormDueDate] = useState("");
@@ -2105,6 +2126,7 @@ export function ScheduleTab({
     setFormTodoNotificationsEnabled(true);
     setFormReminderMinutesBefore(defaultEventReminderMinutes);
     setFormLocation("");
+    setFormTravelTimeMinutes("");
     setFormNotes("");
     setFormMinistryType("Outreach");
     setFormDueDate("");
@@ -2172,6 +2194,7 @@ export function ScheduleTab({
       startTime: normalizedStartTime || undefined,
       endTime: normalizedEndTime || undefined,
       reminderMinutesBefore: normalizedStartTime ? formReminderMinutesBefore : undefined,
+      travelTimeMinutes: formTravelTimeMinutes ? parseInt(formTravelTimeMinutes, 10) || undefined : undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
@@ -2907,15 +2930,7 @@ export function ScheduleTab({
     />
   </View>
   <View style={scheduleStyles.dateStrip} {...weekStripPanResponder.panHandlers}>
-    <ReAnimated.View
-      key={weekDates[0]}
-      entering={
-        weekSlideDir === 1
-          ? SlideInRight.duration(240)
-          : weekSlideDir === -1
-            ? SlideInLeft.duration(240)
-            : FadeIn.duration(200)
-      }
+    <View
       style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}
     >
     {weekDates.map((date) => {
@@ -2941,7 +2956,7 @@ export function ScheduleTab({
         </Pressable>
       );
     })}
-    </ReAnimated.View>
+    </View>
   </View>
       </View>
     </>
@@ -4010,6 +4025,16 @@ export function ScheduleTab({
                     style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME TO LEAVE (MINUTES)</Text>
+                  <TextInput
+                    value={formTravelTimeMinutes}
+                    onChangeText={setFormTravelTimeMinutes}
+                    placeholder="e.g. 15"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="numeric"
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
+                    returnKeyType="done"
+                  />
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>NOTES</Text>
                   <TextInput
                     value={formNotes}
@@ -5071,7 +5096,7 @@ const scheduleStyles = StyleSheet.create({
   },
   floatingTodayButton: {
     position: "absolute",
-    bottom: 130,
+    bottom: 160,
     left: "50%",
     marginLeft: -60,
     flexDirection: "row",

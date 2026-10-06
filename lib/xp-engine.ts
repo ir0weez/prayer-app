@@ -5,6 +5,7 @@ const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
 
 export type XpAction =
   | "scheduled-prayer"
+  | "prayer-time-bonus"
   | "schedule-todo-event"
   | "schedule-todo-event-late"
   | "daily-reading"
@@ -70,6 +71,7 @@ export const XP_LEVEL_TITLES: Record<number, string> = {
 
 export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "scheduled-prayer": 10,
+  "prayer-time-bonus": 10,
   "schedule-todo-event": 5,
   "schedule-todo-event-late": 1,
   "daily-reading": 10,
@@ -125,14 +127,14 @@ function daysBetweenDateStrings(from: string, to: string): number {
 export function applyDailyHeartRegen(state: XpState, todayStr: string): XpState {
   const current = normalizeXPState(state);
   const maxHearts = maxHeartsForLevel(current.level);
-  if (!current.lastHeartRegenDate) {
-    return { ...current, hearts: Math.min(maxHearts, current.hearts), lastHeartRegenDate: todayStr };
-  }
-  const elapsed = daysBetweenDateStrings(current.lastHeartRegenDate, todayStr);
-  if (elapsed <= 0) return current;
+  // Hearts reset to full every Sunday (not daily).
+  const today = new Date(todayStr + "T12:00:00");
+  const isSunday = today.getDay() === 0;
+  if (!isSunday) return current;
+  if (current.lastHeartRegenDate === todayStr) return current;
   return {
     ...current,
-    hearts: Math.min(maxHearts, current.hearts + elapsed),
+    hearts: maxHearts,
     lastHeartRegenDate: todayStr,
   };
 }

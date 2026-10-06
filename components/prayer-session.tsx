@@ -10,6 +10,7 @@ type Props = {
   visible: boolean;
   people: Person[];
   onPray: (personId: string) => void;
+  onTimeBonus: () => void;
   onClose: () => void;
 };
 
@@ -19,13 +20,16 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function PrayerSession({ visible, people, onPray, onClose }: Props) {
+export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }: Props) {
   const colors = useColors();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [prayedCount, setPrayedCount] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [sessionPeople, setSessionPeople] = useState<Person[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastBonusMinute = useRef(0);
 
   // Reset when opened, setup back handler
   useEffect(() => {
@@ -34,6 +38,9 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
       setElapsedSeconds(0);
       setPrayedCount(0);
       setIsFinished(false);
+      setTotalCount(people.length);
+      setSessionPeople([...people]);
+      lastBonusMinute.current = 0;
       // Start timer
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
@@ -60,10 +67,19 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
     }
   }, [isFinished]);
 
+  // Award +10 XP every 5 minutes in prayer mode
+  useEffect(() => {
+    const minutes = Math.floor(elapsedSeconds / 300);
+    if (minutes > lastBonusMinute.current) {
+      lastBonusMinute.current = minutes;
+      onTimeBonus();
+    }
+  }, [elapsedSeconds, onTimeBonus]);
+
   if (!visible) return null;
 
-  const currentPerson = people[currentIndex];
-  const isLast = currentIndex >= people.length - 1;
+  const currentPerson = sessionPeople[currentIndex];
+  const isLast = currentIndex >= totalCount - 1;
 
   const handlePray = () => {
     if (!currentPerson) return;
@@ -107,7 +123,7 @@ export function PrayerSession({ visible, people, onPray, onClose }: Props) {
           <>
             {/* Progress */}
             <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700", marginBottom: 16 }}>
-              {currentIndex + 1} of {people.length}
+              {currentIndex + 1} of {totalCount}
             </Text>
 
             {/* Person card */}

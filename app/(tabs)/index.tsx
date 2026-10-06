@@ -3338,6 +3338,9 @@ export default function HomeScreen() {
         onPray={(personId) => {
           commitPrayTodayPerson(personId);
         }}
+        onTimeBonus={() => {
+          void awardExperience("prayer-time-bonus", `prayer-time:${Date.now()}`, undefined);
+        }}
         onClose={() => setShowPrayerSession(false)}
       />
     </ScreenContainer>

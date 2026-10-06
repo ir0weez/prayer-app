@@ -21,6 +21,7 @@ export type ScheduleEvent = {
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
   reminderMinutesBefore?: number; // Optional local notification lead time
+  travelTimeMinutes?: number; // "Time to leave" — minutes to get there, shown as dashed outline above event
   location?: string;
   notes?: string;
   isCompleted: boolean;

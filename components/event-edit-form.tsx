@@ -46,6 +46,7 @@ export function EventEditForm({
   const [formEndTime, setFormEndTime] = useState(event.endTime || "");
   const [formReminderMinutesBefore, setFormReminderMinutesBefore] = useState(event.reminderMinutesBefore ?? 0);
   const [formLocation, setFormLocation] = useState(event.location || "");
+  const [formTravelTime, setFormTravelTime] = useState(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
   const [formNotes, setFormNotes] = useState(event.notes || "");
   const [formColor, setFormColor] = useState(event.color || "#6B7280");
   const [formOffEvent, setFormOffEvent] = useState(event.isOffEvent === true);
@@ -60,6 +61,7 @@ export function EventEditForm({
     setFormEndTime(event.endTime || "");
     setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
     setFormLocation(event.location || "");
+    setFormTravelTime(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#6B7280");
     setFormOffEvent(event.isOffEvent === true);
@@ -80,6 +82,7 @@ export function EventEditForm({
       startTime: formStartTime || undefined,
       endTime: formEndTime || undefined,
       reminderMinutesBefore: formStartTime ? formReminderMinutesBefore : undefined,
+      travelTimeMinutes: formTravelTime ? parseInt(formTravelTime, 10) || undefined : undefined,
       location: formLocation || undefined,
       notes: formNotes || undefined,
       color: formColor,
@@ -98,6 +101,7 @@ export function EventEditForm({
     setFormEndTime(event.endTime || "");
     setFormReminderMinutesBefore(event.reminderMinutesBefore ?? 0);
     setFormLocation(event.location || "");
+    setFormTravelTime(event.travelTimeMinutes ? String(event.travelTimeMinutes) : "");
     setFormNotes(event.notes || "");
     setFormColor(event.color || "#6B7280");
     setFormOffEvent(event.isOffEvent === true);
@@ -228,6 +232,22 @@ export function EventEditForm({
             onChangeText={setFormLocation}
             placeholder="Event location"
             placeholderTextColor={colors.muted}
+            style={[
+              styles.input,
+              { color: colors.foreground, borderColor: colors.border },
+            ]}
+          />
+
+          {/* Time to leave */}
+          <Text style={[styles.label, { color: colors.muted }]}>
+            TIME TO LEAVE (minutes, optional)
+          </Text>
+          <TextInput
+            value={formTravelTime}
+            onChangeText={setFormTravelTime}
+            placeholder="e.g. 15"
+            placeholderTextColor={colors.muted}
+            keyboardType="numeric"
             style={[
               styles.input,
               { color: colors.foreground, borderColor: colors.border },

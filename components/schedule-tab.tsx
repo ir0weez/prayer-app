@@ -2963,7 +2963,7 @@ export function ScheduleTab({
   const renderScheduleSummary = () => (
     <>
 {/* Summary Card - Sticky Header Index 0 */}
-<View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingBottom: 32 }]}>
+<View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingBottom: 8 }]}>
   {(() => {
     // The summary and timeline share one scheduled-commitment rule:
     // completing an item does not make its reserved time available again.
@@ -3634,7 +3634,7 @@ export function ScheduleTab({
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
       {/* Pill-style floating header (see-through, like People tab) */}
-      <View style={{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+      <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 120], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>
@@ -3739,7 +3739,7 @@ export function ScheduleTab({
             </View>
           )}
         </ReAnimated.View>
-      </View>
+      </Animated.View>
 
 
 
@@ -3760,7 +3760,7 @@ export function ScheduleTab({
               data={scheduleSheetData}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id === justAddedId ? `${item.id}-new` : item.id}
               renderItem={(info) => {
                 const element = renderItem(info);
                 // The date header is the sheet's own top (it carries the surface

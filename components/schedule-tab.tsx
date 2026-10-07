@@ -40,7 +40,6 @@ import ReAnimated, {
   interpolate,
   Extrapolation,
   withRepeat,
-  withDelay,
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
@@ -158,7 +157,6 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   const eventColor = event.color || colors.primary;
   const translateX = useSharedValue(0);
   const [contentWidth, setContentWidth] = useState(0);
-  const [visibleWidth, setVisibleWidth] = useState(0);
 
   // Update countdown every 30 seconds
   useEffect(() => {
@@ -206,30 +204,19 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
     leaveIn ? `IN ${leaveIn}` : null,
   ].filter(Boolean);
 
-  const tickerText = parts.join("  •  ");
+  const tickerText = parts.join("  •  ") + "  •  ";
   const tickerHeight = 44;
 
-  // Pause-scroll-pause: sit still, scroll through once, pause, jump back
+  // Continuous seamless loop
   useEffect(() => {
-    if (contentWidth > visibleWidth && visibleWidth > 0) {
-      const scrollDistance = contentWidth - visibleWidth;
-      const scrollDuration = Math.max(3000, scrollDistance * 30); // ~30ms per px
-      translateX.value = withDelay(2500,
-        withTiming(-scrollDistance, { duration: scrollDuration, easing: Easing.linear },
-          () => {
-            translateX.value = withDelay(2500,
-              withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) },
-                () => {
-                  // Loop: restart after a beat
-                  translateX.value = withDelay(1000, withTiming(0, { duration: 1 }));
-                }
-              )
-            );
-          }
-        )
+    if (contentWidth > 0) {
+      translateX.value = withRepeat(
+        withTiming(-contentWidth, { duration: 6000, easing: Easing.linear }),
+        -1,
+        false
       );
     }
-  }, [contentWidth, visibleWidth]);
+  }, [contentWidth]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -247,18 +234,21 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         borderStyle: "solid", borderColor: eventColor,
         borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
-      <View
-        style={{ flex: 1, justifyContent: "center", overflow: "hidden", paddingHorizontal: 12 }}
-        onLayout={(e) => setVisibleWidth(e.nativeEvent.layout.width - 24)}
-      >
-        <ReAnimated.View style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}>
-          <View
-            style={{ flexDirection: "row", alignItems: "center" }}
-            onLayout={(e) => {
-              const w = e.nativeEvent.layout.width;
-              if (w > 0) setContentWidth(w);
-            }}
-          >
+      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
+        <ReAnimated.View
+          style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width / 2;
+            if (w > 0) setContentWidth(w);
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
+            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+              {tickerText}
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
             <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}

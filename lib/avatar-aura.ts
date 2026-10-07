@@ -39,6 +39,20 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
   "ninevehs-mercy-shiny": { id: "ninevehs-mercy-shiny", label: "Nineveh's Mercy", glowColor: "#20B2AA", secondaryColor: "#87CEEB", accentColors: ["#20B2AA", "#87CEEB"], style: "dust", ringCount: 2 },
   "elijahs-strength-shiny": { id: "elijahs-strength-shiny", label: "Elijah's Strength", glowColor: "#FF4500", secondaryColor: "#FFD700", accentColors: ["#FF4500", "#FFD700"], style: "embers", ringCount: 2 },
   "sinais-glory-shiny": { id: "sinais-glory-shiny", label: "Sinai's Glory", glowColor: "#FFD700", secondaryColor: "#FFA500", accentColors: ["#FFD700", "#FFA500"], style: "radiant", ringCount: 3 },
+  "paul-apostle-shiny": { id: "paul-apostle-shiny", label: "Paul the Apostle", glowColor: "#F5B942", secondaryColor: "#FFE8A3", accentColors: ["#FFD978", "#F59E0B"], style: "rays", ringCount: 2 },
+  "daniel-shiny": { id: "daniel-shiny", label: "Daniel", glowColor: "#4169E1", secondaryColor: "#87CEEB", accentColors: ["#4169E1", "#FFD700"], style: "rings", ringCount: 2 },
+  "joseph-shiny": { id: "joseph-shiny", label: "Joseph", glowColor: "#8B5CF6", secondaryColor: "#F472B6", accentColors: ["#8B5CF6", "#34D399", "#FBBF24"], style: "prismatic", ringCount: 2 },
+  "abraham-shiny": { id: "abraham-shiny", label: "Abraham", glowColor: "#1E1B4B", secondaryColor: "#FBBF24", accentColors: ["#FFFFFF", "#FBBF24"], style: "stars", ringCount: 2 },
+  "moses-shiny": { id: "moses-shiny", label: "Moses", glowColor: "#0EA5E9", secondaryColor: "#BAE6FD", accentColors: ["#E0F2FE", "#0284C7"], style: "rays", ringCount: 2 },
+  "david-shiny": { id: "david-shiny", label: "David", glowColor: "#D97706", secondaryColor: "#FDE68A", accentColors: ["#FEF3C7", "#B45309"], style: "dust", ringCount: 2 },
+  "esther-shiny": { id: "esther-shiny", label: "Esther", glowColor: "#FFD700", secondaryColor: "#F472B6", accentColors: ["#FFD700", "#FBCFE8"], style: "radiant", ringCount: 2 },
+  "fish-loaves-shiny": { id: "fish-loaves-shiny", label: "Loaves & Fishes", glowColor: "#F5B942", secondaryColor: "#FFE8A3", accentColors: ["#FFD978", "#D97706"], style: "rays", ringCount: 2 },
+  "donkey-shiny": { id: "donkey-shiny", label: "Triumphal Donkey", glowColor: "#A16207", secondaryColor: "#FDE68A", accentColors: ["#FEF3C7", "#65A30D"], style: "dust", ringCount: 2 },
+  "sheep-shiny": { id: "sheep-shiny", label: "The Lost Sheep", glowColor: "#F8FAFC", secondaryColor: "#BBF7D0", accentColors: ["#FFFFFF", "#86EFAC"], style: "radiant", ringCount: 2 },
+  "lion-judah-shiny": { id: "lion-judah-shiny", label: "Lion of Judah", glowColor: "#F59E0B", secondaryColor: "#FFD978", accentColors: ["#FFE8A3", "#B45309"], style: "rays", ringCount: 3 },
+  "lamb-god-shiny": { id: "lamb-god-shiny", label: "Lamb of God", glowColor: "#FFFFFF", secondaryColor: "#E0E7FF", accentColors: ["#FFFFFF", "#C7D2FE"], style: "radiant", ringCount: 3 },
+  "eagle-wings-shiny": { id: "eagle-wings-shiny", label: "Eagle's Wings", glowColor: "#0EA5E9", secondaryColor: "#E0F2FE", accentColors: ["#BAE6FD", "#0284C7"], style: "rays", ringCount: 2 },
+  "raven-provision-shiny": { id: "raven-provision-shiny", label: "Raven's Provision", glowColor: "#1F2937", secondaryColor: "#F5B942", accentColors: ["#374151", "#FBBF24"], style: "embers", ringCount: 2 },
 };
 
 /** Used only for the personal profile when its active avatar is a regular pack avatar or photo. */

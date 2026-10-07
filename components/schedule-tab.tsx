@@ -30,6 +30,7 @@ import ReAnimated, {
   SlideInLeft,
   SlideInRight,
   ZoomIn,
+  LinearTransition,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -712,7 +713,10 @@ function TodoItem({
   });
 
   return (
-    <ReAnimated.View entering={isNew ? ZoomIn.springify().damping(12) : undefined}>
+    <ReAnimated.View
+      entering={isNew ? ZoomIn.springify().damping(12) : undefined}
+      layout={LinearTransition.springify().damping(18).stiffness(120)}
+    >
       <>
       {isGroupedTodo && todo.isCompleted ? (
         <Pressable
@@ -850,7 +854,11 @@ function TodoItem({
           delayLongPress={500}
           style={({ pressed }) => [todoStyles.row, isLiveScheduledBlock && { paddingBottom: 42 }, pressed && { opacity: 0.7 }]}
         >
-          <ReAnimated.View style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}>
+          <ReAnimated.View
+            key={`checkbox-${todo.isCompleted}`}
+            entering={ZoomIn.springify().damping(10).stiffness(300)}
+            style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}
+          >
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />
           </ReAnimated.View>
           <View style={{ flex: 1, alignItems: 'flex-start' }}>

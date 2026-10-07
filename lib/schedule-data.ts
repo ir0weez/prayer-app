@@ -301,7 +301,11 @@ export function getEventsForDate(events: ScheduleEvent[], date: string): Schedul
 }
 
 export function getTodosForDate(todos: ScheduleTodo[], date: string): ScheduleTodo[] {
-  return todos.filter((t) => t.date === date).sort((a, b) => a.order - b.order);
+  return todos.filter((t) => t.date === date).sort((a, b) => {
+    // Completed todos go to bottom
+    if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+    return a.order - b.order;
+  });
 }
 
 export function getOverdueTodos(todos: ScheduleTodo[], currentDate: string): ScheduleTodo[] {

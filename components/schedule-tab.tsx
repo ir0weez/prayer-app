@@ -40,6 +40,7 @@ import ReAnimated, {
   interpolate,
   Extrapolation,
   withRepeat,
+  withDelay,
   Easing,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/use-colors";
@@ -206,18 +207,24 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   const tickerHeight = 44;
 
-  // Continuous seamless loop - start once, never restart
+  // Ping-pong: scroll right, pause, scroll back, pause, repeat
   const hasStarted = useRef(false);
+  const [visibleWidth, setVisibleWidth] = useState(0);
   useEffect(() => {
-    if (contentWidth > 0 && !hasStarted.current) {
+    if (contentWidth > visibleWidth && visibleWidth > 0 && !hasStarted.current) {
       hasStarted.current = true;
+      const scrollDistance = contentWidth - visibleWidth;
+      const scrollDuration = 4000;
       translateX.value = withRepeat(
-        withTiming(-contentWidth, { duration: 9000, easing: Easing.linear }),
+        withSequence(
+          withDelay(2000, withTiming(-scrollDistance, { duration: scrollDuration, easing: Easing.inOut(Easing.quad) })),
+          withDelay(2000, withTiming(0, { duration: scrollDuration, easing: Easing.inOut(Easing.quad) }))
+        ),
         -1,
         false
       );
     }
-  }, [contentWidth]);
+  }, [contentWidth, visibleWidth]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -235,12 +242,18 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         borderStyle: "solid", borderColor: eventColor,
         borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
-      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
+      <View
+        style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0) setVisibleWidth(w);
+        }}
+      >
         <ReAnimated.View
           style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
         >
           <View
-            style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}
+            style={{ flexDirection: "row", alignItems: "center", paddingRight: 20 }}
             onLayout={(e) => {
               // Only measure once before animation starts
               if (!hasStarted.current) {
@@ -260,21 +273,6 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
                 )}
               </View>
             ))}
-            <Text style={{ color: eventColor, fontSize: 13, marginLeft: 12 }}>•</Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
-            {segments.map((seg, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginRight: i < segments.length - 1 ? 24 : 0 }}>
-                <MaterialIcons name={iconName(seg.icon)} size={16} color={eventColor} />
-                <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 6 }}>
-                  {seg.text}
-                </Text>
-                {i < segments.length - 1 && (
-                  <Text style={{ color: eventColor, fontSize: 13, marginLeft: 24 }}>•</Text>
-                )}
-              </View>
-            ))}
-            <Text style={{ color: eventColor, fontSize: 13, marginLeft: 12 }}>•</Text>
           </View>
         </ReAnimated.View>
       </View>

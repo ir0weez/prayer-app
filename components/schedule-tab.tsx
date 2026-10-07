@@ -420,11 +420,6 @@ function EventCard({
                 {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
               </Text>
             )}
-            {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
-              <Text style={{ color: '#FFFFFFDD', fontSize: 11, fontWeight: "600", marginTop: 2 }}>
-                🚗 {event.travelTimeMinutes} min to get there
-              </Text>
-            )}
           </View>
           {linkedPeople.length > 0 && (
             <View style={{ marginLeft: 8 }}>

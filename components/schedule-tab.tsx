@@ -236,12 +236,14 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
         <ReAnimated.View
           style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
-          onLayout={(e) => {
-            const w = e.nativeEvent.layout.width / 2;
-            if (w > 0) setContentWidth(w);
-          }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+          <View
+            style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              if (w > 0 && Math.abs(w - contentWidth) > 1) setContentWidth(w);
+            }}
+          >
             {segments.map((seg, i) => (
               <View key={i} style={{ flexDirection: "row", alignItems: "center", marginRight: i < segments.length - 1 ? 24 : 0 }}>
                 <MaterialIcons name={iconName(seg.icon)} size={16} color={eventColor} />

@@ -240,13 +240,13 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         >
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
               {tickerText}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
               {tickerText}
             </Text>
           </View>
@@ -715,7 +715,7 @@ function TodoItem({
   return (
     <ReAnimated.View
       entering={isNew ? ZoomIn.springify().damping(12) : undefined}
-      layout={LinearTransition.springify().damping(18).stiffness(120)}
+      layout={LinearTransition.duration(300).easing(Easing.out(Easing.quad))}
     >
       <>
       {isGroupedTodo && todo.isCompleted ? (
@@ -1666,7 +1666,7 @@ export function ScheduleTab({
     }
   }, []);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
-  const SHEET_OVERLAP = 28;
+  const SHEET_OVERLAP = 48;
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],
@@ -3642,7 +3642,7 @@ export function ScheduleTab({
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
       {/* Pill-style floating header (see-through, like People tab) */}
-      <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [0, 120], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 120], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
+      <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>

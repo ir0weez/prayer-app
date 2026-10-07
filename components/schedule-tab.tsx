@@ -153,17 +153,47 @@ function iconName(name: string) {
 function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
   const translateX = useSharedValue(0);
   const [contentWidth, setContentWidth] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const eventColor = event.color || colors.primary;
 
-  // Calculate leave-by time
-  const leaveByTime = useMemo(() => {
-    if (!event.startTime || !event.travelTimeMinutes) return null;
+  // Update countdown every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch weather for location
+  useEffect(() => {
+    if (event.location) {
+      import("@/lib/weather").then(({ getWeatherForLocation }) => {
+        getWeatherForLocation(event.location!).then(setWeather);
+      });
+    }
+  }, [event.location]);
+
+  // Calculate leave-by time and countdown
+  const { leaveByTime, leaveIn } = useMemo(() => {
+    if (!event.startTime || !event.travelTimeMinutes) return { leaveByTime: null, leaveIn: null };
     const [h, m] = event.startTime.split(":").map(Number);
     const start = new Date();
     start.setHours(h, m, 0, 0);
-    start.setMinutes(start.getMinutes() - event.travelTimeMinutes);
-    return start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }, [event.startTime, event.travelTimeMinutes]);
+    const leaveBy = new Date(start.getTime() - event.travelTimeMinutes * 60000);
+    const diffMs = leaveBy.getTime() - now;
+    let leaveInStr: string | null = null;
+    if (diffMs > 0) {
+      const diffMins = Math.floor(diffMs / 60000);
+      const hrs = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      leaveInStr = hrs > 0 ? `${hrs}H ${mins}M` : `${mins}M`;
+    } else {
+      leaveInStr = "NOW";
+    }
+    return {
+      leaveByTime: leaveBy.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      leaveIn: leaveInStr,
+    };
+  }, [event.startTime, event.travelTimeMinutes, now]);
 
   useEffect(() => {
     if (contentWidth > 0) {
@@ -181,9 +211,10 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   // Build ticker text parts
   const parts = [
-    `${event.travelTimeMinutes} MIN`,
-    event.location ? event.location.toUpperCase() : null,
+    `${event.travelTimeMinutes} MIN DRIVE`,
+    weather ? `${weather.tempF}°F ${weather.label.toUpperCase()}` : null,
     leaveByTime ? `LEAVE BY ${leaveByTime.toUpperCase()}` : null,
+    leaveIn ? `LEAVE IN ${leaveIn}` : null,
   ].filter(Boolean);
 
   const tickerText = parts.join("   •   ") + "   •   ";
@@ -216,13 +247,13 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         >
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>

@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import Svg, { Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -222,36 +221,24 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   return (
     <View style={{ height: tickerHeight, backgroundColor: colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}>
-      {/* Dashed border via SVG (works on Android) */}
-      <Svg width="100%" height={tickerHeight} style={{ position: "absolute", top: 0, left: 0 }} preserveAspectRatio="none" viewBox={`0 0 100 ${tickerHeight}`}>
-        <Rect
-          x={1}
-          y={1}
-          width={98}
-          height={tickerHeight - 1}
-          rx={12}
-          ry={12}
-          fill="none"
-          stroke={eventColor}
-          strokeWidth={2}
-          strokeDasharray="8,6"
-          vectorEffect="non-scaling-stroke"
-        />
-      </Svg>
-      {/* Bottom edge cover to merge with event card */}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, backgroundColor: colors.surface }} />
-      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden", paddingVertical: 10 }}>
+      {/* Dashed border: outer clips, inner has dashed (no radius = Android renders dashes) */}
+      <View style={{
+        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+        borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2,
+        borderStyle: "dashed", borderColor: eventColor,
+      }} />
+      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
         <ReAnimated.View
-          style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
+          style={[{ flexDirection: "row", alignItems: "center", width: "100%" }, animatedStyle]}
           onLayout={(e) => setContentWidth(e.nativeEvent.layout.width)}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
             <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
             <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}

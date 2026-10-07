@@ -554,7 +554,7 @@ function EventCard(props: {
   const colors = useColors();
   const { event } = props;
   const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted;
-  const popStyle = props.isNew ? { entering: ZoomIn.springify().damping(12) } : {};
+  const popStyle = props.isNew ? { entering: FadeIn.duration(300) } : {};
   if (!showTicker) {
     return <ReAnimated.View {...popStyle}><EventCardInner {...props} /></ReAnimated.View>;
   }
@@ -714,7 +714,7 @@ function TodoItem({
 
   return (
     <ReAnimated.View
-      entering={isNew ? ZoomIn.springify().damping(12) : undefined}
+      entering={isNew ? FadeIn.duration(300) : undefined}
       layout={LinearTransition.duration(300).easing(Easing.out(Easing.quad))}
     >
       <>
@@ -856,7 +856,7 @@ function TodoItem({
         >
           <ReAnimated.View
             key={`checkbox-${todo.isCompleted}`}
-            entering={ZoomIn.springify().damping(10).stiffness(300)}
+            entering={todo.isCompleted ? FadeIn.duration(200) : undefined}
             style={[todoStyles.iconContainer, { backgroundColor: todo.isCompleted ? colors.success : (todo.color || colors.primary) }, iconGlowStyle]}
           >
             <MaterialIcons name={todo.isCompleted ? "check" : (iconNameStr as any)} size={16} color="#FFFFFF" />

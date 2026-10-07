@@ -3313,7 +3313,7 @@ export default function HomeScreen() {
             position: "absolute",
             bottom: 140,
             alignSelf: "center",
-            backgroundColor: colors.primary,
+            backgroundColor: 'rgba(123, 92, 255, 0.85)',
             borderRadius: 24,
             paddingVertical: 12,
             paddingHorizontal: 20,

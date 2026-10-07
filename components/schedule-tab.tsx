@@ -200,7 +200,8 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         borderBottomRightRadius: 0,
         backgroundColor: colors.surface,
         overflow: "hidden",
-        marginHorizontal: 0,
+        marginHorizontal: 16,
+        marginBottom: -10,
       }}
     >
       <View style={{ overflow: "hidden", paddingVertical: 10 }}>
@@ -3581,15 +3582,17 @@ export function ScheduleTab({
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>
         </View>
-        <View style={{
-          position: 'relative',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: missedTodos.length > 0 ? 0 : 8,
-          backgroundColor: missedTodos.length > 0 ? colors.primary : 'transparent',
-          borderRadius: 20,
-          padding: missedTodos.length > 0 ? 4 : 0,
-        }}>
+        <ReAnimated.View
+          style={{
+            position: 'relative',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: missedTodos.length > 0 ? 0 : 8,
+            backgroundColor: colors.primary,
+            borderRadius: 16,
+            overflow: 'hidden',
+            padding: missedTodos.length > 0 ? 4 : 0,
+          }}>
           {missedTodos.length > 0 && (
             <Pressable
               accessibilityRole="button"
@@ -3678,7 +3681,7 @@ export function ScheduleTab({
               ))}
             </View>
           )}
-        </View>
+        </ReAnimated.View>
       </View>
 
 

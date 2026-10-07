@@ -42,6 +42,21 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
     <View style={[styles.stampWrap, { transform: [{ rotate: `${variation.rotation}deg` }] }]}>
       <Svg width={124} height={124} viewBox="0 0 124 124">
         <G>
+          {skin === "sticker" && <>
+            {/* White die-cut sticker border behind the stamp */}
+            {variation.shape === "circle" && <>
+              <Circle cx="62" cy="62" r={variation.radius + 7} fill="#FFFFFF" opacity={0.95} />
+              <Circle cx="62" cy="62" r={variation.radius + 7} fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
+            </>}
+            {variation.shape === "oval" && <>
+              <Ellipse cx="62" cy="62" rx="63" ry="55" fill="#FFFFFF" opacity={0.95} />
+              <Ellipse cx="62" cy="62" rx="63" ry="55" fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
+            </>}
+            {variation.shape === "rounded-rectangle" && <>
+              <Rect x="2" y="8" width="120" height="108" rx="24" fill="#FFFFFF" opacity={0.95} />
+              <Rect x="2" y="8" width="120" height="108" rx="24" fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
+            </>}
+          </>}
           {variation.shape === "circle" && <>
             <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
             <Circle cx="62" cy="62" r={variation.radius - 6} fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />

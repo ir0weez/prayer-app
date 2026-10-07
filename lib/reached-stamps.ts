@@ -6,7 +6,7 @@ export type ReachedStamp = {
   note?: string;
 };
 
-export type ReachedStampSkin = "classic" | "postmark" | "linen" | "embossed";
+export type ReachedStampSkin = "classic" | "postmark" | "linen" | "embossed" | "sticker";
 
 export const REACHED_STAMP_SKIN_STORAGE_KEY = "prayercircle.reached-stamp-skin.v1";
 
@@ -14,6 +14,7 @@ export const REACHED_STAMP_SKINS: Array<{ id: ReachedStampSkin; name: string; un
   { id: "classic", name: "Classic", unlockLevel: 1 },
   { id: "postmark", name: "Postmark", unlockLevel: 5 },
   { id: "linen", name: "Linen", unlockLevel: 15 },
+  { id: "sticker", name: "Sticker", unlockLevel: 25 },
   { id: "embossed", name: "Embossed", unlockLevel: 35 },
 ];
 

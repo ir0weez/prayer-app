@@ -196,15 +196,14 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
     };
   }, [event.startTime, event.travelTimeMinutes, now]);
 
-  // Build ticker text parts - compact format
-  const parts = [
-    `${event.travelTimeMinutes} MIN`,
-    weather ? `${weather.tempF}°F` : null,
-    leaveByTime ? `LEAVE ${leaveByTime.toUpperCase()}` : null,
-    leaveIn ? `IN ${leaveIn}` : null,
-  ].filter(Boolean);
+  // Build ticker segments with icons
+  const segments: { icon: string; text: string }[] = [
+    { icon: "directions-car", text: `${event.travelTimeMinutes} MIN` },
+    ...(weather ? [{ icon: weather.icon || "thermostat", text: `${weather.tempF}°F` }] : []),
+    ...(leaveByTime ? [{ icon: "flight-takeoff", text: `LEAVE ${leaveByTime.toUpperCase()}` }] : []),
+    ...(leaveIn ? [{ icon: "timer", text: `IN ${leaveIn}` }] : []),
+  ];
 
-  const tickerText = parts.join("  •  ") + "  •  ";
   const tickerHeight = 44;
 
   // Continuous seamless loop
@@ -243,16 +242,32 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
-            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
-              {tickerText}
-            </Text>
+            {segments.map((seg, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginRight: i < segments.length - 1 ? 24 : 0 }}>
+                <MaterialIcons name={iconName(seg.icon)} size={16} color={eventColor} />
+                <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 6 }}>
+                  {seg.text}
+                </Text>
+                {i < segments.length - 1 && (
+                  <Text style={{ color: eventColor, fontSize: 13, marginLeft: 24 }}>•</Text>
+                )}
+              </View>
+            ))}
+            <Text style={{ color: eventColor, fontSize: 13, marginLeft: 12 }}>•</Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
-            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
-              {tickerText}
-            </Text>
+            {segments.map((seg, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", marginRight: i < segments.length - 1 ? 24 : 0 }}>
+                <MaterialIcons name={iconName(seg.icon)} size={16} color={eventColor} />
+                <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 6 }}>
+                  {seg.text}
+                </Text>
+                {i < segments.length - 1 && (
+                  <Text style={{ color: eventColor, fontSize: 13, marginLeft: 24 }}>•</Text>
+                )}
+              </View>
+            ))}
+            <Text style={{ color: eventColor, fontSize: 13, marginLeft: 12 }}>•</Text>
           </View>
         </ReAnimated.View>
       </View>

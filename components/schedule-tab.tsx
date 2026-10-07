@@ -210,7 +210,7 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   useEffect(() => {
     if (contentWidth > 0) {
       translateX.value = withRepeat(
-        withTiming(-contentWidth, { duration: 6000, easing: Easing.linear }),
+        withTiming(-contentWidth, { duration: 9000, easing: Easing.linear }),
         -1,
         false
       );

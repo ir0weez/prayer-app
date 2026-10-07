@@ -715,7 +715,6 @@ function TodoItem({
   return (
     <ReAnimated.View
       entering={isNew ? FadeIn.duration(300) : undefined}
-      layout={LinearTransition.duration(300).easing(Easing.out(Easing.quad))}
     >
       <>
       {isGroupedTodo && todo.isCompleted ? (
@@ -1666,7 +1665,7 @@ export function ScheduleTab({
     }
   }, []);
   // Joi-style sheet: the day-view schedule slides up as a card over the fixed summary.
-  const SHEET_OVERLAP = 48;
+  const SHEET_OVERLAP = 68;
   const [scheduleSummaryHeight, setScheduleSummaryHeight] = useState(360);
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, DAY_HEADER_HEIGHT / 2],

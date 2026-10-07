@@ -3499,9 +3499,12 @@ export function ScheduleTab({
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Fixed Schedule Title with View Mode Toggle */}
-      <View style={[scheduleStyles.scheduleTitle, { borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <Text style={[scheduleStyles.scheduleTitleText, { color: colors.foreground }]}>Schedule</Text>
+      {/* Pill-style header matching People page */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>
+        </View>
         <View style={{ position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {missedTodos.length > 0 && (
             <Pressable

@@ -273,8 +273,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prayer Journal</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
+        </View>
         <View style={styles.headerActions}>
           <Pressable
             accessibilityLabel={bookmarksOnly ? "Show all journal entries" : "Show bookmarked journal entries"}

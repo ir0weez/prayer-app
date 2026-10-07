@@ -148,6 +148,81 @@ function iconName(name: string) {
   return name as keyof typeof MaterialIcons.glyphMap;
 }
 
+// ─── Travel Ticker Component (LED departure board style) ─────────────────────
+function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
+  const translateX = useSharedValue(0);
+  const [contentWidth, setContentWidth] = useState(0);
+  const eventColor = event.color || colors.primary;
+
+  // Calculate leave-by time
+  const leaveByTime = useMemo(() => {
+    if (!event.startTime || !event.travelTimeMinutes) return null;
+    const [h, m] = event.startTime.split(":").map(Number);
+    const start = new Date();
+    start.setHours(h, m, 0, 0);
+    start.setMinutes(start.getMinutes() - event.travelTimeMinutes);
+    return start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }, [event.startTime, event.travelTimeMinutes]);
+
+  useEffect(() => {
+    if (contentWidth > 0) {
+      translateX.value = withRepeat(
+        withTiming(-contentWidth / 2, { duration: 15000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    }
+  }, [contentWidth]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  // Build ticker text parts
+  const parts = [
+    `${event.travelTimeMinutes} MIN`,
+    event.location ? event.location.toUpperCase() : null,
+    leaveByTime ? `LEAVE BY ${leaveByTime.toUpperCase()}` : null,
+  ].filter(Boolean);
+
+  const tickerText = parts.join("   •   ") + "   •   ";
+
+  return (
+    <View
+      style={{
+        borderWidth: 2,
+        borderStyle: "dashed",
+        borderColor: eventColor,
+        borderBottomWidth: 0,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        backgroundColor: "#000",
+        overflow: "hidden",
+      }}
+    >
+      <View style={{ overflow: "hidden", paddingVertical: 10 }}>
+        <ReAnimated.View
+          style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
+          onLayout={(e) => setContentWidth(e.nativeEvent.layout.width)}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", fontFamily: "monospace", letterSpacing: 1, marginLeft: 8 }}>
+              {tickerText}
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
+            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", fontFamily: "monospace", letterSpacing: 1, marginLeft: 8 }}>
+              {tickerText}
+            </Text>
+          </View>
+        </ReAnimated.View>
+      </View>
+    </View>
+  );
+}
+
 // ─── Event Card Component ────────────────────────────────────────────────────
 function EventCard({
   event,
@@ -377,28 +452,9 @@ function EventCard({
   // Default event card (no keyword match)
   return (
     <>
-      {/* Time to leave: box above event (in event color), Apple Calendar style */}
+      {/* Time to leave: LED ticker above event (Concept 1) */}
       {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
-        <View
-          style={{
-            borderWidth: 2,
-            borderStyle: "dashed",
-            borderColor: event.color || colors.primary,
-            borderTopLeftRadius: 12,
-            borderTopRightRadius: 12,
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
-            borderBottomWidth: 0,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            alignItems: "center",
-            backgroundColor: colors.surface,
-          }}
-        >
-          <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
-            🚗 {event.travelTimeMinutes} min to get there
-          </Text>
-        </View>
+        <TravelTicker event={event} colors={colors} />
       )}
       <Pressable
         onPress={(event) => {

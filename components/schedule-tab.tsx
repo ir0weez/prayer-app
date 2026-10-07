@@ -206,9 +206,11 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   const tickerHeight = 44;
 
-  // Continuous seamless loop
+  // Continuous seamless loop - start once, never restart
+  const hasStarted = useRef(false);
   useEffect(() => {
-    if (contentWidth > 0) {
+    if (contentWidth > 0 && !hasStarted.current) {
+      hasStarted.current = true;
       translateX.value = withRepeat(
         withTiming(-contentWidth, { duration: 9000, easing: Easing.linear }),
         -1,
@@ -240,8 +242,11 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
           <View
             style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}
             onLayout={(e) => {
-              const w = e.nativeEvent.layout.width;
-              if (w > 0 && Math.abs(w - contentWidth) > 1) setContentWidth(w);
+              // Only measure once before animation starts
+              if (!hasStarted.current) {
+                const w = e.nativeEvent.layout.width;
+                if (w > 0) setContentWidth(w);
+              }
             }}
           >
             {segments.map((seg, i) => (

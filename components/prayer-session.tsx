@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Modal, Pressable, Text, View } from "react-native";
+import { AppState, BackHandler, Dimensions, Modal, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { AvatarImage } from "@/components/avatar-system";
@@ -10,7 +10,7 @@ type Props = {
   visible: boolean;
   people: Person[];
   onPray: (personId: string, position?: { x: number; y: number }) => void;
-  onTimeBonus: () => void;
+  onTimeBonus: (position?: { x: number; y: number }) => void;
   onClose: () => void;
 };
 
@@ -30,6 +30,24 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const [sessionPeople, setSessionPeople] = useState<Person[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastBonusMinute = useRef(0);
+  const sessionStartRef = useRef<number>(0);
+
+  // Corner position for XP floater (top-right)
+  const bonusPosition = { x: Dimensions.get("window").width - 60, y: 120 };
+
+  // Sync elapsed time from wall clock (survives screen-off)
+  const syncElapsedFromClock = () => {
+    if (sessionStartRef.current > 0) {
+      const elapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+      setElapsedSeconds(elapsed);
+      // Award any missed 5-min bonuses
+      const minutes = Math.floor(elapsed / 300);
+      while (lastBonusMinute.current < minutes) {
+        lastBonusMinute.current += 1;
+        onTimeBonus(bonusPosition);
+      }
+    }
+  };
 
   // Reset when opened, setup back handler
   useEffect(() => {
@@ -41,10 +59,17 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       setTotalCount(people.length);
       setSessionPeople([...people]);
       lastBonusMinute.current = 0;
+      sessionStartRef.current = Date.now();
       // Start timer
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
       }, 1000);
+      // Handle screen off/on: recalc from wall clock when foregrounded
+      const appStateSub = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          syncElapsedFromClock();
+        }
+      });
       // Block Android back button during prayer session
       const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -52,7 +77,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       });
       return () => {
         backHandler.remove();
+        appStateSub.remove();
         if (timerRef.current) clearInterval(timerRef.current);
+        sessionStartRef.current = 0;
       };
     }
     return () => {
@@ -67,12 +94,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
     }
   }, [isFinished]);
 
-  // Award +10 XP every 5 minutes in prayer mode
+  // Award +10 XP every 5 minutes in prayer mode (with corner floater)
   useEffect(() => {
     const minutes = Math.floor(elapsedSeconds / 300);
     if (minutes > lastBonusMinute.current) {
       lastBonusMinute.current = minutes;
-      onTimeBonus();
+      onTimeBonus(bonusPosition);
     }
   }, [elapsedSeconds, onTimeBonus]);
 

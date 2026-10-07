@@ -190,10 +190,12 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   return (
     <View
       style={{
-        borderWidth: 2,
+        borderTopWidth: 2,
+        borderLeftWidth: 2,
+        borderRightWidth: 2,
+        borderBottomWidth: 0,
         borderStyle: "dashed",
         borderColor: eventColor,
-        borderBottomWidth: 0,
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
         borderBottomLeftRadius: 0,
@@ -3687,7 +3689,7 @@ export function ScheduleTab({
 
 
       {/* Content area */}
-      <ReAnimated.View style={[{ flex: 1, paddingTop: 90 }]}>
+      <ReAnimated.View style={[{ flex: 1 }]}>
         {viewMode === 'day' ? (
           <View style={{ flex: 1 }}>
             {/* Fixed summary behind the sliding sheet (Joi-style) */}

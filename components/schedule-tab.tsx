@@ -210,15 +210,15 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
     transform: [{ translateX: translateX.value }],
   }));
 
-  // Build ticker text parts
+  // Build ticker text parts - compact format
   const parts = [
-    `${event.travelTimeMinutes} MIN DRIVE`,
-    weather ? `${weather.tempF}°F ${weather.label.toUpperCase()}` : null,
-    leaveByTime ? `LEAVE BY ${leaveByTime.toUpperCase()}` : null,
-    leaveIn ? `LEAVE IN ${leaveIn}` : null,
+    `${event.travelTimeMinutes} MIN`,
+    weather ? `${weather.tempF}°F` : null,
+    leaveByTime ? `LEAVE ${leaveByTime.toUpperCase()}` : null,
+    leaveIn ? `IN ${leaveIn}` : null,
   ].filter(Boolean);
 
-  const tickerText = parts.join("   •   ") + "   •   ";
+  const tickerText = parts.join("  •  ") + "  •  ";
   const tickerHeight = 44;
 
   return (
@@ -240,13 +240,13 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         >
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
+            <Text numberOfLines={1} ellipsizeMode="clip" style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
               {tickerText}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, flexShrink: 0 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
+            <Text numberOfLines={1} ellipsizeMode="clip" style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8, flexShrink: 0 }}>
               {tickerText}
             </Text>
           </View>

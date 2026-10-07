@@ -453,6 +453,10 @@ export const SHINY_ACHIEVEMENTS = [
   { id: "fast-60", name: "Abraham", hint: "Complete a 60-day fast", avatarId: "abraham-shiny-hero", title: "Abraham" },
   { id: "fast-30", name: "Joseph", hint: "Complete a 30-day fast", avatarId: "joseph-shiny-hero", title: "Joseph" },
   { id: "streak-30", name: "David", hint: "Reach a 30-day prayer streak", avatarId: "david-shiny-hero", title: "David" },
+  { id: "shiny-manna-dawn", name: "Manna Dove: Dawn", hint: "Complete a 21-day fast", title: "Manna Dawn" },
+  { id: "shiny-manna-evening", name: "Manna Dove: Evening", hint: "Complete a 25-day fast", title: "Manna Evening" },
+  { id: "shiny-carmel-fire", name: "Elijah: Carmel's Fire", hint: "Reach a 35-day prayer streak", title: "Carmel Fire" },
+  { id: "shiny-whirlwind", name: "Elijah: Whirlwind", hint: "Reach a 40-day prayer streak", title: "Whirlwind" },
 ] as const;
 export type AchievementId = (typeof SHINY_ACHIEVEMENTS)[number]["id"];
 

@@ -29,6 +29,7 @@ import ReAnimated, {
   FadeIn,
   SlideInLeft,
   SlideInRight,
+  ZoomIn,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -536,6 +537,8 @@ function EventCardInner({
   );
 }
 
+// ─── Event Card Component ────────────────────────────────────────────────────
+
 // ─── Event Card Wrapper (adds travel ticker above all event types) ──────────
 function EventCard(props: {
   event: ScheduleEvent;
@@ -545,25 +548,27 @@ function EventCard(props: {
   people?: Person[];
   liveNow?: Date;
   showActiveNow?: boolean;
+  isNew?: boolean;
 }) {
   const colors = useColors();
   const { event } = props;
   const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted;
+  const popStyle = props.isNew ? { entering: ZoomIn.springify().damping(12) } : {};
   if (!showTicker) {
-    return <EventCardInner {...props} />;
+    return <ReAnimated.View {...popStyle}><EventCardInner {...props} /></ReAnimated.View>;
   }
   // Ticker + event as one visual unit: ticker has marginHorizontal 16,
   // event card keeps its own margins, pulled up flush with marginTop -10
   // (counteracting its marginBottom) and square top corners
   return (
-    <View style={{ marginBottom: 0 }}>
+    <ReAnimated.View {...popStyle} style={{ marginBottom: 0 }}>
       <View style={{ marginHorizontal: 16 }}>
         <TravelTicker event={event} colors={colors} />
       </View>
       <View style={{ marginTop: -10 }}>
         <EventCardInner {...props} squareTop />
       </View>
-    </View>
+    </ReAnimated.View>
   );
 }
 
@@ -582,6 +587,7 @@ function TodoItem({
   isCurrentTodo = false,
   liveNow,
   showActiveNow = false,
+  isNew = false,
 }: {
   todo: ScheduleTodo;
   onToggle: (position?: XpGainPosition) => void;
@@ -596,6 +602,7 @@ function TodoItem({
   isCurrentTodo?: boolean;
   liveNow?: Date;
   showActiveNow?: boolean;
+  isNew?: boolean;
 }) {
   const colors = useColors();
   const iconNameStr = getIconForTodo(todo.title);
@@ -705,7 +712,8 @@ function TodoItem({
   });
 
   return (
-    <>
+    <ReAnimated.View entering={isNew ? ZoomIn.springify().damping(12) : undefined}>
+      <>
       {isGroupedTodo && todo.isCompleted ? (
         <Pressable
           accessibilityRole="checkbox"
@@ -874,7 +882,8 @@ function TodoItem({
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
       />
-    </>
+      </>
+    </ReAnimated.View>
   );
 }
 
@@ -1325,6 +1334,7 @@ export function ScheduleTab({
   }, [bibleChapter]);
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [todos, setTodos] = useState<ScheduleTodo[]>([]);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -2325,6 +2335,9 @@ export function ScheduleTab({
       newEvent.linkedPeopleIds = formLinkedPeopleIds;
     }
     setEvents((prev) => [...prev, newEvent]);
+    setJustAddedId(newEvent.id);
+    setTimeout(() => setJustAddedId(null), 2000);
+    import("@/lib/pop-sound").then(({ playPop }) => playPop());
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -2401,6 +2414,9 @@ export function ScheduleTab({
         return aTime.localeCompare(bTime);
       });
     });
+    setJustAddedId(newTodo.id);
+    setTimeout(() => setJustAddedId(null), 2000);
+    import("@/lib/pop-sound").then(({ playPop }) => playPop());
     resetForm();
     setAddType(null);
     setShowAddModal(false);
@@ -3308,6 +3324,7 @@ export function ScheduleTab({
               ministries={ministries}
               isOverdue={item.isOverdue}
               isCurrentTodo={item.data.id === currentTodoId}
+              isNew={item.data.id === justAddedId}
               onToggle={(position) => {
                 if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
                 else revokeTodoXP(item.data.id, position);
@@ -3347,6 +3364,7 @@ export function ScheduleTab({
             <EventCard
               event={item.data}
               people={people}
+              isNew={item.data.id === justAddedId}
               onToggle={(position) => {
                 if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
                 else revokeTodoXP(item.data.id, position);

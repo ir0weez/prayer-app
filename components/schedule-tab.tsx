@@ -222,13 +222,14 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   return (
     <ReAnimated.View
       entering={FadeIn.duration(250)}
-      style={{ height: tickerHeight, backgroundColor: colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
+      style={{ height: tickerHeight, backgroundColor: "transparent", borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}
     >
-      {/* Solid border that pops */}
+      {/* Solid outline, no background — just outline + text in event color */}
       <View style={{
         position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
         borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2,
         borderStyle: "solid", borderColor: eventColor,
+        borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
         <ReAnimated.View

@@ -377,6 +377,25 @@ function EventCard({
   // Default event card (no keyword match)
   return (
     <>
+      {/* Time to leave: box above event (in event color) */}
+      {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
+        <View
+          style={{
+            borderWidth: 2,
+            borderColor: event.color || colors.primary,
+            borderRadius: 12,
+            paddingVertical: event.travelTimeMinutes <= 30 ? 6 : 12,
+            paddingHorizontal: 12,
+            marginBottom: 6,
+            alignItems: "center",
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
+            🚗 {event.travelTimeMinutes} min to get there
+          </Text>
+        </View>
+      )}
       <Pressable
         onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -386,25 +405,6 @@ function EventCard({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        {/* Time to leave: dashed outline above event (in event color) */}
-        {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
-          <View
-            style={{
-              borderWidth: 2,
-              borderColor: event.color || colors.primary,
-              borderRadius: 12,
-              paddingVertical: event.travelTimeMinutes <= 30 ? 6 : 12,
-              paddingHorizontal: 12,
-              marginBottom: 6,
-              alignItems: "center",
-              backgroundColor: colors.surface,
-            }}
-          >
-            <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
-              🚗 {event.travelTimeMinutes} min to get there
-            </Text>
-          </View>
-        )}
           <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}> 
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}

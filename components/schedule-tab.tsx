@@ -377,25 +377,27 @@ function EventCard({
   // Default event card (no keyword match)
   return (
     <>
-      {/* Time to leave: box above event (in event color) */}
-      {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
-        <View
-          style={{
-            borderWidth: 2,
-            borderColor: event.color || colors.primary,
-            borderRadius: 12,
-            paddingVertical: event.travelTimeMinutes <= 30 ? 6 : 12,
-            paddingHorizontal: 12,
-            marginBottom: 6,
-            alignItems: "center",
-            backgroundColor: colors.surface,
-          }}
-        >
-          <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
-            🚗 {event.travelTimeMinutes} min to get there
-          </Text>
-        </View>
-      )}
+      {/* Time to leave: box above event (in event color) - DEBUG: always show */}
+      <View
+        style={{
+          borderWidth: 2,
+          borderStyle: "dashed",
+          borderColor: event.color || colors.primary,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          borderBottomWidth: 0,
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          alignItems: "center",
+          backgroundColor: colors.surface,
+        }}
+      >
+        <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
+          🚗 {event.travelTimeMinutes ?? 0} min to get there (DEBUG)
+        </Text>
+      </View>
       <Pressable
         onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

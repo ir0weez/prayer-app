@@ -235,18 +235,22 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
       }} />
       <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
         <ReAnimated.View
-          style={[{ flexDirection: "row", alignItems: "center", width: 2000 }, animatedStyle]}
-          onLayout={(e) => setContentWidth(1000)}
+          style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
+          onLayout={(e) => {
+            // Measure half (one copy) for seamless loop
+            const w = e.nativeEvent.layout.width / 2;
+            if (w > 0) setContentWidth(w);
+          }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, width: 1000 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} ellipsizeMode="clip" style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40, width: 1000 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} ellipsizeMode="clip" style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>

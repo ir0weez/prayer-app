@@ -152,8 +152,6 @@ function iconName(name: string) {
 
 // ─── Travel Ticker Component (LED departure board style) ─────────────────────
 function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) {
-  const translateX = useSharedValue(0);
-  const [contentWidth, setContentWidth] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
   const eventColor = event.color || colors.primary;
@@ -196,20 +194,6 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
     };
   }, [event.startTime, event.travelTimeMinutes, now]);
 
-  useEffect(() => {
-    if (contentWidth > 0) {
-      translateX.value = withRepeat(
-        withTiming(-contentWidth / 2, { duration: 15000, easing: Easing.linear }),
-        -1,
-        false
-      );
-    }
-  }, [contentWidth]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
   // Build ticker text parts - compact format
   const parts = [
     `${event.travelTimeMinutes} MIN`,
@@ -233,28 +217,13 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         borderStyle: "solid", borderColor: eventColor,
         borderTopLeftRadius: 12, borderTopRightRadius: 12,
       }} />
-      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden" }}>
-        <ReAnimated.View
-          style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
-          onLayout={(e) => {
-            // Measure half (one copy) for seamless loop
-            const w = e.nativeEvent.layout.width / 2;
-            if (w > 0) setContentWidth(w);
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
-            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
-              {tickerText}
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
-            <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
-              {tickerText}
-            </Text>
-          </View>
-        </ReAnimated.View>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", overflow: "hidden", paddingHorizontal: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
+          <Text numberOfLines={1} style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
+            {tickerText}
+          </Text>
+        </View>
       </View>
     </ReAnimated.View>
   );

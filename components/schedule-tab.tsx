@@ -218,7 +218,7 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
     leaveIn ? `IN ${leaveIn}` : null,
   ].filter(Boolean);
 
-  const tickerText = parts.join("  •  ") + "  •  ";
+  const tickerText = parts.join("  •  ");
   const tickerHeight = 44;
 
   return (

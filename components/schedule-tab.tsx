@@ -391,18 +391,17 @@ function EventCard({
           <View
             style={{
               borderWidth: 2,
-              borderStyle: "dashed",
               borderColor: event.color || colors.primary,
               borderRadius: 12,
               paddingVertical: event.travelTimeMinutes <= 30 ? 6 : 12,
               paddingHorizontal: 12,
               marginBottom: 6,
               alignItems: "center",
-              backgroundColor: (event.color || colors.primary) + "15",
+              backgroundColor: colors.surface,
             }}
           >
             <Text style={{ color: event.color || colors.primary, fontSize: 12, fontWeight: "700" }}>
-              {event.travelTimeMinutes} min to get there
+              🚗 {event.travelTimeMinutes} min to get there
             </Text>
           </View>
         )}
@@ -5096,7 +5095,7 @@ const scheduleStyles = StyleSheet.create({
   },
   floatingTodayButton: {
     position: "absolute",
-    bottom: 160,
+    bottom: 130,
     left: "50%",
     marginLeft: -60,
     flexDirection: "row",

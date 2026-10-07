@@ -1300,7 +1300,7 @@ export default function HomeScreen() {
     });
   }, [today, todayDayOfMonth, todayDayOfWeek]);
 
-  const commitPrayTodayPerson = useCallback((personId: string) => {
+  const commitPrayTodayPerson = useCallback((personId: string, position?: XpGainPosition) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playVerifiedPop();
     setCompletedPrayerAnimationId(personId);
@@ -1311,7 +1311,7 @@ export default function HomeScreen() {
     });
     setPendingPrayerIds((previousIds) => previousIds.filter((id) => id !== personId));
     delete undoTimers.current[personId];
-    void awardExperience("scheduled-prayer", `${today}:${personId}`, pendingPrayerPositions.current[personId]);
+    void awardExperience("scheduled-prayer", `${today}:${personId}`, position ?? pendingPrayerPositions.current[personId]);
     delete pendingPrayerPositions.current[personId];
   }, [awardExperience, maybeAdvanceStreak, today]);
 
@@ -3335,8 +3335,8 @@ export default function HomeScreen() {
       <PrayerSession
         visible={showPrayerSession}
         people={prayablePrayTodayList}
-        onPray={(personId) => {
-          commitPrayTodayPerson(personId);
+        onPray={(personId, position) => {
+          commitPrayTodayPerson(personId, position);
         }}
         onTimeBonus={() => {
           void awardExperience("prayer-time-bonus", `prayer-time:${Date.now()}`, undefined);

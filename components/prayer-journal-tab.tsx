@@ -273,7 +273,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+      <View style={{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 12,
   },
-  listContent: { paddingHorizontal: 16, paddingBottom: 140 },
+  listContent: { paddingHorizontal: 16, paddingTop: 90, paddingBottom: 140 },
   emptyListContent: { flexGrow: 1 },
   sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: "700", marginTop: 18, marginBottom: 8, marginLeft: 4 },
   entryCard: { borderRadius: 12, padding: 16, marginBottom: 12, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },

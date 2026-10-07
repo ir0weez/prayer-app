@@ -196,8 +196,11 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         borderBottomWidth: 0,
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
-        backgroundColor: "#000",
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        backgroundColor: colors.surface,
         overflow: "hidden",
+        marginHorizontal: 0,
       }}
     >
       <View style={{ overflow: "hidden", paddingVertical: 10 }}>
@@ -207,13 +210,13 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
         >
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", fontFamily: "monospace", letterSpacing: 1, marginLeft: 8 }}>
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 40 }}>
             <MaterialIcons name={iconName("directions-car")} size={16} color={eventColor} />
-            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", fontFamily: "monospace", letterSpacing: 1, marginLeft: 8 }}>
+            <Text style={{ color: eventColor, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginLeft: 8 }}>
               {tickerText}
             </Text>
           </View>
@@ -224,7 +227,7 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 }
 
 // ─── Event Card Component ────────────────────────────────────────────────────
-function EventCard({
+function EventCardInner({
   event,
   onToggle,
   onOpenEdit,
@@ -452,10 +455,6 @@ function EventCard({
   // Default event card (no keyword match)
   return (
     <>
-      {/* Time to leave: LED ticker above event (Concept 1) */}
-      {event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && (
-        <TravelTicker event={event} colors={colors} />
-      )}
       <Pressable
         onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -503,6 +502,27 @@ function EventCard({
         actions={contextMenuActions}
         onDismiss={() => setContextMenuVisible(false)}
       />
+    </>
+  );
+}
+
+// ─── Event Card Wrapper (adds travel ticker above all event types) ──────────
+function EventCard(props: {
+  event: ScheduleEvent;
+  onToggle: (position?: XpGainPosition) => void;
+  onOpenEdit?: (event: ScheduleEvent) => void;
+  onDelete?: () => void;
+  people?: Person[];
+  liveNow?: Date;
+  showActiveNow?: boolean;
+}) {
+  const colors = useColors();
+  const { event } = props;
+  const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted;
+  return (
+    <>
+      {showTicker && <TravelTicker event={event} colors={colors} />}
+      <EventCardInner {...props} />
     </>
   );
 }
@@ -3555,13 +3575,21 @@ export function ScheduleTab({
 
   return (
     <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
-      {/* Pill-style header matching People page */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+      {/* Pill-style floating header (see-through, like People tab) */}
+      <View style={{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>
         </View>
-        <View style={{ position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{
+          position: 'relative',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: missedTodos.length > 0 ? 0 : 8,
+          backgroundColor: missedTodos.length > 0 ? colors.primary : 'transparent',
+          borderRadius: 20,
+          padding: missedTodos.length > 0 ? 4 : 0,
+        }}>
           {missedTodos.length > 0 && (
             <Pressable
               accessibilityRole="button"
@@ -3573,7 +3601,7 @@ export function ScheduleTab({
               }}
               style={({ pressed }) => [
                 scheduleStyles.headerMissedTodosPill,
-                { backgroundColor: colors.primary },
+                { backgroundColor: 'transparent' },
                 pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 },
               ]}
             >
@@ -3581,13 +3609,14 @@ export function ScheduleTab({
               <Text style={scheduleStyles.headerMissedTodosText}>{missedTodos.length}</Text>
             </Pressable>
           )}
+          <View style={{ width: 1, height: 20, backgroundColor: '#FFFFFF40', marginHorizontal: 4, display: missedTodos.length > 0 ? 'flex' : 'none' }} />
           <Pressable
             onPress={() => setShowViewMenu(!showViewMenu)}
             style={({ pressed }) => [{
               paddingHorizontal: 12,
               paddingVertical: 6,
-              borderRadius: 8,
-              backgroundColor: colors.primary,
+              borderRadius: 16,
+              backgroundColor: missedTodos.length > 0 ? 'transparent' : colors.primary,
               opacity: pressed ? 0.7 : 1,
               flexDirection: 'row',
               alignItems: 'center',
@@ -3655,7 +3684,7 @@ export function ScheduleTab({
 
 
       {/* Content area */}
-      <ReAnimated.View style={[{ flex: 1 }]}>
+      <ReAnimated.View style={[{ flex: 1, paddingTop: 90 }]}>
         {viewMode === 'day' ? (
           <View style={{ flex: 1 }}>
             {/* Fixed summary behind the sliding sheet (Joi-style) */}

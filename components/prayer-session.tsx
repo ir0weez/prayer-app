@@ -9,7 +9,7 @@ import type { Person } from "@/lib/prayercircle-data";
 type Props = {
   visible: boolean;
   people: Person[];
-  onPray: (personId: string) => void;
+  onPray: (personId: string, position?: { x: number; y: number }) => void;
   onTimeBonus: () => void;
   onClose: () => void;
 };
@@ -81,10 +81,11 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const currentPerson = sessionPeople[currentIndex];
   const isLast = currentIndex >= totalCount - 1;
 
-  const handlePray = () => {
+  const handlePray = (e: any) => {
     if (!currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onPray(currentPerson.id);
+    const position = e?.nativeEvent ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : undefined;
+    onPray(currentPerson.id, position);
     setPrayedCount((c) => c + 1);
     if (isLast) {
       setIsFinished(true);

@@ -1,16 +1,13 @@
-import { Audio } from "expo-av";
+import { createAudioPlayer } from "expo-audio";
 
-let popSound: Audio.Sound | null = null;
+let popPlayer: ReturnType<typeof createAudioPlayer> | null = null;
 
-async function loadPop() {
-  if (popSound) return popSound;
+function getPopPlayer() {
+  if (popPlayer) return popPlayer;
   try {
-    const { sound } = await Audio.Sound.createAsync(
-      require("@/assets/sounds/pop.wav"),
-      { shouldPlay: false, volume: 0.3 }
-    );
-    popSound = sound;
-    return sound;
+    popPlayer = createAudioPlayer(require("@/assets/sounds/pop.wav"));
+    popPlayer.volume = 0.3;
+    return popPlayer;
   } catch (e) {
     console.warn("Failed to load pop sound:", e);
     return null;
@@ -19,9 +16,10 @@ async function loadPop() {
 
 export async function playPop() {
   try {
-    const sound = await loadPop();
-    if (sound) {
-      await sound.replayAsync();
+    const p = getPopPlayer();
+    if (p) {
+      p.seekTo(0);
+      p.play();
     }
   } catch (e) {
     // Silent fail — sound is optional

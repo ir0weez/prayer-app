@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Svg, { Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -186,27 +187,29 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
   ].filter(Boolean);
 
   const tickerText = parts.join("   •   ") + "   •   ";
+  const tickerHeight = 44;
 
   return (
-    <View
-      style={{
-        borderTopWidth: 2,
-        borderLeftWidth: 2,
-        borderRightWidth: 2,
-        borderBottomWidth: 0,
-        borderStyle: "dashed",
-        borderColor: eventColor,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        backgroundColor: colors.surface,
-        overflow: "hidden",
-        marginHorizontal: 16,
-        marginBottom: -10,
-      }}
-    >
-      <View style={{ overflow: "hidden", paddingVertical: 10 }}>
+    <View style={{ height: tickerHeight, backgroundColor: colors.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: "hidden" }}>
+      {/* Dashed border via SVG (works on Android) */}
+      <Svg width="100%" height={tickerHeight} style={{ position: "absolute", top: 0, left: 0 }} preserveAspectRatio="none" viewBox={`0 0 100 ${tickerHeight}`}>
+        <Rect
+          x={1}
+          y={1}
+          width={98}
+          height={tickerHeight - 1}
+          rx={12}
+          ry={12}
+          fill="none"
+          stroke={eventColor}
+          strokeWidth={2}
+          strokeDasharray="8,6"
+          vectorEffect="non-scaling-stroke"
+        />
+      </Svg>
+      {/* Bottom edge cover to merge with event card */}
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, backgroundColor: colors.surface }} />
+      <View style={{ flex: 1, justifyContent: "center", overflow: "hidden", paddingVertical: 10 }}>
         <ReAnimated.View
           style={[{ flexDirection: "row", alignItems: "center" }, animatedStyle]}
           onLayout={(e) => setContentWidth(e.nativeEvent.layout.width)}
@@ -238,6 +241,7 @@ function EventCardInner({
   people = [],
   liveNow,
   showActiveNow = false,
+  squareTop = false,
 }: {
   event: ScheduleEvent;
   onToggle: (position?: XpGainPosition) => void;
@@ -246,6 +250,7 @@ function EventCardInner({
   people?: Person[];
   liveNow?: Date;
   showActiveNow?: boolean;
+  squareTop?: boolean;
 }) {
   const colors = useColors();
   const timeOffCardColor = getTimeOffEventColor(event);
@@ -410,7 +415,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80 }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
@@ -467,7 +472,7 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined }]}> 
+          <View style={[eventStyles.defaultCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, borderColor: event.isOffEvent ? timeOffCardColor : event.color || colors.primary, paddingBottom: isLiveScheduledBlock ? 34 : 14, minHeight: isLiveScheduledBlock ? 104 : undefined, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 } : {}) }]}> 
           {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
           {!event.isOffEvent && <View style={[eventStyles.defaultDot, { backgroundColor: '#FFFFFF' }]} />}
           <View style={{ flex: 1 }}>
@@ -522,11 +527,21 @@ function EventCard(props: {
   const colors = useColors();
   const { event } = props;
   const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted;
+  if (!showTicker) {
+    return <EventCardInner {...props} />;
+  }
+  // Ticker + event as one visual unit: ticker has marginHorizontal 16,
+  // event card keeps its own margins, pulled up flush with marginTop -10
+  // (counteracting its marginBottom) and square top corners
   return (
-    <>
-      {showTicker && <TravelTicker event={event} colors={colors} />}
-      <EventCardInner {...props} />
-    </>
+    <View style={{ marginBottom: 0 }}>
+      <View style={{ marginHorizontal: 16 }}>
+        <TravelTicker event={event} colors={colors} />
+      </View>
+      <View style={{ marginTop: -10 }}>
+        <EventCardInner {...props} squareTop />
+      </View>
+    </View>
   );
 }
 

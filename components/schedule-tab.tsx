@@ -3724,7 +3724,7 @@ export function ScheduleTab({
             contentContainerStyle={[
               scheduleStyles.listContent,
               {
-                paddingTop: 0,
+                paddingTop: 90,
                 paddingBottom: 120,
                 backgroundColor: "transparent",
               },

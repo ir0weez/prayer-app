@@ -54,9 +54,12 @@ async function geocode(location: string): Promise<{ lat: number; lon: number } |
     return { lat: cached.lat, lon: cached.lon };
   }
 
+  // Bias toward California if no state specified (Jonathan is in Lancaster, CA)
+  const query = location.includes(",") ? location : `${location}, California`;
+
   try {
     const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1`
     );
     const data = await res.json();
     if (data.results?.[0]) {

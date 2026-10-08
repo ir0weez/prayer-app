@@ -1,7 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { MarkdownText, extractHashtags } from "@/components/markdown-text";
 import {
   Alert,
   FlatList,
@@ -65,7 +66,29 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const [draftTaggedPersonIds, setDraftTaggedPersonIds] = useState<string[]>([]);
   const [draftReply, setDraftReply] = useState("");
   const [draftColor, setDraftColor] = useState<string | undefined>(undefined);
+  const [draftLocation, setDraftLocation] = useState("");
   const [tagSearch, setTagSearch] = useState("");
+  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const bodyInputRef = useRef<any>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+
+  const wrapSelection = (before: string, after: string) => {
+    const { start, end } = selection;
+    const selected = draftBody.slice(start, end) || "text";
+    const newBody = draftBody.slice(0, start) + before + selected + after + draftBody.slice(end);
+    setDraftBody(newBody);
+  };
+
+  const prefixLines = (prefix: string) => {
+    const { start, end } = selection;
+    const beforeCursor = draftBody.slice(0, start);
+    const lineStart = beforeCursor.lastIndexOf("\n") + 1;
+    const afterCursor = draftBody.slice(end);
+    const selectedLines = draftBody.slice(lineStart, end).split("\n");
+    const prefixed = selectedLines.map((line) => (line.startsWith(prefix) ? line : prefix + line)).join("\n");
+    const newBody = draftBody.slice(0, lineStart) + prefixed + afterCursor;
+    setDraftBody(newBody);
+  };
 
   const filteredEntries = useMemo(
     () => filterPrayerJournalEntries(entries, bookmarksOnly),
@@ -91,6 +114,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftBody("");
     setDraftTaggedPersonIds([]);
     setDraftColor(undefined);
+    setDraftLocation("");
     setTagSearch("");
   };
 
@@ -100,6 +124,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftDate(entry.date);
     setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
     setDraftColor(entry.color);
+    setDraftLocation(entry.location ?? "");
     setShowEntryComposer(true);
   };
 
@@ -108,8 +133,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
     onChange(
       editingEntryId
-        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor })
-        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor }, createId("journal")),
+        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined })
+        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined }, createId("journal")),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     closeEntryComposer();
@@ -182,10 +207,22 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     ]);
   };
 
-  const renderEntry = ({ item }: { item: PrayerJournalEntry }) => (
+  const renderEntry = ({ item }: { item: PrayerJournalEntry }) => {
+    const isExpanded = expandedEntries.has(item.id);
+    const hashtags = extractHashtags(item.body);
+    const previewText = item.body.length > 150 && !isExpanded ? item.body.slice(0, 150) + "..." : item.body;
+    return (
     <Pressable
       delayLongPress={500}
       onLongPress={() => showEntryActions(item)}
+      onPress={() => {
+        setExpandedEntries((prev) => {
+          const next = new Set(prev);
+          if (next.has(item.id)) next.delete(item.id);
+          else next.add(item.id);
+          return next;
+        });
+      }}
       style={({ pressed }) => [
         styles.entryCard,
         {
@@ -196,10 +233,39 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     >
       <View style={styles.entryTopRow}>
         <Text style={[styles.entryDate, { color: colors.muted }]}>{formatPrayerJournalDate(item.date)}</Text>
-        <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {item.body.length > 150 && (
+            <MaterialIcons
+              name={isExpanded ? "expand-less" : "expand-more"}
+              size={20}
+              color={colors.muted}
+            />
+          )}
+          <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
+        </View>
       </View>
 
-      <Text style={[styles.entryBody, { color: colors.foreground }]}>{item.body}</Text>
+      <MarkdownText text={previewText} baseColor={colors.foreground} />
+
+      {hashtags.length > 0 && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {hashtags.map((tag) => (
+            <View
+              key={tag}
+              style={{ backgroundColor: colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {item.location && (
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 4 }}>
+          <MaterialIcons name="place" size={14} color={colors.muted} />
+          <Text style={{ color: colors.muted, fontSize: 12 }}>{item.location}</Text>
+        </View>
+      )}
 
       {item.taggedPeople.length > 0 ? (
         <View style={styles.taggedPeopleRow}>
@@ -268,6 +334,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       ) : null}
     </Pressable>
   );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -362,10 +429,29 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               contentContainerStyle={styles.composerContent}
               ListHeaderComponent={
                 <View>
+                  <View style={{ flexDirection: "row", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+                    {[
+                      { icon: "format-bold", action: () => wrapSelection("**", "**") },
+                      { icon: "format-italic", action: () => wrapSelection("*", "*") },
+                      { icon: "title", action: () => prefixLines("# ") },
+                      { icon: "format-list-bulleted", action: () => prefixLines("- ") },
+                      { icon: "format-quote", action: () => prefixLines("> ") },
+                    ].map((btn, i) => (
+                      <Pressable
+                        key={i}
+                        onPress={btn.action}
+                        style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <MaterialIcons name={btn.icon as any} size={20} color={colors.foreground} />
+                      </Pressable>
+                    ))}
+                  </View>
                   <TextInput
+                    ref={bodyInputRef}
                     value={draftBody}
                     onChangeText={setDraftBody}
-                    placeholder="Write your prayer..."
+                    onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+                    placeholder="Write your prayer... (supports **bold**, *italic*, # headers, - lists)"
                     placeholderTextColor={colors.muted}
                     multiline
                     textAlignVertical="top"
@@ -408,6 +494,17 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                         </Pressable>
                       );
                     })}
+                  </View>
+                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Location (optional)</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 }}>
+                    <MaterialIcons name="place" size={20} color={colors.muted} />
+                    <TextInput
+                      value={draftLocation}
+                      onChangeText={setDraftLocation}
+                      placeholder="Where were you?"
+                      placeholderTextColor={colors.muted}
+                      style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
+                    />
                   </View>
                   <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>

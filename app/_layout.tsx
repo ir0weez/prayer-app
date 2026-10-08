@@ -57,6 +57,10 @@ function RootLayoutContent() {
       handledResponseIds.add(responseId);
       const data = response.notification.request.content.data as { personId?: unknown; kind?: unknown; eventId?: unknown; todoId?: unknown; ministryId?: unknown };
       const action = response.actionIdentifier;
+      if (data.kind === "prayer-tray" && typeof data.personId === "string") {
+        router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId } });
+        return;
+      }
       if (data.kind === "prayer-reminder" && typeof data.personId === "string") {
         if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
         router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId, notificationAction: action } });

@@ -35,6 +35,7 @@ import {
   scheduleTestNotification,
   syncBudgetReminderNotifications,
   syncPrayerReminderNotifications,
+  syncPrayerTrayNotifications,
 } from "@/lib/notification-scheduler";
 
 import { PulsingGlow } from "@/components/pulsing-glow";
@@ -1120,6 +1121,12 @@ export default function HomeScreen() {
     if (!hasHydratedPeople) return;
     syncPrayerReminderNotifications(people).catch(() => undefined);
   }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
+
+  // Sticky tray pills for active emergency prayers and praise reports.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    syncPrayerTrayNotifications(people).catch(() => undefined);
+  }, [hasHydratedPeople, people]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;

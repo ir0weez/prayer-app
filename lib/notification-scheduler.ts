@@ -476,3 +476,94 @@ export function configureLocalNotifications(): void {
 export const notificationKinds = { prayer: PRAYER_KIND, event: EVENT_KIND, todo: TODO_KIND, ministry: MINISTRY_KIND, budget: BUDGET_KIND } as const;
 
 export { parseTime };
+
+// ---------------------------------------------------------------------------
+// Sticky tray notifications for active emergency prayers and praise reports.
+// These sit in the Android notification shade (the "pill" area) until the
+// prayer is done or expires. Tapping one opens the app to that person.
+// ---------------------------------------------------------------------------
+
+const PRAYER_TRAY_KEY_PREFIX = "prayer-tray:";
+const prayerTrayIds = new Map<string, string>();
+
+function prayerTrayKey(kind: "emergency" | "praise", personId: string): string {
+  return `${PRAYER_TRAY_KEY_PREFIX}${kind}:${personId}`;
+}
+
+export async function showPrayerTrayNotification(kind: "emergency" | "praise", personId: string, personName: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const key = prayerTrayKey(kind, personId);
+    const existing = prayerTrayIds.get(key);
+    if (existing) {
+      try { await Notifications.dismissNotificationAsync(existing); } catch { /* already gone */ }
+    }
+    const title = kind === "emergency" ? "🚨 Emergency prayer" : "🙌 Praise report";
+    const body = kind === "emergency"
+      ? `Urgent prayer for ${personName} — tap to pray`
+      : `Praise God for ${personName} — tap to view`;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sticky: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        data: { kind: "prayer-tray", trayKind: kind, personId },
+      },
+      trigger: null,
+    });
+    prayerTrayIds.set(key, id);
+  } catch {
+    // Best-effort
+  }
+}
+
+export async function clearPrayerTrayNotification(kind: "emergency" | "praise", personId: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const key = prayerTrayKey(kind, personId);
+    const existing = prayerTrayIds.get(key);
+    if (existing) {
+      try { await Notifications.dismissNotificationAsync(existing); } catch { /* already gone */ }
+      prayerTrayIds.delete(key);
+    }
+  } catch {
+    // Best-effort
+  }
+}
+
+/** Reconciles sticky tray notifications with the current people list. */
+export async function syncPrayerTrayNotifications(people: Array<{ id: string; name: string; isPraised?: boolean; praiseExpiresAt?: string; prayerItems: Array<{ isEmergency?: boolean; emergencyExpiresAt?: string }> }>): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    if (!(await ensureNotificationPermission())) return;
+    const now = Date.now();
+    const wanted = new Set<string>();
+    for (const person of people) {
+      const hasEmergency = person.prayerItems.some((item) => {
+        if (!item.isEmergency || !item.emergencyExpiresAt) return false;
+        const expiresAt = new Date(item.emergencyExpiresAt).getTime();
+        return Number.isFinite(expiresAt) && expiresAt > now;
+      });
+      const hasPraise = !!person.isPraised && !!person.praiseExpiresAt && Number.isFinite(new Date(person.praiseExpiresAt).getTime()) && new Date(person.praiseExpiresAt).getTime() > now;
+      if (hasEmergency) {
+        const key = prayerTrayKey("emergency", person.id);
+        wanted.add(key);
+        if (!prayerTrayIds.has(key)) await showPrayerTrayNotification("emergency", person.id, person.name);
+      }
+      if (hasPraise) {
+        const key = prayerTrayKey("praise", person.id);
+        wanted.add(key);
+        if (!prayerTrayIds.has(key)) await showPrayerTrayNotification("praise", person.id, person.name);
+      }
+    }
+    for (const [key, id] of Array.from(prayerTrayIds.entries())) {
+      if (!wanted.has(key)) {
+        try { await Notifications.dismissNotificationAsync(id); } catch { /* already gone */ }
+        prayerTrayIds.delete(key);
+      }
+    }
+  } catch {
+    // Best-effort
+  }
+}

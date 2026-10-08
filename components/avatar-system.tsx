@@ -110,7 +110,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
   const unlocked = new Set(unlockedShinyIds);
   const unlockedBooks = new Set(unlockedBookIds);
   const unlockedHeroes = new Set(unlockedHeroIds);
-  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style && (selectedGender === "all" || avatar.gender === selectedGender)), [style, selectedGender]);
+  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style), [style]);
   const books = useMemo(() => BOOK_AVATAR_DEFINITIONS, []);
   const selectedDefinition = getAvatarDefinitionForPerson("picker", gender, selected);
   const selectedBook = selected ? BOOK_AVATAR_BY_ID[selected] : undefined;
@@ -121,13 +121,12 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
         <View style={styles.header}><Text style={[styles.title, { color: colors.foreground }]}>Choose avatar</Text><Pressable onPress={onClose}><MaterialIcons name="close" size={28} color={colors.foreground} /></Pressable></View>
         <View style={[styles.previewRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <AvatarImage id="picker" avatarAsset={selected} gender={gender} size={64} />
-          <View style={{ flex: 1 }}><Text style={[styles.previewLabel, { color: colors.muted }]}>SELECTED AVATAR</Text><Text style={[styles.previewName, { color: colors.foreground }]}>{selectedBook?.book || selectedDefinition?.animal || "Default"}</Text></View>
+          <View style={{ flex: 1 }}><Text style={[styles.previewLabel, { color: colors.muted }]}>SELECTED AVATAR</Text><Text style={[styles.previewName, { color: colors.foreground }]}>{selectedBook?.book || selectedDefinition?.face || "Default"}</Text></View>
           <View style={{ gap: 6 }}><Pressable onPress={onUpload} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Upload photo</Text></Pressable><Pressable onPress={() => select(undefined)} style={[styles.clearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: "800" }}>Default</Text></Pressable></View>
         </View>
         <ScrollView horizontal style={styles.tabsScroll} contentContainerStyle={styles.tabs} showsHorizontalScrollIndicator={false} bounces={false} nestedScrollEnabled>
           {[...STYLE_ORDER, "Books" as const, "Heroes" as const, "Shiny" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" || tab === "Books" || tab === "Heroes" ? tab : STYLE_LABELS[tab]}</Text></Pressable>)}
         </ScrollView>
-        {style !== "Shiny" && style !== "Books" && style !== "Heroes" && <View style={styles.genderRow}>{(["all", "m", "f"] as const).map((value) => <Pressable key={value} onPress={() => setSelectedGender(value)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === value && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: selectedGender === value ? "#fff" : colors.foreground, fontWeight: "800" }}>{value === "all" ? "All" : value === "m" ? "Male" : "Female"}</Text></Pressable>)}</View>}
         {style === "Books" ? (
           <FlatList
             key="book-avatar-grid"
@@ -197,7 +196,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
             maxToRenderPerBatch={9}
             windowSize={5}
             removeClippedSubviews
-            renderItem={({ item: avatar }) => <Pressable onPress={() => select(avatar.id)} style={[styles.avatarCard, { borderColor: selected === avatar.id ? colors.primary : colors.border, backgroundColor: colors.surface }, selected === avatar.id && { borderWidth: 3 }]}><Image source={avatar.thumbnail} style={styles.avatarImage} /><Text numberOfLines={1} style={[styles.avatarName, { color: colors.foreground }]}>{avatar.animal}</Text></Pressable>}
+            renderItem={({ item: avatar }) => <Pressable onPress={() => select(avatar.id)} style={[styles.avatarCard, { borderColor: selected === avatar.id ? colors.primary : colors.border, backgroundColor: colors.surface }, selected === avatar.id && { borderWidth: 3 }]}><Image source={avatar.thumbnail} style={styles.avatarImage} /><Text numberOfLines={1} style={[styles.avatarName, { color: colors.foreground }]}>{avatar.face}</Text></Pressable>}
           />
         )}
       </View>

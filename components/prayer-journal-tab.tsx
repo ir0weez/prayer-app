@@ -60,6 +60,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const [replyEntryId, setReplyEntryId] = useState<string | null>(null);
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [draftBody, setDraftBody] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
   const [draftDate, setDraftDate] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -114,6 +115,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setShowEntryComposer(false);
     setEditingEntryId(null);
     setDraftBody("");
+    setDraftTitle("");
     setDraftTaggedPersonIds([]);
     setDraftColor(undefined);
     setDraftLocation("");
@@ -124,6 +126,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const startEditEntry = (entry: PrayerJournalEntry) => {
     setEditingEntryId(entry.id);
     setDraftBody(entry.body);
+    setDraftTitle(entry.title ?? "");
     setDraftDate(entry.date);
     setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
     setDraftColor(entry.color);
@@ -137,8 +140,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
     onChange(
       editingEntryId
-        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood })
-        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood }, createId("journal")),
+        ? updatePrayerJournalEntry(entries, editingEntryId, { title: draftTitle, body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood })
+        : createPrayerJournalEntry(entries, { title: draftTitle, body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood }, createId("journal")),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     closeEntryComposer();
@@ -248,6 +251,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
         </View>
       </View>
+
+      {item.title && (
+        <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: "800", marginBottom: 6 }}>
+          {item.title}
+        </Text>
+      )}
 
       <MarkdownText text={previewText} baseColor={colors.foreground} />
 
@@ -439,6 +448,13 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               contentContainerStyle={styles.composerContent}
               ListHeaderComponent={
                 <View>
+                  <TextInput
+                    value={draftTitle}
+                    onChangeText={setDraftTitle}
+                    placeholder="Give it a title..."
+                    placeholderTextColor={colors.muted}
+                    style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, backgroundColor: colors.surface, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+                  />
                   <View style={{ flexDirection: "row", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
                     {[
                       { icon: "format-bold", action: () => wrapSelection("**", "**") },

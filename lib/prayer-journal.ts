@@ -14,6 +14,7 @@ export type PrayerJournalReply = {
 
 export type PrayerJournalEntry = {
   id: string;
+  title?: string;
   body: string;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
@@ -133,7 +134,7 @@ export function sortPrayerJournalEntries(entries: PrayerJournalEntry[]): PrayerJ
 
 export function createPrayerJournalEntry(
   entries: PrayerJournalEntry[],
-  input: { body: string; date?: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
+  input: { title?: string; body: string; date?: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
   entryId: string,
   now = new Date(),
 ): PrayerJournalEntry[] {
@@ -143,6 +144,7 @@ export function createPrayerJournalEntry(
   const fallbackDate = formatLocalIsoDate(now);
   const entry: PrayerJournalEntry = {
     id: entryId,
+    title: input.title?.trim() || undefined,
     body,
     date: normalizeDate(input.date, fallbackDate),
     taggedPeople: (input.taggedPeople ?? []).map(snapshotPerson),
@@ -161,7 +163,7 @@ export function createPrayerJournalEntry(
 export function updatePrayerJournalEntry(
   entries: PrayerJournalEntry[],
   entryId: string,
-  input: { body: string; date: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
+  input: { title?: string; body: string; date: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
   now = new Date(),
 ): PrayerJournalEntry[] {
   const body = input.body.trim();
@@ -172,6 +174,7 @@ export function updatePrayerJournalEntry(
       entry.id === entryId
         ? {
             ...entry,
+            title: input.title?.trim() || undefined,
             body,
             date: normalizeDate(input.date, entry.date),
             taggedPeople: input.taggedPeople ? input.taggedPeople.map(snapshotPerson) : entry.taggedPeople,

@@ -53,6 +53,18 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
   "lamb-god-shiny": { id: "lamb-god-shiny", label: "Lamb of God", glowColor: "#FFFFFF", secondaryColor: "#E0E7FF", accentColors: ["#FFFFFF", "#C7D2FE"], style: "radiant", ringCount: 3 },
   "eagle-wings-shiny": { id: "eagle-wings-shiny", label: "Eagle's Wings", glowColor: "#0EA5E9", secondaryColor: "#E0F2FE", accentColors: ["#BAE6FD", "#0284C7"], style: "rays", ringCount: 2 },
   "raven-provision-shiny": { id: "raven-provision-shiny", label: "Raven's Provision", glowColor: "#1F2937", secondaryColor: "#F5B942", accentColors: ["#374151", "#FBBF24"], style: "embers", ringCount: 2 },
+  "smiley-20s-shiny-cool": { id: "smiley-20s-shiny-cool", label: "Cool 1920s", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-20s-shiny-joy": { id: "smiley-20s-shiny-joy", label: "Joyful 1920s", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
+  "smiley-50s-shiny-cool": { id: "smiley-50s-shiny-cool", label: "Cool 1950s", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-50s-shiny-joy": { id: "smiley-50s-shiny-joy", label: "Joyful 1950s", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
+  "smiley-70s-shiny-cool": { id: "smiley-70s-shiny-cool", label: "Cool 1970s", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-70s-shiny-joy": { id: "smiley-70s-shiny-joy", label: "Joyful 1970s", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
+  "smiley-80s-shiny-cool": { id: "smiley-80s-shiny-cool", label: "Cool 1980s", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-80s-shiny-joy": { id: "smiley-80s-shiny-joy", label: "Joyful 1980s", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
+  "smiley-90s-shiny-cool": { id: "smiley-90s-shiny-cool", label: "Cool 90s", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-90s-shiny-joy": { id: "smiley-90s-shiny-joy", label: "Joyful 90s", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
+  "smiley-y2k-shiny-cool": { id: "smiley-y2k-shiny-cool", label: "Cool Y2K", glowColor: "#A855F7", secondaryColor: "#22D3EE", accentColors: ["#F472B6", "#FBBF24", "#34D399", "#60A5FA"], style: "prismatic", ringCount: 2 },
+  "smiley-y2k-shiny-joy": { id: "smiley-y2k-shiny-joy", label: "Joyful Y2K", glowColor: "#F472B6", secondaryColor: "#A855F7", accentColors: ["#FBBF24", "#34D399", "#60A5FA", "#22D3EE"], style: "prismatic", ringCount: 2 },
 };
 
 /** Used only for the personal profile when its active avatar is a regular pack avatar or photo. */

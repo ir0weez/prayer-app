@@ -110,7 +110,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
   const unlocked = new Set(unlockedShinyIds);
   const unlockedBooks = new Set(unlockedBookIds);
   const unlockedHeroes = new Set(unlockedHeroIds);
-  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style), [style]);
+  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style && (selectedGender === "all" || avatar.gender === selectedGender)), [style, selectedGender]);
   const books = useMemo(() => BOOK_AVATAR_DEFINITIONS, []);
   const selectedDefinition = getAvatarDefinitionForPerson("picker", gender, selected);
   const selectedBook = selected ? BOOK_AVATAR_BY_ID[selected] : undefined;
@@ -127,6 +127,15 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
         <ScrollView horizontal style={styles.tabsScroll} contentContainerStyle={styles.tabs} showsHorizontalScrollIndicator={false} bounces={false} nestedScrollEnabled>
           {[...STYLE_ORDER, "Books" as const, "Heroes" as const, "Shiny" as const].map((tab) => <Pressable key={tab} onPress={() => setStyle(tab)} style={[styles.tab, { borderColor: colors.border }, style === tab && { backgroundColor: colors.primary, borderColor: colors.primary }]}><Text style={{ color: style === tab ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{tab === "Shiny" || tab === "Books" || tab === "Heroes" ? tab : STYLE_LABELS[tab]}</Text></Pressable>)}
         </ScrollView>
+        {style !== "Shiny" && style !== "Books" && style !== "Heroes" && (
+          <View style={styles.genderRow}>
+            {(["all", "m", "f"] as const).map((g) => (
+              <Pressable key={g} onPress={() => setSelectedGender(g)} style={[styles.genderButton, { borderColor: colors.border }, selectedGender === g && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                <Text style={{ color: selectedGender === g ? "#fff" : colors.foreground, fontWeight: "800", fontSize: 12 }}>{g === "all" ? "All" : g === "m" ? "Male" : "Female"}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         {style === "Books" ? (
           <FlatList
             key="book-avatar-grid"

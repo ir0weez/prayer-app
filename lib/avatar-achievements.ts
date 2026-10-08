@@ -46,6 +46,13 @@ export function qualifyAchievements(input: { todos?: Array<{ tag?: string }>; ot
   if (streak >= 50) { result.push("streak-50"); result.push("evo-paul-3"); }
   if (streak >= 75) result.push("streak-75");
   if (streak >= 100) result.push("streak-100");
+  // Holographic smiley shinies: each generation's Cool unlocks at a 200-day
+  // streak, Joyful at 250 days. The SHINY_ACHIEVEMENTS list mirrors these ids.
+  const smileyStyles = ["20s", "50s", "70s", "80s", "90s", "y2k"] as const;
+  for (const suffix of smileyStyles) {
+    if (streak >= 200) result.push(`smiley-${suffix}-shiny-cool` as AchievementId);
+    if (streak >= 250) result.push(`smiley-${suffix}-shiny-joy` as AchievementId);
+  }
   const fasts = input.fasts || [];
   if (completedFastAtLeast(fasts, 5)) { result.push("fast-5"); result.push("evo-peter-1"); }
   if (completedFastAtLeast(fasts, 7)) result.push("fast-7");

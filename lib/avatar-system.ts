@@ -6,102 +6,6 @@ export type AvatarStyle = "90s" | "1920s" | "1950s" | "1970s" | "1980s" | "Y2K";
 export type AvatarDefinition = { id: string; face: string; emotion: string; gender: AvatarGender; style: AvatarStyle; source: ImageSourcePropType; thumbnail: ImageSourcePropType; neutral?: boolean };
 
 export const AVATAR_DEFINITIONS: AvatarDefinition[] = [
-  { id: "smiley-20s-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-1-m.webp") },
-  { id: "smiley-20s-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-1-f.webp") },
-  { id: "smiley-20s-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-2-m.webp") },
-  { id: "smiley-20s-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-2-f.webp") },
-  { id: "smiley-20s-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-3-m.webp") },
-  { id: "smiley-20s-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-3-f.webp") },
-  { id: "smiley-20s-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-4-m.webp") },
-  { id: "smiley-20s-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-4-f.webp") },
-  { id: "smiley-20s-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-5-m.webp") },
-  { id: "smiley-20s-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-5-f.webp") },
-  { id: "smiley-20s-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-6-m.webp") },
-  { id: "smiley-20s-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-6-f.webp") },
-  { id: "smiley-20s-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-7-m.webp") },
-  { id: "smiley-20s-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-7-f.webp") },
-  { id: "smiley-20s-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-8-m.webp") },
-  { id: "smiley-20s-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "1920s", source: require("@/assets/avatars/avatar-smiley-20s-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-20s-8-f.webp") },
-  { id: "smiley-50s-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-1-m.webp") },
-  { id: "smiley-50s-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-1-f.webp") },
-  { id: "smiley-50s-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-2-m.webp") },
-  { id: "smiley-50s-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-2-f.webp") },
-  { id: "smiley-50s-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-3-m.webp") },
-  { id: "smiley-50s-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-3-f.webp") },
-  { id: "smiley-50s-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-4-m.webp") },
-  { id: "smiley-50s-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-4-f.webp") },
-  { id: "smiley-50s-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-5-m.webp") },
-  { id: "smiley-50s-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-5-f.webp") },
-  { id: "smiley-50s-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-6-m.webp") },
-  { id: "smiley-50s-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-6-f.webp") },
-  { id: "smiley-50s-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-7-m.webp") },
-  { id: "smiley-50s-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-7-f.webp") },
-  { id: "smiley-50s-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-8-m.webp") },
-  { id: "smiley-50s-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "1950s", source: require("@/assets/avatars/avatar-smiley-50s-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-50s-8-f.webp") },
-  { id: "smiley-70s-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-1-m.webp") },
-  { id: "smiley-70s-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-1-f.webp") },
-  { id: "smiley-70s-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-2-m.webp") },
-  { id: "smiley-70s-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-2-f.webp") },
-  { id: "smiley-70s-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-3-m.webp") },
-  { id: "smiley-70s-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-3-f.webp") },
-  { id: "smiley-70s-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-4-m.webp") },
-  { id: "smiley-70s-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-4-f.webp") },
-  { id: "smiley-70s-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-5-m.webp") },
-  { id: "smiley-70s-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-5-f.webp") },
-  { id: "smiley-70s-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-6-m.webp") },
-  { id: "smiley-70s-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-6-f.webp") },
-  { id: "smiley-70s-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-7-m.webp") },
-  { id: "smiley-70s-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-7-f.webp") },
-  { id: "smiley-70s-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-8-m.webp") },
-  { id: "smiley-70s-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "1970s", source: require("@/assets/avatars/avatar-smiley-70s-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-70s-8-f.webp") },
-  { id: "smiley-80s-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-1-m.webp") },
-  { id: "smiley-80s-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-1-f.webp") },
-  { id: "smiley-80s-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-2-m.webp") },
-  { id: "smiley-80s-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-2-f.webp") },
-  { id: "smiley-80s-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-3-m.webp") },
-  { id: "smiley-80s-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-3-f.webp") },
-  { id: "smiley-80s-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-4-m.webp") },
-  { id: "smiley-80s-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-4-f.webp") },
-  { id: "smiley-80s-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-5-m.webp") },
-  { id: "smiley-80s-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-5-f.webp") },
-  { id: "smiley-80s-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-6-m.webp") },
-  { id: "smiley-80s-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-6-f.webp") },
-  { id: "smiley-80s-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-7-m.webp") },
-  { id: "smiley-80s-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-7-f.webp") },
-  { id: "smiley-80s-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-8-m.webp") },
-  { id: "smiley-80s-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "1980s", source: require("@/assets/avatars/avatar-smiley-80s-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-80s-8-f.webp") },
-  { id: "smiley-90s-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-1-m.webp") },
-  { id: "smiley-90s-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-1-f.webp") },
-  { id: "smiley-90s-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-2-m.webp") },
-  { id: "smiley-90s-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-2-f.webp") },
-  { id: "smiley-90s-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-3-m.webp") },
-  { id: "smiley-90s-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-3-f.webp") },
-  { id: "smiley-90s-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-4-m.webp") },
-  { id: "smiley-90s-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-4-f.webp") },
-  { id: "smiley-90s-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-5-m.webp") },
-  { id: "smiley-90s-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-5-f.webp") },
-  { id: "smiley-90s-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-6-m.webp") },
-  { id: "smiley-90s-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-6-f.webp") },
-  { id: "smiley-90s-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-7-m.webp") },
-  { id: "smiley-90s-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-7-f.webp") },
-  { id: "smiley-90s-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-8-m.webp") },
-  { id: "smiley-90s-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "90s", source: require("@/assets/avatars/avatar-smiley-90s-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-90s-8-f.webp") },
-  { id: "smiley-y2k-1-m", face: "Joyful", emotion: "Joyful", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-1-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-1-m.webp") },
-  { id: "smiley-y2k-1-f", face: "Joyful", emotion: "Joyful", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-1-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-1-f.webp") },
-  { id: "smiley-y2k-2-m", face: "Cool", emotion: "Cool", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-2-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-2-m.webp") },
-  { id: "smiley-y2k-2-f", face: "Cool", emotion: "Cool", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-2-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-2-f.webp") },
-  { id: "smiley-y2k-3-m", face: "Wink", emotion: "Wink", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-3-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-3-m.webp") },
-  { id: "smiley-y2k-3-f", face: "Wink", emotion: "Wink", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-3-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-3-f.webp") },
-  { id: "smiley-y2k-4-m", face: "Amazed", emotion: "Amazed", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-4-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-4-m.webp") },
-  { id: "smiley-y2k-4-f", face: "Amazed", emotion: "Amazed", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-4-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-4-f.webp") },
-  { id: "smiley-y2k-5-m", face: "Chill", emotion: "Chill", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-5-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-5-m.webp") },
-  { id: "smiley-y2k-5-f", face: "Chill", emotion: "Chill", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-5-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-5-f.webp") },
-  { id: "smiley-y2k-6-m", face: "Mischievous", emotion: "Mischievous", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-6-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-6-m.webp") },
-  { id: "smiley-y2k-6-f", face: "Mischievous", emotion: "Mischievous", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-6-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-6-f.webp") },
-  { id: "smiley-y2k-7-m", face: "Hyped", emotion: "Hyped", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-7-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-7-m.webp") },
-  { id: "smiley-y2k-7-f", face: "Hyped", emotion: "Hyped", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-7-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-7-f.webp") },
-  { id: "smiley-y2k-8-m", face: "Warm", emotion: "Warm", gender: "m", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-8-m.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-8-m.webp") },
-  { id: "smiley-y2k-8-f", face: "Warm", emotion: "Warm", gender: "f", style: "Y2K", source: require("@/assets/avatars/avatar-smiley-y2k-8-f.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-smiley-y2k-8-f.webp") },
   { id: "item-20s-boa", face: "Feather Boa", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-boa.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-boa.webp") },
   { id: "item-20s-camera", face: "Silent Film Camera", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-camera.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-camera.webp") },
   { id: "item-20s-gramophone", face: "Gramophone", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-gramophone.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-gramophone.webp") },
@@ -150,32 +54,78 @@ export const AVATAR_DEFINITIONS: AvatarDefinition[] = [
   { id: "item-y2k-mp3", face: "MP3 Player", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-mp3.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-mp3.webp") },
   { id: "item-y2k-sneakers", face: "Platform Sneakers", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-sneakers.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-sneakers.webp") },
   { id: "item-y2k-webcam", face: "Webcam", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-webcam.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-webcam.webp") },
+  { id: "item-20s-typewriter", face: "Typewriter", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-typewriter.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-typewriter.webp") },
+  { id: "item-20s-megaphone", face: "Megaphone", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-megaphone.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-megaphone.webp") },
+  { id: "item-20s-danceshoes", face: "Dance Shoes", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-danceshoes.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-danceshoes.webp") },
+  { id: "item-20s-pearls", face: "Pearl Necklace", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-pearls.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-pearls.webp") },
+  { id: "item-20s-lamp", face: "Art Deco Lamp", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-lamp.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-lamp.webp") },
+  { id: "item-20s-record", face: "Phonograph Record", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-record.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-record.webp") },
+  { id: "item-20s-banjo", face: "Banjo", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-banjo.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-banjo.webp") },
+  { id: "item-20s-projector", face: "Movie Projector", emotion: "Keepsake", gender: "m", style: "1920s", neutral: true, source: require("@/assets/avatars/avatar-item-20s-projector.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-20s-projector.webp") },
+  { id: "item-50s-saddleshoes", face: "Saddle Shoes", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-saddleshoes.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-saddleshoes.webp") },
+  { id: "item-50s-hulahoop", face: "Hula Hoop", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-hulahoop.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-hulahoop.webp") },
+  { id: "item-50s-transistor", face: "Transistor Radio", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-transistor.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-transistor.webp") },
+  { id: "item-50s-bobbysocks", face: "Bobby Socks", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-bobbysocks.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-bobbysocks.webp") },
+  { id: "item-50s-letterman", face: "Letterman Jacket", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-letterman.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-letterman.webp") },
+  { id: "item-50s-ticket", face: "Drive-In Ticket", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-ticket.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-ticket.webp") },
+  { id: "item-50s-adapter", face: "45 Adapter", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-adapter.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-adapter.webp") },
+  { id: "item-50s-menu", face: "Diner Menu", emotion: "Keepsake", gender: "m", style: "1950s", neutral: true, source: require("@/assets/avatars/avatar-item-50s-menu.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-50s-menu.webp") },
+  { id: "item-70s-platforms", face: "Platform Shoes", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-platforms.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-platforms.webp") },
+  { id: "item-70s-beanbag", face: "Beanbag Chair", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-beanbag.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-beanbag.webp") },
+  { id: "item-70s-moodring", face: "Mood Ring", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-moodring.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-moodring.webp") },
+  { id: "item-70s-tiedye", face: "Tie-Dye Shirt", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-tiedye.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-tiedye.webp") },
+  { id: "item-70s-waterbed", face: "Waterbed", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-waterbed.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-waterbed.webp") },
+  { id: "item-70s-calculator", face: "Pocket Calculator", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-calculator.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-calculator.webp") },
+  { id: "item-70s-macrame", face: "Macrame Hanger", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-macrame.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-macrame.webp") },
+  { id: "item-70s-forks", face: "Fondue Forks", emotion: "Keepsake", gender: "m", style: "1970s", neutral: true, source: require("@/assets/avatars/avatar-item-70s-forks.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-70s-forks.webp") },
+  { id: "item-80s-legwarmers", face: "Leg Warmers", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-legwarmers.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-legwarmers.webp") },
+  { id: "item-80s-rewinder", face: "VHS Rewinder", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-rewinder.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-rewinder.webp") },
+  { id: "item-80s-clock", face: "Neon Clock", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-clock.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-clock.webp") },
+  { id: "item-80s-case", face: "Cassette Case", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-case.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-case.webp") },
+  { id: "item-80s-joystick", face: "Arcade Joystick", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-joystick.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-joystick.webp") },
+  { id: "item-80s-shoulderpads", face: "Shoulder Pads", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-shoulderpads.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-shoulderpads.webp") },
+  { id: "item-80s-swatch", face: "Swatch Watch", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-swatch.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-swatch.webp") },
+  { id: "item-80s-fannypack", face: "Fanny Pack", emotion: "Keepsake", gender: "m", style: "1980s", neutral: true, source: require("@/assets/avatars/avatar-item-80s-fannypack.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-80s-fannypack.webp") },
+  { id: "item-90s-supersoaker", face: "Super Soaker", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-supersoaker.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-supersoaker.webp") },
+  { id: "item-90s-pogs", face: "Pogs", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-pogs.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-pogs.webp") },
+  { id: "item-90s-skipit", face: "Skip-It", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-skipit.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-skipit.webp") },
+  { id: "item-90s-bopit", face: "Bop It", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-bopit.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-bopit.webp") },
+  { id: "item-90s-talkboy", face: "Talkboy", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-talkboy.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-talkboy.webp") },
+  { id: "item-90s-gak", face: "Gak", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-gak.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-gak.webp") },
+  { id: "item-90s-n64", face: "N64 Controller", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-n64.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-n64.webp") },
+  { id: "item-90s-furby", face: "Furby", emotion: "Keepsake", gender: "m", style: "90s", neutral: true, source: require("@/assets/avatars/avatar-item-90s-furby.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-90s-furby.webp") },
+  { id: "item-y2k-imac", face: "iMac G3", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-imac.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-imac.webp") },
+  { id: "item-y2k-nokia", face: "Nokia 3310", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-nokia.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-nokia.webp") },
+  { id: "item-y2k-scooter", face: "Razor Scooter", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-scooter.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-scooter.webp") },
+  { id: "item-y2k-jellies", face: "Jelly Sandals", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-jellies.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-jellies.webp") },
+  { id: "item-y2k-lipsmackers", face: "Lip Smackers", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-lipsmackers.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-lipsmackers.webp") },
+  { id: "item-y2k-portabletv", face: "Portable TV", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-portabletv.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-portabletv.webp") },
+  { id: "item-y2k-gamecube", face: "GameCube", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-gamecube.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-gamecube.webp") },
+  { id: "item-y2k-ipod", face: "iPod", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-ipod.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-ipod.webp") },
 ];
 
-// Maps legacy avatar IDs to the v2 expressive generations so existing contacts
-// keep a matching-generation avatar after the redesign.
-const LEGACY_SUFFIX_TO_STYLE: Record<string, AvatarStyle> = { "20s": "1920s", "50s": "1950s", "70s": "1970s", "80s": "1980s", "y2k": "Y2K" };
-const STYLE_TO_SUFFIX: Record<AvatarStyle, string> = { "1920s": "20s", "1950s": "50s", "1970s": "70s", "1980s": "80s", "90s": "90s", "Y2K": "y2k" };
-
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
+// Generation-appropriate item avatars for migrating legacy face IDs.
+// Each generation maps to one of its iconic nostalgic items.
+const GENERATION_ITEM_AVATAR: Record<string, string> = {
+  "20s": "item-20s-gramophone",
+  "50s": "item-50s-jukebox",
+  "70s": "item-70s-lavalamp",
+  "80s": "item-80s-boombox",
+  "90s": "item-90s-tamagotchi",
+  "y2k": "item-y2k-mp3",
+};
 
 export function migrateLegacyAvatarId(id?: string, gender?: AvatarGender): string | undefined {
   if (!id) return undefined;
   if (AVATAR_DEFINITIONS.some((a) => a.id === id)) return id;
-  const g = gender ?? "m";
-  // v1 smiley (gender-neutral) -> v2 gendered
-  let match = id.match(/^smiley-(20s|50s|70s|80s|90s|y2k)-([1-8])$/);
-  if (match) return `smiley-${match[1]}-${match[2]}-${g}`;
-  // original animal avatars -> v2 expressive, same generation
+  // v1/v2 face avatars (smiley-*) -> generation-appropriate item avatar
+  let match = id.match(/^smiley-(20s|50s|70s|80s|90s|y2k)-([1-8])(?:-[mf])?$/);
+  if (match) return GENERATION_ITEM_AVATAR[match[1]];
+  // original animal avatars -> generation item, same generation
   match = id.match(/^([a-z]+)-[mf](?:-(20s|50s|70s|80s|y2k))?$/);
   if (!match) return undefined;
-  const style = LEGACY_SUFFIX_TO_STYLE[match[2] ?? ""] ?? "90s";
-  const faceIndex = (hashString(match[1]) % 8) + 1;
-  return `smiley-${STYLE_TO_SUFFIX[style]}-${faceIndex}-${g}`;
+  const suffix = match[2] ?? "90s";
+  return GENERATION_ITEM_AVATAR[suffix] ?? "item-90s-tamagotchi";
 }
 export const SHINY_AVATARS = {
   "bull-shiny": require("@/assets/avatars/shiny/avatar-bull-shiny.webp"),

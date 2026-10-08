@@ -352,8 +352,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           <SafeAreaView edges={["top", "bottom"]} style={[styles.composerSheet, { backgroundColor: colors.background }]}>
             <View style={[styles.composerHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.composerTitle, { color: colors.foreground }]}>New Prayer Entry</Text>
-              <Pressable onPress={closeEntryComposer} style={({ pressed }) => [pressed && styles.pressed]}>
-                <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
+              <Pressable onPress={handleSaveEntry} style={({ pressed }) => [pressed && styles.pressed]}>
+                <Text style={[styles.doneText, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
             <FlatList

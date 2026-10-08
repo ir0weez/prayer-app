@@ -84,6 +84,7 @@ export type ScheduleMinistry = {
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
   location?: string;
+  travelTimeMinutes?: number; // "Time to leave" — minutes to get there
   notes?: string;
   isCompleted: boolean;
   completedAt?: string;

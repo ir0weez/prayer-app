@@ -914,6 +914,94 @@ function TodoItem({
   );
 }
 
+// ─── Ministry Ticket Component (Mission Ticket style) ────────────────────────
+function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colors: any }) {
+  const [now, setNow] = useState(Date.now());
+  const [weather, setWeather] = useState<{ tempF: number; icon: string; label: string } | null>(null);
+  const ministryColor = ministry.color || "#7C5CFF";
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (ministry.location) {
+      import("@/lib/weather").then(({ getWeatherForLocation }) => {
+        getWeatherForLocation(ministry.location!).then(setWeather);
+      });
+    }
+  }, [ministry.location]);
+
+  const { leaveByTime, leaveIn } = useMemo(() => {
+    if (!ministry.startTime || !ministry.travelTimeMinutes) return { leaveByTime: null, leaveIn: null };
+    const [h, m] = ministry.startTime.split(":").map(Number);
+    const eventDate = new Date(ministry.date + "T00:00:00");
+    eventDate.setHours(h, m, 0, 0);
+    const leaveBy = new Date(eventDate.getTime() - ministry.travelTimeMinutes * 60000);
+    const diffMs = leaveBy.getTime() - now;
+    let leaveInStr: string | null = null;
+    if (diffMs > 0) {
+      const diffMins = Math.floor(diffMs / 60000);
+      const hrs = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      leaveInStr = hrs > 0 ? `${hrs}H ${mins}M` : `${mins}M`;
+    } else {
+      leaveInStr = "NOW";
+    }
+    return {
+      leaveByTime: leaveBy.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      leaveIn: leaveInStr,
+    };
+  }, [ministry.startTime, ministry.travelTimeMinutes, ministry.date, now]);
+
+  return (
+    <View
+      style={{
+        margin: -16, marginBottom: 12,
+        backgroundColor: ministryColor + "1A", // 10% opacity
+        borderBottomWidth: 1.5,
+        borderBottomColor: ministryColor,
+        borderStyle: "dashed",
+        borderTopLeftRadius: 14, borderTopRightRadius: 14,
+        paddingVertical: 8, paddingHorizontal: 14,
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <MaterialIcons name={iconName("confirmation-number")} size={14} color={ministryColor} />
+        <Text style={{ color: ministryColor, fontSize: 10, fontWeight: "800", letterSpacing: 2, marginLeft: 6 }}>
+          DISPATCH
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <MaterialIcons name={iconName("directions-car")} size={14} color={ministryColor} />
+          <Text style={{ color: ministryColor, fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+            {ministry.travelTimeMinutes}M
+          </Text>
+        </View>
+        {weather && (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <MaterialIcons name={iconName(weather.icon || "thermostat")} size={14} color={ministryColor} />
+            <Text style={{ color: ministryColor, fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+              {weather.tempF}°
+            </Text>
+          </View>
+        )}
+        {leaveIn && (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <MaterialIcons name={iconName("timer")} size={14} color={ministryColor} />
+            <Text style={{ color: ministryColor, fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+              {leaveIn}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Ministry Card Component ─────────────────────────────────────────────────
 function MinistryCard({
   ministry,
@@ -1056,6 +1144,10 @@ function MinistryCard({
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
           <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 1.5 }]}>
+            {/* Mission Ticket - travel info */}
+            {ministry.travelTimeMinutes != null && ministry.travelTimeMinutes > 0 && ministry.startTime && (
+              <MinistryTicket ministry={ministry} colors={colors} />
+            )}
             {/* Avatar positioned top-right */}
             {linkedPeople.length > 0 && (
               <View style={{ position: 'absolute', top: 8, right: 10 }}>

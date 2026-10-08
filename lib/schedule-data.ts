@@ -318,9 +318,9 @@ export function getMinistriesForDate(ministries: ScheduleMinistry[], date: strin
   return ministries.filter((m) => m.date === date || m.dueDate === date).sort((a, b) => (a.startTime || "00:00").localeCompare(b.startTime || "00:00"));
 }
 
-// Parse birthday string "MM/DD/YYYY" → this year's ISO date
+// Parse birthday string "MM/DD/YYYY" or "MM/DD" (year optional) → this year's ISO date
 export function getBirthdayDateThisYear(birthday: string): string | null {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(birthday);
+  const match = /^(\d{2})\/(\d{2})(?:\/(\d{4}))?$/.exec(birthday.trim());
   if (!match) return null;
   const [, month, day] = match;
   const year = new Date().getFullYear();

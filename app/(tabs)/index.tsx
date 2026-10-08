@@ -223,13 +223,19 @@ function iconName(name: string) {
 function normalizeBirthdayInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  // Accept both MM/DD/YYYY (slashes) and MM-DD-YYYY (dashes) formats
+  // Accept MM/DD/YYYY or MM/DD (year optional), with slashes or dashes
   const mmddyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/.exec(trimmed);
   if (mmddyyyy) {
     const [, month, day, year] = mmddyyyy;
     const iso = `${year}-${month}-${day}`;
     const date = new Date(`${iso}T00:00:00Z`);
     if (!Number.isNaN(date.getTime()) && date.toISOString().startsWith(iso)) return `${month}/${day}/${year}`;
+  }
+  const mmdd = /^(\d{2})[\/\-](\d{2})$/.exec(trimmed);
+  if (mmdd) {
+    const [, month, day] = mmdd;
+    const m = parseInt(month, 10), d = parseInt(day, 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return `${month}/${day}`;
   }
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (iso) {
@@ -1237,7 +1243,7 @@ export default function HomeScreen() {
     if (!newPersonName.trim()) return;
     const normalizedBirthday = normalizeBirthdayInput(newPersonBirthday);
     if (normalizedBirthday === null) {
-      Alert.alert("Check birthday", "Use MM-DD-YYYY, such as 03-15-1990.");
+      Alert.alert("Check birthday", "Use MM/DD/YYYY or just MM/DD, such as 03/15/1990 or 03/15.");
       return;
     }
 
@@ -3014,7 +3020,7 @@ export default function HomeScreen() {
           <TextInput
             value={newPersonBirthday}
             onChangeText={setNewPersonBirthday}
-            placeholder="MM-DD-YYYY"
+            placeholder="MM-DD-YYYY or MM-DD"
             placeholderTextColor="#73808B"
             returnKeyType="done"
             style={styles.textInput}

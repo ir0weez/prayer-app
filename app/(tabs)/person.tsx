@@ -124,15 +124,23 @@ function normalizeOptionalDraft(value: string) {
 function normalizeBirthdayInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  // Accept both MM/DD/YYYY (slashes) and MM-DD-YYYY (dashes) formats
+  // Accept MM/DD/YYYY or MM/DD (year optional), with slashes or dashes
   const mmddyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/.exec(trimmed);
-  if (!mmddyyyy) return null;
-  const [, month, day, year] = mmddyyyy;
-  const iso = `${year}-${month}-${day}`;
-  const date = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(iso)) return null;
-  // Return in MM/DD/YYYY format with slashes
-  return `${month}/${day}/${year}`;
+  if (mmddyyyy) {
+    const [, month, day, year] = mmddyyyy;
+    const iso = `${year}-${month}-${day}`;
+    const date = new Date(`${iso}T00:00:00Z`);
+    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(iso)) return null;
+    return `${month}/${day}/${year}`;
+  }
+  const mmdd = /^(\d{2})[\/\-](\d{2})$/.exec(trimmed);
+  if (mmdd) {
+    const [, month, day] = mmdd;
+    const m = parseInt(month, 10), d = parseInt(day, 10);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return `${month}/${day}`;
+  }
+  return null;
 }
 
 function isValidIsoDate(value: string) {
@@ -549,7 +557,7 @@ export default function PersonScreen() {
 
     const normalizedBirthday = normalizeBirthdayInput(draftBirthday);
     if (normalizedBirthday === null) {
-      Alert.alert("Check birthday", "Use MM/DD/YYYY, such as 03/15/1990.");
+      Alert.alert("Check birthday", "Use MM/DD/YYYY or just MM/DD, such as 03/15/1990 or 03/15.");
       return;
     }
 
@@ -1090,7 +1098,7 @@ export default function PersonScreen() {
             <TextInput
               value={draftBirthday}
               onChangeText={setDraftBirthday}
-              placeholder="MM/DD/YYYY"
+              placeholder="MM/DD/YYYY or MM/DD"
               placeholderTextColor={colors.muted}
               keyboardType="numbers-and-punctuation"
               returnKeyType="done"

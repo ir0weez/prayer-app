@@ -24,6 +24,7 @@ export type PrayerJournalEntry = {
   color?: string;
   location?: string;
   weather?: string;
+  mood?: { id: string; intensity: 1 | 2 | 3 };
 };
 
 export type PrayerJournalGroup = {
@@ -132,7 +133,7 @@ export function sortPrayerJournalEntries(entries: PrayerJournalEntry[]): PrayerJ
 
 export function createPrayerJournalEntry(
   entries: PrayerJournalEntry[],
-  input: { body: string; date?: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string },
+  input: { body: string; date?: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
   entryId: string,
   now = new Date(),
 ): PrayerJournalEntry[] {
@@ -152,6 +153,7 @@ export function createPrayerJournalEntry(
     color: input.color,
     location: input.location,
     weather: input.weather,
+    mood: input.mood,
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -159,7 +161,7 @@ export function createPrayerJournalEntry(
 export function updatePrayerJournalEntry(
   entries: PrayerJournalEntry[],
   entryId: string,
-  input: { body: string; date: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string },
+  input: { body: string; date: string; taggedPeople?: Person[]; color?: string; location?: string; weather?: string; mood?: { id: string; intensity: 1 | 2 | 3 } },
   now = new Date(),
 ): PrayerJournalEntry[] {
   const body = input.body.trim();
@@ -177,6 +179,7 @@ export function updatePrayerJournalEntry(
             color: input.color,
             location: input.location,
             weather: input.weather,
+            mood: input.mood,
           }
         : entry,
     ),

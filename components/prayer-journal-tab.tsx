@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useMemo, useRef, useState } from "react";
 import { MarkdownText, extractHashtags } from "@/components/markdown-text";
+import { MoodPicker, MoodChip, type JournalMood } from "@/components/mood-picker";
 import {
   Alert,
   FlatList,
@@ -67,6 +68,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
   const [draftReply, setDraftReply] = useState("");
   const [draftColor, setDraftColor] = useState<string | undefined>(undefined);
   const [draftLocation, setDraftLocation] = useState("");
+  const [draftMood, setDraftMood] = useState<JournalMood | undefined>(undefined);
   const [tagSearch, setTagSearch] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const bodyInputRef = useRef<any>(null);
@@ -115,6 +117,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftTaggedPersonIds([]);
     setDraftColor(undefined);
     setDraftLocation("");
+    setDraftMood(undefined);
     setTagSearch("");
   };
 
@@ -125,6 +128,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     setDraftTaggedPersonIds(entry.taggedPeople.map((person) => person.id));
     setDraftColor(entry.color);
     setDraftLocation(entry.location ?? "");
+    setDraftMood(entry.mood as JournalMood | undefined);
     setShowEntryComposer(true);
   };
 
@@ -133,8 +137,8 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const taggedPeople = people.filter((person) => draftTaggedPersonIds.includes(person.id));
     onChange(
       editingEntryId
-        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined })
-        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined }, createId("journal")),
+        ? updatePrayerJournalEntry(entries, editingEntryId, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood })
+        : createPrayerJournalEntry(entries, { body: draftBody, date: draftDate, taggedPeople, color: draftColor, location: draftLocation.trim() || undefined, mood: draftMood }, createId("journal")),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     closeEntryComposer();
@@ -264,6 +268,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 4 }}>
           <MaterialIcons name="place" size={14} color={colors.muted} />
           <Text style={{ color: colors.muted, fontSize: 12 }}>{item.location}</Text>
+        </View>
+      )}
+
+      {item.mood && (
+        <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
+          <MoodChip mood={item.mood as JournalMood} small />
         </View>
       )}
 
@@ -505,6 +515,10 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                       placeholderTextColor={colors.muted}
                       style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
                     />
+                  </View>
+                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Mood</Text>
+                  <View style={{ marginBottom: 16 }}>
+                    <MoodPicker value={draftMood} onChange={setDraftMood} />
                   </View>
                   <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>

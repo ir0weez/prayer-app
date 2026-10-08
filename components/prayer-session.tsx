@@ -31,6 +31,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastBonusMinute = useRef(0);
   const sessionStartRef = useRef<number>(0);
+  const prayButtonRef = useRef<View>(null);
+  const [prayButtonPos, setPrayButtonPos] = useState<{ x: number; y: number } | null>(null);
 
   // Corner position for XP floater (top-right)
   const bonusPosition = { x: Dimensions.get("window").width - 60, y: 120 };
@@ -111,10 +113,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const handlePray = (e: any) => {
     if (!currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Use press position if available, otherwise center of screen
-    const position = e?.nativeEvent?.pageX != null
-      ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }
-      : { x: Dimensions.get("window").width / 2, y: Dimensions.get("window").height / 2 };
+    // Use measured button position, fall back to center screen
+    const position = prayButtonPos ?? { x: Dimensions.get("window").width / 2, y: Dimensions.get("window").height / 2 };
     onPray(currentPerson.id, position);
     setPrayedCount((c) => c + 1);
     if (isLast) {
@@ -209,6 +209,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
               <Pressable
                 onPress={handlePray}
                 style={{ flex: 2, backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 18, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+                ref={prayButtonRef}
+                onLayout={() => {
+                  prayButtonRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                    setPrayButtonPos({ x: pageX + width / 2, y: pageY });
+                  });
+                }}
               >
                 <MaterialIcons name="favorite" size={20} color="#FFFFFF" />
                 <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "800" }}>Pray</Text>

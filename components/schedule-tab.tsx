@@ -1420,14 +1420,18 @@ export function ScheduleTab({
   // selectedDate is lifted to parent for lazy tab mounting.
   const [internalDate, setInternalDate] = useState(today);
   const selectedDate = propSelectedDate ?? internalDate;
-  const setSelectedDate = (update: string | ((prev: string) => string)) => {
-    const newDate = typeof update === "function" ? update(selectedDate) : update;
+  // The week-strip PanResponder is created once, so its swipe handlers must
+  // never close over a stale selectedDate. Keep the latest date in a ref.
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  const setSelectedDate = useCallback((update: string | ((prev: string) => string)) => {
+    const newDate = typeof update === "function" ? update(selectedDateRef.current) : update;
     if (onSelectedDateChange) {
       onSelectedDateChange(newDate);
     } else {
       setInternalDate(newDate);
     }
-  };
+  }, [onSelectedDateChange]);
   // Direction of the last week-strip swipe: 1 = swiped left (next week),
   // -1 = swiped right (prev week), 0 = no slide (tap / jump). Drives the
   // week-change transition animation.

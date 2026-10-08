@@ -111,7 +111,10 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const handlePray = (e: any) => {
     if (!currentPerson) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const position = e?.nativeEvent ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } : undefined;
+    // Use press position if available, otherwise center of screen
+    const position = e?.nativeEvent?.pageX != null
+      ? { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }
+      : { x: Dimensions.get("window").width / 2, y: Dimensions.get("window").height / 2 };
     onPray(currentPerson.id, position);
     setPrayedCount((c) => c + 1);
     if (isLast) {
@@ -171,6 +174,28 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
                   {currentPerson.prayerNote}
                 </Text>
               ) : null}
+              {/* Prayer items list */}
+              {currentPerson.prayerItems && currentPerson.prayerItems.filter(item => !item.isDone).length > 0 && (
+                <View style={{ width: "100%", marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  {currentPerson.prayerItems.filter(item => !item.isDone).slice(0, 5).map((item) => (
+                    <View key={item.id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
+                      <MaterialIcons
+                        name={item.isUrgent ? "priority-high" : "chevron-right"}
+                        size={18}
+                        color={item.isUrgent ? colors.error : colors.muted}
+                      />
+                      <Text style={{ color: colors.foreground, fontSize: 14, marginLeft: 8, flex: 1 }}>
+                        {item.title}
+                      </Text>
+                    </View>
+                  ))}
+                  {currentPerson.prayerItems.filter(item => !item.isDone).length > 5 && (
+                    <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4, textAlign: "center" }}>
+                      +{currentPerson.prayerItems.filter(item => !item.isDone).length - 5} more
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Buttons */}

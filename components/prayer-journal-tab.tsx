@@ -2,6 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useMemo, useRef, useState } from "react";
+import ReAnimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { MarkdownText, extractHashtags } from "@/components/markdown-text";
 import { MoodPicker, MoodChip, type JournalMood } from "@/components/mood-picker";
 import {
@@ -54,6 +55,22 @@ function TaggedAvatar({ person }: { person: PrayerJournalTaggedPerson }) {
 
 export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTabProps) {
   const colors = useColors();
+  const headerVisible = useSharedValue(1);
+  const lastScrollY = useRef(0);
+  const headerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: headerVisible.value,
+    transform: [{ translateY: (1 - headerVisible.value) * -24 }],
+  }));
+  const handleJournalScroll = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const dy = y - lastScrollY.current;
+    lastScrollY.current = y;
+    if (dy > 8 && y > 60) {
+      headerVisible.value = withTiming(0, { duration: 200 });
+    } else if (dy < -8) {
+      headerVisible.value = withTiming(1, { duration: 200 });
+    }
+  };
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
   const [showEntryComposer, setShowEntryComposer] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -362,7 +379,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+      <ReAnimated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }, headerAnimatedStyle]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Journal</Text>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{entries.length} entries</Text>
@@ -384,12 +401,14 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             <MaterialIcons name={bookmarksOnly ? "bookmark" : "bookmark-border"} size={23} color={bookmarksOnly ? "#FFFFFF" : colors.primary} />
           </Pressable>
         </View>
-      </View>
+      </ReAnimated.View>
 
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={renderEntry}
+        onScroll={handleJournalScroll}
+        scrollEventThrottle={16}
         renderSectionHeader={({ section }) => (
           <Text style={[styles.sectionTitle, { color: colors.muted }]}>{section.title}</Text>
         )}

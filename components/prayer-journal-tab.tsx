@@ -244,7 +244,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       ]}
     >
       <View style={styles.entryTopRow}>
-        <Text style={[styles.entryDate, { color: colors.muted }]}>{formatPrayerJournalDate(item.date)}</Text>
+        <Text style={[styles.entryDate, { color: cardMuted }]}>{formatPrayerJournalDate(item.date)}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {item.body.length > 150 && (
             <MaterialIcons
@@ -253,7 +253,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               color={cardMuted}
             />
           )}
-          <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
+          <Text style={[styles.holdHint, { color: cardMuted }]}>Hold for options</Text>
         </View>
       </View>
 
@@ -280,14 +280,14 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
 
       {item.location && (
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 4 }}>
-          <MaterialIcons name="place" size={14} color={colors.muted} />
-          <Text style={{ color: colors.muted, fontSize: 12 }}>{item.location}</Text>
+          <MaterialIcons name="place" size={14} color={cardMuted} />
+          <Text style={{ color: cardMuted, fontSize: 12 }}>{item.location}</Text>
         </View>
       )}
 
       {item.mood && (
         <View style={{ marginTop: 8, alignSelf: "flex-start" }}>
-          <MoodChip mood={item.mood as JournalMood} small />
+          <MoodChip mood={item.mood as JournalMood} small onColoredCard={!!item.color} />
         </View>
       )}
 
@@ -298,7 +298,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               <TaggedAvatar person={person} />
             </View>
           ))}
-          <Text numberOfLines={1} style={[styles.taggedNames, { color: colors.muted }]}>
+          <Text numberOfLines={1} style={[styles.taggedNames, { color: cardMuted }]}>
             {item.taggedPeople.map((person) => person.name).join(", ")}
           </Text>
         </View>

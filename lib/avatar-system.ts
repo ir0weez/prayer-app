@@ -221,6 +221,18 @@ export const SHINY_AVATAR_THUMBNAILS = {
   "lamb-god-shiny": require("@/assets/avatars/shiny/avatar-lamb-god-shiny.webp"),
   "eagle-wings-shiny": require("@/assets/avatars/shiny/avatar-eagle-wings-shiny.webp"),
   "raven-provision-shiny": require("@/assets/avatars/shiny/avatar-raven-provision-shiny.webp"),
+  "smiley-20s-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-20s-shiny-cool.webp"),
+  "smiley-20s-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-20s-shiny-joy.webp"),
+  "smiley-50s-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-50s-shiny-cool.webp"),
+  "smiley-50s-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-50s-shiny-joy.webp"),
+  "smiley-70s-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-70s-shiny-cool.webp"),
+  "smiley-70s-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-70s-shiny-joy.webp"),
+  "smiley-80s-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-80s-shiny-cool.webp"),
+  "smiley-80s-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-80s-shiny-joy.webp"),
+  "smiley-90s-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-90s-shiny-cool.webp"),
+  "smiley-90s-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-90s-shiny-joy.webp"),
+  "smiley-y2k-shiny-cool": require("@/assets/avatars/shiny/avatar-smiley-y2k-shiny-cool.webp"),
+  "smiley-y2k-shiny-joy": require("@/assets/avatars/shiny/avatar-smiley-y2k-shiny-joy.webp"),
 } as const;
 
 export const HERO_AVATARS = {

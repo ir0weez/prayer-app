@@ -157,23 +157,25 @@ export function MoodPicker({
   );
 }
 
-export function MoodChip({ mood, small }: { mood: JournalMood; small?: boolean }) {
+export function MoodChip({ mood, small, onColoredCard }: { mood: JournalMood; small?: boolean; onColoredCard?: boolean }) {
   const def = moodById(mood.id);
   if (!def) return null;
+  const chipColor = onColoredCard ? "#FFFFFF" : def.color;
+  const chipBg = onColoredCard ? "rgba(255, 255, 255, 0.22)" : def.color + "1E";
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: def.color + "1E",
+        backgroundColor: chipBg,
         borderRadius: 12,
         paddingHorizontal: small ? 8 : 10,
         paddingVertical: small ? 3 : 5,
         gap: 5,
       }}
     >
-      <MaterialIcons name={def.icon as any} size={small ? 13 : 15} color={def.color} />
-      <Text style={{ color: def.color, fontSize: small ? 11 : 12, fontWeight: "700" }}>{def.label}</Text>
+      <MaterialIcons name={def.icon as any} size={small ? 13 : 15} color={chipColor} />
+      <Text style={{ color: chipColor, fontSize: small ? 11 : 12, fontWeight: "700" }}>{def.label}</Text>
       <View style={{ flexDirection: "row", gap: 2, marginLeft: 2 }}>
         {[1, 2, 3].map((d) => (
           <View
@@ -182,7 +184,7 @@ export function MoodChip({ mood, small }: { mood: JournalMood; small?: boolean }
               width: 4,
               height: 4,
               borderRadius: 2,
-              backgroundColor: d <= mood.intensity ? def.color : def.color + "40",
+              backgroundColor: d <= mood.intensity ? chipColor : chipColor + "40",
             }}
           />
         ))}

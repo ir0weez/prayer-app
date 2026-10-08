@@ -189,9 +189,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       style={({ pressed }) => [
         styles.entryCard,
         {
-          backgroundColor: item.color ? `${item.color}14` : colors.surface,
-          borderLeftWidth: item.color ? 4 : 0,
-          borderLeftColor: item.color,
+          backgroundColor: item.color ?? colors.surface,
         },
         pressed && styles.longPressed,
       ]}
@@ -375,6 +373,42 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
                   />
                   <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Entry Date</Text>
                   <DateTimePicker value={draftDate} onChange={setDraftDate} mode="date" label="Entry Date" />
+                  <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Color</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+                    {[
+                      { name: "White", hex: "#FFFFFF" },
+                      { name: "Gray", hex: "#6B7280" },
+                      { name: "Red", hex: "#EF4444" },
+                      { name: "Orange", hex: "#F97316" },
+                      { name: "Yellow", hex: "#FBBF24" },
+                      { name: "Green", hex: "#10B981" },
+                      { name: "Blue", hex: "#3B82F6" },
+                      { name: "Purple", hex: "#A855F7" },
+                    ].map((color) => {
+                      const isSelected = (draftColor ?? "#FFFFFF") === color.hex;
+                      return (
+                        <Pressable
+                          key={color.hex}
+                          onPress={() => setDraftColor(color.hex === "#FFFFFF" ? undefined : color.hex)}
+                          style={{
+                            width: 40, height: 40, borderRadius: 20,
+                            backgroundColor: color.hex,
+                            borderWidth: isSelected ? 3 : 1,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          {isSelected && (
+                            <MaterialIcons
+                              name="check"
+                              size={20}
+                              color={color.hex === "#FFFFFF" || color.hex === "#FBBF24" ? "#000000" : "#FFFFFF"}
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                   <Text style={[styles.fieldLabel, styles.peopleLabel, { color: colors.foreground }]}>Tag People</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomWidth: 1, borderBottomColor: colors.primary, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}>
                     <MaterialIcons name="search" size={20} color={colors.muted} />

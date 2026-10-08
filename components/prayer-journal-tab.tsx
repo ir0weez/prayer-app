@@ -218,6 +218,11 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
     const isExpanded = expandedEntries.has(item.id);
     const hashtags = extractHashtags(item.body);
     const previewText = item.body.length > 150 && !isExpanded ? item.body.slice(0, 150) + "..." : item.body;
+    // Metadata (date, location, tagged names) needs to stay readable on the
+    // saturated card colors, where the theme's muted tone washes out.
+    const cardMuted = item.color ? "rgba(255, 255, 255, 0.8)" : colors.muted;
+    const cardText = item.color ? "#FFFFFF" : colors.foreground;
+    const cardFaint = item.color ? "rgba(255, 255, 255, 0.35)" : colors.border;
     return (
     <Pressable
       delayLongPress={500}
@@ -245,7 +250,7 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             <MaterialIcons
               name={isExpanded ? "expand-less" : "expand-more"}
               size={20}
-              color={colors.muted}
+              color={cardMuted}
             />
           )}
           <Text style={[styles.holdHint, { color: colors.muted }]}>Hold for options</Text>
@@ -253,21 +258,21 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
       </View>
 
       {item.title && (
-        <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: "800", marginBottom: 6 }}>
+        <Text style={{ color: cardText, fontSize: 17, fontWeight: "800", marginBottom: 6 }}>
           {item.title}
         </Text>
       )}
 
-      <MarkdownText text={previewText} baseColor={colors.foreground} />
+      <MarkdownText text={previewText} baseColor={cardText} />
 
       {hashtags.length > 0 && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
           {hashtags.map((tag) => (
             <View
               key={tag}
-              style={{ backgroundColor: colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}
+              style={{ backgroundColor: item.color ? "rgba(255, 255, 255, 0.25)" : colors.primary + "20", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}
             >
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
+              <Text style={{ color: item.color ? "#FFFFFF" : colors.primary, fontSize: 12, fontWeight: "600" }}>#{tag}</Text>
             </View>
           ))}
         </View>
@@ -307,12 +312,12 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
           }}
           style={({ pressed }) => [
             styles.outlineAction,
-            { borderColor: colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
+            { borderColor: item.color ? "#FFFFFF" : colors.primary, backgroundColor: item.isBookmarked ? colors.primary : "transparent" },
             pressed && styles.pressed,
           ]}
         >
-          <MaterialIcons name={item.isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={item.isBookmarked ? "#FFFFFF" : colors.primary} />
-          <Text style={[styles.outlineActionText, { color: item.isBookmarked ? "#FFFFFF" : colors.primary }]}>
+          <MaterialIcons name={item.isBookmarked ? "bookmark" : "bookmark-border"} size={18} color={item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary} />
+          <Text style={[styles.outlineActionText, { color: item.isBookmarked ? "#FFFFFF" : item.color ? "#FFFFFF" : colors.primary }]}>
             {item.isBookmarked ? "Bookmarked" : "Bookmark"}
           </Text>
         </Pressable>
@@ -321,16 +326,16 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
             setDraftReply("");
             setReplyEntryId(item.id);
           }}
-          style={({ pressed }) => [styles.outlineAction, { borderColor: colors.primary }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.outlineAction, { borderColor: item.color ? "#FFFFFF" : colors.primary }, pressed && styles.pressed]}
         >
-          <MaterialIcons name="reply" size={18} color={colors.primary} />
-          <Text style={[styles.outlineActionText, { color: colors.primary }]}>Reply</Text>
+          <MaterialIcons name="reply" size={18} color={item.color ? "#FFFFFF" : colors.primary} />
+          <Text style={[styles.outlineActionText, { color: item.color ? "#FFFFFF" : colors.primary }]}>Reply</Text>
         </Pressable>
       </View>
 
       {item.replies.length > 0 ? (
-        <View style={[styles.repliesSection, { borderTopColor: colors.border }]}>
-          <Text style={[styles.replyCount, { color: colors.muted }]}>
+        <View style={[styles.repliesSection, { borderTopColor: cardFaint }]}>
+          <Text style={[styles.replyCount, { color: cardMuted }]}>
             {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"}
           </Text>
           {item.replies.map((reply) => (
@@ -338,15 +343,15 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               key={reply.id}
               delayLongPress={500}
               onLongPress={() => showReplyActions(item.id, reply.id, reply.body)}
-              style={({ pressed }) => [styles.replyCard, { backgroundColor: colors.surface }, pressed && styles.longPressed]}
+              style={({ pressed }) => [styles.replyCard, { backgroundColor: item.color ? "rgba(255, 255, 255, 0.18)" : colors.surface }, pressed && styles.longPressed]}
             >
               <View style={styles.replyTopRow}>
-                <Text style={[styles.replyDate, { color: colors.muted }]}>
+                <Text style={[styles.replyDate, { color: cardMuted }]}>
                   {formatPrayerJournalDate(reply.date)}
                 </Text>
-                <Text style={[styles.holdHint, { color: colors.muted }]}>Hold</Text>
+                <Text style={[styles.holdHint, { color: cardMuted }]}>Hold</Text>
               </View>
-              <Text style={[styles.replyBody, { color: colors.foreground }]}>{reply.body}</Text>
+              <Text style={[styles.replyBody, { color: cardText }]}>{reply.body}</Text>
             </Pressable>
           ))}
         </View>
@@ -613,27 +618,6 @@ export function PrayerJournalTab({ entries, people, onChange }: PrayerJournalTab
               }}
               ListFooterComponent={
                 <View>
-                  <Text style={[styles.fieldLabel, { color: colors.foreground, marginTop: 8 }]}>Color</Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 8, marginBottom: 16 }}>
-                    {["#9E9E9E", "#EF4444", "#F97316", "#F59E0B", "#22C55E", "#3B82F6", "#8B5CF6"].map((c) => (
-                      <Pressable
-                        key={c}
-                        onPress={() => setDraftColor(draftColor === c ? undefined : c)}
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 22,
-                          backgroundColor: c,
-                          borderWidth: draftColor === c ? 3 : 0,
-                          borderColor: colors.foreground,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {draftColor === c && <MaterialIcons name="check" size={20} color="#FFFFFF" />}
-                      </Pressable>
-                    ))}
-                  </View>
                   <Pressable
                     disabled={!draftBody.trim()}
                     onPress={handleSaveEntry}

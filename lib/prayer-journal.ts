@@ -343,12 +343,20 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
           return normalizedReply ? [normalizedReply] : [];
         })
       : [];
+    const title = typeof candidate.title === "string" && candidate.title.trim() ? candidate.title.trim() : undefined;
+    const color = typeof candidate.color === "string" && candidate.color.trim() ? candidate.color.trim() : undefined;
+    const location = typeof candidate.location === "string" && candidate.location.trim() ? candidate.location.trim() : undefined;
+    const weather = typeof candidate.weather === "string" && candidate.weather.trim() ? candidate.weather.trim() : undefined;
+    const mood = candidate.mood && typeof candidate.mood === "object" && typeof (candidate.mood as { id?: unknown }).id === "string"
+      ? { id: (candidate.mood as { id: string }).id, intensity: (candidate.mood as { intensity?: unknown }).intensity === 2 ? 2 : (candidate.mood as { intensity?: unknown }).intensity === 3 ? 3 : 1 as 1 | 2 | 3 }
+      : undefined;
     return [
       {
         id:
           typeof candidate.id === "string" && candidate.id.trim()
             ? candidate.id.trim()
             : `journal-migrated-${index}-${createdAt}`,
+        ...(title ? { title } : {}),
         body,
         date,
         taggedPeople,
@@ -359,6 +367,10 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
           typeof candidate.updatedAt === "string" && !Number.isNaN(new Date(candidate.updatedAt).getTime())
             ? candidate.updatedAt
             : createdAt,
+        ...(color ? { color } : {}),
+        ...(location ? { location } : {}),
+        ...(weather ? { weather } : {}),
+        ...(mood ? { mood } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });

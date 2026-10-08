@@ -208,17 +208,7 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   const hasStarted = useRef(false);
 
-  // Reset animation when content changes (e.g., event edited)
-  const contentKey = segments.map(s => s.text).join("|");
-  const prevContentKey = useRef(contentKey);
-  if (prevContentKey.current !== contentKey) {
-    prevContentKey.current = contentKey;
-    hasStarted.current = false;
-    setContentWidth(0);
-    translateX.value = 0;
-  }
-
-  // Continuous loop - start once per content, restart on edit
+  // Continuous loop - start once, clean remount on event change via key
   useEffect(() => {
     if (contentWidth > 0 && !hasStarted.current) {
       hasStarted.current = true;
@@ -590,7 +580,11 @@ function EventCard(props: {
   return (
     <ReAnimated.View {...popStyle} style={{ marginBottom: 0 }}>
       <View style={{ marginHorizontal: 16 }}>
-        <TravelTicker event={event} colors={colors} />
+        <TravelTicker
+          key={`ticker-${event.id}-${event.travelTimeMinutes}-${event.startTime}-${event.location || ''}`}
+          event={event}
+          colors={colors}
+        />
       </View>
       <View style={{ marginTop: -10 }}>
         <EventCardInner {...props} squareTop />

@@ -3,6 +3,7 @@ import { AppState, BackHandler, Dimensions, Modal, Pressable, Text, View } from 
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { AvatarImage } from "@/components/avatar-system";
+import { XpGainIndicator } from "@/components/xp-gain-indicator";
 import { useColors } from "@/hooks/use-colors";
 import type { Person } from "@/lib/prayercircle-data";
 
@@ -176,21 +177,43 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
               ) : null}
               {/* Prayer items list */}
               {currentPerson.prayerItems && currentPerson.prayerItems.filter(item => !item.isDone).length > 0 && (
-                <View style={{ width: "100%", marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  {currentPerson.prayerItems.filter(item => !item.isDone).slice(0, 5).map((item) => (
-                    <View key={item.id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
-                      <MaterialIcons
-                        name={item.isUrgent ? "priority-high" : "chevron-right"}
-                        size={18}
-                        color={item.isUrgent ? colors.error : colors.muted}
-                      />
-                      <Text style={{ color: colors.foreground, fontSize: 14, marginLeft: 8, flex: 1 }}>
+                <View style={{ width: "100%", marginTop: 20 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 8, textAlign: "center" }}>
+                    PRAYER REQUESTS
+                  </Text>
+                  {currentPerson.prayerItems.filter(item => !item.isDone).slice(0, 5).map((item, idx, arr) => (
+                    <View
+                      key={item.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 10,
+                        paddingHorizontal: 4,
+                        borderBottomWidth: idx < Math.min(arr.length, 5) - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 32, height: 32, borderRadius: 16,
+                          backgroundColor: item.isUrgent ? colors.error + "20" : colors.primary + "15",
+                          alignItems: "center", justifyContent: "center",
+                          marginRight: 12,
+                        }}
+                      >
+                        <MaterialIcons
+                          name={item.isUrgent ? "priority-high" : "favorite-border"}
+                          size={16}
+                          color={item.isUrgent ? colors.error : colors.primary}
+                        />
+                      </View>
+                      <Text style={{ color: colors.foreground, fontSize: 15, flex: 1 }}>
                         {item.title}
                       </Text>
                     </View>
                   ))}
                   {currentPerson.prayerItems.filter(item => !item.isDone).length > 5 && (
-                    <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4, textAlign: "center" }}>
+                    <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8, textAlign: "center" }}>
                       +{currentPerson.prayerItems.filter(item => !item.isDone).length - 5} more
                     </Text>
                   )}
@@ -248,6 +271,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
           </View>
         )}
       </View>
+      <XpGainIndicator />
     </Modal>
   );
 }

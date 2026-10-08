@@ -4117,7 +4117,13 @@ export function ScheduleTab({
         onPress={() => setShowAddModal(!showAddModal)}
         style={({ pressed }) => [scheduleStyles.fab, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 }]}
       >
-        <MaterialIcons name={showAddModal ? "close" : "add"} size={32} color="#FFFFFF" />
+        <ReAnimated.View
+          style={useAnimatedStyle(() => ({
+            transform: [{ rotate: withTiming(showAddModal ? "135deg" : "0deg", { duration: 250, easing: Easing.out(Easing.quad) }) }],
+          }))}
+        >
+          <MaterialIcons name="add" size={32} color="#FFFFFF" />
+        </ReAnimated.View>
       </Pressable>
 
       {/* Floating Today Button - Over Tab Bar */}
@@ -4141,7 +4147,11 @@ export function ScheduleTab({
       {showAddModal && (
         <>
           <Pressable style={scheduleStyles.fabOverlay} onPress={() => setShowAddModal(false)} />
-          <View style={[scheduleStyles.fabMenu, { backgroundColor: colors.surface }]}>
+          <ReAnimated.View
+            entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
+            style={[scheduleStyles.fabMenu, { backgroundColor: colors.surface }]}
+          >
+            <ReAnimated.View entering={FadeIn.duration(180).delay(30).easing(Easing.out(Easing.quad))}>
             <Pressable
               onPress={() => {
                 setAddType("ministry");
@@ -4154,6 +4164,8 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
             </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(60).easing(Easing.out(Easing.quad))}>
             <Pressable
               onPress={() => {
                 openNewEventEditor();
@@ -4165,6 +4177,8 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Event</Text>
             </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(90).easing(Easing.out(Easing.quad))}>
             <Pressable
               onPress={() => {
                 setAddType("todo");
@@ -4177,6 +4191,8 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
             </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(120).easing(Easing.out(Easing.quad))}>
             <Pressable
               onPress={() => {
                 setAddType("worship");
@@ -4189,6 +4205,8 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Worship</Text>
             </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(150).easing(Easing.out(Easing.quad))}>
             <Pressable
               onPress={() => {
                 setShowTimeOffModal(true);
@@ -4201,8 +4219,9 @@ export function ScheduleTab({
               </View>
               <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Time Off</Text>
             </Pressable>
+            </ReAnimated.View>
 
-          </View>
+          </ReAnimated.View>
         </>
       )}
 

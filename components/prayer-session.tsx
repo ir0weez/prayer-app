@@ -34,9 +34,11 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const sessionStartRef = useRef<number>(0);
   const prayButtonRef = useRef<View>(null);
   const [prayButtonPos, setPrayButtonPos] = useState<{ x: number; y: number } | null>(null);
+  const timerRef2 = useRef<View>(null);
+  const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Corner position for XP floater (top-right)
-  const bonusPosition = { x: Dimensions.get("window").width - 60, y: 120 };
+  // Timer position for bonus XP floater (drops from timer)
+  const bonusPosition = timerPos ?? { x: Dimensions.get("window").width - 60, y: 120 };
 
   // Sync elapsed time from wall clock (survives screen-off)
   const syncElapsedFromClock = () => {
@@ -147,9 +149,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginBottom: 8 }}>
           PRAYER TIME
         </Text>
-        <Text style={{ color: colors.foreground, fontSize: 56, fontWeight: "900", fontVariant: ["tabular-nums"], marginBottom: 24 }}>
-          {formatTime(elapsedSeconds)}
-        </Text>
+        <View
+          ref={timerRef2}
+          onLayout={() => {
+            timerRef2.current?.measure((x, y, width, height, pageX, pageY) => {
+              setTimerPos({ x: pageX + width / 2, y: pageY + height });
+            });
+          }}
+        >
+          <Text style={{ color: colors.foreground, fontSize: 56, fontWeight: "900", fontVariant: ["tabular-nums"], marginBottom: 24 }}>
+            {formatTime(elapsedSeconds)}
+          </Text>
+        </View>
 
         {!isFinished && currentPerson ? (
           <>

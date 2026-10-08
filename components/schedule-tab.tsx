@@ -2569,6 +2569,7 @@ export function ScheduleTab({
         startTime: normalizedStartTime || undefined,
         endTime: normalizedEndTime || undefined,
         location: formLocation || undefined,
+        travelTimeMinutes: formTravelTimeMinutes ? parseInt(formTravelTimeMinutes, 10) || undefined : undefined,
         notes: formNotes || undefined,
         linkedPeopleIds: formLinkedPeopleIds.length > 0 ? formLinkedPeopleIds : undefined,
         bibleBook: formBibleBook || undefined,
@@ -2587,6 +2588,7 @@ export function ScheduleTab({
         startTime: normalizedStartTime || undefined,
         endTime: normalizedEndTime || undefined,
         location: formLocation || undefined,
+        travelTimeMinutes: formTravelTimeMinutes ? parseInt(formTravelTimeMinutes, 10) || undefined : undefined,
         notes: formNotes || undefined,
       });
       if (formLinkedPeopleIds.length > 0) {
@@ -3530,6 +3532,7 @@ export function ScheduleTab({
                 setFormStartTime(item.data.startTime || "");
                 setFormEndTime(item.data.endTime || "");
                 setFormLocation(item.data.location || "");
+                setFormTravelTimeMinutes(item.data.travelTimeMinutes ? String(item.data.travelTimeMinutes) : "");
                 setFormNotes(item.data.notes || "");
                 setFormBibleBook(item.data.bibleBook || "Genesis");
                 setFormBibleChapter(item.data.bibleChapter || "");
@@ -4682,6 +4685,16 @@ export function ScheduleTab({
                     onChangeText={setFormLocation}
                     placeholder="e.g., Main Campus, Room 201"
                     placeholderTextColor={colors.muted}
+                    style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
+                    returnKeyType="done"
+                  />
+                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TIME TO LEAVE (MINUTES)</Text>
+                  <TextInput
+                    value={formTravelTimeMinutes}
+                    onChangeText={setFormTravelTimeMinutes}
+                    placeholder="e.g. 15"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="numeric"
                     style={[scheduleStyles.formInput, { color: colors.foreground, backgroundColor: colors.surface, borderBottomColor: colors.primary }]}
                     returnKeyType="done"
                   />

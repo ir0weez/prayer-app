@@ -76,19 +76,18 @@ function MoodButton({
           elevation: selected ? 4 : 0,
         }}
       >
-        <Animated.View style={{ opacity: glow }}>
-          <View
-            style={{
-              position: "absolute",
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              backgroundColor: mood.color + "30",
-              top: -14,
-              left: -14,
-            }}
-          />
-        </Animated.View>
+        <Animated.View
+          style={{
+            position: "absolute",
+            width: 76,
+            height: 76,
+            borderRadius: 38,
+            left: -12,
+            top: -12,
+            backgroundColor: mood.color + "28",
+            opacity: glow,
+          }}
+        />
         <MaterialIcons name={mood.icon as any} size={26} color={mood.color} />
       </Animated.View>
       <Text

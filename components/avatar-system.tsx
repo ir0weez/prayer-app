@@ -110,7 +110,7 @@ export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShin
   const unlocked = new Set(unlockedShinyIds);
   const unlockedBooks = new Set(unlockedBookIds);
   const unlockedHeroes = new Set(unlockedHeroIds);
-  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style && (selectedGender === "all" || avatar.gender === selectedGender)), [style, selectedGender]);
+  const regular = useMemo(() => AVATAR_DEFINITIONS.filter((avatar) => avatar.style === style && (selectedGender === "all" || avatar.gender === selectedGender || avatar.neutral)), [style, selectedGender]);
   const books = useMemo(() => BOOK_AVATAR_DEFINITIONS, []);
   const selectedDefinition = getAvatarDefinitionForPerson("picker", gender, selected);
   const selectedBook = selected ? BOOK_AVATAR_BY_ID[selected] : undefined;

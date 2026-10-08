@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppState, BackHandler, Dimensions, Modal, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { AvatarImage } from "@/components/avatar-system";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
 import { useColors } from "@/hooks/use-colors";
@@ -19,6 +20,64 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+let prayerNotifId: string | null = null;
+let prayerNotifInterval: ReturnType<typeof setInterval> | null = null;
+
+async function setupPrayerNotification() {
+  try {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") return;
+
+    await Notifications.setNotificationChannelAsync("prayer-timer", {
+      name: "Prayer Timer",
+      importance: Notifications.AndroidImportance.LOW,
+      vibrationPattern: [0],
+      lightColor: "#7C5CFF",
+    });
+
+    const updateNotif = async (elapsed: number) => {
+      const mins = Math.floor(elapsed / 60);
+      const timeStr = mins > 0 ? `${mins}m ${elapsed % 60}s` : `${elapsed}s`;
+      if (prayerNotifId) {
+        await Notifications.dismissNotificationAsync(prayerNotifId);
+      }
+      prayerNotifId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "🙏 Prayer in progress",
+          body: `${timeStr} elapsed`,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.LOW,
+        },
+        trigger: null,
+      });
+    };
+
+    await updateNotif(0);
+    let elapsed = 0;
+    prayerNotifInterval = setInterval(() => {
+      elapsed += 30;
+      updateNotif(elapsed);
+    }, 30000);
+  } catch {
+    // Notifications are best-effort
+  }
+}
+
+async function dismissPrayerNotification() {
+  try {
+    if (prayerNotifInterval) {
+      clearInterval(prayerNotifInterval);
+      prayerNotifInterval = null;
+    }
+    if (prayerNotifId) {
+      await Notifications.dismissNotificationAsync(prayerNotifId);
+      prayerNotifId = null;
+    }
+  } catch {
+    // Best-effort
+  }
 }
 
 export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }: Props) {
@@ -69,6 +128,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
       }, 1000);
+      // Show persistent notification with timer
+      setupPrayerNotification();
       // Handle screen off/on: recalc from wall clock when foregrounded
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
@@ -85,10 +146,12 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         appStateSub.remove();
         if (timerRef.current) clearInterval(timerRef.current);
         sessionStartRef.current = 0;
+        dismissPrayerNotification();
       };
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      dismissPrayerNotification();
     };
   }, [visible]);
 

@@ -206,8 +206,19 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 
   const tickerHeight = 44;
 
-  // Continuous loop - start once, never restart
   const hasStarted = useRef(false);
+
+  // Reset animation when content changes (e.g., event edited)
+  const contentKey = segments.map(s => s.text).join("|");
+  const prevContentKey = useRef(contentKey);
+  if (prevContentKey.current !== contentKey) {
+    prevContentKey.current = contentKey;
+    hasStarted.current = false;
+    setContentWidth(0);
+    translateX.value = 0;
+  }
+
+  // Continuous loop - start once per content, restart on edit
   useEffect(() => {
     if (contentWidth > 0 && !hasStarted.current) {
       hasStarted.current = true;

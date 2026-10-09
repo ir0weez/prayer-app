@@ -31,8 +31,10 @@ describe("reached stamps", () => {
     expect(getUnlockedReachedStampSkins(5)).toEqual(["classic", "postmark"]);
     expect(getUnlockedReachedStampSkins(14)).toEqual(["classic", "postmark"]);
     expect(getUnlockedReachedStampSkins(15)).toEqual(["classic", "postmark", "linen"]);
-    expect(getUnlockedReachedStampSkins(34)).toEqual(["classic", "postmark", "linen"]);
-    expect(getUnlockedReachedStampSkins(35)).toEqual(["classic", "postmark", "linen", "embossed"]);
+    expect(getUnlockedReachedStampSkins(24)).toEqual(["classic", "postmark", "linen"]);
+    expect(getUnlockedReachedStampSkins(25)).toEqual(["classic", "postmark", "linen", "sticker"]);
+    expect(getUnlockedReachedStampSkins(34)).toEqual(["classic", "postmark", "linen", "sticker"]);
+    expect(getUnlockedReachedStampSkins(35)).toEqual(["classic", "postmark", "linen", "sticker", "embossed"]);
   });
 
   it("falls back to the default skin for invalid persisted values", () => {

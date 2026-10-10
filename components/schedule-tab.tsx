@@ -556,6 +556,22 @@ function EventCardInner({
 
 // ─── Event Card Component ────────────────────────────────────────────────────
 
+// Returns true when the event's end time has passed (ticker should hide).
+function isEventOver(event: ScheduleEvent, now: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const eventDate = new Date(`${event.date}T00:00:00`);
+  if (eventDate.getTime() < today.getTime()) return true;
+  if (eventDate.getTime() > today.getTime()) return false;
+  // Same day: compare against end time (default 60 min after start, matching live cursor)
+  const endStr = event.endTime || event.startTime;
+  if (!endStr) return false;
+  const [h, m] = endStr.split(":").map(Number);
+  const end = new Date();
+  end.setHours(h, m + (event.endTime ? 0 : 60), 0, 0);
+  return now.getTime() >= end.getTime();
+}
+
 // ─── Event Card Wrapper (adds travel ticker above all event types) ──────────
 function EventCard(props: {
   event: ScheduleEvent;
@@ -569,7 +585,8 @@ function EventCard(props: {
 }) {
   const colors = useColors();
   const { event } = props;
-  const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted;
+  const now = props.liveNow || new Date();
+  const showTicker = event.travelTimeMinutes != null && event.travelTimeMinutes > 0 && !event.isCompleted && !isEventOver(event, now);
   const popStyle = props.isNew ? { entering: FadeIn.duration(300) } : {};
   if (!showTicker) {
     return <ReAnimated.View {...popStyle}><EventCardInner {...props} /></ReAnimated.View>;

@@ -9,7 +9,7 @@ export interface AlbumCardProps {
   artist: string;
   tracks?: Array<{ id: string; title: string; key?: string }>;
   completedTracks?: Record<string, boolean>;
-  onToggleTrack?: (trackId: string) => void;
+  onToggleTrack?: (trackId: string, pressEvent?: any) => void;
   coverUrl?: string;
   onOpen?: () => void;
   onOpenDetails?: () => void;
@@ -107,7 +107,7 @@ export function AlbumCard({
               </>
             );
             return onToggleTrack ? (
-              <Pressable key={track.id} accessibilityRole="button" accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`} onPress={() => onToggleTrack(track.id)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30, borderRadius: 8, opacity: pressed ? 0.65 : 1 }]}>
+              <Pressable key={track.id} accessibilityRole="button" accessibilityLabel={`${isCompleted ? 'Mark' : 'Complete'} ${track.title}`} onPress={(e) => onToggleTrack(track.id, e)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30, borderRadius: 8, opacity: pressed ? 0.65 : 1 }]}>
                 {trackContent}
               </Pressable>
             ) : (

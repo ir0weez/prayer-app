@@ -3631,12 +3631,20 @@ export function ScheduleTab({
                   artist={currentAlbum.artist}
                   tracks={currentAlbum.tracks}
                   completedTracks={completedWorshipTracks}
-                  onToggleTrack={(trackId) => setWorshipTrackCompletions((previous) => {
+                  onToggleTrack={(trackId, pressEvent) => {
                     const completionKey = `${selectedWorshipDate}:${currentAlbum.id}:${trackId}`;
-                    const next = toggleWorshipTrackCompletion(previous, completionKey);
-                    AsyncStorage.setItem(WORSHIP_TRACK_COMPLETION_STATE_KEY, JSON.stringify(next)).catch(() => undefined);
-                    return next;
-                  })}
+                    const position = pressEvent ? { x: pressEvent.nativeEvent.pageX, y: pressEvent.nativeEvent.pageY } : undefined;
+                    if (worshipTrackCompletions[completionKey]) {
+                      onRevokeXP?.("worship-track", completionKey, position);
+                    } else {
+                      onAwardXP?.("worship-track", completionKey, position);
+                    }
+                    setWorshipTrackCompletions((previous) => {
+                      const next = toggleWorshipTrackCompletion(previous, completionKey);
+                      AsyncStorage.setItem(WORSHIP_TRACK_COMPLETION_STATE_KEY, JSON.stringify(next)).catch(() => undefined);
+                      return next;
+                    });
+                  }}
                   coverUrl={currentAlbum.coverUrl}
                   onCoverPress={() => setWorshipDetailAlbum(currentAlbum)}
                   onOpen={currentAlbum.spotifyUrl ? () => openWorshipAlbumLink(currentAlbum) : undefined}

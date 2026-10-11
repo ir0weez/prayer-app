@@ -1497,6 +1497,13 @@ export function ScheduleTab({
     setAddType(null);
   };
 
+  const openNewEventEditorAtTime = (startTime: string) => {
+    setEditingEvent(createScheduleEvent({ title: "", date: selectedDate, startTime, color: "#6B7280" }));
+    setIsCreatingEvent(true);
+    setShowAddModal(false);
+    setAddType(null);
+  };
+
   const closeEventEditor = () => {
     setEditingEvent(null);
     setIsCreatingEvent(false);
@@ -3035,7 +3042,9 @@ export function ScheduleTab({
         ...dayMinistries.filter((m) => m.startTime),
         ...dayBibleStudies.filter((study) => study.startTime),
       ];
-      activeBlocks = calculateActiveAvailableTimeBlocks(allScheduledItems, selectedDate, now);
+      activeBlocks = calculateActiveAvailableTimeBlocks(allScheduledItems, selectedDate, now)
+        // Only show white-space blocks for meaningful gaps (30+ min) to avoid clutter
+        .filter((block) => block.durationMinutes >= 30);
     }
 
     // Merge time blocks with timed items for chronological intertwining
@@ -3772,7 +3781,10 @@ export function ScheduleTab({
           );
         case "time-block":
           return (
-            <TimeBlockIndicator block={item.data.block} />
+            <TimeBlockIndicator
+              block={item.data.block}
+              onPress={(block) => openNewEventEditorAtTime(block.startTime)}
+            />
           );
         case "current-time-indicator":
           return <NowIndicator />;

@@ -62,7 +62,7 @@ import { TimeOffModal } from "./time-off-modal";
 import { ReachedStampRow } from "./reached-stamp-row";
 import { getAllTimeOff, isDateDuringTimeOff, type TimeOff } from "@/lib/time-off";
 import { extractPosterColor, getTimeOffEventColor, isTimeOffEventVisible, readableTextColor } from "@/lib/poster-color";
-import { calculateActiveAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
+import { calculateActiveAvailableTimeBlocks, calculateAvailableTimeBlocks, getCurrentTimeInsertionIndex, getLiveCursorPosition, splitGapIntoHourlyBlocks, timeToMinutes, minutesToTime, type TimeBlock } from "@/lib/time-blocks";
 import { calculateRemainingTime } from "@/lib/remaining-time";
 import { removeReachedStamp, updateReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { parseSpotifyUrl, fetchSpotifyEmbedMetadata } from "@/lib/spotify-api";
@@ -3034,19 +3034,26 @@ export function ScheduleTab({
         )
       : null;
 
-    let activeBlocks: ReturnType<typeof calculateActiveAvailableTimeBlocks> = [];
+    let activeBlocks: TimeBlock[] = [];
     if (isTodayOrFuture) {
-      // White-space gaps: point-in-time todos (startTime but no endTime) don't
-      // block time — they render as their own rows inside the open block.
+      // White-space gaps: completed items free up their time, and point-in-time
+      // todos (startTime but no endTime) don't block time — they render as
+      // their own rows inside the open block.
       const whiteSpaceItems = [
-        ...dayTodos.filter((t) => t.startTime && t.endTime),
-        ...dayEvents.filter((e) => e.startTime),
-        ...dayMinistries.filter((m) => m.startTime),
-        ...dayBibleStudies.filter((study) => study.startTime),
+        ...dayTodos.filter((t) => t.startTime && t.endTime && !t.isCompleted),
+        ...dayEvents.filter((e) => e.startTime && !e.isCompleted),
+        ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
+        ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),
       ];
-      activeBlocks = calculateActiveAvailableTimeBlocks(whiteSpaceItems, selectedDate, now)
-        // 60+ min gaps only — smaller slivers would clutter the day
-        .filter((block) => block.durationMinutes >= 60);
+      const rawBlocks = calculateAvailableTimeBlocks(whiteSpaceItems, "06:00", "23:00");
+      // Today only: drop blocks whose hour has fully passed. No trimming or
+      // countdown — a block shows its fixed hour until that hour is gone.
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const visibleBlocks = selectedDate === todayISO
+        ? rawBlocks.filter((b) => timeToMinutes(b.endTime) > currentMinutes)
+        : rawBlocks;
+      // Split each gap into individual hourly blocks (60-min minimum per gap).
+      activeBlocks = visibleBlocks.flatMap(splitGapIntoHourlyBlocks);
     }
 
     // Merge time blocks with timed items for chronological intertwining
@@ -3252,6 +3259,9 @@ export function ScheduleTab({
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {
+      // Live "now" badges only make sense for today — never on future/past days.
+      const todayISO = `${clockNow.getFullYear()}-${String(clockNow.getMonth() + 1).padStart(2, "0")}-${String(clockNow.getDate()).padStart(2, "0")}`;
+      const isToday = selectedDate === todayISO;
       switch (item.type) {
         case "date-header": {
           return renderDateHeaderCard();
@@ -3485,7 +3495,7 @@ export function ScheduleTab({
                 setTodos((prev) => toggleTodoCompleted(prev, item.data.id));
               }}
               liveNow={clockNow}
-              showActiveNow={Boolean(item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
+              showActiveNow={Boolean(isToday && item.data.startTime && !item.data.isCompleted && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id)}
               onToggleSubtask={(subtaskId, position) => {
                 const subtask = item.data.subtasks?.find((entry: { id: string; isCompleted: boolean }) => entry.id === subtaskId);
                 if (subtask?.isCompleted) revokeTodoXP(`${item.data.id}:${subtaskId}`, position);
@@ -3513,7 +3523,7 @@ export function ScheduleTab({
             />
           );
         case "event": {
-          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
+          const showActiveNow = Boolean(isToday && !item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
             <EventCard
               event={item.data}
@@ -3594,7 +3604,7 @@ export function ScheduleTab({
           );
         }
         case "bible-study": {
-          const showActiveNow = Boolean(!item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
+          const showActiveNow = Boolean(isToday && !item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
           return (
             <EventCard
               event={{

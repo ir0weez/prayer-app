@@ -115,6 +115,33 @@ export function getLiveCursorPosition(
 }
 
 /**
+ * Split a free-time gap into individual 60-minute blocks, each tappable on its
+ * own hour. Gaps under 60 minutes produce no blocks; a trailing remainder
+ * under 60 minutes is dropped.
+ */
+export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
+  const start = timeToMinutes(block.startTime);
+  const end = timeToMinutes(block.endTime);
+  if (end - start < 60) return [];
+  const chunks: TimeBlock[] = [];
+  let cursor = start;
+  let index = 0;
+  while (end - cursor >= 60) {
+    const chunkEnd = cursor + 60;
+    chunks.push({
+      id: `${block.id}-h${index}`,
+      startTime: minutesToTime(cursor),
+      endTime: minutesToTime(chunkEnd),
+      durationMinutes: 60,
+      label: "1h",
+    });
+    cursor = chunkEnd;
+    index += 1;
+  }
+  return chunks;
+}
+
+/**
  * Calculate available time blocks for a given day
  * Assumes business hours: 6:00 AM to 11:00 PM
  * @param items - Array of todos, events, ministries with times

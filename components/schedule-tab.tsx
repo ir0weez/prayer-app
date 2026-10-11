@@ -3372,6 +3372,7 @@ export function ScheduleTab({
                                 try {
                                   // Mark the last read chapter as unread to go back
                                   const updated = await markChapterAsUnread(book, lastReadChapter.chapter);
+                                  onRevokeXP?.("daily-reading", `${book}:${lastReadChapter.chapter}`, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
                                   setBibleState(updated);
                                   await syncUnifiedBibleToAllOldSystems(updated);
                                   const newDisplay = getCurrentBibleDisplay(updated);

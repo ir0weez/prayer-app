@@ -75,7 +75,7 @@ export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "prayer-time-bonus": 10,
   "schedule-todo-event": 5,
   "schedule-todo-event-late": 1,
-  "daily-reading": 10,
+  "daily-reading": 25,
   "reached-stamp": 15,
   "fasting-day": 25,
   "ministry-task": 50,

@@ -8,7 +8,7 @@ const SchemeColors: Record<ColorScheme, ThemeColorPalette> = {
   dark: Object.fromEntries(Object.entries(themeConfig.themeColors).map(([name, swatch]) => [name, swatch.dark])),
 };
 
-export type AccentThemeId = "default" | "ocean" | "forest" | "sunset" | "pomegranate" | "crimson" | "charcoal-gold";
+export type AccentThemeId = "default" | "sky" | "ocean" | "teal" | "forest" | "sunset" | "pomegranate" | "crimson" | "lavender" | "midnight" | "charcoal-gold";
 
 export type AccentThemeDefinition = {
   id: AccentThemeId;
@@ -19,6 +19,68 @@ export type AccentThemeDefinition = {
   light?: Partial<ThemeColorPalette>;
   dark?: Partial<ThemeColorPalette>;
 };
+
+function parseHex(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace("#", "");
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+/** Linear interpolation between two hex colors. weight 0 returns hexA, weight 1 returns hexB. */
+export function mix(hexA: string, hexB: string, weight: number): string {
+  const w = Math.min(1, Math.max(0, weight));
+  const a = parseHex(hexA);
+  const b = parseHex(hexB);
+  const channel = (x: number, y: number) => Math.min(255, Math.max(0, Math.round(x + (y - x) * w))).toString(16).padStart(2, "0");
+  return `#${channel(a.r, b.r)}${channel(a.g, b.g)}${channel(a.b, b.b)}`.toUpperCase();
+}
+
+/**
+ * Builds light/dark palette overrides as tints and shades of the given primary
+ * color, so a theme feels like its color everywhere instead of only on the
+ * primary accent. Semantic colors (success, warning, error) are left to the
+ * base palette and are never overridden here.
+ */
+export function buildThemeShades(primaryLight: string, primaryDark: string): {
+  light: ThemeColorPalette;
+  dark: ThemeColorPalette;
+} {
+  return {
+    light: {
+      primary: primaryLight,
+      background: mix("#FFFFFF", primaryLight, 0.06),
+      surface: mix("#FFFFFF", primaryLight, 0.03),
+      foreground: mix("#241B38", primaryLight, 0.25),
+      muted: mix("#6B6480", primaryLight, 0.35),
+      border: mix("#FFFFFF", primaryLight, 0.18),
+      studyBackground: mix("#FFFFFF", primaryLight, 0.04),
+      studySurface: "#FFFFFF",
+      studyAccent: primaryLight,
+      studyAccentSoft: mix("#FFFFFF", primaryLight, 0.12),
+      studyBorder: mix("#FFFFFF", primaryLight, 0.16),
+      studyInk: "#241F2B",
+      studyMuted: mix("#756F7D", primaryLight, 0.35),
+    },
+    dark: {
+      primary: primaryDark,
+      background: mix("#0F0D16", primaryDark, 0.07),
+      surface: mix("#1A1626", primaryDark, 0.12),
+      foreground: "#F5F2FA",
+      muted: mix("#A79FBF", primaryDark, 0.4),
+      border: mix("#000000", primaryDark, 0.28),
+      studyBackground: mix("#15161A", primaryDark, 0.08),
+      studySurface: mix("#202126", primaryDark, 0.1),
+      studyAccent: primaryDark,
+      studyAccentSoft: mix("#000000", primaryDark, 0.25),
+      studyBorder: mix("#000000", primaryDark, 0.3),
+      studyInk: "#F5F3F7",
+      studyMuted: mix("#B7B1C1", primaryDark, 0.4),
+    },
+  };
+}
 
 export const ACCENT_THEMES: AccentThemeDefinition[] = [
   {
@@ -31,13 +93,28 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     dark: { primary: "#A985F0" },
   },
   {
+    id: "sky",
+    name: "Sky",
+    description: "Light airy blue theme",
+    unlockLevel: 5,
+    swatch: "#2D9CDB",
+    ...buildThemeShades("#2D9CDB", "#7CCBF5"),
+  },
+  {
     id: "ocean",
     name: "Ocean",
     description: "Calming blue and teal theme",
     unlockLevel: 10,
     swatch: "#0A86B8",
-    light: { primary: "#0A86B8" },
-    dark: { primary: "#4EB9E4" },
+    ...buildThemeShades("#0A86B8", "#4EB9E4"),
+  },
+  {
+    id: "teal",
+    name: "Teal",
+    description: "Deep teal waters theme",
+    unlockLevel: 15,
+    swatch: "#0E7C7B",
+    ...buildThemeShades("#0E7C7B", "#4ECDC4"),
   },
   {
     id: "forest",
@@ -45,8 +122,7 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     description: "Natural green and earth tones",
     unlockLevel: 20,
     swatch: "#2E8B3C",
-    light: { primary: "#2E8B3C" },
-    dark: { primary: "#70C77B" },
+    ...buildThemeShades("#2E8B3C", "#70C77B"),
   },
   {
     id: "sunset",
@@ -54,8 +130,7 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     description: "Warm orange and coral theme",
     unlockLevel: 30,
     swatch: "#F25700",
-    light: { primary: "#F25700" },
-    dark: { primary: "#FF9A57" },
+    ...buildThemeShades("#F25700", "#FF9A57"),
   },
   {
     id: "pomegranate",
@@ -63,8 +138,7 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     description: "Rich pinkish purple theme",
     unlockLevel: 40,
     swatch: "#C91463",
-    light: { primary: "#C91463" },
-    dark: { primary: "#F072AA" },
+    ...buildThemeShades("#C91463", "#F072AA"),
   },
   {
     id: "crimson",
@@ -72,8 +146,23 @@ export const ACCENT_THEMES: AccentThemeDefinition[] = [
     description: "Bold red and wine accents",
     unlockLevel: 50,
     swatch: "#B3263E",
-    light: { primary: "#B3263E" },
-    dark: { primary: "#F27586" },
+    ...buildThemeShades("#B3263E", "#F27586"),
+  },
+  {
+    id: "lavender",
+    name: "Lavender",
+    description: "Soft violet haze theme",
+    unlockLevel: 60,
+    swatch: "#9B7EDE",
+    ...buildThemeShades("#9B7EDE", "#C3B2F5"),
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    description: "Deep midnight blue theme",
+    unlockLevel: 75,
+    swatch: "#2C4A7C",
+    ...buildThemeShades("#2C4A7C", "#7FA8E0"),
   },
   {
     id: "charcoal-gold",

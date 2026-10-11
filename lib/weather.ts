@@ -23,11 +23,11 @@ const SKIP_PATTERNS = /^(home|zoom|office|online|tbd|n\/a)$/i;
 
 function weatherCodeToIcon(code: number): string {
   if (code === 0) return "wb-sunny";
-  if (code <= 3) return "partly-cloudy-day";
+  if (code <= 3) return "wb-cloudy";
   if (code <= 48) return "foggy";
-  if (code <= 67) return "rainy";
+  if (code <= 67) return "umbrella";
   if (code <= 77) return "ac-unit"; // snow
-  if (code <= 82) return "rainy";
+  if (code <= 82) return "umbrella";
   if (code <= 86) return "ac-unit";
   return "thunderstorm";
 }

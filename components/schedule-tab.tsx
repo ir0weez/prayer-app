@@ -3036,15 +3036,17 @@ export function ScheduleTab({
 
     let activeBlocks: ReturnType<typeof calculateActiveAvailableTimeBlocks> = [];
     if (isTodayOrFuture) {
-      const allScheduledItems = [
-        ...dayTodos.filter((t) => t.startTime),
+      // White-space gaps: point-in-time todos (startTime but no endTime) don't
+      // block time — they render as their own rows inside the open block.
+      const whiteSpaceItems = [
+        ...dayTodos.filter((t) => t.startTime && t.endTime),
         ...dayEvents.filter((e) => e.startTime),
         ...dayMinistries.filter((m) => m.startTime),
         ...dayBibleStudies.filter((study) => study.startTime),
       ];
-      activeBlocks = calculateActiveAvailableTimeBlocks(allScheduledItems, selectedDate, now)
-        // Only show white-space blocks for meaningful gaps (30+ min) to avoid clutter
-        .filter((block) => block.durationMinutes >= 30);
+      activeBlocks = calculateActiveAvailableTimeBlocks(whiteSpaceItems, selectedDate, now)
+        // 90+ min gaps only — smaller slivers would clutter the day
+        .filter((block) => block.durationMinutes >= 90);
     }
 
     // Merge time blocks with timed items for chronological intertwining

@@ -3045,8 +3045,8 @@ export function ScheduleTab({
         ...dayBibleStudies.filter((study) => study.startTime),
       ];
       activeBlocks = calculateActiveAvailableTimeBlocks(whiteSpaceItems, selectedDate, now)
-        // 90+ min gaps only — smaller slivers would clutter the day
-        .filter((block) => block.durationMinutes >= 90);
+        // 60+ min gaps only — smaller slivers would clutter the day
+        .filter((block) => block.durationMinutes >= 60);
     }
 
     // Merge time blocks with timed items for chronological intertwining

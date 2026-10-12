@@ -1501,8 +1501,8 @@ export function ScheduleTab({
     setAddType(null);
   };
 
-  const openNewEventEditorAtTime = (startTime: string) => {
-    setEditingEvent(createScheduleEvent({ title: "", date: selectedDate, startTime, color: "#6B7280" }));
+  const openNewEventEditorAtTime = (startTime: string, title = "") => {
+    setEditingEvent(createScheduleEvent({ title, date: selectedDate, startTime, color: "#6B7280" }));
     setIsCreatingEvent(true);
     setShowAddModal(false);
     setAddType(null);
@@ -4379,6 +4379,17 @@ export function ScheduleTab({
                   <MaterialIcons name="volunteer-activism" size={20} color="#FFFFFF" />
                 </View>
                 <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
+              </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(120).easing(Easing.out(Easing.quad))}>
+              <Pressable
+                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Rest"); }}
+                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#4DABF7" }]}>
+                  <MaterialIcons name="bedtime" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Rest</Text>
               </Pressable>
             </ReAnimated.View>
           </ReAnimated.View>

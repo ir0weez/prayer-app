@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
+import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TimeBlock } from "@/lib/time-blocks";
@@ -84,7 +84,7 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
             { opacity: pressed ? 0.65 : 1 },
           ]}
         >
-          <CyclingAddLabel mutedColor={colors.muted} />
+          <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
           <Text style={[styles.time, { color: colors.muted }]}>
             {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
           </Text>
@@ -94,32 +94,54 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
   );
 }
 
-const ADD_WORDS = ["event", "todo", "ministry"];
-const WORD_COLORS = ["#FF6B6B", "#FFA94D", "#FFD43B", "#69DB7C", "#4DABF7", "#9775FA", "#F783AC"];
+const ADD_WORDS = ["event", "todo", "ministry", "rest"];
 const WORD_CYCLE_MS = 2800;
-const COLOR_STEP_MS = 450;
 
-/** One keyword ("event" / "todo" / "ministry") with colorful animated letters. */
-function RainbowWord({ word, offset }: { word: string; offset: number }) {
+/** One letter gently floating up and down (sine, no bounce). */
+function WavyLetter({ ch, index, color }: { ch: string; index: number; color: string }) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, { toValue: -3, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    // Stagger the start so the letters ripple; identical loop lengths keep
+    // the wave in phase forever.
+    const startTimeout = setTimeout(() => loop.start(), index * 130);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [index, translateY]);
+
+  return (
+    <Animated.Text style={{ transform: [{ translateY }], color, fontWeight: "800" }}>
+      {ch}
+    </Animated.Text>
+  );
+}
+
+/** The keyword with each letter floating in a gentle wave. */
+function WavyWord({ word, color }: { word: string; color: string }) {
   return (
     <Text>
       {word.split("").map((ch, i) => (
-        <Text key={i} style={{ color: WORD_COLORS[(i + offset) % WORD_COLORS.length], fontWeight: "800" }}>
-          {ch}
-        </Text>
+        <WavyLetter key={`${word}-${i}`} ch={ch} index={i} color={color} />
       ))}
     </Text>
   );
 }
 
 /**
- * "add <event|todo|ministry>?" — the keyword cycles every few seconds with a
- * soft fade, and its letters flow through bright colors. Restrained: no
- * bounce, no movement, just color and fades.
+ * "add <event|todo|ministry|rest>?" — each row starts on a different word of
+ * the loop and they all cycle together, so neighboring rows always say
+ * something different. Words crossfade; letters float gently (no bounce).
  */
-function CyclingAddLabel({ mutedColor }: { mutedColor: string }) {
-  const [wordIndex, setWordIndex] = useState(0);
-  const [colorOffset, setColorOffset] = useState(0);
+function CyclingAddLabel({ startIndex, mutedColor, accentColor }: { startIndex: number; mutedColor: string; accentColor: string }) {
+  const [wordIndex, setWordIndex] = useState(startIndex);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -129,11 +151,7 @@ function CyclingAddLabel({ mutedColor }: { mutedColor: string }) {
         Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
       });
     }, WORD_CYCLE_MS);
-    const colorTimer = setInterval(() => setColorOffset((o) => o + 1), COLOR_STEP_MS);
-    return () => {
-      clearInterval(wordTimer);
-      clearInterval(colorTimer);
-    };
+    return () => clearInterval(wordTimer);
   }, [fadeAnim]);
 
   return (
@@ -142,7 +160,7 @@ function CyclingAddLabel({ mutedColor }: { mutedColor: string }) {
       <Text style={[styles.label, { color: mutedColor }]}>add </Text>
       <Animated.View style={{ opacity: fadeAnim }}>
         <Text style={styles.label}>
-          <RainbowWord word={ADD_WORDS[wordIndex]} offset={colorOffset} />
+          <WavyWord word={ADD_WORDS[wordIndex % ADD_WORDS.length]} color={accentColor} />
         </Text>
       </Animated.View>
       <Text style={[styles.label, { color: mutedColor }]}>?</Text>

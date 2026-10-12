@@ -318,6 +318,193 @@ function TwinkleStar({ left, top, size, delay }: { left: `${number}%`; top: numb
   );
 }
 
+// ─── Rest card time-of-day moods ─────────────────────────────────────────────
+// The Rest card shifts its sky with the hour it's scheduled for: sunrise,
+// sunny midday, sunset, or starry night — each with its own gentle animation.
+
+type RestMood = "sunrise" | "midday" | "sunset" | "night";
+
+function getRestMood(startTime?: string): RestMood {
+  if (!startTime) return "midday";
+  const hour = parseInt(startTime.split(":")[0] ?? "", 10);
+  if (Number.isNaN(hour)) return "midday";
+  if (hour >= 5 && hour < 11) return "sunrise";
+  if (hour >= 11 && hour < 17) return "midday";
+  if (hour >= 17 && hour < 21) return "sunset";
+  return "night";
+}
+
+const REST_MOODS: Record<RestMood, { bg: string; border: string; icon: string; iconColor: string }> = {
+  sunrise: { bg: "#A8576B", border: "#E0A4B5", icon: "wb-twilight", iconColor: "#FFE9C4" },
+  midday: { bg: "#4E8FC4", border: "#9CC8E8", icon: "wb-sunny", iconColor: "#FFF6C9" },
+  sunset: { bg: "#6A4C93", border: "#B794D6", icon: "wb-twilight", iconColor: "#FFD9A0" },
+  night: { bg: "#232347", border: "#9FA8DA", icon: "nights-stay", iconColor: "#FFE082" },
+};
+
+/** A soft cloud drifting slowly across the card (midday). */
+function DriftingCloud({ top, size, duration, delay }: { top: number; size: number; duration: number; delay: number }) {
+  const translateX = useRef(new Animated.Value(-90)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateX, { toValue: 380, duration, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -90, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, duration, translateX]);
+
+  return (
+    <Animated.View style={{ position: "absolute", top, left: 0, opacity: 0.35, transform: [{ translateX }] }}>
+      <View style={{ width: size, height: size * 0.55, backgroundColor: "#FFFFFF", borderRadius: size * 0.28 }} />
+      <View style={{ position: "absolute", left: size * 0.18, top: -size * 0.22, width: size * 0.5, height: size * 0.5, backgroundColor: "#FFFFFF", borderRadius: size * 0.25 }} />
+      <View style={{ position: "absolute", left: size * 0.5, top: -size * 0.1, width: size * 0.36, height: size * 0.36, backgroundColor: "#FFFFFF", borderRadius: size * 0.18 }} />
+    </Animated.View>
+  );
+}
+
+/** Dawn glow: a soft sun breathing low behind the text (sunrise). */
+function DawnGlow() {
+  const riseY = useRef(new Animated.Value(10)).current;
+  const glow = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(riseY, { toValue: -8, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(riseY, { toValue: 10, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 0.5, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.3, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    rise.start();
+    breathe.start();
+    return () => {
+      rise.stop();
+      breathe.stop();
+    };
+  }, [riseY, glow]);
+
+  return (
+    <>
+      <Animated.View style={{ position: "absolute", left: 28, bottom: 4, width: 84, height: 84, borderRadius: 42, backgroundColor: "#FFC98A", opacity: glow, transform: [{ translateY: riseY }] }} />
+      <Animated.View style={{ position: "absolute", left: 47, bottom: 23, width: 46, height: 46, borderRadius: 23, backgroundColor: "#FFF1D0", opacity: 0.9, transform: [{ translateY: riseY }] }} />
+    </>
+  );
+}
+
+/** A mote of morning light drifting upward (sunrise). */
+function RisingMote({ left, top, delay, duration }: { left: `${number}%`; top: number; delay: number; duration: number }) {
+  const y = useRef(new Animated.Value(24)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -24, duration, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: 24, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.65, duration: duration * 0.35, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.65, duration: duration * 0.35, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      rise.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      rise.stop();
+      fade.stop();
+    };
+  }, [delay, duration, y, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, top, width: 4, height: 4, borderRadius: 2, backgroundColor: "#FFF3D6", opacity: op, transform: [{ translateY: y }] }} />
+  );
+}
+
+/** Low warm sun breathing at dusk (sunset). */
+function SettingSun() {
+  const glow = useRef(new Animated.Value(0.55)).current;
+
+  useEffect(() => {
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 0.85, duration: 3600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.55, duration: 3600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    breathe.start();
+    return () => breathe.stop();
+  }, [glow]);
+
+  return (
+    <>
+      <Animated.View style={{ position: "absolute", left: 30, bottom: 2, width: 76, height: 76, borderRadius: 38, backgroundColor: "#FF9E5C", opacity: glow }} />
+      <Animated.View style={{ position: "absolute", left: 46, bottom: 18, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD9A0", opacity: 0.95 }} />
+    </>
+  );
+}
+
+/** A firefly wandering gently at dusk (sunset). */
+function Firefly({ left, top, delay }: { left: `${number}%`; top: number; delay: number }) {
+  const dx = useRef(new Animated.Value(0)).current;
+  const dy = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0.2)).current;
+
+  useEffect(() => {
+    const drift = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(dx, { toValue: 14, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(dy, { toValue: -10, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(dx, { toValue: -6, duration: 5000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(dy, { toValue: 6, duration: 5000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(dx, { toValue: 0, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(dy, { toValue: 0, duration: 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const twinkle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.9, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.2, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      drift.start();
+      twinkle.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      drift.stop();
+      twinkle.stop();
+    };
+  }, [delay, dx, dy, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, top, width: 4, height: 4, borderRadius: 2, backgroundColor: "#FFE08A", opacity: op, transform: [{ translateX: dx }, { translateY: dy }] }} />
+  );
+}
+
 /** Compact circle icon button for the white-block tap menu (Pray Today style). */
 function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string; icon: string; color: string; onPress: () => void }) {
   return (
@@ -503,9 +690,12 @@ function EventCardInner({
     );
   }
 
-  // Rest: a calm night-sky card — deep indigo, twinkling stars, crescent moon.
+  // Rest: a living sky that follows the time of day — sunrise, sunny midday,
+  // sunset, or starry night — each with its own gentle animation.
   // Same shape and tap behavior as every other event card.
   if (keyword?.label === "Rest") {
+    const mood = getRestMood(event.startTime);
+    const mc = REST_MOODS[mood];
     return (
       <>
         <Pressable
@@ -517,10 +707,33 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || "#232347", borderColor: "#9FA8DA40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
-            {REST_STARS.map((s, i) => (
+          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+            {mood === "night" && REST_STARS.map((s, i) => (
               <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
             ))}
+            {mood === "sunrise" && (
+              <>
+                <DawnGlow />
+                <RisingMote left="18%" top={46} delay={0} duration={7000} />
+                <RisingMote left="34%" top={54} delay={1800} duration={8000} />
+                <RisingMote left="52%" top={48} delay={3200} duration={6500} />
+              </>
+            )}
+            {mood === "midday" && (
+              <>
+                <DriftingCloud top={10} size={46} duration={21000} delay={0} />
+                <DriftingCloud top={44} size={32} duration={16000} delay={6000} />
+              </>
+            )}
+            {mood === "sunset" && (
+              <>
+                <SettingSun />
+                <Firefly left="20%" top={18} delay={0} />
+                <Firefly left="42%" top={40} delay={1200} />
+                <Firefly left="58%" top={16} delay={2400} />
+                <Firefly left="70%" top={44} delay={800} />
+              </>
+            )}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: "#FFFFFF", letterSpacing: 1.5 }]}>{event.title}</Text>
               {event.notes && (
@@ -550,7 +763,7 @@ function EventCardInner({
                 </View>
               </View>
             )}
-            <MaterialIcons name="nights-stay" size={44} color="#FFE082" style={{ opacity: 0.95 }} />
+            <MaterialIcons name={mc.icon as any} size={44} color={mc.iconColor} style={{ opacity: 0.95 }} />
           </View>
         </Pressable>
         <ContextMenu

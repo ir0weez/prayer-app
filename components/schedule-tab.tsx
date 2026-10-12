@@ -1480,10 +1480,31 @@ function PulsingCross({ left, delay = 0 }: { left: number | `${number}%`; delay?
 
 /** Full-bleed scene root: solid base + soft left scrim so the white title reads. */
 
-function SceneRoot({ base, children }: { base: string; children: React.ReactNode }) {
+function SceneRoot({ base, children, scale = 1 }: { base: string; children: React.ReactNode; scale?: number }) {
+  // Optional uniform scale of the scene artwork, anchored at the bottom-center
+  // so bottom-positioned elements stay planted and grow upward into the taller card.
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const anchored = scale !== 1 && size.w > 0 && size.h > 0;
+  const cx = size.w / 2;
+  const cy = size.h;
   return (
-    <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}>
-      {children}
+    <View
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+      }}
+    >
+      <View
+        style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          ...(anchored
+            ? { transform: [{ translateX: -cx }, { translateY: -cy }, { scale }, { translateX: cx }, { translateY: cy }] }
+            : null),
+        }}
+      >
+        {children}
+      </View>
     </View>
   );
 }
@@ -1607,21 +1628,21 @@ function DinnerScene() {
 }
 
 /** Halloween night: moon, sitting cat with swaying tail, jack-o-lantern, spiderweb. */
-function HalloweenScene() {
+function HalloweenScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#1A2340">
+    <SceneRoot base="#1A2340" scale={scale}>
       <TwinkleField color="#FFFFFF" count={9} seed={5} />
       <View style={{ position: "absolute", left: "74%", bottom: 46, width: 56, height: 56, borderRadius: 28, backgroundColor: "#F5E6A8" }} />
       <View style={{ position: "absolute", left: "78%", bottom: 62, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E0CE8E" }} />
       <View style={{ position: "absolute", left: "84%", bottom: 54, width: 8, height: 8, borderRadius: 4, backgroundColor: "#E0CE8E" }} />
       <View style={{ position: "absolute", left: "-12%", right: "-12%", bottom: -34, height: 72, borderRadius: 40, backgroundColor: "#0C1226" }} />
-      <View style={{ position: "absolute", left: "4%", top: 0, width: 60, height: 60, opacity: 0.22 }}>
+      <View style={{ position: "absolute", left: "22%", bottom: 58, width: 60, height: 60, opacity: 0.22 }}>
         <View style={{ position: "absolute", left: 28, top: 0, width: 2, height: 56, backgroundColor: "#FFFFFF" }} />
         <View style={{ position: "absolute", left: 0, top: 26, width: 60, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
         <View style={{ position: "absolute", left: 0, top: 26, width: 60, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
         <View style={{ position: "absolute", left: 8, top: 8, width: 44, height: 22, borderRadius: 22, borderWidth: 2, borderColor: "#FFFFFF", borderTopWidth: 0 }} />
       </View>
-      <View style={{ position: "absolute", left: "10%", bottom: 16, width: 56, height: 62 }}>
+      <View style={{ position: "absolute", left: "22%", bottom: 16, width: 56, height: 62 }}>
         <View style={{ position: "absolute", left: 6, bottom: 0, width: 40, height: 36, borderRadius: 17, backgroundColor: "#050505" }} />
         <View style={{ position: "absolute", left: 14, bottom: 32, width: 26, height: 26, borderRadius: 13, backgroundColor: "#050505" }} />
         <View style={{ position: "absolute", left: 15, bottom: 50, width: 10, height: 10, backgroundColor: "#050505", transform: [{ rotate: "45deg" }] }} />
@@ -1679,12 +1700,12 @@ function GardeningScene() {
 }
 
 /** Christmas: pine tree with twinkling lights, presents, falling snow. */
-function ChristmasScene() {
+function ChristmasScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#1B4332">
+    <SceneRoot base="#1B4332" scale={scale}>
       <FallMotes colors={["#FFFFFF"]} count={9} size={4} duration={10000} seed={18} />
       <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 66, borderRadius: 34, backgroundColor: "#FFFFFF", opacity: 0.92 }} />
-      <View style={{ position: "absolute", left: "44%", bottom: 26, width: 92, height: 96 }}>
+      <View style={{ position: "absolute", left: "44%", bottom: 18, width: 92, height: 96 }}>
         <View style={{ position: "absolute", left: 40, bottom: 0, width: 12, height: 20, borderRadius: 3, backgroundColor: "#5D4037" }} />
         <View style={{ width: 0, height: 0, position: "absolute", left: 16, bottom: 14, borderLeftWidth: 30, borderRightWidth: 30, borderBottomWidth: 34, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2E7D32" }} />
         <View style={{ width: 0, height: 0, position: "absolute", left: 10, bottom: 38, borderLeftWidth: 36, borderRightWidth: 36, borderBottomWidth: 38, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#388E3C" }} />
@@ -1695,8 +1716,8 @@ function ChristmasScene() {
         <PulseDot left={24} bottom={30} size={6} color="#F48FB1" duration={2200} delay={300} />
         <PulseDot left={60} bottom={28} size={6} color="#FFD54F" duration={1700} delay={1100} />
       </View>
-      <PulseDot left="52%" bottom={112} size={10} color="#FFD54F" duration={2400} min={0.6} max={1} />
-      <View style={{ position: "absolute", left: "50.5%", bottom: 106, width: 14, height: 14, backgroundColor: "#FFD54F", transform: [{ rotate: "45deg" }] }} />
+      <PulseDot left="52%" bottom={104} size={10} color="#FFD54F" duration={2400} min={0.6} max={1} />
+      <View style={{ position: "absolute", left: "50.5%", bottom: 98, width: 14, height: 14, backgroundColor: "#FFD54F", transform: [{ rotate: "45deg" }] }} />
       <View style={{ position: "absolute", left: "24%", bottom: 22, width: 34, height: 26, borderRadius: 4, backgroundColor: "#C62828" }} />
       <View style={{ position: "absolute", left: "36%", bottom: 22, width: 8, height: 26, backgroundColor: "#FFD54F" }} />
       <View style={{ position: "absolute", left: "24%", bottom: 32, width: 34, height: 7, backgroundColor: "#FFD54F" }} />
@@ -1707,9 +1728,9 @@ function ChristmasScene() {
 }
 
 /** Thanksgiving: golden pie with steam, pumpkin, falling autumn leaves. */
-function ThanksgivingScene() {
+function ThanksgivingScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#6B4215">
+    <SceneRoot base="#6B4215" scale={scale}>
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "38%", backgroundColor: "#4A2C0D" }} />
       <FallMotes colors={["#FFA94D", "#E8590C", "#FFD43B"]} count={7} size={7} duration={9000} seed={20} ellipse spin />
       <View style={{ position: "absolute", left: "40%", bottom: 12, width: 96, height: 52 }}>
@@ -1726,17 +1747,17 @@ function ThanksgivingScene() {
         <View style={{ position: "absolute", left: 30, bottom: 2, width: 4, height: 36, borderRadius: 2, backgroundColor: "#C2571B" }} />
         <View style={{ position: "absolute", left: 22, bottom: 38, width: 8, height: 8, borderRadius: 2, backgroundColor: "#3E7A34" }} />
       </View>
-      <View style={{ position: "absolute", left: "14%", bottom: 12, width: 8, height: 44, borderRadius: 4, backgroundColor: "#8A5A2B" }} />
-      <View style={{ position: "absolute", left: "10%", bottom: 44, width: 16, height: 10, borderRadius: 5, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
-      <View style={{ position: "absolute", left: "14%", bottom: 52, width: 16, height: 10, borderRadius: 5, backgroundColor: "#D89A3E", transform: [{ rotate: "24deg" }] }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 12, width: 8, height: 44, borderRadius: 4, backgroundColor: "#8A5A2B" }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 44, width: 16, height: 10, borderRadius: 5, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 52, width: 16, height: 10, borderRadius: 5, backgroundColor: "#D89A3E", transform: [{ rotate: "24deg" }] }} />
     </SceneRoot>
   );
 }
 
 /** Easter morning: decorated egg, bunny, spring flowers, drifting petals. */
-function EasterScene() {
+function EasterScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#8FC7A8">
+    <SceneRoot base="#8FC7A8" scale={scale}>
       <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -28, height: 70, borderRadius: 34, backgroundColor: "#4E9A51" }} />
       <FallMotes colors={["#F8BBD0", "#FFFFFF", "#FCE4EC"]} count={7} size={6} duration={9000} seed={19} ellipse />
       <GentlePulse left="46%" bottom={26} width={58} height={74} min={1} max={1.04} duration={3200}>
@@ -1759,8 +1780,8 @@ function EasterScene() {
         <View style={{ position: "absolute", left: 13, bottom: 46, width: 4, height: 14, borderRadius: 2, backgroundColor: "#F8BBD0" }} />
         <View style={{ position: "absolute", left: 0, bottom: 8, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF" }} />
       </View>
-      <View style={{ position: "absolute", left: "12%", bottom: 24, width: 8, height: 22, borderRadius: 4, backgroundColor: "#2F9E44" }} />
-      <View style={{ position: "absolute", left: "8%", bottom: 42, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFD54F" }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 24, width: 8, height: 22, borderRadius: 4, backgroundColor: "#2F9E44" }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 42, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFD54F" }} />
       <View style={{ position: "absolute", left: "88%", bottom: 26, width: 8, height: 20, borderRadius: 4, backgroundColor: "#2F9E44" }} />
       <View style={{ position: "absolute", left: "84%", bottom: 42, width: 16, height: 16, borderRadius: 8, backgroundColor: "#F48FB1" }} />
     </SceneRoot>
@@ -2424,9 +2445,9 @@ function TravelScene() {
 }
 
 /** New Year: fireworks, champagne coupe with bubbles, midnight clock. */
-function NewYearScene() {
+function NewYearScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#1A237E">
+    <SceneRoot base="#1A237E" scale={scale}>
       <NewYearFireworks />
       <View style={{ position: "absolute", left: "64%", bottom: 12, width: 40, height: 64 }}>
         <View style={{ position: "absolute", left: 2, bottom: 30, width: 36, height: 22, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
@@ -2446,9 +2467,9 @@ function NewYearScene() {
 }
 
 /** Valentine's Day: big heart, gift box, rising hearts. */
-function ValentinesScene() {
+function ValentinesScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#5C1031">
+    <SceneRoot base="#5C1031" scale={scale}>
       <BreatheGlow color="#EC407A" size={110} left="60%" bottom={10} min={0.15} max={0.32} duration={4200} />
       <GentleBob left="54%" bottom={34} width={46} height={46} distance={6} duration={3000}>
         <HeartShape size={46} color="#EC407A" opacity={0.95} />
@@ -2467,9 +2488,9 @@ function ValentinesScene() {
 }
 
 /** St. Patrick's Day: rainbow, pot of gold, swaying shamrock. */
-function StPatricksScene() {
+function StPatricksScene({ scale = 1 }: { scale?: number }) {
   return (
-    <SceneRoot base="#1B5E20">
+    <SceneRoot base="#1B5E20" scale={scale}>
       <View style={{ position: "absolute", left: "56%", bottom: 8, width: 110, height: 55, overflow: "hidden" }}>
         <View style={{ position: "absolute", left: 0, bottom: 0, width: 110, height: 110, borderRadius: 55, borderWidth: 9, borderColor: "#FFD54F", borderBottomWidth: 0, backgroundColor: "transparent" }} />
         <View style={{ position: "absolute", left: 12, bottom: 0, width: 86, height: 86, borderRadius: 43, borderWidth: 8, borderColor: "#FFFFFF", borderBottomWidth: 0, backgroundColor: "transparent", opacity: 0.9 }} />
@@ -2494,7 +2515,7 @@ function StPatricksScene() {
 }
 
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?: string }) {
+function KeywordAmbientAnimation({ label, title = "", scale = 1 }: { label: string; title?: string; scale?: number }) {
   // Breakfast, lunch, and dinner each get their own illustrated scene.
   if (label === "Meal") {
     const t = title.toLowerCase();
@@ -2513,9 +2534,9 @@ function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?:
     case "Gardening": return <GardeningScene />;
     case "Baby Shower": return <BabyShowerScene />;
     case "Birthday": return <BirthdayScene />;
-    case "Christmas": return <ChristmasScene />;
-    case "Easter": return <EasterScene />;
-    case "Thanksgiving": return <ThanksgivingScene />;
+    case "Christmas": return <ChristmasScene scale={scale} />;
+    case "Easter": return <EasterScene scale={scale} />;
+    case "Thanksgiving": return <ThanksgivingScene scale={scale} />;
     case "Wedding": return <WeddingScene />;
     case "Memorial": return <MemorialScene />;
     case "Meeting": return <MeetingScene />;
@@ -2532,11 +2553,11 @@ function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?:
     case "Study": return <StudyScene />;
     case "Visit": return <VisitScene />;
     case "Amusement Park": return <SceneRoot base="#5E2E8E"><CoasterLoop /></SceneRoot>;
-    case "New Year": return <NewYearScene />;
-    case "Valentine's Day": return <ValentinesScene />;
-    case "Halloween": return <HalloweenScene />;
+    case "New Year": return <NewYearScene scale={scale} />;
+    case "Valentine's Day": return <ValentinesScene scale={scale} />;
+    case "Halloween": return <HalloweenScene scale={scale} />;
     case "TV Show": return <TVShowScene />;
-    case "St. Patrick's Day": return <StPatricksScene />;
+    case "St. Patrick's Day": return <StPatricksScene scale={scale} />;
     default: return null;
   }
 }
@@ -2742,6 +2763,21 @@ function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string
       <MaterialIcons name={icon as any} size={25} color="#FFFFFF" />
     </Pressable>
   );
+}
+
+// Holiday keywords get bigger, pinned-to-top cards so they stand out.
+const HOLIDAY_KEYWORD_LABELS = [
+  "Christmas",
+  "Easter",
+  "Thanksgiving",
+  "Halloween",
+  "New Year",
+  "Valentine's Day",
+  "St. Patrick's Day",
+];
+
+function isHolidayKeywordLabel(label: string | undefined | null): boolean {
+  return !!label && HOLIDAY_KEYWORD_LABELS.includes(label);
 }
 
 function EventCardInner({
@@ -3002,6 +3038,9 @@ function EventCardInner({
 
   // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
+    // Holiday cards render taller with scaled-up scenes so they stand out.
+    const isHolidayCard = isHolidayKeywordLabel(keyword.label);
+    const holidayScale = 1.3;
     return (
       <>
         <Pressable
@@ -3013,9 +3052,9 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} scale={isHolidayCard ? holidayScale : 1} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (
@@ -3045,7 +3084,7 @@ function EventCardInner({
                 </View>
               </View>
             )}
-            <MaterialIcons name={keyword.icon as any} size={48} color={event.isOffEvent ? timeOffTextColor : '#FFFFFF'} style={{ opacity: 0.9 }} />
+            <MaterialIcons name={keyword.icon as any} size={isHolidayCard ? 64 : 48} color={event.isOffEvent ? timeOffTextColor : '#FFFFFF'} style={{ opacity: 0.9 }} />
           </View>
         </Pressable>
         <ContextMenu
@@ -5634,6 +5673,22 @@ export function ScheduleTab({
         )
       : null;
 
+    // Pin holiday events to the top of the day (in time order among themselves).
+    // They stay in timedItems for the live cursor above, but are pulled out of the
+    // chronological flow below so they render first, right after time-off/birthdays.
+    const isHolidayTimedItem = (t: { type: string; data: any }): boolean => {
+      if (t.type !== "event") return false;
+      const e = t.data;
+      const label: string | undefined = e.keyword ? e.keyword : detectEventKeyword(e.title)?.label;
+      return isHolidayKeywordLabel(label);
+    };
+    const holidayPinnedItems = timedItems
+      .filter(isHolidayTimedItem)
+      .sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+    for (let i = timedItems.length - 1; i >= 0; i--) {
+      if (isHolidayTimedItem(timedItems[i])) timedItems.splice(i, 1);
+    }
+
     let activeBlocks: TimeBlock[] = [];
     if (isTodayOrFuture && whiteSpaceEnabled) {
       // White-space gaps: completed items free up their time. Todos (grouped
@@ -5694,6 +5749,10 @@ export function ScheduleTab({
         mergedTimedItems.push(item);
       }
     }
+
+    // Pinned holiday cards render first — right after time-off/birthdays,
+    // before the chronological flow (and its NOW indicator).
+    holidayPinnedItems.forEach((item) => items.push(item));
 
     // Add sorted items and insert current-time indicator if it's today.
     // When "now" falls inside a white block, that block's row wears the NOW

@@ -99,7 +99,7 @@ type AvatarPickerProps = {
   initialTab?: AvatarStyle | "Shiny" | "Books" | "Heroes";
 };
 
-const STYLE_LABELS: Record<AvatarStyle, string> = { "90s": "90s", "1920s": "1920s", "1950s": "1950s", "1970s": "1970s", "1980s": "1980s", Y2K: "Y2K" };
+const STYLE_LABELS: Record<AvatarStyle, string> = { "90s": "90s", "1920s": "1920s", "1950s": "1950s", "1970s": "1970s", "1980s": "1980s", Y2K: "Y2K", characters: "Characters" };
 
 export function AvatarPicker({ visible, initialAvatarAsset, gender, unlockedShinyIds = [], unlockedBookIds = [], unlockedHeroIds = [], onClose, onSelect, onUpload, initialTab = "90s" }: AvatarPickerProps) {
   const colors = useColors();

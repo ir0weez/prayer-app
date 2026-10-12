@@ -1,7 +1,7 @@
 import type { ImageSourcePropType } from "react-native";
 
 export type AvatarGender = "m" | "f";
-export type AvatarStyle = "90s" | "1920s" | "1950s" | "1970s" | "1980s" | "Y2K";
+export type AvatarStyle = "90s" | "1920s" | "1950s" | "1970s" | "1980s" | "Y2K" | "characters";
 
 export type AvatarDefinition = { id: string; face: string; emotion: string; gender: AvatarGender; style: AvatarStyle; source: ImageSourcePropType; thumbnail: ImageSourcePropType; neutral?: boolean };
 
@@ -102,6 +102,30 @@ export const AVATAR_DEFINITIONS: AvatarDefinition[] = [
   { id: "item-y2k-portabletv", face: "Portable TV", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-portabletv.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-portabletv.webp") },
   { id: "item-y2k-gamecube", face: "GameCube", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-gamecube.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-gamecube.webp") },
   { id: "item-y2k-ipod", face: "iPod", emotion: "Keepsake", gender: "m", style: "Y2K", neutral: true, source: require("@/assets/avatars/avatar-item-y2k-ipod.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-item-y2k-ipod.webp") },
+  { id: "avatar-char-infant-watercolor", face: "Watercolor Infant", emotion: "Watercolor", gender: "m", style: "characters", neutral: true, source: require("@/assets/avatars/characters/avatar-char-infant-watercolor.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-infant-watercolor.webp") },
+  { id: "avatar-char-father-woodcut", face: "Woodcut Father", emotion: "Woodcut", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-father-woodcut.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-father-woodcut.webp") },
+  { id: "avatar-char-teengirl-anime", face: "Anime Teen Girl", emotion: "Anime", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-teengirl-anime.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-teengirl-anime.webp") },
+  { id: "avatar-char-elder-storybook", face: "Storybook Elder", emotion: "Storybook", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-elder-storybook.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-elder-storybook.webp") },
+  { id: "avatar-char-mother-oil", face: "Oil Portrait Mother", emotion: "Oil Portrait", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-mother-oil.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-mother-oil.webp") },
+  { id: "avatar-char-littleboy-cartoon", face: "Cartoon Little Boy", emotion: "Cartoon", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-littleboy-cartoon.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-littleboy-cartoon.webp") },
+  { id: "avatar-char-teenboy-sketch", face: "Sketch Teen Boy", emotion: "Sketch", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-teenboy-sketch.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-teenboy-sketch.webp") },
+  { id: "avatar-char-grandfather-charcoal", face: "Charcoal Grandfather", emotion: "Charcoal", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-grandfather-charcoal.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-grandfather-charcoal.webp") },
+  { id: "avatar-char-littlegirl-picturebook", face: "Picturebook Little Girl", emotion: "Picturebook", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-littlegirl-picturebook.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-littlegirl-picturebook.webp") },
+  { id: "avatar-char-toddler-crayon", face: "Crayon Toddler", emotion: "Crayon", gender: "m", style: "characters", neutral: true, source: require("@/assets/avatars/characters/avatar-char-toddler-crayon.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-toddler-crayon.webp") },
+  { id: "avatar-char-woman-nouveau", face: "Art Nouveau Woman", emotion: "Art Nouveau", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-woman-nouveau.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-woman-nouveau.webp") },
+  { id: "avatar-char-guitarist-popart", face: "Pop Art Guitarist", emotion: "Pop Art", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-guitarist-popart.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-guitarist-popart.webp") },
+  { id: "avatar-char-fisherman-inkwash", face: "Ink Wash Fisherman", emotion: "Ink Wash", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-fisherman-inkwash.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-fisherman-inkwash.webp") },
+  { id: "avatar-char-ballerina-impressionist", face: "Impressionist Ballerina", emotion: "Impressionist", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-ballerina-impressionist.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-ballerina-impressionist.webp") },
+  { id: "avatar-char-soccerboy-comic", face: "Comic Soccer Boy", emotion: "Comic", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-soccerboy-comic.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-soccerboy-comic.webp") },
+  { id: "avatar-char-scientist-vector", face: "Vector Scientist", emotion: "Vector", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-scientist-vector.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-scientist-vector.webp") },
+  { id: "avatar-char-pregnant-renaissance", face: "Renaissance Mother-to-Be", emotion: "Renaissance", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-pregnant-renaissance.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-pregnant-renaissance.webp") },
+  { id: "avatar-char-skater-streetart", face: "Street Art Skater", emotion: "Street Art", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-skater-streetart.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-skater-streetart.webp") },
+  { id: "avatar-char-fairy-whimsical", face: "Whimsical Fairy", emotion: "Whimsical", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-fairy-whimsical.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-fairy-whimsical.webp") },
+  { id: "avatar-char-warrior-graphicnovel", face: "Graphic Novel Warrior", emotion: "Graphic Novel", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-warrior-graphicnovel.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-warrior-graphicnovel.webp") },
+  { id: "avatar-char-sage-fantasy", face: "Fantasy Sage", emotion: "Fantasy", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-sage-fantasy.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-sage-fantasy.webp") },
+  { id: "avatar-char-explorer-adventure", face: "Adventure Explorer", emotion: "Adventure", gender: "m", style: "characters", source: require("@/assets/avatars/characters/avatar-char-explorer-adventure.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-explorer-adventure.webp") },
+  { id: "avatar-char-newborn-digital", face: "Digital Newborn", emotion: "Digital", gender: "m", style: "characters", neutral: true, source: require("@/assets/avatars/characters/avatar-char-newborn-digital.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-newborn-digital.webp") },
+  { id: "avatar-char-grandmother-folkart", face: "Folk Art Grandmother", emotion: "Folk Art", gender: "f", style: "characters", source: require("@/assets/avatars/characters/avatar-char-grandmother-folkart.webp"), thumbnail: require("@/assets/avatars/thumbs/avatar-char-grandmother-folkart.webp") },
 ];
 
 // Generation-appropriate item avatars for migrating legacy face IDs.
@@ -226,6 +250,16 @@ export const SHINY_AVATARS = {
   "lamb-god-shiny": require("@/assets/avatars/shiny/avatar-lamb-god-shiny.webp"),
   "eagle-wings-shiny": require("@/assets/avatars/shiny/avatar-eagle-wings-shiny.webp"),
   "raven-provision-shiny": require("@/assets/avatars/shiny/avatar-raven-provision-shiny.webp"),
+  "avatar-charshiny-starchild-boy": require("@/assets/avatars/shiny/avatar-charshiny-starchild-boy.webp"),
+  "avatar-charshiny-phoenix-boy": require("@/assets/avatars/shiny/avatar-charshiny-phoenix-boy.webp"),
+  "avatar-charshiny-ocean-boy": require("@/assets/avatars/shiny/avatar-charshiny-ocean-boy.webp"),
+  "avatar-charshiny-forest-boy": require("@/assets/avatars/shiny/avatar-charshiny-forest-boy.webp"),
+  "avatar-charshiny-lightning-boy": require("@/assets/avatars/shiny/avatar-charshiny-lightning-boy.webp"),
+  "avatar-charshiny-moon-girl": require("@/assets/avatars/shiny/avatar-charshiny-moon-girl.webp"),
+  "avatar-charshiny-flame-girl": require("@/assets/avatars/shiny/avatar-charshiny-flame-girl.webp"),
+  "avatar-charshiny-ice-girl": require("@/assets/avatars/shiny/avatar-charshiny-ice-girl.webp"),
+  "avatar-charshiny-flower-girl": require("@/assets/avatars/shiny/avatar-charshiny-flower-girl.webp"),
+  "avatar-charshiny-galaxy-girl": require("@/assets/avatars/shiny/avatar-charshiny-galaxy-girl.webp"),
 } as const;
 
 export const SHINY_AVATAR_THUMBNAILS = {
@@ -327,6 +361,16 @@ export const SHINY_AVATAR_THUMBNAILS = {
   "avatar-shiny-y2k-webcam": require("@/assets/avatars/shiny/avatar-shiny-y2k-webcam.webp"),
   "avatar-shiny-y2k-clips": require("@/assets/avatars/shiny/avatar-shiny-y2k-clips.webp"),
   "avatar-shiny-y2k-cdwallet": require("@/assets/avatars/shiny/avatar-shiny-y2k-cdwallet.webp"),
+  "avatar-charshiny-starchild-boy": require("@/assets/avatars/thumbs/avatar-charshiny-starchild-boy.webp"),
+  "avatar-charshiny-phoenix-boy": require("@/assets/avatars/thumbs/avatar-charshiny-phoenix-boy.webp"),
+  "avatar-charshiny-ocean-boy": require("@/assets/avatars/thumbs/avatar-charshiny-ocean-boy.webp"),
+  "avatar-charshiny-forest-boy": require("@/assets/avatars/thumbs/avatar-charshiny-forest-boy.webp"),
+  "avatar-charshiny-lightning-boy": require("@/assets/avatars/thumbs/avatar-charshiny-lightning-boy.webp"),
+  "avatar-charshiny-moon-girl": require("@/assets/avatars/thumbs/avatar-charshiny-moon-girl.webp"),
+  "avatar-charshiny-flame-girl": require("@/assets/avatars/thumbs/avatar-charshiny-flame-girl.webp"),
+  "avatar-charshiny-ice-girl": require("@/assets/avatars/thumbs/avatar-charshiny-ice-girl.webp"),
+  "avatar-charshiny-flower-girl": require("@/assets/avatars/thumbs/avatar-charshiny-flower-girl.webp"),
+  "avatar-charshiny-galaxy-girl": require("@/assets/avatars/thumbs/avatar-charshiny-galaxy-girl.webp"),
 } as const;
 
 export const HERO_AVATARS = {
@@ -498,10 +542,42 @@ export const SHINY_ACHIEVEMENTS = [
   { id: "avatar-shiny-y2k-webcam", name: "Holographic Webcam", hint: "Reach a 295-day prayer streak", avatarId: "avatar-shiny-y2k-webcam", title: "Holographic Webcam" },
   { id: "avatar-shiny-y2k-clips", name: "Holographic Butterfly Clips", hint: "Reach a 300-day prayer streak", avatarId: "avatar-shiny-y2k-clips", title: "Holographic Butterfly Clips" },
   { id: "avatar-shiny-y2k-cdwallet", name: "Holographic CD Wallet", hint: "Reach a 305-day prayer streak", avatarId: "avatar-shiny-y2k-cdwallet", title: "Holographic CD Wallet" },
+  { id: "char-level-10", name: "Starchild", hint: "Reach level 10", avatarId: "avatar-charshiny-starchild-boy", title: "Level 10" },
+  { id: "char-level-20", name: "Moon Girl", hint: "Reach level 20", avatarId: "avatar-charshiny-moon-girl", title: "Level 20" },
+  { id: "char-level-30", name: "Phoenix Boy", hint: "Reach level 30", avatarId: "avatar-charshiny-phoenix-boy", title: "Level 30" },
+  { id: "char-level-40", name: "Flame Girl", hint: "Reach level 40", avatarId: "avatar-charshiny-flame-girl", title: "Level 40" },
+  { id: "char-level-50", name: "Ocean Boy", hint: "Reach level 50", avatarId: "avatar-charshiny-ocean-boy", title: "Level 50" },
+  { id: "char-level-60", name: "Ice Girl", hint: "Reach level 60", avatarId: "avatar-charshiny-ice-girl", title: "Level 60" },
+  { id: "char-level-70", name: "Forest Boy", hint: "Reach level 70", avatarId: "avatar-charshiny-forest-boy", title: "Level 70" },
+  { id: "char-level-80", name: "Flower Girl", hint: "Reach level 80", avatarId: "avatar-charshiny-flower-girl", title: "Level 80" },
+  { id: "char-level-90", name: "Lightning Boy", hint: "Reach level 90", avatarId: "avatar-charshiny-lightning-boy", title: "Level 90" },
+  { id: "char-level-100", name: "Galaxy Girl", hint: "Reach level 100", avatarId: "avatar-charshiny-galaxy-girl", title: "Level 100" },
 ] as const;
 export type AchievementId = (typeof SHINY_ACHIEVEMENTS)[number]["id"];
 
-const STYLE_ORDER: AvatarStyle[] = ["1920s", "1950s", "1970s", "1980s", "90s", "Y2K"];
+// Level-gated character shinies: one unlocks every 10 levels (10–100).
+// Unlocking is purely level-based (see getLevelUnlockedCharacterShinyIds);
+// the SHINY_ACHIEVEMENTS entries above exist so the Shiny tab shows the
+// locked cards with their level hints.
+export const LEVEL_CHARACTER_SHINIES = [
+  { level: 10, achievementId: "char-level-10", avatarId: "avatar-charshiny-starchild-boy" },
+  { level: 20, achievementId: "char-level-20", avatarId: "avatar-charshiny-moon-girl" },
+  { level: 30, achievementId: "char-level-30", avatarId: "avatar-charshiny-phoenix-boy" },
+  { level: 40, achievementId: "char-level-40", avatarId: "avatar-charshiny-flame-girl" },
+  { level: 50, achievementId: "char-level-50", avatarId: "avatar-charshiny-ocean-boy" },
+  { level: 60, achievementId: "char-level-60", avatarId: "avatar-charshiny-ice-girl" },
+  { level: 70, achievementId: "char-level-70", avatarId: "avatar-charshiny-forest-boy" },
+  { level: 80, achievementId: "char-level-80", avatarId: "avatar-charshiny-flower-girl" },
+  { level: 90, achievementId: "char-level-90", avatarId: "avatar-charshiny-lightning-boy" },
+  { level: 100, achievementId: "char-level-100", avatarId: "avatar-charshiny-galaxy-girl" },
+] as const;
+
+/** Shiny character avatar ids unlocked by reaching an XP level. */
+export function getLevelUnlockedCharacterShinyIds(level: number): string[] {
+  return LEVEL_CHARACTER_SHINIES.filter((entry) => level >= entry.level).map((entry) => entry.avatarId);
+}
+
+const STYLE_ORDER: AvatarStyle[] = ["1920s", "1950s", "1970s", "1980s", "90s", "Y2K", "characters"];
 export { STYLE_ORDER };
 
 export function avatarDefinitionById(id?: string, gender?: AvatarGender) {

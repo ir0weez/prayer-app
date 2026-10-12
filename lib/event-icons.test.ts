@@ -130,6 +130,7 @@ describe("event-icons", () => {
         "school",
         "home",
         "attractions",
+        "nights-stay",
       ];
 
       EVENT_KEYWORD_MAP.forEach((keyword) => {

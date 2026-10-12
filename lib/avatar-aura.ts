@@ -113,6 +113,16 @@ export const AVATAR_AURAS: Record<ShinyAvatarId, AvatarAuraDefinition> = {
   "avatar-shiny-y2k-webcam": { id: "avatar-shiny-y2k-webcam", label: "Holographic Webcam", glowColor: "#F472B6", secondaryColor: "#E5E7EB", accentColors: ['#F472B6', '#FBBF24', '#34D399', '#60A5FA'], style: "prismatic", ringCount: 2 },
   "avatar-shiny-y2k-clips": { id: "avatar-shiny-y2k-clips", label: "Holographic Butterfly Clips", glowColor: "#F472B6", secondaryColor: "#E5E7EB", accentColors: ['#F472B6', '#FBBF24', '#34D399', '#60A5FA'], style: "prismatic", ringCount: 2 },
   "avatar-shiny-y2k-cdwallet": { id: "avatar-shiny-y2k-cdwallet", label: "Holographic CD Wallet", glowColor: "#F472B6", secondaryColor: "#E5E7EB", accentColors: ['#F472B6', '#FBBF24', '#34D399', '#60A5FA'], style: "prismatic", ringCount: 2 },
+  "avatar-charshiny-starchild-boy": { id: "avatar-charshiny-starchild-boy", label: "Starchild", glowColor: "#FBBF24", secondaryColor: "#FEF3C7", accentColors: ["#FFFFFF", "#FDE68A"], style: "stars", ringCount: 2 },
+  "avatar-charshiny-phoenix-boy": { id: "avatar-charshiny-phoenix-boy", label: "Phoenix Boy", glowColor: "#F97316", secondaryColor: "#FDBA74", accentColors: ["#FED7AA", "#DC2626"], style: "embers", ringCount: 2 },
+  "avatar-charshiny-ocean-boy": { id: "avatar-charshiny-ocean-boy", label: "Ocean Boy", glowColor: "#0EA5E9", secondaryColor: "#BAE6FD", accentColors: ["#E0F2FE", "#0369A1"], style: "rings", ringCount: 2 },
+  "avatar-charshiny-forest-boy": { id: "avatar-charshiny-forest-boy", label: "Forest Boy", glowColor: "#16A34A", secondaryColor: "#BBF7D0", accentColors: ["#DCFCE7", "#15803D"], style: "dust", ringCount: 2 },
+  "avatar-charshiny-lightning-boy": { id: "avatar-charshiny-lightning-boy", label: "Lightning Boy", glowColor: "#FDE047", secondaryColor: "#FEF9C3", accentColors: ["#FFFFFF", "#EAB308"], style: "rays", ringCount: 2 },
+  "avatar-charshiny-moon-girl": { id: "avatar-charshiny-moon-girl", label: "Moon Girl", glowColor: "#C7D2FE", secondaryColor: "#F5F3FF", accentColors: ["#FFFFFF", "#A5B4FC"], style: "stars", ringCount: 2 },
+  "avatar-charshiny-flame-girl": { id: "avatar-charshiny-flame-girl", label: "Flame Girl", glowColor: "#EF4444", secondaryColor: "#FCA5A5", accentColors: ["#FEE2E2", "#B91C1C"], style: "embers", ringCount: 2 },
+  "avatar-charshiny-ice-girl": { id: "avatar-charshiny-ice-girl", label: "Ice Girl", glowColor: "#BAE6FD", secondaryColor: "#F0F9FF", accentColors: ["#FFFFFF", "#7DD3FC"], style: "radiant", ringCount: 2 },
+  "avatar-charshiny-flower-girl": { id: "avatar-charshiny-flower-girl", label: "Flower Girl", glowColor: "#F472B6", secondaryColor: "#FBCFE8", accentColors: ["#FDF2F8", "#86EFAC"], style: "stained-glass", ringCount: 2 },
+  "avatar-charshiny-galaxy-girl": { id: "avatar-charshiny-galaxy-girl", label: "Galaxy Girl", glowColor: "#A855F7", secondaryColor: "#F0ABFC", accentColors: ["#F472B6", "#60A5FA", "#FBBF24", "#34D399"], style: "prismatic", ringCount: 2 },
 };
 
 /** Used only for the personal profile when its active avatar is a regular pack avatar or photo. */

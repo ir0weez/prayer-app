@@ -1394,6 +1394,7 @@ export function ScheduleTab({
   onTodoComplete,
   eventRemindersEnabled = true,
   defaultEventReminderMinutes = 0,
+  whiteSpaceEnabled = true,
   notificationScheduleAction,
   notificationScheduleKind,
   notificationScheduleId,
@@ -1420,6 +1421,7 @@ export function ScheduleTab({
   onTodoComplete?: (todoId: string) => void;
   eventRemindersEnabled?: boolean;
   defaultEventReminderMinutes?: number;
+  whiteSpaceEnabled?: boolean;
   notificationScheduleAction?: string;
   notificationScheduleKind?: string;
   notificationScheduleId?: string;
@@ -3037,12 +3039,12 @@ export function ScheduleTab({
       : null;
 
     let activeBlocks: TimeBlock[] = [];
-    if (isTodayOrFuture) {
-      // White-space gaps: completed items free up their time, and point-in-time
-      // todos (startTime but no endTime) don't block time — they render as
-      // their own rows inside the open block.
+    if (isTodayOrFuture && whiteSpaceEnabled) {
+      // White-space gaps: completed items free up their time. Todos (grouped
+      // and ungrouped) with a startTime block time — point-in-time todos
+      // without an endTime take up one hour by default.
       const whiteSpaceItems = [
-        ...dayTodos.filter((t) => t.startTime && t.endTime && !t.isCompleted),
+        ...dayTodos.filter((t) => t.startTime && !t.isCompleted),
         ...dayEvents.filter((e) => e.startTime && !e.isCompleted),
         ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
         ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),

@@ -176,6 +176,7 @@ function UnfurlPanel({ children, outerStyle, closing }: { children: React.ReactN
 type AppSettings = {
   demoMode: boolean;
   colorTheme: AccentThemeId;
+  whiteSpaceEnabled: boolean;
   prayerRemindersEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
@@ -209,6 +210,7 @@ const UNDO_COUNTDOWN_MS = 5000;
 const DEFAULT_SETTINGS: AppSettings = {
   demoMode: false,
   colorTheme: "default",
+  whiteSpaceEnabled: true,
   prayerRemindersEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
@@ -292,6 +294,7 @@ function parseStoredSettings(value: string | null): AppSettings {
     return {
       demoMode: Boolean(parsed.demoMode),
       colorTheme,
+      whiteSpaceEnabled: parsed.whiteSpaceEnabled !== false,
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
       eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
       defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
@@ -2461,6 +2464,11 @@ export default function HomeScreen() {
       </View>
 
 
+      <Text style={styles.settingsSectionLabel}>SCHEDULE</Text>
+      <View style={[styles.settingsCard, { borderColor: colors.border }]}>
+        {renderSettingsRow("hourglass-empty", "White Space", "Show tappable free-hour blocks on the schedule", "normal", <M3Switch value={settings.whiteSpaceEnabled} onValueChange={(whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled }))} />)}
+      </View>
+
       <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("notifications-active", "Prayer reminders", "Notify me when scheduled prayers are due", "normal", <M3Switch value={settings.prayerRemindersEnabled} onValueChange={(prayerRemindersEnabled) => setSettings((previous) => ({ ...previous, prayerRemindersEnabled }))} />)}
@@ -2804,6 +2812,7 @@ export default function HomeScreen() {
           personalTodos={scheduleSummaryData.sortedIncompleteTodos}
           eventRemindersEnabled={settings.eventRemindersEnabled}
           defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
+          whiteSpaceEnabled={settings.whiteSpaceEnabled}
           notificationScheduleAction={notificationScheduleActionParam}
           notificationScheduleKind={notificationScheduleKindParam}
           notificationScheduleId={notificationScheduleIdParam}

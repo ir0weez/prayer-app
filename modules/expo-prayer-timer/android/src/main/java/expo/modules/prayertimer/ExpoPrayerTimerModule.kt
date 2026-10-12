@@ -1,0 +1,115 @@
+package expo.modules.prayertimer
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
+
+class ExpoPrayerTimerModule : Module() {
+  companion object {
+    const val END_PRAYER_ACTION = "expo.modules.prayertimer.END_PRAYER"
+    const val EXTRA_END_PRAYER = "expo.modules.prayertimer.EXTRA_END_PRAYER"
+    private const val NOTIFICATION_ID = 9001
+    private const val CHANNEL_ID = "prayer-timer"
+
+    private var moduleInstance: ExpoPrayerTimerModule? = null
+
+    /** Tell JS (if alive) that the user tapped "End prayer". */
+    fun sendEndEvent() {
+      moduleInstance?.sendEvent("onEndPrayer", emptyMap<String, Any?>())
+    }
+  }
+
+  private fun notificationManager(ctx: Context): NotificationManager =
+    ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+  private fun ensureChannel(ctx: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = NotificationChannel(CHANNEL_ID, "Prayer Timer", NotificationManager.IMPORTANCE_LOW).apply {
+        vibrationPattern = longArrayOf(0)
+        setShowBadge(false)
+      }
+      notificationManager(ctx).createNotificationChannel(channel)
+    }
+  }
+
+  private fun smallIconRes(ctx: Context): Int {
+    // Prefer the icon expo-notifications generates, then the app icon.
+    var res = ctx.resources.getIdentifier("notification_icon", "drawable", ctx.packageName)
+    if (res == 0) res = ctx.applicationInfo.icon
+    if (res == 0) res = android.R.drawable.ic_dialog_info
+    return res
+  }
+
+  private fun endPendingIntent(ctx: Context): PendingIntent {
+    val intent = Intent(END_PRAYER_ACTION).setPackage(ctx.packageName)
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    return PendingIntent.getBroadcast(ctx, 0, intent, flags)
+  }
+
+  private fun openAppPendingIntent(ctx: Context): PendingIntent {
+    val launchIntent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
+      addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    }
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    return PendingIntent.getActivity(ctx, 1, launchIntent, flags)
+  }
+
+  override fun definition() = ModuleDefinition {
+    Name("ExpoPrayerTimer")
+
+    Events("onEndPrayer")
+
+    OnCreate {
+      moduleInstance = this@ExpoPrayerTimerModule
+    }
+
+    OnDestroy {
+      if (moduleInstance === this@ExpoPrayerTimerModule) moduleInstance = null
+    }
+
+    Function("start") {
+      val ctx = appContext.reactContext ?: return@Function
+      ensureChannel(ctx)
+      // The platform chronometer counts up live from `when` — no JS timer needed.
+      val notification = NotificationCompat.Builder(ctx, CHANNEL_ID)
+        .setSmallIcon(smallIconRes(ctx))
+        .setContentTitle("\uD83D\uDE4F Prayer in progress")
+        .setUsesChronometer(true)
+        .setShowWhen(true)
+        .setWhen(System.currentTimeMillis())
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setContentIntent(openAppPendingIntent(ctx))
+        .addAction(0, "End prayer", endPendingIntent(ctx))
+        .build()
+      notificationManager(ctx).notify(NOTIFICATION_ID, notification)
+    }
+
+    Function("stop") {
+      val ctx = appContext.reactContext ?: return@Function
+      try {
+        notificationManager(ctx).cancel(NOTIFICATION_ID)
+      } catch (_: Exception) {
+      }
+    }
+
+    // True when the app was (re)launched from the notification's End button
+    // while JS wasn't alive to receive the event. Clears the flag.
+    Function("consumePendingEndRequest") {
+      val activity = appContext.currentActivity ?: return@Function false
+      val intent = activity.intent ?: return@Function false
+      if (intent.getBooleanExtra(EXTRA_END_PRAYER, false)) {
+        intent.removeExtra(EXTRA_END_PRAYER)
+        return@Function true
+      }
+      return@Function false
+    }
+  }
+}

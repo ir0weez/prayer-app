@@ -6,6 +6,10 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
+import {
+  consumePendingPrayerEndRequest,
+  stopPrayerTimerNotification,
+} from "@/modules/expo-prayer-timer/src/index";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
@@ -46,6 +50,15 @@ function RootLayoutContent() {
   useEffect(() => {
     initManusRuntime();
     configureLocalNotifications();
+    // If the prayer timer's End button relaunched the app while JS was dead,
+    // clear the orphaned notification now.
+    try {
+      if (Platform.OS === "android" && consumePendingPrayerEndRequest()) {
+        stopPrayerTimerNotification();
+      }
+    } catch {
+      // Best-effort
+    }
   }, []);
 
   useEffect(() => {

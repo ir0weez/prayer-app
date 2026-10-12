@@ -7,6 +7,13 @@ import { AvatarImage } from "@/components/avatar-system";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
 import { useColors } from "@/hooks/use-colors";
 import { NOTIFICATION_ACTIONS, PRAYER_SESSION_CATEGORY } from "@/lib/notification-scheduler";
+import {
+  addPrayerTimerEndListener,
+  consumePendingPrayerEndRequest,
+  isNativePrayerTimerAvailable,
+  startPrayerTimerNotification,
+  stopPrayerTimerNotification,
+} from "@/modules/expo-prayer-timer/src/index";
 import type { Person } from "@/lib/prayercircle-data";
 
 type Props = {
@@ -101,6 +108,9 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const [prayButtonPos, setPrayButtonPos] = useState<{ x: number; y: number } | null>(null);
   const timerRef2 = useRef<View>(null);
   const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
+  // Always call the latest onClose from native notification callbacks.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Timer position for bonus XP floater (drops from timer)
   const bonusPosition = timerPos ?? { x: Dimensions.get("window").width - 60, y: 120 };
@@ -134,8 +144,18 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
       }, 1000);
-      // Show persistent notification with timer
-      setupPrayerNotification();
+      // Show persistent notification with timer. On Android the native module
+      // posts a live count-up chronometer; elsewhere fall back to expo.
+      let endListener: { remove(): void } | null = null;
+      if (isNativePrayerTimerAvailable()) {
+        startPrayerTimerNotification();
+        endListener = addPrayerTimerEndListener(() => {
+          consumePendingPrayerEndRequest();
+          onCloseRef.current();
+        });
+      } else {
+        setupPrayerNotification();
+      }
       // Handle screen off/on: recalc from wall clock when foregrounded
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
@@ -152,12 +172,15 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         appStateSub.remove();
         if (timerRef.current) clearInterval(timerRef.current);
         sessionStartRef.current = 0;
-        dismissPrayerNotification();
+        endListener?.remove();
+        if (isNativePrayerTimerAvailable()) stopPrayerTimerNotification();
+        else dismissPrayerNotification();
       };
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      dismissPrayerNotification();
+      if (isNativePrayerTimerAvailable()) stopPrayerTimerNotification();
+      else dismissPrayerNotification();
     };
   }, [visible]);
 

@@ -1,0 +1,1 @@
+{"description":"Live count-up prayer timer notification using Android's chronometer","keywords":["expo","android","notification","timer","prayer"],"main":"src/index.ts","name":"expo-prayer-timer","types":"src/index.ts","version":"1.0.0"}

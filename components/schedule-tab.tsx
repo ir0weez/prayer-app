@@ -2514,10 +2514,185 @@ function StPatricksScene({ scale = 1 }: { scale?: number }) {
   );
 }
 
+/** Taco night: taco, burrito & Baja Blast-style drink on a warm table. */
+function TacoScene() {
+  return (
+    <SceneRoot base="#7B2D26">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "45%", backgroundColor: "#4E1B15" }} />
+      <BreatheGlow color="#FFD54F" size={150} left="66%" bottom={60} min={0.2} max={0.4} duration={4800} />
+      <GentleBob left="50%" bottom={12} width={120} height={96} distance={6} duration={3600}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 120, height: 60, borderTopLeftRadius: 60, borderTopRightRadius: 60, backgroundColor: "#F0BE6A" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 30, width: 24, height: 30, borderRadius: 6, backgroundColor: "#7CB342", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 40, bottom: 36, width: 24, height: 30, borderRadius: 6, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 68, bottom: 30, width: 24, height: 30, borderRadius: 6, backgroundColor: "#7CB342", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 48, width: 72, height: 18, borderRadius: 9, backgroundColor: "#8D6E63" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "68%", bottom: 12, width: 108, height: 66 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 108, height: 48, borderRadius: 24, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 36, width: 24, height: 24, borderRadius: 6, backgroundColor: "#D7CCC8", transform: [{ rotate: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 84, bottom: 36, width: 24, height: 24, borderRadius: 6, backgroundColor: "#D7CCC8", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 48, width: 60, height: 18, borderRadius: 9, backgroundColor: "#C89B6A" }} />
+      </View>
+      <GentleSway left="80%" bottom={12} width={48} height={84} arc={6} duration={3800}>
+        <View style={{ position: "absolute", left: 18, bottom: 66, width: 7, height: 24, borderRadius: 3.5, backgroundColor: "#FFFFFF", transform: [{ rotate: "14deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 36, height: 69, borderRadius: 9, backgroundColor: "#26C6DA" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 60, width: 36, height: 10, borderRadius: 5, backgroundColor: "#B2EBF2" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 69, width: 20, height: 15, borderRadius: 7.5, backgroundColor: "#FFFFFF" }} />
+      </GentleSway>
+      <RisingDot left="56%" top={33} size={7} color="#FFFFFF" duration={4500} delay={800} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Deli stop: sub sandwich, soup bowl with steam & cookie. */
+function SandwichScene() {
+  return (
+    <SceneRoot base="#4A7C2E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#2E4F1C" }} />
+      <BreatheGlow color="#FFD54F" size={140} left="64%" bottom={60} min={0.2} max={0.38} duration={5000} />
+      <GentleBob left="50%" bottom={12} width={150} height={72} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 150, height: 30, borderRadius: 15, backgroundColor: "#F0BE6A" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 24, width: 138, height: 16, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 22, width: 126, height: 14, borderRadius: 7, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 40, width: 150, height: 28, borderTopLeftRadius: 60, borderTopRightRadius: 60, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#F5D08A" }} />
+        <View style={{ position: "absolute", left: 45, bottom: 60, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 90, bottom: 58, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "70%", bottom: 12, width: 72, height: 66 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 72, height: 42, borderBottomLeftRadius: 21, borderBottomRightRadius: 21, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 36, width: 60, height: 12, borderRadius: 6, backgroundColor: "#FF8A65" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 48, width: 72, height: 6, borderRadius: 3, backgroundColor: "#D7CCC8" }} />
+      </View>
+      <RisingDot left="72%" top={40} size={7} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.55} sway={6} square={false} bordered={false} />
+      <RisingDot left="74%" top={40} size={5.5} color="#FFFFFF" duration={4900} delay={1400} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <GentleSway left="82%" bottom={12} width={42} height={42} arc={8} duration={3400}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 42, height: 42, borderRadius: 21, backgroundColor: "#A9713F" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#4E342E" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: "#4E342E" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 28, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#4E342E" }} />
+      </GentleSway>
+    </SceneRoot>
+  );
+}
+
+/** Pizza night: pepperoni slice, whole pie & soda. */
+function PizzaScene() {
+  return (
+    <SceneRoot base="#8E2F22">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#5E1F16" }} />
+      <BreatheGlow color="#FFB300" size={150} left="66%" bottom={60} min={0.18} max={0.36} duration={4600} />
+      <GentleBob left="50%" bottom={12} width={120} height={90} distance={6} duration={3400}>
+        <View style={{ position: "absolute", left: 30, bottom: 0, width: 60, height: 90, backgroundColor: "#FFD54F", transform: [{ rotate: "0deg" }], borderTopLeftRadius: 30, borderTopRightRadius: 30 }} />
+        <View style={{ position: "absolute", left: 20, bottom: 0, width: 80, height: 18, borderRadius: 9, backgroundColor: "#F0BE6A" }} />
+        <View style={{ position: "absolute", left: 44, bottom: 54, width: 14, height: 14, borderRadius: 7, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 62, bottom: 36, width: 14, height: 14, borderRadius: 7, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 42, bottom: 20, width: 12, height: 12, borderRadius: 6, backgroundColor: "#C0392B" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "66%", bottom: 12, width: 108, height: 54 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 108, height: 54, borderRadius: 27, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 108, height: 54, borderRadius: 27, borderWidth: 10, borderColor: "#F0BE6A" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 22, width: 16, height: 16, borderRadius: 8, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 60, bottom: 28, width: 16, height: 16, borderRadius: 8, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 46, bottom: 12, width: 14, height: 14, borderRadius: 7, backgroundColor: "#C0392B" }} />
+      </View>
+      <GentleSway left="80%" bottom={12} width={44} height={78} arc={6} duration={3800}>
+        <View style={{ position: "absolute", left: 17, bottom: 60, width: 6, height: 22, borderRadius: 3, backgroundColor: "#FFFFFF", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 32, height: 63, borderRadius: 8, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 54, width: 32, height: 9, borderRadius: 4.5, backgroundColor: "#FFCDD2" }} />
+        <View style={{ position: "absolute", left: 13, bottom: 63, width: 18, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF" }} />
+      </GentleSway>
+      <RisingDot left="56%" top={36} size={6.5} color="#FFFFFF" duration={4400} delay={600} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Chicken spot: drumstick, nuggets, fries & drink. */
+function ChickenScene() {
+  return (
+    <SceneRoot base="#A93226">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#6E1F16" }} />
+      <BreatheGlow color="#FFD54F" size={140} left="66%" bottom={60} min={0.2} max={0.38} duration={4800} />
+      <GentleBob left="50%" bottom={12} width={84} height={102} distance={6} duration={3600}>
+        <View style={{ position: "absolute", left: 12, bottom: 30, width: 60, height: 72, borderRadius: 30, backgroundColor: "#D89B4E" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 48, width: 36, height: 36, borderRadius: 18, backgroundColor: "#C98A2E" }} />
+        <View style={{ position: "absolute", left: 36, bottom: 0, width: 12, height: 36, borderRadius: 6, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 30, width: 28, height: 12, borderRadius: 6, backgroundColor: "#FFF8E1" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "63%", bottom: 12, width: 84, height: 60 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 84, height: 36, borderRadius: 18, backgroundColor: "#D89B4E" }} />
+        <View style={{ position: "absolute", left: 48, bottom: 18, width: 36, height: 36, borderRadius: 18, backgroundColor: "#C98A2E" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 24, width: 12, height: 12, borderRadius: 6, backgroundColor: "#B87A25" }} />
+        <View style={{ position: "absolute", left: 58, bottom: 30, width: 10, height: 10, borderRadius: 5, backgroundColor: "#B87A25" }} />
+      </View>
+      <View style={{ position: "absolute", left: "72%", bottom: 12, width: 60, height: 78 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 30, width: 9, height: 42, borderRadius: 4, backgroundColor: "#FFD54F", transform: [{ rotate: "-7deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 32, width: 9, height: 42, borderRadius: 4, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 37, bottom: 30, width: 9, height: 42, borderRadius: 4, backgroundColor: "#FFCA28", transform: [{ rotate: "7deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 60, height: 36, borderRadius: 7, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 16, width: 60, height: 7, backgroundColor: "#E53935", opacity: 0.85 }} />
+      </View>
+      <GentleSway left="82%" bottom={12} width={42} height={72} arc={6} duration={3800}>
+        <View style={{ position: "absolute", left: 16, bottom: 54, width: 6, height: 20, borderRadius: 3, backgroundColor: "#FFFFFF", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 30, height: 57, borderRadius: 8, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 48, width: 30, height: 9, borderRadius: 4.5, backgroundColor: "#8D6E63" }} />
+      </GentleSway>
+      <RisingDot left="55%" top={36} size={6.5} color="#FFFFFF" duration={4500} delay={900} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Coffee run: steaming cup, croissant & to-go cup. */
+function CoffeeScene() {
+  return (
+    <SceneRoot base="#5D4037">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "40%", backgroundColor: "#3E2723" }} />
+      <BreatheGlow color="#FFB300" size={150} left="66%" bottom={66} min={0.18} max={0.36} duration={5000} />
+      <GentleBob left="50%" bottom={12} width={96} height={84} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 72, height: 60, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 54, width: 60, height: 10, borderRadius: 5, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 84, bottom: 18, width: 24, height: 30, borderRadius: 12, borderWidth: 8, borderColor: "#FFF8E1", borderLeftWidth: 0 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 60, width: 72, height: 6, borderRadius: 3, backgroundColor: "#D7CCC8" }} />
+      </GentleBob>
+      <RisingDot left="56%" top={36} size={7.5} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.55} sway={7} square={false} bordered={false} />
+      <RisingDot left="59%" top={36} size={6} color="#FFFFFF" duration={4800} delay={1400} maxOpacity={0.45} sway={7} square={false} bordered={false} />
+      <GentleSway left="66%" bottom={12} width={90} height={54} arc={7} duration={3400}>
+        <View style={{ position: "absolute", left: 10, bottom: 6, width: 70, height: 36, borderRadius: 18, backgroundColor: "#E8A94E" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: "#D89B4E" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: "#D89B4E" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#C98A2E" }} />
+        <View style={{ position: "absolute", left: 52, bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#C98A2E" }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "80%", bottom: 12, width: 42, height: 78 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 34, height: 66, borderRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 60, width: 34, height: 12, borderRadius: 6, backgroundColor: "#2E7D32" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 22, height: 22, borderRadius: 11, backgroundColor: "#2E7D32", opacity: 0.85 }} />
+      </View>
+      <TwinkleField color="#FFD54F" count={5} seed={12} />
+    </SceneRoot>
+  );
+}
+
+/** Picks a restaurant-specific food scene from the event location. Returns null for no match. */
+function detectRestaurantScene(location: string | undefined | null): React.ReactNode | null {
+  if (!location) return null;
+  const loc = location.toLowerCase();
+  const match = (...names: string[]) => names.some((n) => loc.includes(n));
+  if (match("taco bell", "del taco", "chipotle", "qdoba", "baja fresh")) return <TacoScene />;
+  if (match("subway", "panera", "jersey mike", "jimmy john", "firehouse sub", "quiznos")) return <SandwichScene />;
+  if (match("pizza hut", "domino", "little caesar", "papa john", "round table", "mod pizza")) return <PizzaScene />;
+  if (match("kfc", "chick-fil-a", "chick fil a", "popeyes", "raising cane", "canes", "wingstop", "church's chicken")) return <ChickenScene />;
+  if (match("starbucks", "dunkin", "peet", "coffee bean", "dutch bros", "coffee")) return <CoffeeScene />;
+  if (match("mcdonald", "in-n-out", "in n out", "burger king", "wendy", "five guys", "shake shack", "carl's jr", "carls jr", "jack in the box", "sonic", "habit burger")) return <LunchScene />;
+  return null;
+}
+
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label, title = "", scale = 1 }: { label: string; title?: string; scale?: number }) {
+function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }: { label: string; title?: string; location?: string; scale?: number }) {
   // Breakfast, lunch, and dinner each get their own illustrated scene.
+  // A matching restaurant in the location swaps in its own food scene.
   if (label === "Meal") {
+    const restaurantScene = detectRestaurantScene(location);
+    if (restaurantScene) return restaurantScene;
     const t = title.toLowerCase();
     if (t.includes("breakfast") || t.includes("brunch")) return <BreakfastScene />;
     if (t.includes("lunch")) return <LunchScene />;
@@ -3054,7 +3229,7 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} scale={isHolidayCard ? holidayScale : 1} />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} scale={isHolidayCard ? holidayScale : 1} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

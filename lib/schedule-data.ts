@@ -152,6 +152,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["mission", "outreach", "volunteer"], label: "Outreach", emoji: "🌍❤️", icon: "public", bgColor: "#17695E", textColor: "#006064", accentColor: "#00BCD4" },
   { keywords: ["concert", "music", "band"], label: "Concert", emoji: "🎶", icon: "music-note", bgColor: "#1E1E2A", textColor: "#33691E", accentColor: "#8BC34A" },
   { keywords: ["travel", "trip", "vacation", "flight"], label: "Travel", emoji: "✈️🌴", icon: "flight", bgColor: "#3E8EBA", textColor: "#01579B", accentColor: "#03A9F4" },
+  { keywords: ["hotel", "motel", "airbnb", "resort", "inn", "lodge", "hostel", "bed and breakfast", "bnb"], label: "Hotel", emoji: "🏨", icon: "hotel", bgColor: "#3E5A7E", textColor: "#E8EAF6", accentColor: "#FF8F00" },
   { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", icon: "school", bgColor: "#3B4657", textColor: "#BF360C", accentColor: "#FF5722" },
   { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", icon: "home", bgColor: "#CE8A3E", textColor: "#558B2F", accentColor: "#9CCC65" },
   { keywords: ["amusement park", "six flags", "knott's", "disneyland", "universal", "theme park"], label: "Amusement Park", emoji: "🎢🎡", icon: "attractions", bgColor: "#5E2E8E", textColor: "#6A1B9A", accentColor: "#E91E63" },

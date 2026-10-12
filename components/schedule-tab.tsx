@@ -2517,6 +2517,44 @@ function TravelScene() {
   );
 }
 
+/** Hotel: evening hotel with lit windows, entrance awning, luggage, vacancy glow. */
+function HotelScene() {
+  return (
+    <SceneRoot base="#3E5A7E">
+      <TwinkleField color="#FFFFFF" count={6} seed={11} />
+      {/* Hotel building with lit windows */}
+      <View style={{ position: "absolute", left: "64%", bottom: 0, width: 84, height: 104 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 84, height: 104, backgroundColor: "#2C4258" }} />
+        <View style={{ position: "absolute", left: -6, bottom: 100, width: 96, height: 9, borderRadius: 3, backgroundColor: "#22344A" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 74, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 35, bottom: 74, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 60, bottom: 74, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 50, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 35, bottom: 50, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 60, bottom: 50, width: 14, height: 12, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+        {/* Entrance with red awning */}
+        <View style={{ position: "absolute", left: 24, bottom: 0, width: 36, height: 30, backgroundColor: "#FFCA28", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 18, bottom: 30, width: 48, height: 10, borderRadius: 5, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 0, width: 4, height: 30, backgroundColor: "#8D6E63", opacity: 0.8 }} />
+      </View>
+      {/* VACANCY sign with warm glow */}
+      <BreatheGlow color="#FF8F00" size={64} left="50%" bottom={58} min={0.25} max={0.45} duration={2600} />
+      <View style={{ position: "absolute", left: "52%", bottom: 66, width: 44, height: 16, borderRadius: 4, backgroundColor: "#1A2A3A", borderWidth: 1.5, borderColor: "#FF8F00" }}>
+        <View style={{ position: "absolute", left: 6, bottom: 5, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF8F00" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 5, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF8F00" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 5, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FF8F00" }} />
+      </View>
+      {/* Bobbing suitcase */}
+      <GentleBob left="56%" bottom={6} width={40} height={34} distance={6} duration={3400}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 32, height: 24, borderRadius: 4, backgroundColor: "#8D5A2B" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 10, width: 32, height: 4, backgroundColor: "#5D3A1A" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 24, width: 12, height: 6, borderRadius: 3, backgroundColor: "#5D3A1A" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 3, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFD54F", opacity: 0.8 }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
 /** New Year: fireworks, champagne coupe with bubbles, midnight clock. */
 function NewYearScene({ scale = 1 }: { scale?: number }) {
   return (
@@ -3322,6 +3360,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }
     case "Outreach": return <OutreachScene />;
     case "Concert": return <ConcertScene />;
     case "Travel": return <TravelScene />;
+    case "Hotel": return <HotelScene />;
     case "Study": return <StudyScene />;
     case "Visit": return <VisitScene />;
     case "Amusement Park": {

@@ -1480,6 +1480,8 @@ export function ScheduleTab({
   const [ministries, setMinistries] = useState<ScheduleMinistry[]>([]);
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  // White-block hour menu: which free-hour block was tapped (null = closed)
+  const [whiteBlockMenu, setWhiteBlockMenu] = useState<TimeBlock | null>(null);
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
@@ -1504,6 +1506,22 @@ export function ScheduleTab({
     setIsCreatingEvent(true);
     setShowAddModal(false);
     setAddType(null);
+  };
+
+  const openNewTodoEditorAtTime = (startTime: string) => {
+    resetForm();
+    setFormDate(selectedDate);
+    setFormStartTime(startTime);
+    setAddType("todo");
+    setShowAddModal(false);
+  };
+
+  const openNewMinistryEditorAtTime = (startTime: string) => {
+    resetForm();
+    setFormDate(selectedDate);
+    setFormStartTime(startTime);
+    setAddType("ministry");
+    setShowAddModal(false);
   };
 
   const closeEventEditor = () => {
@@ -3828,14 +3846,14 @@ export function ScheduleTab({
           return (
             <TimeBlockIndicator
               block={item.data.block}
-              onPress={(block) => openNewEventEditorAtTime(block.startTime)}
+              onPress={(block) => setWhiteBlockMenu(block)}
             />
           );
         case "time-block-group":
           return (
             <TimeBlockGroup
               blocks={item.data.blocks}
-              onPress={(block) => openNewEventEditorAtTime(block.startTime)}
+              onPress={(block) => setWhiteBlockMenu(block)}
             />
           );
         case "current-time-indicator":
@@ -4318,6 +4336,54 @@ export function ScheduleTab({
           </ReAnimated.View>
         </>
       )}
+
+      {/* White-block hour menu: pick Event / Todo / Ministry for the tapped hour */}
+      <Modal transparent visible={whiteBlockMenu !== null} animationType="fade" onRequestClose={() => setWhiteBlockMenu(null)}>
+        <Pressable style={[scheduleStyles.fabOverlay, { backgroundColor: "rgba(0,0,0,0.4)" }]} onPress={() => setWhiteBlockMenu(null)} />
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", zIndex: 101 }} pointerEvents="box-none">
+          <ReAnimated.View
+            entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
+            style={{ backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 8, minWidth: 260, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}
+          >
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
+              {whiteBlockMenu ? `ADD TO ${format12HourTime(whiteBlockMenu.startTime)} → ${format12HourTime(whiteBlockMenu.endTime)}` : ""}
+            </Text>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(30).easing(Easing.out(Easing.quad))}>
+              <Pressable
+                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime); }}
+                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#3DAA78" }]}>
+                  <MaterialIcons name="event" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Event</Text>
+              </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(60).easing(Easing.out(Easing.quad))}>
+              <Pressable
+                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewTodoEditorAtTime(b.startTime); }}
+                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E3B341" }]}>
+                  <MaterialIcons name="check-box" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
+              </Pressable>
+            </ReAnimated.View>
+            <ReAnimated.View entering={FadeIn.duration(180).delay(90).easing(Easing.out(Easing.quad))}>
+              <Pressable
+                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewMinistryEditorAtTime(b.startTime); }}
+                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
+              >
+                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#7C5CFF" }]}>
+                  <MaterialIcons name="volunteer-activism" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
+              </Pressable>
+            </ReAnimated.View>
+          </ReAnimated.View>
+        </View>
+      </Modal>
 
       <EventEditForm
         event={editingEvent || createScheduleEvent({ title: "", date: selectedDate, color: "#6B7280" })}

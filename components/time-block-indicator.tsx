@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TimeBlock } from "@/lib/time-blocks";
@@ -73,7 +73,7 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
         <Pressable
           key={block.id}
           accessibilityRole="button"
-          accessibilityLabel={`White space from ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to add an event.`}
+          accessibilityLabel={`White space from ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to choose what to add.`}
           onPress={() => onPress?.(block)}
           style={({ pressed }) => [
             styles.groupRow,
@@ -84,15 +84,68 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
             { opacity: pressed ? 0.65 : 1 },
           ]}
         >
-          <View style={styles.left}>
-            <MaterialIcons name="add" size={18} color={colors.muted} />
-            <Text style={[styles.label, { color: colors.muted }]}>Add event?</Text>
-          </View>
+          <CyclingAddLabel mutedColor={colors.muted} />
           <Text style={[styles.time, { color: colors.muted }]}>
             {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
           </Text>
         </Pressable>
       ))}
+    </View>
+  );
+}
+
+const ADD_WORDS = ["event", "todo", "ministry"];
+const WORD_COLORS = ["#FF6B6B", "#FFA94D", "#FFD43B", "#69DB7C", "#4DABF7", "#9775FA", "#F783AC"];
+const WORD_CYCLE_MS = 2800;
+const COLOR_STEP_MS = 450;
+
+/** One keyword ("event" / "todo" / "ministry") with colorful animated letters. */
+function RainbowWord({ word, offset }: { word: string; offset: number }) {
+  return (
+    <Text>
+      {word.split("").map((ch, i) => (
+        <Text key={i} style={{ color: WORD_COLORS[(i + offset) % WORD_COLORS.length], fontWeight: "800" }}>
+          {ch}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+/**
+ * "add <event|todo|ministry>?" — the keyword cycles every few seconds with a
+ * soft fade, and its letters flow through bright colors. Restrained: no
+ * bounce, no movement, just color and fades.
+ */
+function CyclingAddLabel({ mutedColor }: { mutedColor: string }) {
+  const [wordIndex, setWordIndex] = useState(0);
+  const [colorOffset, setColorOffset] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const wordTimer = setInterval(() => {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+        setWordIndex((w) => (w + 1) % ADD_WORDS.length);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      });
+    }, WORD_CYCLE_MS);
+    const colorTimer = setInterval(() => setColorOffset((o) => o + 1), COLOR_STEP_MS);
+    return () => {
+      clearInterval(wordTimer);
+      clearInterval(colorTimer);
+    };
+  }, [fadeAnim]);
+
+  return (
+    <View style={styles.left}>
+      <MaterialIcons name="add" size={18} color={mutedColor} />
+      <Text style={[styles.label, { color: mutedColor }]}>add </Text>
+      <Animated.View style={{ opacity: fadeAnim }}>
+        <Text style={styles.label}>
+          <RainbowWord word={ADD_WORDS[wordIndex]} offset={colorOffset} />
+        </Text>
+      </Animated.View>
+      <Text style={[styles.label, { color: mutedColor }]}>?</Text>
     </View>
   );
 }

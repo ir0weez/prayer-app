@@ -3014,6 +3014,251 @@ function DonutScene() {
   );
 }
 
+/** Knott's Berry Farm: boysenberry bush, doghouse, jam jar. */
+function KnottsScene() {
+  return (
+    <SceneRoot base="#6B3A2A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#4A2418" }} />
+      <BreatheGlow color="#FFD54F" size={140} left="66%" bottom={52} min={0.18} max={0.34} duration={5200} />
+      <GentleSway left="56%" bottom={14} width={92} height={96} arc={8} duration={4400}>
+        <View style={{ position: "absolute", left: 41, bottom: 0, width: 10, height: 52, borderRadius: 5, backgroundColor: "#3E5E2E" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 34, width: 30, height: 18, borderRadius: 9, backgroundColor: "#4A7C3A", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 50, bottom: 40, width: 30, height: 18, borderRadius: 9, backgroundColor: "#4A7C3A", transform: [{ rotate: "22deg" }] }} />
+        <View style={{ position: "absolute", left: 22, bottom: 52, width: 16, height: 16, borderRadius: 8, backgroundColor: "#4A1E5E" }} />
+        <View style={{ position: "absolute", left: 42, bottom: 58, width: 14, height: 14, borderRadius: 7, backgroundColor: "#5E2A7A" }} />
+        <View style={{ position: "absolute", left: 58, bottom: 50, width: 16, height: 16, borderRadius: 8, backgroundColor: "#4A1E5E" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 70, width: 12, height: 12, borderRadius: 6, backgroundColor: "#6E3A8A" }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "78%", bottom: 12, width: 64, height: 56 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 64, height: 40, backgroundColor: "#8E2F22" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 36, width: 60, height: 12, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 46, width: 20, height: 8, backgroundColor: "#7B241C" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 12, width: 12, height: 14, borderRadius: 6, backgroundColor: "#2E1A0E" }} />
+      </View>
+      <GentleBob left="64%" bottom={12} width={40} height={52} distance={6} duration={3800}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 32, height: 40, borderRadius: 8, backgroundColor: "#E8D8B8" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 34, width: 32, height: 10, borderRadius: 5, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: "#7A2E5E", opacity: 0.85 }} />
+      </GentleBob>
+      <TwinkleField color="#FFD9A0" count={4} seed={91} />
+    </SceneRoot>
+  );
+}
+
+/** Six Flags: coaster track with car, hero cape/mask, city skyline. */
+function SixFlagsScene() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 7000, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const carAngle = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return (
+    <SceneRoot base="#1A3A6E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#0E2140" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 0, width: 14, height: 44, backgroundColor: "#16294F" }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 0, width: 20, height: 60, backgroundColor: "#16294F" }} />
+      <View style={{ position: "absolute", left: "74%", bottom: 0, width: 12, height: 36, backgroundColor: "#16294F" }} />
+      <View style={{ position: "absolute", left: "84%", bottom: 0, width: 18, height: 52, backgroundColor: "#16294F" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 40, width: 10, height: 6, backgroundColor: "#FFD54F", opacity: 0.7 }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 56, width: 10, height: 6, backgroundColor: "#FFD54F", opacity: 0.7 }} />
+      <View style={{ position: "absolute", left: "86%", bottom: 48, width: 10, height: 6, backgroundColor: "#FFD54F", opacity: 0.7 }} />
+      <View style={{ position: "absolute", left: "50%", bottom: 48, width: 96, height: 96 }}>
+        <View style={{ position: "absolute", left: 18, bottom: 0, width: 5, height: 40, borderRadius: 2, backgroundColor: "#B0BEC5", opacity: 0.6 }} />
+        <View style={{ position: "absolute", right: 18, bottom: 0, width: 5, height: 40, borderRadius: 2, backgroundColor: "#B0BEC5", opacity: 0.6 }} />
+        <View style={{ position: "absolute", left: 8, top: 0, width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: "#E53935", opacity: 0.85, backgroundColor: "transparent" }} />
+        <Animated.View style={{ position: "absolute", left: 8, top: 0, width: 80, height: 80, transform: [{ rotate: carAngle }] }}>
+          <View style={{ position: "absolute", left: 32, top: -8, width: 16, height: 12, borderRadius: 4, backgroundColor: "#FFD54F" }} />
+        </Animated.View>
+      </View>
+      <GentleSway left="74%" bottom={64} width={52} height={44} arc={12} duration={4200}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 30, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: "#E53935", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 14, bottom: 18, width: 24, height: 12, borderRadius: 6, backgroundColor: "#1A1A1A", opacity: 0.85, transform: [{ rotate: "-14deg" }] }} />
+      </GentleSway>
+      <TwinkleField color="#FFFFFF" count={5} seed={55} />
+    </SceneRoot>
+  );
+}
+
+/** Disneyland: fairy-tale castle, fireworks sparkles, hot air balloon. */
+function DisneylandScene() {
+  return (
+    <SceneRoot base="#2A4A8E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "26%", backgroundColor: "#1E3468" }} />
+      <BreatheGlow color="#FFD54F" size={150} left="62%" bottom={56} min={0.2} max={0.36} duration={5000} />
+      <View style={{ position: "absolute", left: "56%", bottom: 10, width: 120, height: 104 }}>
+        <View style={{ position: "absolute", left: 20, bottom: 0, width: 80, height: 56, backgroundColor: "#D8B4E2" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 56, width: 80, height: 10, backgroundColor: "#B388EB" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 26, height: 72, backgroundColor: "#E2C4EE" }} />
+        <View style={{ position: "absolute", left: 86, bottom: 0, width: 26, height: 72, backgroundColor: "#E2C4EE" }} />
+        <View style={{ position: "absolute", left: 47, bottom: 0, width: 26, height: 96, backgroundColor: "#EADCF5" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 68, width: 34, height: 22, backgroundColor: "#5C6BC0", borderTopLeftRadius: 17, borderTopRightRadius: 17 }} />
+        <View style={{ position: "absolute", left: 82, bottom: 68, width: 34, height: 22, backgroundColor: "#5C6BC0", borderTopLeftRadius: 17, borderTopRightRadius: 17 }} />
+        <View style={{ position: "absolute", left: 43, bottom: 92, width: 34, height: 24, backgroundColor: "#7986CB", borderTopLeftRadius: 17, borderTopRightRadius: 17 }} />
+        <View style={{ position: "absolute", left: 57, bottom: 114, width: 4, height: 12, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 61, bottom: 116, width: 14, height: 9, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 52, bottom: 12, width: 16, height: 24, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#4A3A6E" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 20, width: 10, height: 12, borderRadius: 5, backgroundColor: "#FFF9C4", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 80, bottom: 20, width: 10, height: 12, borderRadius: 5, backgroundColor: "#FFF9C4", opacity: 0.9 }} />
+      </View>
+      <GentleBob left="82%" bottom={72} width={44} height={56} distance={8} duration={4600}>
+        <View style={{ position: "absolute", left: 6, bottom: 22, width: 32, height: 26, borderRadius: 16, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 22, width: 32, height: 13, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, backgroundColor: "#FFB300" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 20, height: 14, backgroundColor: "#8E5E3A" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 14, width: 2, height: 12, backgroundColor: "#8E5E3A" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 14, width: 2, height: 12, backgroundColor: "#8E5E3A" }} />
+      </GentleBob>
+      <RisingDot left="58%" top={30} size={6} color="#FFD54F" duration={3600} delay={400} maxOpacity={0.8} sway={8} square={false} bordered={false} />
+      <RisingDot left="70%" top={44} size={5} color="#FFFFFF" duration={4200} delay={1400} maxOpacity={0.7} sway={10} square={false} bordered={false} />
+      <TwinkleField color="#FFF9C4" count={6} seed={21} />
+    </SceneRoot>
+  );
+}
+
+/** Universal Studios: clapperboard, spotlight beams, globe. */
+function UniversalScene() {
+  return (
+    <SceneRoot base="#4A2A6E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#2E1A4A" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 20, width: 34, height: 90, backgroundColor: "#FFF9C4", opacity: 0.1, transform: [{ rotate: "-18deg" }] }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 20, width: 34, height: 90, backgroundColor: "#FFF9C4", opacity: 0.1, transform: [{ rotate: "18deg" }] }} />
+      <GentleSway left="54%" bottom={16} width={88} height={64} arc={6} duration={4000}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 88, height: 44, borderRadius: 6, backgroundColor: "#1A1A1A" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 38, width: 88, height: 18, borderRadius: 4, backgroundColor: "#2E2E2E", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 40, width: 12, height: 14, backgroundColor: "#FFFFFF", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 28, bottom: 40, width: 12, height: 14, backgroundColor: "#FFFFFF", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 48, bottom: 40, width: 12, height: 14, backgroundColor: "#FFFFFF", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 68, bottom: 40, width: 12, height: 14, backgroundColor: "#FFFFFF", transform: [{ rotate: "-8deg" }] }} />
+      </GentleSway>
+      <GentleBob left="76%" bottom={14} width={64} height={64} distance={7} duration={4400}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 64, height: 64, borderRadius: 32, backgroundColor: "#5C8EC4" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 14, width: 44, height: 36, borderRadius: 18, backgroundColor: "#6FA34A", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 22, bottom: 30, width: 20, height: 14, borderRadius: 7, backgroundColor: "#8EC47A", opacity: 0.9 }} />
+      </GentleBob>
+      <RisingDot left="60%" top={36} size={6} color="#FFD54F" duration={3800} delay={600} maxOpacity={0.7} sway={8} square={false} bordered={false} />
+      <TwinkleField color="#E1BEE7" count={5} seed={68} />
+    </SceneRoot>
+  );
+}
+
+/** Legoland: stacked building bricks, small brick castle. */
+function LegolandScene() {
+  return (
+    <SceneRoot base="#3A7A2E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#26521E" }} />
+      <BreatheGlow color="#FFD54F" size={130} left="64%" bottom={54} min={0.18} max={0.32} duration={4800} />
+      <GentleBob left="52%" bottom={12} width={96} height={92} distance={6} duration={3600}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 80, height: 22, borderRadius: 4, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 22, width: 12, height: 6, borderRadius: 3, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 22, width: 12, height: 6, borderRadius: 3, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 54, bottom: 22, width: 12, height: 6, borderRadius: 3, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 28, width: 60, height: 20, borderRadius: 4, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 48, width: 10, height: 6, borderRadius: 3, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 42, bottom: 48, width: 10, height: 6, borderRadius: 3, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 60, bottom: 48, width: 10, height: 6, borderRadius: 3, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 54, width: 40, height: 18, borderRadius: 4, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 33, bottom: 72, width: 9, height: 5, borderRadius: 2, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 48, bottom: 72, width: 9, height: 5, borderRadius: 2, backgroundColor: "#FFD54F" }} />
+      </GentleBob>
+      <GentleSway left="76%" bottom={12} width={52} height={70} arc={7} duration={4200}>
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 40, height: 44, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 44, width: 16, height: 14, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 44, width: 16, height: 14, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 58, width: 16, height: 10, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 58, width: 16, height: 10, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 16, width: 12, height: 16, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#1B3A14" }} />
+      </GentleSway>
+      <TwinkleField color="#C8E6C9" count={4} seed={44} />
+    </SceneRoot>
+  );
+}
+
+/** SeaWorld: jumping orca, waves, splash. */
+function SeaworldScene() {
+  return (
+    <SceneRoot base="#1E6E8E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "38%", backgroundColor: "#155A75" }} />
+      <View style={{ position: "absolute", left: "-6%", right: "-6%", bottom: 22, height: 30, borderRadius: 20, backgroundColor: "#2E8EAE", opacity: 0.7 }} />
+      <BreatheGlow color="#B3E5FC" size={140} left="66%" bottom={58} min={0.2} max={0.36} duration={5000} />
+      <GentleBob left="58%" bottom={30} width={104} height={84} distance={10} duration={3200}>
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 84, height: 34, borderRadius: 17, backgroundColor: "#263238" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 84, height: 16, borderBottomLeftRadius: 17, borderBottomRightRadius: 17, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 78, bottom: 30, width: 18, height: 22, backgroundColor: "#263238", transform: [{ rotate: "28deg" }], borderTopRightRadius: 9 }} />
+        <View style={{ position: "absolute", left: 44, bottom: 52, width: 16, height: 20, backgroundColor: "#37474F", borderTopLeftRadius: 8, borderTopRightRadius: 8, transform: [{ rotate: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 22, bottom: 36, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+      </GentleBob>
+      <RisingDot left="60%" top={52} size={7} color="#B3E5FC" duration={3000} delay={200} maxOpacity={0.7} sway={10} square={false} bordered={false} />
+      <RisingDot left="72%" top={58} size={5.5} color="#FFFFFF" duration={3400} delay={1100} maxOpacity={0.6} sway={12} square={false} bordered={false} />
+      <RisingDot left="52%" top={60} size={5} color="#B3E5FC" duration={3800} delay={1900} maxOpacity={0.6} sway={8} square={false} bordered={false} />
+      <TwinkleField color="#B3E5FC" count={5} seed={82} />
+    </SceneRoot>
+  );
+}
+
+/** Generic amusement park: ferris wheel, coaster, balloons, string lights. */
+function GenericParkScene() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 12000, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return (
+    <SceneRoot base="#5E2E8E">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "28%", backgroundColor: "#3E1E62" }} />
+      <TwinkleField color="#FFD54F" count={6} seed={12} />
+      <View style={{ position: "absolute", left: "52%", bottom: 10, width: 88, height: 100 }}>
+        <View style={{ position: "absolute", left: 40, bottom: 0, width: 6, height: 44, backgroundColor: "#B0BEC5", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 18, bottom: 0, width: 6, height: 30, backgroundColor: "#B0BEC5", opacity: 0.5, transform: [{ rotate: "22deg" }] }} />
+        <View style={{ position: "absolute", left: 58, bottom: 0, width: 6, height: 30, backgroundColor: "#B0BEC5", opacity: 0.5, transform: [{ rotate: "-22deg" }] }} />
+        <Animated.View style={{ position: "absolute", left: 4, top: 0, width: 80, height: 80, transform: [{ rotate }] }}>
+          <View style={{ position: "absolute", left: 0, top: 0, width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: "#FFD54F", backgroundColor: "transparent" }} />
+          <View style={{ position: "absolute", left: 38, top: 2, width: 4, height: 76, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+          <View style={{ position: "absolute", left: 2, top: 38, width: 76, height: 4, backgroundColor: "#FFD54F", opacity: 0.6 }} />
+          <View style={{ position: "absolute", left: 32, top: -4, width: 16, height: 12, borderRadius: 4, backgroundColor: "#E53935" }} />
+          <View style={{ position: "absolute", left: 32, bottom: -4, width: 16, height: 12, borderRadius: 4, backgroundColor: "#1E88E5" }} />
+          <View style={{ position: "absolute", left: -4, top: 32, width: 16, height: 12, borderRadius: 4, backgroundColor: "#43A047" }} />
+          <View style={{ position: "absolute", right: -4, top: 32, width: 16, height: 12, borderRadius: 4, backgroundColor: "#FF9800" }} />
+        </Animated.View>
+      </View>
+      <View style={{ position: "absolute", left: "78%", bottom: 34, width: 60, height: 60 }}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 4, height: 26, borderRadius: 2, backgroundColor: "#B0BEC5", opacity: 0.5 }} />
+        <View style={{ position: "absolute", right: 12, bottom: 0, width: 4, height: 26, borderRadius: 2, backgroundColor: "#B0BEC5", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 5, top: 0, width: 50, height: 50, borderRadius: 25, borderWidth: 3, borderColor: "#FFFFFF", opacity: 0.45, backgroundColor: "transparent" }} />
+      </View>
+      <GentleBob left="72%" bottom={68} width={30} height={44} distance={9} duration={4000}>
+        <View style={{ position: "absolute", left: 5, bottom: 14, width: 20, height: 24, borderRadius: 12, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 2, height: 16, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+      </GentleBob>
+      <GentleBob left="86%" bottom={60} width={30} height={44} distance={9} duration={4400} delay={900}>
+        <View style={{ position: "absolute", left: 5, bottom: 14, width: 20, height: 24, borderRadius: 12, backgroundColor: "#1E88E5" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 2, height: 16, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+      </GentleBob>
+      <RisingDot left="64%" top={40} size={5.5} color="#FFD54F" duration={3600} delay={500} maxOpacity={0.7} sway={8} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Picks a park-specific amusement scene from the event location. Returns null for no match. */
+function detectParkScene(location: string | undefined | null): React.ReactNode | null {
+  if (!location) return null;
+  const loc = location.toLowerCase();
+  const match = (...names: string[]) => names.some((n) => loc.includes(n));
+  if (match("knott", "boysenberry")) return <KnottsScene />;
+  if (match("six flags", "sixflags")) return <SixFlagsScene />;
+  if (match("disneyland", "disney world", "disney")) return <DisneylandScene />;
+  if (match("universal")) return <UniversalScene />;
+  if (match("legoland", "lego")) return <LegolandScene />;
+  if (match("seaworld", "sea world")) return <SeaworldScene />;
+  return null;
+}
+
 /** Picks a restaurant-specific food scene from the event location. Returns null for no match. */
 function detectRestaurantScene(location: string | undefined | null): React.ReactNode | null {
   if (!location) return null;
@@ -3079,7 +3324,11 @@ function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }
     case "Travel": return <TravelScene />;
     case "Study": return <StudyScene />;
     case "Visit": return <VisitScene />;
-    case "Amusement Park": return <SceneRoot base="#5E2E8E"><CoasterLoop /></SceneRoot>;
+    case "Amusement Park": {
+      const parkScene = detectParkScene(location);
+      if (parkScene) return parkScene;
+      return <GenericParkScene />;
+    }
     case "New Year": return <NewYearScene scale={scale} />;
     case "Valentine's Day": return <ValentinesScene scale={scale} />;
     case "Halloween": return <HalloweenScene scale={scale} />;

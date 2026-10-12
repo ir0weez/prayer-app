@@ -3084,9 +3084,7 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && (getKeywordArtKey(keyword.label, event.title)
-              ? <KeywordArtBackground label={keyword.label} title={event.title} />
-              : <KeywordAmbientAnimation label={keyword.label} title={event.title} />)}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

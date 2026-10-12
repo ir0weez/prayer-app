@@ -48,7 +48,7 @@ import { FlameSparkIcon } from "./flame-spark-icon";
 import { DateTimePicker } from "./date-time-picker";
 import { ScheduleProgressBar } from "./schedule-progress-bar";
 import { TimeBlockCard } from "./time-block-card";
-import { TimeBlockIndicator } from "./time-block-indicator";
+import { TimeBlockIndicator, TimeBlockGroup } from "./time-block-indicator";
 import { NowIndicator, NowPill } from "./now-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
@@ -2970,9 +2970,11 @@ export function ScheduleTab({
     const timedItems: Array<{ type: string; id: string; data: any; sortTime: string }> = [];
     const { timelineTodos, completedGroups } = partitionGroupedTodosForSchedule(dayTodos);
 
-    // Add todos with time (only if there are any)
-    if (timelineTodos.length > 0) {
-      timelineTodos.forEach((t) => {
+    // Add incomplete todos with time (completed todos sink to the bottom in
+    // time order, like completed events and grouped todos)
+    const incompleteTodos = timelineTodos.filter((t) => !t.isCompleted);
+    if (incompleteTodos.length > 0) {
+      incompleteTodos.forEach((t) => {
         timedItems.push({
           type: "todo",
           id: t.id,
@@ -3046,14 +3048,14 @@ export function ScheduleTab({
         ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),
       ];
       const rawBlocks = calculateAvailableTimeBlocks(whiteSpaceItems, "06:00", "23:00");
-      // Today only: drop blocks whose hour has fully passed. No trimming or
-      // countdown — a block shows its fixed hour until that hour is gone.
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const visibleBlocks = selectedDate === todayISO
-        ? rawBlocks.filter((b) => timeToMinutes(b.endTime) > currentMinutes)
-        : rawBlocks;
       // Split each gap into individual hourly blocks (60-min minimum per gap).
-      activeBlocks = visibleBlocks.flatMap(splitGapIntoHourlyBlocks);
+      const hourlyBlocks = rawBlocks.flatMap(splitGapIntoHourlyBlocks);
+      // Today only: drop each hourly block once its own hour has fully passed.
+      // No trimming or countdown — a block shows its fixed hour until it is gone.
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      activeBlocks = selectedDate === todayISO
+        ? hourlyBlocks.filter((b) => timeToMinutes(b.endTime) > currentMinutes)
+        : hourlyBlocks;
     }
 
     // Merge time blocks with timed items for chronological intertwining
@@ -3070,22 +3072,44 @@ export function ScheduleTab({
     // Sort all items chronologically
     allTimedItems.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
+    // Merge hour-adjacent white blocks into single groups so a run of free
+    // hours renders as one touching box with a tappable row per hour.
+    const mergedTimedItems: typeof allTimedItems = [];
+    for (const item of allTimedItems) {
+      const last = mergedTimedItems[mergedTimedItems.length - 1];
+      const lastBlock = last?.type === "time-block-group"
+        ? last.data.blocks[last.data.blocks.length - 1]
+        : null;
+      if (item.type === "time-block" && lastBlock && item.data.block.startTime === lastBlock.endTime) {
+        last.data.blocks.push(item.data.block);
+      } else if (item.type === "time-block") {
+        mergedTimedItems.push({
+          type: "time-block-group",
+          id: `time-block-group-${item.id}`,
+          data: { blocks: [item.data.block] },
+          sortTime: item.sortTime,
+        });
+      } else {
+        mergedTimedItems.push(item);
+      }
+    }
+
     // Add sorted items and insert current-time indicator if it's today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId) {
-      const insertionIndex = getCurrentTimeInsertionIndex(allTimedItems, currentTimeStr);
-      items.push(...allTimedItems.slice(0, insertionIndex));
+      const insertionIndex = getCurrentTimeInsertionIndex(mergedTimedItems, currentTimeStr);
+      items.push(...mergedTimedItems.slice(0, insertionIndex));
       items.push({
         type: "current-time-indicator",
         id: "current-time",
         data: { currentTime: currentTimeStr },
         sortTime: currentTimeStr,
       });
-      items.push(...allTimedItems.slice(insertionIndex));
+      items.push(...mergedTimedItems.slice(insertionIndex));
     } else {
-      allTimedItems.forEach((item) => items.push(item));
+      mergedTimedItems.forEach((item) => items.push(item));
     }
 
     // Add completed events at the end (after current-time-indicator if present)
@@ -3098,6 +3122,12 @@ export function ScheduleTab({
 
     // Finished grouped todos collapse into compact rows at the bottom with other completed work.
     completedGroups.forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));
+
+    // Completed plain todos sink to the bottom in time order, like completed events.
+    timelineTodos
+      .filter((t) => t.isCompleted)
+      .sort((a, b) => (a.startTime || "23:59").localeCompare(b.startTime || "23:59"))
+      .forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));
 
     // Add Personal Study as a card item in the schedule flow (before time blocks)
     const currentBibleDisplay = bibleState ? getCurrentBibleDisplay(bibleState) : 'No book marked as current';
@@ -3795,6 +3825,13 @@ export function ScheduleTab({
           return (
             <TimeBlockIndicator
               block={item.data.block}
+              onPress={(block) => openNewEventEditorAtTime(block.startTime)}
+            />
+          );
+        case "time-block-group":
+          return (
+            <TimeBlockGroup
+              blocks={item.data.blocks}
               onPress={(block) => openNewEventEditorAtTime(block.startTime)}
             />
           );

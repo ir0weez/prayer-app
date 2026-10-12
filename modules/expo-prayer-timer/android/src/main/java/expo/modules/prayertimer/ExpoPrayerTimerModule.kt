@@ -14,14 +14,23 @@ class ExpoPrayerTimerModule : Module() {
   companion object {
     const val END_PRAYER_ACTION = "expo.modules.prayertimer.END_PRAYER"
     const val EXTRA_END_PRAYER = "expo.modules.prayertimer.EXTRA_END_PRAYER"
+    const val DISMISS_EMERGENCY_ACTION = "expo.modules.prayertimer.DISMISS_EMERGENCY"
+    const val EXTRA_DISMISS_EMERGENCY = "expo.modules.prayertimer.EXTRA_DISMISS_EMERGENCY"
     private const val NOTIFICATION_ID = 9001
+    private const val EMERGENCY_NOTIFICATION_ID = 9002
     private const val CHANNEL_ID = "prayer-timer"
+    private const val EMERGENCY_CHANNEL_ID = "emergency-prayer"
 
     private var moduleInstance: ExpoPrayerTimerModule? = null
 
     /** Tell JS (if alive) that the user tapped "End prayer". */
     fun sendEndEvent() {
       moduleInstance?.sendEvent("onEndPrayer", emptyMap<String, Any?>())
+    }
+
+    /** Tell JS (if alive) that the user dismissed the emergency notification. */
+    fun sendEmergencyDismissEvent() {
+      moduleInstance?.sendEvent("onEmergencyDismiss", emptyMap<String, Any?>())
     }
   }
 
@@ -37,6 +46,43 @@ class ExpoPrayerTimerModule : Module() {
       notificationManager(ctx).createNotificationChannel(channel)
     }
   }
+
+  private fun ensureEmergencyChannel(ctx: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = NotificationChannel(EMERGENCY_CHANNEL_ID, "Emergency Prayer", NotificationManager.IMPORTANCE_HIGH).apply {
+        vibrationPattern = longArrayOf(0)
+        setShowBadge(true)
+      }
+      notificationManager(ctx).createNotificationChannel(channel)
+    }
+  }
+
+  private fun dismissEmergencyPendingIntent(ctx: Context): PendingIntent {
+    val intent = Intent(DISMISS_EMERGENCY_ACTION).setPackage(ctx.packageName)
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    return PendingIntent.getBroadcast(ctx, 2, intent, flags)
+  }
+
+  private fun formatRemaining(millis: Long): String {
+    val totalSeconds = (millis / 1000).toInt()
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    return if (h > 0) "${h}h ${m}m left" else "${m}m left"
+  }
+
+  private fun buildEmergencyNotification(ctx: Context, personName: String, remainingMillis: Long, totalMillis: Long) =
+    NotificationCompat.Builder(ctx, EMERGENCY_CHANNEL_ID)
+      .setSmallIcon(smallIconRes(ctx))
+      .setContentTitle("\uD83D\uDEA8 Emergency prayer")
+      .setContentText("Urgent prayer for $personName — ${formatRemaining(remainingMillis)}")
+      .setProgress(totalMillis.toInt(), (totalMillis - remainingMillis).toInt(), false)
+      .setOngoing(true)
+      .setOnlyAlertOnce(true)
+      .setPriority(NotificationCompat.PRIORITY_HIGH)
+      .setContentIntent(openAppPendingIntent(ctx))
+      .addAction(0, "\uD83D\uDE4F Pray now", openAppPendingIntent(ctx))
+      .addAction(0, "Dismiss", dismissEmergencyPendingIntent(ctx))
+      .build()
 
   private fun smallIconRes(ctx: Context): Int {
     // Prefer the icon expo-notifications generates, then the app icon.
@@ -63,7 +109,7 @@ class ExpoPrayerTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoPrayerTimer")
 
-    Events("onEndPrayer")
+    Events("onEndPrayer", "onEmergencyDismiss")
 
     OnCreate {
       moduleInstance = this@ExpoPrayerTimerModule
@@ -107,6 +153,48 @@ class ExpoPrayerTimerModule : Module() {
       val intent = activity.intent ?: return@Function false
       if (intent.getBooleanExtra(EXTRA_END_PRAYER, false)) {
         intent.removeExtra(EXTRA_END_PRAYER)
+        return@Function true
+      }
+      return@Function false
+    }
+
+    // ── Emergency prayer live pill ──────────────────────────────────────────
+    // Ongoing notification with a depleting progress bar, live countdown text,
+    // "Pray now" (opens app) and "Dismiss" actions. Can't be swiped away.
+
+    Function("startEmergency") { personName: String, remainingMillis: Long, totalMillis: Long ->
+      val ctx = appContext.reactContext ?: return@Function null
+      ensureEmergencyChannel(ctx)
+      notificationManager(ctx).notify(
+        EMERGENCY_NOTIFICATION_ID,
+        buildEmergencyNotification(ctx, personName, remainingMillis, totalMillis)
+      )
+    }
+
+    Function("updateEmergency") { personName: String, remainingMillis: Long, totalMillis: Long ->
+      val ctx = appContext.reactContext ?: return@Function null
+      ensureEmergencyChannel(ctx)
+      notificationManager(ctx).notify(
+        EMERGENCY_NOTIFICATION_ID,
+        buildEmergencyNotification(ctx, personName, remainingMillis, totalMillis)
+      )
+    }
+
+    Function("stopEmergency") {
+      val ctx = appContext.reactContext ?: return@Function null
+      try {
+        notificationManager(ctx).cancel(EMERGENCY_NOTIFICATION_ID)
+      } catch (_: Exception) {
+      }
+    }
+
+    // True when the app was launched from the emergency "Dismiss" button
+    // while JS wasn't alive. Clears the flag.
+    Function("consumePendingEmergencyDismiss") {
+      val activity = appContext.currentActivity ?: return@Function false
+      val intent = activity.intent ?: return@Function false
+      if (intent.getBooleanExtra(EXTRA_DISMISS_EMERGENCY, false)) {
+        intent.removeExtra(EXTRA_DISMISS_EMERGENCY)
         return@Function true
       }
       return@Function false

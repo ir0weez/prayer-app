@@ -5,6 +5,10 @@ type PrayerTimerNativeModule = {
   start(): void;
   stop(): void;
   consumePendingEndRequest(): boolean;
+  startEmergency(personName: string, remainingMillis: number, totalMillis: number): void;
+  updateEmergency(personName: string, remainingMillis: number, totalMillis: number): void;
+  stopEmergency(): void;
+  consumePendingEmergencyDismiss(): boolean;
 };
 
 let cached: PrayerTimerNativeModule | null | undefined;
@@ -66,5 +70,54 @@ export function addPrayerTimerEndListener(listener: () => void): { remove(): voi
   const e = getEmitter();
   if (!e) return null;
   const subscription = e.addListener("onEndPrayer", listener);
+  return { remove: () => subscription.remove() };
+}
+
+// ─── Emergency prayer live pill ─────────────────────────────────────────────
+
+/** Posts the ongoing emergency notification with progress bar and actions. */
+export function startEmergencyNotification(personName: string, remainingMillis: number, totalMillis: number): void {
+  try {
+    getNative()?.startEmergency(personName, remainingMillis, totalMillis);
+  } catch {
+    // Best-effort
+  }
+}
+
+/** Updates the emergency notification's progress bar and countdown text. */
+export function updateEmergencyNotification(personName: string, remainingMillis: number, totalMillis: number): void {
+  try {
+    getNative()?.updateEmergency(personName, remainingMillis, totalMillis);
+  } catch {
+    // Best-effort
+  }
+}
+
+/** Dismisses the emergency notification. */
+export function stopEmergencyNotification(): void {
+  try {
+    getNative()?.stopEmergency();
+  } catch {
+    // Best-effort
+  }
+}
+
+/**
+ * True if the app was launched from the emergency "Dismiss" button while
+ * JS wasn't alive. Clears the flag.
+ */
+export function consumePendingEmergencyDismiss(): boolean {
+  try {
+    return getNative()?.consumePendingEmergencyDismiss() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/** Fires when the user taps "Dismiss" on the emergency notification. */
+export function addEmergencyDismissListener(listener: () => void): { remove(): void } | null {
+  const e = getEmitter();
+  if (!e) return null;
+  const subscription = e.addListener("onEmergencyDismiss", listener);
   return { remove: () => subscription.remove() };
 }

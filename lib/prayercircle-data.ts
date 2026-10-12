@@ -849,6 +849,14 @@ export function addEmergencyPrayer(person: Person, title: string, durationHours:
   };
 }
 
+// Helper: Remove a specific emergency prayer item (e.g. dismissed from notification).
+export function clearEmergencyPrayerItem(person: Person, itemId: string): Person {
+  return {
+    ...person,
+    prayerItems: person.prayerItems.filter((item) => item.id !== itemId),
+  };
+}
+
 // Helper: Remove expired emergency prayers
 export function removeExpiredEmergencyPrayers(person: Person): Person {
   const now = new Date().toISOString();

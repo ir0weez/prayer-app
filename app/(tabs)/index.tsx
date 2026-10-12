@@ -46,6 +46,14 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
+import {
+  isNativePrayerTimerAvailable,
+  startEmergencyNotification,
+  updateEmergencyNotification,
+  stopEmergencyNotification,
+  addEmergencyDismissListener,
+  consumePendingEmergencyDismiss,
+} from "@/modules/expo-prayer-timer/src/index";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import {
@@ -83,6 +91,7 @@ import {
   formatEmergencyPrayerCountdown,
   getEmergencyPrayerProgress,
   getAllActiveEmergencyPrayers,
+  clearEmergencyPrayerItem,
   getDuePersonalTodos,
   getNextPersonalTodo,
   completePersonalTodo,
@@ -756,6 +765,8 @@ export default function HomeScreen() {
   const [draggedPersonId, setDraggedPersonId] = useState<string | null>(null);
   const [completedPrayerAnimationId, setCompletedPrayerAnimationId] = useState<string | null>(null);
   const [emergencyCountdowns, setEmergencyCountdowns] = useState<Record<string, number>>({});
+  // Tracks the native emergency pill: last posted key + last progress update.
+  const emergencyPillRef = useRef<{ key: string | null; lastUpdate: number }>({ key: null, lastUpdate: 0 });
   const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
   const [closingFamilyId, setClosingFamilyId] = useState<string | null>(null);
@@ -997,12 +1008,72 @@ export default function HomeScreen() {
       });
       setEmergencyCountdowns(newEmergencyCountdowns);
       setPraiseCountdowns(newPraiseCountdowns);
+
+      // Sync the native emergency live pill (progress bar + countdown + actions).
+      // Show the first active emergency; refresh progress at most every 30s.
+      try {
+        if (isNativePrayerTimerAvailable()) {
+          const active = getAllActiveEmergencyPrayers(people);
+          const pill = emergencyPillRef.current;
+          if (active.length === 0) {
+            if (pill.key !== null) {
+              stopEmergencyNotification();
+              pill.key = null;
+            }
+          } else {
+            const { person, item } = active[0];
+            const key = `${person.id}:${item.id}`;
+            const remaining = getEmergencyPrayerTimeRemaining(item.emergencyExpiresAt);
+            const total = 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            if (pill.key !== key) {
+              startEmergencyNotification(person.name, remaining, total);
+              pill.key = key;
+              pill.lastUpdate = now;
+            } else if (now - pill.lastUpdate > 30000 && remaining > 0) {
+              updateEmergencyNotification(person.name, remaining, total);
+              pill.lastUpdate = now;
+            }
+          }
+        }
+      } catch {
+        // Best-effort
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [people]);
 
   const colors = useColors();
   const styles = createStyles(colors);
+
+  // Emergency notification "Dismiss" button: clear the active emergency prayer.
+  // Uses a ref so the listener always sees the latest people list.
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
+  const setPeopleRef = useRef(setPeople);
+  setPeopleRef.current = setPeople;
+  useEffect(() => {
+    if (!isNativePrayerTimerAvailable()) return;
+    // Clean up if the app was launched from Dismiss while JS was dead.
+    if (consumePendingEmergencyDismiss()) {
+      stopEmergencyNotification();
+    }
+    const sub = addEmergencyDismissListener(() => {
+      const current = peopleRef.current;
+      const active = getAllActiveEmergencyPrayers(current);
+      if (active.length === 0) {
+        stopEmergencyNotification();
+        return;
+      }
+      const { person, item } = active[0];
+      setPeopleRef.current((prev: Person[]) =>
+        prev.map((p) => (p.id === person.id ? clearEmergencyPrayerItem(p, item.id) : p))
+      );
+      stopEmergencyNotification();
+      emergencyPillRef.current.key = null;
+    });
+    return () => sub?.remove();
+  }, []);
   const xpProgress = useMemo(() => getXPProgress(xpState), [xpState]);
   const levelBadgeFrame = useMemo(() => getXPLevelBadgeFrame(xpProgress.level), [xpProgress.level]);
   const levelBadgeFrameColor = levelBadgeFrame === "ornate" || levelBadgeFrame === "radiant" ? "#D4A72C" : colors.primary;

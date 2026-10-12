@@ -9,5 +9,13 @@
         <action android:name="expo.modules.prayertimer.END_PRAYER" />
       </intent-filter>
     </receiver>
+    <!-- Fired by the emergency notification's "Dismiss" button. -->
+    <receiver
+      android:name="expo.modules.prayertimer.EmergencyDismissReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="expo.modules.prayertimer.DISMISS_EMERGENCY" />
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

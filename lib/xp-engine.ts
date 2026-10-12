@@ -12,7 +12,9 @@ export type XpAction =
   | "reached-stamp"
   | "fasting-day"
   | "ministry-task"
-  | "worship-track";
+  | "worship-track"
+  | "book-complete"
+  | "bible-complete";
 
 export type XpState = {
   totalXP: number;
@@ -80,6 +82,8 @@ export const XP_ACTION_POINTS: Record<XpAction, number> = {
   "fasting-day": 25,
   "ministry-task": 50,
   "worship-track": 1,
+  "book-complete": 100,
+  "bible-complete": 1000,
 };
 
 export function getXPLevelTitle(level: number): string {

@@ -133,7 +133,7 @@ import { syncScheduledEventNotifications } from '@/lib/notification-scheduler';
 import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
-import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread } from "@/lib/bible-unified";
+import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 import type { XpAction, XpGainPosition } from "@/lib/xp-engine";
 
@@ -1283,8 +1283,78 @@ function ConfettiPiece({ left, delay = 0 }: { left: number | `${number}%`; delay
   );
 }
 
-/** Raised hands silhouette gently swaying (worship). */
-function RisingHands({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+/** Book completion celebration: confetti burst, glowing badge, smooth fades only. */
+function BookCompleteCelebration({ book, bibleComplete, onChooseNext, onDismiss }: {
+  book: string;
+  bibleComplete: boolean;
+  onChooseNext: () => void;
+  onDismiss: () => void;
+}) {
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const scaleIn = useRef(new Animated.Value(0.92)).current;
+  const glowPulse = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeIn, { toValue: 1, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(scaleIn, { toValue: 1, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glowPulse, { toValue: 0.5, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    glow.start();
+    return () => glow.stop();
+  }, []);
+
+  const glowOpacity = glowPulse.interpolate({ inputRange: [0.5, 1], outputRange: [0.25, 0.55] });
+
+  return (
+    <Animated.View style={{ opacity: fadeIn, transform: [{ scale: scaleIn }], marginTop: 8 }}>
+      <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 12, backgroundColor: '#1A2340', padding: 16, alignItems: 'center', gap: 8 }}>
+        {/* Confetti burst */}
+        {[8, 22, 38, 55, 70, 85].map((left, i) => (
+          <ConfettiPiece key={i} left={`${left}%`} delay={i * 150} />
+        ))}
+        {/* Glowing badge backdrop */}
+        <Animated.View style={{ position: 'absolute', top: 8, width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFD54F', opacity: glowOpacity }} />
+        {/* Trophy icon */}
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFD54F', alignItems: 'center', justifyContent: 'center' }}>
+          <MaterialIcons name="emoji-events" size={30} color="#1A2340" />
+        </View>
+        <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>
+          Book Complete!
+        </Text>
+        <Text style={{ color: '#FFD54F', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+          {book} · +100 XP
+        </Text>
+        {bibleComplete && (
+          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>
+            🙏 Entire Bible Complete! +1,000 XP
+          </Text>
+        )}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          <Pressable
+            onPress={onChooseNext}
+            style={({ pressed }) => [{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFD54F', borderRadius: 8, opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Text style={{ color: '#1A2340', fontSize: 13, fontWeight: '700' }}>Choose Next Book</Text>
+          </Pressable>
+          <Pressable
+            onPress={onDismiss}
+            style={({ pressed }) => [{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FFFFFF40', opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>Later</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+/** Raised hands silhouette gently swaying (worship). */function RisingHands({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
   const y = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -4643,6 +4713,8 @@ export function ScheduleTab({
   const [chapterSummary, setChapterSummary] = useState<string>("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isPersonalStudyExpanded, setIsPersonalStudyExpanded] = useState(false); // Expandable Personal Study card state
+  const [celebratedBook, setCelebratedBook] = useState<string | null>(null); // Book just completed — drives celebration UI
+  const [bibleFullyComplete, setBibleFullyComplete] = useState(false); // All 66 books done
   const [isMissedTodosOpen, setIsMissedTodosOpen] = useState(false);
   const [activeMissedTodoId, setActiveMissedTodoId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); // Calendar view mode toggle
@@ -4836,6 +4908,20 @@ export function ScheduleTab({
     AsyncStorage.setItem('personalStudyExpanded', newState ? 'true' : 'false').catch(e =>
       console.error('Error saving Personal Study expanded state:', e)
     );
+  };
+
+  // After marking a chapter read, check for book completion (+100 XP) and
+  // whole-Bible completion (+1,000 XP). Triggers the celebration UI.
+  const handleBookCompletionCheck = async (book: string, state: UnifiedBibleState, position?: { x: number; y: number }) => {
+    if (!isBookComplete(state, book)) return state;
+    const { state: updatedState, bibleComplete } = await markBookAsComplete(book);
+    onAwardXP?.("book-complete", `book:${book}`, position);
+    if (bibleComplete) {
+      onAwardXP?.("bible-complete", "bible", position);
+      setBibleFullyComplete(true);
+    }
+    setCelebratedBook(book);
+    return updatedState;
   };
 
   // Reset selectedBibleStudyDay when selectedDate changes so it auto-defaults to the current day
@@ -6516,6 +6602,21 @@ export function ScheduleTab({
                     </View>
                   )}
 
+                  {celebratedBook && (
+                    <BookCompleteCelebration
+                      book={celebratedBook}
+                      bibleComplete={bibleFullyComplete}
+                      onChooseNext={() => {
+                        setCelebratedBook(null);
+                        router.push({ pathname: '/bible-chapters', params: { openBookNav: '1' } });
+                      }}
+                      onDismiss={() => {
+                        setCelebratedBook(null);
+                        setBibleFullyComplete(false);
+                      }}
+                    />
+                  )}
+
                   {isPersonalStudyExpanded && hasCurrentBook && (
                     <>
                       {isLoadingSummary || item.data.chapterSummary ? (
@@ -6587,9 +6688,10 @@ export function ScheduleTab({
                                 try {
                                   const updated = await markChapterAsRead(book, nextChapter.chapter, false);
                                   onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-                                  setBibleState(updated);
-                                  await syncUnifiedBibleToAllOldSystems(updated);
-                                  const newDisplay = getCurrentBibleDisplay(updated);
+                                  const finalState = await handleBookCompletionCheck(book, updated, { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+                                  setBibleState(finalState);
+                                  await syncUnifiedBibleToAllOldSystems(finalState);
+                                  const newDisplay = getCurrentBibleDisplay(finalState);
                                   setCurrentBibleBook(newDisplay || 'No book marked as current');
                                   if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                 } catch (error) {
@@ -6915,11 +7017,12 @@ export function ScheduleTab({
                             try {
                               const updated = await markChapterAsRead(book, nextChapter.chapter, false);
                               onAwardXP?.("daily-reading", `${book}:${nextChapter.chapter}`, { x: pressEvent.nativeEvent.pageX, y: pressEvent.nativeEvent.pageY });
-                              setBibleState(updated);
+                              const finalState = await handleBookCompletionCheck(book, updated, { x: pressEvent.nativeEvent.pageX, y: pressEvent.nativeEvent.pageY });
+                              setBibleState(finalState);
                               // Sync to old systems
-                              await syncUnifiedBibleToAllOldSystems(updated);
+                              await syncUnifiedBibleToAllOldSystems(finalState);
                               // Reload display
-                              const newDisplay = getCurrentBibleDisplay(updated);
+                              const newDisplay = getCurrentBibleDisplay(finalState);
                               setCurrentBibleBook(newDisplay || 'No book marked as current');
                               if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                             } catch (error) {
@@ -6966,7 +7069,7 @@ export function ScheduleTab({
           return null;
       }
     },
-    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard]
+    [colors, selectedDate, people, currentTodoId, isPersonalStudyExpanded, setIsPersonalStudyExpanded, isWorshipExpanded, selectedWorshipDate, clockNow, renderDateHeaderCard, celebratedBook, bibleFullyComplete]
   );
 
   return (

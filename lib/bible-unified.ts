@@ -241,6 +241,22 @@ export function getBookmarkedChaptersForBook(state: UnifiedBibleState, book: str
   return state.chapters.filter((c) => c.book === book && c.isBookmarked);
 }
 
+// Mark a book as complete (all chapters read). Returns updated state.
+// Also returns whether ALL 66 books are now complete.
+export async function markBookAsComplete(book: string): Promise<{ state: UnifiedBibleState; bibleComplete: boolean }> {
+  const state = await loadUnifiedBible();
+  state.bookStatuses[book] = 'complete';
+  await saveUnifiedBible(state);
+  const bibleComplete = BIBLE_BOOKS.every((b) => state.bookStatuses[b] === 'complete');
+  return { state, bibleComplete };
+}
+
+// Check if a book has all chapters read
+export function isBookComplete(state: UnifiedBibleState, book: string): boolean {
+  const bookChapters = state.chapters.filter((c) => c.book === book);
+  return bookChapters.length > 0 && bookChapters.every((c) => c.isRead);
+}
+
 // Set a book as the current book being studied
 export async function setCurrentBook(book: string): Promise<UnifiedBibleState> {
   const state = await loadUnifiedBible();

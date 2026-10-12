@@ -1631,15 +1631,15 @@ function HalloweenScene() {
           <View style={{ width: 10.5, height: 60, borderRadius: 5.2, backgroundColor: "#050505" }} />
         </GentleSway>
       </View>
-      <BreatheGlow color="#FF6D00" size={150} left="63%" bottom={-21} min={0.22} max={0.4} duration={2400} />
-      <View style={{ position: "absolute", left: "65%", bottom: 21, width: 78, height: 81 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 78, height: 69, borderRadius: 34.5, backgroundColor: "#E8721C" }} />
-        <View style={{ position: "absolute", left: 33, bottom: 66, width: 13.5, height: 15, borderRadius: 3, backgroundColor: "#3E7A34" }} />
-        <View style={{ position: "absolute", left: 18, bottom: 39, width: 13.5, height: 13.5, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
-        <View style={{ position: "absolute", left: 46.5, bottom: 39, width: 13.5, height: 13.5, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
-        <View style={{ position: "absolute", left: 18, bottom: 15, width: 42, height: 13.5, borderRadius: 4.5, backgroundColor: "#2E1A0E" }} />
-        <View style={{ position: "absolute", left: 27, bottom: 15, width: 9, height: 13.5, backgroundColor: "#E8721C" }} />
-        <View style={{ position: "absolute", left: 45, bottom: 15, width: 9, height: 13.5, backgroundColor: "#E8721C" }} />
+      <BreatheGlow color="#FF6D00" size={110} left="68%" bottom={-14} min={0.22} max={0.4} duration={2400} />
+      <View style={{ position: "absolute", left: "70%", bottom: 14, width: 58, height: 60 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 58, height: 51, borderRadius: 25, backgroundColor: "#E8721C" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 49, width: 10, height: 11, borderRadius: 2, backgroundColor: "#3E7A34" }} />
+        <View style={{ position: "absolute", left: 13, bottom: 29, width: 10, height: 10, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 29, width: 10, height: 10, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 13, bottom: 11, width: 31, height: 10, borderRadius: 3, backgroundColor: "#2E1A0E" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 11, width: 7, height: 10, backgroundColor: "#E8721C" }} />
+        <View style={{ position: "absolute", left: 33, bottom: 11, width: 7, height: 10, backgroundColor: "#E8721C" }} />
       </View>
     </SceneRoot>
   );
@@ -1994,18 +1994,18 @@ function MeetingScene() {
     <SceneRoot base="#265F6E">
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "32%", backgroundColor: "#5D4037" }} />
       <View style={{ position: "absolute", left: 0, right: 0, bottom: "32%", height: 12, backgroundColor: "#4E342E" }} />
-      <View style={{ position: "absolute", left: "63%", bottom: 66, width: 126, height: 78 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 33, width: 126, height: 39, borderRadius: 15, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 18, bottom: 0, width: 27, height: 36, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
-        <PulseDot left={24} bottom={48} size={10.5} color="#265F6E" duration={1400} />
-        <PulseDot left={45} bottom={48} size={10.5} color="#265F6E" duration={1400} delay={280} />
-        <PulseDot left={66} bottom={48} size={10.5} color="#265F6E" duration={1400} delay={560} />
+      <View style={{ position: "absolute", left: "68%", bottom: 42, width: 96, height: 60 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 25, width: 96, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 20, height: 28, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
+        <PulseDot left={18} bottom={36} size={8} color="#265F6E" duration={1400} />
+        <PulseDot left={34} bottom={36} size={8} color="#265F6E" duration={1400} delay={280} />
+        <PulseDot left={50} bottom={36} size={8} color="#265F6E" duration={1400} delay={560} />
       </View>
-      <View style={{ position: "absolute", left: "44%", bottom: 87, width: 84, height: 51, opacity: 0.9 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 18, width: 84, height: 30, borderRadius: 12, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
-        <View style={{ position: "absolute", left: 60, bottom: 0, width: 18, height: 21, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "-18deg" }] }} />
-        <PulseDot left={18} bottom={27} size={9} color="#265F6E" duration={1600} delay={200} />
-        <PulseDot left={36} bottom={27} size={9} color="#265F6E" duration={1600} delay={600} />
+      <View style={{ position: "absolute", left: "52%", bottom: 58, width: 64, height: 40, opacity: 0.9 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 14, width: 64, height: 23, borderRadius: 9, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 46, bottom: 0, width: 14, height: 16, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "-18deg" }] }} />
+        <PulseDot left={14} bottom={20} size={7} color="#265F6E" duration={1600} delay={200} />
+        <PulseDot left={28} bottom={20} size={7} color="#265F6E" duration={1600} delay={600} />
       </View>
       <View style={{ position: "absolute", left: "54%", bottom: 45, width: 78, height: 60 }}>
         <View style={{ position: "absolute", left: 9, bottom: 12, width: 60, height: 42, borderRadius: 6, backgroundColor: "#37474F" }} />

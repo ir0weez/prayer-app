@@ -1070,12 +1070,276 @@ function RainDrop({ left, bottom, delay = 0, color = "#74C0FC" }: {
   );
 }
 
+// ─── Lightweight art overlays ───────────────────────────────────────────────
+// Small animated elements that float above the generated illustrations.
+// Transform/opacity only, native driver, slow and calm, no bounce.
+
+/** Rising steam wisp. */
+function SteamPlume({ left, bottom, delay = 0 }: { left: number | `${number}%`; bottom: number; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -34, duration: 2800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.55, duration: 700, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.55, duration: 1400, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { rise.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); rise.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: 8, height: 26, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: op, transform: [{ translateY: y }] }} />
+  );
+}
+
+/** Gently falling snowflake. */
+function Snowfall({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(-10)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: 110, duration: 5200, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: -10, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.9, duration: 800, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.9, duration: 3600, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { fall.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); fall.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 0, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF", opacity: op, transform: [{ translateY: y }] }} />
+  );
+}
+
+/** Leaf drifting down with a sway. */
+function FallingLeaf({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(-8)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: 100, duration: 6000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: -8, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const sway = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: 12, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: -12, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.85, duration: 900, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.85, duration: 4200, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { fall.start(); sway.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); fall.stop(); sway.stop(); fade.stop(); };
+  }, [delay, y, x, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E8590C", opacity: op, transform: [{ translateY: y }, { translateX: x }, { rotate: "45deg" }] }} />
+  );
+}
+
+/** Gently bobbing balloon. */
+function FloatingBalloon({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -10, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, y]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 44, transform: [{ translateY: y }] }}>
+      <View style={{ width: 22, height: 28, borderRadius: 11, backgroundColor: "#FF6B9D", opacity: 0.9 }} />
+      <View style={{ alignSelf: "center", width: 2, height: 22, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+    </Animated.View>
+  );
+}
+
+/** Petal drifting down. */
+function PetalDrift({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(-8)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: 100, duration: 7000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: -8, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.8, duration: 1000, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.8, duration: 5000, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 1000, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { fall.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); fall.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 0, width: 9, height: 12, borderRadius: 6, backgroundColor: "#FFC9D6", opacity: op, transform: [{ translateY: y }, { rotate: "30deg" }] }} />
+  );
+}
+
+/** Swaying concert spotlight beam. */
+function SwayingSpotlight({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const r = useRef(new Animated.Value(-14)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(r, { toValue: 14, duration: 3400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(r, { toValue: -14, duration: 3400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, r]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: -10, width: 26, height: 120, backgroundColor: "#FFFFFF", opacity: 0.14, transform: [{ rotate: r.interpolate({ inputRange: [-14, 14], outputRange: ["-14deg", "14deg"] }) }] }} />
+  );
+}
+
 // ─── Full-bleed illustrated keyword scenes ───────────────────────────────────
 // Google Calendar-style: each scene IS the card background — rich flat vector
 // illustration in solid colors, with 2–4 gently animated elements. Slow, calm,
 // transform/opacity only, native driver, no bounce.
 
 /** Full-bleed scene root: solid base + soft left scrim so the white title reads. */
+/** Generated full-card illustrations (Google Calendar flat style), one per keyword.
+ *  Wide panoramic PNGs with the key subject centered — safe for center crop. */
+const KEYWORD_ART: Record<string, any> = {
+  breakfast: require("../assets/schedule-art/breakfast.png"),
+  lunch: require("../assets/schedule-art/lunch.png"),
+  dinner: require("../assets/schedule-art/dinner.png"),
+  bbq: require("../assets/schedule-art/bbq.png"),
+  church: require("../assets/schedule-art/church.png"),
+  worship: require("../assets/schedule-art/worship.png"),
+  biblestudy: require("../assets/schedule-art/biblestudy.png"),
+  babyshower: require("../assets/schedule-art/babyshower.png"),
+  birthday: require("../assets/schedule-art/birthday.png"),
+  christmas: require("../assets/schedule-art/christmas.png"),
+  easter: require("../assets/schedule-art/easter.png"),
+  thanksgiving: require("../assets/schedule-art/thanksgiving.png"),
+  wedding: require("../assets/schedule-art/wedding.png"),
+  memorial: require("../assets/schedule-art/memorial.png"),
+  meeting: require("../assets/schedule-art/meeting.png"),
+  workout: require("../assets/schedule-art/workout.png"),
+  game: require("../assets/schedule-art/game.png"),
+  fullmoon: require("../assets/schedule-art/fullmoon.png"),
+  prayer: require("../assets/schedule-art/prayer.png"),
+  outreach: require("../assets/schedule-art/outreach.png"),
+  concert: require("../assets/schedule-art/concert.png"),
+  study: require("../assets/schedule-art/study.png"),
+  visit: require("../assets/schedule-art/visit.png"),
+  tvshow: require("../assets/schedule-art/tvshow.png"),
+  doctor: require("../assets/schedule-art/doctor.png"),
+  movie: require("../assets/schedule-art/movie.png"),
+  gardening: require("../assets/schedule-art/gardening.png"),
+  halloween: require("../assets/schedule-art/halloween.png"),
+};
+
+/** Maps a keyword label (+ title for meals) to an art key, or null if none. */
+function getKeywordArtKey(label: string, title: string): string | null {
+  if (label === "Meal") {
+    const t = title.toLowerCase();
+    if (t.includes("breakfast") || t.includes("brunch")) return "breakfast";
+    if (t.includes("lunch")) return "lunch";
+    if (t.includes("dinner")) return "dinner";
+    return "lunch";
+  }
+  const map: Record<string, string> = {
+    "BBQ": "bbq", "Church": "church", "Worship": "worship", "Bible Study": "biblestudy",
+    "Doctor": "doctor", "Gardening": "gardening", "Baby Shower": "babyshower",
+    "Birthday": "birthday", "Christmas": "christmas", "Easter": "easter",
+    "Thanksgiving": "thanksgiving", "Wedding": "wedding", "Memorial": "memorial",
+    "Meeting": "meeting", "Workout": "workout", "Game": "game", "Movie": "movie",
+    "Full Moon": "fullmoon", "Prayer": "prayer", "Outreach": "outreach",
+    "Concert": "concert", "Study": "study", "Visit": "visit", "TV Show": "tvshow",
+    "Halloween": "halloween",
+  };
+  return map[label] ?? null;
+}
+
+/** Lightweight animated overlays that float above the illustration.
+ *  1–3 elements per card, transform/opacity only, native driver. */
+function KeywordArtOverlay({ artKey }: { artKey: string }) {
+  switch (artKey) {
+    case "breakfast":
+    case "lunch":
+    case "dinner":
+    case "bbq":
+      return (<><SteamPlume left="46%" bottom={38} /><SteamPlume left="54%" bottom={42} delay={900} /></>);
+    case "biblestudy":
+      return (<SteamPlume left="62%" bottom={30} />);
+    case "christmas":
+      return (<><Snowfall left="20%" delay={0} /><Snowfall left="50%" delay={1200} /><Snowfall left="75%" delay={2400} /></>);
+    case "halloween":
+      return (<><TwinkleField color="#FFFFFF" count={7} seed={5} /><BreatheGlow color="#FF6D00" size={90} left="60%" bottom={8} min={0.25} max={0.45} duration={2400} /></>);
+    case "fullmoon":
+      return (<TwinkleField color="#FFFFFF" count={8} seed={11} />);
+    case "thanksgiving":
+      return (<><FallingLeaf left="25%" delay={0} /><FallingLeaf left="65%" delay={1800} /></>);
+    case "birthday":
+    case "babyshower":
+      return (<><FloatingBalloon left="70%" delay={0} /><FloatingBalloon left="82%" delay={1500} /></>);
+    case "wedding":
+    case "easter":
+      return (<><PetalDrift left="30%" delay={0} /><PetalDrift left="60%" delay={1400} /></>);
+    case "worship":
+    case "concert":
+      return (<><SwayingSpotlight left="20%" delay={0} /><SwayingSpotlight left="70%" delay={1200} /></>);
+    case "prayer":
+    case "church":
+      return (<BreatheGlow color="#FFD54F" size={110} left="42%" bottom={20} min={0.2} max={0.38} duration={4200} />);
+    case "memorial":
+      return (<FlickerFlame left="48%" bottom={24} />);
+    case "movie":
+    case "tvshow":
+      return (<BreatheGlow color="#FFFFFF" size={80} left="46%" bottom={30} min={0.15} max={0.3} duration={3000} />);
+    case "gardening":
+      return (<><RainDrop left="30%" bottom={34} delay={0} /><RainDrop left="36%" bottom={34} delay={800} /></>);
+    default:
+      return null;
+  }
+}
+
+/** Full-bleed illustrated card background: generated art + animated overlay. */
+function KeywordArtBackground({ label, title }: { label: string; title: string }) {
+  const artKey = getKeywordArtKey(label, title);
+  if (!artKey) return null;
+  return (
+    <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" }}>
+      <Image source={KEYWORD_ART[artKey]} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" />
+      <KeywordArtOverlay artKey={artKey} />
+    </View>
+  );
+}
+
 function SceneRoot({ base, children }: { base: string; children: React.ReactNode }) {
   return (
     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}>
@@ -2462,26 +2726,30 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} />}
+            {!event.isOffEvent && (getKeywordArtKey(keyword.label, event.title)
+              ? <KeywordArtBackground label={keyword.label} title={event.title} />
+              : <KeywordAmbientAnimation label={keyword.label} title={event.title} />)}
             <View style={eventStyles.illustratedContent}>
-              <Text style={[eventStyles.illustratedTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
+              <View style={eventStyles.illustratedPill}>
+                <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
+                {event.startTime && (
+                  <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
+                    {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
+                  </Text>
+                )}
+                {event.location && (
+                  <View style={eventStyles.illustratedLocationRow}>
+                    <MaterialIcons name="location-on" size={13} color="#FFFFFFBB" />
+                    <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                      {event.location}
+                    </Text>
+                  </View>
+                )}
+              </View>
               {event.notes && (
-                <Text style={[eventStyles.illustratedDescription, { color: event.isOffEvent ? `${timeOffTextColor}EE` : '#FFFFFFEE' }]} numberOfLines={2}>
+                <Text style={[eventStyles.illustratedDescription, { color: '#FFFFFF' }]} numberOfLines={2}>
                   {event.notes}
                 </Text>
-              )}
-              {event.startTime && (
-                <Text style={[eventStyles.illustratedTime, { color: event.isOffEvent ? `${timeOffTextColor}DD` : '#FFFFFFDD' }]}>
-                  {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
-                </Text>
-              )}
-              {event.location && (
-                <View style={eventStyles.illustratedLocationRow}>
-                  <MaterialIcons name="location-on" size={15} color={event.isOffEvent ? `${timeOffTextColor}BB` : '#FFFFFFBB'} />
-                  <Text style={[eventStyles.illustratedLocation, { color: event.isOffEvent ? `${timeOffTextColor}BB` : '#FFFFFFBB' }]} numberOfLines={1}>
-                    {event.location}
-                  </Text>
-                </View>
               )}
             </View>
             {isLiveScheduledBlock && (
@@ -7980,6 +8248,14 @@ const eventStyles = StyleSheet.create({
   },
   illustratedContent: {
     flex: 1,
+  },
+  illustratedPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 6,
   },
   illustratedTitle: {
     fontSize: 16,

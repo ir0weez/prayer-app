@@ -1331,9 +1331,12 @@ function BookCompleteCelebration({ book, bibleComplete, onChooseNext, onDismiss 
           {book} · +100 XP
         </Text>
         {bibleComplete && (
-          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>
-            🙏 Entire Bible Complete! +1,000 XP
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, gap: 4 }}>
+            <MaterialIcons name="auto-awesome" size={16} color="#FFD54F" />
+            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+              Entire Bible Complete! +1,000 XP
+            </Text>
+          </View>
         )}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
           <Pressable

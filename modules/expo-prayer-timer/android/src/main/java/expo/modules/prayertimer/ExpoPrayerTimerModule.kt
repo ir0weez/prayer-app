@@ -74,7 +74,7 @@ class ExpoPrayerTimerModule : Module() {
     }
 
     Function("start") {
-      val ctx = appContext.reactContext ?: return@Function
+      val ctx = appContext.reactContext ?: return@Function null
       ensureChannel(ctx)
       // The platform chronometer counts up live from `when` — no JS timer needed.
       val notification = NotificationCompat.Builder(ctx, CHANNEL_ID)
@@ -93,7 +93,7 @@ class ExpoPrayerTimerModule : Module() {
     }
 
     Function("stop") {
-      val ctx = appContext.reactContext ?: return@Function
+      val ctx = appContext.reactContext ?: return@Function null
       try {
         notificationManager(ctx).cancel(NOTIFICATION_ID)
       } catch (_: Exception) {

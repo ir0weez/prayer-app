@@ -61,6 +61,10 @@ function RootLayoutContent() {
         router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId } });
         return;
       }
+      if (data.kind === "prayer-session" && action === NOTIFICATION_ACTIONS.endPrayerSession) {
+        router.replace({ pathname: "/(tabs)", params: { notificationAction: NOTIFICATION_ACTIONS.endPrayerSession } });
+        return;
+      }
       if (data.kind === "prayer-reminder" && typeof data.personId === "string") {
         if (action !== NOTIFICATION_ACTIONS.prayed && action !== NOTIFICATION_ACTIONS.praise && action !== NOTIFICATION_ACTIONS.emergency) return;
         router.replace({ pathname: "/(tabs)", params: { notificationPersonId: data.personId, notificationAction: action } });

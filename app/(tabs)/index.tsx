@@ -1486,6 +1486,13 @@ export default function HomeScreen() {
     setAvatarComposerText("");
   };
 
+  // Ending a prayer session from its notification ("End prayer" button).
+  useEffect(() => {
+    if (!hasHydratedPeople || notificationActionParam !== "prayer-end-session") return;
+    setShowPrayerSession(false);
+    router.setParams({ notificationAction: undefined });
+  }, [hasHydratedPeople, notificationActionParam, router]);
+
   useEffect(() => {
     if (!hasHydratedPeople || !notificationPersonIdParam || !notificationActionParam) return;
     const actionKey = `${notificationPersonIdParam}:${notificationActionParam}`;

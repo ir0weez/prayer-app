@@ -17,10 +17,12 @@ const MINISTRY_KIND = "scheduled-ministry";
 const BUDGET_KIND = "budget-due";
 const CHANNEL_ID = "prayercircle-reminders";
 export const PRAYER_NOTIFICATION_CATEGORY = "prayer-reminder-actions";
+export const PRAYER_SESSION_CATEGORY = "prayer-session-actions";
 export const NOTIFICATION_ACTIONS = {
   prayed: "prayer-prayed",
   praise: "prayer-praise",
   emergency: "prayer-emergency",
+  endPrayerSession: "prayer-end-session",
   snooze: "schedule-snooze-10",
   complete: "schedule-complete",
 } as const;
@@ -481,28 +483,49 @@ export { parseTime };
 // Sticky tray notifications for active emergency prayers and praise reports.
 // These sit in the Android notification shade (the "pill" area) until the
 // prayer is done or expires. Tapping one opens the app to that person.
+// Reconciliation is based on what's actually in the shade, so pills
+// reliably appear and survive app restarts.
 // ---------------------------------------------------------------------------
 
 const PRAYER_TRAY_KEY_PREFIX = "prayer-tray:";
-const prayerTrayIds = new Map<string, string>();
+export const PRAYER_TRAY_CHANNEL_ID = "prayer-tray";
 
 function prayerTrayKey(kind: "emergency" | "praise", personId: string): string {
   return `${PRAYER_TRAY_KEY_PREFIX}${kind}:${personId}`;
 }
 
+async function ensurePrayerTrayChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  try {
+    await Notifications.setNotificationChannelAsync(PRAYER_TRAY_CHANNEL_ID, {
+      name: "PrayerCircle prayer tray",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    });
+  } catch {
+    // Best-effort
+  }
+}
+
+type PrayerTrayData = { kind?: unknown; trayKind?: unknown; personId?: unknown } | null;
+
+function presentedTrayKey(data: PrayerTrayData): string | null {
+  if (data?.kind === "prayer-tray" && typeof data.trayKind === "string" && typeof data.personId === "string") {
+    return prayerTrayKey(data.trayKind as "emergency" | "praise", data.personId);
+  }
+  return null;
+}
+
 export async function showPrayerTrayNotification(kind: "emergency" | "praise", personId: string, personName: string): Promise<void> {
   if (Platform.OS === "web") return;
   try {
-    const key = prayerTrayKey(kind, personId);
-    const existing = prayerTrayIds.get(key);
-    if (existing) {
-      try { await Notifications.dismissNotificationAsync(existing); } catch { /* already gone */ }
-    }
+    await ensurePrayerTrayChannel();
     const title = kind === "emergency" ? "🚨 Emergency prayer" : "🙌 Praise report";
     const body = kind === "emergency"
       ? `Urgent prayer for ${personName} — tap to pray`
       : `Praise God for ${personName} — tap to view`;
-    const id = await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -510,9 +533,8 @@ export async function showPrayerTrayNotification(kind: "emergency" | "praise", p
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { kind: "prayer-tray", trayKind: kind, personId },
       },
-      trigger: null,
+      trigger: { channelId: PRAYER_TRAY_CHANNEL_ID },
     });
-    prayerTrayIds.set(key, id);
   } catch {
     // Best-effort
   }
@@ -522,10 +544,11 @@ export async function clearPrayerTrayNotification(kind: "emergency" | "praise", 
   if (Platform.OS === "web") return;
   try {
     const key = prayerTrayKey(kind, personId);
-    const existing = prayerTrayIds.get(key);
-    if (existing) {
-      try { await Notifications.dismissNotificationAsync(existing); } catch { /* already gone */ }
-      prayerTrayIds.delete(key);
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    for (const n of presented) {
+      if (presentedTrayKey(n.request.content.data as PrayerTrayData) === key) {
+        try { await Notifications.dismissNotificationAsync(n.request.identifier); } catch { /* already gone */ }
+      }
     }
   } catch {
     // Best-effort
@@ -537,8 +560,9 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
   if (Platform.OS === "web") return;
   try {
     if (!(await ensureNotificationPermission())) return;
+    await ensurePrayerTrayChannel();
     const now = Date.now();
-    const wanted = new Set<string>();
+    const wanted = new Map<string, { kind: "emergency" | "praise"; personId: string; personName: string }>();
     for (const person of people) {
       const hasEmergency = person.prayerItems.some((item) => {
         if (!item.isEmergency || !item.emergencyExpiresAt) return false;
@@ -548,19 +572,30 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
       const hasPraise = !!person.isPraised && !!person.praiseExpiresAt && Number.isFinite(new Date(person.praiseExpiresAt).getTime()) && new Date(person.praiseExpiresAt).getTime() > now;
       if (hasEmergency) {
         const key = prayerTrayKey("emergency", person.id);
-        wanted.add(key);
-        if (!prayerTrayIds.has(key)) await showPrayerTrayNotification("emergency", person.id, person.name);
+        wanted.set(key, { kind: "emergency", personId: person.id, personName: person.name });
       }
       if (hasPraise) {
         const key = prayerTrayKey("praise", person.id);
-        wanted.add(key);
-        if (!prayerTrayIds.has(key)) await showPrayerTrayNotification("praise", person.id, person.name);
+        wanted.set(key, { kind: "praise", personId: person.id, personName: person.name });
       }
     }
-    for (const [key, id] of Array.from(prayerTrayIds.entries())) {
+    // What's actually sitting in the shade right now?
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    const presentedTray = new Map<string, string>();
+    for (const n of presented) {
+      const key = presentedTrayKey(n.request.content.data as PrayerTrayData);
+      if (key) presentedTray.set(key, n.request.identifier);
+    }
+    // Post whatever should be there but isn't.
+    for (const [key, info] of wanted) {
+      if (!presentedTray.has(key)) {
+        await showPrayerTrayNotification(info.kind, info.personId, info.personName);
+      }
+    }
+    // Clear whatever is there but no longer wanted.
+    for (const [key, id] of presentedTray) {
       if (!wanted.has(key)) {
         try { await Notifications.dismissNotificationAsync(id); } catch { /* already gone */ }
-        prayerTrayIds.delete(key);
       }
     }
   } catch {

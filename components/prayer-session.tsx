@@ -6,6 +6,7 @@ import * as Notifications from "expo-notifications";
 import { AvatarImage } from "@/components/avatar-system";
 import { XpGainIndicator } from "@/components/xp-gain-indicator";
 import { useColors } from "@/hooks/use-colors";
+import { NOTIFICATION_ACTIONS, PRAYER_SESSION_CATEGORY } from "@/lib/notification-scheduler";
 import type { Person } from "@/lib/prayercircle-data";
 
 type Props = {
@@ -36,30 +37,35 @@ async function setupPrayerNotification() {
       vibrationPattern: [0],
       lightColor: "#7C5CFF",
     });
+    await Notifications.setNotificationCategoryAsync(PRAYER_SESSION_CATEGORY, [
+      { identifier: NOTIFICATION_ACTIONS.endPrayerSession, buttonTitle: "End prayer", options: { opensAppToForeground: true } },
+    ]);
 
-    const updateNotif = async (elapsed: number) => {
-      const mins = Math.floor(elapsed / 60);
-      const timeStr = mins > 0 ? `${mins}m ${elapsed % 60}s` : `${elapsed}s`;
-      if (prayerNotifId) {
-        await Notifications.dismissNotificationAsync(prayerNotifId);
-      }
-      prayerNotifId = await Notifications.scheduleNotificationAsync({
+    // Count up from the wall clock so the shade timer stays in sync even
+    // if background intervals get throttled.
+    const startedAt = Date.now();
+    const updateNotif = async () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: "🙏 Prayer in progress",
-          body: `${timeStr} elapsed`,
+          body: formatTime(elapsed),
           sticky: true,
+          categoryIdentifier: PRAYER_SESSION_CATEGORY,
           priority: Notifications.AndroidNotificationPriority.LOW,
+          data: { kind: "prayer-session" },
         },
-        trigger: null,
+        trigger: { channelId: "prayer-timer" },
       });
+      // Post the fresh one first, then retire the old — the pill never blinks out.
+      if (prayerNotifId && prayerNotifId !== id) {
+        try { await Notifications.dismissNotificationAsync(prayerNotifId); } catch { /* already gone */ }
+      }
+      prayerNotifId = id;
     };
 
-    await updateNotif(0);
-    let elapsed = 0;
-    prayerNotifInterval = setInterval(() => {
-      elapsed += 30;
-      updateNotif(elapsed);
-    }, 30000);
+    await updateNotif();
+    prayerNotifInterval = setInterval(updateNotif, 10000);
   } catch {
     // Notifications are best-effort
   }

@@ -132,12 +132,14 @@ export function DailySummaryCard({
   const dayNum = parts.find(p => p.type === 'day')?.value || '';
   const yearNum = parts.find(p => p.type === 'year')?.value || '';
   
-  // Get time-based greeting
+  // Get time-based greeting (Jonathan's boundaries: morning 6–11, afternoon
+  // 11–4, evening 4–8, night 8pm–6am)
   const getTimeBasedGreeting = () => {
     const hour = now.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour >= 6 && hour < 11) return 'Good morning';
+    if (hour >= 11 && hour < 16) return 'Good afternoon';
+    if (hour >= 16 && hour < 20) return 'Good evening';
+    return 'Good night';
   };
   
   // Get badge color based on fasting status

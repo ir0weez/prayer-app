@@ -328,9 +328,11 @@ function getRestMood(startTime?: string): RestMood {
   if (!startTime) return "midday";
   const hour = parseInt(startTime.split(":")[0] ?? "", 10);
   if (Number.isNaN(hour)) return "midday";
-  if (hour >= 5 && hour < 11) return "sunrise";
-  if (hour >= 11 && hour < 17) return "midday";
-  if (hour >= 17 && hour < 21) return "sunset";
+  // Jonathan's time-of-day boundaries: morning 6–11, afternoon 11–4,
+  // evening 4–8, night 8pm–6am.
+  if (hour >= 6 && hour < 11) return "sunrise";
+  if (hour >= 11 && hour < 16) return "midday";
+  if (hour >= 16 && hour < 20) return "sunset";
   return "night";
 }
 

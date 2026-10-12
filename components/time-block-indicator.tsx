@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -96,16 +96,29 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
 
 const ADD_WORDS = ["event", "todo", "ministry", "rest"];
 const WORD_CYCLE_MS = 2800;
+const LETTER_STAGGER_MS = 30;
+const EXIT_MS = 180;
+const ENTER_MS = 220;
+const MAX_WORD_LEN = Math.max(...ADD_WORDS.map((w) => w.length));
 
-/** One letter gently floating up and down (sine, no bounce). */
-function WavyLetter({ ch, index, color }: { ch: string; index: number; color: string }) {
-  const translateY = useRef(new Animated.Value(0)).current;
+type WordPhase = "idle" | "exiting" | "entering";
 
+/**
+ * One letter of the cycling keyword. Floats gently on its own (sine wave, no
+ * bounce) and, when the word changes, cascades out with its siblings and then
+ * cascades back in spelling the new word.
+ */
+function TransLetter({ ch, index, color, phase }: { ch: string; index: number; color: string; phase: WordPhase }) {
+  const waveY = useRef(new Animated.Value(0)).current;
+  const transY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  // Gentle idle float — independent of the word-change transition.
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(translateY, { toValue: -3, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(waveY, { toValue: -3, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(waveY, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     );
     // Stagger the start so the letters ripple; identical loop lengths keep
@@ -115,54 +128,83 @@ function WavyLetter({ ch, index, color }: { ch: string; index: number; color: st
       clearTimeout(startTimeout);
       loop.stop();
     };
-  }, [index, translateY]);
+  }, [index, waveY]);
+
+  // Word-change transition. Layout effect so newly mounted letters (when the
+  // new word is longer) start below/invisible before paint — no flash.
+  useLayoutEffect(() => {
+    const delay = index * LETTER_STAGGER_MS;
+    if (phase === "exiting") {
+      Animated.parallel([
+        Animated.timing(transY, { toValue: -14, duration: EXIT_MS, delay, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: EXIT_MS, delay, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    } else if (phase === "entering") {
+      transY.setValue(14);
+      opacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(transY, { toValue: 0, duration: ENTER_MS, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: ENTER_MS, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    } else {
+      transY.setValue(0);
+      opacity.setValue(1);
+    }
+  }, [phase, index, transY, opacity]);
 
   return (
-    <Animated.Text style={{ transform: [{ translateY }], color, fontWeight: "800" }}>
+    <Animated.Text style={{ transform: [{ translateY: waveY }, { translateY: transY }], opacity, color, fontWeight: "800" }}>
       {ch}
     </Animated.Text>
-  );
-}
-
-/** The keyword with each letter floating in a gentle wave. */
-function WavyWord({ word, color }: { word: string; color: string }) {
-  return (
-    <Text>
-      {word.split("").map((ch, i) => (
-        <WavyLetter key={`${word}-${i}`} ch={ch} index={i} color={color} />
-      ))}
-    </Text>
   );
 }
 
 /**
  * "add <event|todo|ministry|rest>?" — each row starts on a different word of
  * the loop and they all cycle together, so neighboring rows always say
- * something different. Words crossfade; letters float gently (no bounce).
+ * something different. On each switch the old word's letters cascade up and
+ * out, then the new word's letters cascade up into place. Letters keep their
+ * gentle float throughout (no bounce anywhere).
  */
 function CyclingAddLabel({ startIndex, mutedColor, accentColor }: { startIndex: number; mutedColor: string; accentColor: string }) {
   const [wordIndex, setWordIndex] = useState(startIndex);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [phase, setPhase] = useState<WordPhase>("idle");
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     const wordTimer = setInterval(() => {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+      if (phaseRef.current !== "idle") return;
+      setPhase("exiting");
+      const exitTotal = EXIT_MS + (MAX_WORD_LEN - 1) * LETTER_STAGGER_MS + 60;
+      timeoutsRef.current.push(setTimeout(() => {
         setWordIndex((w) => (w + 1) % ADD_WORDS.length);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
-      });
+        setPhase("entering");
+        const enterTotal = ENTER_MS + (MAX_WORD_LEN - 1) * LETTER_STAGGER_MS + 60;
+        timeoutsRef.current.push(setTimeout(() => setPhase("idle"), enterTotal));
+      }, exitTotal));
     }, WORD_CYCLE_MS);
-    return () => clearInterval(wordTimer);
-  }, [fadeAnim]);
+    return () => {
+      clearInterval(wordTimer);
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    };
+  }, []);
+
+  const word = ADD_WORDS[wordIndex % ADD_WORDS.length];
 
   return (
     <View style={styles.left}>
       <MaterialIcons name="add" size={18} color={mutedColor} />
       <Text style={[styles.label, { color: mutedColor }]}>add </Text>
-      <Animated.View style={{ opacity: fadeAnim }}>
+      <View style={{ height: 22, overflow: "hidden", justifyContent: "center" }}>
         <Text style={styles.label}>
-          <WavyWord word={ADD_WORDS[wordIndex % ADD_WORDS.length]} color={accentColor} />
+          {word.split("").map((ch, i) => (
+            <TransLetter key={i} ch={ch} index={i} color={accentColor} phase={phase} />
+          ))}
         </Text>
-      </Animated.View>
+      </View>
       <Text style={[styles.label, { color: mutedColor }]}>?</Text>
     </View>
   );

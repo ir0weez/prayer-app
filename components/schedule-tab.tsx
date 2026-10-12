@@ -273,6 +273,67 @@ function TravelTicker({ event, colors }: { event: ScheduleEvent; colors: any }) 
 }
 
 // ─── Event Card Component ────────────────────────────────────────────────────
+const REST_STARS: Array<{ left: `${number}%`; top: number; size: number; delay: number }> = [
+  { left: "8%", top: 14, size: 3, delay: 0 },
+  { left: "20%", top: 46, size: 2, delay: 500 },
+  { left: "32%", top: 16, size: 4, delay: 900 },
+  { left: "42%", top: 54, size: 2, delay: 300 },
+  { left: "52%", top: 12, size: 3, delay: 1200 },
+  { left: "60%", top: 42, size: 2, delay: 700 },
+  { left: "14%", top: 30, size: 2, delay: 1500 },
+  { left: "48%", top: 30, size: 2, delay: 200 },
+];
+
+/** A single gently twinkling star for the Rest card night sky. */
+function TwinkleStar({ left, top, size, delay }: { left: `${number}%`; top: number; size: number; delay: number }) {
+  const opacity = useRef(new Animated.Value(0.25)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.25, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, opacity]);
+
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        left,
+        top,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#FFFFFF",
+        opacity,
+      }}
+    />
+  );
+}
+
+/** Compact circle icon button for the white-block tap menu (Pray Today style). */
+function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string; icon: string; color: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        { width: 54, height: 54, borderRadius: 27, backgroundColor: color, alignItems: "center", justifyContent: "center" },
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <MaterialIcons name={icon as any} size={25} color="#FFFFFF" />
+    </Pressable>
+  );
+}
+
 function EventCardInner({
   event,
   onToggle,
@@ -429,6 +490,67 @@ function EventCardInner({
                 </View>
               </View>
             )}
+          </View>
+        </Pressable>
+        <ContextMenu
+          visible={contextMenuVisible}
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          actions={contextMenuActions}
+          onDismiss={() => setContextMenuVisible(false)}
+        />
+      </>
+    );
+  }
+
+  // Rest: a calm night-sky card — deep indigo, twinkling stars, crescent moon.
+  // Same shape and tap behavior as every other event card.
+  if (keyword?.label === "Rest") {
+    return (
+      <>
+        <Pressable
+          onPress={(event) => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleTap(event);
+          }}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
+          style={({ pressed }) => [pressed && { opacity: 0.85 }]}
+        >
+          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || "#232347", borderColor: "#9FA8DA40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+            {REST_STARS.map((s, i) => (
+              <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
+            ))}
+            <View style={eventStyles.illustratedContent}>
+              <Text style={[eventStyles.illustratedTitle, { color: "#FFFFFF", letterSpacing: 1.5 }]}>{event.title}</Text>
+              {event.notes && (
+                <Text style={[eventStyles.illustratedDescription, { color: "#FFFFFFEE" }]} numberOfLines={2}>
+                  {event.notes}
+                </Text>
+              )}
+              {event.startTime && (
+                <Text style={[eventStyles.illustratedTime, { color: "#FFFFFFDD" }]}>
+                  {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
+                </Text>
+              )}
+              {event.location && (
+                <View style={eventStyles.illustratedLocationRow}>
+                  <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
+                  <Text style={[eventStyles.illustratedLocation, { color: "#FFFFFFBB" }]} numberOfLines={1}>
+                    {event.location}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {isLiveScheduledBlock && (
+              <View accessibilityLabel="Live schedule position" style={{ position: 'absolute', left: 16, right: 16, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 3 }}>
+                <NowPill />
+                <View style={{ flex: 1, minWidth: 80, height: 5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', width: `${Math.max(4, Math.round((liveCursor?.progress ?? 0) * 100))}%`, backgroundColor: '#FFFFFF', borderRadius: 3 }} />
+                </View>
+              </View>
+            )}
+            <MaterialIcons name="nights-stay" size={44} color="#FFE082" style={{ opacity: 0.95 }} />
           </View>
         </Pressable>
         <ContextMenu
@@ -4343,55 +4465,25 @@ export function ScheduleTab({
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", zIndex: 101 }} pointerEvents="box-none">
           <ReAnimated.View
             entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}
-            style={{ backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 8, minWidth: 260, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}
+            style={{ backgroundColor: colors.surface, borderRadius: 28, paddingHorizontal: 22, paddingVertical: 16, alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 }}
           >
-            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
-              {whiteBlockMenu ? `ADD TO ${format12HourTime(whiteBlockMenu.startTime)} → ${format12HourTime(whiteBlockMenu.endTime)}` : ""}
+            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5 }}>
+              {whiteBlockMenu ? `${format12HourTime(whiteBlockMenu.startTime)} → ${format12HourTime(whiteBlockMenu.endTime)}` : ""}
             </Text>
-            <ReAnimated.View entering={FadeIn.duration(180).delay(30).easing(Easing.out(Easing.quad))}>
-              <Pressable
-                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime); }}
-                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-              >
-                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#3DAA78" }]}>
-                  <MaterialIcons name="event" size={20} color="#FFFFFF" />
-                </View>
-                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Event</Text>
-              </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={FadeIn.duration(180).delay(60).easing(Easing.out(Easing.quad))}>
-              <Pressable
-                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewTodoEditorAtTime(b.startTime); }}
-                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-              >
-                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#E3B341" }]}>
-                  <MaterialIcons name="check-box" size={20} color="#FFFFFF" />
-                </View>
-                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Todo</Text>
-              </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={FadeIn.duration(180).delay(90).easing(Easing.out(Easing.quad))}>
-              <Pressable
-                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewMinistryEditorAtTime(b.startTime); }}
-                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-              >
-                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#7C5CFF" }]}>
-                  <MaterialIcons name="volunteer-activism" size={20} color="#FFFFFF" />
-                </View>
-                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Ministry</Text>
-              </Pressable>
-            </ReAnimated.View>
-            <ReAnimated.View entering={FadeIn.duration(180).delay(120).easing(Easing.out(Easing.quad))}>
-              <Pressable
-                onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Rest"); }}
-                style={({ pressed }) => [scheduleStyles.fabMenuItem, pressed && { opacity: 0.7 }]}
-              >
-                <View style={[scheduleStyles.fabMenuIcon, { backgroundColor: "#4DABF7" }]}>
-                  <MaterialIcons name="bedtime" size={20} color="#FFFFFF" />
-                </View>
-                <Text style={[scheduleStyles.fabMenuLabel, { color: colors.foreground }]}>Rest</Text>
-              </Pressable>
-            </ReAnimated.View>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <ReAnimated.View entering={FadeIn.duration(180).easing(Easing.out(Easing.quad))}>
+                <WhiteBlockCircleButton label="Event" icon="event" color="#3DAA78" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime); }} />
+              </ReAnimated.View>
+              <ReAnimated.View entering={FadeIn.duration(180).delay(40).easing(Easing.out(Easing.quad))}>
+                <WhiteBlockCircleButton label="Todo" icon="check-box" color="#E3B341" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewTodoEditorAtTime(b.startTime); }} />
+              </ReAnimated.View>
+              <ReAnimated.View entering={FadeIn.duration(180).delay(80).easing(Easing.out(Easing.quad))}>
+                <WhiteBlockCircleButton label="Ministry" icon="volunteer-activism" color="#7C5CFF" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewMinistryEditorAtTime(b.startTime); }} />
+              </ReAnimated.View>
+              <ReAnimated.View entering={FadeIn.duration(180).delay(120).easing(Easing.out(Easing.quad))}>
+                <WhiteBlockCircleButton label="Rest" icon="bedtime" color="#4DABF7" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Rest"); }} />
+              </ReAnimated.View>
+            </View>
           </ReAnimated.View>
         </View>
       </Modal>

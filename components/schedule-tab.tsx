@@ -285,7 +285,7 @@ const REST_STARS: Array<{ left: `${number}%`; top: number; size: number; delay: 
 ];
 
 /** A single gently twinkling star for the Rest card night sky. */
-function TwinkleStar({ left, top, size, delay }: { left: `${number}%`; top: number; size: number; delay: number }) {
+function TwinkleStar({ left, top, size, delay, color = "#FFFFFF" }: { left: `${number}%`; top: number; size: number; delay: number; color?: string }) {
   const opacity = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
@@ -311,14 +311,381 @@ function TwinkleStar({ left, top, size, delay }: { left: `${number}%`; top: numb
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: color,
         opacity,
       }}
     />
   );
 }
 
-// ─── Rest card time-of-day moods ─────────────────────────────────────────────
+// ─── Keyword card ambient animations ─────────────────────────────────────────
+// Slow, soft, restrained — the same calm language as the Rest card skies.
+// Elements use white (or festive tints) at low opacity so they sit gracefully
+// on any user-chosen background. Transform/opacity only, native driver.
+
+/** Deterministic scattered horizontal position for ambient particles. */
+function moteLeft(i: number, seed: number): `${number}%` {
+  return `${6 + ((i * 37 + seed * 53) % 82)}%` as `${number}%`;
+}
+
+/** One dot rising and fading (embers, steam, bubbles, notes, energy…). */
+function RisingDot({ left, top, size, color, duration, delay, maxOpacity, sway, square, bordered }: {
+  left: `${number}%`; top: number; size: number; color: string; duration: number; delay: number;
+  maxOpacity: number; sway: number; square: boolean; bordered: boolean;
+}) {
+  const y = useRef(new Animated.Value(26)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(y, { toValue: -48, duration, easing: Easing.linear, useNativeDriver: true }),
+          ...(sway > 0 ? [Animated.sequence([
+            Animated.timing(x, { toValue: sway, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(x, { toValue: -sway, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ])] : []),
+        ]),
+        Animated.parallel([
+          Animated.timing(y, { toValue: 26, duration: 1, useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0, duration: 1, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: maxOpacity, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: maxOpacity, duration: duration * 0.4, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      rise.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      rise.stop();
+      fade.stop();
+    };
+  }, [delay, duration, maxOpacity, sway, x, y, op]);
+
+  return (
+    <Animated.View
+      style={{
+        position: "absolute", left, top, width: size, height: size,
+        borderRadius: square ? 1.5 : size / 2,
+        backgroundColor: bordered ? "transparent" : color,
+        borderWidth: bordered ? 1.5 : 0, borderColor: color,
+        opacity: op, transform: [{ translateX: x }, { translateY: y }],
+      }}
+    />
+  );
+}
+
+/** A field of rising dots. */
+function RiseMotes({ color = "#FFFFFF", count = 5, size = 4, duration = 7000, maxOpacity = 0.5, sway = 0, seed = 1, square = false, bordered = false }: {
+  color?: string; count?: number; size?: number; duration?: number; maxOpacity?: number; sway?: number; seed?: number; square?: boolean; bordered?: boolean;
+}) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <RisingDot
+          key={i} left={moteLeft(i, seed)} top={34 + ((i * 29) % 28)} size={size + (i % 2)} color={color}
+          duration={duration + (i % 3) * 1200} delay={i * 900} maxOpacity={maxOpacity} sway={sway} square={square} bordered={bordered}
+        />
+      ))}
+    </>
+  );
+}
+
+/** One particle falling with a gentle sway (snow, leaves, petals, confetti). */
+function FallingDot({ left, size, color, duration, delay, sway, square, ellipse, spin, maxOpacity }: {
+  left: `${number}%`; size: number; color: string; duration: number; delay: number;
+  sway: number; square: boolean; ellipse: boolean; spin: boolean; maxOpacity: number;
+}) {
+  const y = useRef(new Animated.Value(-24)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  const rot = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(y, { toValue: 120, duration, easing: Easing.linear, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(x, { toValue: sway, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(x, { toValue: -sway, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+          Animated.timing(rot, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(y, { toValue: -24, duration: 1, useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0, duration: 1, useNativeDriver: true }),
+          Animated.timing(rot, { toValue: 0, duration: 1, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: maxOpacity, duration: duration * 0.25, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: maxOpacity, duration: duration * 0.5, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: duration * 0.25, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      fall.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      fall.stop();
+      fade.stop();
+    };
+  }, [delay, duration, maxOpacity, sway, x, y, op, rot]);
+
+  const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: spin ? ["0deg", "360deg"] : ["-25deg", "25deg"] });
+
+  return (
+    <Animated.View
+      style={{
+        position: "absolute", left, top: 0, width: ellipse ? size * 1.4 : size, height: size,
+        borderRadius: square ? 1.5 : size / 2, backgroundColor: color, opacity: op,
+        transform: [{ translateX: x }, { translateY: y }, { rotate }],
+      }}
+    />
+  );
+}
+
+/** A field of falling particles. */
+function FallMotes({ colors = ["#FFFFFF"], count = 6, size = 5, duration = 9000, seed = 2, square = false, ellipse = false, spin = false, maxOpacity = 0.7, sway = 12 }: {
+  colors?: string[]; count?: number; size?: number; duration?: number; seed?: number;
+  square?: boolean; ellipse?: boolean; spin?: boolean; maxOpacity?: number; sway?: number;
+}) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <FallingDot
+          key={i} left={moteLeft(i, seed)} size={size + (i % 3)} color={colors[i % colors.length]}
+          duration={duration + (i % 3) * 1500} delay={i * 1100} sway={sway} square={square}
+          ellipse={ellipse} spin={spin} maxOpacity={maxOpacity}
+        />
+      ))}
+    </>
+  );
+}
+
+/** A field of twinkling dots (stars, sparkles). */
+function TwinkleField({ color = "#FFFFFF", count = 6, seed = 3 }: { color?: string; count?: number; seed?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <TwinkleStar key={i} left={moteLeft(i, seed)} top={8 + ((i * 41) % 48)} size={2 + (i % 3)} delay={i * 550} color={color} />
+      ))}
+    </>
+  );
+}
+
+/** A large soft glow slowly breathing (calm, reverent, welcoming…). */
+function BreatheGlow({ color = "#FFFFFF", size = 120, left = "30%", bottom = -30, min = 0.1, max = 0.3, duration = 4200, delay = 0 }: {
+  color?: string; size?: number; left?: `${number}%`; bottom?: number; min?: number; max?: number; duration?: number; delay?: number;
+}) {
+  const op = useRef(new Animated.Value(min)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: max, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: min, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, duration, max, min, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: op }} />
+  );
+}
+
+/** A slow cinematic light sweep (movie night). */
+function FilmSweep() {
+  const x = useRef(new Animated.Value(-120)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: 420, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: -120, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), 1500);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [x]);
+
+  return (
+    <Animated.View style={{ position: "absolute", top: -20, left: 0, width: 70, height: 150, backgroundColor: "#FFFFFF", opacity: 0.1, transform: [{ translateX: x }, { rotate: "18deg" }] }} />
+  );
+}
+
+/** A tiny plane drifting across the sky (travel). */
+function PlaneFlyby() {
+  const x = useRef(new Animated.Value(-50)).current;
+  const y = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const fly = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: 420, duration: 14000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(x, { toValue: -50, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const bob = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -6, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 6, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      fly.start();
+      bob.start();
+    }, 2000);
+    return () => {
+      clearTimeout(startTimeout);
+      fly.stop();
+      bob.stop();
+    };
+  }, [x, y]);
+
+  return (
+    <Animated.View style={{ position: "absolute", top: 16, left: 0, opacity: 0.55, transform: [{ translateX: x }, { translateY: y }] }}>
+      <MaterialIcons name="flight" size={26} color="#FFFFFF" />
+    </Animated.View>
+  );
+}
+
+/** A basketball gently floating (no bounce). */
+function BallBob() {
+  const y = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -10, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [y]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left: "12%", bottom: 12, width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFFFFF", opacity: 0.28, transform: [{ translateY: y }] }} />
+  );
+}
+
+/** Blades of grass swaying (soccer). */
+function GrassBlade({ left, delay }: { left: `${number}%`; delay: number }) {
+  const rot = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(rot, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(rot, { toValue: -1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, rot]);
+
+  const rotate = rot.interpolate({ inputRange: [-1, 1], outputRange: ["-10deg", "10deg"] });
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 6, width: 4, height: 22, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.4, transform: [{ rotate }] }} />
+  );
+}
+
+function GrassSway() {
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <GrassBlade key={i} left={`${12 + i * 16}%` as `${number}%`} delay={i * 400} />
+      ))}
+    </>
+  );
+}
+
+/** Carnival lights twinkling across the top (amusement park). */
+function CarnivalLights() {
+  const colors = ["#FFD43B", "#FF6B6B", "#4DABF7", "#69DB7C", "#F783AC"];
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <TwinkleStar key={i} left={`${8 + i * 11}%` as `${number}%`} top={6} size={5} delay={i * 350} color={colors[i % colors.length]} />
+      ))}
+    </>
+  );
+}
+
+/** Picks the ambient animation for a keyword card. */
+function KeywordAmbientAnimation({ label }: { label: string }) {
+  switch (label) {
+    case "BBQ": return <RiseMotes color="#FFB35C" count={5} size={4} duration={6000} maxOpacity={0.6} seed={11} />;
+    case "Church": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.35} seed={12} />;
+    case "Worship": return <RiseMotes color="#FFFFFF" count={6} size={4} duration={8000} maxOpacity={0.45} seed={13} />;
+    case "Bible Study": return <TwinkleField color="#FFE9A8" count={7} seed={14} />;
+    case "Therapy": return <BreatheGlow color="#FFFFFF" size={130} left="28%" bottom={-40} min={0.1} max={0.28} duration={5000} />;
+    case "Doctor": return <BreatheGlow color="#FFFFFF" size={110} left="32%" bottom={-30} min={0.1} max={0.25} duration={3800} />;
+    case "Gardening": return <FallMotes colors={["#8CE99A", "#69DB7C", "#C0EBB2"]} count={6} size={7} duration={9000} seed={15} ellipse />;
+    case "Baby Shower": return <RiseMotes color="#FFFFFF" count={5} size={9} duration={9000} maxOpacity={0.4} seed={16} bordered />;
+    case "Birthday": return <FallMotes colors={["#FFD43B", "#FF6B6B", "#4DABF7", "#69DB7C", "#F783AC"]} count={8} size={6} duration={8000} seed={17} square spin />;
+    case "Christmas": return <FallMotes colors={["#FFFFFF"]} count={9} size={4} duration={10000} seed={18} />;
+    case "Easter": return <FallMotes colors={["#F8BBD0", "#E1BEE7", "#FFF9C4"]} count={6} size={6} duration={9000} seed={19} ellipse />;
+    case "Thanksgiving": return <FallMotes colors={["#FFA94D", "#E8590C", "#FFD43B"]} count={6} size={7} duration={9000} seed={20} ellipse spin />;
+    case "Wedding": return <FallMotes colors={["#FFFFFF", "#F8BBD0"]} count={6} size={6} duration={10000} seed={21} ellipse />;
+    case "Memorial": return <BreatheGlow color="#FFFFFF" size={140} left="26%" bottom={-50} min={0.06} max={0.16} duration={6000} />;
+    case "Meal": return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
+    case "Meeting": return <RiseMotes color="#FFFFFF" count={3} size={3} duration={12000} maxOpacity={0.22} seed={23} />;
+    case "Workout": return <RiseMotes color="#FFA94D" count={6} size={4} duration={5000} maxOpacity={0.55} seed={24} />;
+    case "Basketball": return <BallBob />;
+    case "Soccer": return <GrassSway />;
+    case "Game": return <RiseMotes color="#8CE99A" count={6} size={6} duration={7000} maxOpacity={0.5} seed={25} square />;
+    case "Movie": return <FilmSweep />;
+    case "Full Moon": return <TwinkleField color="#FFFFFF" count={8} seed={26} />;
+    case "Prayer": return <RiseMotes color="#FFE9A8" count={5} size={4} duration={9000} maxOpacity={0.5} seed={27} />;
+    case "Outreach": return <RiseMotes color="#FFFFFF" count={5} size={4} duration={8000} maxOpacity={0.4} seed={28} />;
+    case "Concert":
+      return (
+        <>
+          <BreatheGlow color="#B197FC" size={120} left="10%" bottom={-40} min={0.15} max={0.35} duration={2600} />
+          <BreatheGlow color="#74C0FC" size={120} left="55%" bottom={-40} min={0.15} max={0.35} duration={2600} delay={1300} />
+        </>
+      );
+    case "Travel":
+      return (
+        <>
+          <PlaneFlyby />
+          <DriftingCloud top={46} size={36} duration={19000} delay={3000} />
+        </>
+      );
+    case "Study": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.3} seed={29} />;
+    case "Visit": return <BreatheGlow color="#FFD9A0" size={120} left="30%" bottom={-36} min={0.12} max={0.3} duration={4500} />;
+    case "Amusement Park": return <CarnivalLights />;
+    default: return null;
+  }
+}
 // The Rest card shifts its sky with the hour it's scheduled for: sunrise,
 // sunny midday, sunset, or starry night — each with its own gentle animation.
 
@@ -792,8 +1159,9 @@ function EventCardInner({
         delayLongPress={500}
         style={({ pressed }) => [pressed && { opacity: 0.85 }]}
       >
-        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+        <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

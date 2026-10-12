@@ -131,6 +131,9 @@ describe("event-icons", () => {
         "home",
         "attractions",
         "nights-stay",
+        "celebration",
+        "dark-mode",
+        "eco",
       ];
 
       EVENT_KEYWORD_MAP.forEach((keyword) => {

@@ -154,6 +154,10 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", icon: "school", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
   { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", icon: "home", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
   { keywords: ["amusement park", "six flags", "knott's", "disneyland", "universal", "theme park"], label: "Amusement Park", emoji: "🎢🎡", icon: "attractions", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#E91E63" },
+  { keywords: ["new year", "new years", "nye"], label: "New Year", emoji: "🎆", icon: "celebration", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#FFD600" },
+  { keywords: ["valentine", "valentines"], label: "Valentine's Day", emoji: "💕", icon: "favorite", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#EC407A" },
+  { keywords: ["halloween"], label: "Halloween", emoji: "🎃", icon: "dark-mode", bgColor: "#FFF3E0", textColor: "#4A148C", accentColor: "#FF6D00" },
+  { keywords: ["st patrick", "saint patrick", "st. patrick"], label: "St. Patrick's Day", emoji: "🍀", icon: "eco", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#00C853" },
   { keywords: ["rest", "nap", "siesta", "unwind", "recharge"], label: "Rest", emoji: "🌙", icon: "nights-stay", bgColor: "#232347", textColor: "#E8EAF6", accentColor: "#9FA8DA" },
 ];
 

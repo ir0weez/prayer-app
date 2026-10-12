@@ -627,27 +627,295 @@ function GrassSway() {
   );
 }
 
-/** Carnival lights twinkling across the top (amusement park). */
-function CarnivalLights() {
-  const colors = ["#FFD43B", "#FF6B6B", "#4DABF7", "#69DB7C", "#F783AC"];
+/** A small heart built from flat Material-style shapes. */
+function HeartShape({ size = 16, color = "#FFFFFF", opacity = 0.55 }: { size?: number; color?: string; opacity?: number }) {
+  const r = size / 2;
+  return (
+    <View style={{ width: size, height: size, opacity }}>
+      <View style={{ position: "absolute", left: 0, top: 0, width: r, height: r, borderRadius: r / 2, backgroundColor: color }} />
+      <View style={{ position: "absolute", right: 0, top: 0, width: r, height: r, borderRadius: r / 2, backgroundColor: color }} />
+      <View style={{ position: "absolute", left: size * 0.14, top: size * 0.22, width: size * 0.72, height: size * 0.72, backgroundColor: color, transform: [{ rotate: "45deg" }] }} />
+    </View>
+  );
+}
+
+/** A heartbeat rhythm — lub-dub, then rest (doctor). */
+function HeartPulse() {
+  const s = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const beat = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 1.22, duration: 160, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 1, duration: 180, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 1.14, duration: 130, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 1, duration: 200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.delay(1400),
+      ])
+    );
+    beat.start();
+    return () => beat.stop();
+  }, [s]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left: "14%", bottom: 18, transform: [{ scale: s }] }}>
+      <HeartShape size={22} />
+    </Animated.View>
+  );
+}
+
+/** One calm ripple ring expanding outward (therapy). */
+function RippleRing({ delay, duration = 6000, maxOpacity = 0.35 }: { delay: number; duration?: number; maxOpacity?: number }) {
+  const s = useRef(new Animated.Value(0.25)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(s, { toValue: 1, duration, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(op, { toValue: maxOpacity, duration: duration * 0.35, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(op, { toValue: 0, duration: duration * 0.65, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+        ]),
+        Animated.timing(s, { toValue: 0.25, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => anim.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      anim.stop();
+    };
+  }, [delay, duration, maxOpacity, s, op]);
+
+  return (
+    <Animated.View style={{
+      position: "absolute", left: "28%", bottom: 6, width: 96, height: 96, borderRadius: 48,
+      borderWidth: 2, borderColor: "#FFFFFF", backgroundColor: "transparent",
+      opacity: op, transform: [{ scale: s }],
+    }} />
+  );
+}
+
+/** Concentric calm ripples, like a breathing exercise (therapy). */
+function BreathingRings() {
+  return (
+    <>
+      <RippleRing delay={0} />
+      <RippleRing delay={2000} />
+      <RippleRing delay={4000} />
+    </>
+  );
+}
+
+/** A warm candle glow with a gentle irregular flicker (dinner). */
+function CandleFlicker() {
+  const op = useRef(new Animated.Value(0.28)).current;
+  const fs = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.38, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.3, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.4, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.28, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const flame = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fs, { toValue: 1.15, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(fs, { toValue: 0.95, duration: 650, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    glow.start();
+    flame.start();
+    return () => {
+      glow.stop();
+      flame.stop();
+    };
+  }, [op, fs]);
+
+  return (
+    <>
+      <Animated.View style={{ position: "absolute", left: "22%", bottom: -36, width: 120, height: 120, borderRadius: 60, backgroundColor: "#FFD9A0", opacity: op }} />
+      <Animated.View style={{ position: "absolute", left: "33%", bottom: 26, width: 10, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF", opacity: 0.75, transform: [{ scale: fs }] }} />
+    </>
+  );
+}
+
+/** One firework particle radiating outward (New Year). */
+function FireworkParticle({ index, left, top, delay, color }: { index: number; left: `${number}%`; top: number; delay: number; color: string }) {
+  const p = useRef(new Animated.Value(0)).current;
+  const angle = (index / 8) * Math.PI * 2;
+  const dist = 34 + (index % 3) * 8;
+  const dx = Math.cos(angle) * dist;
+  const dy = Math.sin(angle) * dist;
+
+  useEffect(() => {
+    const burst = Animated.loop(
+      Animated.sequence([
+        Animated.timing(p, { toValue: 1, duration: 1100, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(p, { toValue: 0, duration: 1, useNativeDriver: true }),
+        Animated.delay(2200),
+      ])
+    );
+    const startTimeout = setTimeout(() => burst.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      burst.stop();
+    };
+  }, [delay, p]);
+
+  const translateX = p.interpolate({ inputRange: [0, 1], outputRange: [0, dx] });
+  const translateY = p.interpolate({ inputRange: [0, 1], outputRange: [0, dy] });
+  const opacity = p.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.9, 0.9, 0] });
+
+  return (
+    <Animated.View style={{ position: "absolute", left, top, width: 5, height: 5, borderRadius: 2.5, backgroundColor: color, opacity, transform: [{ translateX }, { translateY }] }} />
+  );
+}
+
+/** A firework burst of 8 particles. */
+function FireworkBurst({ left, top, delay, colors }: { left: `${number}%`; top: number; delay: number; colors: string[] }) {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
-        <TwinkleStar key={i} left={`${8 + i * 11}%` as `${number}%`} top={6} size={5} delay={i * 350} color={colors[i % colors.length]} />
+        <FireworkParticle key={i} index={i} left={left} top={top} delay={delay} color={colors[i % colors.length]} />
       ))}
     </>
   );
 }
 
+/** Staggered fireworks across the sky (New Year). */
+function NewYearFireworks() {
+  return (
+    <>
+      <FireworkBurst left="30%" top={26} delay={0} colors={["#FFD43B", "#FFFFFF"]} />
+      <FireworkBurst left="62%" top={40} delay={1100} colors={["#F783AC", "#FFD43B"]} />
+      <FireworkBurst left="45%" top={18} delay={2300} colors={["#4DABF7", "#FFFFFF"]} />
+    </>
+  );
+}
+
+/** One heart rising and fading (Valentine's Day). */
+function RisingHeart({ left, delay, duration, size, color }: { left: `${number}%`; delay: number; duration: number; size: number; color: string }) {
+  const y = useRef(new Animated.Value(30)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -50, duration, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: 30, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.7, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.7, duration: duration * 0.4, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      rise.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      rise.stop();
+      fade.stop();
+    };
+  }, [delay, duration, y, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 44, opacity: op, transform: [{ translateY: y }] }}>
+      <HeartShape size={size} color={color} opacity={1} />
+    </Animated.View>
+  );
+}
+
+/** Hearts floating upward (Valentine's Day). */
+function ValentinesHearts() {
+  const colors = ["#F783AC", "#EC407A", "#FFFFFF"];
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <RisingHeart key={i} left={moteLeft(i, 31)} delay={i * 1100} duration={8000 + (i % 2) * 1500} size={12 + (i % 3) * 3} color={colors[i % 3]} />
+      ))}
+    </>
+  );
+}
+
+/** A slow drifting fog bank with spooky twinkles (Halloween). */
+function FogBank() {
+  const x = useRef(new Animated.Value(-40)).current;
+
+  useEffect(() => {
+    const drift = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: 60, duration: 14000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: -40, duration: 14000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    drift.start();
+    return () => drift.stop();
+  }, [x]);
+
+  return (
+    <>
+      <Animated.View style={{ position: "absolute", left: "10%", bottom: 6, width: 220, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF", opacity: 0.07, transform: [{ translateX: x }] }} />
+      <TwinkleField color="#FFA94D" count={5} seed={32} />
+    </>
+  );
+}
+
+/** A simple roller coaster loop with a car circling it (amusement park). */
+function CoasterLoop() {
+  const spin = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 6000, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  return (
+    <View style={{ position: "absolute", left: "10%", bottom: 10, width: 76, height: 76 }}>
+      <View style={{ position: "absolute", left: 18, bottom: 0, width: 4, height: 30, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.35 }} />
+      <View style={{ position: "absolute", right: 18, bottom: 0, width: 4, height: 30, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.35 }} />
+      <View style={{ position: "absolute", left: 8, top: 0, width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderColor: "#FFFFFF", opacity: 0.5, backgroundColor: "transparent" }} />
+      <Animated.View style={{ position: "absolute", left: 8, top: 0, width: 60, height: 60, transform: [{ rotate }] }}>
+        <View style={{ position: "absolute", left: 25, top: -5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+      </Animated.View>
+    </View>
+  );
+}
+
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label }: { label: string }) {
+function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?: string }) {
+  // Breakfast, lunch, and dinner each get their own treatment.
+  if (label === "Meal") {
+    const t = title.toLowerCase();
+    if (t.includes("breakfast") || t.includes("brunch"))
+      return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
+    if (t.includes("lunch"))
+      return <RiseMotes color="#FFFFFF" count={6} size={4} duration={7000} maxOpacity={0.5} seed={33} bordered />;
+    if (t.includes("dinner")) return <CandleFlicker />;
+    return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
+  }
   switch (label) {
     case "BBQ": return <RiseMotes color="#FFB35C" count={5} size={4} duration={6000} maxOpacity={0.6} seed={11} />;
     case "Church": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.35} seed={12} />;
     case "Worship": return <RiseMotes color="#FFFFFF" count={6} size={4} duration={8000} maxOpacity={0.45} seed={13} />;
     case "Bible Study": return <TwinkleField color="#FFE9A8" count={7} seed={14} />;
-    case "Therapy": return <BreatheGlow color="#FFFFFF" size={130} left="28%" bottom={-40} min={0.1} max={0.28} duration={5000} />;
-    case "Doctor": return <BreatheGlow color="#FFFFFF" size={110} left="32%" bottom={-30} min={0.1} max={0.25} duration={3800} />;
+    case "Therapy": return <BreathingRings />;
+    case "Doctor": return <HeartPulse />;
     case "Gardening": return <FallMotes colors={["#8CE99A", "#69DB7C", "#C0EBB2"]} count={6} size={7} duration={9000} seed={15} ellipse />;
     case "Baby Shower": return <RiseMotes color="#FFFFFF" count={5} size={9} duration={9000} maxOpacity={0.4} seed={16} bordered />;
     case "Birthday": return <FallMotes colors={["#FFD43B", "#FF6B6B", "#4DABF7", "#69DB7C", "#F783AC"]} count={8} size={6} duration={8000} seed={17} square spin />;
@@ -682,7 +950,11 @@ function KeywordAmbientAnimation({ label }: { label: string }) {
       );
     case "Study": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.3} seed={29} />;
     case "Visit": return <BreatheGlow color="#FFD9A0" size={120} left="30%" bottom={-36} min={0.12} max={0.3} duration={4500} />;
-    case "Amusement Park": return <CarnivalLights />;
+    case "Amusement Park": return <CoasterLoop />;
+    case "New Year": return <NewYearFireworks />;
+    case "Valentine's Day": return <ValentinesHearts />;
+    case "Halloween": return <FogBank />;
+    case "St. Patrick's Day": return <TwinkleField color="#69DB7C" count={7} seed={34} />;
     default: return null;
   }
 }
@@ -1161,7 +1433,7 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: event.isOffEvent ? timeOffTextColor : '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

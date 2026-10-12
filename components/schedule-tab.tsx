@@ -7980,15 +7980,13 @@ const eventStyles = StyleSheet.create({
   },
   illustratedContent: {
     flex: 1,
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   illustratedTitle: {
     fontSize: 16,
     fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   illustratedDescription: {
     fontSize: 20,

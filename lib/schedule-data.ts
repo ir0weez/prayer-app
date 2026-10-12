@@ -28,6 +28,7 @@ export type ScheduleEvent = {
   completedAt?: string;
   color?: string; // Override color
   keyword?: string; // Detected keyword for illustration
+  isHoliday?: boolean; // Auto-seeded US holiday (render-only, never editable/persisted)
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this event
 };
 
@@ -134,9 +135,9 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["gardening", "garden", "planting", "plants", "yard work", "yard", "lawn", "grass"], label: "Gardening", emoji: "🌿", icon: "yard", bgColor: "#ECFDF5", textColor: "#166534", accentColor: "#16A34A" },
   { keywords: ["baby shower", "shower"], label: "Baby Shower", emoji: "👶🎀", icon: "child-care", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#E91E63", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-baby-shower-A4jXQnm5YLUXzATALNXisG.webp" },
   { keywords: ["birthday", "bday"], label: "Birthday", emoji: "🎂🎈", icon: "cake", bgColor: "#FFF9C4", textColor: "#F57F17", accentColor: "#FFC107", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-birthday-3PydinwRWdXFCXjkiXxzAE.webp" },
-  { keywords: ["christmas", "xmas"], label: "Christmas", emoji: "🎄🎁", icon: "card-giftcard", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#C62828", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-christmas-aCYCSVHTwUa5rikTE9wzRW.webp" },
+  { keywords: ["christmas", "xmas"], label: "Christmas", emoji: "🎄🎁", icon: "card-giftcard", bgColor: "#1B4332", textColor: "#E8F5E9", accentColor: "#FF5252", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-christmas-aCYCSVHTwUa5rikTE9wzRW.webp" },
   { keywords: ["easter"], label: "Easter", emoji: "🐣✝️", icon: "card-giftcard", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#AB47BC", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-easter-cvgMHagLs23TrgNXA4hJdJ.webp" },
-  { keywords: ["thanksgiving"], label: "Thanksgiving", emoji: "🦃🍂", icon: "restaurant", bgColor: "#FFF3E0", textColor: "#E65100", accentColor: "#FF8F00" },
+  { keywords: ["thanksgiving"], label: "Thanksgiving", emoji: "🦃🍂", icon: "restaurant", bgColor: "#4E342E", textColor: "#FFCC80", accentColor: "#FF8F00" },
   { keywords: ["wedding", "marriage"], label: "Wedding", emoji: "💒💍", icon: "favorite", bgColor: "#FFFDE7", textColor: "#F57F17", accentColor: "#FFD600" },
   { keywords: ["funeral", "memorial"], label: "Memorial", emoji: "🕊️", icon: "sentiment-very-satisfied", bgColor: "#ECEFF1", textColor: "#37474F", accentColor: "#607D8B" },
   { keywords: ["lunch", "dinner", "breakfast", "brunch", "meal"], label: "Meal", emoji: "🍽️", icon: "restaurant", bgColor: "#FFF8E1", textColor: "#FF6F00", accentColor: "#FFB300" },
@@ -154,11 +155,12 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["study", "exam", "class", "school"], label: "Study", emoji: "📚", icon: "school", bgColor: "#FBE9E7", textColor: "#BF360C", accentColor: "#FF5722" },
   { keywords: ["visit", "visiting"], label: "Visit", emoji: "👋🏠", icon: "home", bgColor: "#F0F4C3", textColor: "#558B2F", accentColor: "#9CCC65" },
   { keywords: ["amusement park", "six flags", "knott's", "disneyland", "universal", "theme park"], label: "Amusement Park", emoji: "🎢🎡", icon: "attractions", bgColor: "#F3E5F5", textColor: "#6A1B9A", accentColor: "#E91E63" },
-  { keywords: ["new year", "new years", "nye"], label: "New Year", emoji: "🎆", icon: "celebration", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#FFD600" },
-  { keywords: ["valentine", "valentines"], label: "Valentine's Day", emoji: "💕", icon: "favorite", bgColor: "#FCE4EC", textColor: "#880E4F", accentColor: "#EC407A" },
-  { keywords: ["halloween"], label: "Halloween", emoji: "🎃", icon: "dark-mode", bgColor: "#FFF3E0", textColor: "#4A148C", accentColor: "#FF6D00" },
-  { keywords: ["st patrick", "saint patrick", "st. patrick"], label: "St. Patrick's Day", emoji: "🍀", icon: "eco", bgColor: "#E8F5E9", textColor: "#1B5E20", accentColor: "#00C853" },
+  { keywords: ["new year", "new years", "nye"], label: "New Year", emoji: "🎆", icon: "celebration", bgColor: "#1A237E", textColor: "#FFF9C4", accentColor: "#FFD600" },
+  { keywords: ["valentine", "valentines"], label: "Valentine's Day", emoji: "💕", icon: "favorite", bgColor: "#5C1031", textColor: "#F8BBD0", accentColor: "#EC407A" },
+  { keywords: ["halloween"], label: "Halloween", emoji: "🎃", icon: "dark-mode", bgColor: "#2A2140", textColor: "#FFCC80", accentColor: "#FF6D00" },
+  { keywords: ["st patrick", "saint patrick", "st. patrick"], label: "St. Patrick's Day", emoji: "🍀", icon: "eco", bgColor: "#1B5E20", textColor: "#C8E6C9", accentColor: "#00E676" },
   { keywords: ["rest", "nap", "siesta", "unwind", "recharge"], label: "Rest", emoji: "🌙", icon: "nights-stay", bgColor: "#232347", textColor: "#E8EAF6", accentColor: "#9FA8DA" },
+  { keywords: ["tv", "tv show", "television", "show", "episode", "series"], label: "TV Show", emoji: "📺", icon: "tv", bgColor: "#E8EAF6", textColor: "#1A237E", accentColor: "#5C6BC0" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -134,6 +134,7 @@ describe("event-icons", () => {
         "celebration",
         "dark-mode",
         "eco",
+        "tv",
       ];
 
       EVENT_KEYWORD_MAP.forEach((keyword) => {

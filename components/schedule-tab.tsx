@@ -77,6 +77,7 @@ import {
   upsertAndSelectWorshipAlbum,
   type StoredWorshipAlbum,
 } from "@/lib/worship-album-state";
+import { getHolidaysForYear } from "@/lib/holidays";
 import {
   addDays,
   BirthdayEvent,
@@ -709,41 +710,6 @@ function BreathingRings() {
   );
 }
 
-/** A warm candle glow with a gentle irregular flicker (dinner). */
-function CandleFlicker() {
-  const op = useRef(new Animated.Value(0.28)).current;
-  const fs = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(op, { toValue: 0.38, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(op, { toValue: 0.3, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(op, { toValue: 0.4, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(op, { toValue: 0.28, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    const flame = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fs, { toValue: 1.15, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(fs, { toValue: 0.95, duration: 650, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    glow.start();
-    flame.start();
-    return () => {
-      glow.stop();
-      flame.stop();
-    };
-  }, [op, fs]);
-
-  return (
-    <>
-      <Animated.View style={{ position: "absolute", left: "22%", bottom: -36, width: 120, height: 120, borderRadius: 60, backgroundColor: "#FFD9A0", opacity: op }} />
-      <Animated.View style={{ position: "absolute", left: "33%", bottom: 26, width: 10, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF", opacity: 0.75, transform: [{ scale: fs }] }} />
-    </>
-  );
-}
 
 /** One firework particle radiating outward (New Year). */
 function FireworkParticle({ index, left, top, delay, color }: { index: number; left: `${number}%`; top: number; delay: number; color: string }) {
@@ -848,28 +814,6 @@ function ValentinesHearts() {
   );
 }
 
-/** A slow drifting fog bank with spooky twinkles (Halloween). */
-function FogBank() {
-  const x = useRef(new Animated.Value(-40)).current;
-
-  useEffect(() => {
-    const drift = Animated.loop(
-      Animated.sequence([
-        Animated.timing(x, { toValue: 60, duration: 14000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(x, { toValue: -40, duration: 14000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    drift.start();
-    return () => drift.stop();
-  }, [x]);
-
-  return (
-    <>
-      <Animated.View style={{ position: "absolute", left: "10%", bottom: 6, width: 220, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF", opacity: 0.07, transform: [{ translateX: x }] }} />
-      <TwinkleField color="#FFA94D" count={5} seed={32} />
-    </>
-  );
-}
 
 /** A simple roller coaster loop with a car circling it (amusement park). */
 function CoasterLoop() {
@@ -897,50 +841,792 @@ function CoasterLoop() {
   );
 }
 
+/** Slow rotate oscillation wrapper (tails, sprouts, spotlights, wings…). */
+function GentleSway({ children, left, bottom, width, height, duration = 4000, arc = 10, delay = 0 }: {
+  children: React.ReactNode; left: number | `${number}%`; bottom: number; width: number; height: number;
+  duration?: number; arc?: number; delay?: number;
+}) {
+  const rot = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(rot, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(rot, { toValue: -1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, duration, rot]);
+
+  const rotate = rot.interpolate({ inputRange: [-1, 1], outputRange: [`${-arc}deg`, `${arc}deg`] });
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width, height, transform: [{ rotate }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Gentle vertical bob wrapper (balloons, dumbbells, hearts…). Slow sine — never bouncy. */
+function GentleBob({ children, left, bottom, width, height, distance = 8, duration = 3200, delay = 0 }: {
+  children: React.ReactNode; left: number | `${number}%`; bottom: number; width: number; height: number;
+  distance?: number; duration?: number; delay?: number;
+}) {
+  const y = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -distance, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, distance, duration, y]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width, height, transform: [{ translateY: y }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** A small flame with a gentle irregular flicker (birthday candles, memorial). */
+function FlickerFlame({ left, bottom, size = 10, delay = 0 }: {
+  left: number | `${number}%`; bottom: number; size?: number; delay?: number;
+}) {
+  const op = useRef(new Animated.Value(0.78)).current;
+  const s = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.95, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.7, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.9, duration: 750, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.78, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const flame = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 1.12, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 0.94, duration: 620, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      glow.start();
+      flame.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      glow.stop();
+      flame.stop();
+    };
+  }, [delay, op, s]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: size * 0.7, height: size, opacity: op, transform: [{ scale: s }] }}>
+      <View style={{ position: "absolute", left: 0, top: 0, width: size * 0.7, height: size, borderRadius: size * 0.35, backgroundColor: "#FFB300" }} />
+      <View style={{ position: "absolute", left: size * 0.18, top: size * 0.34, width: size * 0.34, height: size * 0.5, borderRadius: size * 0.17, backgroundColor: "#FFF8E1" }} />
+    </Animated.View>
+  );
+}
+
+/** A dot gently pulsing in opacity (meeting dots, motion accents…). */
+function PulseDot({ left, bottom, size = 7, color = "#FFFFFF", delay = 0, duration = 1600, min = 0.25, max = 0.9 }: {
+  left: number | `${number}%`; bottom: number; size?: number; color?: string;
+  delay?: number; duration?: number; min?: number; max?: number;
+}) {
+  const op = useRef(new Animated.Value(min)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: max, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: min, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, duration, max, min, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: op }} />
+  );
+}
+
+/** Two amber eyes that blink every few seconds (Halloween cat). */
+function BlinkEyes({ left, bottom, delay = 0 }: { left: number | `${number}%`; bottom: number; delay?: number }) {
+  const op = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(3400),
+        Animated.timing(op, { toValue: 0.06, duration: 130, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.95, duration: 200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => loop.start(), delay);
+    return () => {
+      clearTimeout(startTimeout);
+      loop.stop();
+    };
+  }, [delay, op]);
+
+  return (
+    <View style={{ position: "absolute", left, bottom, width: 20, height: 7, flexDirection: "row", justifyContent: "space-between" }}>
+      <Animated.View style={{ width: 5, height: 7, borderRadius: 2.5, backgroundColor: "#FFB300", opacity: op }} />
+      <Animated.View style={{ width: 5, height: 7, borderRadius: 2.5, backgroundColor: "#FFB300", opacity: op }} />
+    </View>
+  );
+}
+
+/** A music note (drawn from Views) rising and fading (worship). */
+function RisingNote({ left, delay = 0, duration = 7000, color = "#FFFFFF" }: {
+  left: `${number}%`; delay?: number; duration?: number; color?: string;
+}) {
+  const y = useRef(new Animated.Value(24)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -46, duration, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: 24, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.75, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.75, duration: duration * 0.4, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: duration * 0.3, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      rise.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      rise.stop();
+      fade.stop();
+    };
+  }, [delay, duration, y, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 42, opacity: op, transform: [{ translateY: y }] }}>
+      <View style={{ width: 9, height: 7, borderRadius: 4, backgroundColor: color }} />
+      <View style={{ position: "absolute", right: 0, top: -14, width: 2.5, height: 16, borderRadius: 1, backgroundColor: color }} />
+    </Animated.View>
+  );
+}
+
+/** A single water droplet falling a short distance (watering can). */
+function RainDrop({ left, bottom, delay = 0, color = "#74C0FC" }: {
+  left: number | `${number}%`; bottom: number; delay?: number; color?: string;
+}) {
+  const y = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: 26, duration: 1400, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.85, duration: 350, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.85, duration: 700, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ])
+    );
+    const startTimeout = setTimeout(() => {
+      fall.start();
+      fade.start();
+    }, delay);
+    return () => {
+      clearTimeout(startTimeout);
+      fall.stop();
+      fade.stop();
+    };
+  }, [delay, y, op]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: 5, height: 8, borderRadius: 3, backgroundColor: color, opacity: op, transform: [{ translateY: y }] }} />
+  );
+}
+
+// ─── Illustrated keyword scenes ──────────────────────────────────────────────
+// Recognizable little scenes in the same calm language: absolute-positioned
+// Views, soft white/festive tints, slow gentle motion, transform/opacity only.
+
+/** Coffee + eggs & bacon (breakfast). */
+function BreakfastScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "7%", bottom: 12, width: 52, height: 34 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 6, width: 30, height: 24, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 30, bottom: 12, width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 44, height: 7, borderRadius: 3.5, backgroundColor: "#FFFFFF", opacity: 0.5 }} />
+      </View>
+      <RisingDot left="9%" top={40} size={5} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="12%" top={40} size={4} color="#FFFFFF" duration={4800} delay={1400} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+      <RisingDot left="15%" top={40} size={5} color="#FFFFFF" duration={4500} delay={2800} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "52%", bottom: 10, width: 76, height: 36 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 76, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 15, bottom: 13, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFB300", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 34, bottom: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 39, bottom: 13, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFB300", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 56, bottom: 10, width: 8, height: 26, borderRadius: 4, backgroundColor: "#C0392B", opacity: 0.85, transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 64, bottom: 10, width: 8, height: 26, borderRadius: 4, backgroundColor: "#A93226", opacity: 0.85, transform: [{ rotate: "-10deg" }] }} />
+      </View>
+    </>
+  );
+}
+
+/** Burger, fries & milkshake (lunch). */
+function LunchScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "8%", bottom: 10, width: 52, height: 40 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 44, height: 10, borderRadius: 5, backgroundColor: "#E8A94E", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 3, bottom: 9, width: 46, height: 7, borderRadius: 3.5, backgroundColor: "#5D4037", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 2, bottom: 15, width: 48, height: 6, borderRadius: 3, backgroundColor: "#7CB342", opacity: 0.9, transform: [{ rotate: "-3deg" }] }} />
+        <View style={{ position: "absolute", left: 4, bottom: 20, width: 44, height: 16, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, backgroundColor: "#F0BE6A", opacity: 0.9 }} />
+      </View>
+      <RisingDot left="13%" top={42} size={5} color="#FFFFFF" duration={4500} delay={800} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "44%", bottom: 10, width: 36, height: 42 }}>
+        <View style={{ position: "absolute", left: 6, bottom: 16, width: 6, height: 24, borderRadius: 3, backgroundColor: "#FFD54F", opacity: 0.9, transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 14, bottom: 18, width: 6, height: 24, borderRadius: 3, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 22, bottom: 16, width: 6, height: 24, borderRadius: 3, backgroundColor: "#FFCA28", opacity: 0.9, transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 36, height: 20, borderRadius: 4, backgroundColor: "#E53935", opacity: 0.9 }} />
+      </View>
+      <View style={{ position: "absolute", left: "72%", bottom: 10, width: 28, height: 44 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 32, width: 4, height: 14, borderRadius: 2, backgroundColor: "#F48FB1", opacity: 0.9, transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 24, height: 34, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.75 }} />
+        <View style={{ position: "absolute", left: 2, bottom: 30, width: 24, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      </View>
+    </>
+  );
+}
+
+/** Steak & baked potato (dinner). */
+function DinnerScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "8%", bottom: 12, width: 58, height: 34 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 58, height: 32, borderRadius: 12, backgroundColor: "#6D4C41", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 4, width: 4, height: 24, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.9, transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 27, bottom: 4, width: 4, height: 24, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.9, transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 42, bottom: 4, width: 4, height: 24, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.9, transform: [{ rotate: "18deg" }] }} />
+      </View>
+      <RisingDot left="14%" top={40} size={5} color="#FFFFFF" duration={4300} delay={0} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "58%", bottom: 12, width: 52, height: 34 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 2, width: 44, height: 26, borderRadius: 13, backgroundColor: "#C89B6A", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 21, bottom: 16, width: 11, height: 11, borderRadius: 2, backgroundColor: "#FFD54F", opacity: 0.95, transform: [{ rotate: "15deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 20, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      </View>
+      <RisingDot left="64%" top={40} size={4} color="#FFFFFF" duration={4700} delay={1600} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+    </>
+  );
+}
+
+/** Sitting cat with swaying tail + blinking eyes, jack-o-lantern (Halloween). */
+function HalloweenScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "8%", bottom: 8, width: 48, height: 52 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 36, height: 30, borderRadius: 15, backgroundColor: "#141414", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 11, bottom: 26, width: 22, height: 22, borderRadius: 11, backgroundColor: "#141414", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 42, width: 9, height: 9, backgroundColor: "#141414", opacity: 0.92, transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 23, bottom: 42, width: 9, height: 9, backgroundColor: "#141414", opacity: 0.92, transform: [{ rotate: "45deg" }] }} />
+        <BlinkEyes left={12} bottom={32} />
+        <GentleSway left={40} bottom={2} width={6} height={34} arc={14} duration={3600}>
+          <View style={{ width: 6, height: 34, borderRadius: 3, backgroundColor: "#141414", opacity: 0.92 }} />
+        </GentleSway>
+      </View>
+      <BreatheGlow color="#FF6D00" size={90} left="58%" bottom={-24} min={0.18} max={0.34} duration={2600} />
+      <View style={{ position: "absolute", left: "62%", bottom: 10, width: 40, height: 42 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 40, height: 36, borderRadius: 18, backgroundColor: "#FF8F00", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 16, bottom: 34, width: 8, height: 8, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 9, bottom: 20, width: 8, height: 8, backgroundColor: "#4E342E", opacity: 0.95, transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 23, bottom: 20, width: 8, height: 8, backgroundColor: "#4E342E", opacity: 0.95, transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 24, height: 7, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.95 }} />
+      </View>
+    </>
+  );
+}
+
+/** Sprout, watering can with droplets, sun glow (gardening). */
+function GardeningScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFD54F" size={90} left="64%" bottom={30} min={0.12} max={0.26} duration={5200} />
+      <GentleSway left="44%" bottom={8} width={24} height={40} arc={9} duration={4600}>
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 4, height: 30, borderRadius: 2, backgroundColor: "#2F9E44", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 0, bottom: 14, width: 14, height: 9, borderRadius: 5, backgroundColor: "#40C057", opacity: 0.9, transform: [{ rotate: "-28deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 20, width: 14, height: 9, borderRadius: 5, backgroundColor: "#40C057", opacity: 0.9, transform: [{ rotate: "28deg" }] }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "10%", bottom: 10, width: 56, height: 34, opacity: 0.55 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 28, height: 24, borderRadius: 6, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 14, width: 20, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 8, width: 10, height: 14, borderRadius: 5, borderWidth: 3, borderColor: "#FFFFFF" }} />
+      </View>
+      <RainDrop left="17%" bottom={14} delay={0} />
+      <RainDrop left="21%" bottom={14} delay={700} />
+      <RainDrop left="25%" bottom={14} delay={1400} />
+    </>
+  );
+}
+
+/** Pine tree with twinkling lights + snow (Christmas). */
+function ChristmasScene() {
+  return (
+    <>
+      <FallMotes colors={["#FFFFFF"]} count={6} size={4} duration={10000} seed={18} />
+      <View style={{ position: "absolute", left: "38%", bottom: 8, width: 64, height: 74 }}>
+        <View style={{ position: "absolute", left: 27, bottom: 0, width: 10, height: 12, borderRadius: 2, backgroundColor: "#8D5A2B", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 8, width: 0, height: 0, borderLeftWidth: 20, borderRightWidth: 20, borderBottomWidth: 24, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2F9E44" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 24, width: 0, height: 0, borderLeftWidth: 24, borderRightWidth: 24, borderBottomWidth: 26, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2B9348" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 42, width: 0, height: 0, borderLeftWidth: 28, borderRightWidth: 28, borderBottomWidth: 28, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2F9E44" }} />
+        <TwinkleStar left="44%" top={2} size={9} delay={0} color="#FFD54F" />
+        <TwinkleStar left="30%" top={26} size={5} delay={400} color="#FF5252" />
+        <TwinkleStar left="58%" top={30} size={5} delay={1000} color="#FFD54F" />
+        <TwinkleStar left="36%" top={44} size={5} delay={1600} color="#4DABF7" />
+        <TwinkleStar left="56%" top={48} size={5} delay={2200} color="#F783AC" />
+      </View>
+    </>
+  );
+}
+
+/** Pie + autumn leaves (Thanksgiving). */
+function ThanksgivingScene() {
+  return (
+    <>
+      <FallMotes colors={["#FFA94D", "#E8590C", "#FFD43B"]} count={6} size={7} duration={9000} seed={20} ellipse spin />
+      <View style={{ position: "absolute", left: "36%", bottom: 10, width: 72, height: 36 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 72, height: 12, borderRadius: 6, backgroundColor: "#D7B98E", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 8, width: 48, height: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#E8A94E", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 32, bottom: 24, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFF3E0", opacity: 0.9 }} />
+      </View>
+      <RisingDot left="44%" top={44} size={5} color="#FFFFFF" duration={4400} delay={0} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <RisingDot left="50%" top={44} size={4} color="#FFFFFF" duration={4800} delay={1500} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+    </>
+  );
+}
+
+/** Decorated egg + petals (Easter). */
+function EasterScene() {
+  return (
+    <>
+      <FallMotes colors={["#F8BBD0", "#E1BEE7", "#FFF9C4"]} count={6} size={6} duration={9000} seed={19} ellipse />
+      <View style={{ position: "absolute", left: "42%", bottom: 12, width: 36, height: 48 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 36, height: 48, borderRadius: 18, backgroundColor: "#FFFFFF", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 30, width: 28, height: 5, borderRadius: 2.5, backgroundColor: "#F8BBD0", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 5, bottom: 20, width: 26, height: 5, borderRadius: 2.5, backgroundColor: "#B3E5FC", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 6, bottom: 10, width: 24, height: 5, borderRadius: 2.5, backgroundColor: "#C8E6C9", opacity: 0.95 }} />
+        <View style={{ position: "absolute", left: 15, bottom: 38, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFF176", opacity: 0.95 }} />
+      </View>
+    </>
+  );
+}
+
+/** Grill with sausages + smoke (BBQ). */
+function BBQScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "30%", bottom: 8, width: 72, height: 46 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 5, height: 14, borderRadius: 2, backgroundColor: "#1A1A1A", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 59, bottom: 0, width: 5, height: 14, borderRadius: 2, backgroundColor: "#1A1A1A", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 0, bottom: 12, width: 72, height: 22, borderRadius: 8, backgroundColor: "#1A1A1A", opacity: 0.82 }} />
+        <View style={{ position: "absolute", left: 6, bottom: 28, width: 60, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.35 }} />
+        <View style={{ position: "absolute", left: 6, bottom: 22, width: 60, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.25 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 33, width: 24, height: 9, borderRadius: 4.5, backgroundColor: "#8D5A2B", opacity: 0.95, transform: [{ rotate: "-6deg" }] }} />
+        <View style={{ position: "absolute", left: 38, bottom: 33, width: 24, height: 9, borderRadius: 4.5, backgroundColor: "#7B4B23", opacity: 0.95, transform: [{ rotate: "7deg" }] }} />
+      </View>
+      <RisingDot left="38%" top={36} size={5} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.4} sway={7} square={false} bordered={false} />
+      <RisingDot left="48%" top={36} size={4} color="#FFFFFF" duration={4600} delay={1400} maxOpacity={0.35} sway={7} square={false} bordered={false} />
+      <RisingDot left="56%" top={36} size={5} color="#FFFFFF" duration={4400} delay={2800} maxOpacity={0.4} sway={7} square={false} bordered={false} />
+    </>
+  );
+}
+
+/** Church silhouette with soft glow (church). */
+function ChurchScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFFFFF" size={110} left="32%" bottom={-30} min={0.1} max={0.24} duration={5200} />
+      <View style={{ position: "absolute", left: "38%", bottom: 10, width: 64, height: 66, opacity: 0.6 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 48, height: 28, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: -4, bottom: 26, width: 0, height: 0, borderLeftWidth: 28, borderRightWidth: 28, borderBottomWidth: 16, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 0, width: 16, height: 44, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 38, bottom: 42, width: 0, height: 0, borderLeftWidth: 10, borderRightWidth: 10, borderBottomWidth: 10, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 46.5, bottom: 54, width: 3, height: 12, borderRadius: 1.5, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 43.5, bottom: 58, width: 9, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF" }} />
+      </View>
+    </>
+  );
+}
+
+/** Dove with flapping wings + rising notes (worship). */
+function WorshipScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "12%", bottom: 34, width: 52, height: 30, opacity: 0.9 }}>
+        <View style={{ position: "absolute", left: 14, bottom: 8, width: 24, height: 13, borderRadius: 7, backgroundColor: "#FFFFFF" }} />
+        <GentleSway left={2} bottom={14} width={22} height={12} arc={20} duration={1400}>
+          <View style={{ width: 22, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.9, transform: [{ rotate: "-18deg" }] }} />
+        </GentleSway>
+        <GentleSway left={28} bottom={14} width={22} height={12} arc={20} duration={1400} delay={700}>
+          <View style={{ width: 22, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.9, transform: [{ rotate: "18deg" }] }} />
+        </GentleSway>
+      </View>
+      <RisingNote left="58%" delay={0} />
+      <RisingNote left="68%" delay={2200} />
+      <RisingNote left="78%" delay={4400} />
+    </>
+  );
+}
+
+/** Open book with light rising from the pages (Bible study). */
+function BibleStudyScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFE9A8" size={80} left="36%" bottom={-20} min={0.1} max={0.24} duration={4800} />
+      <View style={{ position: "absolute", left: "38%", bottom: 10, width: 64, height: 34 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 28, height: 26, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "-10deg" }] }} />
+        <View style={{ position: "absolute", left: 32, bottom: 0, width: 28, height: 26, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 0, width: 4, height: 28, borderRadius: 2, backgroundColor: "#D4A574", opacity: 0.9 }} />
+      </View>
+      <RisingDot left="46%" top={40} size={4} color="#FFE9A8" duration={5000} delay={0} maxOpacity={0.5} sway={5} square={false} bordered={false} />
+      <RisingDot left="52%" top={40} size={3} color="#FFE9A8" duration={5400} delay={1700} maxOpacity={0.45} sway={5} square={false} bordered={false} />
+    </>
+  );
+}
+
+/** Baby bottle + floating bubbles (baby shower). */
+function BabyShowerScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "40%", bottom: 10, width: 30, height: 48 }}>
+        <View style={{ position: "absolute", left: 9, bottom: 36, width: 12, height: 10, borderRadius: 4, backgroundColor: "#F8BBD0", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 7, bottom: 32, width: 16, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 22, height: 34, borderRadius: 8, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 8, bottom: 14, width: 14, height: 2, borderRadius: 1, backgroundColor: "#B3E5FC", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 8, bottom: 20, width: 14, height: 2, borderRadius: 1, backgroundColor: "#B3E5FC", opacity: 0.9 }} />
+      </View>
+      <RisingDot left="34%" top={34} size={7} color="#FFFFFF" duration={6000} delay={0} maxOpacity={0.5} sway={8} square={false} bordered />
+      <RisingDot left="48%" top={34} size={6} color="#FFFFFF" duration={6800} delay={2000} maxOpacity={0.45} sway={8} square={false} bordered />
+      <RisingDot left="60%" top={34} size={8} color="#FFFFFF" duration={6400} delay={4000} maxOpacity={0.5} sway={8} square={false} bordered />
+    </>
+  );
+}
+
+/** Cake with candles + bobbing balloons (birthday). */
+function BirthdayScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "10%", bottom: 8, width: 60, height: 58 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 52, height: 20, borderRadius: 6, backgroundColor: "#F48FB1", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 20, width: 36, height: 16, borderRadius: 5, backgroundColor: "#FCE4EC", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 16, bottom: 36, width: 4, height: 12, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 28, bottom: 36, width: 4, height: 12, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 40, bottom: 36, width: 4, height: 12, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <FlickerFlame left={16} bottom={47} size={9} delay={0} />
+        <FlickerFlame left={28} bottom={47} size={9} delay={500} />
+        <FlickerFlame left={40} bottom={47} size={9} delay={1000} />
+      </View>
+      <GentleBob left="62%" bottom={22} width={26} height={54} distance={7} duration={3400}>
+        <View style={{ width: 24, height: 30, borderRadius: 15, backgroundColor: "#EF5350", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 11, top: 30, width: 2, height: 22, borderRadius: 1, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+      </GentleBob>
+      <GentleBob left="76%" bottom={16} width={26} height={54} distance={9} duration={3800} delay={900}>
+        <View style={{ width: 24, height: 30, borderRadius: 15, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 11, top: 30, width: 2, height: 22, borderRadius: 1, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+      </GentleBob>
+    </>
+  );
+}
+
+/** Interlocked rings + rising hearts (wedding). */
+function WeddingScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "36%", bottom: 16, width: 72, height: 36 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 2, width: 32, height: 32, borderRadius: 16, borderWidth: 4, borderColor: "#FFD54F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 32, bottom: 2, width: 32, height: 32, borderRadius: 16, borderWidth: 4, borderColor: "#FFFFFF", opacity: 0.9 }} />
+      </View>
+      <RisingHeart left="42%" delay={0} duration={8000} size={11} color="#F8BBD0" />
+      <RisingHeart left="52%" delay={2600} duration={9000} size={13} color="#FFFFFF" />
+      <RisingHeart left="60%" delay={5200} duration={8500} size={10} color="#F48FB1" />
+    </>
+  );
+}
+
+/** A single candle with a gentle flame (memorial). */
+function MemorialScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFFFFF" size={90} left="38%" bottom={-24} min={0.08} max={0.2} duration={6000} />
+      <View style={{ position: "absolute", left: "46%", bottom: 10, width: 20, height: 38 }}>
+        <View style={{ position: "absolute", left: 3, bottom: 0, width: 14, height: 38, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <FlickerFlame left={7} bottom={37} size={11} />
+      </View>
+    </>
+  );
+}
+
+/** Speech bubble with pulsing dots (meeting). */
+function MeetingScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "36%", bottom: 16, width: 64, height: 46 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 12, width: 64, height: 34, borderRadius: 10, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 2, width: 16, height: 16, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "45deg" }] }} />
+        <PulseDot left={22} bottom={26} size={7} delay={0} />
+        <PulseDot left={34} bottom={26} size={7} delay={400} />
+        <PulseDot left={46} bottom={26} size={7} delay={800} />
+      </View>
+    </>
+  );
+}
+
+/** Dumbbell gently lifting (workout). */
+function WorkoutScene() {
+  return (
+    <>
+      <GentleBob left="36%" bottom={14} width={72} height={32} distance={9} duration={2600}>
+        <View style={{ position: "absolute", left: 6, bottom: 13, width: 60, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 3, width: 9, height: 26, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 22, bottom: 7, width: 7, height: 18, borderRadius: 3.5, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 43, bottom: 7, width: 7, height: 18, borderRadius: 3.5, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 53, bottom: 3, width: 9, height: 26, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "26%", bottom: 30, width: 14, height: 3, borderRadius: 1.5, backgroundColor: "#FFA94D", opacity: 0.5 }} />
+      <View style={{ position: "absolute", left: "23%", bottom: 22, width: 10, height: 3, borderRadius: 1.5, backgroundColor: "#FFA94D", opacity: 0.35 }} />
+    </>
+  );
+}
+
+/** Game controller + pixel sparkles (game). */
+function GameScene() {
+  return (
+    <>
+      <TwinkleStar left="30%" top={30} size={6} delay={0} color="#8CE99A" />
+      <TwinkleStar left="66%" top={44} size={5} delay={800} color="#8CE99A" />
+      <View style={{ position: "absolute", left: "38%", bottom: 12, width: 60, height: 34 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 4, width: 60, height: 26, borderRadius: 13, backgroundColor: "#1A1A1A", opacity: 0.75 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 12, width: 16, height: 5, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 15.5, bottom: 6.5, width: 5, height: 16, borderRadius: 2, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 40, bottom: 16, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FF6B6B", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 48, bottom: 11, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#4DABF7", opacity: 0.9 }} />
+      </View>
+    </>
+  );
+}
+
+/** Moon disc with craters + twinkling stars (full moon). */
+function FullMoonScene() {
+  return (
+    <>
+      <TwinkleField color="#FFFFFF" count={6} seed={26} />
+      <View style={{ position: "absolute", left: "64%", bottom: 24, width: 46, height: 46 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 46, height: 46, borderRadius: 23, backgroundColor: "#FFFDE7", opacity: 0.92 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 26, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E3DCC0", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 26, bottom: 12, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#E3DCC0", opacity: 0.9 }} />
+      </View>
+    </>
+  );
+}
+
+/** Glowing cross with light rays (prayer). */
+function PrayerScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFFFFF" size={100} left="36%" bottom={-26} min={0.1} max={0.26} duration={5600} />
+      <View style={{ position: "absolute", left: "46%", bottom: 12, width: 24, height: 52, opacity: 0.85 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 8, height: 52, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 30, width: 24, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+      </View>
+      <View style={{ position: "absolute", left: "38%", bottom: 44, width: 3, height: 22, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.28, transform: [{ rotate: "24deg" }] }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 44, width: 3, height: 22, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.28, transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "48.5%", bottom: 58, width: 3, height: 18, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.28 }} />
+    </>
+  );
+}
+
+/** Globe with a heart (outreach). */
+function OutreachScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "36%", bottom: 12, width: 48, height: 48 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: "#FFFFFF", opacity: 0.75 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 21, width: 40, height: 6, borderRadius: 3, borderWidth: 1.5, borderColor: "#FFFFFF", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 21, bottom: 4, width: 6, height: 40, borderRadius: 3, borderWidth: 1.5, borderColor: "#FFFFFF", opacity: 0.5 }} />
+      </View>
+      <GentleBob left="54%" bottom={8} width={22} height={22} distance={5} duration={2800}>
+        <HeartShape size={20} color="#F783AC" opacity={0.95} />
+      </GentleBob>
+    </>
+  );
+}
+
+/** Stage with swaying spotlights + mic stand (concert). */
+function ConcertScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "20%", bottom: 8, width: 120, height: 10, borderRadius: 5, backgroundColor: "#1A1A1A", opacity: 0.6 }} />
+      <GentleSway left="30%" bottom={14} width={16} height={64} arc={12} duration={4200}>
+        <View style={{ width: 16, height: 64, backgroundColor: "#FFFFFF", opacity: 0.16, transform: [{ rotate: "-18deg" }] }} />
+      </GentleSway>
+      <GentleSway left="58%" bottom={14} width={16} height={64} arc={12} duration={4600} delay={1200}>
+        <View style={{ width: 16, height: 64, backgroundColor: "#FFFFFF", opacity: 0.16, transform: [{ rotate: "18deg" }] }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "47%", bottom: 16, width: 12, height: 40, opacity: 0.85 }}>
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 2.5, height: 36, borderRadius: 1, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 1, bottom: 34, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+      </View>
+    </>
+  );
+}
+
+/** Stack of books + graduation cap (study). */
+function StudyScene() {
+  return (
+    <>
+      <BreatheGlow color="#FFE9B8" size={80} left="36%" bottom={-22} min={0.08} max={0.2} duration={5200} />
+      <View style={{ position: "absolute", left: "38%", bottom: 10, width: 56, height: 52 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 48, height: 11, borderRadius: 3, backgroundColor: "#E8590C", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 6, bottom: 11, width: 44, height: 11, borderRadius: 3, backgroundColor: "#1971C2", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 22, width: 48, height: 11, borderRadius: 3, backgroundColor: "#2F9E44", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 14, bottom: 36, width: 28, height: 8, borderRadius: 2, backgroundColor: "#1A1A1A", opacity: 0.85, transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 36, bottom: 30, width: 2, height: 10, borderRadius: 1, backgroundColor: "#FFD43B", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 34, bottom: 28, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFD43B", opacity: 0.9 }} />
+      </View>
+    </>
+  );
+}
+
+/** House with a heart above the door (visit). */
+function VisitScene() {
+  return (
+    <>
+      <View style={{ position: "absolute", left: "38%", bottom: 10, width: 56, height: 50 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 40, height: 30, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 2, bottom: 28, width: 0, height: 0, borderLeftWidth: 26, borderRightWidth: 26, borderBottomWidth: 16, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#E8590C" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 0, width: 10, height: 18, borderRadius: 2, backgroundColor: "#8D5A2B", opacity: 0.9 }} />
+      </View>
+      <GentleBob left="46.5%" bottom={54} width={18} height={18} distance={4} duration={3000}>
+        <HeartShape size={16} color="#F783AC" opacity={0.95} />
+      </GentleBob>
+    </>
+  );
+}
+
+/** Medical cross badge (pairs with HeartPulse for doctor). */
+function DoctorBadge() {
+  return (
+    <View style={{ position: "absolute", right: 14, bottom: 12, width: 22, height: 22, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.9 }}>
+      <View style={{ position: "absolute", left: 9, top: 4, width: 4, height: 14, borderRadius: 2, backgroundColor: "#E53935" }} />
+      <View style={{ position: "absolute", left: 4, top: 9, width: 14, height: 4, borderRadius: 2, backgroundColor: "#E53935" }} />
+    </View>
+  );
+}
+
+/** Popcorn bucket (pairs with FilmSweep for movie). */
+function PopcornBucket() {
+  return (
+    <View style={{ position: "absolute", left: "64%", bottom: 10, width: 34, height: 38 }}>
+      <View style={{ position: "absolute", left: 8, bottom: 28, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: 16, bottom: 30, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: 5, bottom: 28, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#FFF3E0", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: 0, bottom: 0, width: 34, height: 30, borderRadius: 4, backgroundColor: "#E53935", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: 8, bottom: 0, width: 6, height: 30, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+      <View style={{ position: "absolute", left: 20, bottom: 0, width: 6, height: 30, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+    </View>
+  );
+}
+
+/** Retro TV with a scanline sweep (TV show). */
+function TVShowScene() {
+  const scan = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scan, { toValue: 28, duration: 3600, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(scan, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scan]);
+
+  return (
+    <>
+      <BreatheGlow color="#9FA8DA" size={90} left="34%" bottom={-24} min={0.1} max={0.22} duration={4800} />
+      <View style={{ position: "absolute", left: "36%", bottom: 10, width: 64, height: 62 }}>
+        <View style={{ position: "absolute", left: 26, bottom: 52, width: 3, height: 16, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.7, transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 35, bottom: 52, width: 3, height: 16, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.7, transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 64, height: 54, borderRadius: 10, backgroundColor: "#1A1A1A", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 8, bottom: 10, width: 48, height: 34, borderRadius: 6, backgroundColor: "#3949AB", opacity: 0.9, overflow: "hidden" }}>
+          <Animated.View style={{ position: "absolute", left: 0, top: 0, width: 48, height: 6, backgroundColor: "#FFFFFF", opacity: 0.35, transform: [{ translateY: scan }] }} />
+        </View>
+      </View>
+    </>
+  );
+}
+
 /** Picks the ambient animation for a keyword card. */
 function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?: string }) {
-  // Breakfast, lunch, and dinner each get their own treatment.
+  // Breakfast, lunch, and dinner each get their own illustrated scene.
   if (label === "Meal") {
     const t = title.toLowerCase();
-    if (t.includes("breakfast") || t.includes("brunch"))
-      return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
-    if (t.includes("lunch"))
-      return <RiseMotes color="#FFFFFF" count={6} size={4} duration={7000} maxOpacity={0.5} seed={33} bordered />;
-    if (t.includes("dinner")) return <CandleFlicker />;
-    return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
+    if (t.includes("breakfast") || t.includes("brunch")) return <BreakfastScene />;
+    if (t.includes("lunch")) return <LunchScene />;
+    if (t.includes("dinner")) return <DinnerScene />;
+    return <LunchScene />;
   }
   switch (label) {
-    case "BBQ": return <RiseMotes color="#FFB35C" count={5} size={4} duration={6000} maxOpacity={0.6} seed={11} />;
-    case "Church": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.35} seed={12} />;
-    case "Worship": return <RiseMotes color="#FFFFFF" count={6} size={4} duration={8000} maxOpacity={0.45} seed={13} />;
-    case "Bible Study": return <TwinkleField color="#FFE9A8" count={7} seed={14} />;
+    case "BBQ": return <BBQScene />;
+    case "Church": return <ChurchScene />;
+    case "Worship": return <WorshipScene />;
+    case "Bible Study": return <BibleStudyScene />;
     case "Therapy": return <BreathingRings />;
-    case "Doctor": return <HeartPulse />;
-    case "Gardening": return <FallMotes colors={["#8CE99A", "#69DB7C", "#C0EBB2"]} count={6} size={7} duration={9000} seed={15} ellipse />;
-    case "Baby Shower": return <RiseMotes color="#FFFFFF" count={5} size={9} duration={9000} maxOpacity={0.4} seed={16} bordered />;
-    case "Birthday": return <FallMotes colors={["#FFD43B", "#FF6B6B", "#4DABF7", "#69DB7C", "#F783AC"]} count={8} size={6} duration={8000} seed={17} square spin />;
-    case "Christmas": return <FallMotes colors={["#FFFFFF"]} count={9} size={4} duration={10000} seed={18} />;
-    case "Easter": return <FallMotes colors={["#F8BBD0", "#E1BEE7", "#FFF9C4"]} count={6} size={6} duration={9000} seed={19} ellipse />;
-    case "Thanksgiving": return <FallMotes colors={["#FFA94D", "#E8590C", "#FFD43B"]} count={6} size={7} duration={9000} seed={20} ellipse spin />;
-    case "Wedding": return <FallMotes colors={["#FFFFFF", "#F8BBD0"]} count={6} size={6} duration={10000} seed={21} ellipse />;
-    case "Memorial": return <BreatheGlow color="#FFFFFF" size={140} left="26%" bottom={-50} min={0.06} max={0.16} duration={6000} />;
-    case "Meal": return <RiseMotes color="#FFFFFF" count={6} size={5} duration={6000} maxOpacity={0.35} sway={10} seed={22} />;
-    case "Meeting": return <RiseMotes color="#FFFFFF" count={3} size={3} duration={12000} maxOpacity={0.22} seed={23} />;
-    case "Workout": return <RiseMotes color="#FFA94D" count={6} size={4} duration={5000} maxOpacity={0.55} seed={24} />;
+    case "Doctor": return (<><HeartPulse /><DoctorBadge /></>);
+    case "Gardening": return <GardeningScene />;
+    case "Baby Shower": return <BabyShowerScene />;
+    case "Birthday": return <BirthdayScene />;
+    case "Christmas": return <ChristmasScene />;
+    case "Easter": return <EasterScene />;
+    case "Thanksgiving": return <ThanksgivingScene />;
+    case "Wedding": return <WeddingScene />;
+    case "Memorial": return <MemorialScene />;
+    case "Meeting": return <MeetingScene />;
+    case "Workout": return <WorkoutScene />;
     case "Basketball": return <BallBob />;
     case "Soccer": return <GrassSway />;
-    case "Game": return <RiseMotes color="#8CE99A" count={6} size={6} duration={7000} maxOpacity={0.5} seed={25} square />;
-    case "Movie": return <FilmSweep />;
-    case "Full Moon": return <TwinkleField color="#FFFFFF" count={8} seed={26} />;
-    case "Prayer": return <RiseMotes color="#FFE9A8" count={5} size={4} duration={9000} maxOpacity={0.5} seed={27} />;
-    case "Outreach": return <RiseMotes color="#FFFFFF" count={5} size={4} duration={8000} maxOpacity={0.4} seed={28} />;
-    case "Concert":
-      return (
-        <>
-          <BreatheGlow color="#B197FC" size={120} left="10%" bottom={-40} min={0.15} max={0.35} duration={2600} />
-          <BreatheGlow color="#74C0FC" size={120} left="55%" bottom={-40} min={0.15} max={0.35} duration={2600} delay={1300} />
-        </>
-      );
+    case "Game": return <GameScene />;
+    case "Movie": return (<><FilmSweep /><PopcornBucket /></>);
+    case "Full Moon": return <FullMoonScene />;
+    case "Prayer": return <PrayerScene />;
+    case "Outreach": return <OutreachScene />;
+    case "Concert": return <ConcertScene />;
     case "Travel":
       return (
         <>
@@ -948,12 +1634,13 @@ function KeywordAmbientAnimation({ label, title = "" }: { label: string; title?:
           <DriftingCloud top={46} size={36} duration={19000} delay={3000} />
         </>
       );
-    case "Study": return <RiseMotes color="#FFE9B8" count={4} size={3} duration={11000} maxOpacity={0.3} seed={29} />;
-    case "Visit": return <BreatheGlow color="#FFD9A0" size={120} left="30%" bottom={-36} min={0.12} max={0.3} duration={4500} />;
+    case "Study": return <StudyScene />;
+    case "Visit": return <VisitScene />;
     case "Amusement Park": return <CoasterLoop />;
     case "New Year": return <NewYearFireworks />;
     case "Valentine's Day": return <ValentinesHearts />;
-    case "Halloween": return <FogBank />;
+    case "Halloween": return <HalloweenScene />;
+    case "TV Show": return <TVShowScene />;
     case "St. Patrick's Day": return <TwinkleField color="#69DB7C" count={7} seed={34} />;
     default: return null;
   }
@@ -2372,6 +3059,7 @@ export function ScheduleTab({
   eventRemindersEnabled = true,
   defaultEventReminderMinutes = 0,
   whiteSpaceEnabled = true,
+  holidaysEnabled = true,
   notificationScheduleAction,
   notificationScheduleKind,
   notificationScheduleId,
@@ -2399,6 +3087,7 @@ export function ScheduleTab({
   eventRemindersEnabled?: boolean;
   defaultEventReminderMinutes?: number;
   whiteSpaceEnabled?: boolean;
+  holidaysEnabled?: boolean;
   notificationScheduleAction?: string;
   notificationScheduleKind?: string;
   notificationScheduleId?: string;
@@ -3130,8 +3819,25 @@ export function ScheduleTab({
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
   const dayEvents = useMemo(() => {
     const isTimeOffDay = isDateDuringTimeOff(timeOffList, selectedDate);
-    return getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
-  }, [events, selectedDate, timeOffList]);
+    const base = getEventsForDate(events, selectedDate).filter((event) => isTimeOffEventVisible(event, isTimeOffDay));
+    if (!holidaysEnabled) return base;
+    // Auto-seeded US holidays: render-only synthetic events. They carry no
+    // startTime (so white-space blocks ignore them) and are never written
+    // back to state, storage, notifications, or export.
+    const year = parseInt(selectedDate.slice(0, 4), 10);
+    if (Number.isNaN(year)) return base;
+    const holidayEvents: ScheduleEvent[] = getHolidaysForYear(year)
+      .filter((h) => h.date === selectedDate)
+      .map((h) => ({
+        id: `holiday-${h.date}-${h.name}`,
+        title: h.name,
+        date: selectedDate,
+        keyword: h.keyword || undefined,
+        isHoliday: true,
+        isCompleted: false,
+      }));
+    return [...base, ...holidayEvents];
+  }, [events, selectedDate, timeOffList, holidaysEnabled]);
   const dayTodos = useMemo(() => getTodosForDate(todos, selectedDate), [todos, selectedDate]);
   const dayMinistries = useMemo(() => getMinistriesForDate(ministries, selectedDate), [ministries, selectedDate]);
   const dayBirthdays = useMemo(() => getBirthdaysForDate(people, selectedDate), [people, selectedDate]);
@@ -4560,18 +5266,21 @@ export function ScheduleTab({
           );
         case "event": {
           const showActiveNow = Boolean(isToday && !item.data.isCompleted && item.data.startTime && getLiveCursorPosition([item.data], clockNow).activeItemId === item.data.id);
+          // Auto-seeded holidays are display-only: tapping does nothing and
+          // there is no editor or context menu.
+          const isHoliday = Boolean(item.data.isHoliday);
           return (
             <EventCard
               event={item.data}
               people={people}
               isNew={item.data.id === justAddedId}
-              onToggle={(position) => {
+              onToggle={isHoliday ? () => {} : (position) => {
                 if (!item.data.isCompleted) onAwardXP?.(xpActionForDate(item.data.date), item.data.id, position);
                 else revokeTodoXP(item.data.id, position);
                 setEvents((prev) => toggleEventCompleted(prev, item.data.id));
               }}
-              onOpenEdit={openEventEditor}
-              onDelete={() => {
+              onOpenEdit={isHoliday ? undefined : openEventEditor}
+              onDelete={isHoliday ? undefined : () => {
                 Alert.alert(
                   'Delete Event',
                   `Are you sure you want to delete "${item.data.title}"?`,

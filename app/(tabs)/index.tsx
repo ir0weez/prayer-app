@@ -177,6 +177,7 @@ type AppSettings = {
   demoMode: boolean;
   colorTheme: AccentThemeId;
   whiteSpaceEnabled: boolean;
+  holidaysEnabled: boolean;
   prayerRemindersEnabled: boolean;
   eventRemindersEnabled: boolean;
   defaultEventReminderMinutes: number;
@@ -211,6 +212,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   demoMode: false,
   colorTheme: "default",
   whiteSpaceEnabled: true,
+  holidaysEnabled: true,
   prayerRemindersEnabled: true,
   eventRemindersEnabled: true,
   defaultEventReminderMinutes: 0,
@@ -295,6 +297,7 @@ function parseStoredSettings(value: string | null): AppSettings {
       demoMode: Boolean(parsed.demoMode),
       colorTheme,
       whiteSpaceEnabled: parsed.whiteSpaceEnabled !== false,
+      holidaysEnabled: parsed.holidaysEnabled !== false,
       prayerRemindersEnabled: parsed.prayerRemindersEnabled !== false,
       eventRemindersEnabled: parsed.eventRemindersEnabled !== false,
       defaultEventReminderMinutes: validAdvanceMinutes.includes(defaultEventReminderMinutes) ? defaultEventReminderMinutes : 0,
@@ -2474,6 +2477,7 @@ export default function HomeScreen() {
       <Text style={styles.settingsSectionLabel}>SCHEDULE</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border }]}>
         {renderSettingsRow("hourglass-empty", "White Space", "Show tappable free-hour blocks on the schedule", "normal", <M3Switch value={settings.whiteSpaceEnabled} onValueChange={(whiteSpaceEnabled) => setSettings((previous) => ({ ...previous, whiteSpaceEnabled }))} />)}
+        {renderSettingsRow("event", "Holidays", "Show US holidays on the schedule", "normal", <M3Switch value={settings.holidaysEnabled} onValueChange={(holidaysEnabled) => setSettings((previous) => ({ ...previous, holidaysEnabled }))} />)}
       </View>
 
       <Text style={styles.settingsSectionLabel}>NOTIFICATIONS</Text>
@@ -2820,6 +2824,7 @@ export default function HomeScreen() {
           eventRemindersEnabled={settings.eventRemindersEnabled}
           defaultEventReminderMinutes={settings.defaultEventReminderMinutes}
           whiteSpaceEnabled={settings.whiteSpaceEnabled}
+          holidaysEnabled={settings.holidaysEnabled}
           notificationScheduleAction={notificationScheduleActionParam}
           notificationScheduleKind={notificationScheduleKindParam}
           notificationScheduleId={notificationScheduleIdParam}

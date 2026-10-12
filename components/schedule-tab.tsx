@@ -3157,15 +3157,16 @@ export function ScheduleTab({
 {/* Summary Card - Sticky Header Index 0 */}
 <View style={[scheduleStyles.summaryContainer, { backgroundColor: colors.background, paddingBottom: 8 }]}>
   {(() => {
-    // The summary and timeline share one scheduled-commitment rule:
-    // completing an item does not make its reserved time available again.
+    // The summary counts only time still left available: completed items free
+    // up their time (it gets added back unless that time has already passed
+    // today), matching the white-block rules on the timeline.
     const scheduledItems = [
       ...getTodosForDate(todos, selectedDate)
-        .filter((t) => t.startTime)
+        .filter((t) => t.startTime && !t.isCompleted)
         .map((t) => ({ ...t })),
-      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime),
-      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime),
-      ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime),
+      ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
+      ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
+      ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),
     ];
     const activeSummaryBlocks = calculateActiveAvailableTimeBlocks(scheduledItems, selectedDate, clockNow);
     const todoSummaryCounts = getTodoSummaryCounts(getTodosForDate(todos, selectedDate));

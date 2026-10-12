@@ -1224,6 +1224,255 @@ function SwayingSpotlight({ left, delay = 0 }: { left: number | `${number}%`; de
   );
 }
 
+/** Bat flying across the night sky. */
+function FlyingBat({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const x = useRef(new Animated.Value(-40)).current;
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const fly = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(x, { toValue: 320, duration: 9000, easing: Easing.linear, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(y, { toValue: -14, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(y, { toValue: 14, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+        ]),
+        Animated.timing(x, { toValue: -40, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => fly.start(), delay);
+    return () => { clearTimeout(t); fly.stop(); };
+  }, [delay, x, y]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 18, transform: [{ translateX: x }, { translateY: y }] }}>
+      <View style={{ width: 26, height: 10 }}>
+        <View style={{ position: "absolute", left: 0, top: 2, width: 12, height: 6, borderRadius: 3, backgroundColor: "#1A1A2E", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", right: 0, top: 2, width: 12, height: 6, borderRadius: 3, backgroundColor: "#1A1A2E", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 11, top: 0, width: 5, height: 8, borderRadius: 2.5, backgroundColor: "#1A1A2E" }} />
+      </View>
+    </Animated.View>
+  );
+}
+
+/** Falling confetti piece. */
+function ConfettiPiece({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(-8)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  const colors = ["#FF6B9D", "#FFD54F", "#74C0FC", "#B197FC"];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  useEffect(() => {
+    const fall = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: 105, duration: 4200, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(y, { toValue: -8, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.9, duration: 600, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.9, duration: 3000, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { fall.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); fall.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, top: 0, width: 7, height: 10, borderRadius: 2, backgroundColor: color, opacity: op, transform: [{ translateY: y }, { rotate: "35deg" }] }} />
+  );
+}
+
+/** Raised hands silhouette gently swaying (worship). */
+function RisingHands({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -8, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, y]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 8, transform: [{ translateY: y }], opacity: 0.45 }}>
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ width: 14, height: 34, borderRadius: 7, backgroundColor: "#1A1A2E" }} />
+        <View style={{ width: 14, height: 40, borderRadius: 7, backgroundColor: "#1A1A2E" }} />
+        <View style={{ width: 14, height: 34, borderRadius: 7, backgroundColor: "#1A1A2E" }} />
+      </View>
+    </Animated.View>
+  );
+}
+
+/** Bouncing music note. */
+function BouncingNote({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -16, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, y]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 34, transform: [{ translateY: y }], opacity: 0.7 }}>
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+      <View style={{ position: "absolute", left: 8, top: -14, width: 3, height: 18, backgroundColor: "#FFFFFF" }} />
+    </Animated.View>
+  );
+}
+
+/** Soft light rising (prayer). */
+function RisingLight({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -50, duration: 3600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.5, duration: 900, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.5, duration: 1800, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { rise.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); rise.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 20, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFF3BF", opacity: op, transform: [{ translateY: y }] }} />
+  );
+}
+
+/** TV static flicker. */
+function StaticFlicker({ left, bottom }: { left: number | `${number}%`; bottom: number }) {
+  const op = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.6, duration: 180, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.25, duration: 220, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.5, duration: 160, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.3, duration: 200, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width: 44, height: 30, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: op }} />
+  );
+}
+
+/** Pulsing energy ring (workout). */
+function PulsingEnergy({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const s = useRef(new Animated.Value(0.6)).current;
+  const op = useRef(new Animated.Value(0.7)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.parallel([
+        Animated.timing(s, { toValue: 1.3, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    const reset = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 0.6, duration: 1, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.7, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { loop.start(); }, delay);
+    return () => { clearTimeout(t); loop.stop(); reset.stop(); };
+  }, [delay, s, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 30, width: 26, height: 26, borderRadius: 13, borderWidth: 3, borderColor: "#FF6B6B", opacity: op, transform: [{ scale: s }] }} />
+  );
+}
+
+/** Floating dust mote (study). */
+function FloatingDust({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(y, { toValue: -22, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x, { toValue: 10, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(y, { toValue: 0, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, y, x]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 40, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFD54F", opacity: 0.7, transform: [{ translateY: y }, { translateX: x }] }} />
+  );
+}
+
+/** Heart rising (outreach). */
+function RisingHeartOverlay({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const y = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -44, duration: 3200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const fade = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.85, duration: 800, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.85, duration: 1600, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => { rise.start(); fade.start(); }, delay);
+    return () => { clearTimeout(t); rise.stop(); fade.stop(); };
+  }, [delay, y, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 24, opacity: op, transform: [{ translateY: y }] }}>
+      <View style={{ width: 16, height: 16, transform: [{ rotate: "45deg" }], backgroundColor: "#FF8787", borderRadius: 3 }} />
+    </Animated.View>
+  );
+}
+
+/** Pulsing medical cross (doctor). */
+function PulsingCross({ left, delay = 0 }: { left: number | `${number}%`; delay?: number }) {
+  const s = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: 1.18, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, s]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom: 32, transform: [{ scale: s }], opacity: 0.85 }}>
+      <View style={{ width: 26, height: 10, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+      <View style={{ position: "absolute", left: 8, top: -8, width: 10, height: 26, borderRadius: 3, backgroundColor: "#FFFFFF" }} />
+    </Animated.View>
+  );
+}
+
 // ─── Full-bleed illustrated keyword scenes ───────────────────────────────────
 // Google Calendar-style: each scene IS the card background — rich flat vector
 // illustration in solid colors, with 2–4 gently animated elements. Slow, calm,
@@ -1285,44 +1534,153 @@ function getKeywordArtKey(label: string, title: string): string | null {
   return map[label] ?? null;
 }
 
-/** Lightweight animated overlays that float above the illustration.
- *  1–3 elements per card, transform/opacity only, native driver. */
+/** Rich animated overlays that float above the illustration.
+ *  Multiple moving parts per card, transform/opacity only, native driver. */
 function KeywordArtOverlay({ artKey }: { artKey: string }) {
   switch (artKey) {
     case "breakfast":
+      return (<>
+        <SteamPlume left="38%" bottom={40} /><SteamPlume left="46%" bottom={44} delay={800} /><SteamPlume left="54%" bottom={40} delay={1600} />
+        <BreatheGlow color="#FFD54F" size={90} left="72%" bottom={50} min={0.25} max={0.45} duration={4200} />
+      </>);
     case "lunch":
+      return (<>
+        <SteamPlume left="42%" bottom={36} /><SteamPlume left="50%" bottom={40} delay={700} /><SteamPlume left="58%" bottom={36} delay={1400} />
+        <GentleSway left="68%" bottom={30} width={30} height={40} arc={8} duration={3200}>
+          <View style={{ width: 30, height: 40, borderRadius: 8, backgroundColor: "#FFFFFF", opacity: 0.35 }} />
+        </GentleSway>
+      </>);
     case "dinner":
+      return (<>
+        <FlickerFlame left="30%" bottom={28} /><FlickerFlame left="65%" bottom={30} delay={600} />
+        <SteamPlume left="48%" bottom={38} delay={400} />
+        <BreatheGlow color="#FFB84D" size={100} left="44%" bottom={16} min={0.2} max={0.38} duration={3600} />
+      </>);
     case "bbq":
-      return (<><SteamPlume left="46%" bottom={38} /><SteamPlume left="54%" bottom={42} delay={900} /></>);
+      return (<>
+        <FlickerFlame left="40%" bottom={24} size={14} /><FlickerFlame left="52%" bottom={26} size={12} delay={500} /><FlickerFlame left="62%" bottom={24} size={14} delay={1000} />
+        <SteamPlume left="48%" bottom={44} delay={300} /><SteamPlume left="56%" bottom={46} delay={1100} />
+      </>);
     case "biblestudy":
-      return (<SteamPlume left="62%" bottom={30} />);
+      return (<>
+        <SteamPlume left="60%" bottom={32} /><SteamPlume left="64%" bottom={34} delay={900} />
+        <BreatheGlow color="#FFD54F" size={80} left="20%" bottom={30} min={0.2} max={0.35} duration={4800} />
+      </>);
     case "christmas":
-      return (<><Snowfall left="20%" delay={0} /><Snowfall left="50%" delay={1200} /><Snowfall left="75%" delay={2400} /></>);
+      return (<>
+        <Snowfall left="15%" delay={0} /><Snowfall left="35%" delay={1300} /><Snowfall left="55%" delay={2600} /><Snowfall left="75%" delay={900} /><Snowfall left="90%" delay={2000} />
+        <TwinkleField color="#FFD54F" count={6} seed={8} />
+      </>);
     case "halloween":
-      return (<><TwinkleField color="#FFFFFF" count={7} seed={5} /><BreatheGlow color="#FF6D00" size={90} left="60%" bottom={8} min={0.25} max={0.45} duration={2400} /></>);
+      return (<>
+        <TwinkleField color="#FFFFFF" count={8} seed={5} />
+        <BreatheGlow color="#FF6D00" size={110} left="58%" bottom={6} min={0.3} max={0.5} duration={2200} />
+        <FlyingBat left="20%" delay={0} /><FlyingBat left="70%" delay={2500} />
+      </>);
     case "fullmoon":
-      return (<TwinkleField color="#FFFFFF" count={8} seed={11} />);
+      return (<>
+        <TwinkleField color="#FFFFFF" count={9} seed={11} />
+        <BreatheGlow color="#FFF3BF" size={120} left="40%" bottom={30} min={0.25} max={0.42} duration={5200} />
+      </>);
     case "thanksgiving":
-      return (<><FallingLeaf left="25%" delay={0} /><FallingLeaf left="65%" delay={1800} /></>);
+      return (<>
+        <FallingLeaf left="20%" delay={0} /><FallingLeaf left="45%" delay={1500} /><FallingLeaf left="70%" delay={3000} />
+        <BreatheGlow color="#FFB84D" size={90} left="50%" bottom={40} min={0.2} max={0.35} duration={4600} />
+      </>);
     case "birthday":
+      return (<>
+        <FloatingBalloon left="66%" delay={0} /><FloatingBalloon left="80%" delay={1400} />
+        <ConfettiPiece left="30%" delay={0} /><ConfettiPiece left="50%" delay={900} /><ConfettiPiece left="75%" delay={1800} />
+      </>);
     case "babyshower":
-      return (<><FloatingBalloon left="70%" delay={0} /><FloatingBalloon left="82%" delay={1500} /></>);
+      return (<>
+        <FloatingBalloon left="70%" delay={0} /><FloatingBalloon left="84%" delay={1600} />
+        <PetalDrift left="35%" delay={500} /><PetalDrift left="60%" delay={2000} />
+      </>);
     case "wedding":
+      return (<>
+        <PetalDrift left="25%" delay={0} /><PetalDrift left="50%" delay={1200} /><PetalDrift left="75%" delay={2400} />
+        <TwinkleField color="#FFD54F" count={5} seed={21} />
+      </>);
     case "easter":
-      return (<><PetalDrift left="30%" delay={0} /><PetalDrift left="60%" delay={1400} /></>);
+      return (<>
+        <PetalDrift left="30%" delay={0} /><PetalDrift left="60%" delay={1400} />
+        <FloatingBalloon left="78%" delay={800} />
+        <BreatheGlow color="#FFC9D6" size={80} left="40%" bottom={40} min={0.2} max={0.35} duration={4400} />
+      </>);
     case "worship":
+      return (<>
+        <SwayingSpotlight left="18%" delay={0} /><SwayingSpotlight left="68%" delay={1200} />
+        <RisingHands left="45%" delay={0} />
+      </>);
     case "concert":
-      return (<><SwayingSpotlight left="20%" delay={0} /><SwayingSpotlight left="70%" delay={1200} /></>);
+      return (<>
+        <SwayingSpotlight left="15%" delay={0} /><SwayingSpotlight left="50%" delay={900} /><SwayingSpotlight left="80%" delay={1800} />
+        <BouncingNote left="35%" delay={0} /><BouncingNote left="60%" delay={1200} />
+      </>);
     case "prayer":
+      return (<>
+        <BreatheGlow color="#FFD54F" size={120} left="40%" bottom={18} min={0.22} max={0.4} duration={4200} />
+        <RisingLight left="35%" delay={0} /><RisingLight left="55%" delay={1500} />
+      </>);
     case "church":
-      return (<BreatheGlow color="#FFD54F" size={110} left="42%" bottom={20} min={0.2} max={0.38} duration={4200} />);
+      return (<>
+        <BreatheGlow color="#FFD54F" size={100} left="44%" bottom={24} min={0.2} max={0.36} duration={4800} />
+        <DriftingCloud top={16} size={40} duration={24000} delay={1000} />
+      </>);
     case "memorial":
-      return (<FlickerFlame left="48%" bottom={24} />);
+      return (<>
+        <FlickerFlame left="46%" bottom={26} size={12} /><FlickerFlame left="54%" bottom={28} size={10} delay={700} />
+        <PetalDrift left="40%" delay={0} /><PetalDrift left="62%" delay={1800} />
+      </>);
     case "movie":
+      return (<>
+        <BreatheGlow color="#FFFFFF" size={90} left="44%" bottom={28} min={0.15} max={0.32} duration={3000} />
+        <FlickerFlame left="30%" bottom={20} size={8} delay={400} />
+      </>);
     case "tvshow":
-      return (<BreatheGlow color="#FFFFFF" size={80} left="46%" bottom={30} min={0.15} max={0.3} duration={3000} />);
+      return (<>
+        <BreatheGlow color="#74C0FC" size={85} left="46%" bottom={30} min={0.18} max={0.34} duration={2600} />
+        <StaticFlicker left="42%" bottom={36} />
+      </>);
     case "gardening":
-      return (<><RainDrop left="30%" bottom={34} delay={0} /><RainDrop left="36%" bottom={34} delay={800} /></>);
+      return (<>
+        <RainDrop left="28%" bottom={36} delay={0} /><RainDrop left="34%" bottom={36} delay={700} /><RainDrop left="40%" bottom={36} delay={1400} />
+        <GentleSway left="60%" bottom={28} width={36} height={48} arc={7} duration={4200}>
+          <View style={{ width: 36, height: 48, borderRadius: 10, backgroundColor: "#40C057", opacity: 0.5 }} />
+        </GentleSway>
+      </>);
+    case "meeting":
+      return (<TwinkleField color="#FFFFFF" count={4} seed={30} />);
+    case "workout":
+      return (<>
+        <PulsingEnergy left="40%" delay={0} /><PulsingEnergy left="60%" delay={800} />
+      </>);
+    case "game":
+      return (<>
+        <BouncingNote left="40%" delay={0} /><BouncingNote left="62%" delay={1000} />
+        <TwinkleField color="#B197FC" count={5} seed={42} />
+      </>);
+    case "study":
+      return (<>
+        <BreatheGlow color="#FFD54F" size={75} left="24%" bottom={32} min={0.2} max={0.34} duration={4600} />
+        <FloatingDust left="45%" delay={0} /><FloatingDust left="60%" delay={1300} />
+      </>);
+    case "visit":
+      return (<>
+        <BreatheGlow color="#FFB84D" size={90} left="46%" bottom={24} min={0.22} max={0.38} duration={4000} />
+        <TwinkleField color="#FFD54F" count={4} seed={55} />
+      </>);
+    case "outreach":
+      return (<>
+        <RisingHeartOverlay left="40%" delay={0} /><RisingHeartOverlay left="55%" delay={1200} />
+        <BreatheGlow color="#FF8787" size={85} left="46%" bottom={30} min={0.2} max={0.36} duration={3800} />
+      </>);
+    case "doctor":
+      return (<>
+        <PulsingCross left="48%" delay={0} />
+        <TwinkleField color="#74C0FC" count={4} seed={67} />
+      </>);
     default:
       return null;
   }
@@ -2730,26 +3088,24 @@ function EventCardInner({
               ? <KeywordArtBackground label={keyword.label} title={event.title} />
               : <KeywordAmbientAnimation label={keyword.label} title={event.title} />)}
             <View style={eventStyles.illustratedContent}>
-              <View style={eventStyles.illustratedPill}>
-                <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
-                {event.startTime && (
-                  <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
-                    {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
-                  </Text>
-                )}
-                {event.location && (
-                  <View style={eventStyles.illustratedLocationRow}>
-                    <MaterialIcons name="location-on" size={13} color="#FFFFFFBB" />
-                    <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
-                      {event.location}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (
                 <Text style={[eventStyles.illustratedDescription, { color: '#FFFFFF' }]} numberOfLines={2}>
                   {event.notes}
                 </Text>
+              )}
+              {event.startTime && (
+                <Text style={[eventStyles.illustratedTime, { color: '#FFFFFFDD' }]}>
+                  {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
+                </Text>
+              )}
+              {event.location && (
+                <View style={eventStyles.illustratedLocationRow}>
+                  <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
+                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                    {event.location}
+                  </Text>
+                </View>
               )}
             </View>
             {isLiveScheduledBlock && (
@@ -8249,20 +8605,9 @@ const eventStyles = StyleSheet.create({
   illustratedContent: {
     flex: 1,
   },
-  illustratedPill: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 6,
-  },
   illustratedTitle: {
     fontSize: 16,
     fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.35)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   illustratedDescription: {
     fontSize: 20,

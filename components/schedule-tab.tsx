@@ -1080,7 +1080,6 @@ function SceneRoot({ base, children }: { base: string; children: React.ReactNode
   return (
     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}>
       {children}
-      <View style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "58%", backgroundColor: "#000000", opacity: 0.3 }} />
     </View>
   );
 }
@@ -5910,7 +5909,7 @@ export function ScheduleTab({
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
           <Text style={{ color: colors.foreground, fontSize: 20, fontWeight: "800" }}>Schedule</Text>
-          <Text style={{ color: colors.muted, fontSize: 12 }}>{dayEvents.length} events today</Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>{(() => { const total = dayEvents.length; const remaining = dayEvents.filter((e) => !e.isCompleted).length; return remaining === total ? `${total} events today` : `${remaining} of ${total} events left`; })()}</Text>
         </View>
         <ReAnimated.View
           style={{
@@ -7981,6 +7980,11 @@ const eventStyles = StyleSheet.create({
   },
   illustratedContent: {
     flex: 1,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   illustratedTitle: {
     fontSize: 16,

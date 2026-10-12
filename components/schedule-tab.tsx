@@ -707,7 +707,7 @@ function EventCardInner({
           delayLongPress={500}
           style={({ pressed }) => [pressed && { opacity: 0.85 }]}
         >
-          <View style={[eventStyles.illustratedCard, { backgroundColor: event.color || mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
+          <View style={[eventStyles.illustratedCard, { backgroundColor: mc.bg, borderColor: mc.border + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isLiveScheduledBlock ? 112 : 80, overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {mood === "night" && REST_STARS.map((s, i) => (
               <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
             ))}
@@ -4823,24 +4823,28 @@ export function ScheduleTab({
                     multiline
                     returnKeyType="done"
                   />
-                  <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
-                  <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-                    {COLOR_PALETTE.map((color) => (
-                      <Pressable
-                        key={color.hex}
-                        onPress={() => setFormColor(color.hex)}
-                        style={({ pressed }) => [{
-                          width: 50,
-                          height: 50,
-                          borderRadius: 25,
-                          backgroundColor: color.hex,
-                          borderWidth: formColor === color.hex ? 3 : 0,
-                          borderColor: colors.foreground,
-                          opacity: pressed ? 0.8 : 1,
-                        }]}
-                      />
-                    ))}
-                  </View>
+                  {detectEventKeyword(formTitle)?.label !== "Rest" && (
+                    <>
+                      <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
+                      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                        {COLOR_PALETTE.map((color) => (
+                          <Pressable
+                            key={color.hex}
+                            onPress={() => setFormColor(color.hex)}
+                            style={({ pressed }) => [{
+                              width: 50,
+                              height: 50,
+                              borderRadius: 25,
+                              backgroundColor: color.hex,
+                              borderWidth: formColor === color.hex ? 3 : 0,
+                              borderColor: colors.foreground,
+                              opacity: pressed ? 0.8 : 1,
+                            }]}
+                          />
+                        ))}
+                      </View>
+                    </>
+                  )}
                 </View>
               )}
               showsVerticalScrollIndicator={false}

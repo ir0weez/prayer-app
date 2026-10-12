@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginHorizontal: 16,
-    marginVertical: 3,
+    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     borderRadius: 10,
     marginHorizontal: 16,
-    marginVertical: 3,
+    marginBottom: 12,
     overflow: "hidden",
   },
   groupRow: {

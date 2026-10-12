@@ -2,17 +2,29 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { TimeBlock } from "@/lib/time-blocks";
+import { TimeBlock, timeToMinutes } from "@/lib/time-blocks";
 import { format12HourTime } from "@/lib/utils";
+import { NowPill } from "./now-indicator";
 
 interface TimeBlockIndicatorProps {
   block: TimeBlock;
+  nowMinutes?: number | null;
   onPress?: (block: TimeBlock) => void;
 }
 
 interface TimeBlockGroupProps {
   blocks: TimeBlock[];
+  nowMinutes?: number | null;
   onPress?: (block: TimeBlock) => void;
+}
+
+/** True when "now" falls inside this white block's hour. */
+function blockContainsNow(block: TimeBlock, nowMinutes?: number | null): boolean {
+  return (
+    nowMinutes != null &&
+    timeToMinutes(block.startTime) <= nowMinutes &&
+    nowMinutes < timeToMinutes(block.endTime)
+  );
 }
 
 /**
@@ -21,8 +33,9 @@ interface TimeBlockGroupProps {
  * Shows fixed hours (no live countdown); the parent removes blocks once their
  * hour has passed.
  */
-export function TimeBlockIndicator({ block, onPress }: TimeBlockIndicatorProps) {
+export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndicatorProps) {
   const colors = useColors();
+  const isNow = blockContainsNow(block, nowMinutes);
 
   return (
     <Pressable
@@ -42,9 +55,12 @@ export function TimeBlockIndicator({ block, onPress }: TimeBlockIndicatorProps) 
         <MaterialIcons name="add" size={18} color={colors.muted} />
         <Text style={[styles.label, { color: colors.muted }]}>Add event?</Text>
       </View>
-      <Text style={[styles.time, { color: colors.muted }]}>
-        {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {isNow && <NowPill />}
+        <Text style={[styles.time, { color: colors.muted }]}>
+          {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -54,7 +70,7 @@ export function TimeBlockIndicator({ block, onPress }: TimeBlockIndicatorProps) 
  * separate tappable row per hour divided by hairlines. Each row still opens
  * the event creator pre-filled with its own hour.
  */
-export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
+export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupProps) {
   const colors = useColors();
   if (blocks.length === 0) return null;
 
@@ -85,9 +101,12 @@ export function TimeBlockGroup({ blocks, onPress }: TimeBlockGroupProps) {
           ]}
         >
           <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
-          <Text style={[styles.time, { color: colors.muted }]}>
-            {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {blockContainsNow(block, nowMinutes) && <NowPill />}
+            <Text style={[styles.time, { color: colors.muted }]}>
+              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+            </Text>
+          </View>
         </Pressable>
       ))}
     </View>

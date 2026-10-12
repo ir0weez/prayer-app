@@ -3201,12 +3201,15 @@ export function ScheduleTab({
     }
 
     // Merge time blocks with timed items for chronological intertwining
+    // (today only: remember "now" so the white block holding the current
+    // hour can wear the NOW badge)
+    const blockNowMinutes = selectedDate === todayISO ? now.getHours() * 60 + now.getMinutes() : null;
     const allTimedItems = [
       ...timedItems,
       ...activeBlocks.map((block) => ({
         type: "time-block",
         id: block.id,
-        data: { block },
+        data: { block, nowMinutes: blockNowMinutes },
         sortTime: block.startTime,
       })),
     ];
@@ -3228,7 +3231,7 @@ export function ScheduleTab({
         mergedTimedItems.push({
           type: "time-block-group",
           id: `time-block-group-${item.id}`,
-          data: { blocks: [item.data.block] },
+          data: { blocks: [item.data.block], nowMinutes: item.data.nowMinutes },
           sortTime: item.sortTime,
         });
       } else {
@@ -3236,11 +3239,16 @@ export function ScheduleTab({
       }
     }
 
-    // Add sorted items and insert current-time indicator if it's today
+    // Add sorted items and insert current-time indicator if it's today.
+    // When "now" falls inside a white block, that block's row wears the NOW
+    // badge instead — the standalone line would just dangle below the group.
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const nowInWhiteBlock = activeBlocks.some(
+      (b) => timeToMinutes(b.startTime) <= currentMinutes && currentMinutes < timeToMinutes(b.endTime)
+    );
 
-    if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId) {
+    if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId && !nowInWhiteBlock) {
       const insertionIndex = getCurrentTimeInsertionIndex(mergedTimedItems, currentTimeStr);
       items.push(...mergedTimedItems.slice(0, insertionIndex));
       items.push({
@@ -3968,6 +3976,7 @@ export function ScheduleTab({
           return (
             <TimeBlockIndicator
               block={item.data.block}
+              nowMinutes={item.data.nowMinutes ?? null}
               onPress={(block) => setWhiteBlockMenu(block)}
             />
           );
@@ -3975,6 +3984,7 @@ export function ScheduleTab({
           return (
             <TimeBlockGroup
               blocks={item.data.blocks}
+              nowMinutes={item.data.nowMinutes ?? null}
               onPress={(block) => setWhiteBlockMenu(block)}
             />
           );

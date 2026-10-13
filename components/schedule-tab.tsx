@@ -5742,6 +5742,222 @@ function MinistryTicket({ ministry, colors }: { ministry: ScheduleMinistry; colo
 }
 
 // ─── Ministry Card Component ─────────────────────────────────────────────────
+
+/** Inline micro-animation wrappers for ministry type sparks (relative, not absolute).
+ *  All transform/opacity only, native driver, slow and calm. */
+function MicroPulse({ children, duration = 1800, min = 0.35, max = 1, delay = 0 }: {
+  children: React.ReactNode; duration?: number; min?: number; max?: number; delay?: number;
+}) {
+  const op = useRef(new Animated.Value(min)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: max, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: min, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, duration, max, min, op]);
+  return <Animated.View style={{ opacity: op }}>{children}</Animated.View>;
+}
+
+function MicroBob({ children, distance = 2.5, duration = 2400, delay = 0 }: {
+  children: React.ReactNode; distance?: number; duration?: number; delay?: number;
+}) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(y, { toValue: -distance, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, distance, duration, y]);
+  return <Animated.View style={{ transform: [{ translateY: y }] }}>{children}</Animated.View>;
+}
+
+function MicroDrift({ children, distance = 4, duration = 2600, delay = 0 }: {
+  children: React.ReactNode; distance?: number; duration?: number; delay?: number;
+}) {
+  const x = useRef(new Animated.Value(-distance)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: distance, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: -distance, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, distance, duration, x]);
+  return <Animated.View style={{ transform: [{ translateX: x }] }}>{children}</Animated.View>;
+}
+
+function MicroRise({ children, distance = 6, duration = 2200, delay = 0 }: {
+  children: React.ReactNode; distance?: number; duration?: number; delay?: number;
+}) {
+  const y = useRef(new Animated.Value(0)).current;
+  const op = useRef(new Animated.Value(0.9)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(y, { toValue: -distance, duration, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+          Animated.timing(op, { toValue: 0, duration, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(y, { toValue: 0, duration: 0, useNativeDriver: true }),
+          Animated.timing(op, { toValue: 0.9, duration: 0, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, distance, duration, op, y]);
+  return <Animated.View style={{ opacity: op, transform: [{ translateY: y }] }}>{children}</Animated.View>;
+}
+
+function MicroSway({ children, arc = 12, duration = 2800, delay = 0 }: {
+  children: React.ReactNode; arc?: number; duration?: number; delay?: number;
+}) {
+  const r = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(r, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(r, { toValue: -1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, duration, r]);
+  const rotate = r.interpolate({ inputRange: [-1, 1], outputRange: [`-${arc}deg`, `${arc}deg`] });
+  return <Animated.View style={{ transform: [{ rotate }] }}>{children}</Animated.View>;
+}
+
+/** Tiny type-specific animated accent inside the ministry type tag.
+ *  White micro-shapes (~12px), completely separate from event card scenes. */
+function MinistryTypeSpark({ type }: { type: string }) {
+  const dot = (size: number, extra?: Record<string, number | string>) => (
+    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#FFFFFF" }, extra]} />
+  );
+  const box: Record<string, number | string> = {
+    width: 18, height: 12, marginLeft: 6,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+  };
+  switch (type) {
+    case "Worship": // two music-note dots bobbing alternately
+      return (
+        <View style={box}>
+          <MicroBob distance={2.5} duration={1800}>{dot(4)}</MicroBob>
+          <View style={{ width: 3 }} />
+          <MicroBob distance={2.5} duration={1800} delay={450}>{dot(3)}</MicroBob>
+        </View>
+      );
+    case "Prayer": // soft breathing glow dot
+      return (
+        <View style={box}>
+          <MicroPulse duration={3000} min={0.3} max={1}>{dot(5)}</MicroPulse>
+        </View>
+      );
+    case "Missions": // tiny plane trail drifting
+      return (
+        <View style={box}>
+          <MicroDrift distance={4} duration={2600}>{dot(4)}</MicroDrift>
+        </View>
+      );
+    case "Hospitality": // steam wisp rising
+      return (
+        <View style={box}>
+          <MicroRise distance={6} duration={2200}>{dot(3.5)}</MicroRise>
+        </View>
+      );
+    case "Teaching": // pointer dot bobbing
+      return (
+        <View style={box}>
+          <MicroBob distance={2.5} duration={2400}>{dot(4)}</MicroBob>
+        </View>
+      );
+    case "Service": // helping heart diamond pulsing
+      return (
+        <View style={box}>
+          <MicroPulse duration={2000} min={0.4} max={1}>
+            <View style={{ width: 6, height: 6, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+          </MicroPulse>
+        </View>
+      );
+    case "Youth": // twinkling star
+      return (
+        <View style={box}>
+          <MicroPulse duration={1400} min={0.25} max={1}>
+            <View style={{ width: 6, height: 6, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+          </MicroPulse>
+        </View>
+      );
+    case "Counseling": // two dots swaying in conversation
+      return (
+        <View style={box}>
+          <MicroSway arc={14} duration={2800}>{dot(3.5)}</MicroSway>
+          <View style={{ width: 2 }} />
+          <MicroSway arc={14} duration={2800} delay={700}>{dot(3.5)}</MicroSway>
+        </View>
+      );
+    case "Bible Study": // page shimmer
+      return (
+        <View style={box}>
+          <MicroPulse duration={2200} min={0.45} max={1}>
+            <View style={{ width: 7, height: 9, borderRadius: 1, backgroundColor: "#FFFFFF" }} />
+          </MicroPulse>
+        </View>
+      );
+    case "Marriage": // two overlapping hearts pulsing together
+      return (
+        <View style={box}>
+          <MicroPulse duration={2400} min={0.5} max={1}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {dot(5)}
+              <View style={{ marginLeft: -2 }}>{dot(5)}</View>
+            </View>
+          </MicroPulse>
+        </View>
+      );
+    case "Parenting": // big + little bobbing together
+      return (
+        <View style={box}>
+          <MicroBob distance={2} duration={2600}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+              {dot(5)}
+              <View style={{ marginLeft: 1.5 }}>{dot(3)}</View>
+            </View>
+          </MicroBob>
+        </View>
+      );
+    case "Read": // bookmark swaying
+      return (
+        <View style={box}>
+          <MicroSway arc={10} duration={3000}>
+            <View style={{ width: 6, height: 9, borderRadius: 1, backgroundColor: "#FFFFFF" }} />
+          </MicroSway>
+        </View>
+      );
+    case "Outreach": // expanding presence pulse
+      return (
+        <View style={box}>
+          <MicroPulse duration={1800} min={0.35} max={1}>{dot(5)}</MicroPulse>
+        </View>
+      );
+    default: // "Other" — subtle dot pulse
+      return (
+        <View style={box}>
+          <MicroPulse duration={2000} min={0.4} max={0.95}>{dot(4)}</MicroPulse>
+        </View>
+      );
+  }
+}
+
 function MinistryCard({
   ministry,
   onToggle,
@@ -5897,6 +6113,7 @@ function MinistryCard({
             <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 2 }]}>
               <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={11} color="#FFFFFF" />
               <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "600", marginLeft: 2 }}>{ministry.type}</Text>
+              <MinistryTypeSpark type={ministry.type} />
             </View>
             {/* Title */}
             <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 2, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={1}>

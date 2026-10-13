@@ -108,7 +108,7 @@ class ExpoPrayerTimerModule : Module() {
   }
 
   private fun prayNextPendingIntent(ctx: Context): PendingIntent {
-    val intent = Intent(PRAY_ACTION).setPackage(ctx.packageName)
+    val intent = Intent(PRAY_NEXT_ACTION).setPackage(ctx.packageName)
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     return PendingIntent.getBroadcast(ctx, 3, intent, flags)
   }

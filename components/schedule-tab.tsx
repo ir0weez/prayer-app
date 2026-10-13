@@ -2819,6 +2819,43 @@ function HotelScene() {
   );
 }
 
+/** Fresh shower: shower head with falling droplets, steam wisps, rubber duck. */
+function ShowerScene() {
+  return (
+    <SceneRoot base="#4A7A9E">
+      {/* Tile floor */}
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 0, height: 26, backgroundColor: "#3A6A8E" }} />
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 24, height: 3, backgroundColor: "#5A8AAE", opacity: 0.6 }} />
+      {/* Fresh water glow */}
+      <BreatheGlow color="#BFE3F5" size={110} left="62%" bottom={40} min={0.18} max={0.36} duration={4400} />
+      {/* Shower arm + head */}
+      <View style={{ position: "absolute", left: "72%", top: 6, width: 40, height: 44 }}>
+        <View style={{ position: "absolute", left: 0, top: 4, width: 26, height: 6, borderRadius: 3, backgroundColor: "#B0BEC5" }} />
+        <View style={{ position: "absolute", left: 22, top: 8, width: 6, height: 14, borderRadius: 3, backgroundColor: "#B0BEC5" }} />
+        <View style={{ position: "absolute", left: 8, top: 20, width: 34, height: 12, borderRadius: 6, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: 12, top: 30, width: 26, height: 4, borderRadius: 2, backgroundColor: "#78909C" }} />
+      </View>
+      {/* Falling water droplets */}
+      <FallingDot left="76%" size={9} color="#D6F0FF" duration={1400} delay={0} sway={2} square={false} ellipse={true} spin={false} maxOpacity={0.75} />
+      <FallingDot left="79%" size={8} color="#D6F0FF" duration={1200} delay={300} sway={2} square={false} ellipse={true} spin={false} maxOpacity={0.7} />
+      <FallingDot left="82%" size={10} color="#C4E6FA" duration={1500} delay={650} sway={3} square={false} ellipse={true} spin={false} maxOpacity={0.75} />
+      <FallingDot left="73%" size={7} color="#D6F0FF" duration={1300} delay={900} sway={2} square={false} ellipse={true} spin={false} maxOpacity={0.65} />
+      {/* Steam wisps */}
+      <RisingDot left="64%" top={70} size={7} color="#FFFFFF" duration={3000} delay={0} maxOpacity={0.4} sway={4} square={false} bordered={false} />
+      <RisingDot left="68%" top={74} size={6} color="#FFFFFF" duration={3400} delay={1200} maxOpacity={0.35} sway={4} square={false} bordered={false} />
+      {/* Rubber duck */}
+      <GentleBob left="60%" bottom={8} width={44} height={34} distance={6} duration={3000}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 40, height: 24, borderRadius: 14, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 18, width: 16, height: 14, borderRadius: 8, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 38, bottom: 22, width: 7, height: 5, borderRadius: 2, backgroundColor: "#FF8F00" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 26, width: 4, height: 4, borderRadius: 2, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 12, width: 12, height: 6, borderRadius: 3, backgroundColor: "#FFB300", opacity: 0.5 }} />
+      </GentleBob>
+      <TwinkleField color="#E1F5FE" count={5} seed={9} />
+    </SceneRoot>
+  );
+}
+
 /** New Year: fireworks, champagne coupe with bubbles, midnight clock. */
 function NewYearScene() {
   return (
@@ -3630,6 +3667,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Concert": return <ConcertScene />;
     case "Travel": return <TravelScene />;
     case "Hotel": return <HotelScene />;
+    case "Shower": return <ShowerScene />;
     case "Study": return <StudyScene />;
     case "Graduation": return <GraduationScene />;
     case "Visit": return <VisitScene />;

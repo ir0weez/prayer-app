@@ -2336,6 +2336,36 @@ function GraduationScene() {
   );
 }
 
+/** Warm reminder to text, call, or visit a friend: glowing phone, chat bubble, letter with heart. */
+function ReachOutScene() {
+  return (
+    <SceneRoot base="#5E7A9E">
+      <BreatheGlow color="#FFD54F" size={120} left="66%" bottom={20} min={0.15} max={0.3} duration={4400} />
+      <TwinkleField color="#FFE0B2" count={5} seed={21} />
+      {/* Letter with heart seal, gently swaying */}
+      <GentleSway left="52%" bottom={12} width={64} height={52} arc={10} duration={4200}>
+        <View style={{ position: "absolute", left: 4, bottom: 8, width: 56, height: 38, borderRadius: 4, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 34, width: 24, height: 24, backgroundColor: "#E8DCC0", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 25, bottom: 25, width: 14, height: 14 }}>
+          <HeartShape size={14} color="#E57373" opacity={1} />
+        </View>
+      </GentleSway>
+      {/* Phone with chat bubble, bobbing */}
+      <GentleBob left="74%" bottom={30} width={52} height={76} distance={8} duration={3200}>
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 40, height: 72, borderRadius: 10, backgroundColor: "#1F2937" }} />
+        <View style={{ position: "absolute", left: 11, bottom: 6, width: 30, height: 60, borderRadius: 6, backgroundColor: "#DBEAFE" }} />
+        <View style={{ position: "absolute", left: 15, bottom: 34, width: 22, height: 16, borderRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 17, bottom: 30, width: 8, height: 8, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 20, bottom: 37, width: 11, height: 11 }}>
+          <HeartShape size={11} color="#E57373" opacity={1} />
+        </View>
+      </GentleBob>
+      <RisingHeart left="62%" delay={0} duration={7000} size={14} color="#F8BBD0" />
+      <RisingHeart left="84%" delay={2400} duration={8000} size={12} color="#FFFFFF" />
+    </SceneRoot>
+  );
+}
+
 /** Coming home: cozy house with glowing windows, chimney smoke, setting sun. */
 function VisitScene() {
   return (
@@ -3671,6 +3701,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Study": return <StudyScene />;
     case "Graduation": return <GraduationScene />;
     case "Visit": return <VisitScene />;
+    case "Reach Out": return <ReachOutScene />;
     case "Amusement Park": {
       const parkScene = detectParkScene(location);
       if (parkScene) return parkScene;

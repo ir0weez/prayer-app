@@ -3419,6 +3419,53 @@ function HarryPotterScene() {
   );
 }
 
+/** Wednesday: gothic academy at night — iron gates, dead tree with a raven, lit tower. */
+function WednesdayScene() {
+  return (
+    <SceneRoot base="#1B1233">
+      <TwinkleField color="#CFC3FF" count={8} seed={21} />
+      {/* moon with purple halo */}
+      <BreatheGlow color="#B9A7F2" size={80} left="78%" bottom={92} min={0.25} max={0.45} duration={6000} />
+      <View style={{ position: "absolute", left: "83%", bottom: 96, width: 24, height: 24, borderRadius: 12, backgroundColor: "#EDE8FF" }} />
+      {/* academy tower with pointed spire */}
+      <View style={{ position: "absolute", left: "64%", bottom: 34, width: 40, height: 70, backgroundColor: "#2A2145" }} />
+      <View style={{ position: "absolute", left: "66%", bottom: 100, width: 36, height: 26, backgroundColor: "#241C3C", transform: [{ rotate: "45deg" }] }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 34, width: 14, height: 50, backgroundColor: "#241C3C" }} />
+      <View style={{ position: "absolute", left: "59%", bottom: 80, width: 16, height: 16, backgroundColor: "#1E1732", transform: [{ rotate: "45deg" }] }} />
+      {/* lit tower windows */}
+      <PulseDot left="70%" bottom={80} size={6} color="#FFD98A" duration={2300} />
+      <PulseDot left="77%" bottom={66} size={6} color="#FFD98A" duration={2700} delay={600} />
+      <PulseDot left="70%" bottom={52} size={5} color="#FFD98A" duration={2100} delay={1100} />
+      {/* dead tree: trunk + bare branches */}
+      <View style={{ position: "absolute", left: "88%", bottom: 30, width: 7, height: 52, backgroundColor: "#141021", transform: [{ rotate: "4deg" }] }} />
+      <View style={{ position: "absolute", left: "86%", bottom: 62, width: 5, height: 30, backgroundColor: "#141021", transform: [{ rotate: "-38deg" }] }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 66, width: 5, height: 26, backgroundColor: "#141021", transform: [{ rotate: "34deg" }] }} />
+      <View style={{ position: "absolute", left: "87%", bottom: 74, width: 4, height: 18, backgroundColor: "#141021", transform: [{ rotate: "-58deg" }] }} />
+      {/* raven perched on a branch */}
+      <GentleSway left="84%" bottom={86} width={20} height={12} arc={4} duration={3800}>
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 9, height: 10, borderRadius: 4, backgroundColor: "#0D0A18" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 4, width: 7, height: 5, borderRadius: 2.5, backgroundColor: "#0D0A18", transform: [{ rotate: "-20deg" }] }} />
+      </GentleSway>
+      {/* tall iron gates across the front */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 26, height: 26 }}>
+        <View style={{ position: "absolute", left: "6%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "6%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: "22%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "22%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: "38%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "38%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: "54%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "54%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: "70%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "70%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: "86%", bottom: 0, width: 4, height: 26, backgroundColor: "#0F0B1D" }} />
+        <View style={{ position: "absolute", left: "86%", bottom: 24, width: 4, height: 8, backgroundColor: "#0F0B1D", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 8, height: 4, backgroundColor: "#0F0B1D" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
 /** Doctor visit: medical badge, beating heart, clipboard. */
 function DoctorScene() {
   return (
@@ -5604,6 +5651,8 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   // "carrie" could be a name — require TV context.
   if (/\bcarrie\b/.test(text) && /\b(tv|series|show)\b/.test(text)) return <CarrieScene />;
   if (has("harry potter", "hogwarts")) return <HarryPotterScene />;
+  // "wednesday" is a day of the week — require TV context unless it's clearly the show.
+  if (has("wednesday addams", "nevermore") || (/\bwednesday\b/.test(text) && /\b(tv|series|show|episode|season|netflix)\b/.test(text))) return <WednesdayScene />;
   return null;
 }
 

@@ -1553,31 +1553,12 @@ function PulsingCross({ left, delay = 0 }: { left: number | `${number}%`; delay?
 
 /** Full-bleed scene root: solid base + soft left scrim so the white title reads. */
 
-function SceneRoot({ base, children, scale = 1 }: { base: string; children: React.ReactNode; scale?: number }) {
-  // Optional uniform scale of the scene artwork, anchored at the bottom-center
-  // so bottom-positioned elements stay planted and grow upward into the taller card.
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const anchored = scale !== 1 && size.w > 0 && size.h > 0;
-  const cx = size.w / 2;
-  const cy = size.h;
+function SceneRoot({ base, children }: { base: string; children: React.ReactNode }) {
   return (
     <View
       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden", backgroundColor: base }}
-      onLayout={(e) => {
-        const { width, height } = e.nativeEvent.layout;
-        setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
-      }}
     >
-      <View
-        style={{
-          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          ...(anchored
-            ? { transform: [{ translateX: -cx }, { translateY: -cy }, { scale }, { translateX: cx }, { translateY: cy }] }
-            : null),
-        }}
-      >
-        {children}
-      </View>
+      {children}
     </View>
   );
 }
@@ -1701,39 +1682,39 @@ function DinnerScene() {
 }
 
 /** Halloween night: moon, sitting cat with swaying tail, jack-o-lantern, spiderweb. */
-function HalloweenScene({ scale = 1 }: { scale?: number }) {
+function HalloweenScene() {
   return (
-    <SceneRoot base="#1A2340" scale={scale}>
+    <SceneRoot base="#1A2340">
       <TwinkleField color="#FFFFFF" count={9} seed={5} />
-      <View style={{ position: "absolute", left: "74%", bottom: 46, width: 56, height: 56, borderRadius: 28, backgroundColor: "#F5E6A8" }} />
-      <View style={{ position: "absolute", left: "78%", bottom: 62, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E0CE8E" }} />
-      <View style={{ position: "absolute", left: "84%", bottom: 54, width: 8, height: 8, borderRadius: 4, backgroundColor: "#E0CE8E" }} />
-      <View style={{ position: "absolute", left: "-12%", right: "-12%", bottom: -34, height: 72, borderRadius: 40, backgroundColor: "#0C1226" }} />
-      <View style={{ position: "absolute", left: "22%", bottom: 58, width: 60, height: 60, opacity: 0.22 }}>
-        <View style={{ position: "absolute", left: 28, top: 0, width: 2, height: 56, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 0, top: 26, width: 60, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
-        <View style={{ position: "absolute", left: 0, top: 26, width: 60, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
-        <View style={{ position: "absolute", left: 8, top: 8, width: 44, height: 22, borderRadius: 22, borderWidth: 2, borderColor: "#FFFFFF", borderTopWidth: 0 }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 72, width: 68, height: 68, borderRadius: 34, backgroundColor: "#F5E6A8" }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 92, width: 14, height: 14, borderRadius: 7, backgroundColor: "#E0CE8E" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 82, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E0CE8E" }} />
+      <View style={{ position: "absolute", left: "-12%", right: "-12%", bottom: -40, height: 88, borderRadius: 48, backgroundColor: "#0C1226" }} />
+      <View style={{ position: "absolute", left: "24%", bottom: 76, width: 68, height: 68, opacity: 0.22 }}>
+        <View style={{ position: "absolute", left: 32, top: 0, width: 2, height: 64, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 0, top: 30, width: 68, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 0, top: 30, width: 68, height: 2, backgroundColor: "#FFFFFF", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 9, top: 9, width: 50, height: 25, borderRadius: 25, borderWidth: 2, borderColor: "#FFFFFF", borderTopWidth: 0 }} />
       </View>
-      <View style={{ position: "absolute", left: "22%", bottom: 16, width: 56, height: 62 }}>
-        <View style={{ position: "absolute", left: 6, bottom: 0, width: 40, height: 36, borderRadius: 17, backgroundColor: "#050505" }} />
-        <View style={{ position: "absolute", left: 14, bottom: 32, width: 26, height: 26, borderRadius: 13, backgroundColor: "#050505" }} />
-        <View style={{ position: "absolute", left: 15, bottom: 50, width: 10, height: 10, backgroundColor: "#050505", transform: [{ rotate: "45deg" }] }} />
-        <View style={{ position: "absolute", left: 29, bottom: 50, width: 10, height: 10, backgroundColor: "#050505", transform: [{ rotate: "45deg" }] }} />
-        <BlinkEyes left={16} bottom={40} />
-        <GentleSway left={46} bottom={2} width={7} height={40} arc={16} duration={3600}>
-          <View style={{ width: 7, height: 40, borderRadius: 3.5, backgroundColor: "#050505" }} />
+      <View style={{ position: "absolute", left: "24%", bottom: 22, width: 66, height: 73 }}>
+        <View style={{ position: "absolute", left: 7, bottom: 0, width: 47, height: 42, borderRadius: 20, backgroundColor: "#050505" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 38, width: 31, height: 31, borderRadius: 15.5, backgroundColor: "#050505" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 59, width: 12, height: 12, backgroundColor: "#050505", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 59, width: 12, height: 12, backgroundColor: "#050505", transform: [{ rotate: "45deg" }] }} />
+        <BlinkEyes left={19} bottom={47} />
+        <GentleSway left={54} bottom={2} width={8} height={47} arc={16} duration={3600}>
+          <View style={{ width: 8, height: 47, borderRadius: 4, backgroundColor: "#050505" }} />
         </GentleSway>
       </View>
-      <BreatheGlow color="#FF6D00" size={100} left="56%" bottom={-14} min={0.22} max={0.4} duration={2400} />
-      <View style={{ position: "absolute", left: "60%", bottom: 14, width: 52, height: 54 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 52, height: 46, borderRadius: 23, backgroundColor: "#E8721C" }} />
-        <View style={{ position: "absolute", left: 22, bottom: 44, width: 9, height: 10, borderRadius: 2, backgroundColor: "#3E7A34" }} />
-        <View style={{ position: "absolute", left: 12, bottom: 26, width: 9, height: 9, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
-        <View style={{ position: "absolute", left: 31, bottom: 26, width: 9, height: 9, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
-        <View style={{ position: "absolute", left: 12, bottom: 10, width: 28, height: 9, borderRadius: 3, backgroundColor: "#2E1A0E" }} />
-        <View style={{ position: "absolute", left: 18, bottom: 10, width: 6, height: 9, backgroundColor: "#E8721C" }} />
-        <View style={{ position: "absolute", left: 30, bottom: 10, width: 6, height: 9, backgroundColor: "#E8721C" }} />
+      <BreatheGlow color="#FF6D00" size={120} left="54%" bottom={-16} min={0.22} max={0.4} duration={2400} />
+      <View style={{ position: "absolute", left: "58%", bottom: 18, width: 62, height: 65 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 62, height: 55, borderRadius: 27, backgroundColor: "#E8721C" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 52, width: 11, height: 12, borderRadius: 2, backgroundColor: "#3E7A34" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 31, width: 11, height: 11, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 37, bottom: 31, width: 11, height: 11, backgroundColor: "#2E1A0E", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 14, bottom: 12, width: 33, height: 11, borderRadius: 3, backgroundColor: "#2E1A0E" }} />
+        <View style={{ position: "absolute", left: 21, bottom: 12, width: 7, height: 11, backgroundColor: "#E8721C" }} />
+        <View style={{ position: "absolute", left: 36, bottom: 12, width: 7, height: 11, backgroundColor: "#E8721C" }} />
       </View>
     </SceneRoot>
   );
@@ -1773,90 +1754,90 @@ function GardeningScene() {
 }
 
 /** Christmas: pine tree with twinkling lights, presents, falling snow. */
-function ChristmasScene({ scale = 1 }: { scale?: number }) {
+function ChristmasScene() {
   return (
-    <SceneRoot base="#1B4332" scale={scale}>
+    <SceneRoot base="#1B4332">
       <FallMotes colors={["#FFFFFF"]} count={9} size={4} duration={10000} seed={18} />
-      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 66, borderRadius: 34, backgroundColor: "#FFFFFF", opacity: 0.92 }} />
-      <View style={{ position: "absolute", left: "44%", bottom: 18, width: 92, height: 96 }}>
-        <View style={{ position: "absolute", left: 40, bottom: 0, width: 12, height: 20, borderRadius: 3, backgroundColor: "#5D4037" }} />
-        <View style={{ width: 0, height: 0, position: "absolute", left: 16, bottom: 14, borderLeftWidth: 30, borderRightWidth: 30, borderBottomWidth: 34, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2E7D32" }} />
-        <View style={{ width: 0, height: 0, position: "absolute", left: 10, bottom: 38, borderLeftWidth: 36, borderRightWidth: 36, borderBottomWidth: 38, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#388E3C" }} />
-        <View style={{ width: 0, height: 0, position: "absolute", left: 4, bottom: 64, borderLeftWidth: 42, borderRightWidth: 42, borderBottomWidth: 30, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#43A047" }} />
-        <PulseDot left={30} bottom={52} size={6} color="#FFD54F" duration={1800} />
-        <PulseDot left={52} bottom={44} size={6} color="#E53935" duration={2100} delay={500} />
-        <PulseDot left={40} bottom={70} size={6} color="#29B6F6" duration={1900} delay={900} />
-        <PulseDot left={24} bottom={30} size={6} color="#F48FB1" duration={2200} delay={300} />
-        <PulseDot left={60} bottom={28} size={6} color="#FFD54F" duration={1700} delay={1100} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -36, height: 84, borderRadius: 42, backgroundColor: "#FFFFFF", opacity: 0.92 }} />
+      <View style={{ position: "absolute", left: "42%", bottom: 24, width: 108, height: 112 }}>
+        <View style={{ position: "absolute", left: 47, bottom: 0, width: 14, height: 24, borderRadius: 3, backgroundColor: "#5D4037" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 19, bottom: 17, borderLeftWidth: 35, borderRightWidth: 35, borderBottomWidth: 40, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2E7D32" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 12, bottom: 45, borderLeftWidth: 42, borderRightWidth: 42, borderBottomWidth: 44, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#388E3C" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 5, bottom: 75, borderLeftWidth: 49, borderRightWidth: 49, borderBottomWidth: 35, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#43A047" }} />
+        <PulseDot left={35} bottom={61} size={7} color="#FFD54F" duration={1800} />
+        <PulseDot left={61} bottom={51} size={7} color="#E53935" duration={2100} delay={500} />
+        <PulseDot left={47} bottom={82} size={7} color="#29B6F6" duration={1900} delay={900} />
+        <PulseDot left={28} bottom={35} size={7} color="#F48FB1" duration={2200} delay={300} />
+        <PulseDot left={70} bottom={33} size={7} color="#FFD54F" duration={1700} delay={1100} />
       </View>
-      <PulseDot left="52%" bottom={104} size={10} color="#FFD54F" duration={2400} min={0.6} max={1} />
-      <View style={{ position: "absolute", left: "50.5%", bottom: 98, width: 14, height: 14, backgroundColor: "#FFD54F", transform: [{ rotate: "45deg" }] }} />
-      <View style={{ position: "absolute", left: "24%", bottom: 22, width: 34, height: 26, borderRadius: 4, backgroundColor: "#C62828" }} />
-      <View style={{ position: "absolute", left: "36%", bottom: 22, width: 8, height: 26, backgroundColor: "#FFD54F" }} />
-      <View style={{ position: "absolute", left: "24%", bottom: 32, width: 34, height: 7, backgroundColor: "#FFD54F" }} />
-      <View style={{ position: "absolute", left: "72%", bottom: 20, width: 28, height: 22, borderRadius: 4, backgroundColor: "#1565C0" }} />
-      <View style={{ position: "absolute", left: "82%", bottom: 20, width: 7, height: 22, backgroundColor: "#FFFFFF" }} />
+      <PulseDot left="51%" bottom={128} size={11} color="#FFD54F" duration={2400} min={0.6} max={1} />
+      <View style={{ position: "absolute", left: "49.5%", bottom: 121, width: 16, height: 16, backgroundColor: "#FFD54F", transform: [{ rotate: "45deg" }] }} />
+      <View style={{ position: "absolute", left: "24%", bottom: 28, width: 40, height: 31, borderRadius: 4, backgroundColor: "#C62828" }} />
+      <View style={{ position: "absolute", left: "37%", bottom: 28, width: 9, height: 31, backgroundColor: "#FFD54F" }} />
+      <View style={{ position: "absolute", left: "24%", bottom: 40, width: 40, height: 8, backgroundColor: "#FFD54F" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 26, width: 33, height: 26, borderRadius: 4, backgroundColor: "#1565C0" }} />
+      <View style={{ position: "absolute", left: "81%", bottom: 26, width: 8, height: 26, backgroundColor: "#FFFFFF" }} />
     </SceneRoot>
   );
 }
 
 /** Thanksgiving: golden pie with steam, pumpkin, falling autumn leaves. */
-function ThanksgivingScene({ scale = 1 }: { scale?: number }) {
+function ThanksgivingScene() {
   return (
-    <SceneRoot base="#6B4215" scale={scale}>
-      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "38%", backgroundColor: "#4A2C0D" }} />
+    <SceneRoot base="#6B4215">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#4A2C0D" }} />
       <FallMotes colors={["#FFA94D", "#E8590C", "#FFD43B"]} count={7} size={7} duration={9000} seed={20} ellipse spin />
-      <View style={{ position: "absolute", left: "40%", bottom: 12, width: 96, height: 52 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 96, height: 18, borderRadius: 9, backgroundColor: "#FFF8E1" }} />
-        <View style={{ position: "absolute", left: 8, bottom: 12, width: 80, height: 34, borderRadius: 17, backgroundColor: "#E8A94E" }} />
-        <View style={{ position: "absolute", left: 14, bottom: 30, width: 68, height: 8, borderRadius: 4, backgroundColor: "#C97A2B", transform: [{ rotate: "24deg" }] }} />
-        <View style={{ position: "absolute", left: 14, bottom: 30, width: 68, height: 8, borderRadius: 4, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "38%", bottom: 16, width: 116, height: 63 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 116, height: 22, borderRadius: 11, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 15, width: 96, height: 41, borderRadius: 20, backgroundColor: "#E8A94E" }} />
+        <View style={{ position: "absolute", left: 17, bottom: 36, width: 82, height: 10, borderRadius: 5, backgroundColor: "#C97A2B", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 17, bottom: 36, width: 82, height: 10, borderRadius: 5, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
       </View>
-      <RisingDot left="48%" top={36} size={5} color="#FFFFFF" duration={4600} delay={0} maxOpacity={0.45} sway={6} square={false} bordered={false} />
-      <RisingDot left="53%" top={36} size={4} color="#FFFFFF" duration={5200} delay={1500} maxOpacity={0.35} sway={6} square={false} bordered={false} />
-      <View style={{ position: "absolute", left: "74%", bottom: 10, width: 50, height: 44 }}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 50, height: 40, borderRadius: 20, backgroundColor: "#E8721C" }} />
-        <View style={{ position: "absolute", left: 16, bottom: 2, width: 4, height: 36, borderRadius: 2, backgroundColor: "#C2571B" }} />
-        <View style={{ position: "absolute", left: 30, bottom: 2, width: 4, height: 36, borderRadius: 2, backgroundColor: "#C2571B" }} />
-        <View style={{ position: "absolute", left: 22, bottom: 38, width: 8, height: 8, borderRadius: 2, backgroundColor: "#3E7A34" }} />
+      <RisingDot left="47%" top={48} size={5} color="#FFFFFF" duration={4600} delay={0} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <RisingDot left="52%" top={52} size={4} color="#FFFFFF" duration={5200} delay={1500} maxOpacity={0.35} sway={6} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "72%", bottom: 14, width: 60, height: 53 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 60, height: 48, borderRadius: 24, backgroundColor: "#E8721C" }} />
+        <View style={{ position: "absolute", left: 19, bottom: 2, width: 5, height: 43, borderRadius: 2, backgroundColor: "#C2571B" }} />
+        <View style={{ position: "absolute", left: 36, bottom: 2, width: 5, height: 43, borderRadius: 2, backgroundColor: "#C2571B" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 45, width: 10, height: 10, borderRadius: 2, backgroundColor: "#3E7A34" }} />
       </View>
-      <View style={{ position: "absolute", left: "22%", bottom: 12, width: 8, height: 44, borderRadius: 4, backgroundColor: "#8A5A2B" }} />
-      <View style={{ position: "absolute", left: "20%", bottom: 44, width: 16, height: 10, borderRadius: 5, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
-      <View style={{ position: "absolute", left: "22%", bottom: 52, width: 16, height: 10, borderRadius: 5, backgroundColor: "#D89A3E", transform: [{ rotate: "24deg" }] }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 16, width: 10, height: 53, borderRadius: 5, backgroundColor: "#8A5A2B" }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 53, width: 19, height: 12, borderRadius: 6, backgroundColor: "#C97A2B", transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 63, width: 19, height: 12, borderRadius: 6, backgroundColor: "#D89A3E", transform: [{ rotate: "24deg" }] }} />
     </SceneRoot>
   );
 }
 
 /** Easter morning: decorated egg, bunny, spring flowers, drifting petals. */
-function EasterScene({ scale = 1 }: { scale?: number }) {
+function EasterScene() {
   return (
-    <SceneRoot base="#8FC7A8" scale={scale}>
-      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -28, height: 70, borderRadius: 34, backgroundColor: "#4E9A51" }} />
+    <SceneRoot base="#8FC7A8">
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -34, height: 88, borderRadius: 42, backgroundColor: "#4E9A51" }} />
       <FallMotes colors={["#F8BBD0", "#FFFFFF", "#FCE4EC"]} count={7} size={6} duration={9000} seed={19} ellipse />
-      <GentlePulse left="46%" bottom={26} width={58} height={74} min={1} max={1.04} duration={3200}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 58, height: 74, borderRadius: 29, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 6, bottom: 44, width: 46, height: 9, borderRadius: 4, backgroundColor: "#F48FB1", transform: [{ rotate: "14deg" }] }} />
-        <View style={{ position: "absolute", left: 6, bottom: 32, width: 46, height: 9, borderRadius: 4, backgroundColor: "#7FB3D5", transform: [{ rotate: "-14deg" }] }} />
-        <View style={{ position: "absolute", left: 14, bottom: 56, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFD54F" }} />
-        <View style={{ position: "absolute", left: 34, bottom: 56, width: 8, height: 8, borderRadius: 4, backgroundColor: "#F48FB1" }} />
-        <View style={{ position: "absolute", left: 24, bottom: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: "#7FB3D5" }} />
+      <GentlePulse left="44%" bottom={34} width={70} height={90} min={1} max={1.04} duration={3200}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 70, height: 90, borderRadius: 35, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 7, bottom: 53, width: 56, height: 11, borderRadius: 5, backgroundColor: "#F48FB1", transform: [{ rotate: "14deg" }] }} />
+        <View style={{ position: "absolute", left: 7, bottom: 39, width: 56, height: 11, borderRadius: 5, backgroundColor: "#7FB3D5", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 17, bottom: 68, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 41, bottom: 68, width: 10, height: 10, borderRadius: 5, backgroundColor: "#F48FB1" }} />
+        <View style={{ position: "absolute", left: 29, bottom: 17, width: 10, height: 10, borderRadius: 5, backgroundColor: "#7FB3D5" }} />
       </GentlePulse>
-      <View style={{ position: "absolute", left: "26%", bottom: 24, width: 34, height: 44, borderRadius: 17, backgroundColor: "#F8BBD0" }} />
-      <View style={{ position: "absolute", left: "70%", bottom: 22, width: 30, height: 38, borderRadius: 15, backgroundColor: "#B3E5FC" }} />
-      <View style={{ position: "absolute", left: "76%", bottom: 40, width: 44, height: 46 }}>
-        <View style={{ position: "absolute", left: 4, bottom: 0, width: 34, height: 28, borderRadius: 14, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 10, bottom: 24, width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF" }} />
-        <GentleSway left={10} bottom={42} width={10} height={22} arc={12} duration={3800}>
-          <View style={{ width: 10, height: 22, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+      <View style={{ position: "absolute", left: "26%", bottom: 31, width: 41, height: 53, borderRadius: 20, backgroundColor: "#F8BBD0" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 29, width: 36, height: 46, borderRadius: 18, backgroundColor: "#B3E5FC" }} />
+      <View style={{ position: "absolute", left: "74%", bottom: 52, width: 53, height: 56 }}>
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 41, height: 34, borderRadius: 17, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 29, width: 27, height: 27, borderRadius: 13.5, backgroundColor: "#FFFFFF" }} />
+        <GentleSway left={12} bottom={51} width={12} height={27} arc={12} duration={3800}>
+          <View style={{ width: 12, height: 27, borderRadius: 6, backgroundColor: "#FFFFFF" }} />
         </GentleSway>
-        <View style={{ position: "absolute", left: 28, bottom: 42, width: 10, height: 22, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 13, bottom: 46, width: 4, height: 14, borderRadius: 2, backgroundColor: "#F8BBD0" }} />
-        <View style={{ position: "absolute", left: 0, bottom: 8, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 51, width: 12, height: 27, borderRadius: 6, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 56, width: 5, height: 17, borderRadius: 2.5, backgroundColor: "#F8BBD0" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 10, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF" }} />
       </View>
-      <View style={{ position: "absolute", left: "22%", bottom: 24, width: 8, height: 22, borderRadius: 4, backgroundColor: "#2F9E44" }} />
-      <View style={{ position: "absolute", left: "20%", bottom: 42, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFD54F" }} />
-      <View style={{ position: "absolute", left: "88%", bottom: 26, width: 8, height: 20, borderRadius: 4, backgroundColor: "#2F9E44" }} />
-      <View style={{ position: "absolute", left: "84%", bottom: 42, width: 16, height: 16, borderRadius: 8, backgroundColor: "#F48FB1" }} />
+      <View style={{ position: "absolute", left: "22%", bottom: 31, width: 10, height: 27, borderRadius: 5, backgroundColor: "#2F9E44" }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 54, width: 19, height: 19, borderRadius: 9.5, backgroundColor: "#FFD54F" }} />
+      <View style={{ position: "absolute", left: "86%", bottom: 33, width: 10, height: 24, borderRadius: 5, backgroundColor: "#2F9E44" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 54, width: 19, height: 19, borderRadius: 9.5, backgroundColor: "#F48FB1" }} />
     </SceneRoot>
   );
 }
@@ -2556,69 +2537,69 @@ function HotelScene() {
 }
 
 /** New Year: fireworks, champagne coupe with bubbles, midnight clock. */
-function NewYearScene({ scale = 1 }: { scale?: number }) {
+function NewYearScene() {
   return (
-    <SceneRoot base="#1A237E" scale={scale}>
+    <SceneRoot base="#1A237E">
       <NewYearFireworks />
-      <View style={{ position: "absolute", left: "64%", bottom: 12, width: 40, height: 64 }}>
-        <View style={{ position: "absolute", left: 2, bottom: 30, width: 36, height: 22, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
-        <View style={{ position: "absolute", left: 18, bottom: 0, width: 4, height: 32, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
-        <View style={{ position: "absolute", left: 10, bottom: 0, width: 20, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 18, width: 50, height: 80 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 38, width: 45, height: 27, borderBottomLeftRadius: 22, borderBottomRightRadius: 22, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 22, bottom: 0, width: 5, height: 40, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 25, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
       </View>
-      <RisingDot left="66%" top={40} size={5} color="#FFD54F" duration={3000} delay={0} maxOpacity={0.8} sway={4} square={false} bordered={false} />
-      <RisingDot left="69%" top={44} size={4} color="#FFD54F" duration={3600} delay={1200} maxOpacity={0.7} sway={4} square={false} bordered={false} />
-      <View style={{ position: "absolute", left: "82%", bottom: 52, width: 38, height: 38 }}>
-        <View style={{ position: "absolute", left: 0, top: 0, width: 38, height: 38, borderRadius: 19, backgroundColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 17, top: 5, width: 4, height: 14, borderRadius: 2, backgroundColor: "#1A237E" }} />
-        <View style={{ position: "absolute", left: 17, top: 10, width: 4, height: 9, borderRadius: 2, backgroundColor: "#1A237E" }} />
+      <RisingDot left="62%" top={56} size={5} color="#FFD54F" duration={3000} delay={0} maxOpacity={0.8} sway={4} square={false} bordered={false} />
+      <RisingDot left="66%" top={60} size={4} color="#FFD54F" duration={3600} delay={1200} maxOpacity={0.7} sway={4} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "80%", bottom: 72, width: 46, height: 46 }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 46, height: 46, borderRadius: 23, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 21, top: 6, width: 5, height: 17, borderRadius: 2.5, backgroundColor: "#1A237E" }} />
+        <View style={{ position: "absolute", left: 21, top: 12, width: 5, height: 11, borderRadius: 2.5, backgroundColor: "#1A237E" }} />
       </View>
-      <PulseDot left="84%" bottom={94} size={7} color="#FFD54F" duration={1500} />
+      <PulseDot left="82%" bottom={122} size={8} color="#FFD54F" duration={1500} />
     </SceneRoot>
   );
 }
 
 /** Valentine's Day: big heart, gift box, rising hearts. */
-function ValentinesScene({ scale = 1 }: { scale?: number }) {
+function ValentinesScene() {
   return (
-    <SceneRoot base="#5C1031" scale={scale}>
-      <BreatheGlow color="#EC407A" size={110} left="60%" bottom={10} min={0.15} max={0.32} duration={4200} />
-      <GentleBob left="54%" bottom={34} width={46} height={46} distance={6} duration={3000}>
-        <HeartShape size={46} color="#EC407A" opacity={0.95} />
+    <SceneRoot base="#5C1031">
+      <BreatheGlow color="#EC407A" size={130} left="58%" bottom={16} min={0.15} max={0.32} duration={4200} />
+      <GentleBob left="50%" bottom={52} width={58} height={58} distance={6} duration={3000}>
+        <HeartShape size={58} color="#EC407A" opacity={0.95} />
       </GentleBob>
-      <View style={{ position: "absolute", left: "74%", bottom: 10, width: 52, height: 48 }}>
-        <View style={{ position: "absolute", left: 4, bottom: 0, width: 44, height: 34, borderRadius: 4, backgroundColor: "#EC407A" }} />
-        <View style={{ position: "absolute", left: 0, bottom: 30, width: 52, height: 10, borderRadius: 3, backgroundColor: "#D6336C" }} />
-        <View style={{ position: "absolute", left: 23, bottom: 0, width: 6, height: 44, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
-        <View style={{ position: "absolute", left: 16, bottom: 40, width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: "#FFFFFF" }} />
-        <View style={{ position: "absolute", left: 26, bottom: 40, width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: "#FFFFFF" }} />
+      <View style={{ position: "absolute", left: "72%", bottom: 16, width: 62, height: 57 }}>
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 52, height: 40, borderRadius: 5, backgroundColor: "#EC407A" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 36, width: 62, height: 12, borderRadius: 4, backgroundColor: "#D6336C" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 0, width: 7, height: 52, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 19, bottom: 48, width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 31, bottom: 48, width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: "#FFFFFF" }} />
       </View>
-      <RisingHeart left="68%" delay={0} duration={7000} size={14} color="#F783AC" />
-      <RisingHeart left="82%" delay={2200} duration={8000} size={11} color="#FFFFFF" />
+      <RisingHeart left="64%" delay={0} duration={7000} size={16} color="#F783AC" />
+      <RisingHeart left="82%" delay={2200} duration={8000} size={13} color="#FFFFFF" />
     </SceneRoot>
   );
 }
 
 /** St. Patrick's Day: rainbow, pot of gold, swaying shamrock. */
-function StPatricksScene({ scale = 1 }: { scale?: number }) {
+function StPatricksScene() {
   return (
-    <SceneRoot base="#1B5E20" scale={scale}>
-      <View style={{ position: "absolute", left: "56%", bottom: 8, width: 110, height: 55, overflow: "hidden" }}>
-        <View style={{ position: "absolute", left: 0, bottom: 0, width: 110, height: 110, borderRadius: 55, borderWidth: 9, borderColor: "#FFD54F", borderBottomWidth: 0, backgroundColor: "transparent" }} />
-        <View style={{ position: "absolute", left: 12, bottom: 0, width: 86, height: 86, borderRadius: 43, borderWidth: 8, borderColor: "#FFFFFF", borderBottomWidth: 0, backgroundColor: "transparent", opacity: 0.9 }} />
-        <View style={{ position: "absolute", left: 23, bottom: 0, width: 64, height: 64, borderRadius: 32, borderWidth: 7, borderColor: "#69DB7C", borderBottomWidth: 0, backgroundColor: "transparent" }} />
+    <SceneRoot base="#1B5E20">
+      <View style={{ position: "absolute", left: "52%", bottom: 12, width: 132, height: 66, overflow: "hidden" }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 132, height: 132, borderRadius: 66, borderWidth: 11, borderColor: "#FFD54F", borderBottomWidth: 0, backgroundColor: "transparent" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 104, height: 104, borderRadius: 52, borderWidth: 10, borderColor: "#FFFFFF", borderBottomWidth: 0, backgroundColor: "transparent", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 28, bottom: 0, width: 76, height: 76, borderRadius: 38, borderWidth: 8, borderColor: "#69DB7C", borderBottomWidth: 0, backgroundColor: "transparent" }} />
       </View>
-      <BreatheGlow color="#FFD54F" size={80} left="76%" bottom={18} min={0.2} max={0.4} duration={3600} />
-      <View style={{ position: "absolute", left: "80%", bottom: 10, width: 52, height: 44 }}>
-        <View style={{ position: "absolute", left: 6, bottom: 0, width: 40, height: 30, borderTopLeftRadius: 6, borderTopRightRadius: 6, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, backgroundColor: "#1A1A1A" }} />
-        <View style={{ position: "absolute", left: 4, bottom: 26, width: 44, height: 8, borderRadius: 4, backgroundColor: "#2E2E2E" }} />
-        <View style={{ position: "absolute", left: 12, bottom: 32, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFD54F" }} />
-        <View style={{ position: "absolute", left: 26, bottom: 34, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFCA28" }} />
+      <BreatheGlow color="#FFD54F" size={96} left="74%" bottom={24} min={0.2} max={0.4} duration={3600} />
+      <View style={{ position: "absolute", left: "78%", bottom: 16, width: 62, height: 52 }}>
+        <View style={{ position: "absolute", left: 7, bottom: 0, width: 48, height: 36, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 17, borderBottomRightRadius: 17, backgroundColor: "#1A1A1A" }} />
+        <View style={{ position: "absolute", left: 5, bottom: 31, width: 52, height: 10, borderRadius: 5, backgroundColor: "#2E2E2E" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 38, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 31, bottom: 41, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFCA28" }} />
       </View>
-      <GentleSway left="60%" bottom={30} width={40} height={44} arc={8} duration={3800}>
-        <View style={{ position: "absolute", left: 12, top: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#40C057" }} />
-        <View style={{ position: "absolute", left: 2, top: 10, width: 16, height: 16, borderRadius: 8, backgroundColor: "#40C057" }} />
-        <View style={{ position: "absolute", left: 22, top: 10, width: 16, height: 16, borderRadius: 8, backgroundColor: "#40C057" }} />
-        <View style={{ position: "absolute", left: 18, top: 22, width: 4, height: 20, borderRadius: 2, backgroundColor: "#2F9E44" }} />
+      <GentleSway left="58%" bottom={46} width={48} height={53} arc={8} duration={3800}>
+        <View style={{ position: "absolute", left: 14, top: 0, width: 19, height: 19, borderRadius: 9.5, backgroundColor: "#40C057" }} />
+        <View style={{ position: "absolute", left: 2, top: 12, width: 19, height: 19, borderRadius: 9.5, backgroundColor: "#40C057" }} />
+        <View style={{ position: "absolute", left: 26, top: 12, width: 19, height: 19, borderRadius: 9.5, backgroundColor: "#40C057" }} />
+        <View style={{ position: "absolute", left: 22, top: 26, width: 5, height: 24, borderRadius: 2.5, backgroundColor: "#2F9E44" }} />
       </GentleSway>
       <TwinkleField color="#69DB7C" count={5} seed={34} />
     </SceneRoot>
@@ -3322,7 +3303,7 @@ function detectRestaurantScene(location: string | undefined | null): React.React
 }
 
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }: { label: string; title?: string; location?: string; scale?: number }) {
+function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: string; title?: string; location?: string }) {
   // Breakfast, lunch, and dinner each get their own illustrated scene.
   // A matching restaurant in the location swaps in its own food scene.
   if (label === "Meal") {
@@ -3344,9 +3325,9 @@ function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }
     case "Gardening": return <GardeningScene />;
     case "Baby Shower": return <BabyShowerScene />;
     case "Birthday": return <BirthdayScene />;
-    case "Christmas": return <ChristmasScene scale={scale} />;
-    case "Easter": return <EasterScene scale={scale} />;
-    case "Thanksgiving": return <ThanksgivingScene scale={scale} />;
+    case "Christmas": return <ChristmasScene />;
+    case "Easter": return <EasterScene />;
+    case "Thanksgiving": return <ThanksgivingScene />;
     case "Wedding": return <WeddingScene />;
     case "Memorial": return <MemorialScene />;
     case "Meeting": return <MeetingScene />;
@@ -3368,11 +3349,11 @@ function KeywordAmbientAnimation({ label, title = "", location = "", scale = 1 }
       if (parkScene) return parkScene;
       return <GenericParkScene />;
     }
-    case "New Year": return <NewYearScene scale={scale} />;
-    case "Valentine's Day": return <ValentinesScene scale={scale} />;
-    case "Halloween": return <HalloweenScene scale={scale} />;
+    case "New Year": return <NewYearScene />;
+    case "Valentine's Day": return <ValentinesScene />;
+    case "Halloween": return <HalloweenScene />;
     case "TV Show": return <TVShowScene />;
-    case "St. Patrick's Day": return <StPatricksScene scale={scale} />;
+    case "St. Patrick's Day": return <StPatricksScene />;
     default: return null;
   }
 }
@@ -3853,9 +3834,8 @@ function EventCardInner({
 
   // Active: illustrated card if keyword matches (fallback without image)
   if (keyword) {
-    // Holiday cards render taller with scaled-up scenes so they stand out.
+    // Holiday cards render taller so they stand out.
     const isHolidayCard = isHolidayKeywordLabel(keyword.label);
-    const holidayScale = 1.3;
     return (
       <>
         <Pressable
@@ -3869,7 +3849,7 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} scale={isHolidayCard ? holidayScale : 1} />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

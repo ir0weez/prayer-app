@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
+import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -5838,126 +5839,487 @@ function MicroSway({ children, arc = 12, duration = 2800, delay = 0 }: {
   return <Animated.View style={{ transform: [{ rotate }] }}>{children}</Animated.View>;
 }
 
-/** Tiny type-specific animated accent inside the ministry type tag.
- *  White micro-shapes (~12px), completely separate from event card scenes. */
-function MinistryTypeSpark({ type }: { type: string }) {
-  const dot = (size: number, extra?: Record<string, number | string>) => (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#FFFFFF" }, extra]} />
-  );
-  const box: Record<string, number | string> = {
-    width: 18, height: 12, marginLeft: 6,
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-  };
-  switch (type) {
-    case "Worship": // two music-note dots bobbing alternately
-      return (
-        <View style={box}>
-          <MicroBob distance={2.5} duration={1800}>{dot(4)}</MicroBob>
-          <View style={{ width: 3 }} />
-          <MicroBob distance={2.5} duration={1800} delay={450}>{dot(3)}</MicroBob>
-        </View>
-      );
-    case "Prayer": // soft breathing glow dot
-      return (
-        <View style={box}>
-          <MicroPulse duration={3000} min={0.3} max={1}>{dot(5)}</MicroPulse>
-        </View>
-      );
-    case "Missions": // tiny plane trail drifting
-      return (
-        <View style={box}>
-          <MicroDrift distance={4} duration={2600}>{dot(4)}</MicroDrift>
-        </View>
-      );
-    case "Hospitality": // steam wisp rising
-      return (
-        <View style={box}>
-          <MicroRise distance={6} duration={2200}>{dot(3.5)}</MicroRise>
-        </View>
-      );
-    case "Teaching": // pointer dot bobbing
-      return (
-        <View style={box}>
-          <MicroBob distance={2.5} duration={2400}>{dot(4)}</MicroBob>
-        </View>
-      );
-    case "Service": // helping heart diamond pulsing
-      return (
-        <View style={box}>
-          <MicroPulse duration={2000} min={0.4} max={1}>
-            <View style={{ width: 6, height: 6, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-          </MicroPulse>
-        </View>
-      );
-    case "Youth": // twinkling star
-      return (
-        <View style={box}>
-          <MicroPulse duration={1400} min={0.25} max={1}>
-            <View style={{ width: 6, height: 6, backgroundColor: "#FFFFFF", transform: [{ rotate: "45deg" }] }} />
-          </MicroPulse>
-        </View>
-      );
-    case "Counseling": // two dots swaying in conversation
-      return (
-        <View style={box}>
-          <MicroSway arc={14} duration={2800}>{dot(3.5)}</MicroSway>
-          <View style={{ width: 2 }} />
-          <MicroSway arc={14} duration={2800} delay={700}>{dot(3.5)}</MicroSway>
-        </View>
-      );
-    case "Bible Study": // page shimmer
-      return (
-        <View style={box}>
-          <MicroPulse duration={2200} min={0.45} max={1}>
-            <View style={{ width: 7, height: 9, borderRadius: 1, backgroundColor: "#FFFFFF" }} />
-          </MicroPulse>
-        </View>
-      );
-    case "Marriage": // two overlapping hearts pulsing together
-      return (
-        <View style={box}>
-          <MicroPulse duration={2400} min={0.5} max={1}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {dot(5)}
-              <View style={{ marginLeft: -2 }}>{dot(5)}</View>
-            </View>
-          </MicroPulse>
-        </View>
-      );
-    case "Parenting": // big + little bobbing together
-      return (
-        <View style={box}>
-          <MicroBob distance={2} duration={2600}>
-            <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-              {dot(5)}
-              <View style={{ marginLeft: 1.5 }}>{dot(3)}</View>
-            </View>
-          </MicroBob>
-        </View>
-      );
-    case "Read": // bookmark swaying
-      return (
-        <View style={box}>
-          <MicroSway arc={10} duration={3000}>
-            <View style={{ width: 6, height: 9, borderRadius: 1, backgroundColor: "#FFFFFF" }} />
-          </MicroSway>
-        </View>
-      );
-    case "Outreach": // expanding presence pulse
-      return (
-        <View style={box}>
-          <MicroPulse duration={1800} min={0.35} max={1}>{dot(5)}</MicroPulse>
-        </View>
-      );
-    default: // "Other" — subtle dot pulse
-      return (
-        <View style={box}>
-          <MicroPulse duration={2000} min={0.4} max={0.95}>{dot(4)}</MicroPulse>
-        </View>
-      );
-  }
+/** ─── Ministry type art ────────────────────────────────────────────────────────
+ *  Simple, iconic, one-clear-metaphor animated illustrations (~52px) living in a
+ *  dedicated zone inside the bordered ministry card. Completely separate from
+ *  the full-bleed event card scenes. Transform/opacity only, native driver,
+ *  slow and calm, no bounce. Icons drawn with SVG/Views, never emoji.
+ */
+
+/** Flame wobble: scaleX + slight rotate oscillation (Prayer candle). */
+function MicroWobble({ children, duration = 900 }: { children: React.ReactNode; duration?: number }) {
+  const sx = useRef(new Animated.Value(1)).current;
+  const r = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(sx, { toValue: 1.28, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(r, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(sx, { toValue: 0.84, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(r, { toValue: -1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [duration, r, sx]);
+  const rotate = r.interpolate({ inputRange: [-1, 1], outputRange: ["-7deg", "7deg"] });
+  return <Animated.View style={{ transform: [{ scaleX: sx }, { rotate }] }}>{children}</Animated.View>;
 }
 
+/** Expanding ring ripple: scale up + fade out, then reset (Service mic, Outreach). */
+function MicroRipple({ size = 36, color, duration = 2000, delay = 0 }: {
+  size?: number; color: string; duration?: number; delay?: number;
+}) {
+  const s = useRef(new Animated.Value(0.45)).current;
+  const op = useRef(new Animated.Value(0.85)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(s, { toValue: 1.7, duration, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+          Animated.timing(op, { toValue: 0, duration, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(s, { toValue: 0.45, duration: 0, useNativeDriver: true }),
+          Animated.timing(op, { toValue: 0.85, duration: 0, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [delay, duration, op, s]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute", left: 0, top: 0, width: size, height: size, borderRadius: size / 2,
+        borderWidth: 2, borderColor: color, opacity: op, transform: [{ scale: s }],
+      }}
+    />
+  );
+}
+
+/** Slow continuous rotation (Missions globe). */
+function MicroSpin({ children, duration = 16000 }: { children: React.ReactNode; duration?: number }) {
+  const r = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(r, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [duration, r]);
+  const rotate = r.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  return <Animated.View style={{ transform: [{ rotate }] }}>{children}</Animated.View>;
+}
+
+/** Gentle scale pulse (Parenting heart). */
+function MicroGrow({ children, duration = 2200, min = 1, max = 1.07 }: {
+  children: React.ReactNode; duration?: number; min?: number; max?: number;
+}) {
+  const s = useRef(new Animated.Value(min)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(s, { toValue: max, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(s, { toValue: min, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [duration, max, min, s]);
+  return <Animated.View style={{ transform: [{ scale: s }] }}>{children}</Animated.View>;
+}
+
+/** Shimmer sweep: a soft highlight gliding across and fading (Read). */
+function MicroSweep({ children, distance = 26, duration = 2800 }: {
+  children: React.ReactNode; distance?: number; duration?: number;
+}) {
+  const x = useRef(new Animated.Value(-distance)).current;
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(x, { toValue: distance, duration: duration * 0.65, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(op, { toValue: 0.4, duration: duration * 0.2, easing: Easing.in(Easing.sin), useNativeDriver: true }),
+            Animated.timing(op, { toValue: 0, duration: duration * 0.45, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+          ]),
+        ]),
+        Animated.timing(x, { toValue: -distance, duration: 0, useNativeDriver: true }),
+        Animated.delay(duration * 0.35),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [distance, duration, op, x]);
+  return <Animated.View pointerEvents="none" style={{ opacity: op, transform: [{ translateX: x }] }}>{children}</Animated.View>;
+}
+
+/** A line that "writes" left-to-right: revealed via translateX inside a clipped
+ *  box, holds with the others, then all clear together and repeat (Teaching). */
+function MicroWriteLine({ color, width, delay, cycle = 4400 }: {
+  color: string; width: number; delay: number; cycle?: number;
+}) {
+  const x = useRef(new Animated.Value(-width)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(x, { toValue: 0, duration: 550, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        Animated.delay(Math.max(0, cycle - delay - 550 - 900)),
+        Animated.timing(x, { toValue: -width, duration: 1, useNativeDriver: true }),
+        Animated.delay(900),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [cycle, delay, width, x]);
+  return (
+    <View style={{ width, height: 3, overflow: "hidden" }}>
+      <Animated.View style={{ width, height: 3, borderRadius: 1.5, backgroundColor: color, transform: [{ translateX: x }] }} />
+    </View>
+  );
+}
+
+/** Page turning: scaleX flutter on the right-hand page (Bible Study). */
+function MicroPageTurn({ children, duration = 2400 }: { children: React.ReactNode; duration?: number }) {
+  const sx = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sx, { toValue: 0.35, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(sx, { toValue: 1, duration: duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [duration, sx]);
+  return <Animated.View style={{ transform: [{ scaleX: sx }] }}>{children}</Animated.View>;
+}
+
+type MinistryArtPalette = {
+  accent: string; // ministry type color
+  line: string;   // theme muted — line art
+  ink: string;    // theme foreground — solid shapes
+  soft: string;   // theme border — subtle fills
+  surface: string;// theme surface — card background
+};
+
+const MINISTRY_HEART_PATH =
+  "M26 42C15 33 9 27 9 20c0-5 4-9 9-9 3.2 0 6 1.8 8 4.4 2-2.6 4.8-4.4 8-4.4 5 0 9 4 9 9 0 7-6 13-17 22z";
+const MINISTRY_BOOK_PATH =
+  "M20 4C15 1.8 9 1.8 4 4v24c5-2.2 11-2.2 16 0 5-2.2 11-2.2 16 0V4c-5-2.2-11-2.2-16 0z";
+
+/** Counseling — two speech bubbles fading in back-and-forth, a real conversation. */
+function CounselingArt({ accent, ink, soft }: MinistryArtPalette) {
+  const o1 = useRef(new Animated.Value(0)).current;
+  const o2 = useRef(new Animated.Value(0)).current;
+  const stepRef = useRef(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      stepRef.current = (stepRef.current + 1) % 4;
+      const n = stepRef.current;
+      Animated.timing(o1, { toValue: n === 1 || n === 2 ? 1 : 0, duration: 350, useNativeDriver: true }).start();
+      Animated.timing(o2, { toValue: n === 2 ? 1 : 0, duration: 350, useNativeDriver: true }).start();
+    }, 1200);
+    return () => clearInterval(id);
+  }, [o1, o2]);
+  return (
+    <View style={{ width: 52, height: 52, flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{ opacity: o1, marginRight: 5 }}>
+        <View style={{ paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: soft }}>
+          <Text style={{ fontSize: 10, fontWeight: "600", color: ink }}>Hi</Text>
+        </View>
+      </Animated.View>
+      <Animated.View style={{ opacity: o2 }}>
+        <View style={{ paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: accent }}>
+          <Text style={{ fontSize: 10, fontWeight: "600", color: "#FFFFFF" }}>Hey</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Worship — music notes rising and fading. */
+function WorshipArt({ accent }: MinistryArtPalette) {
+  const note = (w: number, h: number) => (
+    <Svg width={w} height={h} viewBox="0 0 14 22">
+      <Ellipse cx={4} cy={17.5} rx={3.4} ry={2.7} fill={accent} />
+      <Rect x={6.6} y={3} width={2.2} height={15} fill={accent} />
+      <Path d="M6.6 3h6v3.4H8.8z" fill={accent} />
+    </Svg>
+  );
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        <MicroRise distance={18} duration={2100} delay={0}>{note(13, 20)}</MicroRise>
+        <View style={{ width: 6 }} />
+        <MicroRise distance={18} duration={2100} delay={700}>{note(11, 17)}</MicroRise>
+        <View style={{ width: 6 }} />
+        <MicroRise distance={18} duration={2100} delay={1400}>{note(13, 20)}</MicroRise>
+      </View>
+    </View>
+  );
+}
+
+/** Prayer — a lit candle, flame flickering gently. */
+function PrayerArt({ accent, line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 }}>
+      <MicroWobble duration={900}>
+        <Svg width={13} height={17} viewBox="0 0 13 17">
+          <Ellipse cx={6.5} cy={9.5} rx={4.2} ry={6.5} fill={accent} />
+          <Ellipse cx={6.5} cy={10.5} rx={1.7} ry={3} fill="#FFFFFF" opacity={0.7} />
+        </Svg>
+      </MicroWobble>
+      <Svg width={16} height={24} viewBox="0 0 16 24" style={{ marginTop: 1 }}>
+        <Rect x={4} y={2} width={8} height={20} rx={2.5} fill={line} opacity={0.85} />
+      </Svg>
+    </View>
+  );
+}
+
+/** Bible Study — open book, page corner lifting and turning. */
+function BibleStudyArt({ line, surface }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View>
+        <Svg width={40} height={32} viewBox="0 0 40 32">
+          <Path d={MINISTRY_BOOK_PATH} fill="none" stroke={line} strokeWidth={2.4} />
+          <Line x1={20} y1={4} x2={20} y2={28} stroke={line} strokeWidth={2.4} />
+        </Svg>
+        <View style={{ position: "absolute", left: 21, top: 5 }}>
+          <MicroPageTurn duration={2400}>
+            <View style={{ width: 14, height: 21, backgroundColor: surface, borderWidth: 1, borderColor: line, borderLeftWidth: 0, borderRadius: 2, opacity: 0.95 }} />
+          </MicroPageTurn>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Teaching — chalkboard, the lesson writing itself line by line. */
+function TeachingArt({ accent, line, soft }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: 44, height: 30, borderRadius: 5, borderWidth: 2.5, borderColor: line, backgroundColor: soft, paddingHorizontal: 6, paddingVertical: 5, justifyContent: "space-between" }}>
+        <MicroWriteLine color={accent} width={26} delay={0} />
+        <MicroWriteLine color={line} width={18} delay={750} />
+        <MicroWriteLine color={line} width={22} delay={1500} />
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", width: 28 }}>
+        <View style={{ width: 3, height: 7, backgroundColor: line, borderRadius: 1.5 }} />
+        <View style={{ width: 3, height: 7, backgroundColor: line, borderRadius: 1.5 }} />
+      </View>
+    </View>
+  );
+}
+
+/** Outreach — a neighbor with a heart, love rippling outward. */
+function OutreachArt({ accent, line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View>
+        <Svg width={30} height={34} viewBox="0 0 30 34">
+          <Circle cx={15} cy={8} r={5.5} fill={line} />
+          <Path d="M6 32c0-7 4-11 9-11s9 4 9 11" fill={line} />
+        </Svg>
+        <View style={{ position: "absolute", right: -5, top: -3 }}>
+          <Svg width={16} height={16} viewBox="0 0 52 52">
+            <Path d={MINISTRY_HEART_PATH} fill={accent} />
+          </Svg>
+        </View>
+        <View style={{ position: "absolute", right: -9, top: -7, width: 24, height: 24 }}>
+          <MicroRipple size={24} color={accent} duration={2000} delay={0} />
+          <MicroRipple size={24} color={accent} duration={2000} delay={1000} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Missions — a globe slowly turning, to the nations. */
+function MissionsArt({ line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroSpin duration={16000}>
+        <Svg width={36} height={36} viewBox="0 0 36 36">
+          <Circle cx={18} cy={18} r={15} fill="none" stroke={line} strokeWidth={2.5} />
+          <Ellipse cx={18} cy={18} rx={7} ry={15} fill="none" stroke={line} strokeWidth={1.4} opacity={0.7} />
+          <Line x1={3.5} y1={18} x2={32.5} y2={18} stroke={line} strokeWidth={1.4} opacity={0.7} />
+        </Svg>
+      </MicroSpin>
+    </View>
+  );
+}
+
+/** Hospitality — coffee cup, steam rising. Coffee is on. */
+function HospitalityArt({ line }: MinistryArtPalette) {
+  const steam = (delay: number) => (
+    <MicroRise distance={9} duration={1800} delay={delay}>
+      <View style={{ width: 3, height: 10, borderRadius: 1.5, backgroundColor: line, opacity: 0.8 }} />
+    </MicroRise>
+  );
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 8 }}>
+      <View style={{ flexDirection: "row", marginBottom: 2 }}>
+        {steam(0)}
+        <View style={{ width: 7 }} />
+        {steam(450)}
+        <View style={{ width: 7 }} />
+        {steam(900)}
+      </View>
+      <Svg width={30} height={26} viewBox="0 0 30 26">
+        <Path d="M5 6h19v9a8 8 0 0 1-8 8h-3a8 8 0 0 1-8-8z" fill="none" stroke={line} strokeWidth={2.5} />
+        <Path d="M24 8h2a3.5 3.5 0 0 1 0 7h-2.5" fill="none" stroke={line} strokeWidth={2.5} />
+      </Svg>
+    </View>
+  );
+}
+
+/** Marriage — two rings, one sliding to overlap the other. Two become one. */
+function MarriageArt({ accent, line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Svg width={24} height={24} viewBox="0 0 24 24">
+          <Circle cx={12} cy={12} r={9} fill="none" stroke={accent} strokeWidth={3} />
+        </Svg>
+        <MicroDrift distance={5} duration={2000}>
+          <Svg width={24} height={24} viewBox="0 0 24 24" style={{ marginLeft: -6 }}>
+            <Circle cx={12} cy={12} r={9} fill="none" stroke={line} strokeWidth={3} />
+          </Svg>
+        </MicroDrift>
+      </View>
+    </View>
+  );
+}
+
+/** Parenting — big heart sheltering a little heart. */
+function ParentingArt({ accent, line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroGrow duration={2200} min={1} max={1.07}>
+        <View style={{ alignItems: "center", justifyContent: "center" }}>
+          <Svg width={40} height={38} viewBox="0 0 52 52">
+            <Path d={MINISTRY_HEART_PATH} fill="none" stroke={line} strokeWidth={3} />
+          </Svg>
+          <Svg width={18} height={18} viewBox="0 0 52 52" style={{ position: "absolute" }}>
+            <Path d={MINISTRY_HEART_PATH} fill={accent} />
+          </Svg>
+        </View>
+      </MicroGrow>
+    </View>
+  );
+}
+
+/** Youth — three friends, the middle one jumping. */
+function YouthArt({ accent, line }: MinistryArtPalette) {
+  const person = (c: string, s: number) => (
+    <Svg width={s} height={s} viewBox="0 0 52 52">
+      <Circle cx={26} cy={15} r={9} fill={c} />
+      <Path d="M12 48c0-11 6-17 14-17s14 6 14 17" fill={c} />
+    </Svg>
+  );
+  return (
+    <View style={{ width: 52, height: 52, flexDirection: "row", alignItems: "flex-end", justifyContent: "center", paddingBottom: 8 }}>
+      {person(line, 24)}
+      <View style={{ width: 4 }} />
+      <MicroBob distance={6} duration={650}>{person(accent, 28)}</MicroBob>
+      <View style={{ width: 4 }} />
+      {person(line, 24)}
+    </View>
+  );
+}
+
+/** Service — microphone, the Word going forth as ripples. */
+function ServiceArt({ accent, line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View>
+        <Svg width={24} height={38} viewBox="0 0 24 38">
+          <Rect x={7} y={1} width={10} height={17} rx={5} fill={line} />
+          <Line x1={10.5} y1={6} x2={13.5} y2={6} stroke="#FFFFFF" strokeWidth={1.4} opacity={0.5} />
+          <Line x1={10.5} y1={10} x2={13.5} y2={10} stroke="#FFFFFF" strokeWidth={1.4} opacity={0.5} />
+          <Line x1={10.5} y1={14} x2={13.5} y2={14} stroke="#FFFFFF" strokeWidth={1.4} opacity={0.5} />
+          <Path d="M4.5 15a7.5 7.5 0 0 0 15 0" fill="none" stroke={line} strokeWidth={2.4} />
+          <Line x1={12} y1={22.5} x2={12} y2={30} stroke={line} strokeWidth={2.4} />
+          <Line x1={7} y1={30} x2={17} y2={30} stroke={line} strokeWidth={2.4} strokeLinecap="round" />
+        </Svg>
+        <View style={{ position: "absolute", left: -2, top: -4, width: 28, height: 28 }}>
+          <MicroRipple size={24} color={accent} duration={2100} delay={0} />
+          <MicroRipple size={24} color={accent} duration={2100} delay={1050} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Read — open book with a shimmer sweep. Lost in a book. */
+function ReadArt({ line, surface }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ overflow: "hidden", borderRadius: 4 }}>
+        <Svg width={40} height={32} viewBox="0 0 40 32">
+          <Path d={MINISTRY_BOOK_PATH} fill={surface} stroke={line} strokeWidth={2.4} />
+          <Line x1={20} y1={4} x2={20} y2={28} stroke={line} strokeWidth={2.4} />
+        </Svg>
+        <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 40, alignItems: "center", justifyContent: "center" }}>
+          <MicroSweep distance={26} duration={2800}>
+            <View style={{ width: 9, height: 40, backgroundColor: "#FFFFFF", transform: [{ rotate: "18deg" }] }} />
+          </MicroSweep>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Other — a quiet pulsing dot. */
+function OtherArt({ line }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroPulse duration={2000} min={0.35} max={0.9}>
+        <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: line }} />
+      </MicroPulse>
+    </View>
+  );
+}
+
+/** Dedicated in-card animation zone for a ministry type (~52px).
+ *  Shown on active (incomplete) ministry cards only. */
+function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
+  const colors = useColors();
+  const p: MinistryArtPalette = {
+    accent,
+    line: colors.muted,
+    ink: colors.foreground,
+    soft: colors.border,
+    surface: colors.surface,
+  };
+  switch (type) {
+    case "Counseling": return <CounselingArt {...p} />;
+    case "Worship": return <WorshipArt {...p} />;
+    case "Prayer": return <PrayerArt {...p} />;
+    case "Bible Study": return <BibleStudyArt {...p} />;
+    case "Teaching": return <TeachingArt {...p} />;
+    case "Outreach": return <OutreachArt {...p} />;
+    case "Missions": return <MissionsArt {...p} />;
+    case "Hospitality": return <HospitalityArt {...p} />;
+    case "Marriage": return <MarriageArt {...p} />;
+    case "Parenting": return <ParentingArt {...p} />;
+    case "Youth": return <YouthArt {...p} />;
+    case "Service": return <ServiceArt {...p} />;
+    case "Read": return <ReadArt {...p} />;
+    default: return <OtherArt {...p} />;
+  }
+}
 function MinistryCard({
   ministry,
   onToggle,
@@ -6113,27 +6475,34 @@ function MinistryCard({
             <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 2 }]}>
               <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={11} color="#FFFFFF" />
               <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "600", marginLeft: 2 }}>{ministry.type}</Text>
-              <MinistryTypeSpark type={ministry.type} />
             </View>
-            {/* Title */}
-            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 2, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={1}>
-              {ministry.title}
-            </Text>
-            {/* Time + Bible ref */}
-            {(ministry.startTime || ministry.bibleBook) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {ministry.startTime && (
-                  <Text style={{ fontSize: 11, color: colors.muted }}>
-                    {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
-                  </Text>
-                )}
-                {ministry.bibleBook && (
-                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "500" }}>
-                    📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
-                  </Text>
+            {/* Title + time beside the animated type art */}
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ flex: 1, paddingRight: 6 }}>
+                {/* Title */}
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 2, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={1}>
+                  {ministry.title}
+                </Text>
+                {/* Time + Bible ref */}
+                {(ministry.startTime || ministry.bibleBook) && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {ministry.startTime && (
+                      <Text style={{ fontSize: 11, color: colors.muted }}>
+                        {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
+                      </Text>
+                    )}
+                    {ministry.bibleBook && (
+                      <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "500" }}>
+                        📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                      </Text>
+                    )}
+                  </View>
                 )}
               </View>
-            )}
+              <View pointerEvents="none" style={{ marginTop: 8 }}>
+                <MinistryTypeArt type={ministry.type} accent={ministry.color || "#7C5CFF"} />
+              </View>
+            </View>
           </View>
         </ReAnimated.View>
       </Pressable>

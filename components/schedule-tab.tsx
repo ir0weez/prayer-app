@@ -3420,6 +3420,495 @@ function HarryPotterScene() {
 }
 
 /** Wednesday: gothic academy at night — iron gates, dead tree with a raven, lit tower. */
+/** Resident Evil: dark mansion hallway, flickering light, green serum vial glow. */
+function ResidentEvilScene() {
+  return (
+    <SceneRoot base="#0C1410">
+      {/* hallway walls converging */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, bottom: 0, backgroundColor: "#14201A" }} />
+      <View style={{ position: "absolute", left: "52%", top: 0, bottom: 0, width: "10%", backgroundColor: "#0A100C", transform: [{ skewY: "8deg" }] }} />
+      <View style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "12%", backgroundColor: "#0A100C", transform: [{ skewY: "-8deg" }] }} />
+      {/* floor */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: "30%", backgroundColor: "#1A2A20" }} />
+      {/* flickering overhead light */}
+      <PulseDot left="72%" bottom={104} size={10} color="#FFF8E1" duration={900} min={0.15} max={0.95} />
+      <View style={{ position: "absolute", left: "74%", bottom: 100, width: 3, height: 14, backgroundColor: "#3A3A3A" }} />
+      {/* green serum vial glow */}
+      <BreatheGlow color="#39FF6E" size={70} left="84%" bottom={18} min={0.25} max={0.55} duration={2800} />
+      <View style={{ position: "absolute", left: "88%", bottom: 14, width: 12, height: 26, borderRadius: 4, backgroundColor: "#1E3A2A", borderWidth: 2, borderColor: "#2E5A3A" }}>
+        <View style={{ position: "absolute", left: 2, right: 2, bottom: 3, height: 14, borderRadius: 2, backgroundColor: "#39FF6E", opacity: 0.85 }} />
+      </View>
+      {/* door at hallway end */}
+      <View style={{ position: "absolute", left: "68%", bottom: 30, width: 22, height: 44, backgroundColor: "#0A0F0C", borderWidth: 2, borderColor: "#243024" }} />
+    </SceneRoot>
+  );
+}
+
+/** Buddy movie: two buddy silhouettes walking into a big sunset. */
+function BuddyScene() {
+  return (
+    <SceneRoot base="#E8833A">
+      {/* big sun */}
+      <BreatheGlow color="#FFD98A" size={90} left="72%" bottom={40} min={0.4} max={0.65} duration={5000} />
+      <View style={{ position: "absolute", left: "78%", bottom: 52, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFE3A3" }} />
+      {/* ground */}
+      <View style={{ position: "absolute", left: "50%", right: 0, bottom: 0, height: "28%", backgroundColor: "#8A4A2A" }} />
+      {/* two walking buddies */}
+      <GentleBob left="62%" bottom={26} width={22} height={40} distance={3} duration={1800}>
+        <View style={{ position: "absolute", left: 7, top: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: "#3A2418" }} />
+        <View style={{ position: "absolute", left: 5, top: 10, width: 12, height: 22, borderRadius: 4, backgroundColor: "#3A2418" }} />
+        <View style={{ position: "absolute", left: 4, top: 30, width: 5, height: 10, backgroundColor: "#3A2418" }} />
+        <View style={{ position: "absolute", left: 13, top: 30, width: 5, height: 10, backgroundColor: "#3A2418" }} />
+      </GentleBob>
+      <GentleBob left="70%" bottom={24} width={24} height={44} distance={3} duration={1800} delay={300}>
+        <View style={{ position: "absolute", left: 8, top: 0, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#2E1C12" }} />
+        <View style={{ position: "absolute", left: 5, top: 11, width: 14, height: 24, borderRadius: 5, backgroundColor: "#2E1C12" }} />
+        <View style={{ position: "absolute", left: 4, top: 33, width: 5, height: 11, backgroundColor: "#2E1C12" }} />
+        <View style={{ position: "absolute", left: 15, top: 33, width: 5, height: 11, backgroundColor: "#2E1C12" }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Black Phone: dark basement, old rotary phone on the wall, hanging bulb. */
+function BlackPhoneScene() {
+  return (
+    <SceneRoot base="#101014">
+      {/* basement wall */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, bottom: 0, backgroundColor: "#1A1A20" }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: "24%", backgroundColor: "#121216" }} />
+      {/* hanging bulb, swaying */}
+      <GentleSway left="76%" bottom={84} width={16} height={34} arc={8} duration={3600}>
+        <View style={{ position: "absolute", left: 7, top: 0, width: 2, height: 16, backgroundColor: "#3A3A3A" }} />
+        <View style={{ position: "absolute", left: -14, top: 8, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFE9A8", opacity: 0.25 }} />
+        <View style={{ position: "absolute", left: 3, top: 16, width: 10, height: 13, borderRadius: 5, backgroundColor: "#FFE9A8" }} />
+      </GentleSway>
+      {/* rotary phone on the wall */}
+      <View style={{ position: "absolute", left: "60%", bottom: 40, width: 34, height: 44, borderRadius: 6, backgroundColor: "#0A0A0A", borderWidth: 2, borderColor: "#2A2A2A" }}>
+        <View style={{ position: "absolute", left: 8, top: 10, width: 18, height: 18, borderRadius: 9, backgroundColor: "#1E1E1E", borderWidth: 2, borderColor: "#3A3A3A" }} />
+        <View style={{ position: "absolute", left: 14, top: 32, width: 6, height: 4, borderRadius: 2, backgroundColor: "#3A3A3A" }} />
+      </View>
+      {/* phone cord dangling */}
+      <View style={{ position: "absolute", left: "63%", bottom: 8, width: 3, height: 32, backgroundColor: "#0A0A0A", transform: [{ rotate: "6deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** Backrooms: endless yellow office, humming fluorescents, damp carpet. */
+function BackroomsScene() {
+  return (
+    <SceneRoot base="#B8A44E">
+      {/* receding wall panels */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, bottom: 0, backgroundColor: "#C4B05A" }} />
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={{ position: "absolute", left: `${54 + i * 11}%`, top: 0, bottom: 0, width: 2, backgroundColor: "#A8943F", opacity: 0.7 }} />
+      ))}
+      {/* carpet */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: "26%", backgroundColor: "#9A8648" }} />
+      {/* humming fluorescent panels */}
+      <PulseDot left="60%" bottom={108} size={26} color="#FFF9D6" duration={2100} min={0.5} max={0.95} />
+      <PulseDot left="76%" bottom={108} size={26} color="#FFF9D6" duration={2300} delay={400} min={0.5} max={0.95} />
+      <PulseDot left="90%" bottom={108} size={26} color="#FFF9D6" duration={1900} delay={800} min={0.5} max={0.95} />
+      {/* damp stain */}
+      <View style={{ position: "absolute", left: "70%", bottom: 6, width: 40, height: 14, borderRadius: 7, backgroundColor: "#7A6A38", opacity: 0.6 }} />
+    </SceneRoot>
+  );
+}
+
+/** Exit 8: white subway corridor, glowing green EXIT 8 sign, repeating doors. */
+function Exit8Scene() {
+  return (
+    <SceneRoot base="#EDEDE8">
+      {/* corridor walls */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, bottom: 0, backgroundColor: "#F5F5F0" }} />
+      {/* repeating door frames receding */}
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={{ position: "absolute", left: `${58 + i * 12}%`, bottom: 20, width: 20 - i * 4, height: 70 - i * 10, borderWidth: 3, borderColor: "#CFCFC8", backgroundColor: "#FFFFFF" }} />
+      ))}
+      {/* floor line */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 18, height: 3, backgroundColor: "#D8D8D2" }} />
+      {/* glowing EXIT 8 sign */}
+      <BreatheGlow color="#39FF6E" size={80} left="66%" bottom={78} min={0.3} max={0.6} duration={2200} />
+      <View style={{ position: "absolute", left: "68%", bottom: 84, width: 64, height: 22, borderRadius: 4, backgroundColor: "#0A3A1A" }}>
+        <View style={{ position: "absolute", left: 8, top: 7, width: 30, height: 4, borderRadius: 2, backgroundColor: "#39FF6E" }} />
+        <View style={{ position: "absolute", left: 8, top: 13, width: 18, height: 4, borderRadius: 2, backgroundColor: "#39FF6E", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 44, top: 5, width: 12, height: 12, borderRadius: 6, backgroundColor: "#39FF6E" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Deadpool: red-and-black katanas crossed over a burrito. */
+function DeadpoolScene() {
+  return (
+    <SceneRoot base="#2E1418">
+      <TwinkleField color="#FF6B6B" count={6} seed={9} />
+      {/* crossed katanas */}
+      <View style={{ position: "absolute", left: "62%", bottom: 30, width: 90, height: 8, borderRadius: 4, backgroundColor: "#C62828", transform: [{ rotate: "28deg" }] }}>
+        <View style={{ position: "absolute", right: -4, top: -3, width: 14, height: 14, borderRadius: 3, backgroundColor: "#212121" }} />
+      </View>
+      <View style={{ position: "absolute", left: "62%", bottom: 30, width: 90, height: 8, borderRadius: 4, backgroundColor: "#212121", transform: [{ rotate: "-28deg" }] }}>
+        <View style={{ position: "absolute", right: -4, top: -3, width: 14, height: 14, borderRadius: 3, backgroundColor: "#C62828" }} />
+      </View>
+      {/* burrito below */}
+      <GentleBob left="72%" bottom={14} width={56} height={24} distance={4} duration={3000}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 56, height: 24, borderRadius: 12, backgroundColor: "#D7A86E" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 18, width: 40, height: 6, borderRadius: 3, backgroundColor: "#C08A4E", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 20, top: 2, width: 16, height: 8, borderRadius: 4, backgroundColor: "#8BC34A" }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Five Nights at Freddy's: dark pizzeria, arcade cabinets, glowing security monitors. */
+function FNAFScene() {
+  return (
+    <SceneRoot base="#0E0E14">
+      {/* arcade cabinets */}
+      <View style={{ position: "absolute", left: "56%", bottom: 0, width: 34, height: 78, borderRadius: 4, backgroundColor: "#1E1E2A", borderWidth: 2, borderColor: "#2E2E3E" }}>
+        <PulseDot left={8} bottom={48} size={18} color="#7B1FA2" duration={1800} min={0.4} max={1} />
+      </View>
+      <View style={{ position: "absolute", left: "68%", bottom: 0, width: 34, height: 78, borderRadius: 4, backgroundColor: "#1E1E2A", borderWidth: 2, borderColor: "#2E2E3E" }}>
+        <PulseDot left={8} bottom={48} size={18} color="#1565C0" duration={2100} delay={500} min={0.4} max={1} />
+      </View>
+      {/* security monitor wall */}
+      <View style={{ position: "absolute", left: "82%", bottom: 44, width: 52, height: 40, borderRadius: 4, backgroundColor: "#0A0A0A", borderWidth: 3, borderColor: "#33333F" }}>
+        <View style={{ position: "absolute", left: 4, top: 4, width: 18, height: 13, backgroundColor: "#9E9E9E", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 26, top: 4, width: 18, height: 13, backgroundColor: "#757575", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 4, top: 21, width: 18, height: 13, backgroundColor: "#616161", opacity: 0.5 }} />
+        <PulseDot left={30} bottom={4} size={5} color="#FF1744" duration={1200} min={0.3} max={1} />
+      </View>
+      {/* checkered floor hint */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 12, backgroundColor: "#1A1A22" }} />
+    </SceneRoot>
+  );
+}
+
+/** Iron Lung: submarine interior, porthole with dark water, red warning light. */
+function IronLungScene() {
+  return (
+    <SceneRoot base="#16202A">
+      {/* hull panels */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, bottom: 0, backgroundColor: "#1C2836" }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 30, height: 3, backgroundColor: "#121A24" }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 70, height: 3, backgroundColor: "#121A24" }} />
+      {/* rivets */}
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={{ position: "absolute", left: `${60 + i * 10}%`, top: 36, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#2E3E50" }} />
+      ))}
+      {/* porthole with dark water */}
+      <View style={{ position: "absolute", left: "66%", bottom: 44, width: 52, height: 52, borderRadius: 26, backgroundColor: "#0A1620", borderWidth: 6, borderColor: "#3E5266" }}>
+        <GentleBob left={8} bottom={10} width={36} height={10} distance={4} duration={2600}>
+          <View style={{ width: 36, height: 10, borderRadius: 5, backgroundColor: "#14324A", opacity: 0.8 }} />
+        </GentleBob>
+      </View>
+      {/* red warning light */}
+      <PulseDot left="88%" bottom={100} size={12} color="#FF1744" duration={1000} min={0.2} max={1} />
+      <View style={{ position: "absolute", left: "90%", bottom: 92, width: 4, height: 12, backgroundColor: "#3A3A3A" }} />
+    </SceneRoot>
+  );
+}
+
+/** Nimrods: desert highway, quirky roadside sign. */
+function NimrodsScene() {
+  return (
+    <SceneRoot base="#E8A04C">
+      {/* sun */}
+      <View style={{ position: "absolute", left: "80%", bottom: 70, width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFE3A3" }} />
+      {/* desert ground + road */}
+      <View style={{ position: "absolute", left: "50%", right: 0, bottom: 0, height: "32%", backgroundColor: "#C97F3A" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 0, width: 26, height: "32%", backgroundColor: "#5A5A5A", transform: [{ skewX: "-12deg" }] }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 4, width: 4, height: 14, backgroundColor: "#FFD54F" }} />
+      {/* quirky roadside sign */}
+      <GentleSway left="56%" bottom={40} width={40} height={52} arc={5} duration={4200}>
+        <View style={{ position: "absolute", left: 18, bottom: 0, width: 4, height: 30, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 26, width: 40, height: 26, borderRadius: 4, backgroundColor: "#FFF8E1", borderWidth: 2, borderColor: "#C62828" }}>
+          <View style={{ position: "absolute", left: 6, top: 6, width: 24, height: 4, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.7 }} />
+          <View style={{ position: "absolute", left: 6, top: 13, width: 16, height: 4, borderRadius: 2, backgroundColor: "#4E342E", opacity: 0.5 }} />
+        </View>
+      </GentleSway>
+      {/* cactus */}
+      <View style={{ position: "absolute", left: "90%", bottom: 20, width: 8, height: 34, borderRadius: 4, backgroundColor: "#2E7D32" }} />
+      <View style={{ position: "absolute", left: "86%", bottom: 32, width: 6, height: 14, borderRadius: 3, backgroundColor: "#2E7D32", transform: [{ rotate: "-24deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** Idiots: two goofy silhouettes with a beat-up car, road trip. */
+function IdiotsScene() {
+  return (
+    <SceneRoot base="#7EC8E3">
+      {/* clouds */}
+      <GentleBob left="62%" bottom={100} width={60} height={18} distance={4} duration={5200}>
+        <View style={{ width: 60, height: 18, borderRadius: 9, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+      </GentleBob>
+      {/* road */}
+      <View style={{ position: "absolute", left: "50%", right: 0, bottom: 0, height: "26%", backgroundColor: "#6A6A6A" }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 12, height: 3, backgroundColor: "#FFD54F" }} />
+      {/* beat-up car */}
+      <GentleBob left="58%" bottom={22} width={84} height={34} distance={2} duration={900}>
+        <View style={{ position: "absolute", left: 0, bottom: 8, width: 84, height: 20, borderRadius: 8, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 24, width: 48, height: 16, borderRadius: 8, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 26, width: 36, height: 10, borderRadius: 5, backgroundColor: "#B0BEC5" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 56, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 14, width: 10, height: 6, borderRadius: 3, backgroundColor: "#FF8A65", opacity: 0.8 }} />
+      </GentleBob>
+      {/* two goofy heads poking out */}
+      <View style={{ position: "absolute", left: "64%", bottom: 52, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFCC9E" }} />
+      <View style={{ position: "absolute", left: "71%", bottom: 54, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#E8B48A" }} />
+    </SceneRoot>
+  );
+}
+
+/** Nobody: suburban house at night, bus stop, briefcase. */
+function NobodyScene() {
+  return (
+    <SceneRoot base="#141A2E">
+      <TwinkleField color="#FFFFFF" count={8} seed={14} />
+      {/* house silhouette */}
+      <View style={{ position: "absolute", left: "58%", bottom: 20, width: 64, height: 52, backgroundColor: "#0C1020" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 66, width: 72, height: 24, backgroundColor: "#080C18", transform: [{ rotate: "0deg" }] }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 72, height: 24, backgroundColor: "#080C18", transform: [{ skewX: "-30deg" }] }} />
+      </View>
+      {/* one lit window */}
+      <PulseDot left="76%" bottom={44} size={10} color="#FFD98A" duration={3000} min={0.6} max={1} />
+      {/* bus stop sign */}
+      <View style={{ position: "absolute", left: "88%", bottom: 0, width: 4, height: 56, backgroundColor: "#3A3A3A" }} />
+      <View style={{ position: "absolute", left: "84%", bottom: 52, width: 26, height: 18, borderRadius: 3, backgroundColor: "#1565C0" }}>
+        <View style={{ position: "absolute", left: 5, top: 6, width: 16, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 5, top: 11, width: 10, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+      </View>
+      {/* briefcase on the ground */}
+      <View style={{ position: "absolute", left: "62%", bottom: 8, width: 26, height: 18, borderRadius: 3, backgroundColor: "#4E342E" }}>
+        <View style={{ position: "absolute", left: 9, top: -4, width: 8, height: 6, borderRadius: 2, backgroundColor: "#3E2723" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Super Mario Bros. Movie: colorful platformer world — floating blocks, green pipe. */
+function MarioMovieScene() {
+  return (
+    <SceneRoot base="#5AA9E6">
+      {/* clouds */}
+      <GentleBob left="58%" bottom={104} width={56} height={16} distance={4} duration={6000}>
+        <View style={{ width: 56, height: 16, borderRadius: 8, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      </GentleBob>
+      <GentleBob left="84%" bottom={92} width={44} height={14} distance={5} duration={7000} delay={1200}>
+        <View style={{ width: 44, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+      </GentleBob>
+      {/* floating question blocks */}
+      <GentleBob left="62%" bottom={64} width={24} height={24} distance={6} duration={2400}>
+        <View style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: "#FFB300", borderWidth: 2, borderColor: "#E65100" }}>
+          <View style={{ position: "absolute", left: 8, top: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFE082" }} />
+        </View>
+      </GentleBob>
+      <GentleBob left="76%" bottom={80} width={24} height={24} distance={6} duration={2600} delay={700}>
+        <View style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: "#FFB300", borderWidth: 2, borderColor: "#E65100" }}>
+          <View style={{ position: "absolute", left: 8, top: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFE082" }} />
+        </View>
+      </GentleBob>
+      {/* brick platform */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 26, backgroundColor: "#C6692E" }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 8, height: 2, backgroundColor: "#A8551F" }} />
+        <View style={{ position: "absolute", left: 0, right: 0, top: 17, height: 2, backgroundColor: "#A8551F" }} />
+      </View>
+      {/* green pipe */}
+      <View style={{ position: "absolute", left: "88%", bottom: 26, width: 30, height: 52, backgroundColor: "#43A047" }}>
+        <View style={{ position: "absolute", left: -4, top: 0, width: 38, height: 12, borderRadius: 3, backgroundColor: "#4CAF50", borderWidth: 2, borderColor: "#2E7D32" }} />
+      </View>
+      {/* coin sparkle */}
+      <PulseDot left="70%" bottom={100} size={8} color="#FFD54F" duration={1400} min={0.3} max={1} />
+    </SceneRoot>
+  );
+}
+
+/** Toy Story: kid's bedroom at night, toy blocks, cowboy hat, rocket toy. */
+function ToyStoryScene() {
+  return (
+    <SceneRoot base="#1E2A4E">
+      {/* moon + stars */}
+      <TwinkleField color="#FFFFFF" count={8} seed={5} />
+      <View style={{ position: "absolute", left: "84%", bottom: 96, width: 30, height: 30, borderRadius: 15, backgroundColor: "#F5E6A8" }} />
+      {/* window frame */}
+      <View style={{ position: "absolute", left: "78%", bottom: 70, width: 56, height: 64, borderWidth: 4, borderColor: "#3E4E7E", backgroundColor: "transparent" }} />
+      {/* bed */}
+      <View style={{ position: "absolute", left: "54%", bottom: 0, width: 120, height: 34, borderRadius: 6, backgroundColor: "#3E5A9E" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 30, width: 44, height: 18, borderRadius: 8, backgroundColor: "#E8EAF6" }} />
+      {/* toy blocks */}
+      <GentleBob left="60%" bottom={34} width={20} height={20} distance={3} duration={3400}>
+        <View style={{ width: 20, height: 20, borderRadius: 3, backgroundColor: "#E53935" }}>
+          <View style={{ position: "absolute", left: 7, top: 5, width: 6, height: 10, borderRadius: 3, backgroundColor: "#FFEBEE", opacity: 0.85 }} />
+        </View>
+      </GentleBob>
+      <View style={{ position: "absolute", left: "68%", bottom: 34, width: 18, height: 18, borderRadius: 3, backgroundColor: "#1E88E5", transform: [{ rotate: "12deg" }] }} />
+      {/* cowboy hat on bedpost */}
+      <View style={{ position: "absolute", left: "90%", bottom: 30, width: 30, height: 8, borderRadius: 4, backgroundColor: "#8D6E63" }} />
+      <View style={{ position: "absolute", left: "95%", bottom: 36, width: 20, height: 12, borderRadius: 6, backgroundColor: "#A1887F" }} />
+      {/* little rocket toy */}
+      <GentleBob left="82%" bottom={36} width={16} height={30} distance={5} duration={2800} delay={500}>
+        <View style={{ position: "absolute", left: 3, bottom: 6, width: 10, height: 20, borderRadius: 5, backgroundColor: "#E0E0E0" }} />
+        <View style={{ position: "absolute", left: 3, bottom: 22, width: 10, height: 8, borderRadius: 4, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 5, height: 8, backgroundColor: "#FF8F00", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 5, height: 8, backgroundColor: "#FF8F00", transform: [{ rotate: "18deg" }] }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Zootopia: animal city skyline — burrow doors, jungle canopy, tiny cars. */
+function ZootopiaScene() {
+  return (
+    <SceneRoot base="#7EC8E3">
+      {/* jungle canopy top */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 0, height: 34, backgroundColor: "#2E7D32", opacity: 0.9 }} />
+      <GentleSway left="60%" bottom={106} width={60} height={30} arc={6} duration={5000}>
+        <View style={{ width: 60, height: 30, borderRadius: 15, backgroundColor: "#388E3C" }} />
+      </GentleSway>
+      {/* city skyline */}
+      <View style={{ position: "absolute", left: "58%", bottom: 24, width: 34, height: 62, backgroundColor: "#90A4AE" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 24, width: 28, height: 80, backgroundColor: "#78909C" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 24, width: 36, height: 54, backgroundColor: "#90A4AE" }} />
+      {/* lit windows */}
+      <PulseDot left="64%" bottom={70} size={5} color="#FFF9C4" duration={2200} min={0.5} max={1} />
+      <PulseDot left="76%" bottom={84} size={5} color="#FFF9C4" duration={2600} delay={600} min={0.5} max={1} />
+      <PulseDot left="88%" bottom={60} size={5} color="#FFF9C4" duration={2000} delay={1100} min={0.5} max={1} />
+      {/* round burrow doors at street level */}
+      <View style={{ position: "absolute", left: "62%", bottom: 24, width: 16, height: 16, borderRadius: 8, backgroundColor: "#5D4037" }} />
+      <View style={{ position: "absolute", left: "86%", bottom: 24, width: 16, height: 16, borderRadius: 8, backgroundColor: "#5D4037" }} />
+      {/* street + tiny cars */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 24, backgroundColor: "#546E7A" }} />
+      <GentleBob left="58%" bottom={8} width={22} height={10} distance={2} duration={1200}>
+        <View style={{ width: 22, height: 10, borderRadius: 5, backgroundColor: "#EF6C00" }} />
+      </GentleBob>
+      <GentleBob left="80%" bottom={8} width={22} height={10} distance={2} duration={1200} delay={600}>
+        <View style={{ width: 22, height: 10, borderRadius: 5, backgroundColor: "#00897B" }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Spider-Man: night skyline with web strands, generic spider shadow. */
+function SpiderManScene() {
+  return (
+    <SceneRoot base="#141428">
+      <TwinkleField color="#FFFFFF" count={8} seed={11} />
+      {/* skyline */}
+      <View style={{ position: "absolute", left: "56%", bottom: 0, width: 36, height: 84, backgroundColor: "#23233A" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 0, width: 30, height: 104, backgroundColor: "#1C1C30" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 0, width: 38, height: 72, backgroundColor: "#23233A" }} />
+      {/* lit windows */}
+      <PulseDot left="62%" bottom={60} size={5} color="#FFE082" duration={2400} min={0.5} max={1} />
+      <PulseDot left="74%" bottom={80} size={5} color="#FFE082" duration={2800} delay={500} min={0.5} max={1} />
+      <PulseDot left="88%" bottom={50} size={5} color="#FFE082" duration={2000} delay={900} min={0.5} max={1} />
+      {/* web strands from top corner */}
+      <View style={{ position: "absolute", left: "90%", top: 0, width: 2, height: 70, backgroundColor: "#E8EAF6", opacity: 0.5, transform: [{ rotate: "18deg" }] }} />
+      <View style={{ position: "absolute", left: "78%", top: 0, width: 2, height: 56, backgroundColor: "#E8EAF6", opacity: 0.4, transform: [{ rotate: "-12deg" }] }} />
+      <View style={{ position: "absolute", left: "84%", top: 40, width: 34, height: 2, backgroundColor: "#E8EAF6", opacity: 0.35, transform: [{ rotate: "24deg" }] }} />
+      {/* spider shadow dangling */}
+      <GentleSway left="82%" bottom={52} width={18} height={18} arc={10} duration={3200}>
+        <View style={{ position: "absolute", left: 8, top: 0, width: 2, height: 8, backgroundColor: "#E8EAF6", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 4, top: 8, width: 10, height: 8, borderRadius: 4, backgroundColor: "#0A0A12" }} />
+        {[0, 1, 2, 3].map((i) => (
+          <View key={"l" + i} style={{ position: "absolute", left: 2 + i * 1, top: 10 + (i % 2) * 3, width: 6, height: 2, backgroundColor: "#0A0A12", transform: [{ rotate: `${-40 + i * 26}deg` }] }} />
+        ))}
+        {[0, 1, 2, 3].map((i) => (
+          <View key={"r" + i} style={{ position: "absolute", left: 10 - i * 1, top: 10 + (i % 2) * 3, width: 6, height: 2, backgroundColor: "#0A0A12", transform: [{ rotate: `${40 - i * 26}deg` }] }} />
+        ))}
+      </GentleSway>
+    </SceneRoot>
+  );
+}
+
+/** Avengers: Doomsday — city skyline under a green-tinted doom sky, cracked ground with green energy veins. */
+function AvengersDoomsdayScene() {
+  return (
+    <SceneRoot base="#0E2A1A">
+      {/* doom-green sky glow */}
+      <BreatheGlow color="#39FF6E" size={140} left="70%" bottom={80} min={0.15} max={0.35} duration={3600} />
+      {/* skyline */}
+      <View style={{ position: "absolute", left: "56%", bottom: 26, width: 34, height: 76, backgroundColor: "#0A1A12" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 26, width: 28, height: 96, backgroundColor: "#081410" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 26, width: 36, height: 64, backgroundColor: "#0A1A12" }} />
+      {/* cracked ground with green energy veins */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 26, backgroundColor: "#0A140E" }} />
+      <PulseDot left="62%" bottom={12} size={26} color="#39FF6E" duration={1600} min={0.2} max={0.7} />
+      <View style={{ position: "absolute", left: "64%", bottom: 4, width: 30, height: 3, backgroundColor: "#39FF6E", opacity: 0.7, transform: [{ rotate: "8deg" }] }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 10, width: 24, height: 3, backgroundColor: "#39FF6E", opacity: 0.55, transform: [{ rotate: "-14deg" }] }} />
+      {/* heroic silhouettes assembling */}
+      <GentleBob left="60%" bottom={24} width={16} height={30} distance={2} duration={2200}>
+        <View style={{ position: "absolute", left: 5, top: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: "#1E3A2A" }} />
+        <View style={{ position: "absolute", left: 3, top: 7, width: 10, height: 18, borderRadius: 4, backgroundColor: "#1E3A2A" }} />
+      </GentleBob>
+      <GentleBob left="72%" bottom={24} width={18} height={34} distance={2} duration={2200} delay={400}>
+        <View style={{ position: "absolute", left: 6, top: 0, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#16281E" }} />
+        <View style={{ position: "absolute", left: 3, top: 8, width: 12, height: 21, borderRadius: 5, backgroundColor: "#16281E" }} />
+      </GentleBob>
+      <GentleBob left="85%" bottom={24} width={16} height={30} distance={2} duration={2200} delay={800}>
+        <View style={{ position: "absolute", left: 5, top: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: "#1E3A2A" }} />
+        <View style={{ position: "absolute", left: 3, top: 7, width: 10, height: 18, borderRadius: 4, backgroundColor: "#1E3A2A" }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Shrek 5: swamp at sunset — muddy pond, wooden outhouse, lily pads, fireflies. */
+function Shrek5Scene() {
+  return (
+    <SceneRoot base="#C98A4B">
+      {/* setting sun */}
+      <View style={{ position: "absolute", left: "80%", bottom: 62, width: 40, height: 40, borderRadius: 20, backgroundColor: "#FFE3A3" }} />
+      {/* muddy pond */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: "34%", backgroundColor: "#5D6B3A" }} />
+      <BreatheGlow color="#FFE3A3" size={90} left="66%" bottom={20} min={0.15} max={0.35} duration={4200} />
+      {/* lily pads */}
+      <GentleBob left="60%" bottom={10} width={26} height={8} distance={3} duration={3000}>
+        <View style={{ width: 26, height: 8, borderRadius: 4, backgroundColor: "#2E7D32" }} />
+      </GentleBob>
+      <GentleBob left="76%" bottom={16} width={20} height={7} distance={3} duration={3400} delay={700}>
+        <View style={{ width: 20, height: 7, borderRadius: 3.5, backgroundColor: "#388E3C" }} />
+      </GentleBob>
+      {/* wooden outhouse */}
+      <View style={{ position: "absolute", left: "86%", bottom: 30, width: 34, height: 48, backgroundColor: "#6D4C41" }}>
+        <View style={{ position: "absolute", left: -4, top: -8, width: 42, height: 10, backgroundColor: "#5D4037", transform: [{ rotate: "-4deg" }] }} />
+        <View style={{ position: "absolute", left: 12, top: 14, width: 10, height: 14, borderRadius: 5, backgroundColor: "#3E2723" }} />
+      </View>
+      {/* fireflies */}
+      <PulseDot left="64%" bottom={58} size={5} color="#FFF176" duration={1500} min={0.2} max={1} />
+      <PulseDot left="72%" bottom={70} size={5} color="#FFF176" duration={1800} delay={500} min={0.2} max={1} />
+      <PulseDot left="82%" bottom={52} size={5} color="#FFF176" duration={1300} delay={900} min={0.2} max={1} />
+    </SceneRoot>
+  );
+}
+
+/** Hunger Games: forest arena at dawn, golden bird silhouette flying, cornucopia hill. */
+function HungerGamesScene() {
+  return (
+    <SceneRoot base="#E8A87C">
+      {/* dawn glow */}
+      <BreatheGlow color="#FFD98A" size={110} left="68%" bottom={50} min={0.3} max={0.55} duration={4800} />
+      <View style={{ position: "absolute", left: "74%", bottom: 66, width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFE3A3" }} />
+      {/* forest silhouettes */}
+      <View style={{ position: "absolute", left: "52%", bottom: 24, width: 18, height: 56, backgroundColor: "#2E4A2E" }}>
+        <View style={{ position: "absolute", left: -8, top: -16, width: 34, height: 30, borderRadius: 15, backgroundColor: "#2E4A2E" }} />
+      </View>
+      <View style={{ position: "absolute", left: "88%", bottom: 24, width: 16, height: 66, backgroundColor: "#243D24" }}>
+        <View style={{ position: "absolute", left: -7, top: -14, width: 30, height: 26, borderRadius: 13, backgroundColor: "#243D24" }} />
+      </View>
+      {/* cornucopia-shaped hill */}
+      <View style={{ position: "absolute", left: "64%", bottom: 20, width: 56, height: 34, borderRadius: 17, backgroundColor: "#8A6A3A", transform: [{ rotate: "-8deg" }] }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 44, width: 30, height: 14, borderRadius: 7, backgroundColor: "#6A4F28" }} />
+      {/* golden bird silhouette flying */}
+      <GentleBob left="70%" bottom={96} width={30} height={14} distance={8} duration={2600}>
+        <View style={{ position: "absolute", left: 10, top: 5, width: 10, height: 6, borderRadius: 3, backgroundColor: "#B8860B" }} />
+        <View style={{ position: "absolute", left: 0, top: 0, width: 14, height: 5, borderRadius: 2.5, backgroundColor: "#B8860B", transform: [{ rotate: "-22deg" }] }} />
+        <View style={{ position: "absolute", left: 16, top: 0, width: 14, height: 5, borderRadius: 2.5, backgroundColor: "#B8860B", transform: [{ rotate: "22deg" }] }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
 function WednesdayScene() {
   return (
     <SceneRoot base="#1B1233">
@@ -5703,6 +6192,36 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   if (has("wednesday addams", "nevermore") || (/\bwednesday\b/.test(text) && /\b(tv|series|show|episode|season|netflix)\b/.test(text))) return <WednesdayScene />;
   return null;
 }
+/** Picks a movie-specific scene from the event notes/title. Returns null for no match. */
+function detectMovieScene(notes: string | undefined | null, title: string | undefined | null): React.ReactNode | null {
+  const text = `${title ?? ""} ${notes ?? ""}`.toLowerCase();
+  if (!text.trim()) return null;
+  const has = (...names: string[]) => names.some((n) => text.includes(n));
+  const movieCtx = /\b(movie|film|cinema|theater|theatre)\b/.test(text);
+  if (has("resident evil")) return <ResidentEvilScene />;
+  // "buddy" is a common word — only match with explicit movie context.
+  if (/\bbuddy\b/.test(text) && movieCtx) return <BuddyScene />;
+  if (has("black phone")) return <BlackPhoneScene />;
+  if (has("backrooms")) return <BackroomsScene />;
+  if (has("exit 8")) return <Exit8Scene />;
+  if (has("deadpool")) return <DeadpoolScene />;
+  if (has("five nights at freddy", "fnaf", "freddy fazbear")) return <FNAFScene />;
+  if (has("iron lung")) return <IronLungScene />;
+  // "nimrods" could be slang — only match with explicit movie context.
+  if (/\bnimrods\b/.test(text) && movieCtx) return <NimrodsScene />;
+  // "idiots" is a common word — only match with explicit movie context.
+  if (/\bidiots\b/.test(text) && movieCtx) return <IdiotsScene />;
+  // "nobody" is a common word — only match with explicit movie context.
+  if (/\bnobody\b/.test(text) && movieCtx) return <NobodyScene />;
+  if (has("super mario bros movie", "mario movie")) return <MarioMovieScene />;
+  if (has("toy story")) return <ToyStoryScene />;
+  if (has("zootopia")) return <ZootopiaScene />;
+  if (has("spider-man", "spiderman")) return <SpiderManScene />;
+  if (has("avengers doomsday", "doomsday movie")) return <AvengersDoomsdayScene />;
+  if (has("shrek 5", "shrek")) return <Shrek5Scene />;
+  if (has("hunger games", "sunrise on the reaping", "mockingjay")) return <HungerGamesScene />;
+  return null;
+}
 
 /** Picks a restaurant-specific food scene from the event location. Returns null for no match. */
 function detectRestaurantScene(location: string | undefined | null): React.ReactNode | null {
@@ -5765,8 +6284,16 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Basketball": return <BasketballScene />;
     case "Soccer": return <SoccerScene />;
     case "Game": return <GameScene />;
-    case "Movie": return <MovieScene />;
-    case "Theater": return <TheaterScene />;
+    case "Movie": {
+      const movieScene = detectMovieScene(notes, title);
+      if (movieScene) return movieScene;
+      return <MovieScene />;
+    }
+    case "Theater": {
+      const movieScene = detectMovieScene(notes, title);
+      if (movieScene) return movieScene;
+      return <TheaterScene />;
+    }
     case "Scary Movie Night": return <ScaryMovieScene />;
     case "Christmas Movie Night": return <ChristmasMovieScene />;
     case "Christmas Breakfast": return <ChristmasBreakfastScene />;

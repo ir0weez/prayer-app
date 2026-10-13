@@ -23,6 +23,7 @@ export const NOTIFICATION_ACTIONS = {
   praise: "prayer-praise",
   emergency: "prayer-emergency",
   endPrayerSession: "prayer-end-session",
+  prayNextPrayerPerson: "prayer-pray-next",
   snooze: "schedule-snooze-10",
   complete: "schedule-complete",
 } as const;

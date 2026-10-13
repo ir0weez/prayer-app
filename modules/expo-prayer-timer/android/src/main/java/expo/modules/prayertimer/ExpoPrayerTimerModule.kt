@@ -14,6 +14,7 @@ class ExpoPrayerTimerModule : Module() {
   companion object {
     const val END_PRAYER_ACTION = "expo.modules.prayertimer.END_PRAYER"
     const val EXTRA_END_PRAYER = "expo.modules.prayertimer.EXTRA_END_PRAYER"
+    const val PRAY_NEXT_ACTION = "expo.modules.prayertimer.PRAY_NEXT"
     const val DISMISS_EMERGENCY_ACTION = "expo.modules.prayertimer.DISMISS_EMERGENCY"
     const val EXTRA_DISMISS_EMERGENCY = "expo.modules.prayertimer.EXTRA_DISMISS_EMERGENCY"
     private const val NOTIFICATION_ID = 9001
@@ -22,10 +23,18 @@ class ExpoPrayerTimerModule : Module() {
     private const val EMERGENCY_CHANNEL_ID = "emergency-prayer"
 
     private var moduleInstance: ExpoPrayerTimerModule? = null
+    // Wall-clock start of the current session, so notification updates keep
+    // the chronometer counting from the original start instead of resetting.
+    private var sessionStartedAt: Long = 0L
 
     /** Tell JS (if alive) that the user tapped "End prayer". */
     fun sendEndEvent() {
       moduleInstance?.sendEvent("onEndPrayer", emptyMap<String, Any?>())
+    }
+
+    /** Tell JS (if alive) that the user tapped "Pray" (advance to next person). */
+    fun sendPrayNextEvent() {
+      moduleInstance?.sendEvent("onPrayNext", emptyMap<String, Any?>())
     }
 
     /** Tell JS (if alive) that the user dismissed the emergency notification. */
@@ -98,6 +107,29 @@ class ExpoPrayerTimerModule : Module() {
     return PendingIntent.getBroadcast(ctx, 0, intent, flags)
   }
 
+  private fun prayNextPendingIntent(ctx: Context): PendingIntent {
+    val intent = Intent(PRAY_ACTION).setPackage(ctx.packageName)
+    val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    return PendingIntent.getBroadcast(ctx, 3, intent, flags)
+  }
+
+  private fun buildPrayerSessionNotification(ctx: Context, personName: String) =
+    NotificationCompat.Builder(ctx, CHANNEL_ID)
+      .setSmallIcon(smallIconRes(ctx))
+      .setContentTitle("\uD83D\uDE4F Prayer in progress")
+      .setContentText(if (personName.isNotBlank()) "Praying for $personName" else null)
+      // The platform chronometer counts up live from `when` — no JS timer needed.
+      .setUsesChronometer(true)
+      .setShowWhen(true)
+      .setWhen(sessionStartedAt)
+      .setOngoing(true)
+      .setOnlyAlertOnce(true)
+      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setContentIntent(openAppPendingIntent(ctx))
+      .addAction(0, "Pray", prayNextPendingIntent(ctx))
+      .addAction(0, "End prayer", endPendingIntent(ctx))
+      .build()
+
   private fun openAppPendingIntent(ctx: Context): PendingIntent {
     val launchIntent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
       addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -109,7 +141,7 @@ class ExpoPrayerTimerModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoPrayerTimer")
 
-    Events("onEndPrayer", "onEmergencyDismiss")
+    Events("onEndPrayer", "onPrayNext", "onEmergencyDismiss")
 
     OnCreate {
       moduleInstance = this@ExpoPrayerTimerModule
@@ -119,27 +151,25 @@ class ExpoPrayerTimerModule : Module() {
       if (moduleInstance === this@ExpoPrayerTimerModule) moduleInstance = null
     }
 
-    Function("start") {
+    Function("start") { personName: String ->
       val ctx = appContext.reactContext ?: return@Function null
       ensureChannel(ctx)
-      // The platform chronometer counts up live from `when` — no JS timer needed.
-      val notification = NotificationCompat.Builder(ctx, CHANNEL_ID)
-        .setSmallIcon(smallIconRes(ctx))
-        .setContentTitle("\uD83D\uDE4F Prayer in progress")
-        .setUsesChronometer(true)
-        .setShowWhen(true)
-        .setWhen(System.currentTimeMillis())
-        .setOngoing(true)
-        .setOnlyAlertOnce(true)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setContentIntent(openAppPendingIntent(ctx))
-        .addAction(0, "End prayer", endPendingIntent(ctx))
-        .build()
-      notificationManager(ctx).notify(NOTIFICATION_ID, notification)
+      sessionStartedAt = System.currentTimeMillis()
+      notificationManager(ctx).notify(NOTIFICATION_ID, buildPrayerSessionNotification(ctx, personName))
+    }
+
+    // Rebuilds the ongoing notification with the new person name. The
+    // chronometer keeps counting from the original session start.
+    Function("update") { personName: String ->
+      val ctx = appContext.reactContext ?: return@Function null
+      ensureChannel(ctx)
+      if (sessionStartedAt == 0L) sessionStartedAt = System.currentTimeMillis()
+      notificationManager(ctx).notify(NOTIFICATION_ID, buildPrayerSessionNotification(ctx, personName))
     }
 
     Function("stop") {
       val ctx = appContext.reactContext ?: return@Function null
+      sessionStartedAt = 0L
       try {
         notificationManager(ctx).cancel(NOTIFICATION_ID)
       } catch (_: Exception) {

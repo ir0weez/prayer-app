@@ -6451,9 +6451,15 @@ function MinistryCard({
   return (
     <>
       <Pressable
-        onPress={() => {
+        onPress={(event) => {
           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setDetailCardVisible(true);
+          if (ministry.type === "Bible Study") {
+            // Bible Study keeps its detail popup (book info lives there).
+            setDetailCardVisible(true);
+          } else {
+            // Single tap checks it off directly — no popup.
+            onToggle({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+          }
         }}
         onLongPress={handleLongPress}
         delayLongPress={500}
@@ -8360,9 +8366,11 @@ export function ScheduleTab({
       });
     }
 
-    // Add ministries with time (only if there are any)
-    if (dayMinistries.length > 0) {
-      dayMinistries.forEach((m) => {
+    // Add incomplete ministries with time (only if there are any; completed
+    // ministries sink to the bottom like completed events and todos)
+    const incompleteMinistries = dayMinistries.filter((m) => !m.isCompleted);
+    if (incompleteMinistries.length > 0) {
+      incompleteMinistries.forEach((m) => {
         timedItems.push({
           type: "ministry",
           id: m.id,
@@ -8510,6 +8518,12 @@ export function ScheduleTab({
     // Add completed Bible Study sessions
     const completedBibleStudies = dayBibleStudies.filter((bs) => bs.isCompleted);
     completedBibleStudies.forEach((bs) => items.push({ type: "bible-study", id: bs.id, data: bs }));
+
+    // Completed ministries sink to the bottom in time order, like completed events.
+    dayMinistries
+      .filter((m) => m.isCompleted)
+      .sort((a, b) => (a.startTime || "23:59").localeCompare(b.startTime || "23:59"))
+      .forEach((m) => items.push({ type: "ministry", id: m.id, data: m }));
 
     // Finished grouped todos collapse into compact rows at the bottom with other completed work.
     completedGroups.forEach((todo) => items.push({ type: "todo", id: todo.id, data: todo }));

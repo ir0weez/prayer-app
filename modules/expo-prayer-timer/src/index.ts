@@ -2,7 +2,8 @@ import { Platform } from "react-native";
 import { EventEmitter, requireNativeModule } from "expo-modules-core";
 
 type PrayerTimerNativeModule = {
-  start(): void;
+  start(personName: string): void;
+  update(personName: string): void;
   stop(): void;
   consumePendingEndRequest(): boolean;
   startEmergency(personName: string, remainingMillis: number, totalMillis: number): void;
@@ -40,8 +41,21 @@ export function isNativePrayerTimerAvailable(): boolean {
 }
 
 /** Posts the ongoing notification with a live count-up chronometer. */
-export function startPrayerTimerNotification(): void {
-  getNative()?.start();
+export function startPrayerTimerNotification(personName: string = ""): void {
+  try {
+    getNative()?.start(personName);
+  } catch {
+    // Best-effort
+  }
+}
+
+/** Updates the ongoing notification with the current person being prayed for. */
+export function updatePrayerTimerNotification(personName: string): void {
+  try {
+    getNative()?.update(personName);
+  } catch {
+    // Best-effort
+  }
 }
 
 /** Dismisses the prayer timer notification. */
@@ -70,6 +84,14 @@ export function addPrayerTimerEndListener(listener: () => void): { remove(): voi
   const e = getEmitter();
   if (!e) return null;
   const subscription = e.addListener("onEndPrayer", listener);
+  return { remove: () => subscription.remove() };
+}
+
+/** Fires when the user taps "Pray" on the notification (advance to next person). */
+export function addPrayerTimerPrayListener(listener: () => void): { remove(): void } | null {
+  const e = getEmitter();
+  if (!e) return null;
+  const subscription = e.addListener("onPrayNext", listener);
   return { remove: () => subscription.remove() };
 }
 

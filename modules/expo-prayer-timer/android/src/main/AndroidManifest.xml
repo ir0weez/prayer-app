@@ -9,6 +9,14 @@
         <action android:name="expo.modules.prayertimer.END_PRAYER" />
       </intent-filter>
     </receiver>
+    <!-- Fired by the notification's "Pray" button: advances to the next person. -->
+    <receiver
+      android:name="expo.modules.prayertimer.PrayerTimerPrayReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="expo.modules.prayertimer.PRAY_NEXT" />
+      </intent-filter>
+    </receiver>
     <!-- Fired by the emergency notification's "Dismiss" button. -->
     <receiver
       android:name="expo.modules.prayertimer.EmergencyDismissReceiver"

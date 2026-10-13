@@ -9,10 +9,12 @@ import { useColors } from "@/hooks/use-colors";
 import { NOTIFICATION_ACTIONS, PRAYER_SESSION_CATEGORY } from "@/lib/notification-scheduler";
 import {
   addPrayerTimerEndListener,
+  addPrayerTimerPrayListener,
   consumePendingPrayerEndRequest,
   isNativePrayerTimerAvailable,
   startPrayerTimerNotification,
   stopPrayerTimerNotification,
+  updatePrayerTimerNotification,
 } from "@/modules/expo-prayer-timer/src/index";
 import type { Person } from "@/lib/prayercircle-data";
 
@@ -32,6 +34,28 @@ function formatTime(seconds: number): string {
 
 let prayerNotifId: string | null = null;
 let prayerNotifInterval: ReturnType<typeof setInterval> | null = null;
+// Current person name for the expo-fallback notification body. The component
+// updates this as the session advances; the 10s repost picks it up.
+let prayerNotifPersonName: string | null = null;
+
+/** Lets the expo-fallback notification body show who is being prayed for. */
+export function setPrayerNotificationPersonName(name: string | null): void {
+  prayerNotifPersonName = name;
+}
+
+// Registry so a notification "Pray" action (expo path) can advance the open
+// session even though the response listener lives in _layout.tsx.
+let prayNextHandler: (() => void) | null = null;
+
+/** Called by the PrayerSession component while it is visible. */
+export function setPrayerSessionPrayNextHandler(fn: (() => void) | null): void {
+  prayNextHandler = fn;
+}
+
+/** Called from the notification response listener when "Pray" is tapped. */
+export function requestPrayerSessionPrayNext(): void {
+  prayNextHandler?.();
+}
 
 async function setupPrayerNotification() {
   try {
@@ -45,6 +69,7 @@ async function setupPrayerNotification() {
       lightColor: "#7C5CFF",
     });
     await Notifications.setNotificationCategoryAsync(PRAYER_SESSION_CATEGORY, [
+      { identifier: NOTIFICATION_ACTIONS.prayNextPrayerPerson, buttonTitle: "Pray", options: { opensAppToForeground: true } },
       { identifier: NOTIFICATION_ACTIONS.endPrayerSession, buttonTitle: "End prayer", options: { opensAppToForeground: true } },
     ]);
 
@@ -56,7 +81,7 @@ async function setupPrayerNotification() {
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: "🙏 Prayer in progress",
-          body: formatTime(elapsed),
+          body: prayerNotifPersonName ? `Praying for ${prayerNotifPersonName} · ${formatTime(elapsed)}` : formatTime(elapsed),
           sticky: true,
           categoryIdentifier: PRAYER_SESSION_CATEGORY,
           priority: Notifications.AndroidNotificationPriority.LOW,
@@ -88,6 +113,7 @@ async function dismissPrayerNotification() {
       await Notifications.dismissNotificationAsync(prayerNotifId);
       prayerNotifId = null;
     }
+    prayerNotifPersonName = null;
   } catch {
     // Best-effort
   }
@@ -106,6 +132,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const sessionStartRef = useRef<number>(0);
   const prayButtonRef = useRef<View>(null);
   const [prayButtonPos, setPrayButtonPos] = useState<{ x: number; y: number } | null>(null);
+  // Always call the latest handlePray from notification callbacks.
+  const handlePrayRef = useRef<() => void>(() => {});
   const timerRef2 = useRef<View>(null);
   const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
   // Always call the latest onClose from native notification callbacks.
@@ -147,15 +175,26 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       // Show persistent notification with timer. On Android the native module
       // posts a live count-up chronometer; elsewhere fall back to expo.
       let endListener: { remove(): void } | null = null;
+      let prayListener: { remove(): void } | null = null;
+      const firstPersonName = people[0]?.name ?? "";
       if (isNativePrayerTimerAvailable()) {
-        startPrayerTimerNotification();
+        startPrayerTimerNotification(firstPersonName);
         endListener = addPrayerTimerEndListener(() => {
           consumePendingPrayerEndRequest();
           onCloseRef.current();
         });
+        prayListener = addPrayerTimerPrayListener(() => {
+          handlePrayRef.current();
+        });
       } else {
+        setPrayerNotificationPersonName(firstPersonName || null);
         setupPrayerNotification();
       }
+      // The expo notification "Pray" action routes through _layout's response
+      // listener; bridge it to this session's advance function.
+      setPrayerSessionPrayNextHandler(() => {
+        handlePrayRef.current();
+      });
       // Handle screen off/on: recalc from wall clock when foregrounded
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
@@ -173,6 +212,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
         if (timerRef.current) clearInterval(timerRef.current);
         sessionStartRef.current = 0;
         endListener?.remove();
+        prayListener?.remove();
+        setPrayerSessionPrayNextHandler(null);
         if (isNativePrayerTimerAvailable()) stopPrayerTimerNotification();
         else dismissPrayerNotification();
       };
@@ -206,7 +247,7 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const isLast = currentIndex >= totalCount - 1;
 
   const handlePray = (e: any) => {
-    if (!currentPerson) return;
+    if (!currentPerson || isFinished) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Use measured button position, fall back to center screen
     const position = prayButtonPos ?? { x: Dimensions.get("window").width / 2, y: Dimensions.get("window").height / 2 };
@@ -218,6 +259,20 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       setCurrentIndex((i) => i + 1);
     }
   };
+  // Keep the ref pointed at the latest handlePray for notification callbacks.
+  handlePrayRef.current = () => handlePray(null);
+
+  // Keep the ongoing notification showing who is currently being prayed for.
+  useEffect(() => {
+    if (!visible) return;
+    const person = sessionPeople[currentIndex];
+    const name = person?.name ?? "";
+    if (isNativePrayerTimerAvailable()) {
+      updatePrayerTimerNotification(name);
+    } else {
+      setPrayerNotificationPersonName(name || null);
+    }
+  }, [visible, currentIndex, sessionPeople]);
 
   const handleSkip = () => {
     if (!currentPerson) return;

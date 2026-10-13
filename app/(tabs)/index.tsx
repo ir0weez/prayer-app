@@ -30,6 +30,8 @@ import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 import { createPhotoBackup, getPhotoBackupPayload, restorePhotoBackup } from "@/lib/photo-backup";
 import {
+  cancelPersonReminderNotifications,
+  cancelScheduledEventNotifications,
   clearAllScheduledNotifications,
   getNotificationPermissionStatus,
   scheduleTestNotification,
@@ -1203,7 +1205,26 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!hasHydratedPeople) return;
     syncPrayerTrayNotifications(people).catch(() => undefined);
-  }, [hasHydratedPeople, people]);
+  }, [hasHydratedPeople, people, settings.prayerRemindersEnabled]);
+
+  // The Schedule tab is lazily mounted, so its own re-sync effect doesn't run
+  // when the toggle is flipped from Settings. Cancel immediately on toggle-off;
+  // re-enabling re-schedules via the Schedule tab's effect on next mount.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    if (!settings.eventRemindersEnabled) {
+      cancelScheduledEventNotifications().catch(() => undefined);
+    }
+  }, [hasHydratedPeople, settings.eventRemindersEnabled]);
+
+  // Per-person reminders from the People tab bypass the main prayer scheduler,
+  // so cancel them here too when the prayer toggle goes off.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    if (!settings.prayerRemindersEnabled) {
+      cancelPersonReminderNotifications().catch(() => undefined);
+    }
+  }, [hasHydratedPeople, settings.prayerRemindersEnabled]);
 
   useEffect(() => {
     if (!hasHydratedPeople) return;

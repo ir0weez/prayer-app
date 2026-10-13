@@ -68,6 +68,8 @@ async function getNotificationPreferences(): Promise<NotificationPreferences> {
   }
 }
 
+export { getNotificationPreferences };
+
 async function ensureNotificationCategories(): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.setNotificationCategoryAsync(PRAYER_NOTIFICATION_CATEGORY, [
@@ -332,6 +334,38 @@ export async function clearAllScheduledNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 
+/**
+ * Cancels all scheduled event/todo/ministry notifications without re-scheduling.
+ * Used when the "Scheduled event reminders" toggle is flipped off while the
+ * Schedule tab (which owns the re-sync effect) isn't mounted.
+ */
+export async function cancelScheduledEventNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  await cancelKind(EVENT_KIND);
+  await cancelKind(TODO_KIND);
+  await cancelKind(MINISTRY_KIND);
+}
+
+/**
+ * Cancels per-person prayer reminders scheduled from the People tab. Those
+ * don't carry the standard source/kind markers, so cancelKind can't reach them.
+ */
+export async function cancelPersonReminderNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(
+        (notification) =>
+          notification.content.data?.personId != null &&
+          notification.content.data?.source !== SOURCE,
+      )
+      .map((notification) =>
+        Notifications.cancelScheduledNotificationAsync(notification.identifier),
+      ),
+  );
+}
+
 async function cancelKind(kind: string): Promise<void> {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
@@ -444,6 +478,13 @@ export async function snoozeScheduleNotification(response: Notifications.Notific
   if (Platform.OS === "web") return false;
   try {
     const content = response.notification.request.content;
+    // Respect the toggles: a snoozed notification shouldn't re-fire if its
+    // category was disabled after the snooze was tapped.
+    const kind = (content.data as { kind?: unknown } | null)?.kind;
+    const preferences = await getNotificationPreferences();
+    if (kind === PRAYER_KIND && !preferences.prayerRemindersEnabled) return false;
+    if ((kind === EVENT_KIND || kind === TODO_KIND || kind === MINISTRY_KIND) && !preferences.eventRemindersEnabled) return false;
+    if (kind === BUDGET_KIND && !preferences.budgetRemindersEnabled) return false;
     await Notifications.scheduleNotificationAsync({
       content: {
         title: content.title,
@@ -521,6 +562,8 @@ function presentedTrayKey(data: PrayerTrayData): string | null {
 export async function showPrayerTrayNotification(kind: "emergency" | "praise", personId: string, personName: string): Promise<void> {
   if (Platform.OS === "web") return;
   try {
+    const preferences = await getNotificationPreferences();
+    if (!preferences.prayerRemindersEnabled) return;
     await ensurePrayerTrayChannel();
     const title = kind === "emergency" ? "🚨 Emergency prayer" : "🙌 Praise report";
     const body = kind === "emergency"
@@ -562,6 +605,17 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
   try {
     if (!(await ensureNotificationPermission())) return;
     await ensurePrayerTrayChannel();
+    // If prayer reminders are off, clear any sticky tray cards and stop.
+    const preferences = await getNotificationPreferences();
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    if (!preferences.prayerRemindersEnabled) {
+      await Promise.all(
+        presented
+          .filter((n) => presentedTrayKey(n.request.content.data as PrayerTrayData) != null)
+          .map((n) => Notifications.dismissNotificationAsync(n.request.identifier).catch(() => undefined)),
+      );
+      return;
+    }
     const now = Date.now();
     const wanted = new Map<string, { kind: "emergency" | "praise"; personId: string; personName: string }>();
     for (const person of people) {
@@ -580,8 +634,7 @@ export async function syncPrayerTrayNotifications(people: Array<{ id: string; na
         wanted.set(key, { kind: "praise", personId: person.id, personName: person.name });
       }
     }
-    // What's actually sitting in the shade right now?
-    const presented = await Notifications.getPresentedNotificationsAsync();
+    // What's actually sitting in the shade right now? (fetched above)
     const presentedTray = new Map<string, string>();
     for (const n of presented) {
       const key = presentedTrayKey(n.request.content.data as PrayerTrayData);

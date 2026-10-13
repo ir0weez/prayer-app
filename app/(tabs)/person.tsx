@@ -41,6 +41,7 @@ import {
 import { PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { awardXP } from "@/lib/xp-engine";
+import { getNotificationPreferences } from "@/lib/notification-scheduler";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -204,6 +205,14 @@ async function schedulePersonReminders(
   reminderTime: string,
 ) {
   if (Platform.OS === "web") return;
+
+  // Respect the prayer reminders toggle — don't schedule when it's off.
+  try {
+    const preferences = await getNotificationPreferences();
+    if (!preferences.prayerRemindersEnabled) return;
+  } catch {
+    // If preferences can't be read, fall through and schedule.
+  }
 
   const parsedTime = parseReminderTime(reminderTime);
   if (!parsedTime) return;

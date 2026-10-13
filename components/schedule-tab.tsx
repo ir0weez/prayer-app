@@ -10213,7 +10213,14 @@ export function ScheduleTab({
     };
     const holidayPinnedItems = timedItems
       .filter(isHolidayTimedItem)
-      .sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+      .sort((a, b) => {
+        // All-day holidays first, then timed holiday events in time order.
+        const aAllDay = !a.data.startTime;
+        const bAllDay = !b.data.startTime;
+        if (aAllDay && !bAllDay) return -1;
+        if (!aAllDay && bAllDay) return 1;
+        return a.sortTime.localeCompare(b.sortTime);
+      });
     for (let i = timedItems.length - 1; i >= 0; i--) {
       if (isHolidayTimedItem(timedItems[i])) timedItems.splice(i, 1);
     }

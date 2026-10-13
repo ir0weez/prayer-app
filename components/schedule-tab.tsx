@@ -2886,6 +2886,176 @@ function ShowerScene() {
   );
 }
 
+/** Clean: spray bottle with mist, soapy sponge, sparkles. */
+function CleanScene() {
+  return (
+    <SceneRoot base="#4A7A9E">
+      {/* Fresh glow */}
+      <BreatheGlow color="#BFE3F5" size={120} left="62%" bottom={36} min={0.18} max={0.38} duration={4400} />
+      {/* Spray bottle */}
+      <View style={{ position: "absolute", left: "74%", bottom: 12, width: 36, height: 62 }}>
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 24, height: 38, borderRadius: 6, backgroundColor: "#29B6F6" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 8, width: 16, height: 22, borderRadius: 4, backgroundColor: "#B3E5FC", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 14, bottom: 38, width: 8, height: 12, backgroundColor: "#0288D1" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 46, width: 20, height: 8, borderRadius: 3, backgroundColor: "#01579B" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 48, width: 8, height: 5, borderRadius: 2, backgroundColor: "#0288D1" }} />
+      </View>
+      {/* Mist puffs from nozzle */}
+      <RisingDot left="70%" top={52} size={6} color="#E1F5FE" duration={2200} delay={0} maxOpacity={0.6} sway={6} square={false} bordered={false} />
+      <RisingDot left="67%" top={56} size={5} color="#E1F5FE" duration={2600} delay={700} maxOpacity={0.5} sway={5} square={false} bordered={false} />
+      <RisingDot left="71%" top={60} size={4} color="#FFFFFF" duration={2400} delay={1300} maxOpacity={0.55} sway={6} square={false} bordered={false} />
+      {/* Soapy sponge */}
+      <GentleBob left="56%" bottom={10} width={52} height={36} distance={6} duration={3200}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 48, height: 26, borderRadius: 10, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 4, width: 40, height: 18, borderRadius: 8, backgroundColor: "#FFCA28", opacity: 0.6 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 26, bottom: 26, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 36, bottom: 22, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#E1F5FE", opacity: 0.9 }} />
+      </GentleBob>
+      {/* Rising soap bubbles */}
+      <RisingDot left="58%" top={72} size={6} color="#FFFFFF" duration={3000} delay={200} maxOpacity={0.7} sway={4} square={false} bordered={false} />
+      <RisingDot left="63%" top={76} size={5} color="#E1F5FE" duration={3400} delay={1100} maxOpacity={0.6} sway={5} square={false} bordered={false} />
+      {/* Sparkles */}
+      <PulseDot left="82%" bottom={52} size={7} color="#FFFFFF" duration={1600} />
+      <PulseDot left="52%" bottom={58} size={6} color="#FFF9C4" duration={1800} delay={500} />
+      <TwinkleField color="#E1F5FE" count={5} seed={21} />
+    </SceneRoot>
+  );
+}
+
+/** Wash Car: soapy car, water spray, floating bubbles, bucket. */
+function WashCarScene() {
+  return (
+    <SceneRoot base="#3E6E8E">
+      {/* Ground */}
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 0, height: 22, backgroundColor: "#2E5E7E" }} />
+      <BreatheGlow color="#BFE3F5" size={130} left="60%" bottom={34} min={0.16} max={0.34} duration={4600} />
+      {/* Car */}
+      <GentleBob left="54%" bottom={16} width={104} height={52} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 6, bottom: 12, width: 92, height: 24, borderRadius: 10, backgroundColor: "#EF5350" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 32, width: 52, height: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor: "#E57373" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 34, width: 40, height: 11, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#B3E5FC", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 18, bottom: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: "#263238" }} />
+        <View style={{ position: "absolute", left: 68, bottom: 0, width: 18, height: 18, borderRadius: 9, backgroundColor: "#263238" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 4, width: 10, height: 10, borderRadius: 5, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 72, bottom: 4, width: 10, height: 10, borderRadius: 5, backgroundColor: "#78909C" }} />
+        {/* Soap suds on car */}
+        <View style={{ position: "absolute", left: 14, bottom: 30, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 60, bottom: 28, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 40, bottom: 42, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E1F5FE", opacity: 0.9 }} />
+      </GentleBob>
+      {/* Water spray arcs */}
+      <FallingDot left="82%" size={7} color="#D6F0FF" duration={1100} delay={0} sway={8} square={false} ellipse={true} spin={false} maxOpacity={0.7} />
+      <FallingDot left="85%" size={6} color="#C4E6FA" duration={1000} delay={400} sway={7} square={false} ellipse={true} spin={false} maxOpacity={0.65} />
+      <FallingDot left="79%" size={8} color="#D6F0FF" duration={1200} delay={800} sway={9} square={false} ellipse={true} spin={false} maxOpacity={0.7} />
+      {/* Floating bubbles */}
+      <RisingDot left="60%" top={62} size={7} color="#FFFFFF" duration={3200} delay={0} maxOpacity={0.7} sway={5} square={false} bordered={false} />
+      <RisingDot left="70%" top={66} size={6} color="#E1F5FE" duration={3600} delay={900} maxOpacity={0.6} sway={4} square={false} bordered={false} />
+      <RisingDot left="76%" top={60} size={5} color="#FFFFFF" duration={3000} delay={1700} maxOpacity={0.65} sway={6} square={false} bordered={false} />
+      {/* Bucket with sponge */}
+      <View style={{ position: "absolute", left: "88%", bottom: 14, width: 30, height: 30 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 26, height: 24, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#FF8F00" }} />
+        <View style={{ position: "absolute", left: 5, bottom: 20, width: 20, height: 8, borderRadius: 4, backgroundColor: "#FFB300" }} />
+      </View>
+      <TwinkleField color="#E1F5FE" count={4} seed={33} />
+    </SceneRoot>
+  );
+}
+
+/** Get Gas: pump with hose, price sign, car, warm sunset. */
+function GetGasScene() {
+  return (
+    <SceneRoot base="#6E4A2E">
+      {/* Warm sunset glow */}
+      <BreatheGlow color="#FFB74D" size={140} left="64%" bottom={30} min={0.2} max={0.42} duration={5000} />
+      {/* Ground */}
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 0, height: 22, backgroundColor: "#4E3421" }} />
+      {/* Gas pump */}
+      <View style={{ position: "absolute", left: "72%", bottom: 18, width: 44, height: 72 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 36, height: 62, borderRadius: 6, backgroundColor: "#D32F2F" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 28, height: 62, borderRadius: 4, backgroundColor: "#B71C1C" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 38, width: 20, height: 16, borderRadius: 3, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 40, width: 16, height: 4, borderRadius: 2, backgroundColor: "#FF8F00" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 46, width: 10, height: 4, borderRadius: 2, backgroundColor: "#FF8F00", opacity: 0.6 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 62, width: 36, height: 8, borderRadius: 4, backgroundColor: "#7B1FA2" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 68, width: 44, height: 5, borderRadius: 2, backgroundColor: "#4A148C" }} />
+      </View>
+      {/* Hose curving from pump */}
+      <GentleSway left="64%" bottom={22} width={34} height={48} arc={8} duration={4200}>
+        <View style={{ position: "absolute", left: 24, bottom: 44, width: 6, height: 6, borderRadius: 3, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 10, width: 6, height: 38, borderRadius: 3, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 6, width: 12, height: 8, borderRadius: 3, backgroundColor: "#546E7A" }} />
+      </GentleSway>
+      {/* Price sign */}
+      <View style={{ position: "absolute", left: "56%", bottom: 44, width: 40, height: 34 }}>
+        <View style={{ position: "absolute", left: 16, bottom: 0, width: 5, height: 14, backgroundColor: "#5D4037" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 12, width: 40, height: 22, borderRadius: 4, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 5, bottom: 16, width: 30, height: 6, borderRadius: 3, backgroundColor: "#FFEB3B" }} />
+        <View style={{ position: "absolute", left: 5, bottom: 24, width: 22, height: 5, borderRadius: 2, backgroundColor: "#FFEB3B", opacity: 0.7 }} />
+      </View>
+      {/* Car silhouette */}
+      <View style={{ position: "absolute", left: "86%", bottom: 14, width: 52, height: 28, opacity: 0.9 }}>
+        <View style={{ position: "absolute", left: 3, bottom: 6, width: 46, height: 13, borderRadius: 6, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 13, bottom: 16, width: 26, height: 9, borderTopLeftRadius: 7, borderTopRightRadius: 7, backgroundColor: "#4E342E" }} />
+        <View style={{ position: "absolute", left: 9, bottom: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 33, bottom: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#212121" }} />
+      </View>
+      <TwinkleField color="#FFE0B2" count={5} seed={44} />
+    </SceneRoot>
+  );
+}
+
+/** Grocery: cart full of groceries, shopping bag, storefront awning. */
+function GroceryScene() {
+  return (
+    <SceneRoot base="#4A8E4A">
+      {/* Fresh glow */}
+      <BreatheGlow color="#C8E6C9" size={120} left="62%" bottom={36} min={0.18} max={0.36} duration={4400} />
+      {/* Storefront awning */}
+      <View style={{ position: "absolute", left: "52%", top: 0, width: 120, height: 30 }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 120, height: 10, backgroundColor: "#2E7D32" }} />
+        <View style={{ position: "absolute", left: 0, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 15, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#EF5350" }} />
+        <View style={{ position: "absolute", left: 30, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 45, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#EF5350" }} />
+        <View style={{ position: "absolute", left: 60, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 75, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#EF5350" }} />
+        <View style={{ position: "absolute", left: 90, top: 8, width: 15, height: 22, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 105, top: 8, width: 15, height: 22, borderBottomRightRadius: 8, backgroundColor: "#EF5350" }} />
+      </View>
+      {/* Shopping cart */}
+      <GentleBob left="58%" bottom={12} width={96} height={62} distance={5} duration={3400}>
+        {/* Basket */}
+        <View style={{ position: "absolute", left: 12, bottom: 20, width: 72, height: 34, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 44, width: 72, height: 10, backgroundColor: "#78909C" }} />
+        {/* Basket grid lines */}
+        <View style={{ position: "absolute", left: 24, bottom: 20, width: 3, height: 34, backgroundColor: "#78909C", opacity: 0.6 }} />
+        <View style={{ position: "absolute", left: 42, bottom: 20, width: 3, height: 34, backgroundColor: "#78909C", opacity: 0.6 }} />
+        <View style={{ position: "absolute", left: 60, bottom: 20, width: 3, height: 34, backgroundColor: "#78909C", opacity: 0.6 }} />
+        {/* Groceries peeking out */}
+        <View style={{ position: "absolute", left: 20, bottom: 52, width: 16, height: 18, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 38, bottom: 50, width: 20, height: 22, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 41, bottom: 56, width: 14, height: 8, borderRadius: 3, backgroundColor: "#4FC3F7" }} />
+        <View style={{ position: "absolute", left: 60, bottom: 53, width: 14, height: 14, borderRadius: 7, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 62, bottom: 62, width: 8, height: 6, borderTopLeftRadius: 4, borderTopRightRadius: 4, backgroundColor: "#43A047" }} />
+        {/* Handle + wheels */}
+        <View style={{ position: "absolute", left: 4, bottom: 52, width: 12, height: 5, borderRadius: 2, backgroundColor: "#546E7A" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 20, width: 5, height: 36, backgroundColor: "#546E7A" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: "#37474F" }} />
+      </GentleBob>
+      {/* Shopping bag */}
+      <GentleSway left="84%" bottom={14} width={36} height={40} arc={8} duration={4000}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 32, height: 30, borderRadius: 4, backgroundColor: "#A1887F" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 26, width: 8, height: 10, borderRadius: 4, borderWidth: 2.5, borderColor: "#6D4C41", borderBottomWidth: 0 }} />
+        <View style={{ position: "absolute", left: 18, bottom: 26, width: 8, height: 10, borderRadius: 4, borderWidth: 2.5, borderColor: "#6D4C41", borderBottomWidth: 0 }} />
+        <View style={{ position: "absolute", left: 10, bottom: 28, width: 12, height: 10, borderRadius: 5, backgroundColor: "#FFD54F" }} />
+      </GentleSway>
+      <TwinkleField color="#DCEDC8" count={5} seed={55} />
+    </SceneRoot>
+  );
+}
+
 /** New Year: fireworks, champagne coupe with bubbles, midnight clock. */
 function NewYearScene() {
   return (
@@ -4496,6 +4666,10 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Graduation": return <GraduationScene />;
     case "Visit": return <VisitScene />;
     case "Reach Out": return <ReachOutScene />;
+    case "Clean": return <CleanScene />;
+    case "Wash Car": return <WashCarScene />;
+    case "Get Gas": return <GetGasScene />;
+    case "Grocery": return <GroceryScene />;
     case "Amusement Park": {
       const parkScene = detectParkScene(location);
       if (parkScene) return parkScene;

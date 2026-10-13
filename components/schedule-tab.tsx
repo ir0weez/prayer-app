@@ -3532,6 +3532,54 @@ function MovieScene() {
   );
 }
 
+/** Movie theater at night: lit marquee with chasing bulbs, ticket booth, velvet rope. */
+function TheaterScene() {
+  const bulbLefts = ["52%", "55.5%", "59%", "62.5%", "66%"] as const;
+  return (
+    <SceneRoot base="#141428">
+      {/* Night sky stars */}
+      <TwinkleField color="#FFFFFF" count={8} seed={7} />
+      {/* Small moon */}
+      <View style={{ position: "absolute", left: "47%", bottom: 100, width: 28, height: 28, borderRadius: 14, backgroundColor: "#F5E6A8", opacity: 0.85 }} />
+      {/* Building facade (right side) */}
+      <View style={{ position: "absolute", left: "60%", right: 0, top: 0, bottom: 0, backgroundColor: "#23233A" }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 26, height: 2, backgroundColor: "#1B1B2E" }} />
+        <View style={{ position: "absolute", left: 0, right: 0, top: 54, height: 2, backgroundColor: "#1B1B2E" }} />
+        <View style={{ position: "absolute", left: 0, right: 0, top: 82, height: 2, backgroundColor: "#1B1B2E" }} />
+        <View style={{ position: "absolute", left: 0, right: 0, top: 110, height: 2, backgroundColor: "#1B1B2E" }} />
+      </View>
+      {/* Warm glow spilling from the marquee */}
+      <BreatheGlow color="#FFD54F" size={130} left="54%" bottom={34} min={0.12} max={0.26} duration={3800} />
+      {/* Marquee canopy */}
+      <View style={{ position: "absolute", left: "50%", bottom: 56, width: 128, height: 46, borderRadius: 6, backgroundColor: "#FFF8E1", borderWidth: 3, borderColor: "#C62828" }}>
+        {/* Marquee lettering (suggested with bars) */}
+        <View style={{ position: "absolute", left: 14, top: 9, width: 72, height: 5, borderRadius: 2.5, backgroundColor: "#4E342E", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 14, top: 19, width: 54, height: 5, borderRadius: 2.5, backgroundColor: "#4E342E", opacity: 0.55 }} />
+        <View style={{ position: "absolute", left: 14, top: 29, width: 64, height: 5, borderRadius: 2.5, backgroundColor: "#4E342E", opacity: 0.4 }} />
+      </View>
+      {/* Chasing bulbs around the marquee border (alternating phase) */}
+      {bulbLefts.map((l, i) => (
+        <PulseDot key={"t" + i} left={l} bottom={104} size={6} color="#FFD54F" delay={(i % 2) * 700} duration={1400} min={0.25} max={1} />
+      ))}
+      {bulbLefts.map((l, i) => (
+        <PulseDot key={"b" + i} left={l} bottom={50} size={6} color="#FFD54F" delay={((i + 1) % 2) * 700} duration={1400} min={0.25} max={1} />
+      ))}
+      {/* Ticket booth with glowing window */}
+      <View style={{ position: "absolute", left: "74%", bottom: 0, width: 46, height: 54, backgroundColor: "#3E2723", borderTopLeftRadius: 6, borderTopRightRadius: 6 }}>
+        <View style={{ position: "absolute", left: 9, top: 10, width: 28, height: 20, borderRadius: 3, backgroundColor: "#FFE082" }} />
+        <View style={{ position: "absolute", left: 9, top: 34, width: 28, height: 4, borderRadius: 2, backgroundColor: "#5D4037" }} />
+      </View>
+      <BreatheGlow color="#FFE082" size={56} left="76%" bottom={22} min={0.18} max={0.34} duration={3000} />
+      {/* Velvet rope: two posts + sagging rope */}
+      <View style={{ position: "absolute", left: "52%", bottom: 0, width: 4, height: 26, backgroundColor: "#C9A227" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 24, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E3B93C", marginLeft: -2.5 }} />
+      <View style={{ position: "absolute", left: "63%", bottom: 0, width: 4, height: 26, backgroundColor: "#C9A227" }} />
+      <View style={{ position: "absolute", left: "63%", bottom: 24, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E3B93C", marginLeft: -2.5 }} />
+      <View style={{ position: "absolute", left: "52.5%", bottom: 10, width: "10%", height: 12, borderBottomWidth: 4, borderColor: "#C62828", borderBottomLeftRadius: 18, borderBottomRightRadius: 18 }} />
+    </SceneRoot>
+  );
+}
+
 /** Spooky horror-movie night: glowing TV with scary silhouette, popcorn, bats, moon, fog. */
 function ScaryMovieScene() {
   return (
@@ -5718,6 +5766,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Soccer": return <SoccerScene />;
     case "Game": return <GameScene />;
     case "Movie": return <MovieScene />;
+    case "Theater": return <TheaterScene />;
     case "Scary Movie Night": return <ScaryMovieScene />;
     case "Christmas Movie Night": return <ChristmasMovieScene />;
     case "Christmas Breakfast": return <ChristmasBreakfastScene />;

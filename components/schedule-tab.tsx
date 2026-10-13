@@ -2718,20 +2718,50 @@ function SoccerScene() {
   );
 }
 
-/** Therapy: serene lotus, breathing rings, soft stars. */
+/** Therapy: cozy armchair, warm lamp, tea for two, growing plant. */
 function TherapyScene() {
   return (
-    <SceneRoot base="#5A4A7E">
-      <BreathingRings />
-      <GentleSway left="64%" bottom={24} width={64} height={48} arc={7} duration={5200}>
-        <View style={{ position: "absolute", left: 22, bottom: 0, width: 20, height: 34, borderRadius: 10, backgroundColor: "#F8BBD0" }} />
-        <View style={{ position: "absolute", left: 6, bottom: 4, width: 20, height: 28, borderRadius: 10, backgroundColor: "#F48FB1", transform: [{ rotate: "-24deg" }] }} />
-        <View style={{ position: "absolute", left: 38, bottom: 4, width: 20, height: 28, borderRadius: 10, backgroundColor: "#F48FB1", transform: [{ rotate: "24deg" }] }} />
-        <View style={{ position: "absolute", left: 26, bottom: 10, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFF3BF" }} />
+    <SceneRoot base="#5A6E8E">
+      {/* Warm lamp glow */}
+      <BreatheGlow color="#FFC46B" size={120} left="50%" bottom={34} min={0.22} max={0.42} duration={4800} />
+      {/* Growing plant (healing) */}
+      <GentleSway left="47%" bottom={4} width={36} height={52} arc={9} duration={4200}>
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 14, height: 20, borderRadius: 3, backgroundColor: "#A8633F" }} />
+        <View style={{ position: "absolute", left: 16.5, bottom: 18, width: 3, height: 20, borderRadius: 1.5, backgroundColor: "#2F9E44" }} />
+        <View style={{ position: "absolute", left: 3, bottom: 28, width: 18, height: 10, borderRadius: 6, backgroundColor: "#40C057", transform: [{ rotate: "-28deg" }] }} />
+        <View style={{ position: "absolute", left: 15, bottom: 28, width: 18, height: 10, borderRadius: 6, backgroundColor: "#40C057", transform: [{ rotate: "28deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 38, width: 16, height: 9, borderRadius: 6, backgroundColor: "#69DB7C", transform: [{ rotate: "-14deg" }] }} />
       </GentleSway>
-      <View style={{ position: "absolute", left: "84%", top: 12, width: 26, height: 26, borderRadius: 13, backgroundColor: "#FFF3BF", opacity: 0.85 }} />
-      <View style={{ position: "absolute", left: "86%", top: 10, width: 26, height: 26, borderRadius: 13, backgroundColor: "#5A4A7E", opacity: 1 }} />
-      <TwinkleField color="#FFFFFF" count={5} seed={19} />
+      {/* Warm lamp beside the chair */}
+      <View style={{ position: "absolute", left: "55%", bottom: 6, width: 34, height: 74 }}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 10, height: 5, borderRadius: 2, backgroundColor: "#3E4A5E" }} />
+        <View style={{ position: "absolute", left: 15, bottom: 5, width: 4, height: 44, borderRadius: 2, backgroundColor: "#3E4A5E" }} />
+        <View style={{ position: "absolute", left: 1, bottom: 44, width: 32, height: 28, borderRadius: 6, backgroundColor: "#F6E7C8" }} />
+        <View style={{ position: "absolute", left: 7, bottom: 50, width: 20, height: 16, borderRadius: 4, backgroundColor: "#FFD98A", opacity: 0.9 }} />
+      </View>
+      {/* Side table with two cups of tea */}
+      <View style={{ position: "absolute", left: "64%", bottom: 4, width: 42, height: 44 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 18, width: 42, height: 10, borderRadius: 5, backgroundColor: "#7A5C42" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 0, width: 6, height: 20, borderRadius: 3, backgroundColor: "#5E4632" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 28, width: 13, height: 12, borderRadius: 3, backgroundColor: "#F6E7C8" }} />
+        <View style={{ position: "absolute", left: 17, bottom: 30, width: 6, height: 8, borderRadius: 3, borderWidth: 2, borderColor: "#F6E7C8" }} />
+        <View style={{ position: "absolute", left: 25, bottom: 28, width: 13, height: 12, borderRadius: 3, backgroundColor: "#EAD9BC" }} />
+        <View style={{ position: "absolute", left: 38, bottom: 30, width: 6, height: 8, borderRadius: 3, borderWidth: 2, borderColor: "#EAD9BC" }} />
+      </View>
+      <RisingDot left="66%" top={48} size={6} color="#FFFFFF" duration={2800} delay={0} maxOpacity={0.5} sway={3} square={false} bordered={false} />
+      <RisingDot left="69%" top={48} size={6} color="#FFFFFF" duration={3200} delay={1100} maxOpacity={0.45} sway={3} square={false} bordered={false} />
+      {/* Cozy armchair (centerpiece) */}
+      <GentleBob left="73%" bottom={6} width={88} height={100} distance={5} duration={4200}>
+        <View style={{ position: "absolute", left: 8, bottom: 34, width: 72, height: 58, borderRadius: 22, backgroundColor: "#C97B5E" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 40, width: 60, height: 46, borderRadius: 16, backgroundColor: "#D98E6E" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 16, width: 80, height: 24, borderRadius: 12, backgroundColor: "#C97B5E" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 22, width: 64, height: 12, borderRadius: 6, backgroundColor: "#E8A87C" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 18, width: 16, height: 34, borderRadius: 8, backgroundColor: "#B96A4E" }} />
+        <View style={{ position: "absolute", left: 72, bottom: 18, width: 16, height: 34, borderRadius: 8, backgroundColor: "#B96A4E" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 8, height: 18, borderRadius: 4, backgroundColor: "#5E4632" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 0, width: 8, height: 18, borderRadius: 4, backgroundColor: "#5E4632" }} />
+      </GentleBob>
+      <TwinkleField color="#FFF3BF" count={4} seed={7} />
     </SceneRoot>
   );
 }

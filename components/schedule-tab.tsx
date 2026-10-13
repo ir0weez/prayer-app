@@ -10486,7 +10486,7 @@ export function ScheduleTab({
   </View>
       </View>
     </>
-  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today]);
+  ), [colors, dateHeader, weekDates, weekSlideDir, selectedDate, today, timeOffList]);
 
   const renderItem = useCallback(
     ({ item }: { item: { type: string; id: string; data: any; isOverdue?: boolean } }) => {

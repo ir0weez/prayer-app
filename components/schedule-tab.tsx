@@ -3614,6 +3614,318 @@ function GenericParkScene() {
   );
 }
 
+/** Top-down homecooked soup: bowl from above, bobbing veggie bits, steam. */
+function TopDownSoupScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFB74D" size={140} left="62%" bottom={48} min={0.14} max={0.28} duration={4800} />
+      <View style={{ position: "absolute", left: "53%", bottom: 4, width: 172, height: 172, borderRadius: 86, backgroundColor: "#4E342E" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 16, width: 148, height: 148, borderRadius: 74, backgroundColor: "#FFF8E1" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 16, width: 148, height: 148, borderRadius: 74, borderWidth: 5, borderColor: "#D7CCC8" }} />
+      <View style={{ position: "absolute", left: "58.5%", bottom: 28, width: 124, height: 124, borderRadius: 62, backgroundColor: "#C96A2B" }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 78, width: 56, height: 18, borderRadius: 9, borderWidth: 3, borderColor: "#F5D08A", opacity: 0.65 }} />
+      <GentleBob left="60%" bottom={44} width={110} height={84} distance={4} duration={3400}>
+        <View style={{ position: "absolute", left: 10, bottom: 52, width: 20, height: 20, borderRadius: 10, backgroundColor: "#FF8A3D" }} />
+        <View style={{ position: "absolute", left: 46, bottom: 38, width: 16, height: 16, borderRadius: 8, backgroundColor: "#FF8A3D" }} />
+        <View style={{ position: "absolute", left: 76, bottom: 54, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E86A1E" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 16, width: 14, height: 9, borderRadius: 4.5, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 62, bottom: 12, width: 14, height: 9, borderRadius: 4.5, backgroundColor: "#7CB342", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 44, bottom: 60, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFF3E0" }} />
+      </GentleBob>
+      <RisingDot left="64%" top={30} size={7} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={30} size={5.5} color="#FFFFFF" duration={4900} delay={1400} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <View style={{ position: "absolute", left: "86%", bottom: 34, width: 13, height: 84, borderRadius: 6.5, backgroundColor: "#B0BEC5", transform: [{ rotate: "16deg" }] }} />
+      <View style={{ position: "absolute", left: "84%", bottom: 106, width: 30, height: 22, borderRadius: 15, backgroundColor: "#B0BEC5", transform: [{ rotate: "16deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked burrito: tortilla from above, sauce zigzag, rice side. */
+function TopDownBurritoScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={140} left="62%" bottom={48} min={0.14} max={0.28} duration={5000} />
+      <View style={{ position: "absolute", left: "53%", bottom: 4, width: 172, height: 172, borderRadius: 86, backgroundColor: "#4E342E" }} />
+      <GentleBob left="55%" bottom={30} width={150} height={120} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 10, bottom: 24, width: 130, height: 72, borderRadius: 36, backgroundColor: "#F0D9A8" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 30, width: 30, height: 60, borderRadius: 15, backgroundColor: "#E3C48F" }} />
+        <View style={{ position: "absolute", left: 120, bottom: 30, width: 30, height: 60, borderRadius: 15, backgroundColor: "#E3C48F" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 66, width: 90, height: 7, borderRadius: 3.5, backgroundColor: "#C0392B", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 52, width: 82, height: 7, borderRadius: 3.5, backgroundColor: "#C0392B", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 38, width: 90, height: 7, borderRadius: 3.5, backgroundColor: "#C0392B", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 52, bottom: 88, width: 46, height: 10, borderRadius: 5, backgroundColor: "#D9B77C" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "78%", bottom: 14, width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFF8E1" }} />
+      <View style={{ position: "absolute", left: "79.5%", bottom: 22, width: 48, height: 48, borderRadius: 24, backgroundColor: "#F5F5F5" }} />
+      <GentleBob left="79.5%" bottom={26} width={48} height={40} distance={4} duration={3000} delay={600}>
+        <View style={{ position: "absolute", left: 8, bottom: 20, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 24, bottom: 26, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 10, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#8D6E63" }} />
+      </GentleBob>
+      <RisingDot left="62%" top={34} size={7} color="#FFFFFF" duration={4400} delay={500} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="68%" top={34} size={5.5} color="#FFFFFF" duration={5000} delay={1800} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked tacos: three shells in a row, fillings, lime wedge. */
+function TopDownTacosScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={150} left="64%" bottom={50} min={0.14} max={0.28} duration={4800} />
+      <View style={{ position: "absolute", left: "52%", bottom: 6, width: 178, height: 150, borderRadius: 24, backgroundColor: "#4E342E" }} />
+      <GentleBob left="54%" bottom={26} width={160} height={110} distance={5} duration={3400}>
+        <View style={{ position: "absolute", left: 0, bottom: 20, width: 50, height: 70, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#F5C86A" }} />
+        <View style={{ position: "absolute", left: 55, bottom: 20, width: 50, height: 70, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#F5C86A" }} />
+        <View style={{ position: "absolute", left: 110, bottom: 20, width: 50, height: 70, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#F5C86A" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 62, width: 38, height: 22, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 61, bottom: 62, width: 38, height: 22, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 116, bottom: 62, width: 38, height: 22, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 76, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 67, bottom: 76, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 122, bottom: 76, width: 12, height: 12, borderRadius: 6, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 78, width: 16, height: 6, borderRadius: 3, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 83, bottom: 78, width: 16, height: 6, borderRadius: 3, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 138, bottom: 78, width: 16, height: 6, borderRadius: 3, backgroundColor: "#FFD54F" }} />
+      </GentleBob>
+      <GentleSway left="84%" bottom={18} width={36} height={36} arc={10} duration={3200}>
+        <View style={{ position: "absolute", left: 4, bottom: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: "#9CCC65" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: "#DCEDC8" }} />
+      </GentleSway>
+      <RisingDot left="62%" top={34} size={6.5} color="#FFFFFF" duration={4300} delay={300} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked sandwich: two halves, layers, pickle + chips. */
+function TopDownSandwichScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={140} left="62%" bottom={50} min={0.14} max={0.28} duration={5000} />
+      <View style={{ position: "absolute", left: "53%", bottom: 8, width: 170, height: 170, borderRadius: 85, backgroundColor: "#ECEFF1" }} />
+      <GentleBob left="55%" bottom={34} width={140} height={120} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 8, bottom: 24, width: 58, height: 58, backgroundColor: "#F0BE6A", transform: [{ rotate: "45deg" }], borderRadius: 8 }} />
+        <View style={{ position: "absolute", left: 76, bottom: 24, width: 58, height: 58, backgroundColor: "#F0BE6A", transform: [{ rotate: "45deg" }], borderRadius: 8 }} />
+        <View style={{ position: "absolute", left: 14, bottom: 44, width: 46, height: 8, borderRadius: 4, backgroundColor: "#7CB342", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 82, bottom: 44, width: 46, height: 8, borderRadius: 4, backgroundColor: "#7CB342", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 20, bottom: 54, width: 34, height: 7, borderRadius: 3.5, backgroundColor: "#E53935", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 88, bottom: 54, width: 34, height: 7, borderRadius: 3.5, backgroundColor: "#E53935", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 66, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 98, bottom: 66, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFF8E1" }} />
+      </GentleBob>
+      <GentleSway left="82%" bottom={24} width={24} height={64} arc={8} duration={3400}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 16, height: 56, borderRadius: 8, backgroundColor: "#558B2F" }} />
+        <View style={{ position: "absolute", left: 7, bottom: 8, width: 10, height: 40, borderRadius: 5, backgroundColor: "#7CB342" }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "56%", bottom: 12, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F5D08A" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F0BE6A" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 12, width: 22, height: 22, borderRadius: 11, backgroundColor: "#F5D08A" }} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked salad: bowl of greens, tomato, croutons, dressing. */
+function TopDownSaladScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#AED581" size={150} left="64%" bottom={52} min={0.16} max={0.32} duration={5200} />
+      <View style={{ position: "absolute", left: "54%", bottom: 6, width: 170, height: 170, borderRadius: 85, backgroundColor: "#4E342E" }} />
+      <View style={{ position: "absolute", left: "56.5%", bottom: 18, width: 146, height: 146, borderRadius: 73, backgroundColor: "#FFF8E1" }} />
+      <View style={{ position: "absolute", left: "58.5%", bottom: 30, width: 122, height: 122, borderRadius: 61, backgroundColor: "#E8F5E9" }} />
+      <GentleBob left="59%" bottom={46} width={120} height={100} distance={4} duration={3800}>
+        <View style={{ position: "absolute", left: 10, bottom: 40, width: 34, height: 30, borderRadius: 15, backgroundColor: "#66BB6A" }} />
+        <View style={{ position: "absolute", left: 48, bottom: 52, width: 38, height: 32, borderRadius: 16, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 84, bottom: 36, width: 30, height: 28, borderRadius: 14, backgroundColor: "#66BB6A" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 14, width: 36, height: 30, borderRadius: 15, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 10, width: 34, height: 28, borderRadius: 14, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 52, bottom: 24, width: 18, height: 18, backgroundColor: "#E53935", transform: [{ rotate: "45deg" }], borderRadius: 4 }} />
+        <View style={{ position: "absolute", left: 16, bottom: 66, width: 16, height: 16, backgroundColor: "#E53935", transform: [{ rotate: "45deg" }], borderRadius: 4 }} />
+        <View style={{ position: "absolute", left: 92, bottom: 64, width: 14, height: 14, borderRadius: 4, backgroundColor: "#D7A86E" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 70, width: 14, height: 14, borderRadius: 4, backgroundColor: "#D7A86E" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 44, width: 14, height: 14, borderRadius: 4, backgroundColor: "#C89B6A" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "63%", bottom: 88, width: 70, height: 6, borderRadius: 3, backgroundColor: "#FFF9C4", opacity: 0.85, transform: [{ rotate: "10deg" }] }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 74, width: 60, height: 6, borderRadius: 3, backgroundColor: "#FFF9C4", opacity: 0.85, transform: [{ rotate: "-8deg" }] }} />
+      <TwinkleField color="#DCEDC8" count={5} seed={11} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked pasta: bowl of spaghetti, meatballs, parmesan, basil. */
+function TopDownPastaScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFB74D" size={140} left="62%" bottom={50} min={0.14} max={0.28} duration={4800} />
+      <View style={{ position: "absolute", left: "54%", bottom: 6, width: 170, height: 170, borderRadius: 85, backgroundColor: "#4E342E" }} />
+      <View style={{ position: "absolute", left: "56.5%", bottom: 18, width: 146, height: 146, borderRadius: 73, backgroundColor: "#FFF8E1" }} />
+      <View style={{ position: "absolute", left: "58.5%", bottom: 30, width: 122, height: 122, borderRadius: 61, backgroundColor: "#F5C86A" }} />
+      <View style={{ position: "absolute", left: "61%", bottom: 52, width: 78, height: 78, borderRadius: 39, borderWidth: 5, borderColor: "#E8A94E" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 66, width: 50, height: 50, borderRadius: 25, borderWidth: 5, borderColor: "#E8A94E" }} />
+      <GentleBob left="60%" bottom={56} width={110} height={90} distance={4} duration={3400}>
+        <View style={{ position: "absolute", left: 12, bottom: 48, width: 26, height: 26, borderRadius: 13, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 58, bottom: 56, width: 26, height: 26, borderRadius: 13, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 36, bottom: 18, width: 26, height: 26, borderRadius: 13, backgroundColor: "#795548" }} />
+        <View style={{ position: "absolute", left: 76, bottom: 22, width: 14, height: 20, borderRadius: 7, backgroundColor: "#43A047", transform: [{ rotate: "20deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 76, width: 14, height: 20, borderRadius: 7, backgroundColor: "#43A047", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 44, bottom: 40, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 44, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 56, bottom: 66, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFFFFF" }} />
+      </GentleBob>
+      <RisingDot left="64%" top={30} size={7} color="#FFFFFF" duration={4200} delay={200} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={30} size={5.5} color="#FFFFFF" duration={5000} delay={1500} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked pancakes: stack with syrup, melting butter, berries. */
+function TopDownPancakesScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={150} left="64%" bottom={52} min={0.16} max={0.32} duration={5200} />
+      <View style={{ position: "absolute", left: "54%", bottom: 6, width: 170, height: 170, borderRadius: 85, backgroundColor: "#ECEFF1" }} />
+      <View style={{ position: "absolute", left: "57%", bottom: 24, width: 130, height: 130, borderRadius: 65, backgroundColor: "#D9A45B" }} />
+      <View style={{ position: "absolute", left: "58.5%", bottom: 36, width: 122, height: 122, borderRadius: 61, backgroundColor: "#E3B76E" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 48, width: 114, height: 114, borderRadius: 57, backgroundColor: "#EDC37F" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 82, width: 66, height: 66, borderRadius: 33, backgroundColor: "#8D5A2B" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 60, width: 22, height: 22, borderRadius: 11, backgroundColor: "#8D5A2B" }} />
+      <GentlePulse left="67%" bottom={104} width={30} height={22} min={1} max={1.08} duration={2600}>
+        <View style={{ width: 30, height: 22, borderRadius: 6, backgroundColor: "#FFE082" }} />
+      </GentlePulse>
+      <GentleBob left="62%" bottom={96} width={90} height={50} distance={4} duration={3600} delay={500}>
+        <View style={{ position: "absolute", left: 8, bottom: 24, width: 16, height: 16, borderRadius: 8, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 30, width: 14, height: 14, borderRadius: 7, backgroundColor: "#283593" }} />
+        <View style={{ position: "absolute", left: 52, bottom: 22, width: 16, height: 16, borderRadius: 8, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 30, width: 14, height: 14, borderRadius: 7, backgroundColor: "#283593" }} />
+      </GentleBob>
+      <RisingDot left="66%" top={32} size={6.5} color="#FFFFFF" duration={4400} delay={700} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homecooked eggs: sunny-side up pair, bacon, toast on a plate. */
+function TopDownEggsScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFD54F" size={150} left="64%" bottom={52} min={0.14} max={0.28} duration={5000} />
+      <View style={{ position: "absolute", left: "53%", bottom: 4, width: 176, height: 176, borderRadius: 88, backgroundColor: "#ECEFF1" }} />
+      <View style={{ position: "absolute", left: "55%", bottom: 14, width: 156, height: 156, borderRadius: 78, borderWidth: 4, borderColor: "#CFD8DC" }} />
+      <GentleBob left="56%" bottom={52} width={130} height={100} distance={4} duration={3400}>
+        <View style={{ position: "absolute", left: 6, bottom: 30, width: 58, height: 52, borderRadius: 26, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 30, width: 58, height: 52, borderRadius: 26, backgroundColor: "#FFFFFF" }} />
+      </GentleBob>
+      <GentlePulse left="59.5%" bottom={72} width={30} height={30} min={1} max={1.1} duration={2400}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFB300" }} />
+      </GentlePulse>
+      <GentlePulse left="70%" bottom={72} width={30} height={30} min={1} max={1.1} duration={2400} delay={800}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFB300" }} />
+      </GentlePulse>
+      <GentleSway left="80%" bottom={30} width={60} height={90} arc={8} duration={3800}>
+        <View style={{ position: "absolute", left: 6, bottom: 40, width: 18, height: 48, borderRadius: 9, backgroundColor: "#A63A2E", transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 40, width: 18, height: 48, borderRadius: 9, backgroundColor: "#A63A2E", transform: [{ rotate: "-8deg" }] }} />
+        <View style={{ position: "absolute", left: 9, bottom: 46, width: 12, height: 36, borderRadius: 6, backgroundColor: "#D47A6A", transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 33, bottom: 46, width: 12, height: 36, borderRadius: 6, backgroundColor: "#D47A6A", transform: [{ rotate: "-8deg" }] }} />
+      </GentleSway>
+      <View style={{ position: "absolute", left: "55%", bottom: 12, width: 52, height: 46, borderRadius: 8, backgroundColor: "#D7A86E" }} />
+      <View style={{ position: "absolute", left: "56.5%", bottom: 18, width: 40, height: 34, borderRadius: 6, backgroundColor: "#E3C48F" }} />
+      <RisingDot left="64%" top={32} size={6.5} color="#FFFFFF" duration={4300} delay={400} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={32} size={5.5} color="#FFFFFF" duration={4900} delay={1600} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down frozen TV dinner: compartment tray, film half-peeled, steam. */
+function TopDownTVDinnerScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#90CAF9" size={140} left="62%" bottom={50} min={0.12} max={0.26} duration={4800} />
+      <View style={{ position: "absolute", left: "53%", bottom: 8, width: 180, height: 140, borderRadius: 18, backgroundColor: "#37474F" }} />
+      <View style={{ position: "absolute", left: "53%", bottom: 8, width: 180, height: 140, borderRadius: 18, borderWidth: 4, borderColor: "#263238" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 8, width: 6, height: 140, backgroundColor: "#263238" }} />
+      <View style={{ position: "absolute", left: "53%", bottom: 68, width: 180, height: 6, backgroundColor: "#263238" }} />
+      <GentleBob left="55%" bottom={80} width={70} height={56} distance={4} duration={3400}>
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 54, height: 40, borderRadius: 12, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 20, width: 38, height: 16, borderRadius: 8, backgroundColor: "#8D6E63" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "71%", bottom: 82, width: 52, height: 52, borderRadius: 10, backgroundColor: "#455A64" }} />
+      <GentleBob left="71.5%" bottom={86} width={48} height={44} distance={4} duration={3000} delay={500}>
+        <View style={{ position: "absolute", left: 4, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 28, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 24, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFCA28" }} />
+        <View style={{ position: "absolute", left: 11, bottom: 10, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFCA28" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 12, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFD54F" }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "55%", bottom: 16, width: 62, height: 44, borderRadius: 12, backgroundColor: "#455A64" }} />
+      <View style={{ position: "absolute", left: "57%", bottom: 24, width: 46, height: 28, borderRadius: 14, backgroundColor: "#FFF8E1" }} />
+      <View style={{ position: "absolute", left: "71%", bottom: 16, width: 52, height: 44, borderRadius: 10, backgroundColor: "#455A64" }} />
+      <View style={{ position: "absolute", left: "73%", bottom: 26, width: 32, height: 24, borderRadius: 6, backgroundColor: "#4E342E" }} />
+      <View style={{ position: "absolute", left: "74%", bottom: 30, width: 24, height: 6, borderRadius: 3, backgroundColor: "#6D4C41" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 96, width: 120, height: 44, borderRadius: 10, backgroundColor: "#FFFFFF", opacity: 0.28, transform: [{ rotate: "-14deg" }] }} />
+      <RisingDot left="60%" top={34} size={6.5} color="#FFFFFF" duration={4300} delay={300} maxOpacity={0.5} sway={6} square={false} bordered={false} />
+      <RisingDot left="72%" top={34} size={5.5} color="#FFFFFF" duration={5000} delay={1500} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Top-down homemade pizza: full pie, pepperoni, basil, cheese shimmer. */
+function TopDownPizzaScene() {
+  return (
+    <SceneRoot base="#6B4A3A">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "42%", backgroundColor: "#54382A", opacity: 0.55 }} />
+      <BreatheGlow color="#FFB74D" size={160} left="64%" bottom={54} min={0.16} max={0.32} duration={5200} />
+      <View style={{ position: "absolute", left: "54%", bottom: 4, width: 176, height: 176, borderRadius: 88, backgroundColor: "#4E342E" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 14, width: 158, height: 158, borderRadius: 79, backgroundColor: "#D9A45B" }} />
+      <View style={{ position: "absolute", left: "58.5%", bottom: 26, width: 134, height: 134, borderRadius: 67, backgroundColor: "#F5C04E" }} />
+      <View style={{ position: "absolute", left: "60.5%", bottom: 38, width: 110, height: 110, borderRadius: 55, borderWidth: 4, borderColor: "#E8A94E", opacity: 0.7 }} />
+      <GentleBob left="59%" bottom={46} width={130} height={116} distance={4} duration={3600}>
+        <View style={{ position: "absolute", left: 18, bottom: 70, width: 22, height: 22, borderRadius: 11, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 62, bottom: 78, width: 22, height: 22, borderRadius: 11, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 96, bottom: 60, width: 22, height: 22, borderRadius: 11, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 36, width: 22, height: 22, borderRadius: 11, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 82, bottom: 28, width: 22, height: 22, borderRadius: 11, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 74, width: 14, height: 14, borderRadius: 7, backgroundColor: "#A93226" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 82, width: 14, height: 14, borderRadius: 7, backgroundColor: "#A93226" }} />
+        <View style={{ position: "absolute", left: 100, bottom: 64, width: 14, height: 14, borderRadius: 7, backgroundColor: "#A93226" }} />
+        <View style={{ position: "absolute", left: 44, bottom: 40, width: 14, height: 14, borderRadius: 7, backgroundColor: "#A93226" }} />
+        <View style={{ position: "absolute", left: 86, bottom: 32, width: 14, height: 14, borderRadius: 7, backgroundColor: "#A93226" }} />
+        <View style={{ position: "absolute", left: 46, bottom: 62, width: 13, height: 18, borderRadius: 6.5, backgroundColor: "#43A047", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 84, bottom: 50, width: 13, height: 18, borderRadius: 6.5, backgroundColor: "#43A047", transform: [{ rotate: "-16deg" }] }} />
+        <View style={{ position: "absolute", left: 60, bottom: 12, width: 13, height: 18, borderRadius: 6.5, backgroundColor: "#43A047", transform: [{ rotate: "8deg" }] }} />
+      </GentleBob>
+      <RisingDot left="64%" top={30} size={6.5} color="#FFFFFF" duration={4400} delay={600} maxOpacity={0.45} sway={6} square={false} bordered={false} />
+      <RisingDot left="70%" top={30} size={5.5} color="#FFFFFF" duration={5100} delay={1800} maxOpacity={0.4} sway={6} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Picks a homecooked top-down food scene from the event notes. Runs before
+ *  restaurant detection so a notes entry always wins over the location. */
+function detectHomecookedMeal(notes: string | undefined | null): React.ReactNode | null {
+  if (!notes) return null;
+  const n = notes.toLowerCase();
+  const match = (...names: string[]) => names.some((x) => n.includes(x));
+  if (match("tv dinner", "frozen meal", "microwave meal", "hungry man", "lean cuisine")) return <TopDownTVDinnerScene />;
+  if (match("burrito")) return <TopDownBurritoScene />;
+  if (match("taco")) return <TopDownTacosScene />;
+  if (match("pizza")) return <TopDownPizzaScene />;
+  if (match("sandwich", "panini", "grilled cheese")) return <TopDownSandwichScene />;
+  if (match("salad")) return <TopDownSaladScene />;
+  if (match("pasta", "spaghetti", "lasagna", "mac and cheese", "mac n cheese")) return <TopDownPastaScene />;
+  if (match("pancake", "waffle", "french toast")) return <TopDownPancakesScene />;
+  if (match("soup", "stew", "chili", "chowder")) return <TopDownSoupScene />;
+  if (match("omelet", "omelette", "scrambled", "fried egg", "eggs")) return <TopDownEggsScene />;
+  return null;
+}
+
 /** Picks a park-specific amusement scene from the event location. Returns null for no match. */
 function detectParkScene(location: string | undefined | null): React.ReactNode | null {
   if (!location) return null;
@@ -3653,10 +3965,13 @@ function detectRestaurantScene(location: string | undefined | null): React.React
 }
 
 /** Picks the ambient animation for a keyword card. */
-function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: string; title?: string; location?: string }) {
+function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" }: { label: string; title?: string; location?: string; notes?: string }) {
   // Breakfast, lunch, and dinner each get their own illustrated scene.
-  // A matching restaurant in the location swaps in its own food scene.
+  // A food named in the notes wins first (homecooked top-down view),
+  // then a matching restaurant in the location swaps in its own food scene.
   if (label === "Meal") {
+    const homecookedScene = detectHomecookedMeal(notes);
+    if (homecookedScene) return homecookedScene;
     const restaurantScene = detectRestaurantScene(location);
     if (restaurantScene) return restaurantScene;
     const t = title.toLowerCase();
@@ -4210,7 +4525,7 @@ function EventCardInner({
       >
         <View style={[eventStyles.illustratedCard, { backgroundColor: event.isOffEvent ? timeOffCardColor : event.color || keyword.bgColor, borderColor: keyword.accentColor + "40", paddingBottom: isLiveScheduledBlock ? 34 : 16, minHeight: isHolidayCard ? (isLiveScheduledBlock ? 155 : 140) : (isLiveScheduledBlock ? 112 : 80), overflow: "hidden", ...(squareTop ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}) }]}>
             {event.posterImageUri && <Image source={{ uri: event.posterImageUri }} style={{ position: 'absolute', inset: 0, opacity: 0.22 }} contentFit="cover" />}
-            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} />}
+            {!event.isOffEvent && <KeywordAmbientAnimation label={keyword.label} title={event.title} location={event.location} notes={event.notes} />}
             <View style={eventStyles.illustratedContent}>
               <Text style={[eventStyles.illustratedTitle, { color: '#FFFFFF' }]}>{event.title}</Text>
               {event.notes && (

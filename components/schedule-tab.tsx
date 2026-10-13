@@ -2854,6 +2854,571 @@ function PluribusScene() {
   );
 }
 
+/** Breaking Bad: RV in the desert at sunset, hazmat-yellow tones. */
+function BreakingBadScene() {
+  return (
+    <SceneRoot base="#A85E28">
+      {/* sunset sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "42%", backgroundColor: "#E8913F", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: 0, right: 0, top: "32%", height: "16%", backgroundColor: "#D97A2E", opacity: 0.8 }} />
+      {/* sun */}
+      <BreatheGlow color="#FFE0A3" size={100} left="66%" bottom={52} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "70%", bottom: 58, width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFD9A0" }} />
+      {/* desert ground */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#8A4E20" }} />
+      {/* RV */}
+      <GentleBob left="56%" bottom={26} width={96} height={56} distance={2} duration={4200}>
+        <View style={{ position: "absolute", left: 0, bottom: 12, width: 96, height: 34, borderRadius: 6, backgroundColor: "#E8DCC0" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 28, width: 30, height: 14, borderRadius: 3, backgroundColor: "#5E7A8A" }} />
+        <View style={{ position: "absolute", left: 42, bottom: 28, width: 22, height: 14, borderRadius: 3, backgroundColor: "#5E7A8A" }} />
+        <View style={{ position: "absolute", left: 70, bottom: 24, width: 20, height: 22, borderRadius: 3, backgroundColor: "#C9B896" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 20, width: 96, height: 5, backgroundColor: "#E8C547" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#2E2E2E" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: "#2E2E2E" }} />
+      </GentleBob>
+      {/* cactus */}
+      <View style={{ position: "absolute", left: "88%", bottom: 30, width: 20, height: 56 }}>
+        <View style={{ position: "absolute", left: 7, bottom: 0, width: 7, height: 56, borderRadius: 4, backgroundColor: "#3E6E2E" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 22, width: 7, height: 20, borderRadius: 4, backgroundColor: "#3E6E2E" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 36, width: 14, height: 7, borderRadius: 4, backgroundColor: "#3E6E2E" }} />
+      </View>
+      {/* heat dust */}
+      <FallingDot left="64%" size={5} color="#E8C98A" duration={3600} delay={0} sway={8} square={false} ellipse={true} spin={false} maxOpacity={0.4} />
+      <FallingDot left="78%" size={4} color="#E8C98A" duration={4200} delay={1400} sway={8} square={false} ellipse={true} spin={false} maxOpacity={0.35} />
+      <TwinkleField color="#FFE8C0" count={3} seed={41} />
+    </SceneRoot>
+  );
+}
+
+/** Better Call Saul: strip-mall law office at night, neon sign, payphone. */
+function BetterCallSaulScene() {
+  return (
+    <SceneRoot base="#1F2A44">
+      <TwinkleField color="#FFFFFF" count={5} seed={52} />
+      {/* storefront */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 78, backgroundColor: "#2E3A58" }} />
+      {/* awning */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 78, height: 14, backgroundColor: "#8A2E3E" }} />
+      {/* lit windows */}
+      <View style={{ position: "absolute", left: "58%", bottom: 30, width: 34, height: 30, borderRadius: 3, backgroundColor: "#FFE8A0", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 30, width: 26, height: 30, borderRadius: 3, backgroundColor: "#FFE8A0", opacity: 0.75 }} />
+      {/* door */}
+      <View style={{ position: "absolute", left: "66%", bottom: 0, width: 18, height: 44, backgroundColor: "#1A2236" }} />
+      {/* neon LAWYER sign */}
+      <BreatheGlow color="#FF5E7A" size={70} left="62%" bottom={84} min={0.25} max={0.45} duration={2400} />
+      <View style={{ position: "absolute", left: "60%", bottom: 88, width: 64, height: 18, borderRadius: 9, borderWidth: 2, borderColor: "#FF5E7A", alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: "#FFB0BE", fontSize: 9, fontWeight: "700", letterSpacing: 2 }}>LAWYER</Text>
+      </View>
+      {/* payphone */}
+      <View style={{ position: "absolute", left: "90%", bottom: 0, width: 16, height: 52 }}>
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 6, height: 30, backgroundColor: "#3E4A66" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 28, width: 16, height: 22, borderRadius: 3, backgroundColor: "#2E3A58" }} />
+        <View style={{ position: "absolute", left: 3, bottom: 40, width: 10, height: 6, borderRadius: 2, backgroundColor: "#5EFA8A", opacity: 0.5 }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Fallout: vault gear door in the wasteland, blue-yellow vault tones. */
+function FalloutScene() {
+  return (
+    <SceneRoot base="#8A7B5C">
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#6E6248" }} />
+      <BreatheGlow color="#E8C547" size={130} left="64%" bottom={30} min={0.15} max={0.3} duration={5600} />
+      {/* vault door: toothed gear ring */}
+      <View style={{ position: "absolute", left: "60%", bottom: 22, width: 84, height: 84 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <View key={i} style={{ position: "absolute", left: 37, top: 31, width: 10, height: 22, backgroundColor: "#5E6E8E", transform: [{ rotate: `${i * 45}deg` }, { translateY: -36 }] }} />
+        ))}
+        <View style={{ position: "absolute", left: 8, top: 8, width: 68, height: 68, borderRadius: 34, backgroundColor: "#5E6E8E" }} />
+        <View style={{ position: "absolute", left: 16, top: 16, width: 52, height: 52, borderRadius: 26, backgroundColor: "#2E5A7E" }} />
+        <View style={{ position: "absolute", left: 28, top: 28, width: 28, height: 28, borderRadius: 14, backgroundColor: "#E8C547", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 36, top: 24, width: 12, height: 36, borderRadius: 6, backgroundColor: "#2E5A7E" }} />
+      </View>
+      {/* rubble */}
+      <View style={{ position: "absolute", left: "88%", bottom: 8, width: 30, height: 12, borderRadius: 4, backgroundColor: "#5E5340", transform: [{ rotate: "8deg" }] }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 6, width: 24, height: 10, borderRadius: 4, backgroundColor: "#5E5340", transform: [{ rotate: "-6deg" }] }} />
+      {/* dust */}
+      <FallingDot left="70%" size={6} color="#C9BC9A" duration={4000} delay={0} sway={10} square={false} ellipse={true} spin={false} maxOpacity={0.4} />
+      <FallingDot left="84%" size={5} color="#C9BC9A" duration={4600} delay={1800} sway={10} square={false} ellipse={true} spin={false} maxOpacity={0.35} />
+    </SceneRoot>
+  );
+}
+
+/** Ted Lasso: locker room with a taped BELIEVE sign, warm light. */
+function TedLassoScene() {
+  return (
+    <SceneRoot base="#6E4E2E">
+      <BreatheGlow color="#FFD9A0" size={140} left="60%" bottom={40} min={0.2} max={0.35} duration={4800} />
+      {/* lockers */}
+      <View style={{ position: "absolute", left: "52%", bottom: 0, width: 26, height: 84, backgroundColor: "#8A6238" }} />
+      <View style={{ position: "absolute", left: "55%", bottom: 62, width: 16, height: 3, backgroundColor: "#5E4226" }} />
+      <View style={{ position: "absolute", left: "55%", bottom: 56, width: 16, height: 3, backgroundColor: "#5E4226" }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 0, width: 26, height: 84, backgroundColor: "#8A6238" }} />
+      <View style={{ position: "absolute", left: "83%", bottom: 62, width: 16, height: 3, backgroundColor: "#5E4226" }} />
+      <View style={{ position: "absolute", left: "83%", bottom: 56, width: 16, height: 3, backgroundColor: "#5E4226" }} />
+      {/* bench */}
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 22, height: 8, backgroundColor: "#4E3620" }} />
+      {/* BELIEVE sign: taped paper, gently swaying */}
+      <GentleSway left="63%" bottom={64} width={56} height={26} arc={3} duration={5000}>
+        <View style={{ position: "absolute", left: 0, top: 2, width: 56, height: 22, backgroundColor: "#FFF8E8", transform: [{ rotate: "-3deg" }] }}>
+          <Text style={{ color: "#2E5AA8", fontSize: 10, fontWeight: "800", letterSpacing: 3, textAlign: "center", marginTop: 5 }}>BELIEVE</Text>
+        </View>
+        <View style={{ position: "absolute", left: 22, top: -3, width: 12, height: 8, backgroundColor: "#E8DCC0", opacity: 0.9, transform: [{ rotate: "6deg" }] }} />
+      </GentleSway>
+      {/* soccer ball */}
+      <View style={{ position: "absolute", left: "88%", bottom: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: "#F5F5F5" }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 14, width: 8, height: 8, backgroundColor: "#2E2E2E", transform: [{ rotate: "45deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** One Piece: pirate ship with a lion figurehead on the Grand Line. */
+function OnePieceScene() {
+  return (
+    <SceneRoot base="#3A8EAE">
+      {/* sunny sky */}
+      <BreatheGlow color="#FFF3C4" size={110} left="70%" bottom={60} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "74%", bottom: 66, width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFE8A0" }} />
+      {/* sea */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "38%", backgroundColor: "#2E6E8E" }} />
+      <View style={{ position: "absolute", left: "48%", right: 0, bottom: 34, height: 4, borderRadius: 2, backgroundColor: "#5EAECE", opacity: 0.6 }} />
+      {/* ship */}
+      <GentleBob left="56%" bottom={24} width={110} height={76} distance={5} duration={3600}>
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 90, height: 28, borderBottomLeftRadius: 22, borderBottomRightRadius: 22, backgroundColor: "#8A5A2E" }} />
+        {/* lion figurehead: mane + face */}
+        <View style={{ position: "absolute", left: 0, bottom: 16, width: 26, height: 26, borderRadius: 13, backgroundColor: "#C98A2E" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 20, width: 14, height: 14, borderRadius: 7, backgroundColor: "#E8B85E" }} />
+        {/* masts + sails */}
+        <View style={{ position: "absolute", left: 52, bottom: 26, width: 5, height: 50, backgroundColor: "#6E4A24" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 52, width: 50, height: 24, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: "#FFF5E0" }} />
+        <View style={{ position: "absolute", left: 82, bottom: 26, width: 4, height: 36, backgroundColor: "#6E4A24" }} />
+        <View style={{ position: "absolute", left: 68, bottom: 44, width: 32, height: 18, borderBottomLeftRadius: 9, borderBottomRightRadius: 9, backgroundColor: "#F5E8D0" }} />
+        {/* flag */}
+        <View style={{ position: "absolute", left: 57, bottom: 74, width: 16, height: 10, backgroundColor: "#2E2E2E" }} />
+      </GentleBob>
+      <TwinkleField color="#FFFFFF" count={3} seed={61} />
+    </SceneRoot>
+  );
+}
+
+/** Stranger Things: bikes at dusk, Christmas lights, red rift on the horizon. */
+function StrangerThingsScene() {
+  return (
+    <SceneRoot base="#3A3A5E">
+      {/* dusk sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "40%", backgroundColor: "#5E4E7E", opacity: 0.7 }} />
+      {/* red rift glow on horizon */}
+      <BreatheGlow color="#E53935" size={120} left="78%" bottom={20} min={0.2} max={0.4} duration={4200} />
+      <View style={{ position: "absolute", left: "74%", bottom: 34, width: 60, height: 26, backgroundColor: "#8E1E1E", opacity: 0.5, transform: [{ skewX: "-12deg" }] }} />
+      {/* street */}
+      <View style={{ position: "absolute", left: "44%", right: 0, bottom: 0, height: 26, backgroundColor: "#2E2E3E" }} />
+      {/* house silhouette */}
+      <View style={{ position: "absolute", left: "52%", bottom: 26, width: 34, height: 30, backgroundColor: "#2A2A44" }} />
+      <View style={{ position: "absolute", left: "50%", bottom: 52, width: 38, height: 8, backgroundColor: "#232338" }} />
+      {/* christmas light string */}
+      <View style={{ position: "absolute", left: "52%", right: 0, top: 18, height: 2, backgroundColor: "#1E1E2E" }} />
+      <PulseDot left="58%" bottom={96} size={7} color="#FF5E5E" duration={1400} />
+      <PulseDot left="66%" bottom={92} size={7} color="#5EFF8A" duration={1700} delay={400} />
+      <PulseDot left="74%" bottom={96} size={7} color="#5EA8FF" duration={1500} delay={800} />
+      <PulseDot left="82%" bottom={92} size={7} color="#FFE85E" duration={1600} delay={200} />
+      {/* bike silhouette */}
+      <View style={{ position: "absolute", left: "56%", bottom: 26, width: 40, height: 26 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: "#1A1A1A" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 0, width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: "#1A1A1A" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 10, width: 20, height: 3, backgroundColor: "#1A1A1A", transform: [{ rotate: "-14deg" }] }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Bluey: sunny Brisbane backyard, Queenslander on stilts, Hills Hoist. */
+function BlueyScene() {
+  return (
+    <SceneRoot base="#5EBAE8">
+      {/* sun */}
+      <BreatheGlow color="#FFF3C4" size={100} left="70%" bottom={70} min={0.35} max={0.55} duration={5000} />
+      <View style={{ position: "absolute", left: "74%", bottom: 76, width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFE8A0" }} />
+      {/* lawn */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", backgroundColor: "#5EA84E" }} />
+      {/* Queenslander on stilts */}
+      <View style={{ position: "absolute", left: "56%", bottom: 34, width: 76, height: 40, backgroundColor: "#E8DCC8" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 72, width: 44, height: 8, backgroundColor: "#8A4E3E", transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 72, width: 44, height: 8, backgroundColor: "#8A4E3E", transform: [{ rotate: "24deg" }] }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 0, width: 8, height: 36, backgroundColor: "#6E5A44" }} />
+      <View style={{ position: "absolute", left: "78%", bottom: 0, width: 8, height: 36, backgroundColor: "#6E5A44" }} />
+      {/* veranda railing */}
+      <View style={{ position: "absolute", left: "56%", bottom: 44, width: 76, height: 4, backgroundColor: "#8A6E54" }} />
+      {/* window */}
+      <View style={{ position: "absolute", left: "64%", bottom: 50, width: 18, height: 16, borderRadius: 2, backgroundColor: "#7EB8E8" }} />
+      {/* Hills Hoist clothesline */}
+      <View style={{ position: "absolute", left: "90%", bottom: 0, width: 6, height: 56, backgroundColor: "#9AA0A8" }} />
+      <GentleSway left="84%" bottom={48} width={40} height={18} arc={8} duration={6000}>
+        <View style={{ position: "absolute", left: 0, top: 4, width: 40, height: 2, backgroundColor: "#9AA0A8" }} />
+        <View style={{ position: "absolute", left: 6, top: 6, width: 10, height: 12, backgroundColor: "#7EB8E8" }} />
+        <View style={{ position: "absolute", left: 24, top: 6, width: 10, height: 12, backgroundColor: "#F5F5F5" }} />
+      </GentleSway>
+      <TwinkleField color="#FFFFFF" count={3} seed={71} />
+    </SceneRoot>
+  );
+}
+
+/** Hey Duggee: scout hut in the woods, campfire, bunting. */
+function DuggeeScene() {
+  return (
+    <SceneRoot base="#2E5E3A">
+      {/* tree */}
+      <View style={{ position: "absolute", left: "52%", bottom: 0, width: 30, height: 90 }}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 6, height: 30, backgroundColor: "#4E3620" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 24, width: 30, height: 66, borderRadius: 15, backgroundColor: "#24522E" }} />
+      </View>
+      {/* scout hut */}
+      <View style={{ position: "absolute", left: "66%", bottom: 0, width: 60, height: 52, backgroundColor: "#8A6238" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 48, width: 64, height: 10, backgroundColor: "#6E4E2E" }} />
+      {/* badge circle on hut */}
+      <View style={{ position: "absolute", left: "78%", bottom: 30, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E8C547" }} />
+      {/* campfire logs */}
+      <View style={{ position: "absolute", left: "88%", bottom: 0, width: 30, height: 26 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 26, height: 6, borderRadius: 3, backgroundColor: "#4E3620", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 26, height: 6, borderRadius: 3, backgroundColor: "#5E4226", transform: [{ rotate: "-12deg" }] }} />
+      </View>
+      {/* flame */}
+      <GentlePulse left="89.5%" bottom={22} width={14} height={20} min={1} max={1.15} duration={1200}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 10, height: 20, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, backgroundColor: "#F58A2E" }} />
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 5, height: 11, borderRadius: 3, backgroundColor: "#FFD95E" }} />
+      </GentlePulse>
+      {/* embers */}
+      <TwinkleField color="#FFB85E" count={4} seed={81} />
+      {/* bunting */}
+      <View style={{ position: "absolute", left: "50%", right: 0, top: 14, height: 2, backgroundColor: "#1E3E26" }} />
+      <View style={{ position: "absolute", left: "58%", top: 16, width: 10, height: 10, backgroundColor: "#E85E5E", transform: [{ rotate: "45deg" }] }} />
+      <View style={{ position: "absolute", left: "68%", top: 16, width: 10, height: 10, backgroundColor: "#5EA8E8", transform: [{ rotate: "45deg" }] }} />
+      <View style={{ position: "absolute", left: "78%", top: 16, width: 10, height: 10, backgroundColor: "#E8C547", transform: [{ rotate: "45deg" }] }} />
+    </SceneRoot>
+  );
+}
+
+/** Avatar: The Last Airbender — four elements swirling around a temple. */
+function AvatarScene() {
+  return (
+    <SceneRoot base="#4A3E6E">
+      {/* twilight sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "36%", backgroundColor: "#5E4E8E", opacity: 0.7 }} />
+      <TwinkleField color="#FFFFFF" count={4} seed={91} />
+      <BreatheGlow color="#FFE8C4" size={120} left="66%" bottom={30} min={0.2} max={0.35} duration={5600} />
+      {/* temple: tiered roofs */}
+      <View style={{ position: "absolute", left: "62%", bottom: 0, width: 64, height: 56 }}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 40, height: 30, backgroundColor: "#8A6E4E" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 28, width: 56, height: 8, backgroundColor: "#6E563E" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 36, width: 44, height: 7, backgroundColor: "#6E563E" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 43, width: 28, height: 6, backgroundColor: "#6E563E" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 49, width: 8, height: 8, borderRadius: 4, backgroundColor: "#E8C547" }} />
+      </View>
+      {/* air: white swirl */}
+      <GentleSway left="54%" bottom={52} width={22} height={22} arc={10} duration={3600}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 22, height: 22, borderRadius: 11, borderWidth: 3, borderColor: "#FFFFFF", borderRightColor: "transparent", opacity: 0.8 }} />
+      </GentleSway>
+      {/* water: blue wave */}
+      <GentleBob left="84%" bottom={40} width={26} height={14} distance={4} duration={3000}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 26, height: 10, borderRadius: 5, backgroundColor: "#5EA8E8", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 6, width: 18, height: 8, borderRadius: 4, backgroundColor: "#7EC8F8", opacity: 0.8 }} />
+      </GentleBob>
+      {/* earth: rock */}
+      <View style={{ position: "absolute", left: "88%", bottom: 6, width: 26, height: 18, backgroundColor: "#7A6A4E", transform: [{ rotate: "8deg" }], borderRadius: 4 }} />
+      {/* fire: flame */}
+      <GentlePulse left="56%" bottom={10} width={14} height={20} min={1} max={1.15} duration={1100}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 10, height: 20, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, backgroundColor: "#F58A2E" }} />
+      </GentlePulse>
+    </SceneRoot>
+  );
+}
+
+/** Yellowstone: Montana ranch at golden hour — barn, peaks, cattle, big sky. */
+function YellowstoneScene() {
+  return (
+    <SceneRoot base="#D89A4E">
+      {/* golden sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "40%", backgroundColor: "#F2C078", opacity: 0.85 }} />
+      <BreatheGlow color="#FFE8B0" size={120} left="64%" bottom={48} min={0.3} max={0.5} duration={5400} />
+      <View style={{ position: "absolute", left: "68%", bottom: 62, width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFE0A0" }} />
+      {/* mountain peaks */}
+      <View style={{ position: "absolute", left: "46%", bottom: 52, width: 70, height: 70, backgroundColor: "#8A7A8E", transform: [{ rotate: "45deg" }] }} />
+      <View style={{ position: "absolute", left: "78%", bottom: 56, width: 54, height: 54, backgroundColor: "#7A6A7E", transform: [{ rotate: "45deg" }] }} />
+      {/* snow caps */}
+      <View style={{ position: "absolute", left: "60%", bottom: 108, width: 20, height: 20, backgroundColor: "#F5F0E8", transform: [{ rotate: "45deg" }] }} />
+      {/* ranch land */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "36%", backgroundColor: "#7A8A3E" }} />
+      {/* barn */}
+      <View style={{ position: "absolute", left: "56%", bottom: 44, width: 52, height: 34, backgroundColor: "#A83E2E" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 74, width: 30, height: 8, backgroundColor: "#8A3226", transform: [{ rotate: "-28deg" }] }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 74, width: 30, height: 8, backgroundColor: "#8A3226", transform: [{ rotate: "28deg" }] }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 44, width: 12, height: 20, backgroundColor: "#6E2A20" }} />
+      {/* cattle silhouettes */}
+      <View style={{ position: "absolute", left: "84%", bottom: 20, width: 30, height: 18 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 6, width: 22, height: 10, borderRadius: 5, backgroundColor: "#3E2E1E" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 10, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#3E2E1E" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 3, height: 8, backgroundColor: "#3E2E1E" }} />
+        <View style={{ position: "absolute", left: 14, bottom: 0, width: 3, height: 8, backgroundColor: "#3E2E1E" }} />
+      </View>
+      <View style={{ position: "absolute", left: "64%", bottom: 12, width: 24, height: 15 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 5, width: 18, height: 8, borderRadius: 4, backgroundColor: "#4E3A26" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 8, width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#4E3A26" }} />
+        <View style={{ position: "absolute", left: 3, bottom: 0, width: 3, height: 7, backgroundColor: "#4E3A26" }} />
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 3, height: 7, backgroundColor: "#4E3A26" }} />
+      </View>
+      {/* fence */}
+      <View style={{ position: "absolute", left: "48%", right: 0, bottom: 34, height: 3, backgroundColor: "#5E4A2E" }} />
+      <TwinkleField color="#FFF5E0" count={3} seed={101} />
+    </SceneRoot>
+  );
+}
+
+/** The Boys: city skyline with a caped hero silhouette flying overhead. */
+function BoysScene() {
+  return (
+    <SceneRoot base="#23233E">
+      <TwinkleField color="#FFFFFF" count={5} seed={102} />
+      {/* skyscrapers */}
+      <View style={{ position: "absolute", left: "50%", bottom: 0, width: 34, height: 96, backgroundColor: "#2E2E4E" }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 0, width: 28, height: 72, backgroundColor: "#2A2A46" }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 0, width: 36, height: 88, backgroundColor: "#2E2E4E" }} />
+      <View style={{ position: "absolute", left: "88%", bottom: 0, width: 26, height: 64, backgroundColor: "#2A2A46" }} />
+      {/* lit windows */}
+      <View style={{ position: "absolute", left: "54%", bottom: 70, width: 8, height: 8, backgroundColor: "#FFE8A0", opacity: 0.8 }} />
+      <View style={{ position: "absolute", left: "66%", bottom: 48, width: 8, height: 8, backgroundColor: "#FFE8A0", opacity: 0.6 }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 60, width: 8, height: 8, backgroundColor: "#FFE8A0", opacity: 0.7 }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 40, width: 8, height: 8, backgroundColor: "#FFE8A0", opacity: 0.55 }} />
+      {/* flying caped silhouette */}
+      <GentleBob left="58%" bottom={84} width={44} height={26} distance={8} duration={2800}>
+        <View style={{ position: "absolute", left: 14, bottom: 8, width: 16, height: 8, borderRadius: 4, backgroundColor: "#1A1A2E" }} />
+        <View style={{ position: "absolute", left: 17, bottom: 14, width: 10, height: 10, borderRadius: 5, backgroundColor: "#1A1A2E" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 2, width: 22, height: 14, backgroundColor: "#8A1E1E", transform: [{ skewX: "-24deg" }], opacity: 0.9 }} />
+      </GentleBob>
+      {/* heat-vision glint */}
+      <PulseDot left="63%" bottom={100} size={6} color="#FF5E5E" duration={1800} />
+      <PulseDot left="65%" bottom={100} size={6} color="#FF5E5E" duration={1800} delay={300} />
+    </SceneRoot>
+  );
+}
+
+/** You: bookstore at night, glass cage, streetlamp glow. */
+function YouScene() {
+  return (
+    <SceneRoot base="#1E2438">
+      <TwinkleField color="#FFFFFF" count={4} seed={103} />
+      {/* bookstore shelves */}
+      <View style={{ position: "absolute", left: "52%", bottom: 0, width: 60, height: 76, backgroundColor: "#3E2E1E" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 58, width: 52, height: 3, backgroundColor: "#2E2216" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 38, width: 52, height: 3, backgroundColor: "#2E2216" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 18, width: 52, height: 3, backgroundColor: "#2E2216" }} />
+      {/* book spines */}
+      <View style={{ position: "absolute", left: "56%", bottom: 61, width: 6, height: 12, backgroundColor: "#8A2E3E" }} />
+      <View style={{ position: "absolute", left: "63%", bottom: 61, width: 6, height: 12, backgroundColor: "#2E5A8A" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 61, width: 6, height: 12, backgroundColor: "#3E7A4E" }} />
+      <View style={{ position: "absolute", left: "59%", bottom: 41, width: 6, height: 12, backgroundColor: "#8A6E2E" }} />
+      <View style={{ position: "absolute", left: "68%", bottom: 41, width: 6, height: 12, backgroundColor: "#6E3E8A" }} />
+      {/* glass cage: faint panels */}
+      <View style={{ position: "absolute", left: "80%", bottom: 0, width: 30, height: 56, borderWidth: 2, borderColor: "#5E7A9E", opacity: 0.5, backgroundColor: "#3E5A7E", }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 28, width: 30, height: 2, backgroundColor: "#5E7A9E", opacity: 0.5 }} />
+      {/* streetlamp */}
+      <View style={{ position: "absolute", left: "92%", bottom: 0, width: 5, height: 70, backgroundColor: "#2E3448" }} />
+      <BreatheGlow color="#FFE8A0" size={60} left="90%" bottom={66} min={0.3} max={0.5} duration={3600} />
+      <View style={{ position: "absolute", left: "90.5%", bottom: 68, width: 14, height: 10, borderRadius: 5, backgroundColor: "#FFE8A0" }} />
+    </SceneRoot>
+  );
+}
+
+/** Chucky: dark playroom, rocking chair moving on its own, lightning. */
+function ChuckyScene() {
+  return (
+    <SceneRoot base="#1A1A2E">
+      {/* window */}
+      <View style={{ position: "absolute", left: "54%", top: 14, width: 44, height: 40, borderRadius: 4, backgroundColor: "#2A3A5E" }} />
+      <View style={{ position: "absolute", left: "54%", top: 32, width: 44, height: 3, backgroundColor: "#1A1A2E" }} />
+      <View style={{ position: "absolute", left: "75%", top: 14, width: 3, height: 40, backgroundColor: "#1A1A2E" }} />
+      {/* lightning flash */}
+      <BreatheGlow color="#B0C8FF" size={80} left="60%" bottom={86} min={0.05} max={0.55} duration={1600} />
+      {/* floor */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#141422" }} />
+      {/* rocking chair, rocking on its own */}
+      <GentleSway left="62%" bottom={24} width={44} height={48} arc={8} duration={2400}>
+        <View style={{ position: "absolute", left: 8, bottom: 14, width: 28, height: 26, borderRadius: 6, backgroundColor: "#4E3626" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 36, width: 28, height: 6, backgroundColor: "#5E422E" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 44, height: 5, borderRadius: 2.5, backgroundColor: "#4E3626" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 4, width: 4, height: 12, backgroundColor: "#4E3626" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 4, width: 4, height: 12, backgroundColor: "#4E3626" }} />
+      </GentleSway>
+      {/* scattered toy blocks */}
+      <View style={{ position: "absolute", left: "84%", bottom: 8, width: 12, height: 12, backgroundColor: "#8A2E3E", transform: [{ rotate: "14deg" }] }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 6, width: 10, height: 10, backgroundColor: "#2E5A8A", transform: [{ rotate: "-10deg" }] }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 6, width: 11, height: 11, backgroundColor: "#8A6E2E", transform: [{ rotate: "22deg" }] }} />
+      {/* ball */}
+      <GentleBob left="78%" bottom={8} width={14} height={14} distance={3} duration={2600}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: "#3E7A4E" }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Lost: tropical island beach, plane wreck, smoke-monster mist. */
+function LostScene() {
+  return (
+    <SceneRoot base="#2E8E9E">
+      {/* sky */}
+      <BreatheGlow color="#FFF3C4" size={100} left="70%" bottom={64} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "74%", bottom: 70, width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFE8A0" }} />
+      {/* sea */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "40%", backgroundColor: "#1E6E7E" }} />
+      {/* beach */}
+      <View style={{ position: "absolute", left: "44%", right: 0, bottom: 30, height: 14, backgroundColor: "#E8D8A8", transform: [{ skewX: "-8deg" }] }} />
+      {/* palm tree */}
+      <View style={{ position: "absolute", left: "88%", bottom: 30, width: 26, height: 70 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 5, height: 52, backgroundColor: "#6E4E2E", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 52, width: 26, height: 8, borderRadius: 4, backgroundColor: "#3E7A3E", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 56, width: 26, height: 8, borderRadius: 4, backgroundColor: "#4E8A4E", transform: [{ rotate: "14deg" }] }} />
+      </View>
+      {/* plane wreck silhouette in jungle */}
+      <View style={{ position: "absolute", left: "54%", bottom: 44, width: 52, height: 30 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 6, width: 44, height: 14, borderRadius: 7, backgroundColor: "#3A3A3A", transform: [{ rotate: "-10deg" }] }} />
+        <View style={{ position: "absolute", left: 34, bottom: 14, width: 8, height: 18, backgroundColor: "#3A3A3A", transform: [{ rotate: "24deg" }] }} />
+      </View>
+      {/* smoke monster: grey drifting mist column */}
+      <FallingDot left="68%" size={16} color="#8A8A8A" duration={5200} delay={0} sway={22} square={false} ellipse={true} spin={false} maxOpacity={0.35} />
+      <FallingDot left="72%" size={12} color="#9A9A9A" duration={6200} delay={2200} sway={22} square={false} ellipse={true} spin={false} maxOpacity={0.3} />
+      <TwinkleField color="#FFFFFF" count={3} seed={104} />
+    </SceneRoot>
+  );
+}
+
+/** Prison Break: watchtower at night, sweeping searchlight, barbed wire, moon. */
+function PrisonBreakScene() {
+  return (
+    <SceneRoot base="#1E2A44">
+      {/* full moon */}
+      <BreatheGlow color="#E8ECF5" size={80} left="72%" bottom={84} min={0.3} max={0.5} duration={6000} />
+      <View style={{ position: "absolute", left: "76%", bottom: 88, width: 28, height: 28, borderRadius: 14, backgroundColor: "#F0F2F8" }} />
+      <TwinkleField color="#FFFFFF" count={5} seed={105} />
+      {/* watchtower */}
+      <View style={{ position: "absolute", left: "56%", bottom: 26, width: 34, height: 70 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 6, height: 56, backgroundColor: "#3A3A3A", transform: [{ rotate: "6deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 0, width: 6, height: 56, backgroundColor: "#3A3A3A", transform: [{ rotate: "-6deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 54, width: 34, height: 18, borderRadius: 3, backgroundColor: "#2E2E2E" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 60, width: 22, height: 8, backgroundColor: "#FFE8A0", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: -4, bottom: 72, width: 42, height: 5, backgroundColor: "#2E2E2E" }} />
+      </View>
+      {/* sweeping searchlight beam */}
+      <GentleSway left="62%" bottom={80} width={90} height={14} arc={26} duration={7000}>
+        <View style={{ position: "absolute", left: 0, top: 4, width: 90, height: 6, backgroundColor: "#FFF5D0", opacity: 0.28, transform: [{ skewX: "-8deg" }] }} />
+      </GentleSway>
+      {/* barbed wire fence */}
+      <View style={{ position: "absolute", left: "48%", right: 0, bottom: 26, height: 3, backgroundColor: "#4A4A4A" }} />
+      <View style={{ position: "absolute", left: "48%", right: 0, bottom: 18, height: 2, backgroundColor: "#4A4A4A" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 0, width: 4, height: 30, backgroundColor: "#3A3A3A" }} />
+      <View style={{ position: "absolute", left: "78%", bottom: 0, width: 4, height: 30, backgroundColor: "#3A3A3A" }} />
+      <View style={{ position: "absolute", left: "92%", bottom: 0, width: 4, height: 30, backgroundColor: "#3A3A3A" }} />
+      {/* ground */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, backgroundColor: "#161E30" }} />
+    </SceneRoot>
+  );
+}
+
+/** IT Welcome to Derry: dusk street, red balloon, storm drain, paper boat. */
+function ITWelcomeToDerryScene() {
+  return (
+    <SceneRoot base="#4E3E5E">
+      {/* dusk sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: "38%", backgroundColor: "#6E4E7E", opacity: 0.7 }} />
+      {/* street */}
+      <View style={{ position: "absolute", left: "44%", right: 0, bottom: 0, height: 30, backgroundColor: "#2E2E3E" }} />
+      <View style={{ position: "absolute", left: "52%", bottom: 14, width: 50, height: 3, backgroundColor: "#8E8E8A", opacity: 0.4 }} />
+      {/* houses */}
+      <View style={{ position: "absolute", left: "56%", bottom: 30, width: 36, height: 32, backgroundColor: "#3A304E" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 30, width: 30, height: 26, backgroundColor: "#342C48" }} />
+      {/* storm drain */}
+      <View style={{ position: "absolute", left: "62%", bottom: 0, width: 26, height: 10, backgroundColor: "#141414" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 3, width: 22, height: 2, backgroundColor: "#3A3A3A" }} />
+      <View style={{ position: "absolute", left: "64%", bottom: 6, width: 22, height: 2, backgroundColor: "#3A3A3A" }} />
+      {/* paper boat floating in gutter */}
+      <GentleBob left="70%" bottom={10} width={22} height={12} distance={2} duration={3200}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 22, height: 10, backgroundColor: "#F5F0E0", transform: [{ skewX: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 8, width: 10, height: 4, backgroundColor: "#E0D8C0" }} />
+      </GentleBob>
+      {/* red balloon drifting */}
+      <GentleBob left="84%" bottom={56} width={24} height={48} distance={10} duration={4200}>
+        <View style={{ position: "absolute", left: 4, bottom: 22, width: 18, height: 24, borderRadius: 10, backgroundColor: "#D81E1E" }} />
+        <View style={{ position: "absolute", left: 11, bottom: 20, width: 4, height: 4, backgroundColor: "#A81818" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 2, height: 20, backgroundColor: "#8A8A8A", opacity: 0.7 }} />
+      </GentleBob>
+      <BreatheGlow color="#D81E1E" size={50} left="84%" bottom={66} min={0.12} max={0.25} duration={4200} />
+    </SceneRoot>
+  );
+}
+
+/** Carrie: prom gym at night, disco ball, falling bucket. */
+function CarrieScene() {
+  return (
+    <SceneRoot base="#2E2A44">
+      {/* gym darkness */}
+      <BreatheGlow color="#8A5EB8" size={110} left="66%" bottom={50} min={0.18} max={0.32} duration={4600} />
+      {/* disco ball */}
+      <GentleSway left="68%" bottom={86} width={26} height={40} arc={6} duration={5000}>
+        <View style={{ position: "absolute", left: 12, top: 0, width: 2, height: 16, backgroundColor: "#4A4A4A" }} />
+        <View style={{ position: "absolute", left: 0, top: 16, width: 26, height: 26, borderRadius: 13, backgroundColor: "#B8C0D0" }} />
+        <View style={{ position: "absolute", left: 6, top: 22, width: 8, height: 8, backgroundColor: "#E8ECF5", transform: [{ rotate: "45deg" }] }} />
+      </GentleSway>
+      {/* light sparkles from disco ball */}
+      <TwinkleField color="#D8B8FF" count={6} seed={106} />
+      {/* dance floor */}
+      <View style={{ position: "absolute", left: "48%", right: 0, bottom: 0, height: 26, backgroundColor: "#3E3458" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 8, width: 20, height: 10, backgroundColor: "#8A5EB8", opacity: 0.35, transform: [{ rotate: "8deg" }] }} />
+      <View style={{ position: "absolute", left: "78%", bottom: 6, width: 24, height: 12, backgroundColor: "#5E8AB8", opacity: 0.3, transform: [{ rotate: "-6deg" }] }} />
+      {/* bucket tipping overhead */}
+      <GentleSway left="84%" bottom={70} width={24} height={24} arc={14} duration={3800}>
+        <View style={{ position: "absolute", left: 2, top: 0, width: 20, height: 16, backgroundColor: "#8A8A8A", transform: [{ rotate: "160deg" }] }} />
+      </GentleSway>
+      {/* falling drops */}
+      <FallingDot left="86%" size={6} color="#C81E1E" duration={1400} delay={0} sway={2} square={false} ellipse={true} spin={false} maxOpacity={0.75} />
+      <FallingDot left="89%" size={5} color="#C81E1E" duration={1700} delay={600} sway={2} square={false} ellipse={true} spin={false} maxOpacity={0.65} />
+    </SceneRoot>
+  );
+}
+
+/** Harry Potter: castle on a hill at night, lit windows, owls, stars. */
+function HarryPotterScene() {
+  return (
+    <SceneRoot base="#1E2A4E">
+      <TwinkleField color="#FFFFFF" count={7} seed={107} />
+      {/* moon */}
+      <BreatheGlow color="#E8ECF5" size={70} left="80%" bottom={88} min={0.3} max={0.5} duration={6000} />
+      <View style={{ position: "absolute", left: "84%", bottom: 92, width: 26, height: 26, borderRadius: 13, backgroundColor: "#F0F2F8" }} />
+      {/* hill */}
+      <View style={{ position: "absolute", left: "44%", right: 0, bottom: 0, height: 44, backgroundColor: "#2A3A2E" }} />
+      {/* castle: keep + towers */}
+      <View style={{ position: "absolute", left: "62%", bottom: 40, width: 44, height: 52, backgroundColor: "#3E3E5E" }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 40, width: 16, height: 66, backgroundColor: "#363652" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 102, width: 20, height: 14, backgroundColor: "#2E2E46", transform: [{ rotate: "0deg" }] }} />
+      <View style={{ position: "absolute", left: "90%", bottom: 40, width: 16, height: 58, backgroundColor: "#363652" }} />
+      <View style={{ position: "absolute", left: "88%", bottom: 94, width: 20, height: 12, backgroundColor: "#2E2E46" }} />
+      {/* tower caps */}
+      <View style={{ position: "absolute", left: "59%", bottom: 114, width: 14, height: 10, backgroundColor: "#2E2E46", transform: [{ rotate: "45deg" }] }} />
+      {/* lit windows */}
+      <PulseDot left="68%" bottom={72} size={6} color="#FFE8A0" duration={2200} />
+      <PulseDot left="76%" bottom={60} size={6} color="#FFE8A0" duration={2600} delay={700} />
+      <PulseDot left="63%" bottom={84} size={5} color="#FFE8A0" duration={2000} delay={1200} />
+      <PulseDot left="92%" bottom={66} size={5} color="#FFE8A0" duration={2400} delay={400} />
+      {/* owls flying */}
+      <GentleSway left="54%" bottom={96} width={24} height={12} arc={12} duration={4200}>
+        <View style={{ position: "absolute", left: 0, bottom: 2, width: 24, height: 5, borderRadius: 2.5, backgroundColor: "#1A1A2E", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 6, height: 8, borderRadius: 3, backgroundColor: "#1A1A2E" }} />
+      </GentleSway>
+      <GentleSway left="72%" bottom={104} width={20} height={10} arc={10} duration={5200} delay={1500}>
+        <View style={{ position: "absolute", left: 0, bottom: 2, width: 20, height: 4, borderRadius: 2, backgroundColor: "#1A1A2E", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 5, height: 7, borderRadius: 2.5, backgroundColor: "#1A1A2E" }} />
+      </GentleSway>
+    </SceneRoot>
+  );
+}
+
 /** Doctor visit: medical badge, beating heart, clipboard. */
 function DoctorScene() {
   return (
@@ -5018,6 +5583,27 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   if (/\bfrom\b/.test(text) && /\b(tv|series|show|episode|season|mgm)\b/.test(text)) return <FromScene />;
   if (has("daredevil")) return <DaredevilScene />;
   if (has("pluribus")) return <PluribusScene />;
+  if (has("breaking bad")) return <BreakingBadScene />;
+  if (has("better call saul", "saul goodman")) return <BetterCallSaulScene />;
+  if (has("fallout")) return <FalloutScene />;
+  if (has("ted lasso")) return <TedLassoScene />;
+  if (has("one piece")) return <OnePieceScene />;
+  if (has("stranger things")) return <StrangerThingsScene />;
+  if (has("bluey")) return <BlueyScene />;
+  if (has("duggee", "hey duggee")) return <DuggeeScene />;
+  if (has("avatar the last airbender", "last airbender", "airbender", "avatar live action")) return <AvatarScene />;
+  if (has("yellowstone")) return <YellowstoneScene />;
+  if (has("the boys")) return <BoysScene />;
+  // "you" is a common word — only match with explicit TV context.
+  if (/\byou\b/.test(text) && /\b(tv|series|show|episode|season|netflix)\b/.test(text)) return <YouScene />;
+  if (has("chucky")) return <ChuckyScene />;
+  // "lost" is a common word — only match with explicit TV/island context.
+  if (/\blost\b/.test(text) && /\b(tv|series|show|episode|season|island|oceanic)\b/.test(text)) return <LostScene />;
+  if (has("prison break")) return <PrisonBreakScene />;
+  if (has("it welcome to derry", "welcome to derry") || (/\bit\b/.test(text) && /\b(tv|series|show)\b/.test(text))) return <ITWelcomeToDerryScene />;
+  // "carrie" could be a name — require TV context.
+  if (/\bcarrie\b/.test(text) && /\b(tv|series|show)\b/.test(text)) return <CarrieScene />;
+  if (has("harry potter", "hogwarts")) return <HarryPotterScene />;
   return null;
 }
 

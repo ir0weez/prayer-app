@@ -146,6 +146,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["basketball"], label: "Basketball", emoji: "🏀", icon: "sports-basketball", bgColor: "#B85C1E", textColor: "#E65100", accentColor: "#FF9800" },
   { keywords: ["soccer", "football"], label: "Soccer", emoji: "⚽", icon: "sports-soccer", bgColor: "#2E7D3A", textColor: "#1B5E20", accentColor: "#4CAF50" },
   { keywords: ["game", "games"], label: "Game", emoji: "🎮", icon: "sports-esports", bgColor: "#2A2A52", textColor: "#311B92", accentColor: "#673AB7" },
+  { keywords: ["scary movie", "horror movie", "spooky movie", "halloween movie", "creepy movie"], label: "Scary Movie Night", emoji: "👻🎬", icon: "theaters", bgColor: "#1A1A2E", textColor: "#E8EAF6", accentColor: "#9D4EDD" },
   { keywords: ["movie", "movies", "film"], label: "Movie", emoji: "🎬", icon: "movie", bgColor: "#3E1F2E", textColor: "#880E4F", accentColor: "#E91E63" },
   { keywords: ["full moon"], label: "Full Moon", emoji: "🌕", icon: "brightness-3", bgColor: "#101828", textColor: "#1A237E", accentColor: "#5C6BC0" },
   { keywords: ["prayer", "pray"], label: "Prayer", emoji: "🙏", icon: "pan-tool", bgColor: "#35245A", textColor: "#311B92", accentColor: "#673AB7" },

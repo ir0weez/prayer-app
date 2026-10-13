@@ -2412,6 +2412,50 @@ function MovieScene() {
   );
 }
 
+/** Spooky horror-movie night: glowing TV with scary silhouette, popcorn, bats, moon, fog. */
+function ScaryMovieScene() {
+  return (
+    <SceneRoot base="#1A1A2E">
+      {/* Full moon */}
+      <View style={{ position: "absolute", left: "78%", bottom: 68, width: 52, height: 52, borderRadius: 26, backgroundColor: "#F5E6A8" }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 80, width: 10, height: 10, borderRadius: 5, backgroundColor: "#E0CE8E" }} />
+      {/* Stars */}
+      <TwinkleField color="#FFFFFF" count={8} seed={11} />
+      {/* Flying bats */}
+      <FlyingBat left="48%" delay={0} />
+      <FlyingBat left="62%" delay={3200} />
+      {/* Fog ground */}
+      <View style={{ position: "absolute", left: "40%", right: 0, bottom: 0, height: "28%", backgroundColor: "#2A2A42" }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: "18%", backgroundColor: "#343450" }} />
+      {/* Glowing TV with scary silhouette */}
+      <BreatheGlow color="#9D4EDD" size={110} left="52%" bottom={14} min={0.22} max={0.42} duration={2600} />
+      <View style={{ position: "absolute", left: "55%", bottom: 18, width: 76, height: 58 }}>
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 10, height: 10, backgroundColor: "#0D0D1A", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 60, bottom: 0, width: 10, height: 10, backgroundColor: "#0D0D1A", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 6, width: 76, height: 48, borderRadius: 5, backgroundColor: "#0D0D1A", borderWidth: 4, borderColor: "#2E2E4E" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 13, width: 52, height: 34, borderRadius: 3, backgroundColor: "#3A2A5E" }}>
+          {/* scary face silhouette in the static */}
+          <View style={{ position: "absolute", left: 13, top: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FF1744", opacity: 0.9 }} />
+          <View style={{ position: "absolute", left: 29, top: 8, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FF1744", opacity: 0.9 }} />
+          <View style={{ position: "absolute", left: 14, top: 22, width: 24, height: 6, borderRadius: 3, backgroundColor: "#0D0D1A" }} />
+        </View>
+      </View>
+      {/* Popcorn bucket */}
+      <GentleBob left="80%" bottom={8} width={40} height={56} distance={5} duration={3000}>
+        <View style={{ position: "absolute", left: 6, bottom: 38, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 40, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 38, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFF3E0" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 36, height: 40, borderRadius: 5, backgroundColor: "#8E2F22" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 5, height: 40, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 19, bottom: 0, width: 5, height: 40, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 30, bottom: 0, width: 5, height: 40, backgroundColor: "#FFFFFF", opacity: 0.85 }} />
+      </GentleBob>
+      {/* Flickering candle */}
+      <View style={{ position: "absolute", left: "48%", bottom: 10, width: 14, height: 26, borderRadius: 3, backgroundColor: "#F5F5DC" }} />
+      <FlickerFlame left="48%" bottom={36} size={12} />
+    </SceneRoot>
+  );
+}
 
 /** Basketball: hoop with net, bobbing ball, court floor. */
 function BasketballScene() {
@@ -3336,6 +3380,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Soccer": return <SoccerScene />;
     case "Game": return <GameScene />;
     case "Movie": return <MovieScene />;
+    case "Scary Movie Night": return <ScaryMovieScene />;
     case "Full Moon": return <FullMoonScene />;
     case "Prayer": return <PrayerScene />;
     case "Outreach": return <OutreachScene />;

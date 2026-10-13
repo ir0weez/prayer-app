@@ -3948,6 +3948,45 @@ function StreetFighterScene() {
   );
 }
 
+/** Enchanted forest at dusk: giant mossy trees, drifting fireflies, a hidden door glowing warm. */
+function WildwoodScene() {
+  return (
+    <SceneRoot base="#152620">
+      {/* Dusk sky hint at top + twinkling spores */}
+      <TwinkleField color="#CDEBC9" count={8} seed={33} />
+      {/* Giant mossy tree trunks (right side) */}
+      <View style={{ position: "absolute", left: "58%", bottom: 0, width: 34, height: 128, borderRadius: 14, backgroundColor: "#2E4630" }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 60, width: 26, height: 18, borderRadius: 9, backgroundColor: "#3E5C3A", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 96, width: 40, height: 12, borderRadius: 6, backgroundColor: "#2E4630", transform: [{ rotate: "-24deg" }] }} />
+      <View style={{ position: "absolute", left: "84%", bottom: 0, width: 26, height: 110, borderRadius: 12, backgroundColor: "#273E2B" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 74, width: 30, height: 12, borderRadius: 6, backgroundColor: "#2E4630", transform: [{ rotate: "20deg" }] }} />
+      {/* Canopy clusters */}
+      <View style={{ position: "absolute", left: "52%", bottom: 118, width: 64, height: 30, borderRadius: 15, backgroundColor: "#1E3524" }} />
+      <View style={{ position: "absolute", left: "76%", bottom: 104, width: 52, height: 26, borderRadius: 13, backgroundColor: "#1E3524" }} />
+      {/* Warm light seeping from the hidden door */}
+      <BreatheGlow color="#FFB74D" size={90} left="60%" bottom={6} min={0.35} max={0.6} duration={3800} />
+      <View style={{ position: "absolute", left: "63%", bottom: 0, width: 24, height: 40, borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor: "#4E342E", borderWidth: 2, borderColor: "#3E2723" }} />
+      <View style={{ position: "absolute", left: "66.5%", bottom: 4, width: 12, height: 32, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: "#FFD54F", opacity: 0.95 }} />
+      <View style={{ position: "absolute", left: "63%", bottom: 38, width: 24, height: 4, backgroundColor: "#3E2723" }} />
+      {/* Drifting fireflies */}
+      <PulseDot left="56%" bottom={70} size={5} color="#FFF9C4" duration={2400} min={0.2} max={1} />
+      <PulseDot left="70%" bottom={52} size={4} color="#FFF9C4" duration={3000} delay={700} min={0.2} max={1} />
+      <PulseDot left="80%" bottom={84} size={5} color="#DCEDC8" duration={2700} delay={1400} min={0.2} max={1} />
+      <PulseDot left="90%" bottom={60} size={4} color="#FFF9C4" duration={3200} delay={2100} min={0.2} max={1} />
+      {/* Rising spore motes */}
+      <MicroRise distance={14} duration={3600} delay={0}>
+        <View style={{ position: "absolute", left: "62%", bottom: 30, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#F1F8E9", opacity: 0.8 }} />
+      </MicroRise>
+      <MicroRise distance={18} duration={4200} delay={1500}>
+        <View style={{ position: "absolute", left: "78%", bottom: 26, width: 4, height: 4, borderRadius: 2, backgroundColor: "#DCEDC8", opacity: 0.8 }} />
+      </MicroRise>
+      {/* Ground mist */}
+      <View style={{ position: "absolute", left: "46%", right: 0, bottom: 0, height: 20, backgroundColor: "#1E3524", opacity: 0.55 }} />
+      <View style={{ position: "absolute", left: "52%", right: 0, bottom: 0, height: 12, backgroundColor: "#2E4630", opacity: 0.5 }} />
+    </SceneRoot>
+  );
+}
+
 function WednesdayScene() {
   return (
     <SceneRoot base="#1B1233">
@@ -6328,6 +6367,7 @@ function detectMovieScene(notes: string | undefined | null, title: string | unde
   if (has("shrek 5", "shrek")) return <Shrek5Scene />;
   if (has("hunger games", "sunrise on the reaping", "mockingjay")) return <HungerGamesScene />;
   if (has("street fighter")) return <StreetFighterScene />;
+  if (has("wildwood")) return <WildwoodScene />;
   return null;
 }
 

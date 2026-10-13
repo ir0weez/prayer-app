@@ -1842,6 +1842,42 @@ function EasterScene() {
   );
 }
 
+/** Easter sunrise service: rising sun over hills, cross silhouette, dawn birds. */
+function SunriseServiceScene() {
+  return (
+    <SceneRoot base="#4A3A6E">
+      <BreatheGlow color="#FF9E5E" size={150} left="58%" bottom={-34} min={0.25} max={0.45} duration={4200} />
+      <GentleBob left="66%" bottom={36} width={78} height={78} distance={7} duration={6000}>
+        <View style={{ position: "absolute", left: 15, bottom: 15, width: 48, height: 48, borderRadius: 24, backgroundColor: "#FFD54F" }} />
+        <View style={{ position: "absolute", left: 37, bottom: 70, width: 4, height: 12, borderRadius: 2, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 37, bottom: -4, width: 4, height: 12, borderRadius: 2, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 70, bottom: 37, width: 12, height: 4, borderRadius: 2, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: -4, bottom: 37, width: 12, height: 4, borderRadius: 2, backgroundColor: "#FFD54F", opacity: 0.85 }} />
+      </GentleBob>
+      <View style={{ position: "absolute", left: "40%", right: "-12%", bottom: -50, height: 100, borderRadius: 50, backgroundColor: "#5E4A7E" }} />
+      <View style={{ position: "absolute", left: "48%", right: "-12%", bottom: -56, height: 96, borderRadius: 48, backgroundColor: "#3E6B4A" }} />
+      <View style={{ position: "absolute", left: "73%", bottom: 46, width: 26, height: 52 }}>
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 6, height: 52, borderRadius: 3, backgroundColor: "#1E1430" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 32, width: 26, height: 6, borderRadius: 3, backgroundColor: "#1E1430" }} />
+      </View>
+      <View style={{ position: "absolute", left: "54%", bottom: 88, width: 14, height: 6 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.7, transform: [{ rotate: "28deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.7, transform: [{ rotate: "-28deg" }] }} />
+      </View>
+      <View style={{ position: "absolute", left: "62%", bottom: 96, width: 14, height: 6 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.55, transform: [{ rotate: "28deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 0, width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFFFFF", opacity: 0.55, transform: [{ rotate: "-28deg" }] }} />
+      </View>
+      <GentleSway left="88%" bottom={8} width={22} height={34} arc={8} duration={4200}>
+        <View style={{ position: "absolute", left: 9, bottom: 0, width: 4, height: 22, borderRadius: 2, backgroundColor: "#2F9E44" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 18, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 20, width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFD54F" }} />
+      </GentleSway>
+      <DriftingCloud top={14} size={40} duration={32000} delay={4000} />
+    </SceneRoot>
+  );
+}
+
 /** Backyard BBQ: kettle grill with sausages, flames & smoke. */
 function BBQScene() {
   return (
@@ -2268,6 +2304,38 @@ function StudyScene() {
   );
 }
 
+/** Graduation: tossed mortarboard with tassel, diploma scroll, falling confetti. */
+function GraduationScene() {
+  return (
+    <SceneRoot base="#2E4A7A">
+      <BreatheGlow color="#FFD54F" size={120} left="68%" bottom={36} min={0.15} max={0.32} duration={4600} />
+      <TwinkleField color="#FFD54F" count={6} seed={44} />
+      {/* Diploma scroll with ribbon */}
+      <GentleSway left="56%" bottom={12} width={64} height={48} arc={10} duration={4200}>
+        <View style={{ position: "absolute", left: 4, bottom: 10, width: 56, height: 30, borderRadius: 15, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 10, width: 8, height: 30, borderRadius: 4, backgroundColor: "#E8DCC0" }} />
+        <View style={{ position: "absolute", left: 52, bottom: 10, width: 8, height: 30, borderRadius: 4, backgroundColor: "#E8DCC0" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 18, width: 8, height: 14, borderRadius: 4, backgroundColor: "#C0392B" }} />
+        <View style={{ position: "absolute", left: 23, bottom: 8, width: 18, height: 12, backgroundColor: "#C0392B", transform: [{ rotate: "10deg" }] }} />
+        <View style={{ position: "absolute", left: 23, bottom: 8, width: 18, height: 12, backgroundColor: "#C0392B", transform: [{ rotate: "-10deg" }] }} />
+      </GentleSway>
+      {/* Mortarboard tossed in the air, tassel swaying */}
+      <GentleBob left="72%" bottom={48} width={76} height={56} distance={9} duration={3200}>
+        <View style={{ position: "absolute", left: 12, bottom: 6, width: 52, height: 14, borderRadius: 7, backgroundColor: "#14142B" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 18, width: 72, height: 10, backgroundColor: "#14142B", transform: [{ rotate: "-7deg" }] }} />
+        <GentleSway left={62} bottom={2} width={10} height={26} arc={22} duration={3000}>
+          <View style={{ width: 3, height: 20, backgroundColor: "#FFD54F" }} />
+          <View style={{ position: "absolute", left: -3, bottom: -5, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFD54F" }} />
+        </GentleSway>
+      </GentleBob>
+      <ConfettiPiece left="58%" delay={0} />
+      <ConfettiPiece left="68%" delay={1200} />
+      <ConfettiPiece left="79%" delay={2400} />
+      <ConfettiPiece left="89%" delay={600} />
+    </SceneRoot>
+  );
+}
+
 /** Coming home: cozy house with glowing windows, chimney smoke, setting sun. */
 function VisitScene() {
   return (
@@ -2453,6 +2521,147 @@ function ScaryMovieScene() {
       {/* Flickering candle */}
       <View style={{ position: "absolute", left: "48%", bottom: 10, width: 14, height: 26, borderRadius: 3, backgroundColor: "#F5F5DC" }} />
       <FlickerFlame left="48%" bottom={36} size={12} />
+    </SceneRoot>
+  );
+}
+
+/** Christmas Movie Night: cozy TV with snowy movie glow, mini tree, popcorn, cocoa. */
+function ChristmasMovieScene() {
+  return (
+    <SceneRoot base="#1E3A2E">
+      {/* Falling snow */}
+      <FallMotes colors={["#FFFFFF"]} count={10} size={4} duration={11000} seed={42} />
+      {/* String lights across the top */}
+      <View style={{ position: "absolute", left: "38%", right: 0, top: 6, height: 3, backgroundColor: "#2E5D3A" }} />
+      <PulseDot left="42%" bottom={128} size={7} color="#FFD54F" duration={1500} />
+      <PulseDot left="54%" bottom={130} size={7} color="#E53935" duration={1700} delay={400} />
+      <PulseDot left="66%" bottom={128} size={7} color="#29B6F6" duration={1600} delay={800} />
+      <PulseDot left="78%" bottom={130} size={7} color="#F48FB1" duration={1800} delay={200} />
+      {/* Warm glow from TV */}
+      <BreatheGlow color="#FFD54F" size={130} left="48%" bottom={10} min={0.18} max={0.34} duration={3600} />
+      {/* TV with snowy Christmas movie */}
+      <View style={{ position: "absolute", left: "50%", bottom: 20, width: 84, height: 64 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 10, height: 12, backgroundColor: "#0D0D1A", transform: [{ rotate: "-16deg" }] }} />
+        <View style={{ position: "absolute", left: 66, bottom: 0, width: 10, height: 12, backgroundColor: "#0D0D1A", transform: [{ rotate: "16deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 8, width: 84, height: 52, borderRadius: 5, backgroundColor: "#0D0D1A", borderWidth: 4, borderColor: "#3E2A1A" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 16, width: 60, height: 36, borderRadius: 3, backgroundColor: "#7FB3D5" }}>
+          {/* snowy scene on screen: moon + hills + falling flakes */}
+          <View style={{ position: "absolute", right: 6, top: 4, width: 14, height: 14, borderRadius: 7, backgroundColor: "#FFF8E1" }} />
+          <View style={{ position: "absolute", left: 0, bottom: 0, right: 0, height: 12, borderTopLeftRadius: 10, borderTopRightRadius: 14, backgroundColor: "#FFFFFF" }} />
+          <View style={{ position: "absolute", left: 6, top: 14, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF" }} />
+          <View style={{ position: "absolute", left: 30, top: 8, width: 4, height: 4, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+          <View style={{ position: "absolute", left: 44, top: 16, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF" }} />
+        </View>
+      </View>
+      {/* Mini Christmas tree next to TV */}
+      <View style={{ position: "absolute", left: "78%", bottom: 12, width: 52, height: 68 }}>
+        <View style={{ position: "absolute", left: 22, bottom: 0, width: 8, height: 12, borderRadius: 2, backgroundColor: "#5D4037" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 16, bottom: 8, borderLeftWidth: 10, borderRightWidth: 10, borderBottomWidth: 16, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2E7D32" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 11, bottom: 20, borderLeftWidth: 15, borderRightWidth: 15, borderBottomWidth: 18, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#388E3C" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 6, bottom: 33, borderLeftWidth: 20, borderRightWidth: 20, borderBottomWidth: 15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#43A047" }} />
+        <PulseDot left={20} bottom={30} size={5} color="#FFD54F" duration={1800} />
+        <PulseDot left={32} bottom={20} size={5} color="#E53935" duration={2000} delay={600} />
+        <View style={{ position: "absolute", left: 23, bottom: 50, width: 8, height: 8, backgroundColor: "#FFD54F", transform: [{ rotate: "45deg" }] }} />
+      </View>
+      {/* Popcorn bucket */}
+      <GentleBob left="44%" bottom={10} width={38} height={50} distance={5} duration={3000}>
+        <View style={{ position: "absolute", left: 6, bottom: 34, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 17, bottom: 36, width: 11, height: 11, borderRadius: 5.5, backgroundColor: "#FFF8E1" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 34, height: 38, borderRadius: 5, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 5, height: 38, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 19, bottom: 0, width: 5, height: 38, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+      </GentleBob>
+      {/* Hot cocoa with steam */}
+      <View style={{ position: "absolute", left: "66%", bottom: 10, width: 24, height: 26 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 24, height: 22, borderRadius: 4, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 18, width: 20, height: 6, borderRadius: 3, backgroundColor: "#4E342E" }} />
+      </View>
+      <RisingDot left="68%" top={100} size={4} color="#FFFFFF" duration={4200} delay={0} maxOpacity={0.4} sway={5} square={false} bordered={false} />
+      <RisingDot left="70%" top={104} size={3} color="#FFFFFF" duration={4800} delay={1400} maxOpacity={0.35} sway={5} square={false} bordered={false} />
+    </SceneRoot>
+  );
+}
+
+/** Christmas Breakfast: pancake stack with berry toppings, cocoa, present, morning sun. */
+function ChristmasBreakfastScene() {
+  return (
+    <SceneRoot base="#5E2E1E">
+      {/* Morning sun glow */}
+      <BreatheGlow color="#FFD54F" size={120} left="64%" bottom={70} min={0.25} max={0.45} duration={5000} />
+      <View style={{ position: "absolute", left: "70%", bottom: 92, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD54F" }} />
+      {/* Table */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "30%", backgroundColor: "#4A2412" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "30%", height: 6, backgroundColor: "#6D4C41" }} />
+      {/* Pancake stack with Christmas berries */}
+      <GentleBob left="52%" bottom={30} width={76} height={52} distance={4} duration={3200}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 60, height: 12, borderRadius: 6, backgroundColor: "#D7A86E" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 11, width: 56, height: 12, borderRadius: 6, backgroundColor: "#E0B878" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 22, width: 52, height: 12, borderRadius: 6, backgroundColor: "#D7A86E" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 32, width: 40, height: 8, borderRadius: 4, backgroundColor: "#8A5A2B", opacity: 0.85 }} />
+        <View style={{ position: "absolute", left: 28, bottom: 38, width: 8, height: 8, borderRadius: 4, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 38, width: 8, height: 8, borderRadius: 4, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 34, bottom: 44, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#2E7D32" }} />
+      </GentleBob>
+      {/* Hot cocoa with steam */}
+      <View style={{ position: "absolute", left: "74%", bottom: 30, width: 30, height: 34 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 30, height: 28, borderRadius: 5, backgroundColor: "#C62828" }} />
+        <View style={{ position: "absolute", left: 3, bottom: 24, width: 24, height: 7, borderRadius: 3, backgroundColor: "#4E342E" }} />
+        <View style={{ position: "absolute", left: 28, bottom: 8, width: 8, height: 12, borderRadius: 4, borderWidth: 3, borderColor: "#C62828", backgroundColor: "transparent" }} />
+      </View>
+      <RisingDot left="76%" top={92} size={4} color="#FFFFFF" duration={4200} delay={300} maxOpacity={0.4} sway={5} square={false} bordered={false} />
+      <RisingDot left="78%" top={96} size={3} color="#FFFFFF" duration={5000} delay={1800} maxOpacity={0.35} sway={5} square={false} bordered={false} />
+      {/* Small present */}
+      <View style={{ position: "absolute", left: "44%", bottom: 30, width: 30, height: 26 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 30, height: 22, borderRadius: 3, backgroundColor: "#1565C0" }} />
+        <View style={{ position: "absolute", left: 13, bottom: 0, width: 6, height: 22, backgroundColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", left: 9, bottom: 22, width: 12, height: 5, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+      </View>
+      {/* Twinkles */}
+      <TwinkleField color="#FFD54F" count={6} seed={43} />
+    </SceneRoot>
+  );
+}
+
+/** Christmas Dinner: roast turkey with garnish, candles, wine, tree in background, snow. */
+function ChristmasDinnerScene() {
+  return (
+    <SceneRoot base="#4A1E1E">
+      {/* Snow outside */}
+      <FallMotes colors={["#FFFFFF"]} count={8} size={4} duration={12000} seed={44} />
+      {/* Warm candle glow */}
+      <BreatheGlow color="#FF8F00" size={140} left="52%" bottom={20} min={0.2} max={0.38} duration={3800} />
+      {/* Table */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "32%", backgroundColor: "#3A1512" }} />
+      {/* Roast turkey on platter */}
+      <GentleBob left="52%" bottom={32} width={92} height={60} distance={4} duration={3600}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 92, height: 16, borderRadius: 8, backgroundColor: "#D7CCC8" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 12, width: 68, height: 38, borderRadius: 19, backgroundColor: "#B86A28" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 38, width: 14, height: 18, borderRadius: 7, backgroundColor: "#E8D5C4" }} />
+        <View style={{ position: "absolute", left: 56, bottom: 38, width: 14, height: 18, borderRadius: 7, backgroundColor: "#E8D5C4" }} />
+        <View style={{ position: "absolute", left: 26, bottom: 44, width: 6, height: 6, borderRadius: 3, backgroundColor: "#2E7D32" }} />
+        <View style={{ position: "absolute", left: 60, bottom: 44, width: 6, height: 6, borderRadius: 3, backgroundColor: "#C62828" }} />
+      </GentleBob>
+      <RisingDot left="60%" top={84} size={4} color="#FFFFFF" duration={4600} delay={0} maxOpacity={0.4} sway={5} square={false} bordered={false} />
+      <RisingDot left="64%" top={88} size={3} color="#FFFFFF" duration={5200} delay={1500} maxOpacity={0.35} sway={5} square={false} bordered={false} />
+      {/* Wine glasses */}
+      <View style={{ position: "absolute", left: "78%", bottom: 32, width: 18, height: 34 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 16, width: 14, height: 18, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderWidth: 2, borderColor: "#FFFFFF", backgroundColor: "transparent", opacity: 0.8 }} />
+        <View style={{ position: "absolute", left: 4, bottom: 18, width: 10, height: 8, borderRadius: 3, backgroundColor: "#8E1F2F", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 2, height: 16, backgroundColor: "#FFFFFF", opacity: 0.6 }} />
+      </View>
+      {/* Candles with flickering flames */}
+      <View style={{ position: "absolute", left: "44%", bottom: 32, width: 12, height: 30, borderRadius: 3, backgroundColor: "#F5F5DC" }} />
+      <FlickerFlame left="44%" bottom={62} size={12} />
+      <View style={{ position: "absolute", left: "86%", bottom: 32, width: 12, height: 24, borderRadius: 3, backgroundColor: "#F5F5DC" }} />
+      <FlickerFlame left="86%" bottom={56} size={10} />
+      {/* Tree silhouette in background */}
+      <View style={{ position: "absolute", left: "66%", bottom: 60, width: 44, height: 60, opacity: 0.55 }}>
+        <View style={{ width: 0, height: 0, position: "absolute", left: 14, bottom: 8, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#2E7D32" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 9, bottom: 20, borderLeftWidth: 13, borderRightWidth: 13, borderBottomWidth: 16, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#388E3C" }} />
+        <View style={{ width: 0, height: 0, position: "absolute", left: 4, bottom: 34, borderLeftWidth: 18, borderRightWidth: 18, borderBottomWidth: 14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#43A047" }} />
+        <PulseDot left={19} bottom={40} size={4} color="#FFD54F" duration={1800} />
+        <PulseDot left={28} bottom={28} size={4} color="#E53935" duration={2100} delay={500} />
+      </View>
     </SceneRoot>
   );
 }
@@ -3371,6 +3580,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Birthday": return <BirthdayScene />;
     case "Christmas": return <ChristmasScene />;
     case "Easter": return <EasterScene />;
+    case "Sunrise Service": return <SunriseServiceScene />;
     case "Thanksgiving": return <ThanksgivingScene />;
     case "Wedding": return <WeddingScene />;
     case "Memorial": return <MemorialScene />;
@@ -3381,6 +3591,9 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Game": return <GameScene />;
     case "Movie": return <MovieScene />;
     case "Scary Movie Night": return <ScaryMovieScene />;
+    case "Christmas Movie Night": return <ChristmasMovieScene />;
+    case "Christmas Breakfast": return <ChristmasBreakfastScene />;
+    case "Christmas Dinner": return <ChristmasDinnerScene />;
     case "Full Moon": return <FullMoonScene />;
     case "Prayer": return <PrayerScene />;
     case "Outreach": return <OutreachScene />;
@@ -3388,6 +3601,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "" }: { label: 
     case "Travel": return <TravelScene />;
     case "Hotel": return <HotelScene />;
     case "Study": return <StudyScene />;
+    case "Graduation": return <GraduationScene />;
     case "Visit": return <VisitScene />;
     case "Amusement Park": {
       const parkScene = detectParkScene(location);
@@ -3609,6 +3823,9 @@ function WhiteBlockCircleButton({ label, icon, color, onPress }: { label: string
 // Holiday keywords get bigger, pinned-to-top cards so they stand out.
 const HOLIDAY_KEYWORD_LABELS = [
   "Christmas",
+  "Christmas Movie Night",
+  "Christmas Breakfast",
+  "Christmas Dinner",
   "Easter",
   "Thanksgiving",
   "Halloween",

@@ -3909,6 +3909,45 @@ function HungerGamesScene() {
   );
 }
 
+/** Fighting-game stage: dojo at sunset, swaying paper lanterns, FIGHT energy burst, versus health bars. */
+function StreetFighterScene() {
+  const burstAngles = [-40, -20, 0, 20, 40];
+  return (
+    <SceneRoot base="#8E2F1B">
+      {/* Big low sun + warm glow */}
+      <BreatheGlow color="#FFB74D" size={130} left="64%" bottom={52} min={0.3} max={0.55} duration={4200} />
+      <View style={{ position: "absolute", left: "70%", bottom: 62, width: 52, height: 52, borderRadius: 26, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+      {/* Wooden dojo floor planks (right side) */}
+      <View style={{ position: "absolute", left: "50%", right: 0, bottom: 0, height: 30, backgroundColor: "#6D4C41" }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 9, height: 2, backgroundColor: "#4E342E", opacity: 0.7 }} />
+        <View style={{ position: "absolute", left: 0, right: 0, top: 19, height: 2, backgroundColor: "#4E342E", opacity: 0.7 }} />
+      </View>
+      {/* Paper lanterns swaying from the eaves */}
+      <GentleSway left="56%" bottom={88} width={22} height={34} arc={7} duration={3600}>
+        <View style={{ position: "absolute", left: 10, top: 0, width: 2, height: 8, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 2, top: 8, width: 18, height: 24, borderRadius: 9, backgroundColor: "#FF8A65" }} />
+        <View style={{ position: "absolute", left: 8, top: 14, width: 6, height: 12, borderRadius: 3, backgroundColor: "#FFE0B2", opacity: 0.9 }} />
+      </GentleSway>
+      <GentleSway left="86%" bottom={92} width={22} height={34} arc={7} duration={4200} delay={900}>
+        <View style={{ position: "absolute", left: 10, top: 0, width: 2, height: 8, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 2, top: 8, width: 18, height: 24, borderRadius: 9, backgroundColor: "#FF8A65" }} />
+        <View style={{ position: "absolute", left: 8, top: 14, width: 6, height: 12, borderRadius: 3, backgroundColor: "#FFE0B2", opacity: 0.9 }} />
+      </GentleSway>
+      {/* Versus health bars at top */}
+      <View style={{ position: "absolute", left: "52%", top: 12, width: "20%", height: 8, borderRadius: 4, backgroundColor: "#1B5E20" }} />
+      <View style={{ position: "absolute", left: "52%", top: 12, width: "13%", height: 8, borderRadius: 4, backgroundColor: "#76FF03" }} />
+      <View style={{ position: "absolute", right: "4%", top: 12, width: "20%", height: 8, borderRadius: 4, backgroundColor: "#B71C1C" }} />
+      <View style={{ position: "absolute", right: "11%", top: 12, width: "13%", height: 8, borderRadius: 4, backgroundColor: "#FF5252" }} />
+      {/* FIGHT energy burst: pulsing core + radiating lines */}
+      <BreatheGlow color="#FFFFFF" size={64} left="66%" bottom={44} min={0.15} max={0.5} duration={1300} />
+      {burstAngles.map((a) => (
+        <View key={"sf" + a} style={{ position: "absolute", left: "72%", bottom: 58, width: 26, height: 3, borderRadius: 1.5, backgroundColor: "#FFE082", opacity: 0.75, transform: [{ rotate: `${a}deg` }] }} />
+      ))}
+      <PulseDot left="72%" bottom={58} size={10} color="#FFFFFF" duration={1300} min={0.4} max={1} />
+    </SceneRoot>
+  );
+}
+
 function WednesdayScene() {
   return (
     <SceneRoot base="#1B1233">
@@ -4065,6 +4104,74 @@ function TheaterScene() {
       <View style={{ position: "absolute", left: "63%", bottom: 0, width: 4, height: 26, backgroundColor: "#C9A227" }} />
       <View style={{ position: "absolute", left: "63%", bottom: 24, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#E3B93C", marginLeft: -2.5 }} />
       <View style={{ position: "absolute", left: "52.5%", bottom: 10, width: "10%", height: 12, borderBottomWidth: 4, borderColor: "#C62828", borderBottomLeftRadius: 18, borderBottomRightRadius: 18 }} />
+    </SceneRoot>
+  );
+}
+
+/** A polaroid print that "develops": fades in, holds, fades out, loops. */
+function DevelopPrint({ left, bottom, width, height, rotate = 0, delay = 0, photo }: {
+  left: number | `${number}%`; bottom: number; width: number; height: number; rotate?: number; delay?: number; photo: string;
+}) {
+  const op = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 1, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 1, duration: 2600, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, op]);
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, width, height, backgroundColor: "#FAFAF5", borderRadius: 3, opacity: op, transform: [{ rotate: `${rotate}deg` }] }}>
+      <View style={{ position: "absolute", left: 5, right: 5, top: 5, height: height - 20, borderRadius: 2, backgroundColor: photo }} />
+      <View style={{ position: "absolute", left: 5, right: 5, bottom: 5, height: 8, borderRadius: 2, backgroundColor: "#D7CCC8", opacity: 0.7 }} />
+    </Animated.View>
+  );
+}
+
+/** Warm vintage-photography scene: camera with flashing bulb, polaroids developing one by one, drifting prints. */
+function PhotoScene() {
+  return (
+    <SceneRoot base="#4A3423">
+      {/* Warm studio backdrop */}
+      <View style={{ position: "absolute", left: "46%", right: 0, top: 0, bottom: 0, backgroundColor: "#5D4037", opacity: 0.55 }} />
+      <BreatheGlow color="#FFB74D" size={150} left="60%" bottom={30} min={0.14} max={0.3} duration={4200} />
+      {/* Drifting photo prints */}
+      <View style={{ position: "absolute", left: "50%", bottom: 60 }}>
+        <MicroRise distance={26} duration={3600} delay={0}>
+          <View style={{ width: 24, height: 28, backgroundColor: "#FAFAF5", borderRadius: 2, opacity: 0.9 }} />
+        </MicroRise>
+      </View>
+      <View style={{ position: "absolute", left: "88%", bottom: 44 }}>
+        <MicroRise distance={22} duration={3200} delay={1500}>
+          <View style={{ width: 20, height: 24, backgroundColor: "#FAFAF5", borderRadius: 2, opacity: 0.85 }} />
+        </MicroRise>
+      </View>
+      {/* Vintage camera (right side) */}
+      <View style={{ position: "absolute", left: "62%", bottom: 18, width: 92, height: 64 }}>
+        {/* Body */}
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 92, height: 56, borderRadius: 8, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 0, bottom: 40, width: 92, height: 16, borderTopLeftRadius: 8, borderTopRightRadius: 8, backgroundColor: "#4E342E" }} />
+        {/* Viewfinder hump */}
+        <View style={{ position: "absolute", left: 30, bottom: 52, width: 32, height: 14, borderRadius: 4, backgroundColor: "#3E2723" }} />
+        {/* Lens */}
+        <View style={{ position: "absolute", left: 30, bottom: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 36, bottom: 18, width: 20, height: 20, borderRadius: 10, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", left: 41, bottom: 23, width: 10, height: 10, borderRadius: 5, backgroundColor: "#4FC3F7", opacity: 0.8 }} />
+        {/* Flash bulb stalk */}
+        <View style={{ position: "absolute", left: 72, bottom: 52, width: 5, height: 12, backgroundColor: "#6D4C41" }} />
+      </View>
+      {/* Flash bulb burst */}
+      <PulseDot left="84%" bottom={86} size={14} color="#FFFFFF" delay={0} duration={1100} min={0} max={1} />
+      <BreatheGlow color="#FFFFFF" size={70} left="82%" bottom={66} min={0.05} max={0.4} duration={1100} />
+      {/* Polaroids fanning out, developing one by one */}
+      <DevelopPrint left="48%" bottom={34} width={52} height={62} rotate={-8} delay={0} photo="#81D4FA" />
+      <DevelopPrint left="60%" bottom={40} width={52} height={62} rotate={4} delay={2600} photo="#A5D6A7" />
+      <DevelopPrint left="72%" bottom={34} width={52} height={62} rotate={-3} delay={5200} photo="#FFCC80" />
     </SceneRoot>
   );
 }
@@ -6220,6 +6327,7 @@ function detectMovieScene(notes: string | undefined | null, title: string | unde
   if (has("avengers doomsday", "doomsday movie")) return <AvengersDoomsdayScene />;
   if (has("shrek 5", "shrek")) return <Shrek5Scene />;
   if (has("hunger games", "sunrise on the reaping", "mockingjay")) return <HungerGamesScene />;
+  if (has("street fighter")) return <StreetFighterScene />;
   return null;
 }
 
@@ -6294,6 +6402,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
       if (movieScene) return movieScene;
       return <TheaterScene />;
     }
+    case "Photo": return <PhotoScene />;
     case "Scary Movie Night": return <ScaryMovieScene />;
     case "Christmas Movie Night": return <ChristmasMovieScene />;
     case "Christmas Breakfast": return <ChristmasBreakfastScene />;

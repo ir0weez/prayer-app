@@ -155,6 +155,7 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["scary movie", "horror movie", "spooky movie", "halloween movie", "creepy movie"], label: "Scary Movie Night", emoji: "👻🎬", icon: "theaters", bgColor: "#1A1A2E", textColor: "#E8EAF6", accentColor: "#9D4EDD" },
   { keywords: ["movie theater", "theater", "theatre", "cinema"], label: "Theater", emoji: "🎭", icon: "theaters", bgColor: "#1F2A44", textColor: "#E8EAF6", accentColor: "#FFD54F" },
   { keywords: ["movie", "movies", "film"], label: "Movie", emoji: "🎬", icon: "movie", bgColor: "#3E1F2E", textColor: "#880E4F", accentColor: "#E91E63" },
+  { keywords: ["photo", "photos", "picture", "pictures", "photography", "photoshoot", "camera"], label: "Photo", emoji: "📷", icon: "photo-camera", bgColor: "#4A3423", textColor: "#3E2723", accentColor: "#FFB74D" },
   { keywords: ["full moon"], label: "Full Moon", emoji: "🌕", icon: "brightness-3", bgColor: "#101828", textColor: "#1A237E", accentColor: "#5C6BC0" },
   { keywords: ["prayer", "pray"], label: "Prayer", emoji: "🙏", icon: "pan-tool", bgColor: "#35245A", textColor: "#311B92", accentColor: "#673AB7" },
   { keywords: ["mission", "outreach", "volunteer"], label: "Outreach", emoji: "🌍❤️", icon: "public", bgColor: "#17695E", textColor: "#006064", accentColor: "#00BCD4" },

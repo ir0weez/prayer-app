@@ -241,10 +241,24 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
     }
   }, [elapsedSeconds, onTimeBonus]);
 
-  if (!visible) return null;
-
   const currentPerson = sessionPeople[currentIndex];
   const isLast = currentIndex >= totalCount - 1;
+
+  // Keep the ongoing notification showing who is currently being prayed for.
+  // NOTE: this hook must stay above the `!visible` early return — hooks must
+  // run in the same order on every render or React crashes the app.
+  useEffect(() => {
+    if (!visible) return;
+    const person = sessionPeople[currentIndex];
+    const name = person?.name ?? "";
+    if (isNativePrayerTimerAvailable()) {
+      updatePrayerTimerNotification(name);
+    } else {
+      setPrayerNotificationPersonName(name || null);
+    }
+  }, [visible, currentIndex, sessionPeople]);
+
+  if (!visible) return null;
 
   const handlePray = (e: any) => {
     if (!currentPerson || isFinished) return;
@@ -261,18 +275,6 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   };
   // Keep the ref pointed at the latest handlePray for notification callbacks.
   handlePrayRef.current = () => handlePray(null);
-
-  // Keep the ongoing notification showing who is currently being prayed for.
-  useEffect(() => {
-    if (!visible) return;
-    const person = sessionPeople[currentIndex];
-    const name = person?.name ?? "";
-    if (isNativePrayerTimerAvailable()) {
-      updatePrayerTimerNotification(name);
-    } else {
-      setPrayerNotificationPersonName(name || null);
-    }
-  }, [visible, currentIndex, sessionPeople]);
 
   const handleSkip = () => {
     if (!currentPerson) return;

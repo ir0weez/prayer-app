@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, Dimensions, Modal, Pressable, Text, View } from "react-native";
+import { Animated, AppState, BackHandler, Dimensions, Easing, Modal, Pressable, Text, View } from "react-native";
+import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
@@ -25,6 +26,115 @@ type Props = {
   onTimeBonus: (position?: { x: number; y: number }) => void;
   onClose: () => void;
 };
+
+/** Time-of-day bucket for the prayer session backdrop (his white-block buckets). */
+type PrayerSkyBucket = "morning" | "afternoon" | "evening" | "night";
+
+function getPrayerSkyBucket(d: Date): PrayerSkyBucket {
+  const h = d.getHours();
+  if (h >= 6 && h < 11) return "morning";
+  if (h >= 11 && h < 16) return "afternoon";
+  if (h >= 16 && h < 20) return "evening";
+  return "night";
+}
+
+/** A large soft glow slowly breathing — calm, never competing with text. */
+function SkyGlow({ color, size, top, bottom, min = 0.07, max = 0.15, duration = 5200, delay = 0 }: {
+  color: string; size: number; top?: number; bottom?: number;
+  min?: number; max?: number; duration?: number; delay?: number;
+}) {
+  const op = useRef(new Animated.Value(min)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: max, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: min, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, duration, max, min, op]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute", alignSelf: "center",
+        top, bottom, width: size, height: size, borderRadius: size / 2,
+        backgroundColor: color, opacity: op,
+      }}
+    />
+  );
+}
+
+/** One faint twinkling star (night sky). */
+function SkyStar({ left, top, size, delay }: { left: `${number}%`; top: `${number}%`; size: number; delay: number }) {
+  const op = useRef(new Animated.Value(0.2)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.65, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.2, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [delay, op]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", left, top, width: size, height: size, borderRadius: size / 2, backgroundColor: "#CFE0FF", opacity: op }}
+    />
+  );
+}
+
+const NIGHT_STARS: Array<{ left: `${number}%`; top: `${number}%`; size: number; delay: number }> = [
+  { left: "12%", top: "10%", size: 3, delay: 0 },
+  { left: "30%", top: "6%", size: 2, delay: 700 },
+  { left: "52%", top: "12%", size: 3.5, delay: 1400 },
+  { left: "70%", top: "7%", size: 2, delay: 400 },
+  { left: "86%", top: "16%", size: 3, delay: 1100 },
+  { left: "22%", top: "22%", size: 2, delay: 1800 },
+  { left: "63%", top: "24%", size: 2.5, delay: 900 },
+];
+
+/**
+ * Subtle time-of-day backdrop wash for the prayer session.
+ * Gradient tint + one tiny motif per bucket; content always renders above it.
+ */
+function PrayerSessionSky({ bucket }: { bucket: PrayerSkyBucket }) {
+  const wash = {
+    morning: { from: "#FFD98A", fromOp: 0.15, to: "#FFD98A", toOp: 0 },
+    afternoon: { from: "#CFE4FF", fromOp: 0.1, to: "#CFE4FF", toOp: 0 },
+    evening: { from: "#FF9E5E", fromOp: 0, to: "#FF9E5E", toOp: 0.17 },
+    night: { from: "#1B2A6B", fromOp: 0.2, to: "#1B2A6B", toOp: 0 },
+  }[bucket];
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+      <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+        <Defs>
+          <LinearGradient id="prayerSkyWash" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={wash.from} stopOpacity={wash.fromOp} />
+            <Stop offset="1" stopColor={wash.to} stopOpacity={wash.toOp} />
+          </LinearGradient>
+        </Defs>
+        <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#prayerSkyWash)" />
+      </Svg>
+      {bucket === "morning" && (
+        <SkyGlow color="#FFD98A" size={230} top={-50} min={0.08} max={0.16} />
+      )}
+      {bucket === "evening" && (
+        <SkyGlow color="#FF9E5E" size={270} bottom={-70} min={0.07} max={0.14} duration={6000} />
+      )}
+      {bucket === "night" && (
+        <>
+          {NIGHT_STARS.map((s, i) => (
+            <SkyStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -136,6 +246,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   const handlePrayRef = useRef<() => void>(() => {});
   const timerRef2 = useRef<View>(null);
   const [timerPos, setTimerPos] = useState<{ x: number; y: number } | null>(null);
+  // Time-of-day backdrop bucket, locked in when the session opens.
+  const [skyBucket, setSkyBucket] = useState<PrayerSkyBucket>("night");
   // Always call the latest onClose from native notification callbacks.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -166,6 +278,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
       setIsFinished(false);
       setTotalCount(people.length);
       setSessionPeople([...people]);
+      // Lock in the time-of-day backdrop once per session (no live switching).
+      setSkyBucket(getPrayerSkyBucket(new Date()));
       lastBonusMinute.current = 0;
       sessionStartRef.current = Date.now();
       // Start timer
@@ -294,6 +408,8 @@ export function PrayerSession({ visible, people, onPray, onTimeBonus, onClose }:
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={() => {}}>
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        {/* Subtle time-of-day backdrop wash (behind everything, non-interactive). */}
+        <PrayerSessionSky bucket={skyBucket} />
         {/* Timer */}
         <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "700", letterSpacing: 1, marginBottom: 8 }}>
           PRAYER TIME

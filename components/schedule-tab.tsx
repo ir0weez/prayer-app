@@ -135,6 +135,8 @@ import { DailySummaryCard } from "@/components/daily-summary-card";
 import { SpotifySongCard } from "@/components/spotify-song-card";
 import { EmergencyPrayersDisplay } from "@/components/emergency-prayers-display";
 import { BIBLE_BOOKS, loadUnifiedBible, markChapterAsRead, getCurrentBibleDisplay, UnifiedBibleState, UNIFIED_BIBLE_KEY, getNextUnreadChapter, getCurrentBook, getBookProgress, calculateReadingStreak, toggleChapterBookmark, markChapterAsUnread, isBookComplete, markBookAsComplete } from "@/lib/bible-unified";
+import { getBibleBookGenre } from "@/lib/bible-genres";
+import { BibleGenreMotif } from "@/components/bible-genre-motif";
 import { syncUnifiedBibleToAllOldSystems } from "@/lib/bible-sync"; // Sync Bible state to legacy storage systems
 import type { XpAction, XpGainPosition } from "@/lib/xp-engine";
 
@@ -10624,6 +10626,11 @@ export function ScheduleTab({
         }
         case "personal-study-card": {
           const hasCurrentBook = Object.values(item.data.state.bookStatuses).some((status) => status === 'current');
+          // Subtle genre motif for the current book (Law → tablets, Poetry → harp, …).
+          const currentBookName = hasCurrentBook
+            ? (Object.entries(item.data.state.bookStatuses).find(([_, status]) => status === 'current')?.[0] as string | undefined)
+            : undefined;
+          const bookGenre = getBibleBookGenre(currentBookName);
           return (
             <Pressable
               onPress={() => hasCurrentBook
@@ -10635,7 +10642,9 @@ export function ScheduleTab({
                 <View style={{ padding: 16, gap: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      <MaterialIcons name="book" size={20} color={colors.primary} />
+                      {bookGenre
+                        ? <BibleGenreMotif genre={bookGenre} color={colors.primary} size={20} />
+                        : <MaterialIcons name="book" size={20} color={colors.primary} />}
                       <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '600' }}>Personal Study</Text>
                       {hasCurrentBook && <Pressable
                         onPress={async () => {

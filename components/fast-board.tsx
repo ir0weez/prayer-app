@@ -533,7 +533,17 @@ function FastTile({
         )}
       </Animated.View>
       {showBadge && (
-        <Animated.View style={{ transform: [{ scale: badgeScale }] }}>
+        <Animated.View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: "none",
+            transform: [{ scale: badgeScale }],
+          }}
+        >
           {special ? (
             <SpecialBadge kind={special} size={badgeSize} colors={colors} />
           ) : status ? (
@@ -895,7 +905,7 @@ export function FastBoard({
         <View style={{ position: "relative" }}>
           {/* Dotted serpentine trail connecting tile centers, like the mockup */}
           <Svg
-            style={{ position: "absolute", top: 0, left: 0 }}
+            style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
             width={width}
             height={visibleRowIndexes.length * (tile + 6 + gap) + 14}
             pointerEvents="none"

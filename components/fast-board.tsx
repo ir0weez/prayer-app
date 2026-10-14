@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Polygon } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polygon, Polyline } from "react-native-svg";
 import {
   getFastCalendarDays,
   getFastEndDate,
@@ -60,7 +60,12 @@ export function FastPawnShape({ id, size = 20, color = "#FFD54F" }: { id: string
   const kind = getPawnDef(id).id;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {kind === "pebble" && <Circle cx="12" cy="12" r="9" fill={color} />}
+      {kind === "pebble" && (
+        <>
+          <Circle cx="12" cy="12" r="9" fill={color} />
+          <Circle cx="8.5" cy="8.5" r="2.8" fill="#FFFFFF" opacity="0.55" />
+        </>
+      )}
       {kind === "ring" && <Circle cx="12" cy="12" r="8" fill="none" stroke={color} strokeWidth="3.5" />}
       {kind === "star" && (
         <Path
@@ -529,10 +534,10 @@ function FastTile({
       </Animated.View>
       {showBadge && (
         <Animated.View style={{ transform: [{ scale: badgeScale }] }}>
-          {status ? (
-            <MarkBadge status={status} size={badgeSize} colors={colors} />
-          ) : special ? (
+          {special ? (
             <SpecialBadge kind={special} size={badgeSize} colors={colors} />
+          ) : status ? (
+            <MarkBadge status={status} size={badgeSize} colors={colors} />
           ) : null}
         </Animated.View>
       )}
@@ -781,7 +786,7 @@ export function FastBoard({
   const pageEndDay = Math.min(pageStart + WINDOW, total);
 
   // Tile size adapts to fast length; milestone tiles get +6.
-  const tile = paginated ? 28 : total <= 7 ? 46 : total <= 40 ? 28 : total <= 90 ? 18 : 10;
+  const tile = paginated ? 34 : total <= 7 ? 46 : total <= 40 ? 34 : total <= 90 ? 18 : 10;
   const gap = paginated ? 6 : total <= 7 ? 8 : total <= 40 ? 6 : 4;
   const cell = tile + 6 + gap;
   const showNumbers = tile >= 18;
@@ -886,21 +891,52 @@ export function FastBoard({
         </View>
       ) : null}
       <View style={{ height: 10 }} />
-      {width > 0 &&
-        visibleRowIndexes.map((r, vi) => {
-          const row = rows[r];
-          const ordered = r % 2 === 1 ? [...row].reverse() : row;
-          return (
-            <FastBoardRow
-              key={r}
-              index={vi}
-              animateIn={false}
-              style={{ marginBottom: vi < visibleRowIndexes.length - 1 ? gap : 0 }}
-            >
-              {ordered.map(({ date, dayNum }) => renderTile(date, dayNum, r))}
-            </FastBoardRow>
-          );
-        })}
+      {width > 0 && (
+        <View style={{ position: "relative" }}>
+          {/* Dotted serpentine trail connecting tile centers, like the mockup */}
+          <Svg
+            style={{ position: "absolute", top: 0, left: 0 }}
+            width={width}
+            height={visibleRowIndexes.length * (tile + 6 + gap) + 14}
+            pointerEvents="none"
+          >
+            <Polyline
+              points={visibleRowIndexes
+                .map((r) => {
+                  const row = rows[r];
+                  const ordered = r % 2 === 1 ? [...row].reverse() : row;
+                  return ordered
+                    .map((_, i) => {
+                      const x = r % 2 === 1 ? width - (i + 0.5) * cell : (i + 0.5) * cell;
+                      const y = (r === 0 ? 14 : 0) + visibleRowIndexes.indexOf(r) * (tile + 6 + gap) + (tile + 6) / 2;
+                      return `${x},${y}`;
+                    })
+                    .join(" ");
+                })
+                .join(" ")}
+              fill="none"
+              stroke={colors.border}
+              strokeWidth={3}
+              strokeDasharray="1 7"
+              strokeLinecap="round"
+            />
+          </Svg>
+          {visibleRowIndexes.map((r, vi) => {
+            const row = rows[r];
+            const ordered = r % 2 === 1 ? [...row].reverse() : row;
+            return (
+              <FastBoardRow
+                key={r}
+                index={vi}
+                animateIn={false}
+                style={{ marginBottom: vi < visibleRowIndexes.length - 1 ? gap : 0 }}
+              >
+                {ordered.map(({ date, dayNum }) => renderTile(date, dayNum, r))}
+              </FastBoardRow>
+            );
+          })}
+        </View>
+      )}
       <FastTriviaModal
         visible={triviaDay !== null}
         dayNum={triviaDay ?? 1}

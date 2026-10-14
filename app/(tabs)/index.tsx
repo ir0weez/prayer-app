@@ -57,6 +57,7 @@ import {
 } from "@/modules/expo-prayer-timer/src/index";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
+import { FastBoard, FastFlame, FastSummaryCard, getPreviousFast } from "@/components/fast-board";
 import {
   addPerson,
   addEmergencyPrayer,
@@ -111,6 +112,7 @@ import {
   formatIsoToMmDdYyyy,
   getActiveFast,
   getFastCalendarDays,
+  getFastEndDate,
   getFastProgress,
   getCurrentFastDay,
   normalizeFastDateInput,
@@ -1163,7 +1165,9 @@ export default function HomeScreen() {
     return Math.max(0, UNDO_COUNTDOWN_MS - elapsed);
   }, [pendingFastAction]);
   const activeFastProgress = useMemo(() => activeFast ? getFastProgress(activeFast) : null, [activeFast]);
-  const activeFastCurrentDay = useMemo(() => activeFast ? getCurrentFastDay(activeFast) : 1, [activeFast]);
+  const isActiveFastEnded = useMemo(() => (activeFast ? getFastEndDate(activeFast) < today : false), [activeFast, today]);
+  const prevFast = useMemo(() => (activeFast ? getPreviousFast(fasts, activeFast, today) : null), [activeFast, fasts, today]);
+  const prevFastProgress = useMemo(() => (prevFast ? getFastProgress(prevFast) : null), [prevFast]);
   // Note: activeFastStreak is now kept in sync with profile.fastingStreak via useEffect
   const activeFastStreak = profile.fastingStreak;
   const activeFastTypeInfo = activeFast ? FAST_TYPES.find((entry) => entry.type === activeFast.type) : null;
@@ -2544,18 +2548,30 @@ export default function HomeScreen() {
       <Text style={styles.settingsSectionLabel}>FASTING</Text>
       <View style={[styles.settingsCard, { borderColor: colors.border, padding: 16 }]}>
         {activeFast ? (
-          <>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <View>
-                <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800" }}>{activeFast.name}</Text>
-                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }}>{activeFast.type} · {activeFast.durationDays} days</Text>
+          isActiveFastEnded ? (
+            <FastSummaryCard fast={activeFast} colors={colors} />
+          ) : (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "800" }}>{activeFast.name}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 3 }}>{activeFast.type} · {activeFast.durationDays} days</Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <FastFlame size={16} />
+                  <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "800" }}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
+                </View>
               </View>
-              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "800" }}>Day {getCurrentFastDay(activeFast)} of {activeFast.durationDays}</Text>
-            </View>
-            <View style={[styles.fastProgressBarContainer, { backgroundColor: colors.border, height: 10 }]}>
-              <View style={{ width: `${Math.min((activeFastCurrentDay / activeFast.durationDays) * 100, 100)}%`, height: "100%", backgroundColor: profileAura?.glowColor || colors.primary, borderRadius: 6 }} />
-            </View>
-          </>
+              {prevFast && prevFastProgress ? (
+                <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
+                  Last fast: {prevFastProgress.completed} of {prevFast.durationDays} days · beat your last run
+                </Text>
+              ) : (
+                <View style={{ height: 10 }} />
+              )}
+              <FastBoard fast={activeFast} today={today} colors={colors} />
+            </>
+          )
         ) : (
           <Text style={{ color: colors.muted, fontSize: 13 }}>No active fast. Start one from your profile.</Text>
         )}

@@ -9,6 +9,8 @@ import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
+import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
+import { setAppIcon as setNativeAppIcon } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
@@ -722,6 +724,31 @@ export default function HomeScreen() {
     return () => { active = false; };
   }, [fasts, hasHydratedPeople, people, streakRecord.streak]);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
+  const [showAppIconSheet, setShowAppIconSheet] = useState(false);
+  const [selectedAppIconId, setSelectedAppIconId] = useState("original");
+  const [iconToast, setIconToast] = useState<string | null>(null);
+  const iconToastOpacity = useRef(new Animated.Value(0)).current;
+
+  // Load the persisted app icon choice on mount.
+  useEffect(() => {
+    let active = true;
+    loadSelectedAppIconId().then((id) => {
+      if (active) setSelectedAppIconId(id);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  // Brief fade toast for app icon changes (opacity only, no bounce).
+  const showIconToast = useCallback((message: string) => {
+    setIconToast(message);
+    Animated.timing(iconToastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start(() => {
+      setTimeout(() => {
+        Animated.timing(iconToastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+          setIconToast(null);
+        });
+      }, 2200);
+    });
+  }, [iconToastOpacity]);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [draftProfileName, setDraftProfileName] = useState(DEFAULT_PROFILE.name);
   const [draftProfilePhotoUri, setDraftProfilePhotoUri] = useState<string | undefined>(undefined);
@@ -2539,6 +2566,9 @@ export default function HomeScreen() {
         <Pressable onPress={() => setShowThemeSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("palette", "Color Theme", getAccentThemeDefinition(settings.colorTheme).name)}
         </Pressable>
+        <Pressable onPress={() => setShowAppIconSheet(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
+          {renderSettingsRow("image", "App Icon", getAppIconDef(selectedAppIconId).name)}
+        </Pressable>
         {renderSettingsRow("visibility-off", "Demo Mode", "Blur names & photos for screenshots", "normal", <M3Switch value={settings.demoMode} onValueChange={(demoMode) => setSettings((previous) => ({ ...previous, demoMode }))} />)}
       </View>
 
@@ -3394,6 +3424,88 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      {/* App Icon picker — 10 level-unlocked dots icons, swaps the launcher icon */}
+      <Modal transparent visible={showAppIconSheet} animationType="slide" onRequestClose={() => setShowAppIconSheet(false)}>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setShowAppIconSheet(false)} />
+          <View style={styles.themeSheet}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={() => setShowAppIconSheet(false)}><Text style={styles.sheetDone}>Done</Text></Pressable>
+              <Text style={styles.sheetTitle}>App Icon</Text>
+              <View style={{ width: 50 }} />
+            </View>
+            <ScrollView contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap", padding: 16, gap: 12 }}>
+              {APP_ICONS.map((icon) => {
+                const unlocked = isIconUnlocked(icon, xpProgress.level);
+                const selected = selectedAppIconId === icon.id;
+                return (
+                  <Pressable
+                    key={icon.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !unlocked, selected }}
+                    onPress={async () => {
+                      if (!unlocked) return;
+                      setSelectedAppIconId(icon.id);
+                      await saveSelectedAppIconId(icon.id);
+                      await setNativeAppIcon(icon.id);
+                      setShowAppIconSheet(false);
+                      showIconToast("App icon updated — check your home screen");
+                    }}
+                    style={({ pressed }) => [{
+                      width: "30%",
+                      aspectRatio: 0.82,
+                      alignItems: "center",
+                      borderRadius: 16,
+                      padding: 8,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: colors.surface,
+                      opacity: !unlocked ? 0.48 : 1,
+                    }, pressed && unlocked && { opacity: 0.7 }]}
+                  >
+                    <View style={{ position: "relative" }}>
+                      <Image source={icon.file} style={{ width: 72, height: 72, borderRadius: 18 }} />
+                      {selected && (
+                        <View style={{ position: "absolute", right: -6, bottom: -6, backgroundColor: colors.primary, borderRadius: 12, padding: 2 }}>
+                          <MaterialIcons name={iconName("check")} size={14} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "700", marginTop: 6 }}>{icon.name}</Text>
+                    {!unlocked && (
+                      <View style={{ marginTop: 4, backgroundColor: colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                        <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "800" }}>Lv {icon.level}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Text style={{ color: colors.muted, fontSize: 11, textAlign: "center", paddingBottom: 20, paddingHorizontal: 24 }}>
+              Unlock more icon styles as you level up. Your home-screen icon changes instantly.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+      {/* App icon change toast — fades in/out, no bounce */}
+      {iconToast && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            bottom: 110,
+            alignSelf: "center",
+            backgroundColor: colors.foreground,
+            borderRadius: 24,
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            opacity: iconToastOpacity,
+            zIndex: 50,
+          }}
+        >
+          <Text style={{ color: colors.background, fontSize: 13, fontWeight: "700" }}>{iconToast}</Text>
+        </Animated.View>
+      )}
       {/* Floating Prayer Time button — only on People tab, hides when Pray Today is complete */}
       {activeTab === "people" && remainingPrayTodayCount > 0 && (
         <Pressable

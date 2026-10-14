@@ -719,7 +719,7 @@ export function FastTriviaModal({
 /**
  * Serpentine board-game track of the fast's days.
  * Rows wind left-to-right, then right-to-left (boustrophedon).
- * Collapsed by default to the current row + next row; "View full board" expands.
+ * Always fully expanded; a floating pill in Settings scrolls to today.
  */
 export function FastBoard({
   fast,
@@ -727,16 +727,16 @@ export function FastBoard({
   colors,
   onTriviaCorrect,
   pawnId,
+  todayTileRef,
 }: {
   fast: PersonalFast;
   today: string;
   colors: FastBoardColors;
   onTriviaCorrect?: (points: number, dayNum: number) => void;
   pawnId?: string;
+  todayTileRef?: React.RefObject<View | null>;
 }) {
   const [width, setWidth] = useState(0);
-  const [expanded, setExpanded] = useState(false);
-  const [expandNonce, setExpandNonce] = useState(0);
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
   const days = getFastCalendarDays(fast);
   const total = fast.durationDays;
@@ -761,21 +761,8 @@ export function FastBoard({
   });
 
   const todayRow = todayIndex >= 0 ? Math.floor(todayIndex / columns) : 0;
-  let visibleRowIndexes: number[];
-  if (expanded) {
-    visibleRowIndexes = rows.map((_, r) => r);
-  } else {
-    visibleRowIndexes = [todayRow, todayRow + 1].filter((r) => r < rows.length);
-    if (visibleRowIndexes.length === 0 && rows.length > 0) visibleRowIndexes = [rows.length - 1];
-    if (visibleRowIndexes.length === 1 && rows.length > 1) {
-      visibleRowIndexes = todayRow === 0 ? [0, 1] : [rows.length - 2, rows.length - 1];
-    }
-  }
-
-  const toggleExpanded = () => {
-    if (!expanded) setExpandNonce((n) => n + 1);
-    setExpanded((e) => !e);
-  };
+  // Board is always fully expanded; a floating pill scrolls to today.
+  const visibleRowIndexes: number[] = rows.map((_, r) => r);
 
   const renderTile = (date: string, dayNum: number, rowIndex: number) => {
     const status = fast.dayStatuses[date];
@@ -786,7 +773,12 @@ export function FastBoard({
     const special = getSpecialSpace(dayNum, total);
 
     return (
-      <View key={date} style={{ width: cell - gap, alignItems: "center", justifyContent: "flex-start" }}>
+      <View
+        key={date}
+        ref={isToday ? todayTileRef : undefined}
+        collapsable={false}
+        style={{ width: cell - gap, alignItems: "center", justifyContent: "flex-start" }}
+      >
         {rowIndex === 0 ? (
           <View style={{ height: 14, alignItems: "center", justifyContent: "center" }}>
             {isStart && showFlag && <MaterialIcons name="flag" size={12} color={colors.muted} />}
@@ -838,37 +830,15 @@ export function FastBoard({
           const ordered = r % 2 === 1 ? [...row].reverse() : row;
           return (
             <FastBoardRow
-              key={`${expandNonce}-${r}`}
+              key={r}
               index={vi}
-              animateIn={expanded}
+              animateIn={false}
               style={{ marginBottom: vi < visibleRowIndexes.length - 1 ? gap : 0 }}
             >
               {ordered.map(({ date, dayNum }) => renderTile(date, dayNum, r))}
             </FastBoardRow>
           );
         })}
-      {rows.length > 2 && (
-        <View style={{ alignItems: "center", marginTop: 10 }}>
-          <Pressable
-            onPress={toggleExpanded}
-            style={({ pressed }) => [
-              {
-                borderRadius: 20,
-                paddingHorizontal: 18,
-                paddingVertical: 7,
-                backgroundColor: colors.border + "55",
-                borderWidth: 1,
-                borderColor: colors.border,
-              },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: "600" }}>
-              {expanded ? "Collapse board" : "View full board"}
-            </Text>
-          </Pressable>
-        </View>
-      )}
       <FastTriviaModal
         visible={triviaDay !== null}
         dayNum={triviaDay ?? 1}

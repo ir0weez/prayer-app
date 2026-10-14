@@ -57,7 +57,7 @@ import {
 } from "@/modules/expo-prayer-timer/src/index";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { FastBoard, FastFlame, FastSummaryCard, getPreviousFast } from "@/components/fast-board";
+import { FastBoard, FastFlame, FastPawnPicker, FastSummaryCard, getPreviousFast, getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
 import {
   addPerson,
   addEmergencyPrayer,
@@ -123,12 +123,13 @@ import {
   type PersonalFast,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
+import { useFastPawn } from "@/lib/fast-pawns";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
-import { awardXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
+import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
 type AppTab = "home" | "people" | "schedule" | "journal" | "settings";
@@ -704,6 +705,7 @@ export default function HomeScreen() {
   const [draftStatusText, setDraftStatusText] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  const { pawnId, setPawnId } = useFastPawn();
   useEffect(() => {
     if (!hasHydratedPeople) return;
     let active = true;
@@ -845,6 +847,16 @@ export default function HomeScreen() {
       if (result.levelUp) setLevelUpNumber(result.state.level);
     } catch {
       // XP is additive and must never interrupt the action that earned it.
+    }
+  }, []);
+  const awardBonusXP = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
+    try {
+      const result = await awardCustomXP(points, idempotencyKey, position);
+      if (!result.awarded) return;
+      setXpState(result.state);
+      if (result.levelUp) setLevelUpNumber(result.state.level);
+    } catch {
+      // Bonus XP must never interrupt the action that earned it.
     }
   }, []);
   const revokeExperience = useCallback(async (action: XpAction, idempotencyKey: string, position?: XpGainPosition) => {
@@ -1475,11 +1487,17 @@ export default function HomeScreen() {
     delete undoTimers.current['fast'];
     if (action === "completed") {
       void awardExperience("fasting-day", `${activeFast.id}:${today}`);
+      // Special-space bonus, scaled by streak tier.
+      const dayNum = getCurrentFastDay(activeFast, today);
+      const special = getSpecialSpace(dayNum, activeFast.durationDays);
+      if (special) {
+        void awardBonusXP(getSpecialSpaceXP(special, dayNum), `fast-bonus:${activeFast.id}:${today}:${special}`);
+      }
       // Marking successful after a miss gives the heart back.
       void restoreHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
     }
     else void loseHeartExperience(`fasting-day-missed:${activeFast.id}:${today}`);
-  }, [activeFast, awardExperience, fasts, loseHeartExperience, restoreHeartExperience, today]);
+  }, [activeFast, awardBonusXP, awardExperience, fasts, loseHeartExperience, restoreHeartExperience, today]);
 
   const handleCompleteFast = () => {
     if (!activeFast || pendingFastAction) return;
@@ -2569,7 +2587,22 @@ export default function HomeScreen() {
               ) : (
                 <View style={{ height: 10 }} />
               )}
-              <FastBoard fast={activeFast} today={today} colors={colors} />
+              <FastBoard
+                fast={activeFast}
+                today={today}
+                colors={colors}
+                pawnId={pawnId}
+                onTriviaCorrect={(points, dayNum) =>
+                  awardBonusXP(points, `fast-trivia:${activeFast.id}:day${dayNum}`)
+                }
+              />
+              <FastPawnPicker
+                level={xpProgress.level}
+                prayerStreak={profile.personalPrayerStreak}
+                pawnId={pawnId}
+                onSelect={setPawnId}
+                colors={colors}
+              />
             </>
           )
         ) : (

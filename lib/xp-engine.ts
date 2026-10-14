@@ -240,6 +240,49 @@ export async function awardXP(action: XpAction, idempotencyKey: string, position
   emitXPGain(result.points, "gain", position);
   return result;
 }
+
+/**
+ * Awards an arbitrary point amount exactly once for an idempotency key.
+ * Same ledger pattern as awardXP, for bonuses that don't fit a fixed action
+ * (e.g. streak-scaled fasting bonuses).
+ */
+export async function awardCustomXP(points: number, idempotencyKey: string, position?: XpGainPosition): Promise<XpAwardResult> {
+  const [storedState, storedAwards] = await Promise.all([
+    AsyncStorage.getItem(XP_STORAGE_KEY),
+    AsyncStorage.getItem(XP_AWARDS_STORAGE_KEY),
+  ]);
+  let awards: string[] = [];
+  try {
+    const parsed = storedAwards ? JSON.parse(storedAwards) : [];
+    if (Array.isArray(parsed)) awards = parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    awards = [];
+  }
+  const key = `custom:${idempotencyKey}`;
+  const current = normalizeXPState(storedState ? JSON.parse(storedState) : null);
+  if (awards.includes(key)) {
+    return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
+  }
+  const safePoints = Math.max(0, Math.floor(points));
+  const previous = current;
+  const totalXP = previous.totalXP + safePoints;
+  const level = getLevelForXP(totalXP);
+  const maxHearts = maxHeartsForLevel(level);
+  const hearts = Math.min(maxHearts, previous.hearts + Math.max(0, maxHearts - maxHeartsForLevel(previous.level)));
+  const result: XpAwardResult = {
+    state: { totalXP, level, hearts, lastHeartRegenDate: previous.lastHeartRegenDate },
+    awarded: true,
+    points: safePoints,
+    previousLevel: previous.level,
+    levelUp: level > previous.level,
+  };
+  await Promise.all([
+    AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
+    AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
+  ]);
+  emitXPGain(result.points, "gain", position);
+  return result;
+}
 /** Removes one completed action from the ledger and reverses its XP exactly once. */
 export async function revokeXP(action: XpAction, idempotencyKey: string, position?: XpGainPosition): Promise<XpAwardResult> {
   const [storedState, storedAwards] = await Promise.all([

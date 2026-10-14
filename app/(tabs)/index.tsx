@@ -13,7 +13,7 @@ import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSe
 import { setAppIcon as setNativeAppIcon } from "@/modules/expo-app-icon/src/index";
 import { useColors } from "@/hooks/use-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Alert, Animated, BackHandler, findNodeHandle, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Animated, BackHandler, FlatList, Image, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import ReAnimated, { FadeIn, FadeInUp, FadeOut, SlideInDown, SlideInUp, SlideOutUp, ZoomIn, ZoomOut, interpolate, interpolateColor, Extrapolation, withTiming, withSpring, withSequence, withDelay, withRepeat, Easing, useSharedValue, useAnimatedStyle, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
@@ -57,7 +57,7 @@ import {
 } from "@/modules/expo-prayer-timer/src/index";
 import { AnimatedTodoItem } from "@/components/animated-todo-item";
 import { DailySummaryCard } from "@/components/daily-summary-card";
-import { FastBoard, FastFlame, FastPawnPicker, FastSummaryCard, getPreviousFast, getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
+import { FastFlame, FastSummaryCard, getPreviousFast, getSpecialSpace, getSpecialSpaceXP } from "@/components/fast-board";
 import {
   addPerson,
   addEmergencyPrayer,
@@ -123,7 +123,6 @@ import {
   type PersonalFast,
   upsertFastDayStatus,
 } from "@/lib/prayercircle-fasting";
-import { useFastPawn } from "@/lib/fast-pawns";
 import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, PRAYER_STREAK_STORAGE_KEY, PROFILE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
@@ -626,21 +625,6 @@ export default function HomeScreen() {
   const handledNotificationAction = useRef<string | null>(null);
   const prayTodayScrollRef = useRef<ScrollView>(null);
   const prayTodayScrollOffset = useRef(0);
-  const settingsScrollRef = useRef<ScrollView>(null);
-  const fastTodayTileRef = useRef<View | null>(null);
-
-  const scrollToFastToday = () => {
-    const tile = fastTodayTileRef.current;
-    const scroll = settingsScrollRef.current;
-    if (!tile || !scroll) return;
-    const scrollHandle = findNodeHandle(scroll);
-    if (!scrollHandle) return;
-    tile.measureLayout(
-      scrollHandle,
-      (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 140), animated: true }),
-      () => {},
-    );
-  };
   const today = getTodayISOString();
   const todayDate = new Date();
   const todayDayOfWeek = todayDate.getDay();
@@ -720,7 +704,6 @@ export default function HomeScreen() {
   const [draftStatusText, setDraftStatusText] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
-  const { pawnId, setPawnId } = useFastPawn();
   useEffect(() => {
     if (!hasHydratedPeople) return;
     let active = true;
@@ -2472,7 +2455,7 @@ export default function HomeScreen() {
   };
 
   const renderSettingsScreen = () => (
-    <ScrollView ref={settingsScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
       <Text style={styles.settingsTitle}>Settings</Text>
       <View style={[styles.profileSettingsCard, { borderColor: profileAura?.glowColor || colors.border, backgroundColor: profileAura ? auraWashColor(profileAura, "20") : colors.surface }]}>
         <View style={styles.profileCardTop}>
@@ -2602,23 +2585,9 @@ export default function HomeScreen() {
               ) : (
                 <View style={{ height: 10 }} />
               )}
-              <FastBoard
-                fast={activeFast}
-                today={today}
-                colors={colors}
-                pawnId={pawnId}
-                todayTileRef={fastTodayTileRef}
-                onTriviaCorrect={(points, dayNum) =>
-                  awardBonusXP(points, `fast-trivia:${activeFast.id}:day${dayNum}`)
-                }
-              />
-              <FastPawnPicker
-                level={xpProgress.level}
-                prayerStreak={profile.personalPrayerStreak}
-                pawnId={pawnId}
-                onSelect={setPawnId}
-                colors={colors}
-              />
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                Your fast board lives on your fast page — open your profile to play.
+              </Text>
             </>
           )
         ) : (
@@ -3570,33 +3539,6 @@ export default function HomeScreen() {
         >
           <Text style={{ color: colors.background, fontSize: 13, fontWeight: "700" }}>{iconToast}</Text>
         </Animated.View>
-      )}
-      {/* Floating "today's fast day" pill — Settings tab, active fast only */}
-      {activeTab === "settings" && activeFast && (
-        <Pressable
-          onPress={scrollToFastToday}
-          style={{
-            position: "absolute",
-            bottom: 140,
-            alignSelf: "center",
-            backgroundColor: colors.primary,
-            borderRadius: 24,
-            paddingVertical: 12,
-            paddingHorizontal: 20,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            elevation: 8,
-            zIndex: 10,
-            shadowColor: "#000",
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <MaterialIcons name="today" size={18} color="#FFFFFF" />
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Today's fast day</Text>
-        </Pressable>
       )}
       {/* Floating Prayer Time button — only on People tab, hides when Pray Today is complete */}
       {activeTab === "people" && remainingPrayTodayCount > 0 && (

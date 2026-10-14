@@ -3,11 +3,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
+import { FastBoard, FastPawnPicker, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -40,7 +41,8 @@ import {
 import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
-import { awardXP, loadXPState, loseHeart, restoreHeart, revokeXP } from "@/lib/xp-engine";
+import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
+import { useFastPawn } from "@/lib/fast-pawns";
 
 type PersonalProfile = {
   name: string;
@@ -154,6 +156,40 @@ export default function ProfileScreen() {
   const [lastBibleReadDate, setLastBibleReadDate] = useState<string | null>(null);
   const [bookStatuses, setBookStatuses] = useState<Record<string, string>>({});
   const [profileLevel, setProfileLevel] = useState(1);
+  const { pawnId, setPawnId } = useFastPawn();
+  const profileScrollRef = useRef<ScrollView>(null);
+  const fastTodayTileRef = useRef<View | null>(null);
+
+  const boardColors: FastBoardColors = useMemo(() => ({
+    foreground: colors.foreground,
+    muted: colors.muted,
+    border: colors.border,
+    primary: colors.primary,
+    surface: colors.surface,
+  }), [colors]);
+
+  const awardBonusXP = useCallback(async (points: number, idempotencyKey: string, position?: XpGainPosition) => {
+    try {
+      const result = await awardCustomXP(points, idempotencyKey, position);
+      if (!result.awarded) return;
+      setProfileLevel(result.state.level);
+    } catch {
+      // Bonus XP must never interrupt the action that earned it.
+    }
+  }, []);
+
+  const scrollToFastToday = () => {
+    const tile = fastTodayTileRef.current;
+    const scroll = profileScrollRef.current;
+    if (!tile || !scroll) return;
+    const scrollHandle = findNodeHandle(scroll);
+    if (!scrollHandle) return;
+    tile.measureLayout(
+      scrollHandle,
+      (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 140), animated: true }),
+      () => {},
+    );
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -244,6 +280,10 @@ export default function ProfileScreen() {
     const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
     if (status === "completed" && previousStatus !== "completed") {
       void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+      // Special-space bonus, scaled by streak tier.
+      const dayNum = selectedFastDays.indexOf(dateString) + 1;
+      const special = dayNum > 0 ? getSpecialSpace(dayNum, selectedFast.durationDays) : null;
+      if (special) void awardBonusXP(getSpecialSpaceXP(special, dayNum), `fast-bonus:${selectedFast.id}:${dateString}:${special}`, position);
       // Marking successful after a miss gives the heart back.
       void restoreHeart(heartKey, today, position).catch(() => undefined);
     }
@@ -406,7 +446,7 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer className="flex-1 bg-background">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={profileScrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
@@ -588,19 +628,26 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
-            <Text style={styles.sectionLabel}>CALENDAR</Text>
-            <View style={styles.calendarGrid}>
-              {selectedFastDays.map((dateString, index) => {
-                const status = selectedFast.dayStatuses[dateString];
-                const isToday = dateString === today;
-                return (
-                  <Pressable key={dateString} onPress={(event) => setFastStatus(dateString, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(dateString)} delayLongPress={420} style={({ pressed }) => [styles.calendarDay, { borderColor: isToday ? colors.primary : getStatusColor(status), backgroundColor: status ? getStatusColor(status) : "#FFFFFF", borderWidth: isToday ? 3 : 1 }, pressed && styles.pressed]}>
-                    <Text style={[styles.calendarDayNumber, status && styles.calendarDayNumberActive]}>{index + 1}</Text>
-                    <Text style={[styles.calendarDayDate, status && styles.calendarDayDateActive]}>{formatIsoToMmDdYyyy(dateString).slice(0, 5)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <Text style={styles.sectionLabel}>BOARD</Text>
+            <FastBoard
+              fast={selectedFast}
+              today={today}
+              colors={boardColors}
+              pawnId={pawnId}
+              todayTileRef={fastTodayTileRef}
+              onPressTile={(date, _dayNum, position) => setFastStatus(date, "completed", position)}
+              onLongPressTile={(date) => chooseStatusForDate(date)}
+              onTriviaCorrect={(points, dayNum) =>
+                awardBonusXP(points, `fast-trivia:${selectedFast.id}:day${dayNum}`)
+              }
+            />
+            <FastPawnPicker
+              level={profileLevel}
+              prayerStreak={profile.personalPrayerStreak}
+              pawnId={pawnId}
+              onSelect={setPawnId}
+              colors={boardColors}
+            />
           </>
         ) : (
           <View style={styles.emptyState}>
@@ -728,6 +775,33 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      {/* Floating "today's fast day" pill — scrolls to today's board tile */}
+      {selectedFast && (
+        <Pressable
+          onPress={scrollToFastToday}
+          style={{
+            position: "absolute",
+            bottom: 140,
+            alignSelf: "center",
+            backgroundColor: colors.primary,
+            borderRadius: 24,
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            elevation: 8,
+            zIndex: 10,
+            shadowColor: "#000",
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+          }}
+        >
+          <MaterialIcons name="today" size={18} color="#FFFFFF" />
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Today's fast day</Text>
+        </Pressable>
+      )}
     </ScreenContainer>
   );
 }

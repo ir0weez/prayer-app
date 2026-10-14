@@ -464,6 +464,8 @@ function FastTile({
   showBadge,
   onPressTrivia,
   pawnId,
+  onPressTile,
+  onLongPressTile,
 }: {
   status: FastDayStatus | undefined;
   isToday: boolean;
@@ -475,6 +477,8 @@ function FastTile({
   showBadge: boolean;
   onPressTrivia: (() => void) | null;
   pawnId: string;
+  onPressTile?: (position?: { x: number; y: number }) => void;
+  onLongPressTile?: () => void;
 }) {
   // Tile-only mark animation: fill transitions over 0.4s, badge pops with ease-out scale.
   // The pawn is never touched here.
@@ -537,7 +541,24 @@ function FastTile({
 
   if (special === "trivia" && onPressTrivia) {
     return (
-      <Pressable onPress={onPressTrivia} style={({ pressed }) => [pressed && { opacity: 0.75 }]}>
+      <Pressable
+        onPress={onPressTrivia}
+        onLongPress={onLongPressTile}
+        delayLongPress={420}
+        style={({ pressed }) => [pressed && { opacity: 0.75 }]}
+      >
+        {tileContent}
+      </Pressable>
+    );
+  }
+  if (onPressTile || onLongPressTile) {
+    return (
+      <Pressable
+        onPress={(event) => onPressTile?.({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+        onLongPress={onLongPressTile}
+        delayLongPress={420}
+        style={({ pressed }) => [pressed && { opacity: 0.75 }]}
+      >
         {tileContent}
       </Pressable>
     );
@@ -719,7 +740,8 @@ export function FastTriviaModal({
 /**
  * Serpentine board-game track of the fast's days.
  * Rows wind left-to-right, then right-to-left (boustrophedon).
- * Always fully expanded; a floating pill in Settings scrolls to today.
+ * Always fully expanded; fasts over 60 days paginate into 30-day windows.
+ * A floating pill on the fast page scrolls to today.
  */
 export function FastBoard({
   fast,
@@ -728,6 +750,8 @@ export function FastBoard({
   onTriviaCorrect,
   pawnId,
   todayTileRef,
+  onPressTile,
+  onLongPressTile,
 }: {
   fast: PersonalFast;
   today: string;
@@ -735,6 +759,8 @@ export function FastBoard({
   onTriviaCorrect?: (points: number, dayNum: number) => void;
   pawnId?: string;
   todayTileRef?: React.RefObject<View | null>;
+  onPressTile?: (date: string, dayNum: number, position?: { x: number; y: number }) => void;
+  onLongPressTile?: (date: string, dayNum: number) => void;
 }) {
   const [width, setWidth] = useState(0);
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
@@ -743,9 +769,20 @@ export function FastBoard({
   const todayIndex = days.indexOf(today);
   const currentDayNum = todayIndex >= 0 ? todayIndex + 1 : 1;
 
+  // Long fasts (>60 days) paginate into 30-day windows so every page keeps
+  // the full board-game treatment (28px serpentine tiles, badges, pawn).
+  const WINDOW = 30;
+  const paginated = total > 60;
+  const windowCount = Math.ceil(total / WINDOW);
+  const [page, setPage] = useState(() => Math.floor((todayIndex >= 0 ? todayIndex : 0) / WINDOW));
+  const pageStart = page * WINDOW;
+  const pageDays = paginated ? days.slice(pageStart, pageStart + WINDOW) : days;
+  const pageStartDay = pageStart + 1;
+  const pageEndDay = Math.min(pageStart + WINDOW, total);
+
   // Tile size adapts to fast length; milestone tiles get +6.
-  const tile = total <= 7 ? 46 : total <= 40 ? 28 : total <= 90 ? 18 : 10;
-  const gap = total <= 7 ? 8 : total <= 40 ? 6 : 4;
+  const tile = paginated ? 28 : total <= 7 ? 46 : total <= 40 ? 28 : total <= 90 ? 18 : 10;
+  const gap = paginated ? 6 : total <= 7 ? 8 : total <= 40 ? 6 : 4;
   const cell = tile + 6 + gap;
   const showNumbers = tile >= 18;
   const showFlag = tile >= 18;
@@ -754,13 +791,11 @@ export function FastBoard({
 
   const columns = width > 0 ? Math.max(1, Math.floor((width + gap) / cell)) : 1;
   const rows: { date: string; dayNum: number }[][] = [];
-  days.forEach((date, i) => {
+  pageDays.forEach((date, i) => {
     const r = Math.floor(i / columns);
     if (!rows[r]) rows[r] = [];
-    rows[r].push({ date, dayNum: i + 1 });
+    rows[r].push({ date, dayNum: pageStart + i + 1 });
   });
-
-  const todayRow = todayIndex >= 0 ? Math.floor(todayIndex / columns) : 0;
   // Board is always fully expanded; a floating pill scrolls to today.
   const visibleRowIndexes: number[] = rows.map((_, r) => r);
 
@@ -797,6 +832,8 @@ export function FastBoard({
               showBadge={showBadge}
               onPressTrivia={special === "trivia" && onTriviaCorrect ? () => setTriviaDay(dayNum) : null}
               pawnId={pawnId ?? "pebble"}
+              onPressTile={onPressTile ? (position) => onPressTile(date, dayNum, position) : undefined}
+              onLongPressTile={onLongPressTile ? () => onLongPressTile(date, dayNum) : undefined}
             />
           </PawnWrap>
         ) : (
@@ -811,6 +848,8 @@ export function FastBoard({
             showBadge={showBadge}
             onPressTrivia={special === "trivia" && onTriviaCorrect ? () => setTriviaDay(dayNum) : null}
             pawnId={pawnId ?? "pebble"}
+            onPressTile={onPressTile ? (position) => onPressTile(date, dayNum, position) : undefined}
+            onLongPressTile={onLongPressTile ? () => onLongPressTile(date, dayNum) : undefined}
           />
         )}
         {isMilestone && showNumbers ? (
@@ -823,6 +862,29 @@ export function FastBoard({
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
+      {paginated && windowCount > 1 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
+          <Pressable
+            onPress={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={({ pressed }) => [{ opacity: page === 0 ? 0.3 : pressed ? 0.6 : 1, padding: 6 }]}
+            accessibilityLabel="Previous 30 days"
+          >
+            <MaterialIcons name="chevron-left" size={24} color={colors.foreground} />
+          </Pressable>
+          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>
+            Days {pageStartDay}–{pageEndDay} of {total}
+          </Text>
+          <Pressable
+            onPress={() => setPage((p) => Math.min(windowCount - 1, p + 1))}
+            disabled={page >= windowCount - 1}
+            style={({ pressed }) => [{ opacity: page >= windowCount - 1 ? 0.3 : pressed ? 0.6 : 1, padding: 6 }]}
+            accessibilityLabel="Next 30 days"
+          >
+            <MaterialIcons name="chevron-right" size={24} color={colors.foreground} />
+          </Pressable>
+        </View>
+      ) : null}
       <View style={{ height: 10 }} />
       {width > 0 &&
         visibleRowIndexes.map((r, vi) => {

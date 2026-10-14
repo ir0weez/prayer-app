@@ -22,9 +22,6 @@ import { SHINY_ACHIEVEMENTS, SHINY_AVATARS, getLevelUnlockedCharacterShinyIds } 
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { DEFAULT_ACHIEVEMENT_STATE, loadAchievementState, qualifyAchievements, unlockQualifiedAchievements, type AchievementState } from "@/lib/avatar-achievements";
-import { CardBinder } from "@/components/card-binder";
-import { getCardById } from "@/lib/card-system";
-import { CardPackOpening } from "@/components/card-pack-opening";
 import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
@@ -202,7 +199,6 @@ type PersonalProfile = {
   avatarAsset?: string;
   auraId?: string;
   birthday?: string;
-  showcaseCardId?: string;
   fastingStreak: number;
   personalPrayerStreak: number;
   fastingStatus: "completed" | "skipped" | "missed" | "not-set";
@@ -339,7 +335,6 @@ function parseStoredProfile(value: string | null): PersonalProfile {
       statusPhotoUri: typeof parsed.statusPhotoUri === "string" ? parsed.statusPhotoUri : undefined,
       statusExpiresAt: typeof parsed.statusExpiresAt === "string" ? parsed.statusExpiresAt : undefined,
       statusColor: typeof parsed.statusColor === "string" ? parsed.statusColor : undefined,
-      showcaseCardId: typeof parsed.showcaseCardId === "string" ? parsed.showcaseCardId : undefined,
     };
   } catch {
     return DEFAULT_PROFILE;
@@ -681,9 +676,7 @@ export default function HomeScreen() {
 
   const [showWorshipAlbumForm, setShowWorshipAlbumForm] = useState(false);
   const [showStampCollection, setShowStampCollection] = useState(false);
-  const [showCardBinder, setShowCardBinder] = useState(false);
   const [achievementState, setAchievementState] = useState<AchievementState>(DEFAULT_ACHIEVEMENT_STATE);
-  const [newAchievementIds, setNewAchievementIds] = useState<string[]>([]);
   const [xpState, setXpState] = useState<XpState>(DEFAULT_XP_STATE);
   const [levelUpNumber, setLevelUpNumber] = useState<number | null>(null);
 
@@ -725,8 +718,6 @@ export default function HomeScreen() {
       }));
       if (!active) return;
       setAchievementState(result.state);
-      const pending = result.newlyUnlocked.filter((id) => !storedState.celebratedAchievementIds.includes(id));
-      if (pending.length) setNewAchievementIds(pending);
     }).catch(() => undefined);
     return () => { active = false; };
   }, [fasts, hasHydratedPeople, people, streakRecord.streak]);
@@ -2430,20 +2421,6 @@ export default function HomeScreen() {
             <View style={styles.profileNameAndBirthdayContainer}>
               <Text style={styles.profileNameText}>{profile.name}</Text>
               {profile.birthday && <Text style={styles.profileBirthdayText}>🎂 {profile.birthday}</Text>}
-              {profile.showcaseCardId && (() => {
-                const showcaseCard = getCardById(profile.showcaseCardId);
-                if (!showcaseCard) return null;
-                return (
-                  <Pressable onPress={() => setShowCardBinder(true)} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border }}>
-                    <Image source={showcaseCard.art} style={{ width: 40, height: 56, borderRadius: 6 }} />
-                    <View style={{ marginLeft: 10, flex: 1 }}>
-                      <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "800" }}>{showcaseCard.name}</Text>
-                      <Text style={{ color: colors.muted, fontSize: 11 }}>{showcaseCard.subtitle} · {showcaseCard.rarity}</Text>
-                    </View>
-                    <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
-                  </Pressable>
-                );
-              })()}
               {/* Bible Reading Info Pill */}
               <View style={{ marginTop: 6, position: 'relative', alignSelf: 'flex-start' }}>
                 {(() => {
@@ -2620,9 +2597,6 @@ export default function HomeScreen() {
       <View style={[styles.settingsCard, { borderColor: colors.border }]}> 
         <Pressable onPress={() => setShowStampCollection(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("collections-bookmark", "Stamp Collection", "View your stamps grouped by month and personal bests")}
-        </Pressable>
-        <Pressable onPress={() => setShowCardBinder(true)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("style", "Card Collection", "View your earned Bible cards")}
         </Pressable>
         <Pressable onPress={handleExportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}> 
           {renderSettingsRow("file-download", "Export Data", "Save a complete PrayerCircle backup as a JSON file")}
@@ -3164,17 +3138,6 @@ export default function HomeScreen() {
       </ReAnimated.View>
 
       <StampCollectionModal visible={showStampCollection} stamps={reachedStamps} people={people} onClose={() => setShowStampCollection(false)} />
-      <CardBinder
-        visible={showCardBinder}
-        onClose={() => setShowCardBinder(false)}
-        showcaseCardId={profile.showcaseCardId}
-        onSetShowcase={(cardId) => setProfile((prev) => ({ ...prev, showcaseCardId: cardId }))}
-      />
-      <CardPackOpening
-        achievementIds={newAchievementIds}
-        onClose={() => setNewAchievementIds([])}
-        onViewCollection={() => setShowCardBinder(true)}
-      />
 
       <Modal transparent visible={levelUpNumber !== null} animationType="fade" onRequestClose={() => setLevelUpNumber(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(10,8,24,0.68)", alignItems: "center", justifyContent: "center", padding: 24 }}>

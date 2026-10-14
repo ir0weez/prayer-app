@@ -4033,6 +4033,108 @@ function WednesdayScene() {
   );
 }
 
+/** Vampire Diaries: Mystic Falls town square at night — clock tower, full moon, bats, mist. */
+function VampireDiariesScene() {
+  return (
+    <SceneRoot base="#141A33">
+      <TwinkleField color="#CFCFE8" count={8} seed={33} />
+      {/* full moon with halo */}
+      <BreatheGlow color="#DDE3F5" size={86} left="78%" bottom={88} min={0.2} max={0.4} duration={6500} />
+      <View style={{ position: "absolute", left: "83%", bottom: 92, width: 26, height: 26, borderRadius: 13, backgroundColor: "#F0F3FC" }} />
+      {/* clock tower */}
+      <View style={{ position: "absolute", left: "62%", bottom: 30, width: 34, height: 84, backgroundColor: "#232B4A" }} />
+      <View style={{ position: "absolute", left: "60%", bottom: 112, width: 38, height: 14, backgroundColor: "#1B2240" }} />
+      <View style={{ position: "absolute", left: "65%", bottom: 88, width: 20, height: 20, borderRadius: 10, backgroundColor: "#0F1430", borderWidth: 3, borderColor: "#8A93B8" }} />
+      <View style={{ position: "absolute", left: "73%", bottom: 96, width: 3, height: 8, backgroundColor: "#8A93B8", transform: [{ rotate: "35deg" }] }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 94, width: 3, height: 6, backgroundColor: "#8A93B8", transform: [{ rotate: "-50deg" }] }} />
+      {/* tower windows */}
+      <PulseDot left="68%" bottom={64} size={6} color="#FFD98A" duration={2400} />
+      <PulseDot left="68%" bottom={46} size={6} color="#FFD98A" duration={2800} delay={700} />
+      {/* town buildings */}
+      <View style={{ position: "absolute", left: "52%", bottom: 30, width: 26, height: 44, backgroundColor: "#1C2340" }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 30, width: 30, height: 38, backgroundColor: "#1C2340" }} />
+      <PulseDot left="57%" bottom={52} size={5} color="#FFD98A" duration={2200} delay={400} />
+      <PulseDot left="86%" bottom={48} size={5} color="#FFD98A" duration={2600} delay={900} />
+      {/* bats */}
+      <FlyingBat left="58%" delay={0} />
+      <FlyingBat left="74%" delay={2600} />
+      {/* ground mist */}
+      <View style={{ position: "absolute", left: "46%", right: 0, bottom: 0, height: "26%", backgroundColor: "#1E2645" }} />
+      <View style={{ position: "absolute", left: "58%", right: 0, bottom: 0, height: "16%", backgroundColor: "#283158" }} />
+    </SceneRoot>
+  );
+}
+
+/** The Originals: New Orleans French Quarter at night — balconies, gas lamps, jazz glow, moon. */
+function OriginalsScene() {
+  return (
+    <SceneRoot base="#1E1433">
+      <TwinkleField color="#D9C9F2" count={7} seed={44} />
+      {/* full moon */}
+      <BreatheGlow color="#C9B3E8" size={80} left="80%" bottom={90} min={0.2} max={0.38} duration={6200} />
+      <View style={{ position: "absolute", left: "85%", bottom: 94, width: 24, height: 24, borderRadius: 12, backgroundColor: "#EFE8FA" }} />
+      {/* quarter building with wrought-iron balcony */}
+      <View style={{ position: "absolute", left: "56%", bottom: 28, width: 52, height: 76, backgroundColor: "#2A2044" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 62, width: 52, height: 4, backgroundColor: "#171126" }} />
+      <View style={{ position: "absolute", left: "57%", bottom: 44, width: 3, height: 18, backgroundColor: "#0F0B1C" }} />
+      <View style={{ position: "absolute", left: "63%", bottom: 44, width: 3, height: 18, backgroundColor: "#0F0B1C" }} />
+      <View style={{ position: "absolute", left: "69%", bottom: 44, width: 3, height: 18, backgroundColor: "#0F0B1C" }} />
+      <View style={{ position: "absolute", left: "75%", bottom: 44, width: 3, height: 18, backgroundColor: "#0F0B1C" }} />
+      <View style={{ position: "absolute", left: "81%", bottom: 44, width: 3, height: 18, backgroundColor: "#0F0B1C" }} />
+      <View style={{ position: "absolute", left: "56%", bottom: 40, width: 52, height: 4, backgroundColor: "#171126" }} />
+      {/* shuttered windows */}
+      <View style={{ position: "absolute", left: "62%", bottom: 72, width: 10, height: 16, backgroundColor: "#171126" }} />
+      <View style={{ position: "absolute", left: "78%", bottom: 72, width: 10, height: 16, backgroundColor: "#171126" }} />
+      {/* gas lamps with flicker */}
+      <View style={{ position: "absolute", left: "52%", bottom: 28, width: 4, height: 34, backgroundColor: "#0F0B1C" }} />
+      <BreatheGlow color="#FFC46B" size={44} left="50%" bottom={52} min={0.25} max={0.5} duration={1800} />
+      <PulseDot left="52.5%" bottom={60} size={7} color="#FFD98A" duration={1700} />
+      <View style={{ position: "absolute", left: "90%", bottom: 28, width: 4, height: 34, backgroundColor: "#0F0B1C" }} />
+      <BreatheGlow color="#FFC46B" size={44} left="88%" bottom={52} min={0.25} max={0.5} duration={2100} delay={500} />
+      <PulseDot left="90.5%" bottom={60} size={7} color="#FFD98A" duration={1900} delay={300} />
+      {/* jazz club doorway glow */}
+      <BreatheGlow color="#FF9D5C" size={60} left="66%" bottom={10} min={0.25} max={0.45} duration={3400} />
+      <View style={{ position: "absolute", left: "68%", bottom: 28, width: 18, height: 30, borderRadius: 8, backgroundColor: "#3A2A1A" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 30, width: 14, height: 26, borderRadius: 6, backgroundColor: "#FFB46B", opacity: 0.85 }} />
+    </SceneRoot>
+  );
+}
+
+/** Legacies: Salvatore boarding school at night — grand building, lit windows, stone gates, fireflies. */
+function LegaciesScene() {
+  return (
+    <SceneRoot base="#16241F">
+      <TwinkleField color="#CFE8D8" count={8} seed={55} />
+      {/* moon */}
+      <BreatheGlow color="#CDEBD8" size={76} left="80%" bottom={92} min={0.2} max={0.38} duration={6800} />
+      <View style={{ position: "absolute", left: "85%", bottom: 96, width: 22, height: 22, borderRadius: 11, backgroundColor: "#EEF7F1" }} />
+      {/* grand school building */}
+      <View style={{ position: "absolute", left: "56%", bottom: 32, width: 56, height: 62, backgroundColor: "#22332B" }} />
+      <View style={{ position: "absolute", left: "54%", bottom: 92, width: 60, height: 10, backgroundColor: "#1A2822" }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 32, width: 6, height: 62, backgroundColor: "#1A2822" }} />
+      <View style={{ position: "absolute", left: "70%", bottom: 32, width: 6, height: 62, backgroundColor: "#1A2822" }} />
+      <View style={{ position: "absolute", left: "82%", bottom: 32, width: 6, height: 62, backgroundColor: "#1A2822" }} />
+      {/* lit windows */}
+      <PulseDot left="63%" bottom={74} size={6} color="#FFD98A" duration={2300} />
+      <PulseDot left="76%" bottom={74} size={6} color="#FFD98A" duration={2700} delay={600} />
+      <PulseDot left="63%" bottom={54} size={6} color="#FFD98A" duration={2500} delay={1100} />
+      <PulseDot left="89%" bottom={54} size={6} color="#FFD98A" duration={2100} delay={300} />
+      {/* front door glow */}
+      <View style={{ position: "absolute", left: "76%", bottom: 32, width: 12, height: 22, borderRadius: 6, backgroundColor: "#FFC46B", opacity: 0.9 }} />
+      {/* stone gate posts */}
+      <View style={{ position: "absolute", left: "50%", bottom: 24, width: 8, height: 30, backgroundColor: "#2E4038" }} />
+      <View style={{ position: "absolute", left: "50%", bottom: 52, width: 10, height: 5, backgroundColor: "#24352D" }} />
+      <View style={{ position: "absolute", left: "94%", bottom: 24, width: 8, height: 30, backgroundColor: "#2E4038" }} />
+      <View style={{ position: "absolute", left: "94%", bottom: 52, width: 10, height: 5, backgroundColor: "#24352D" }} />
+      {/* fireflies */}
+      <PulseDot left="58%" bottom={40} size={5} color="#B8F59B" duration={1600} />
+      <PulseDot left="72%" bottom={24} size={5} color="#B8F59B" duration={1900} delay={500} />
+      <PulseDot left="88%" bottom={36} size={5} color="#B8F59B" duration={1700} delay={900} />
+      <PulseDot left="64%" bottom={18} size={4} color="#B8F59B" duration={2100} delay={1300} />
+    </SceneRoot>
+  );
+}
+
 /** Doctor visit: medical badge, beating heart, clipboard. */
 function DoctorScene() {
   return (
@@ -6336,6 +6438,9 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   if (has("harry potter", "hogwarts")) return <HarryPotterScene />;
   // "wednesday" is a day of the week — require TV context unless it's clearly the show.
   if (has("wednesday addams", "nevermore") || (/\bwednesday\b/.test(text) && /\b(tv|series|show|episode|season|netflix)\b/.test(text))) return <WednesdayScene />;
+  if (has("vampire diaries", "mystic falls")) return <VampireDiariesScene />;
+  if (has("the originals")) return <OriginalsScene />;
+  if (has("legacies")) return <LegaciesScene />;
   return null;
 }
 /** Picks a movie-specific scene from the event notes/title. Returns null for no match. */

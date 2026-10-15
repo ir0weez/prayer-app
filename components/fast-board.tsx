@@ -744,34 +744,20 @@ export function PawnCompanion({
   }[mood];
 
   return (
-    <View
-      style={{
-        alignItems: "center",
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        marginVertical: 8,
-        marginHorizontal: 4,
-        borderRadius: 20,
-        backgroundColor: moodTint,
-        borderWidth: 1,
-        borderColor: colors.border,
-      }}
-    >
+    <View style={{ alignItems: "center", paddingVertical: 12 }}>
       {/* Mood badge */}
       <View
         style={{
-          position: "absolute",
-          top: 10,
-          right: 12,
           backgroundColor: colors.surface,
           borderRadius: 12,
-          paddingHorizontal: 8,
-          paddingVertical: 3,
+          paddingHorizontal: 10,
+          paddingVertical: 4,
           borderWidth: 1,
           borderColor: colors.border,
+          marginBottom: 8,
         }}
       >
-        <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>
           {moodEmoji} {moodLabel}
         </Text>
       </View>
@@ -811,21 +797,8 @@ export function PawnCompanion({
           marginBottom: 6,
         }}
       />
-      {/* Pawn on a little platform */}
-      <View style={{ alignItems: "center" }}>
-        <ViewPawn pawnId={pawnId} color={colors.primary} size={84} />
-        {/* Ground shadow */}
-        <View
-          style={{
-            width: 56,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: "#000000",
-            opacity: 0.08,
-            marginTop: -6,
-          }}
-        />
-      </View>
+      {/* Pawn (static to avoid scroll lag) */}
+      <FastPawnShape id={pawnId} size={64} color={colors.primary} />
       {/* Name */}
       {editing ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
@@ -1085,7 +1058,7 @@ function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; siz
       style.transform = [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }) }];
       break;
     case "sketch":
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-6deg", "6deg"] }) }];
+      style.transform = [{ rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-12deg", "12deg"] }) }];
       break;
     case "moon":
       style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });

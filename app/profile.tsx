@@ -736,7 +736,13 @@ export default function ProfileScreen() {
                   const qStart = q * quarterSize + 1;
                   const qEnd = Math.min((q + 1) * quarterSize, selectedFast.durationDays);
                   const isActive = activeQuarter === q;
-                  const seasonNames = ["Winter", "Spring", "Summer", "Fall"];
+                  const seasons = [
+                    { name: "Winter", icon: "❄️", bg: "#DBEAFE", accent: "#3B82F6", text: "#1E40AF" },
+                    { name: "Spring", icon: "🌸", bg: "#DCFCE7", accent: "#22C55E", text: "#166534" },
+                    { name: "Summer", icon: "☀️", bg: "#FEF3C7", accent: "#F59E0B", text: "#92400E" },
+                    { name: "Fall", icon: "🍂", bg: "#FFEDD5", accent: "#EA580C", text: "#9A3412" },
+                  ];
+                  const season = seasons[q];
                   return (
                     <Pressable
                       key={q}
@@ -746,19 +752,17 @@ export default function ProfileScreen() {
                         paddingVertical: 10,
                         borderRadius: 12,
                         alignItems: "center",
-                        backgroundColor: isActive ? boardColors.primary : boardColors.surface,
-                        borderWidth: 1,
-                        borderColor: boardColors.border,
+                        backgroundColor: isActive ? season.accent : season.bg,
+                        borderWidth: isActive ? 0 : 1,
+                        borderColor: season.accent,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : boardColors.foreground }}>
-                        Q{q + 1}
+                      <Text style={{ fontSize: 16 }}>{season.icon}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : season.text }}>
+                        {season.name}
                       </Text>
-                      <Text style={{ fontSize: 10, color: isActive ? "#FFFFFF" : boardColors.muted, opacity: 0.8 }}>
-                        {seasonNames[q]}
-                      </Text>
-                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : boardColors.muted, opacity: 0.6 }}>
-                        {qStart}-{qEnd}
+                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : season.text, opacity: 0.7 }}>
+                        Days {qStart}-{qEnd}
                       </Text>
                     </Pressable>
                   );
@@ -775,7 +779,17 @@ export default function ProfileScreen() {
             {(() => {
               // Quarter filtering for long fasts (80+ days): show only active quarter
               let boardFast = selectedFast;
+              let seasonalBoardColors = boardColors;
               if (selectedFast.durationDays >= 80) {
+                // Seasonal board theming
+                const seasonalThemes = [
+                  { primary: "#3B82F6", surface: "#EFF6FF", border: "#BFDBFE" }, // Winter
+                  { primary: "#22C55E", surface: "#F0FDF4", border: "#BBF7D0" }, // Spring
+                  { primary: "#F59E0B", surface: "#FFFBEB", border: "#FDE68A" }, // Summer
+                  { primary: "#EA580C", surface: "#FFF7ED", border: "#FDBA74" }, // Fall
+                ];
+                const st = seasonalThemes[activeQuarter];
+                seasonalBoardColors = { ...boardColors, primary: st.primary, surface: st.surface, border: st.border };
                 const quarterSize = Math.ceil(selectedFast.durationDays / 4);
                 const qStartDay = activeQuarter * quarterSize; // 0-indexed offset
                 const qDays = Math.min(quarterSize, selectedFast.durationDays - qStartDay);
@@ -791,7 +805,7 @@ export default function ProfileScreen() {
             <FastBoard
               fast={boardFast}
               today={today}
-              colors={boardColors}
+              colors={seasonalBoardColors}
               pawnId={pawnId}
               visibleYRange={boardVisibleRange}
               todayTileRef={fastTodayTileRef}

@@ -10475,9 +10475,18 @@ export function ScheduleTab({
     let activeBlocks: TimeBlock[] = [];
     if (isTodayOrFuture && whiteSpaceEnabled) {
       // White-space gaps: completed items free up their time.
-      // Point-in-time todos (no endTime/duration) don't block time — they're quick tasks.
+      // Todos block 30 minutes max (longer = event). Point-in-time todos get 30min default.
       const whiteSpaceItems = [
-        ...dayTodos.filter((t) => t.startTime && t.endTime && !t.isCompleted),
+        ...dayTodos.filter((t) => t.startTime && !t.isCompleted).map((t) => ({
+          ...t,
+          // Cap todo duration at 30 minutes for white space
+          endTime: t.endTime || (() => {
+            const [h, m] = t.startTime!.split(":").map(Number);
+            const endM = m + 30;
+            const endH = h + Math.floor(endM / 60);
+            return `${String(endH).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`;
+          })(),
+        })),
         ...dayEvents.filter((e) => e.startTime && !e.isCompleted),
         ...dayMinistries.filter((m) => m.startTime && !m.isCompleted),
         ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),

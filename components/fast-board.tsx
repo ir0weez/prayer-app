@@ -527,10 +527,10 @@ const SvgDayTile = memo(function SvgDayTile({
   onLongPress: () => void;
   tileRef?: React.RefObject<any>;
 }) {
-  const size = isMilestone ? 38 : 34;
-  const off = (34 - size) / 2;
-  const cx = x + 17;
-  const cy = y + 17;
+  const size = isMilestone ? 48 : 44;
+  const off = (44 - size) / 2;
+  const cx = x + 22;
+  const cy = y + 22;
 
   let fill = "transparent";
   let stroke = colors.border;
@@ -616,12 +616,12 @@ export function FastBoard({
   const pageDays = days;
   const pageStart = 0;
 
-  // Mockup geometry: 8 tiles per row, 42px cells, 88px row height.
-  const perRow = 8;
-  const cell = 42;
+  // Board geometry: 6 tiles per row, 56px cells, 100px row height. Big tiles.
+  const perRow = 6;
+  const cell = 56;
   const ox = 12;
   const oy = 14;
-  const rowH = 88;
+  const rowH = 100;
   const rows = Math.ceil(pageDays.length / perRow);
   const svgH = rows * rowH + 20;
 
@@ -638,7 +638,7 @@ export function FastBoard({
   const trailPoints = pageDays
     .map((_, i) => {
       const p = pos(i);
-      return `${p.x + 17},${p.y + 17}`;
+      return `${p.x + 22},${p.y + 22}`;
     })
     .join(" ");
 

@@ -11029,31 +11029,49 @@ export function ScheduleTab({
           return <BirthdayCard birthday={item.data} />;
         case "todo-pair":
           return (
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {item.data.todos.map((t: any) => {
-                const todoColor = t.color || colors.primary;
-                return (
-                  <Pressable
-                    key={t.id}
-                    style={{ flex: 1, backgroundColor: todoColor, borderRadius: 12, padding: 12, minHeight: 64, justifyContent: "center" }}
-                    onPress={(e) => {
-                      const position = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16 }}>
+              {item.data.todos.map((t: any) => (
+                <View key={t.id} style={{ flex: 1 }}>
+                  <TodoItem
+                    todo={t}
+                    people={people}
+                    events={events}
+                    ministries={ministries}
+                    isOverdue={item.isOverdue}
+                    isCurrentTodo={t.id === currentTodoId}
+                    isNew={t.id === justAddedId}
+                    onToggle={(position) => {
                       if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
                       else revokeTodoXP(t.id, position);
                       setTodos((prev) => toggleTodoCompleted(prev, t.id));
                     }}
-                  >
-                    <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700" }} numberOfLines={2}>
-                      {t.title}
-                    </Text>
-                    {t.startTime && (
-                      <Text style={{ color: "#FFFFFF", fontSize: 11, opacity: 0.8, marginTop: 2 }}>
-                        {t.startTime}
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
+                    onToggleSubtask={(subtaskId, position) => {
+                      const subtask = t.subtasks?.find((entry: { id: string; isCompleted: boolean }) => entry.id === subtaskId);
+                      if (subtask?.isCompleted) revokeTodoXP(`${t.id}:${subtaskId}`, position);
+                      else onAwardXP?.(xpActionForDate(t.date), `${t.id}:${subtaskId}`, position);
+                      setTodos((prev) => toggleSubtaskCompleted(prev, t.id, subtaskId));
+                    }}
+                    onToggleGroupExpansion={() => setTodos((prev) => toggleTodoGroupExpanded(prev, t.id))}
+                    onEdit={() => openEditTodo(t)}
+                    onDelete={() => {
+                      Alert.alert(
+                        'Delete Todo',
+                        `Are you sure you want to delete "${t.title}"?`,
+                        [
+                          { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            onPress: () => {
+                              setTodos((prev) => removeScheduleTodo(prev, t.id));
+                            },
+                            style: 'destructive',
+                          },
+                        ]
+                      );
+                    }}
+                  />
+                </View>
+              ))}
             </View>
           );
         case "todo":

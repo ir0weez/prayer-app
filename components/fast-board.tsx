@@ -22,6 +22,45 @@ export type FastBoardColors = {
 
 export type FastSpecialKind = "grace" | "wilderness" | "trivia";
 
+export type PilgrimWaypointKind = "rest" | "market" | "fair" | "slough";
+
+export const PILGRIM_WAYPOINTS: Record<PilgrimWaypointKind, { icon: string; title: string; message: string }> = {
+  rest: {
+    icon: "☕",
+    title: "Rest Stop",
+    message: "Take a breath. The journey is long, but rest is holy. You're doing well — keep walking.",
+  },
+  market: {
+    icon: "🏪",
+    title: "Vanity Fair Market",
+    message: "The market bustles around you, but you walk through untouched. Trade your worries for peace.",
+  },
+  fair: {
+    icon: "🎡",
+    title: "World's Fair",
+    message: "Take a ride! Joy is part of the journey. Celebrate how far you've come.",
+  },
+  slough: {
+    icon: "🌊",
+    title: "Slough of Despond",
+    message: "The mud is deep here, but Help is on the way. Keep your eyes up — you will get through this.",
+  },
+};
+
+/** Pilgrim's Progress waypoints — restful landmarks, not skippable days. */
+export function getPilgrimWaypoint(dayNum: number, totalDays: number): PilgrimWaypointKind | null {
+  if (dayNum < 1 || dayNum > totalDays || totalDays < 10) return null;
+  const third = Math.round(totalDays / 3);
+  const twoThird = Math.round((totalDays * 2) / 3);
+  const quarter = Math.round(totalDays / 4);
+  const threeQuarter = Math.round((totalDays * 3) / 4);
+  if (dayNum === third) return "market";
+  if (dayNum === twoThird) return "fair";
+  if (dayNum === quarter || dayNum === threeQuarter) return "slough";
+  if (dayNum % 10 === 0 && dayNum % 7 !== 0) return "rest";
+  return null;
+}
+
 /** Which special space (if any) a day number holds. */
 export function getSpecialSpace(dayNum: number, totalDays: number): FastSpecialKind | null {
   if (dayNum < 1 || dayNum > totalDays) return null;
@@ -444,6 +483,56 @@ export function FastTriviaModal({
   );
 }
 
+/** Pilgrim waypoint modal — encouraging message, not a skip. */
+export function FastWaypointModal({
+  visible,
+  kind,
+  colors,
+  onClose,
+}: {
+  visible: boolean;
+  kind: PilgrimWaypointKind | null;
+  colors: FastBoardColors;
+  onClose: () => void;
+}) {
+  if (!visible || !kind) return null;
+  const wp = PILGRIM_WAYPOINTS[kind];
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24 }}
+        onPress={onClose}
+      >
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: 20,
+            padding: 24,
+            maxWidth: 320,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Text style={{ fontSize: 48, marginBottom: 12 }}>{wp.icon}</Text>
+          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "800", marginBottom: 8, textAlign: "center" }}>
+            {wp.title}
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 14, textAlign: "center", lineHeight: 20 }}>
+            {wp.message}
+          </Text>
+          <Pressable
+            onPress={onClose}
+            style={{ marginTop: 16, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Keep walking</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 /** "Streak bonus ×N" pill for the fasting header. */
 export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: FastBoardColors }) {
   const tier = getStreakTier(dayNum);
@@ -795,6 +884,8 @@ const FastTileView = memo(function FastTileView({
   pawnId,
   svgH,
   total,
+  waypoint,
+  onWaypointPress,
   onPress,
   onLongPress,
 }: {
@@ -814,6 +905,8 @@ const FastTileView = memo(function FastTileView({
   pawnId?: string;
   svgH: number;
   total: number;
+  waypoint: PilgrimWaypointKind | null;
+  onWaypointPress: (kind: PilgrimWaypointKind) => void;
   onPress: () => void;
   onLongPress: () => void;
 }) {
@@ -917,27 +1010,34 @@ const FastTileView = memo(function FastTileView({
           {dayNum}
         </Text>
       )}
-      {/* Pilgrim's Progress waypoints at quarter marks */}
-      {(() => {
-        const q1 = Math.round(total * 0.25);
-        const q2 = Math.round(total * 0.5);
-        const q3 = Math.round(total * 0.75);
-        const waypoint = dayNum === q1 ? "⛰" : dayNum === q2 ? "🏰" : dayNum === q3 ? "🏔" : null;
-        if (!waypoint) return null;
-        return (
+      {/* Pilgrim's Progress waypoints — tappable for encouragement */}
+      {waypoint && (
+        <Pressable
+          onPress={() => onWaypointPress(waypoint)}
+          style={{
+            position: "absolute",
+            bottom: -30,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+          }}
+        >
           <View
             style={{
-              position: "absolute",
-              bottom: -28,
-              left: 0,
-              right: 0,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: colors.surface,
+              borderWidth: 1.5,
+              borderColor: colors.border,
               alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <Text style={{ fontSize: 16 }}>{waypoint}</Text>
+            <Text style={{ fontSize: 14 }}>{PILGRIM_WAYPOINTS[waypoint].icon}</Text>
           </View>
-        );
-      })()}
+        </Pressable>
+      )}
     </Pressable>
   );
 });
@@ -1057,6 +1157,7 @@ export function FastBoard({
   onLongPressTile?: (date: string, dayNum: number) => void;
 }) {
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
+  const [waypointKind, setWaypointKind] = useState<PilgrimWaypointKind | null>(null);
   const days = getFastCalendarDays(fast);
   const total = fast.durationDays;
   const todayIndex = days.indexOf(today);
@@ -1179,6 +1280,8 @@ export function FastBoard({
               pawnId={pawnId}
               svgH={svgH}
               total={total}
+              waypoint={getPilgrimWaypoint(dayNum, total)}
+              onWaypointPress={setWaypointKind}
               onPress={() => {
                 if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);
                 else onPressTile?.(date, dayNum);
@@ -1196,6 +1299,12 @@ export function FastBoard({
         onCorrect={(points) => {
           if (triviaDay !== null) onTriviaCorrect?.(points, triviaDay);
         }}
+      />
+      <FastWaypointModal
+        visible={waypointKind !== null}
+        kind={waypointKind}
+        colors={colors}
+        onClose={() => setWaypointKind(null)}
       />
     </View>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Polygon, Polyline } from "react-native-svg";
+import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import {
   getFastCalendarDays,
   getFastEndDate,
@@ -298,321 +298,6 @@ export function FastFlame({ size = 16, color = "#FFB300" }: { size?: number; col
 }
 
 /** Gentle opacity pulse + soft bob wrapper (native driver). The pawn is never transformed by marking. */
-function PawnWrap({ children, style }: { children: React.ReactNode; style?: any }) {
-  const op = useRef(new Animated.Value(0.55)).current;
-  const bob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(op, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(op, { toValue: 0.55, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    const rise = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: -3, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    pulse.start();
-    rise.start();
-    return () => {
-      pulse.stop();
-      rise.stop();
-    };
-  }, [op, bob]);
-  return <Animated.View style={[style, { opacity: op, transform: [{ translateY: bob }] }]}>{children}</Animated.View>;
-}
-
-/** "Streak bonus ×N" pill for the fasting header. */
-export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: FastBoardColors }) {
-  const tier = getStreakTier(dayNum);
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        backgroundColor: colors.border + "55",
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginTop: 6,
-      }}
-    >
-      <Text style={{ color: colors.muted, fontSize: 11 }}>
-        Streak bonus <Text style={{ color: colors.primary, fontWeight: "800" }}>{tier.label}</Text>
-        {dayNum < 15 ? " — day 15+ earns double" : dayNum < 22 ? " — day 22+ earns ×2.5" : " — max tier"}
-      </Text>
-    </View>
-  );
-}
-
-const STATUS_FILL: Record<FastDayStatus, string> = {
-  completed: "#22C55E",
-  skipped: "#F59E0B",
-  missed: "rgba(239,68,68,0.12)",
-};
-
-function SpecialBadge({
-  kind,
-  size,
-  colors,
-}: {
-  kind: FastSpecialKind;
-  size: number;
-  colors: FastBoardColors;
-}) {
-  const meta = {
-    grace: { bg: "#F59E0B", icon: "auto-awesome" },
-    wilderness: { bg: "#EF4444", icon: "priority-high" },
-    trivia: { bg: "#7C5CFF", icon: "help" },
-  }[kind] as { bg: string; icon: any };
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: -size * 0.28,
-        right: -size * 0.28,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: meta.bg,
-        borderWidth: 2,
-        borderColor: colors.surface,
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 2,
-      }}
-    >
-      <MaterialIcons name={meta.icon} size={size * 0.58} color="#FFFFFF" />
-    </View>
-  );
-}
-
-function MarkBadge({ status, size, colors }: { status: FastDayStatus; size: number; colors: FastBoardColors }) {
-  if (status === "completed") {
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: -size * 0.28,
-          right: -size * 0.28,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: "#F97316",
-          borderWidth: 2,
-          borderColor: colors.surface,
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 2,
-        }}
-      >
-        <MaterialIcons name="whatshot" size={size * 0.58} color="#FFFFFF" />
-      </View>
-    );
-  }
-  if (status === "missed") {
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: -size * 0.28,
-          right: -size * 0.28,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: "#EF4444",
-          borderWidth: 2,
-          borderColor: colors.surface,
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 2,
-        }}
-      >
-        <MaterialIcons name="close" size={size * 0.58} color="#FFFFFF" />
-      </View>
-    );
-  }
-  // skipped — pause badge
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: -size * 0.28,
-        right: -size * 0.28,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: colors.surface,
-        borderWidth: 2,
-        borderColor: "#F59E0B",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 2,
-      }}
-    >
-      <MaterialIcons name="pause" size={size * 0.58} color="#F59E0B" />
-    </View>
-  );
-}
-
-function FastTile({
-  status,
-  isToday,
-  isMilestone,
-  size,
-  tileRadius,
-  colors,
-  special,
-  showBadge,
-  onPressTrivia,
-  pawnId,
-  onPressTile,
-  onLongPressTile,
-}: {
-  status: FastDayStatus | undefined;
-  isToday: boolean;
-  isMilestone: boolean;
-  size: number;
-  tileRadius: number;
-  colors: FastBoardColors;
-  special: FastSpecialKind | null;
-  showBadge: boolean;
-  onPressTrivia: (() => void) | null;
-  pawnId: string;
-  onPressTile?: (position?: { x: number; y: number }) => void;
-  onLongPressTile?: () => void;
-}) {
-  // Tile-only mark animation: fill transitions over 0.4s, badge pops with ease-out scale.
-  // The pawn is never touched here.
-  const fillT = useRef(new Animated.Value(status ? 1 : 0)).current;
-  const badgeScale = useRef(new Animated.Value(status ? 1 : 0)).current;
-  const prevStatus = useRef(status);
-  useEffect(() => {
-    if (prevStatus.current !== status) {
-      if (status) {
-        badgeScale.setValue(0);
-        Animated.parallel([
-          Animated.timing(fillT, { toValue: 1, duration: 400, easing: Easing.out(Easing.ease), useNativeDriver: false }),
-          Animated.timing(badgeScale, { toValue: 1, duration: 320, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        ]).start();
-      } else {
-        fillT.setValue(0);
-        badgeScale.setValue(0);
-      }
-      prevStatus.current = status;
-    }
-  }, [status, fillT, badgeScale]);
-
-  const targetFill = status ? STATUS_FILL[status] : "rgba(0,0,0,0)";
-  const bgColor = fillT.interpolate({ inputRange: [0, 1], outputRange: ["rgba(0,0,0,0)", targetFill] });
-  const badgeSize = Math.max(14, size * 0.55);
-
-  const borderColor = status === "missed" ? "#EF4444" : status ? STATUS_FILL[status] : isToday ? colors.primary : colors.border;
-  const borderWidth = status === "missed" ? 2.5 : status || isToday ? 2 : 1.5;
-
-  const tileContent = (
-    <View style={{ width: size, height: size, position: "relative" }}>
-      <Animated.View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: tileRadius,
-          backgroundColor: bgColor,
-          borderWidth,
-          borderColor,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {isToday && <FastPawnShape id={pawnId} size={size * 0.62} color={colors.primary} />}
-        {status === "completed" && !isToday && (
-          <MaterialIcons name="check" size={size * 0.5} color="#FFFFFF" />
-        )}
-      </Animated.View>
-      {showBadge && (
-        <Animated.View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            pointerEvents: "none",
-            transform: [{ scale: badgeScale }],
-          }}
-        >
-          {special ? (
-            <SpecialBadge kind={special} size={badgeSize} colors={colors} />
-          ) : status ? (
-            <MarkBadge status={status} size={badgeSize} colors={colors} />
-          ) : null}
-        </Animated.View>
-      )}
-    </View>
-  );
-
-  if (special === "trivia" && onPressTrivia) {
-    return (
-      <Pressable
-        onPress={onPressTrivia}
-        onLongPress={onLongPressTile}
-        delayLongPress={420}
-        style={({ pressed }) => [pressed && { opacity: 0.75 }]}
-      >
-        {tileContent}
-      </Pressable>
-    );
-  }
-  if (onPressTile || onLongPressTile) {
-    return (
-      <Pressable
-        onPress={(event) => onPressTile?.({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
-        onLongPress={onLongPressTile}
-        delayLongPress={420}
-        style={({ pressed }) => [pressed && { opacity: 0.75 }]}
-      >
-        {tileContent}
-      </Pressable>
-    );
-  }
-  return tileContent;
-}
-
-/** One board row with staggered fade/slide-in on expand (90ms stagger, no bounce). */
-function FastBoardRow({
-  children,
-  index,
-  animateIn,
-  style,
-}: {
-  children: React.ReactNode;
-  index: number;
-  animateIn: boolean;
-  style?: any;
-}) {
-  const op = useRef(new Animated.Value(animateIn ? 0 : 1)).current;
-  const dy = useRef(new Animated.Value(animateIn ? 14 : 0)).current;
-  useEffect(() => {
-    if (!animateIn) return;
-    const t = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(op, { toValue: 1, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(dy, { toValue: 0, duration: 350, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-      ]).start();
-    }, index * 90);
-    return () => clearTimeout(t);
-  }, []);
-  return (
-    <Animated.View style={[{ opacity: op, transform: [{ translateY: dy }], flexDirection: "row" }, style]}>
-      {children}
-    </Animated.View>
-  );
-}
-
-/** Small trivia modal: Bible question, 3–4 options. Correct → bonus XP. */
 export function FastTriviaModal({
   visible,
   dayNum,
@@ -752,12 +437,64 @@ export function FastTriviaModal({
   );
 }
 
+/** "Streak bonus ×N" pill for the fasting header. */
+export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: FastBoardColors }) {
+  const tier = getStreakTier(dayNum);
+  return (
+    <View
+      style={{
+        alignSelf: "flex-start",
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        backgroundColor: colors.border + "55",
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginTop: 6,
+      }}
+    >
+      <Text style={{ color: colors.muted, fontSize: 11 }}>
+        Streak bonus <Text style={{ color: colors.primary, fontWeight: "800" }}>{tier.label}</Text>
+        {dayNum < 15 ? " — day 15+ earns double" : dayNum < 22 ? " — day 22+ earns ×2.5" : " — max tier"}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * Serpentine board-game track of the fast's days.
- * Rows wind left-to-right, then right-to-left (boustrophedon).
- * Always fully expanded; fasts over 60 days paginate into 30-day windows.
- * A floating pill on the fast page scrolls to today.
+ * Serpentine board-game track of the fast's days, rendered as pure SVG
+ * matching the approved mockup. Rows wind left-to-right, then right-to-left.
+ * Fasts over 60 days paginate into 30-day windows.
  */
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/** Gentle bobbing pawn for the SVG board (cy only, no native driver for SVG attrs). */
+function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: -4, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]),
+    );
+    rise.start();
+    return () => rise.stop();
+  }, [bob]);
+  return (
+    <G>
+      <AnimatedCircle cx={cx} cy={Animated.add(bob, cy - 2)} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
+      <AnimatedCircle cx={cx - 3.5} cy={Animated.add(bob, cy - 5.5)} r={3} fill="#FFFFFF" opacity={0.55} />
+    </G>
+  );
+}
+
+const SPECIAL_SVG_META: Record<FastSpecialKind, { color: string; icon: string }> = {
+  grace: { color: "#F59E0B", icon: "✦" },
+  wilderness: { color: "#EF4444", icon: "!" },
+  trivia: { color: "#7C5CFF", icon: "?" },
+};
+
 export function FastBoard({
   fast,
   today,
@@ -773,19 +510,17 @@ export function FastBoard({
   colors: FastBoardColors;
   onTriviaCorrect?: (points: number, dayNum: number) => void;
   pawnId?: string;
-  todayTileRef?: React.RefObject<View | null>;
+  todayTileRef?: React.RefObject<any>;
   onPressTile?: (date: string, dayNum: number, position?: { x: number; y: number }) => void;
   onLongPressTile?: (date: string, dayNum: number) => void;
 }) {
-  const [width, setWidth] = useState(0);
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
   const days = getFastCalendarDays(fast);
   const total = fast.durationDays;
   const todayIndex = days.indexOf(today);
   const currentDayNum = todayIndex >= 0 ? todayIndex + 1 : 1;
 
-  // Long fasts (>60 days) paginate into 30-day windows so every page keeps
-  // the full board-game treatment (28px serpentine tiles, badges, pawn).
+  // Long fasts (>60 days) paginate into 30-day windows.
   const WINDOW = 30;
   const paginated = total > 60;
   const windowCount = Math.ceil(total / WINDOW);
@@ -795,87 +530,144 @@ export function FastBoard({
   const pageStartDay = pageStart + 1;
   const pageEndDay = Math.min(pageStart + WINDOW, total);
 
-  // Tile size adapts to fast length; milestone tiles get +6.
-  const tile = paginated ? 34 : total <= 7 ? 46 : total <= 40 ? 34 : total <= 90 ? 18 : 10;
-  const gap = paginated ? 6 : total <= 7 ? 8 : total <= 40 ? 6 : 4;
-  const cell = tile + 6 + gap;
-  const showNumbers = tile >= 18;
-  const showFlag = tile >= 18;
-  const showBadge = tile >= 18;
-  const tileRadius = tile <= 12 ? tile / 2 : 7;
+  // Mockup geometry: 8 tiles per row, 42px cells, 88px row height.
+  const perRow = 8;
+  const cell = 42;
+  const ox = 12;
+  const oy = 14;
+  const rowH = 88;
+  const rows = Math.ceil(pageDays.length / perRow);
+  const svgH = rows * rowH + 20;
 
-  const columns = width > 0 ? Math.max(1, Math.floor((width + gap) / cell)) : 1;
-  const rows: { date: string; dayNum: number }[][] = [];
-  pageDays.forEach((date, i) => {
-    const r = Math.floor(i / columns);
-    if (!rows[r]) rows[r] = [];
-    rows[r].push({ date, dayNum: pageStart + i + 1 });
-  });
-  // Board is always fully expanded; a floating pill scrolls to today.
-  const visibleRowIndexes: number[] = rows.map((_, r) => r);
+  const pos = (i: number) => {
+    const r = Math.floor(i / perRow);
+    const c = i % perRow;
+    return {
+      x: r % 2 === 0 ? ox + c * cell : ox + (perRow - 1 - c) * cell,
+      y: oy + r * rowH,
+    };
+  };
 
-  const renderTile = (date: string, dayNum: number, rowIndex: number) => {
+  // Dotted trail through tile centers in serpentine order.
+  const trailPoints = pageDays
+    .map((_, i) => {
+      const p = pos(i);
+      return `${p.x + 17},${p.y + 17}`;
+    })
+    .join(" ");
+
+  const renderDay = (date: string, i: number) => {
+    const dayNum = pageStart + i + 1;
+    const p = pos(i);
     const status = fast.dayStatuses[date];
     const isToday = dayNum - 1 === todayIndex;
     const isMilestone = dayNum % 10 === 0;
-    const isStart = dayNum === 1;
-    const size = isMilestone ? tile + 6 : tile;
+    const isFirst = dayNum === 1;
+    const isLast = dayNum === total;
+    const size = isMilestone ? 38 : 34;
+    const off = (34 - size) / 2;
     const special = getSpecialSpace(dayNum, total);
 
+    let fill = "transparent";
+    let stroke = colors.border;
+    let sw = 1.5;
+    if (status === "completed") { fill = "#22C55E"; stroke = "#22C55E"; }
+    else if (status === "skipped") { fill = "#F59E0B"; stroke = "#F59E0B"; }
+    else if (status === "missed") { fill = "rgba(239,68,68,0.12)"; stroke = "#EF4444"; sw = 2.5; }
+    if (isToday) { stroke = colors.primary; sw = 2.5; }
+
+    const cx = p.x + 17;
+    const cy = p.y + 17;
+
+    const handlePress = () => {
+      if (special === "trivia" && onTriviaCorrect) {
+        setTriviaDay(dayNum);
+      } else {
+        onPressTile?.(date, dayNum);
+      }
+    };
+    const handleLongPress = () => onLongPressTile?.(date, dayNum);
+
     return (
-      <View
+      <G
         key={date}
         ref={isToday ? todayTileRef : undefined}
         collapsable={false}
-        style={{ width: cell - gap, alignItems: "center", justifyContent: "flex-start" }}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
       >
-        {rowIndex === 0 ? (
-          <View style={{ height: 14, alignItems: "center", justifyContent: "center" }}>
-            {isStart && showFlag && <MaterialIcons name="flag" size={12} color={colors.muted} />}
-          </View>
-        ) : null}
-        {isToday ? (
-          <PawnWrap>
-            <FastTile
-              status={status}
-              isToday
-              isMilestone={isMilestone}
-              size={size}
-              tileRadius={tileRadius}
-              colors={colors}
-              special={special}
-              showBadge={showBadge}
-              onPressTrivia={special === "trivia" && onTriviaCorrect ? () => setTriviaDay(dayNum) : null}
-              pawnId={pawnId ?? "pebble"}
-              onPressTile={onPressTile ? (position) => onPressTile(date, dayNum, position) : undefined}
-              onLongPressTile={onLongPressTile ? () => onLongPressTile(date, dayNum) : undefined}
-            />
-          </PawnWrap>
-        ) : (
-          <FastTile
-            status={status}
-            isToday={false}
-            isMilestone={isMilestone}
-            size={size}
-            tileRadius={tileRadius}
-            colors={colors}
-            special={special}
-            showBadge={showBadge}
-            onPressTrivia={special === "trivia" && onTriviaCorrect ? () => setTriviaDay(dayNum) : null}
-            pawnId={pawnId ?? "pebble"}
-            onPressTile={onPressTile ? (position) => onPressTile(date, dayNum, position) : undefined}
-            onLongPressTile={onLongPressTile ? () => onLongPressTile(date, dayNum) : undefined}
+        <Rect
+          x={p.x + off}
+          y={p.y + off}
+          width={size}
+          height={size}
+          rx={10}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={sw}
+        />
+        {status === "completed" && (
+          <Path
+            d={`M${cx - 6} ${cy} l4 4 l8 -9`}
+            stroke="#FFFFFF"
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         )}
-        {isMilestone && showNumbers ? (
-          <Text style={{ color: colors.muted, fontSize: 9, marginTop: 2 }}>{dayNum}</Text>
-        ) : null}
-      </View>
+        {status === "missed" && (
+          <Path
+            d={`M${cx - 4} ${cy - 4} L${cx + 4} ${cy + 4} M${cx + 4} ${cy - 4} L${cx - 4} ${cy + 4}`}
+            stroke="#EF4444"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        )}
+        {isFirst && (
+          <SvgText x={cx} y={cy + 5} textAnchor="middle" fontSize={13} fill={colors.muted}>
+            {"\u2691"}
+          </SvgText>
+        )}
+        {isMilestone && !isLast && (
+          <SvgText x={cx} y={p.y + 48} textAnchor="middle" fontSize={9} fontWeight="700" fill={colors.muted}>
+            {String(dayNum)}
+          </SvgText>
+        )}
+        {isLast && (
+          <SvgText x={cx} y={cy + 4} textAnchor="middle" fontSize={11} fill={colors.muted}>
+            {"\u2726"}
+          </SvgText>
+        )}
+        {special && (
+          <G>
+            <Circle
+              cx={cx + 13}
+              cy={cy - 13}
+              r={9}
+              fill={SPECIAL_SVG_META[special].color}
+              stroke={colors.surface}
+              strokeWidth={2}
+            />
+            <SvgText
+              x={cx + 13}
+              y={cy - 9}
+              textAnchor="middle"
+              fontSize={10}
+              fontWeight="800"
+              fill="#FFFFFF"
+            >
+              {SPECIAL_SVG_META[special].icon}
+            </SvgText>
+          </G>
+        )}
+        {isToday && <SvgPawn cx={cx} cy={cy} color={colors.primary} />}
+      </G>
     );
   };
 
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
       {paginated && windowCount > 1 ? (
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
@@ -901,52 +693,17 @@ export function FastBoard({
         </View>
       ) : null}
       <View style={{ height: 10 }} />
-      {width > 0 && (
-        <View style={{ position: "relative" }}>
-          {/* Dotted serpentine trail connecting tile centers, like the mockup */}
-          <Svg
-            style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
-            width={width}
-            height={visibleRowIndexes.length * (tile + 6 + gap) + 14}
-            pointerEvents="none"
-          >
-            <Polyline
-              points={visibleRowIndexes
-                .map((r) => {
-                  const row = rows[r];
-                  const ordered = r % 2 === 1 ? [...row].reverse() : row;
-                  return ordered
-                    .map((_, i) => {
-                      const x = r % 2 === 1 ? width - (i + 0.5) * cell : (i + 0.5) * cell;
-                      const y = (r === 0 ? 14 : 0) + visibleRowIndexes.indexOf(r) * (tile + 6 + gap) + (tile + 6) / 2;
-                      return `${x},${y}`;
-                    })
-                    .join(" ");
-                })
-                .join(" ")}
-              fill="none"
-              stroke={colors.border}
-              strokeWidth={3}
-              strokeDasharray="1 7"
-              strokeLinecap="round"
-            />
-          </Svg>
-          {visibleRowIndexes.map((r, vi) => {
-            const row = rows[r];
-            const ordered = r % 2 === 1 ? [...row].reverse() : row;
-            return (
-              <FastBoardRow
-                key={r}
-                index={vi}
-                animateIn={false}
-                style={{ marginBottom: vi < visibleRowIndexes.length - 1 ? gap : 0 }}
-              >
-                {ordered.map(({ date, dayNum }) => renderTile(date, dayNum, r))}
-              </FastBoardRow>
-            );
-          })}
-        </View>
-      )}
+      <Svg viewBox={`0 0 360 ${svgH}`} style={{ width: "100%", height: svgH }}>
+        <Polyline
+          points={trailPoints}
+          fill="none"
+          stroke={colors.border}
+          strokeWidth={3}
+          strokeDasharray="1 7"
+          strokeLinecap="round"
+        />
+        {pageDays.map((date, i) => renderDay(date, i))}
+      </Svg>
       <FastTriviaModal
         visible={triviaDay !== null}
         dayNum={triviaDay ?? 1}

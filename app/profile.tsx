@@ -3,7 +3,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -166,6 +166,7 @@ export default function ProfileScreen() {
   const [showFastDayPill, setShowFastDayPill] = useState(true);
   const [boardVisibleRange, setBoardVisibleRange] = useState<{ top: number; bottom: number } | null>(null);
   const [activeQuarter, setActiveQuarter] = useState(0);
+  const [quarterAutoSet, setQuarterAutoSet] = useState(false);
   const scrollYRef = useRef(0);
   const viewportHRef = useRef(800);
 
@@ -237,6 +238,20 @@ export default function ProfileScreen() {
   );
 
   const selectedFast = useMemo(() => fasts.find((fast) => fast.id === selectedFastId) ?? getActiveFast(fasts, today), [fasts, selectedFastId, today]);
+
+  // Auto-select the quarter containing today for long fasts
+  useEffect(() => {
+    if (!quarterAutoSet && selectedFast && selectedFast.durationDays >= 80) {
+      const days = getFastCalendarDays(selectedFast);
+      const todayIdx = days.indexOf(today);
+      if (todayIdx >= 0) {
+        const quarterSize = Math.ceil(selectedFast.durationDays / 4);
+        const q = Math.floor(todayIdx / quarterSize);
+        setActiveQuarter(Math.min(q, 3));
+      }
+      setQuarterAutoSet(true);
+    }
+  }, [selectedFast, today, quarterAutoSet]);
   const profileAura = useMemo(() => getAvatarAura(profile.avatarAsset, profile.auraId), [profile.avatarAsset, profile.auraId]);
   const unlockedBookIds = useMemo(() => getCompletedBookAvatarIds(bookStatuses), [bookStatuses]);
 
@@ -713,6 +728,8 @@ export default function ProfileScreen() {
               );
             })()}
             {selectedFast && selectedFast.durationDays >= 80 && (
+              <>
+              <Text style={[styles.sectionLabel, { marginBottom: 8 }]}>SEASONS — TAP TO SWITCH QUARTER</Text>
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                 {[0, 1, 2, 3].map((q) => {
                   const quarterSize = Math.ceil(selectedFast.durationDays / 4);
@@ -747,6 +764,7 @@ export default function ProfileScreen() {
                   );
                 })}
               </View>
+              </>
             )}
             <Text style={styles.sectionLabel}>BOARD</Text>
             <View

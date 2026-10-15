@@ -469,12 +469,25 @@ export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: Fas
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedG = Animated.createAnimatedComponent(G);
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 /** Gentle bobbing pawn for the SVG board. */
 function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: -4, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    rise.start();
+    return () => rise.stop();
+  }, [bob]);
   return (
     <G>
-      <Circle cx={cx} cy={cy - 2} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
-      <Circle cx={cx - 3.5} cy={cy - 5.5} r={3} fill="#FFFFFF" opacity={0.55} />
+      <AnimatedCircle cx={cx} cy={Animated.add(bob, cy - 2)} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
+      <AnimatedCircle cx={cx - 3.5} cy={Animated.add(bob, cy - 5.5)} r={3} fill="#FFFFFF" opacity={0.55} />
     </G>
   );
 }

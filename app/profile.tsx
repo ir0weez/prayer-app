@@ -159,6 +159,7 @@ export default function ProfileScreen() {
   const { pawnId, setPawnId } = useFastPawn();
   const profileScrollRef = useRef<ScrollView>(null);
   const fastTodayTileRef = useRef<View | null>(null);
+  const fastBoardContainerRef = useRef<View | null>(null);
 
   const boardColors: FastBoardColors = useMemo(() => ({
     foreground: colors.foreground,
@@ -179,14 +180,18 @@ export default function ProfileScreen() {
   }, []);
 
   const scrollToFastToday = () => {
-    const tile = fastTodayTileRef.current;
     const scroll = profileScrollRef.current;
-    if (!tile || !scroll) return;
+    const board = fastBoardContainerRef.current;
+    if (!scroll || !board) return;
+    // Today's tile Y within the SVG board: 8 per row, 88px rows, oy=14.
+    // selectedFast is in scope; compute today's row from its start date.
+    const todayRow = selectedFast ? Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 8) : 0;
+    const tileYInBoard = 14 + todayRow * 88;
     const scrollHandle = findNodeHandle(scroll);
     if (!scrollHandle) return;
-    tile.measureLayout(
+    (board as any).measureLayout(
       scrollHandle,
-      (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 140), animated: true }),
+      (_x: number, y: number) => scroll.scrollTo({ y: Math.max(0, y + tileYInBoard - 140), animated: true }),
       () => {},
     );
   };
@@ -629,6 +634,7 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.sectionLabel}>BOARD</Text>
+            <View ref={fastBoardContainerRef} collapsable={false}>
             <FastBoard
               fast={selectedFast}
               today={today}
@@ -641,6 +647,7 @@ export default function ProfileScreen() {
                 awardBonusXP(points, `fast-trivia:${selectedFast.id}:day${dayNum}`)
               }
             />
+            </View>
             <FastPawnPicker
               level={profileLevel}
               prayerStreak={profile.personalPrayerStreak}
@@ -799,7 +806,7 @@ export default function ProfileScreen() {
           }}
         >
           <MaterialIcons name="today" size={18} color="#FFFFFF" />
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Today's fast day</Text>
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Fast Day</Text>
         </Pressable>
       )}
     </ScreenContainer>

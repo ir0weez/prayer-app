@@ -623,6 +623,23 @@ export function FastBoard({
   const oy = 14;
   const rowH = 100;
   const rows = Math.ceil(pageDays.length / perRow);
+
+  // Chunked rendering: render rows around today first, then the rest.
+  // This keeps the initial page load fast for long fasts.
+  const [renderAll, setRenderAll] = useState(rows <= 12);
+  useEffect(() => {
+    if (rows > 12) {
+      const t = setTimeout(() => setRenderAll(true), 300);
+      return () => clearTimeout(t);
+    }
+  }, [rows]);
+  const todayRowIdx = todayIndex >= 0 ? Math.floor(todayIndex / perRow) : 0;
+  const visibleIndices = renderAll
+    ? pageDays.map((_, i) => i)
+    : pageDays.map((_, i) => i).filter((i) => {
+        const r = Math.floor(i / perRow);
+        return Math.abs(r - todayRowIdx) <= 6;
+      });
   const svgH = rows * rowH + 20;
 
   const pos = (i: number) => {
@@ -656,7 +673,8 @@ export function FastBoard({
           strokeDasharray="1 7"
           strokeLinecap="round"
         />
-        {pageDays.map((date, i) => {
+        {visibleIndices.map((i) => {
+          const date = pageDays[i];
           const dayNum = pageStart + i + 1;
           const p = pos(i);
           const status = fast.dayStatuses[date];

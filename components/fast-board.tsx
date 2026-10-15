@@ -1380,6 +1380,7 @@ export function FastBoard({
   todayTileRef,
   onPressTile,
   onLongPressTile,
+  visibleYRange,
 }: {
   fast: PersonalFast;
   today: string;
@@ -1389,6 +1390,7 @@ export function FastBoard({
   todayTileRef?: React.RefObject<any>;
   onPressTile?: (date: string, dayNum: number, position?: { x: number; y: number }) => void;
   onLongPressTile?: (date: string, dayNum: number) => void;
+  visibleYRange?: { top: number; bottom: number } | null;
 }) {
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
   const [waypointKind, setWaypointKind] = useState<PilgrimWaypointKind | null>(null);
@@ -1419,12 +1421,23 @@ export function FastBoard({
     }
   }, [rows]);
   const todayRowIdx = todayIndex >= 0 ? Math.floor(todayIndex / perRow) : 0;
-  const visibleIndices = renderAll
-    ? pageDays.map((_, i) => i)
-    : pageDays.map((_, i) => i).filter((i) => {
+  // Virtualization: only render tiles in the visible Y range (+ buffer).
+  // Falls back to today-centered window if no range provided.
+  const visibleIndices = (() => {
+    if (renderAll) return pageDays.map((_, i) => i);
+    if (visibleYRange) {
+      const { top, bottom } = visibleYRange;
+      return pageDays.map((_, i) => i).filter((i) => {
         const r = Math.floor(i / perRow);
-        return Math.abs(r - todayRowIdx) <= 6;
+        const y = r * rowH; // relative to board top (oy is offset, add buffer)
+        return y >= top - 300 && y <= bottom + 300;
       });
+    }
+    return pageDays.map((_, i) => i).filter((i) => {
+      const r = Math.floor(i / perRow);
+      return Math.abs(r - todayRowIdx) <= 6;
+    });
+  })();
   const svgH = rows * rowH + 20;
 
   const pos = (i: number) => {

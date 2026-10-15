@@ -164,6 +164,7 @@ export default function ProfileScreen() {
   const fastBoardContainerRef = useRef<View | null>(null);
   const fastBoardY = useRef<number>(0);
   const [showFastDayPill, setShowFastDayPill] = useState(true);
+  const [boardVisibleRange, setBoardVisibleRange] = useState<{ top: number; bottom: number } | null>(null);
   const scrollYRef = useRef(0);
   const viewportHRef = useRef(800);
 
@@ -460,10 +461,16 @@ export default function ProfileScreen() {
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
           scrollYRef.current = y;
+          const viewportH = viewportHRef.current;
+          // Board virtualization: visible Y range relative to board top
+          const boardTop = fastBoardY.current;
+          setBoardVisibleRange({
+            top: y - boardTop,
+            bottom: y + viewportH - boardTop,
+          });
           if (selectedFast) {
             const todayRow = Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5);
             const tileY = fastBoardY.current + 14 + todayRow * 112;
-            const viewportH = viewportHRef.current;
             // Show pill only when today's tile is off-screen
             const visible = tileY >= y && tileY <= y + viewportH;
             setShowFastDayPill(!visible);
@@ -708,6 +715,7 @@ export default function ProfileScreen() {
               today={today}
               colors={boardColors}
               pawnId={pawnId}
+              visibleYRange={boardVisibleRange}
               todayTileRef={fastTodayTileRef}
               onPressTile={(date, _dayNum, position) => setFastStatus(date, "completed", position)}
               onLongPressTile={(date) => chooseStatusForDate(date)}

@@ -185,8 +185,8 @@ export default function ProfileScreen() {
     if (!scroll || !board) return;
     // Today's tile Y within the SVG board: 8 per row, 88px rows, oy=14.
     // selectedFast is in scope; compute today's row from its start date.
-    const todayRow = selectedFast ? Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 6) : 0;
-    const tileYInBoard = 14 + todayRow * 100;
+    const todayRow = selectedFast ? Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5) : 0;
+    const tileYInBoard = 14 + todayRow * 112;
     const scrollHandle = findNodeHandle(scroll);
     if (!scrollHandle) return;
     (board as any).measureLayout(

@@ -505,7 +505,7 @@ function ViewPawn({ color, size }: { color: string; size: number }) {
     rise.start();
     return () => rise.stop();
   }, [bob]);
-  const ballSize = 22;
+  const ballSize = 28;
   return (
     <Animated.View
       style={{
@@ -624,8 +624,8 @@ const FastTileView = memo(function FastTileView({
           justifyContent: "center",
         }}
       >
-        {status === "completed" && <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "800" }}>✓</Text>}
-        {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 18, fontWeight: "800" }}>×</Text>}
+        {status === "completed" && <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800" }}>✓</Text>}
+        {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 24, fontWeight: "800" }}>×</Text>}
         {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && <ViewPawn color={pawnColor} size={size} />}
@@ -634,11 +634,11 @@ const FastTileView = memo(function FastTileView({
         <View
           style={{
             position: "absolute",
-            right: -4,
-            top: -4,
-            width: 18,
-            height: 18,
-            borderRadius: 9,
+            right: -5,
+            top: -5,
+            width: 22,
+            height: 22,
+            borderRadius: 11,
             backgroundColor: specialMeta.bg,
             borderWidth: 2,
             borderColor: colors.surface,
@@ -646,18 +646,18 @@ const FastTileView = memo(function FastTileView({
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{specialMeta.icon}</Text>
+          <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{specialMeta.icon}</Text>
         </View>
       )}
       {badge && (
         <View
           style={{
             position: "absolute",
-            right: -4,
-            top: -4,
-            width: 18,
-            height: 18,
-            borderRadius: 9,
+            right: -5,
+            top: -5,
+            width: 22,
+            height: 22,
+            borderRadius: 11,
             backgroundColor: badge.bg,
             borderWidth: 2,
             borderColor: badge.border || colors.surface,
@@ -665,7 +665,7 @@ const FastTileView = memo(function FastTileView({
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: badge.icon === "⏸" ? "#F59E0B" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{badge.icon}</Text>
+          <Text style={{ color: badge.icon === "⏸" ? "#F59E0B" : "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{badge.icon}</Text>
         </View>
       )}
       {isMilestone && !isLast && status !== "completed" && (
@@ -801,12 +801,12 @@ export function FastBoard({
   const pageDays = days;
   const pageStart = 0;
 
-  // Board geometry: 6 tiles per row, 56px cells, 100px row height. Big tiles.
-  const perRow = 6;
-  const cell = 56;
+  // Board geometry: 5 tiles per row, 68px cells, 112px row height. Bigger tiles.
+  const perRow = 5;
+  const cell = 68;
   const ox = 12;
   const oy = 14;
-  const rowH = 100;
+  const rowH = 112;
   const rows = Math.ceil(pageDays.length / perRow);
 
   // Chunked rendering: render rows around today first, then the rest.
@@ -840,7 +840,7 @@ export function FastBoard({
   const trailPoints = pageDays
     .map((_, i) => {
       const p = pos(i);
-      return `${p.x + 22},${p.y + 22}`;
+      return `${p.x + 28},${p.y + 28}`;
     })
     .join(" ");
 
@@ -870,8 +870,8 @@ export function FastBoard({
           const isToday = dayNum - 1 === todayIndex;
           const special = getSpecialSpace(dayNum, total);
           const isMilestone = dayNum % 10 === 0;
-          const tileSize = isMilestone ? 48 : 44;
-          const tileOff = (44 - tileSize) / 2;
+          const tileSize = isMilestone ? 60 : 56;
+          const tileOff = (56 - tileSize) / 2;
           // Scale positions from 360 viewBox to actual width
           // Using percentage-based positioning via the 360 viewBox scale
           return (

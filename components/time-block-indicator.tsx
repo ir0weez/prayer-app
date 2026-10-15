@@ -54,22 +54,18 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
       <View style={styles.left}>
         <MaterialIcons name="add" size={18} color={colors.muted} />
         <Text style={[styles.label, { color: colors.muted }]}>Add event?</Text>
-        {block.durationMinutes === 30 && (
-          <View
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 8,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              marginLeft: 6,
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>30m</Text>
-          </View>
-        )}
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        {isNow && <NowPill />}
+        {(() => {
+          if (isNow) return <NowPill />;
+          const mins = block.durationMinutes;
+          const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+          return (
+            <View style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
+            </View>
+          );
+        })()}
         <Text style={[styles.time, { color: colors.muted }]}>
           {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
         </Text>
@@ -113,23 +109,20 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
             { opacity: pressed ? 0.65 : 1 },
           ]}
         >
+          <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
-            {block.durationMinutes === 30 && (
-              <View
-                style={{
-                  backgroundColor: colors.primary,
-                  borderRadius: 8,
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                }}
-              >
-                <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>30m</Text>
-              </View>
-            )}
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {blockContainsNow(block, nowMinutes) && <NowPill />}
+            {(() => {
+              const isNow = blockContainsNow(block, nowMinutes);
+              if (isNow) return <NowPill />;
+              // Duration badge: 30m, 1h, 1.5h, 2h, etc.
+              const mins = block.durationMinutes;
+              const label = mins === 30 ? "30m" : mins === 60 ? "1h" : mins % 60 === 0 ? `${mins / 60}h` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+              return (
+                <View style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
+                </View>
+              );
+            })()}
             <Text style={[styles.time, { color: colors.muted }]}>
               {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
             </Text>

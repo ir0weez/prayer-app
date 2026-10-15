@@ -10663,7 +10663,16 @@ export function ScheduleTab({
     const scheduledItems = [
       ...getTodosForDate(todos, selectedDate)
         .filter((t) => t.startTime && !t.isCompleted)
-        .map((t) => ({ ...t })),
+        .map((t) => ({
+          ...t,
+          // Todos cap at 30 minutes for time calculations
+          endTime: t.endTime || (() => {
+            const [h, m] = t.startTime!.split(":").map(Number);
+            const endM = m + 30;
+            const endH = h + Math.floor(endM / 60);
+            return `${String(endH).padStart(2, "0")}:${String(endM % 60).padStart(2, "0")}`;
+          })(),
+        })),
       ...getEventsForDate(events, selectedDate).filter((e) => e.startTime && !e.isCompleted),
       ...getMinistriesForDate(ministries, selectedDate).filter((m) => m.startTime && !m.isCompleted),
       ...getBibleStudiesForDate(bibleStudies, selectedDate).filter((study) => study.startTime && !study.isCompleted),

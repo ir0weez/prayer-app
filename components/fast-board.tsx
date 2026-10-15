@@ -634,11 +634,11 @@ const FastTileView = memo(function FastTileView({
         <View
           style={{
             position: "absolute",
-            right: -5,
-            top: -5,
-            width: 22,
-            height: 22,
-            borderRadius: 11,
+            right: -6,
+            top: -6,
+            width: 26,
+            height: 26,
+            borderRadius: 13,
             backgroundColor: specialMeta.bg,
             borderWidth: 2,
             borderColor: colors.surface,
@@ -646,18 +646,18 @@ const FastTileView = memo(function FastTileView({
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{specialMeta.icon}</Text>
+          <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>{specialMeta.icon}</Text>
         </View>
       )}
       {badge && (
         <View
           style={{
             position: "absolute",
-            right: -5,
-            top: -5,
-            width: 22,
-            height: 22,
-            borderRadius: 11,
+            right: -6,
+            top: -6,
+            width: 26,
+            height: 26,
+            borderRadius: 13,
             backgroundColor: badge.bg,
             borderWidth: 2,
             borderColor: badge.border || colors.surface,
@@ -665,7 +665,7 @@ const FastTileView = memo(function FastTileView({
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: badge.icon === "⏸" ? "#F59E0B" : "#FFFFFF", fontSize: 12, fontWeight: "800" }}>{badge.icon}</Text>
+          <Text style={{ color: badge.icon === "⏸" ? "#F59E0B" : "#FFFFFF", fontSize: 14, fontWeight: "800" }}>{badge.icon}</Text>
         </View>
       )}
       {isMilestone && !isLast && status !== "completed" && (

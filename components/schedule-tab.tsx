@@ -10446,7 +10446,7 @@ export function ScheduleTab({
         ...dayBibleStudies.filter((study) => study.startTime && !study.isCompleted),
       ];
       const rawBlocks = calculateAvailableTimeBlocks(whiteSpaceItems, "06:00", "23:00");
-      // Split each gap into individual hourly blocks (60-min minimum per gap).
+      // Split each gap into hourly blocks + a 30-min block for 30-59m remainders.
       const hourlyBlocks = rawBlocks.flatMap(splitGapIntoHourlyBlocks);
       // Today only: drop each hourly block once its own hour has fully passed.
       // No trimming or countdown — a block shows its fixed hour until it is gone.

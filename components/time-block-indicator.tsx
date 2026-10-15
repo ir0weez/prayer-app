@@ -48,6 +48,8 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
           backgroundColor: colors.surface,
           borderColor: colors.border,
           opacity: pressed ? 0.65 : 1,
+          borderLeftWidth: block.durationMinutes <= 30 ? 2 : block.durationMinutes <= 60 ? 3 : 4,
+          borderLeftColor: colors.primary,
         },
       ]}
     >
@@ -106,7 +108,13 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
               borderTopWidth: StyleSheet.hairlineWidth,
               borderTopColor: colors.border,
             },
-            { opacity: pressed ? 0.65 : 1 },
+            {
+              opacity: pressed ? 0.65 : 1,
+              // Subtle duration cue: left accent thickness grows with block length
+              borderLeftWidth: block.durationMinutes <= 30 ? 2 : block.durationMinutes <= 60 ? 3 : 4,
+              borderLeftColor: colors.primary,
+              paddingLeft: 10,
+            },
           ]}
         >
           <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />

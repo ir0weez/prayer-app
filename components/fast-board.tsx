@@ -27,8 +27,15 @@ export function getSpecialSpace(dayNum: number, totalDays: number): FastSpecialK
   if (dayNum < 1 || dayNum > totalDays) return null;
   if (dayNum % 7 === 0) return "grace";
   if (totalDays >= 20) {
-    if (dayNum === 13 || dayNum === 26) return "wilderness";
-    if (dayNum === 5 || dayNum === 12 || dayNum === 19 || dayNum === 33) return "trivia";
+    // Wilderness: every 26 days (13, 26, 39, 52...) — scales with long fasts
+    if (dayNum % 26 === 13 || dayNum % 26 === 0) {
+      // Don't override grace days
+      if (dayNum % 7 !== 0) return "wilderness";
+    }
+    // Trivia: every 14 days offset by 5 (5, 19, 33, 47...) — scales with long fasts
+    if (dayNum % 14 === 5) {
+      if (dayNum % 7 !== 0) return "trivia";
+    }
     return null;
   }
   // Short fasts: one wilderness ~1/3 through, one trivia ~1/6 through.

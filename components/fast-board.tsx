@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
@@ -494,7 +494,7 @@ function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
 
 /** SVG day tile. */
 /** SVG day tile. Mark animations: when status changes, the tile briefly pulses. */
-function SvgDayTile({
+const SvgDayTile = memo(function SvgDayTile({
   date,
   dayNum,
   x,
@@ -579,7 +579,7 @@ function SvgDayTile({
       {isToday && <SvgPawn cx={cx} cy={cy} color={pawnColor} />}
     </G>
   );
-}
+});
 
 const SPECIAL_SVG_META: Record<FastSpecialKind, { color: string; icon: string }> = {
   grace: { color: "#F59E0B", icon: "✦" },

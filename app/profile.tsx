@@ -651,7 +651,7 @@ export default function ProfileScreen() {
             </View>
 
             {(() => {
-              // Calculate streak for pet unlock (40+ days) and mood
+              // Calculate streak for mood; pet unlocks on 40+ day fasts (not streak)
               let streak = 0;
               let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" = "sleepy";
               if (selectedFast) {
@@ -663,8 +663,8 @@ export default function ProfileScreen() {
                   if (s === "completed") streak++;
                   else break;
                 }
-                // Unlock pet at 40-day streak
-                if (streak >= 40 && !petUnlocked) unlockPet();
+                // Unlock pet when a 40+ day fast is created
+                if (selectedFast.durationDays >= 40 && !petUnlocked) unlockPet();
                 const yesterdayIdx = todayIdx - 1;
                 const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
                 if (todayStatus === "completed") mood = "celebrating";
@@ -678,13 +678,11 @@ export default function ProfileScreen() {
                   <View style={{ alignItems: "center", paddingVertical: 12, opacity: 0.6 }}>
                     <Text style={{ fontSize: 32 }}>🔒</Text>
                     <Text style={{ color: boardColors.muted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-                      Reach a 40-day streak to unlock your pawn pet!
+                      Create a 40+ day fast to unlock your pawn pet!
                     </Text>
-                    {streak > 0 && (
-                      <Text style={{ color: boardColors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
-                        Current streak: {streak} days
-                      </Text>
-                    )}
+                    <Text style={{ color: boardColors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
+                      This fast: {selectedFast?.durationDays ?? 0} days
+                    </Text>
                   </View>
                 );
               }

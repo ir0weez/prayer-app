@@ -1018,40 +1018,14 @@ function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; siz
   );
 }
 
-/** Gentle twinkle for special-space badges. */
+/** Static badge wrapper (animations removed for performance). */
 function TwinkleBadge({ children, style }: { children: React.ReactNode; style: any }) {
-  const t = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(t, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(t, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [t]);
-  return (
-    <Animated.View style={[style, { transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }]}>
-      {children}
-    </Animated.View>
-  );
+  return <View style={style}>{children}</View>;
 }
 
-/** Soft glow pulse for completed checkmarks. */
+/** Static checkmark (animations removed for performance). */
 function GlowCheck({ color, fontSize }: { color: string; fontSize: number }) {
-  const g = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(g, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(g, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [g]);
-  return (
-    <Animated.Text style={{ color, fontSize, fontWeight: "800", opacity: g.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }}>
-      ✓
-    </Animated.Text>
-  );
+  return <Text style={{ color, fontSize, fontWeight: "800" }}>✓</Text>;
 }
 
 /** Fast View-based day tile. Uses percentage positioning to match the 360 viewBox. */

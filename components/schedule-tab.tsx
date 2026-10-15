@@ -13296,9 +13296,9 @@ const scheduleStyles = StyleSheet.create({
     marginTop: 16,
   },
   formInput: {
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-    borderBottomWidth: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E6DCF8",
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,

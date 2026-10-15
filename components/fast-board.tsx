@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
-const AnimatedPolyline = Animated.createAnimatedComponent(Polyline);
 import {
   getFastCalendarDays,
   getFastEndDate,
@@ -1387,16 +1386,7 @@ export function FastBoard({
     })
     .join(" ");
 
-  // Marching ants animation for the remaining path
-  const dashOffset = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const march = Animated.loop(
-      Animated.timing(dashOffset, { toValue: -16, duration: 1200, easing: Easing.linear, useNativeDriver: false })
-    );
-    dashOffset.setValue(0);
-    march.start();
-    return () => march.stop();
-  }, []);
+  // Static dashes for remaining path (marching ants removed for performance)
 
 
   return (
@@ -1436,14 +1426,13 @@ export function FastBoard({
             strokeLinecap="round"
             opacity={0.7}
           />
-          {/* Remaining path: animated marching dashes */}
-          <AnimatedPolyline
+          {/* Remaining path: static dashes */}
+          <Polyline
             points={remainingTrailPoints}
             fill="none"
             stroke={colors.border}
             strokeWidth={3}
             strokeDasharray="1 7"
-            strokeDashoffset={dashOffset}
             strokeLinecap="round"
           />
         </Svg>

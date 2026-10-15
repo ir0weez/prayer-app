@@ -455,6 +455,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={100}
+        removeClippedSubviews={true}
         onLayout={(e) => { viewportHRef.current = e.nativeEvent.layout.height; }}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;

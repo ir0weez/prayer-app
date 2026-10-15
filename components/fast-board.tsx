@@ -734,6 +734,42 @@ function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; siz
   );
 }
 
+/** Gentle twinkle for special-space badges. */
+function TwinkleBadge({ children, style }: { children: React.ReactNode; style: any }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(t, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(t, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [t]);
+  return (
+    <Animated.View style={[style, { transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Soft glow pulse for completed checkmarks. */
+function GlowCheck({ color, fontSize }: { color: string; fontSize: number }) {
+  const g = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(g, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(g, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [g]);
+  return (
+    <Animated.Text style={{ color, fontSize, fontWeight: "800", opacity: g.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }}>
+      ✓
+    </Animated.Text>
+  );
+}
+
 /** Fast View-based day tile. Uses percentage positioning to match the 360 viewBox. */
 const FastTileView = memo(function FastTileView({
   date,
@@ -821,14 +857,14 @@ const FastTileView = memo(function FastTileView({
           justifyContent: "center",
         }}
       >
-        {status === "completed" && <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800" }}>✓</Text>}
+        {status === "completed" && <GlowCheck color="#FFFFFF" fontSize={24} />}
         {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 24, fontWeight: "800" }}>×</Text>}
         {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />}
       </View>
       {specialMeta && (
-        <View
+        <TwinkleBadge
           style={{
             position: "absolute",
             right: -6,
@@ -845,7 +881,7 @@ const FastTileView = memo(function FastTileView({
           }}
         >
           <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>{specialMeta.icon}</Text>
-        </View>
+        </TwinkleBadge>
       )}
       {badge && (
         <View

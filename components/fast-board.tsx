@@ -794,6 +794,7 @@ const FastTileView = memo(function FastTileView({
   pawnColor,
   pawnId,
   svgH,
+  total,
   onPress,
   onLongPress,
 }: {
@@ -812,6 +813,7 @@ const FastTileView = memo(function FastTileView({
   pawnColor: string;
   pawnId?: string;
   svgH: number;
+  total: number;
   onPress: () => void;
   onLongPress: () => void;
 }) {
@@ -915,6 +917,27 @@ const FastTileView = memo(function FastTileView({
           {dayNum}
         </Text>
       )}
+      {/* Pilgrim's Progress waypoints at quarter marks */}
+      {(() => {
+        const q1 = Math.round(total * 0.25);
+        const q2 = Math.round(total * 0.5);
+        const q3 = Math.round(total * 0.75);
+        const waypoint = dayNum === q1 ? "⛰" : dayNum === q2 ? "🏰" : dayNum === q3 ? "🏔" : null;
+        if (!waypoint) return null;
+        return (
+          <View
+            style={{
+              position: "absolute",
+              bottom: -28,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 16 }}>{waypoint}</Text>
+          </View>
+        );
+      })()}
     </Pressable>
   );
 });
@@ -1155,6 +1178,7 @@ export function FastBoard({
               pawnColor={colors.primary}
               pawnId={pawnId}
               svgH={svgH}
+              total={total}
               onPress={() => {
                 if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);
                 else onPressTile?.(date, dayNum);

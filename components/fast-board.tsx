@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
+const AnimatedPolyline = Animated.createAnimatedComponent(Polyline);
 import {
   getFastCalendarDays,
   getFastEndDate,
@@ -1209,6 +1210,32 @@ export function FastBoard({
       return `${p.x + 28},${p.y + 28}`;
     })
     .join(" ");
+  // Split trail: completed portion (solid gold) vs remaining (animated dashes)
+  const completedTrailPoints = pageDays
+    .slice(0, Math.max(2, currentDayNum))
+    .map((_, i) => {
+      const p = pos(i);
+      return `${p.x + 28},${p.y + 28}`;
+    })
+    .join(" ");
+  const remainingTrailPoints = pageDays
+    .slice(Math.max(0, currentDayNum - 1))
+    .map((_, i) => {
+      const p = pos(i + Math.max(0, currentDayNum - 1));
+      return `${p.x + 28},${p.y + 28}`;
+    })
+    .join(" ");
+
+  // Marching ants animation for the remaining path
+  const dashOffset = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const march = Animated.loop(
+      Animated.timing(dashOffset, { toValue: -16, duration: 1200, easing: Easing.linear, useNativeDriver: false })
+    );
+    dashOffset.setValue(0);
+    march.start();
+    return () => march.stop();
+  }, []);
 
 
   return (
@@ -1239,12 +1266,23 @@ export function FastBoard({
       <View style={{ height: svgH, position: "relative" }}>
         {/* Dotted trail — single SVG, cheap */}
         <Svg viewBox={`0 0 360 ${svgH}`} style={{ position: "absolute", width: "100%", height: svgH }}>
+          {/* Completed path: solid gold */}
           <Polyline
-            points={trailPoints}
+            points={completedTrailPoints}
+            fill="none"
+            stroke="#F59E0B"
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            opacity={0.7}
+          />
+          {/* Remaining path: animated marching dashes */}
+          <AnimatedPolyline
+            points={remainingTrailPoints}
             fill="none"
             stroke={colors.border}
             strokeWidth={3}
             strokeDasharray="1 7"
+            strokeDashoffset={dashOffset}
             strokeLinecap="round"
           />
         </Svg>

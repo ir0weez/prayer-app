@@ -33,6 +33,20 @@ function blockContainsNow(block: TimeBlock, nowMinutes?: number | null): boolean
  * Shows fixed hours (no live countdown); the parent removes blocks once their
  * hour has passed.
  */
+
+/** Card height: 30m compact (52), 60m taller (64), 90m+ tallest (76).
+ *  A "now" block shrinks as time passes: >60m left = tall, 31-60m = medium,
+ *  1-30m = compact. Disappears at 0 (handled by block filtering). */
+function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
+  if (nowMinutes != null && blockContainsNow(block, nowMinutes)) {
+    const remaining = timeToMinutes(block.endTime) - nowMinutes;
+    if (remaining <= 30) return 52;
+    if (remaining <= 60) return 64;
+    return 76;
+  }
+  return block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76;
+}
+
 export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndicatorProps) {
   const colors = useColors();
   const isNow = blockContainsNow(block, nowMinutes);
@@ -48,7 +62,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
           backgroundColor: colors.surface,
           borderColor: colors.border,
           opacity: pressed ? 0.65 : 1,
-          minHeight: block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76,
+          minHeight: blockCardHeight(block, nowMinutes),
         },
       ]}
     >
@@ -57,6 +71,9 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
         <Text style={[styles.label, { color: colors.muted }]}>Add event?</Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Text style={[styles.time, { color: colors.muted }]}>
+          {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+        </Text>
         {(() => {
           if (isNow) return <NowPill />;
           const mins = block.durationMinutes;
@@ -67,9 +84,6 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
             </View>
           );
         })()}
-        <Text style={[styles.time, { color: colors.muted }]}>
-          {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-        </Text>
       </View>
     </Pressable>
   );
@@ -110,12 +124,15 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
             {
               opacity: pressed ? 0.65 : 1,
               // Height scales subtly with duration
-              minHeight: block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76,
+              minHeight: blockCardHeight(block, nowMinutes),
             },
           ]}
         >
           <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={[styles.time, { color: colors.muted }]}>
+              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+            </Text>
             {(() => {
               const isNow = blockContainsNow(block, nowMinutes);
               if (isNow) return <NowPill />;
@@ -128,9 +145,6 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
                 </View>
               );
             })()}
-            <Text style={[styles.time, { color: colors.muted }]}>
-              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
-            </Text>
           </View>
         </Pressable>
       ))}

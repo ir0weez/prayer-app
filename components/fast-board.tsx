@@ -1316,9 +1316,7 @@ const FastTileView = memo(function FastTileView({
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 10, elevation: 10 }}>
-            <View style={{ backgroundColor: colors.surface, borderRadius: 999, padding: 4, opacity: 0.95 }}>
-              <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />
-            </View>
+            <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />
           </View>
         )}
       </View>
@@ -1483,13 +1481,7 @@ const SvgDayTile = memo(function SvgDayTile({
           <SvgText x={cx + 13} y={cy - 9} textAnchor="middle" fontSize={10} fontWeight="800" fill={markBadge.icon === "\u23F8" ? "#F59E0B" : "#FFFFFF"}>{markBadge.icon}</SvgText>
         </G>
       )}
-      {isToday && (
-        <G>
-          {/* White halo to lift pawn above status markings */}
-          <Circle cx={cx} cy={cy} r={20} fill={colors.surface} opacity={0.9} />
-          <SvgPawn cx={cx} cy={cy} color={pawnColor} />
-        </G>
-      )}
+      {isToday && <SvgPawn cx={cx} cy={cy} color={pawnColor} />}
     </G>
   );
 });

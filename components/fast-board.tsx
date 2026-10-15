@@ -1314,7 +1314,11 @@ const FastTileView = memo(function FastTileView({
         {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 24, fontWeight: "800" }}>×</Text>}
         {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
-        {isToday && <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />}
+        {isToday && (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 10, elevation: 10 }}>
+            <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />
+          </View>
+        )}
       </View>
       {specialMeta && (
         <TwinkleBadge

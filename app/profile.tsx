@@ -165,6 +165,7 @@ export default function ProfileScreen() {
   const fastBoardY = useRef<number>(0);
   const [showFastDayPill, setShowFastDayPill] = useState(true);
   const [boardVisibleRange, setBoardVisibleRange] = useState<{ top: number; bottom: number } | null>(null);
+  const [activeQuarter, setActiveQuarter] = useState(0);
   const scrollYRef = useRef(0);
   const viewportHRef = useRef(800);
 
@@ -711,14 +712,66 @@ export default function ProfileScreen() {
                 />
               );
             })()}
+            {selectedFast && selectedFast.durationDays >= 80 && (
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                {[0, 1, 2, 3].map((q) => {
+                  const quarterSize = Math.ceil(selectedFast.durationDays / 4);
+                  const qStart = q * quarterSize + 1;
+                  const qEnd = Math.min((q + 1) * quarterSize, selectedFast.durationDays);
+                  const isActive = activeQuarter === q;
+                  const seasonNames = ["Winter", "Spring", "Summer", "Fall"];
+                  return (
+                    <Pressable
+                      key={q}
+                      onPress={() => setActiveQuarter(q)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        alignItems: "center",
+                        backgroundColor: isActive ? boardColors.primary : boardColors.surface,
+                        borderWidth: 1,
+                        borderColor: boardColors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : boardColors.foreground }}>
+                        Q{q + 1}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: isActive ? "#FFFFFF" : boardColors.muted, opacity: 0.8 }}>
+                        {seasonNames[q]}
+                      </Text>
+                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : boardColors.muted, opacity: 0.6 }}>
+                        {qStart}-{qEnd}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
             <Text style={styles.sectionLabel}>BOARD</Text>
             <View
               ref={fastBoardContainerRef}
               collapsable={false}
               onLayout={(e) => { fastBoardY.current = e.nativeEvent.layout.y; }}
             >
+            {(() => {
+              // Quarter filtering for long fasts (80+ days): show only active quarter
+              let boardFast = selectedFast;
+              if (selectedFast.durationDays >= 80) {
+                const quarterSize = Math.ceil(selectedFast.durationDays / 4);
+                const qStartDay = activeQuarter * quarterSize; // 0-indexed offset
+                const qDays = Math.min(quarterSize, selectedFast.durationDays - qStartDay);
+                const startDate = new Date(selectedFast.startDate + "T00:00:00Z");
+                startDate.setUTCDate(startDate.getUTCDate() + qStartDay);
+                boardFast = {
+                  ...selectedFast,
+                  startDate: startDate.toISOString().split("T")[0],
+                  durationDays: qDays,
+                };
+              }
+              return (
             <FastBoard
-              fast={selectedFast}
+              fast={boardFast}
               today={today}
               colors={boardColors}
               pawnId={pawnId}
@@ -730,6 +783,8 @@ export default function ProfileScreen() {
                 awardBonusXP(points, `fast-trivia:${selectedFast.id}:day${dayNum}`)
               }
             />
+              );
+            })()}
             </View>
             <FastPawnPicker
               level={profileLevel}

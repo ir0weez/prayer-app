@@ -10490,7 +10490,11 @@ export function ScheduleTab({
       // No trimming or countdown — a block shows its fixed hour until it is gone.
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       activeBlocks = selectedDate === todayISO
-        ? hourlyBlocks.filter((b) => timeToMinutes(b.endTime) > currentMinutes)
+        ? hourlyBlocks.filter((b) => {
+            const remaining = timeToMinutes(b.endTime) - currentMinutes;
+            // Drop blocks with less than 15 minutes remaining — not enough time to plan anything
+            return remaining >= 15;
+          })
         : hourlyBlocks;
     }
 

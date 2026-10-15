@@ -732,31 +732,100 @@ export function PawnCompanion({
     encouraging: ["Yesterday's gone. Today's fresh.", "You got this. Start again.", "Every day is a new beginning."],
   };
   const moodEmoji = { celebrating: "🎉", happy: "😊", content: "😌", sleepy: "😴", encouraging: "💪" }[mood];
+  const moodLabel = { celebrating: "Celebrating", happy: "Happy", content: "Content", sleepy: "Sleepy", encouraging: "Cheering you on" }[mood];
   const msgs = messages[mood];
+  // Mood-tinted card background
+  const moodTint = {
+    celebrating: "#FEF3C7",
+    happy: "#DCFCE7",
+    content: "#E0E7FF",
+    sleepy: "#F3E8FF",
+    encouraging: "#FFE4E6",
+  }[mood];
 
   return (
-    <View style={{ alignItems: "center", paddingVertical: 12 }}>
-      {/* Thought bubble */}
+    <View
+      style={{
+        alignItems: "center",
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        marginVertical: 8,
+        marginHorizontal: 4,
+        borderRadius: 20,
+        backgroundColor: moodTint,
+        borderWidth: 1,
+        borderColor: colors.border,
+      }}
+    >
+      {/* Mood badge */}
+      <View
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 12,
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>
+          {moodEmoji} {moodLabel}
+        </Text>
+      </View>
+      {/* Thought bubble with tail */}
       <Pressable
         onPress={() => setBubbleIndex((i) => (i + 1) % msgs.length)}
         style={{
-          backgroundColor: colors.surface,
+          backgroundColor: "#FFFFFF",
           borderRadius: 16,
           paddingHorizontal: 14,
-          paddingVertical: 8,
-          marginBottom: 8,
-          borderWidth: 1,
-          borderColor: colors.border,
+          paddingVertical: 10,
+          marginBottom: 4,
           maxWidth: 280,
+          shadowColor: "#000",
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 2,
         }}
       >
-        <Text style={{ color: colors.foreground, fontSize: 13, textAlign: "center" }}>
-          {moodEmoji} {msgs[bubbleIndex]}
+        <Text style={{ color: "#1F2937", fontSize: 14, textAlign: "center", fontWeight: "600" }}>
+          {msgs[bubbleIndex]}
         </Text>
-        <Text style={{ color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 4 }}>tap for more</Text>
+        <Text style={{ color: "#9CA3AF", fontSize: 10, textAlign: "center", marginTop: 4 }}>tap for more</Text>
       </Pressable>
-      {/* Pawn with its unique animation */}
-      <ViewPawn pawnId={pawnId} color={colors.primary} size={64} />
+      {/* Bubble tail */}
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 8,
+          borderRightWidth: 8,
+          borderTopWidth: 10,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: "#FFFFFF",
+          marginBottom: 6,
+        }}
+      />
+      {/* Pawn on a little platform */}
+      <View style={{ alignItems: "center" }}>
+        <ViewPawn pawnId={pawnId} color={colors.primary} size={84} />
+        {/* Ground shadow */}
+        <View
+          style={{
+            width: 56,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: "#000000",
+            opacity: 0.08,
+            marginTop: -6,
+          }}
+        />
+      </View>
       {/* Name */}
       {editing ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>

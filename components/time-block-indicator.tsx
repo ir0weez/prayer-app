@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { TimeBlock, timeToMinutes } from "@/lib/time-blocks";
+import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
 import { format12HourTime } from "@/lib/utils";
 import { NowPill } from "./now-indicator";
 
@@ -72,7 +72,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Text style={[styles.time, { color: colors.muted }]}>
-          {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+          {isNow && nowMinutes != null ? format12HourTime(minutesToTime(nowMinutes)) : format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
         </Text>
         {(() => {
           if (isNow) return <NowPill />;
@@ -131,7 +131,11 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
           <CyclingAddLabel startIndex={index} mutedColor={colors.muted} accentColor={colors.primary} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text style={[styles.time, { color: colors.muted }]}>
-              {format12HourTime(block.startTime)} → {format12HourTime(block.endTime)}
+              {(() => {
+                const isNowBlock = blockContainsNow(block, nowMinutes);
+                const start = isNowBlock && nowMinutes != null ? minutesToTime(nowMinutes) : block.startTime;
+                return `${format12HourTime(start)} → ${format12HourTime(block.endTime)}`;
+              })()}
             </Text>
             {(() => {
               const isNow = blockContainsNow(block, nowMinutes);

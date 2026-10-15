@@ -10533,6 +10533,42 @@ export function ScheduleTab({
       }
     }
 
+    // Pair overlapping todos: exactly 2 uncompleted todos at the same time
+    // render side-by-side (half width each). 3+ stay stacked.
+    const pairedTimedItems: typeof mergedTimedItems = [];
+    let i = 0;
+    while (i < mergedTimedItems.length) {
+      const item = mergedTimedItems[i];
+      const next = mergedTimedItems[i + 1];
+      if (
+        item.type === "todo" &&
+        next?.type === "todo" &&
+        item.sortTime === next.sortTime &&
+        !item.data.isCompleted &&
+        !next.data.isCompleted
+      ) {
+        // Check there's not a third at the same time
+        const third = mergedTimedItems[i + 2];
+        if (third?.type === "todo" && third.sortTime === item.sortTime && !third.data.isCompleted) {
+          // 3+ at same time: keep stacked
+          pairedTimedItems.push(item);
+          i += 1;
+        } else {
+          // Exactly 2: pair them
+          pairedTimedItems.push({
+            type: "todo-pair",
+            id: `todo-pair-${item.id}-${next.id}`,
+            data: { todos: [item.data, next.data] },
+            sortTime: item.sortTime,
+          });
+          i += 2;
+        }
+      } else {
+        pairedTimedItems.push(item);
+        i += 1;
+      }
+    }
+
     // Pinned holiday cards render first — right after time-off/birthdays,
     // before the chronological flow (and its NOW indicator).
     holidayPinnedItems.forEach((item) => items.push(item));
@@ -10547,17 +10583,17 @@ export function ScheduleTab({
     );
 
     if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId && !nowInWhiteBlock) {
-      const insertionIndex = getCurrentTimeInsertionIndex(mergedTimedItems, currentTimeStr);
-      items.push(...mergedTimedItems.slice(0, insertionIndex));
+      const insertionIndex = getCurrentTimeInsertionIndex(pairedTimedItems, currentTimeStr);
+      items.push(...pairedTimedItems.slice(0, insertionIndex));
       items.push({
         type: "current-time-indicator",
         id: "current-time",
         data: { currentTime: currentTimeStr },
         sortTime: currentTimeStr,
       });
-      items.push(...mergedTimedItems.slice(insertionIndex));
+      items.push(...pairedTimedItems.slice(insertionIndex));
     } else {
-      mergedTimedItems.forEach((item) => items.push(item));
+      pairedTimedItems.forEach((item) => items.push(item));
     }
 
     // Add completed events at the end (after current-time-indicator if present)
@@ -10987,6 +11023,29 @@ export function ScheduleTab({
           );
         case "birthday":
           return <BirthdayCard birthday={item.data} />;
+        case "todo-pair":
+          return (
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {item.data.todos.map((t: any) => (
+                <View key={t.id} style={{ flex: 1 }}>
+                  <TodoItem
+                    todo={t}
+                    people={people}
+                    events={events}
+                    ministries={ministries}
+                    isOverdue={item.isOverdue}
+                    isCurrentTodo={t.id === currentTodoId}
+                    isNew={t.id === justAddedId}
+                    onToggle={(position) => {
+                      if (!t.isCompleted) onAwardXP?.(xpActionForDate(t.date), t.id, position);
+                      else revokeTodoXP(t.id, position);
+                      setTodos((prev) => toggleTodoCompleted(prev, t.id));
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          );
         case "todo":
           return (
             <TodoItem

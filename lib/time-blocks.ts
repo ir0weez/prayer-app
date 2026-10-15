@@ -122,7 +122,19 @@ export function getLiveCursorPosition(
 export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
   const start = timeToMinutes(block.startTime);
   const end = timeToMinutes(block.endTime);
-  if (end - start < 30) return [];
+  const total = end - start;
+  // Half-hour block only when the gap is 30-59 min (no hour blocks).
+  // Hour gaps show hour blocks only — no half-hour remainder.
+  if (total >= 30 && total < 60) {
+    return [{
+      id: `${block.id}-half0`,
+      startTime: minutesToTime(start),
+      endTime: minutesToTime(start + 30),
+      durationMinutes: 30,
+      label: "30m",
+    }];
+  }
+  if (total < 60) return [];
   const chunks: TimeBlock[] = [];
   let cursor = start;
   let index = 0;
@@ -137,17 +149,6 @@ export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
     });
     cursor = chunkEnd;
     index += 1;
-  }
-  // Half-hour remainder: 30-59 min leftover becomes a half-hour block
-  if (end - cursor >= 30) {
-    const chunkEnd = cursor + 30;
-    chunks.push({
-      id: `${block.id}-half${index}`,
-      startTime: minutesToTime(cursor),
-      endTime: minutesToTime(chunkEnd),
-      durationMinutes: 30,
-      label: "30m",
-    });
   }
   return chunks;
 }

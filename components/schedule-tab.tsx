@@ -2447,8 +2447,107 @@ function TVShowScene() {
   );
 }
 
-/** Dexter: forensic lab — microscope, blood slide glow, falling blood drops. Miami-night dark reds. */
-function DexterScene() {
+/** Dexter (original): Miami — palm trees, ocean, art-deco sun. Bright Miami-day vibes. */
+function DexterMiamiScene() {
+  return (
+    <SceneRoot base="#7FDBE8">
+      {/* sun */}
+      <BreatheGlow color="#FFE082" size={110} left="72%" bottom={90} min={0.25} max={0.4} duration={5000} />
+      <View style={{ position: "absolute", left: "70%", bottom: 88, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD54F" }} />
+      {/* ocean */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 52, backgroundColor: "#26A69A" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 48, height: 8, backgroundColor: "#4DD0E1", opacity: 0.7 }} />
+      {/* wave lines */}
+      <View style={{ position: "absolute", left: "12%", bottom: 26, width: 40, height: 3, borderRadius: 2, backgroundColor: "#B2EBF2", opacity: 0.6 }} />
+      <View style={{ position: "absolute", left: "58%", bottom: 18, width: 52, height: 3, borderRadius: 2, backgroundColor: "#B2EBF2", opacity: 0.5 }} />
+      {/* palm tree 1 */}
+      <View style={{ position: "absolute", left: "8%", bottom: 40, width: 40, height: 90 }}>
+        <View style={{ position: "absolute", left: 17, bottom: 0, width: 6, height: 62, backgroundColor: "#6D4C41", borderRadius: 3 }} />
+        <View style={{ position: "absolute", left: 2, bottom: 56, width: 36, height: 8, borderRadius: 4, backgroundColor: "#2E7D32", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 4, bottom: 60, width: 34, height: 8, borderRadius: 4, backgroundColor: "#388E3C", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 64, width: 24, height: 7, borderRadius: 4, backgroundColor: "#2E7D32", transform: [{ rotate: "-8deg" }] }} />
+      </View>
+      {/* palm tree 2 (smaller) */}
+      <View style={{ position: "absolute", left: "82%", bottom: 44, width: 30, height: 66 }}>
+        <View style={{ position: "absolute", left: 12, bottom: 0, width: 5, height: 44, backgroundColor: "#6D4C41", borderRadius: 3 }} />
+        <View style={{ position: "absolute", left: 0, bottom: 40, width: 28, height: 7, borderRadius: 4, backgroundColor: "#2E7D32", transform: [{ rotate: "20deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 44, width: 26, height: 7, borderRadius: 4, backgroundColor: "#388E3C", transform: [{ rotate: "-16deg" }] }} />
+      </View>
+      {/* art-deco sun rays */}
+      <TwinkleField color="#FFFFFF" count={5} seed={42} />
+    </SceneRoot>
+  );
+}
+
+/** Dexter: New Blood — Iron Lake winter. Falling snow, dark pines, frozen lake, cabin. */
+function DexterNewBloodScene() {
+  return (
+    <SceneRoot base="#2C3E50">
+      {/* moon */}
+      <View style={{ position: "absolute", left: "76%", bottom: 100, width: 36, height: 36, borderRadius: 18, backgroundColor: "#ECEFF1", opacity: 0.9 }} />
+      <BreatheGlow color="#B0BEC5" size={90} left="74%" bottom={96} min={0.12} max={0.22} duration={6000} />
+      {/* frozen lake */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 44, backgroundColor: "#90A4AE" }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 20, width: 60, height: 2, backgroundColor: "#ECEFF1", opacity: 0.5 }} />
+      <View style={{ position: "absolute", left: "62%", bottom: 12, width: 44, height: 2, backgroundColor: "#ECEFF1", opacity: 0.4 }} />
+      {/* cabin */}
+      <View style={{ position: "absolute", left: "8%", bottom: 40, width: 64, height: 52 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 64, height: 36, backgroundColor: "#4E342E" }} />
+        <View style={{ position: "absolute", left: -6, bottom: 32, width: 76, height: 10, backgroundColor: "#5D4037", transform: [{ rotate: "0deg" }] }} />
+        <View style={{ position: "absolute", left: 24, bottom: 12, width: 16, height: 16, backgroundColor: "#FFB74D", opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: -4, bottom: 40, width: 72, height: 6, borderRadius: 3, backgroundColor: "#ECEFF1" }} />
+      </View>
+      {/* pine trees */}
+      <View style={{ position: "absolute", left: "68%", bottom: 40, width: 36, height: 80 }}>
+        <View style={{ position: "absolute", left: 15, bottom: 0, width: 6, height: 20, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 16, width: 24, height: 24, backgroundColor: "#1B5E20", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 34, width: 20, height: 20, backgroundColor: "#1B5E20", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 50, width: 16, height: 16, backgroundColor: "#1B5E20", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 52, width: 20, height: 5, borderRadius: 3, backgroundColor: "#ECEFF1", opacity: 0.8 }} />
+      </View>
+      <View style={{ position: "absolute", left: "86%", bottom: 42, width: 28, height: 60 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 5, height: 16, backgroundColor: "#3E2723" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 12, width: 20, height: 20, backgroundColor: "#1B5E20", transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", left: 6, bottom: 28, width: 16, height: 16, backgroundColor: "#1B5E20", transform: [{ rotate: "45deg" }] }} />
+      </View>
+      {/* falling snow */}
+      <FallingDot left="20%" size={5} color="#FFFFFF" duration={3200} delay={0} sway={3} square={false} ellipse={false} spin={false} maxOpacity={0.8} />
+      <FallingDot left="45%" size={4} color="#FFFFFF" duration={2800} delay={600} sway={2} square={false} ellipse={false} spin={false} maxOpacity={0.7} />
+      <FallingDot left="70%" size={6} color="#FFFFFF" duration={3600} delay={1200} sway={4} square={false} ellipse={false} spin={false} maxOpacity={0.75} />
+      <FallingDot left="88%" size={4} color="#ECEFF1" duration={3000} delay={1800} sway={2} square={false} ellipse={false} spin={false} maxOpacity={0.6} />
+    </SceneRoot>
+  );
+}
+
+/** Dexter: Original Sin — 1990s prequel. Retro Miami neon, young Dexter era. */
+function DexterOriginalSinScene() {
+  return (
+    <SceneRoot base="#1A0B2E">
+      {/* neon grid horizon */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 40, height: 2, backgroundColor: "#E040FB", opacity: 0.8 }} />
+      <View style={{ position: "absolute", left: "20%", bottom: 0, width: 2, height: 42, backgroundColor: "#E040FB", opacity: 0.4, transform: [{ rotate: "18deg" }] }} />
+      <View style={{ position: "absolute", left: "50%", bottom: 0, width: 2, height: 42, backgroundColor: "#E040FB", opacity: 0.4 }} />
+      <View style={{ position: "absolute", left: "80%", bottom: 0, width: 2, height: 42, backgroundColor: "#E040FB", opacity: 0.4, transform: [{ rotate: "-18deg" }] }} />
+      {/* retro sun */}
+      <View style={{ position: "absolute", left: "38%", bottom: 52, width: 72, height: 72, borderRadius: 36, backgroundColor: "#FF6E40", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: "38%", bottom: 52, width: 72, height: 12, backgroundColor: "#1A0B2E", opacity: 0.9 }} />
+      <View style={{ position: "absolute", left: "38%", bottom: 70, width: 72, height: 8, backgroundColor: "#1A0B2E", opacity: 0.9 }} />
+      <BreatheGlow color="#FF4081" size={130} left="36%" bottom={48} min={0.15} max={0.28} duration={4800} />
+      {/* neon palm silhouette */}
+      <View style={{ position: "absolute", left: "6%", bottom: 36, width: 44, height: 88 }}>
+        <View style={{ position: "absolute", left: 19, bottom: 0, width: 6, height: 60, backgroundColor: "#0D0518", borderRadius: 3 }} />
+        <View style={{ position: "absolute", left: 2, bottom: 54, width: 40, height: 6, borderRadius: 3, backgroundColor: "#00E5FF", opacity: 0.8, transform: [{ rotate: "-22deg" }] }} />
+        <View style={{ position: "absolute", left: 4, bottom: 60, width: 36, height: 6, borderRadius: 3, backgroundColor: "#E040FB", opacity: 0.8, transform: [{ rotate: "16deg" }] }} />
+      </View>
+      {/* blood drop accent */}
+      <FallingDot left="82%" size={7} color="#E53935" duration={2000} delay={400} sway={1} square={false} ellipse={true} spin={false} maxOpacity={0.8} />
+      <TwinkleField color="#E040FB" count={4} seed={77} />
+    </SceneRoot>
+  );
+}
+
+/** Dexter: Resurrection — forensic lab. Microscope, blood slide glow, falling blood drops. */
+function DexterResurrectionScene() {
   return (
     <SceneRoot base="#33121B">
       <BreatheGlow color="#C0392B" size={120} left="64%" bottom={30} min={0.16} max={0.32} duration={4600} />
@@ -6403,7 +6502,10 @@ function detectTVShowScene(notes: string | undefined | null, title: string | und
   const text = `${title ?? ""} ${notes ?? ""}`.toLowerCase();
   if (!text.trim()) return null;
   const has = (...names: string[]) => names.some((n) => text.includes(n));
-  if (has("dexter", "resurrection", "new blood")) return <DexterScene />;
+  if (has("new blood")) return <DexterNewBloodScene />;
+  if (has("original sin")) return <DexterOriginalSinScene />;
+  if (has("resurrection")) return <DexterResurrectionScene />;
+  if (has("dexter")) return <DexterMiamiScene />;
   if (has("walking dead")) return <WalkingDeadScene />;
   if (has("the chosen")) return <ChosenScene />;
   if (has("the bear", "yes chef")) return <BearScene />;

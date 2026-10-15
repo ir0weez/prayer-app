@@ -743,9 +743,9 @@ export default function ProfileScreen() {
                   qEndDate.setUTCDate(qEndDate.getUTCDate() + qEnd - 1);
                   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
                   const dateLabel = `${monthNames[qStartDate.getUTCMonth()]}-${monthNames[qEndDate.getUTCMonth()]}`;
-                  // Season for theming (based on middle month)
+                  // Season for theming (based on END month so Dec-ending quarters get Winter)
                   const qMidDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                  qMidDate.setUTCDate(qMidDate.getUTCDate() + qStart + Math.floor((qEnd - qStart) / 2) - 1);
+                  qMidDate.setUTCDate(qMidDate.getUTCDate() + qEnd - 1);
                   const qMonth = qMidDate.getUTCMonth();
                   const seasonColors = (qMonth === 11 || qMonth <= 1)
                     ? { bg: "#DBEAFE", accent: "#3B82F6", text: "#1E40AF" }
@@ -793,9 +793,10 @@ export default function ProfileScreen() {
               if (selectedFast.durationDays >= 80) {
                 const quarterSize = Math.ceil(selectedFast.durationDays / 4);
                 // Seasonal board theming (calendar-based)
-                const qMidOff = (activeQuarter * quarterSize) + Math.floor(Math.min(quarterSize, selectedFast.durationDays - activeQuarter * quarterSize) / 2);
+                // Theme by END month so Q4 (ending Dec) gets Winter, not Fall
+                const qEndOff = (activeQuarter * quarterSize) + Math.min(quarterSize, selectedFast.durationDays - activeQuarter * quarterSize) - 1;
                 const qMidD = new Date(selectedFast.startDate + "T00:00:00Z");
-                qMidD.setUTCDate(qMidD.getUTCDate() + qMidOff);
+                qMidD.setUTCDate(qMidD.getUTCDate() + qEndOff);
                 const qM = qMidD.getUTCMonth();
                 const sKey = (qM === 11 || qM <= 1) ? "winter" : (qM >= 2 && qM <= 4) ? "spring" : (qM >= 5 && qM <= 7) ? "summer" : "fall";
                 const seasonalThemes: Record<string, { primary: string; surface: string; border: string }> = {

@@ -13264,9 +13264,7 @@ const scheduleStyles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   formSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "85%",
+    flex: 1,
     paddingBottom: 40,
   },
   formHeader: {

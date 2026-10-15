@@ -521,19 +521,6 @@ function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; siz
       }}
     >
       <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
-      {/* Shiny highlight overlay */}
-      <View
-        style={{
-          position: "absolute",
-          left: pawnSize * 0.18,
-          top: pawnSize * 0.12,
-          width: pawnSize * 0.28,
-          height: pawnSize * 0.28,
-          borderRadius: pawnSize * 0.14,
-          backgroundColor: "#FFFFFF",
-          opacity: 0.45,
-        }}
-      />
     </Animated.View>
   );
 }

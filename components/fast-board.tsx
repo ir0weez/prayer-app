@@ -485,14 +485,114 @@ export function FastTriviaModal({
 }
 
 /** Pilgrim waypoint modal — encouraging message, not a skip. */
+/** Animated vignette: pawn enjoying the waypoint. */
+function WaypointVignette({ kind, pawnId, color }: { kind: PilgrimWaypointKind; pawnId?: string; color: string }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(t, { toValue: 1, duration: kind === "fair" ? 3000 : 2400, easing: Easing.linear, useNativeDriver: true })
+    );
+    t.setValue(0);
+    loop.start();
+    return () => loop.stop();
+  }, [kind]);
+
+  const pawnSize = 36;
+
+  if (kind === "rest") {
+    // Pawn napping with floating Z's
+    const z1Opacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 1, 0] });
+    const z1Y = t.interpolate({ inputRange: [0, 1], outputRange: [0, -30] });
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        {/* bed */}
+        <View style={{ position: "absolute", bottom: 18, width: 80, height: 14, borderRadius: 7, backgroundColor: "#8D6E63" }} />
+        <View style={{ position: "absolute", bottom: 18, left: 22, width: 18, height: 22, borderRadius: 4, backgroundColor: "#FFFFFF", opacity: 0.9 }} />
+        <Animated.View style={{ transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) }] }}>
+          <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+        </Animated.View>
+        <Animated.Text style={{ position: "absolute", top: 8, right: 28, fontSize: 16, fontWeight: "800", color: "#90A4AE", opacity: z1Opacity, transform: [{ translateY: z1Y }] }}>Z</Animated.Text>
+        <Animated.Text style={{ position: "absolute", top: 16, right: 18, fontSize: 12, fontWeight: "800", color: "#90A4AE", opacity: z1Opacity, transform: [{ translateY: z1Y }] }}>z</Animated.Text>
+      </View>
+    );
+  }
+
+  if (kind === "market") {
+    // Pawn browsing with falling coins
+    const coinY = t.interpolate({ inputRange: [0, 1], outputRange: [-10, 70] });
+    const coinOpacity = t.interpolate({ inputRange: [0, 0.8, 1], outputRange: [0, 1, 0] });
+    const sway = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-4, 4, -4] });
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        {/* awning */}
+        <View style={{ position: "absolute", top: 6, width: 100, height: 12, borderRadius: 6, backgroundColor: "#EF5350", opacity: 0.8 }} />
+        <View style={{ position: "absolute", top: 6, width: 100, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.3, transform: [{ scaleX: 0.5 }] }} />
+        <Animated.View style={{ transform: [{ translateX: sway }] }}>
+          <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+        </Animated.View>
+        <Animated.View style={{ position: "absolute", left: 30, top: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD54F", opacity: coinOpacity, transform: [{ translateY: coinY }] }} />
+        <Animated.View style={{ position: "absolute", left: 80, top: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFB300", opacity: coinOpacity, transform: [{ translateY: coinY }] }} />
+      </View>
+    );
+  }
+
+  if (kind === "fair") {
+    // Pawn on a roller coaster!
+    const carX = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-40, 40, -40] });
+    const carY = t.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [10, -18, 10, -18, 10] });
+    const carRotate = t.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: ["0deg", "-12deg", "0deg", "12deg", "0deg"] });
+    return (
+      <View style={{ width: 140, height: 90, alignItems: "center", justifyContent: "center" }}>
+        {/* track hills */}
+        <Svg width={130} height={60} viewBox="0 0 130 60" style={{ position: "absolute", bottom: 10 }}>
+          <Path d="M5 50 Q35 5 65 50 T125 50" fill="none" stroke="#78909C" strokeWidth={4} strokeLinecap="round" />
+          <Path d="M5 50 Q35 5 65 50 T125 50" fill="none" stroke="#B0BEC5" strokeWidth={1.5} strokeDasharray="4 3" />
+        </Svg>
+        {/* support poles */}
+        <View style={{ position: "absolute", bottom: 10, left: 38, width: 4, height: 28, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", bottom: 10, left: 88, width: 4, height: 28, backgroundColor: "#78909C" }} />
+        {/* coaster car with pawn */}
+        <Animated.View style={{ position: "absolute", bottom: 28, transform: [{ translateX: carX }, { translateY: carY }, { rotate: carRotate }], alignItems: "center" }}>
+          <View style={{ width: 44, height: 16, borderRadius: 8, backgroundColor: "#EF5350", borderWidth: 2, borderColor: "#C62828" }} />
+          <View style={{ marginTop: -22 }}>
+            <FastPawnShape id={pawnId || "pebble"} size={26} color={color} />
+          </View>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // slough: pawn being lifted out of the mud
+  const liftY = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [8, -6, 8] });
+  const splashOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.2, 0.6] });
+  return (
+    <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+      {/* mud */}
+      <View style={{ position: "absolute", bottom: 14, width: 100, height: 22, borderRadius: 11, backgroundColor: "#5D4037" }} />
+      <View style={{ position: "absolute", bottom: 28, width: 80, height: 10, borderRadius: 5, backgroundColor: "#6D4C41", opacity: 0.7 }} />
+      {/* helping hand beam */}
+      <View style={{ position: "absolute", top: 0, width: 6, height: 50, backgroundColor: "#FFE082", opacity: 0.6, borderRadius: 3 }} />
+      <Animated.View style={{ transform: [{ translateY: liftY }] }}>
+        <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+      </Animated.View>
+      <Animated.View style={{ position: "absolute", bottom: 30, left: 30, width: 8, height: 8, borderRadius: 4, backgroundColor: "#8D6E63", opacity: splashOpacity }} />
+      <Animated.View style={{ position: "absolute", bottom: 32, right: 32, width: 6, height: 6, borderRadius: 3, backgroundColor: "#8D6E63", opacity: splashOpacity }} />
+    </View>
+  );
+}
+
 export function FastWaypointModal({
   visible,
   kind,
+  pawnId,
+  pawnColor,
   colors,
   onClose,
 }: {
   visible: boolean;
   kind: PilgrimWaypointKind | null;
+  pawnId?: string;
+  pawnColor?: string;
   colors: FastBoardColors;
   onClose: () => void;
 }) {
@@ -515,8 +615,8 @@ export function FastWaypointModal({
             borderColor: colors.border,
           }}
         >
-          <Text style={{ fontSize: 48, marginBottom: 12 }}>{wp.icon}</Text>
-          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "800", marginBottom: 8, textAlign: "center" }}>
+          <WaypointVignette kind={kind} pawnId={pawnId} color={pawnColor || colors.primary} />
+          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "800", marginBottom: 8, textAlign: "center", marginTop: 8 }}>
             {wp.title}
           </Text>
           <Text style={{ color: colors.muted, fontSize: 14, textAlign: "center", lineHeight: 20 }}>
@@ -1341,6 +1441,8 @@ export function FastBoard({
       <FastWaypointModal
         visible={waypointKind !== null}
         kind={waypointKind}
+        pawnId={pawnId}
+        pawnColor={colors.primary}
         colors={colors}
         onClose={() => setWaypointKind(null)}
       />

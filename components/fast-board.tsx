@@ -520,15 +520,9 @@ export function FastBoard({
   const todayIndex = days.indexOf(today);
   const currentDayNum = todayIndex >= 0 ? todayIndex + 1 : 1;
 
-  // Long fasts (>60 days) paginate into 30-day windows.
-  const WINDOW = 30;
-  const paginated = total > 60;
-  const windowCount = Math.ceil(total / WINDOW);
-  const [page, setPage] = useState(() => Math.floor((todayIndex >= 0 ? todayIndex : 0) / WINDOW));
-  const pageStart = page * WINDOW;
-  const pageDays = paginated ? days.slice(pageStart, pageStart + WINDOW) : days;
-  const pageStartDay = pageStart + 1;
-  const pageEndDay = Math.min(pageStart + WINDOW, total);
+  // Full board always — no pagination, like the mockup.
+  const pageDays = days;
+  const pageStart = 0;
 
   // Mockup geometry: 8 tiles per row, 42px cells, 88px row height.
   const perRow = 8;
@@ -669,29 +663,6 @@ export function FastBoard({
   return (
     <View>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
-      {paginated && windowCount > 1 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 }}>
-          <Pressable
-            onPress={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            style={({ pressed }) => [{ opacity: page === 0 ? 0.3 : pressed ? 0.6 : 1, padding: 6 }]}
-            accessibilityLabel="Previous 30 days"
-          >
-            <MaterialIcons name="chevron-left" size={24} color={colors.foreground} />
-          </Pressable>
-          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>
-            Days {pageStartDay}–{pageEndDay} of {total}
-          </Text>
-          <Pressable
-            onPress={() => setPage((p) => Math.min(windowCount - 1, p + 1))}
-            disabled={page >= windowCount - 1}
-            style={({ pressed }) => [{ opacity: page >= windowCount - 1 ? 0.3 : pressed ? 0.6 : 1, padding: 6 }]}
-            accessibilityLabel="Next 30 days"
-          >
-            <MaterialIcons name="chevron-right" size={24} color={colors.foreground} />
-          </Pressable>
-        </View>
-      ) : null}
       <View style={{ height: 10 }} />
       <Svg viewBox={`0 0 360 ${svgH}`} style={{ width: "100%", height: svgH }}>
         <Polyline

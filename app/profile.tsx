@@ -777,7 +777,7 @@ export default function ProfileScreen() {
                         {season.name}
                       </Text>
                       <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : season.text, opacity: 0.7 }}>
-                        {dateLabel}
+                        Q{q + 1}
                       </Text>
                     </Pressable>
                   );
@@ -972,33 +972,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-      {/* Floating "today's fast day" pill — only when today's tile is off-screen */}
-      {selectedFast && showFastDayPill && (
-        <Pressable
-          onPress={scrollToFastToday}
-          style={{
-            position: "absolute",
-            bottom: 96,
-            alignSelf: "center",
-            backgroundColor: colors.primary,
-            borderRadius: 24,
-            paddingVertical: 12,
-            paddingHorizontal: 20,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            elevation: 8,
-            zIndex: 10,
-            shadowColor: "#000",
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <MaterialIcons name="today" size={18} color="#FFFFFF" />
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>Fast Day</Text>
-        </Pressable>
-      )}
+
     </ScreenContainer>
   );
 }

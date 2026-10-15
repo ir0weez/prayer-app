@@ -11046,13 +11046,17 @@ export function ScheduleTab({
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       <View
                         style={{
-                          width: 22, height: 22, borderRadius: 7,
+                          width: 28, height: 28, borderRadius: 8,
                           backgroundColor: t.isCompleted ? "#FFFFFF" : "rgba(255,255,255,0.25)",
                           alignItems: "center", justifyContent: "center",
                           borderWidth: 1.5, borderColor: "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {t.isCompleted && <Text style={{ color: todoColor, fontSize: 13, fontWeight: "800" }}>✓</Text>}
+                        {t.isCompleted ? (
+                          <Text style={{ color: todoColor, fontSize: 14, fontWeight: "800" }}>✓</Text>
+                        ) : (
+                          <MaterialIcons name={getIconForTodo(t.title) as any} size={16} color="#FFFFFF" />
+                        )}
                       </View>
                       <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700", flex: 1 }} numberOfLines={2}>
                         {t.title}
@@ -11061,7 +11065,12 @@ export function ScheduleTab({
                     <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, gap: 6 }}>
                       {t.startTime && (
                         <Text style={{ color: "#FFFFFF", fontSize: 11, opacity: 0.85 }}>
-                          {t.startTime}
+                          {(() => {
+                            const [h, m] = t.startTime.split(":").map(Number);
+                            const ampm = h >= 12 ? "PM" : "AM";
+                            const h12 = h % 12 || 12;
+                            return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+                          })()}
                         </Text>
                       )}
                       {t.tag && (

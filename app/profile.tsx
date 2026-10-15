@@ -160,6 +160,7 @@ export default function ProfileScreen() {
   const profileScrollRef = useRef<ScrollView>(null);
   const fastTodayTileRef = useRef<View | null>(null);
   const fastBoardContainerRef = useRef<View | null>(null);
+  const fastBoardY = useRef<number>(0);
 
   const boardColors: FastBoardColors = useMemo(() => ({
     foreground: colors.foreground,
@@ -181,19 +182,12 @@ export default function ProfileScreen() {
 
   const scrollToFastToday = () => {
     const scroll = profileScrollRef.current;
-    const board = fastBoardContainerRef.current;
-    if (!scroll || !board) return;
-    // Today's tile Y within the SVG board: 8 per row, 88px rows, oy=14.
-    // selectedFast is in scope; compute today's row from its start date.
+    if (!scroll) return;
     const todayRow = selectedFast ? Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5) : 0;
     const tileYInBoard = 14 + todayRow * 112;
-    const scrollHandle = findNodeHandle(scroll);
-    if (!scrollHandle) return;
-    (board as any).measureLayout(
-      scrollHandle,
-      (_x: number, y: number) => scroll.scrollTo({ y: Math.max(0, y + tileYInBoard - 140), animated: true }),
-      () => {},
-    );
+    // Use cached layout Y if available, otherwise fall back to measureLayout
+    const targetY = Math.max(0, fastBoardY.current + tileYInBoard - 140);
+    scroll.scrollTo({ y: targetY, animated: true });
   };
 
   useFocusEffect(
@@ -634,7 +628,11 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.sectionLabel}>BOARD</Text>
-            <View ref={fastBoardContainerRef} collapsable={false}>
+            <View
+              ref={fastBoardContainerRef}
+              collapsable={false}
+              onLayout={(e) => { fastBoardY.current = e.nativeEvent.layout.y; }}
+            >
             <FastBoard
               fast={selectedFast}
               today={today}
@@ -788,7 +786,7 @@ export default function ProfileScreen() {
           onPress={scrollToFastToday}
           style={{
             position: "absolute",
-            bottom: 140,
+            bottom: 96,
             alignSelf: "center",
             backgroundColor: colors.primary,
             borderRadius: 24,

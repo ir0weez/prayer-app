@@ -492,8 +492,8 @@ function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
   );
 }
 
-/** View-based pawn with bob animation (for the View-based board). */
-function ViewPawn({ color, size }: { color: string; size: number }) {
+/** View-based pawn with bob animation — renders the selected pawn shape, centered, with shine. */
+function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; size: number }) {
   const bob = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const rise = Animated.loop(
@@ -505,34 +505,33 @@ function ViewPawn({ color, size }: { color: string; size: number }) {
     rise.start();
     return () => rise.stop();
   }, [bob]);
-  const ballSize = 28;
+  const pawnSize = 30;
   return (
     <Animated.View
       style={{
         position: "absolute",
-        left: (size - ballSize) / 2,
-        top: (size - ballSize) / 2 - 2,
-        width: ballSize,
-        height: ballSize,
-        borderRadius: ballSize / 2,
-        backgroundColor: color,
-        borderWidth: 2.5,
-        borderColor: "#FFFFFF",
+        left: (size - pawnSize) / 2,
+        top: (size - pawnSize) / 2,
+        width: pawnSize,
+        height: pawnSize,
         transform: [{ translateY: bob }],
         alignItems: "center",
         justifyContent: "center",
+        zIndex: 10,
       }}
     >
+      <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+      {/* Shiny highlight overlay */}
       <View
         style={{
           position: "absolute",
-          left: 3,
-          top: 2,
-          width: 6,
-          height: 6,
-          borderRadius: 3,
+          left: pawnSize * 0.18,
+          top: pawnSize * 0.12,
+          width: pawnSize * 0.28,
+          height: pawnSize * 0.28,
+          borderRadius: pawnSize * 0.14,
           backgroundColor: "#FFFFFF",
-          opacity: 0.55,
+          opacity: 0.45,
         }}
       />
     </Animated.View>
@@ -554,6 +553,7 @@ const FastTileView = memo(function FastTileView({
   special,
   colors,
   pawnColor,
+  pawnId,
   svgH,
   onPress,
   onLongPress,
@@ -571,6 +571,7 @@ const FastTileView = memo(function FastTileView({
   special: FastSpecialKind | null;
   colors: FastBoardColors;
   pawnColor: string;
+  pawnId?: string;
   svgH: number;
   onPress: () => void;
   onLongPress: () => void;
@@ -628,7 +629,7 @@ const FastTileView = memo(function FastTileView({
         {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 24, fontWeight: "800" }}>×</Text>}
         {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
-        {isToday && <ViewPawn color={pawnColor} size={size} />}
+        {isToday && <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />}
       </View>
       {specialMeta && (
         <View
@@ -639,6 +640,7 @@ const FastTileView = memo(function FastTileView({
             width: 26,
             height: 26,
             borderRadius: 13,
+            zIndex: 5,
             backgroundColor: specialMeta.bg,
             borderWidth: 2,
             borderColor: colors.surface,
@@ -658,6 +660,7 @@ const FastTileView = memo(function FastTileView({
             width: 26,
             height: 26,
             borderRadius: 13,
+            zIndex: 5,
             backgroundColor: badge.bg,
             borderWidth: 2,
             borderColor: badge.border || colors.surface,
@@ -890,6 +893,7 @@ export function FastBoard({
               special={special}
               colors={colors}
               pawnColor={colors.primary}
+              pawnId={pawnId}
               svgH={svgH}
               onPress={() => {
                 if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);

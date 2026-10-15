@@ -48,8 +48,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
           backgroundColor: colors.surface,
           borderColor: colors.border,
           opacity: pressed ? 0.65 : 1,
-          borderLeftWidth: block.durationMinutes <= 30 ? 2 : block.durationMinutes <= 60 ? 3 : 4,
-          borderLeftColor: colors.primary,
+          minHeight: block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76,
         },
       ]}
     >
@@ -110,10 +109,8 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
             },
             {
               opacity: pressed ? 0.65 : 1,
-              // Subtle duration cue: left accent thickness grows with block length
-              borderLeftWidth: block.durationMinutes <= 30 ? 2 : block.durationMinutes <= 60 ? 3 : 4,
-              borderLeftColor: colors.primary,
-              paddingLeft: 10,
+              // Height scales subtly with duration
+              minHeight: block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76,
             },
           ]}
         >

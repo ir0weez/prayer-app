@@ -8113,7 +8113,7 @@ function PrayerArt({ accent, line }: MinistryArtPalette) {
   );
 }
 
-/** Fast — small cross with dawn glow. */
+/** Fast — simple animated cross, adapts to ministry color. */
 function FastArt({ accent }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
@@ -8123,7 +8123,6 @@ function FastArt({ accent }: MinistryArtPalette) {
           <View style={{ position: "absolute", top: 8, width: 24, height: 8, borderRadius: 4, backgroundColor: accent }} />
         </View>
       </MicroWobble>
-      <View style={{ position: "absolute", width: 44, height: 44, borderRadius: 22, backgroundColor: accent, opacity: 0.12 }} />
     </View>
   );
 }

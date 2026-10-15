@@ -8113,6 +8113,21 @@ function PrayerArt({ accent, line }: MinistryArtPalette) {
   );
 }
 
+/** Fast — small cross with dawn glow. */
+function FastArt({ accent }: MinistryArtPalette) {
+  return (
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroWobble duration={2400}>
+        <View style={{ alignItems: "center" }}>
+          <View style={{ width: 8, height: 36, borderRadius: 4, backgroundColor: accent }} />
+          <View style={{ position: "absolute", top: 8, width: 24, height: 8, borderRadius: 4, backgroundColor: accent }} />
+        </View>
+      </MicroWobble>
+      <View style={{ position: "absolute", width: 44, height: 44, borderRadius: 22, backgroundColor: accent, opacity: 0.12 }} />
+    </View>
+  );
+}
+
 /** Bible Study — open book, page corner lifting and turning. */
 function BibleStudyArt({ line, surface }: MinistryArtPalette) {
   return (
@@ -8343,6 +8358,7 @@ function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
     case "Parenting": return <ParentingArt {...p} />;
     case "Youth": return <YouthArt {...p} />;
     case "Service": return <ServiceArt {...p} />;
+    case "Fast": return <FastArt {...p} />;
     case "Read": return <ReadArt {...p} />;
     default: return <OtherArt {...p} />;
   }

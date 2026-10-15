@@ -426,6 +426,7 @@ export const MINISTRY_TYPES = [
   "Bible Study",
   "Marriage",
   "Parenting",
+  "Fast",
   "Read",
   "Other",
 ] as const;
@@ -446,6 +447,7 @@ export const MINISTRY_TYPE_ICONS: Record<MinistryType, string> = {
   "Bible Study": "book",
   "Marriage": "favorite",
   "Parenting": "family-restroom",
+  "Fast": "local-fire-department",
   "Read": "library-books",
   "Other": "event-note",
 };

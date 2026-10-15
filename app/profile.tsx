@@ -42,7 +42,7 @@ import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-stora
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
-import { useFastPawn, usePawnName } from "@/lib/fast-pawns";
+import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
 
 type PersonalProfile = {
   name: string;
@@ -158,6 +158,7 @@ export default function ProfileScreen() {
   const [profileLevel, setProfileLevel] = useState(1);
   const { pawnId, setPawnId } = useFastPawn();
   const { name: pawnName, setName: setPawnName } = usePawnName();
+  const { unlocked: petUnlocked, unlock: unlockPet } = usePawnPetUnlocked();
   const profileScrollRef = useRef<ScrollView>(null);
   const fastTodayTileRef = useRef<View | null>(null);
   const fastBoardContainerRef = useRef<View | null>(null);
@@ -629,25 +630,42 @@ export default function ProfileScreen() {
             </View>
 
             {(() => {
-              // Pawn mood based on fast progress
+              // Calculate streak for pet unlock (40+ days) and mood
+              let streak = 0;
               let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" = "sleepy";
               if (selectedFast) {
                 const days = getFastCalendarDays(selectedFast);
                 const todayIdx = days.indexOf(today);
                 const todayStatus = todayIdx >= 0 ? selectedFast.dayStatuses[days[todayIdx]] : undefined;
-                // Calculate streak
-                let streak = 0;
                 for (let i = todayIdx; i >= 0; i--) {
                   const s = selectedFast.dayStatuses[days[i]];
                   if (s === "completed") streak++;
                   else break;
                 }
+                // Unlock pet at 40-day streak
+                if (streak >= 40 && !petUnlocked) unlockPet();
                 const yesterdayIdx = todayIdx - 1;
                 const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
                 if (todayStatus === "completed") mood = "celebrating";
                 else if (streak >= 7) mood = "happy";
                 else if (streak >= 3) mood = "content";
                 else if (yesterdayStatus === "missed") mood = "encouraging";
+              }
+              if (!petUnlocked) {
+                // Locked hint
+                return (
+                  <View style={{ alignItems: "center", paddingVertical: 12, opacity: 0.6 }}>
+                    <Text style={{ fontSize: 32 }}>🔒</Text>
+                    <Text style={{ color: boardColors.muted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
+                      Reach a 40-day streak to unlock your pawn pet!
+                    </Text>
+                    {streak > 0 && (
+                      <Text style={{ color: boardColors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
+                        Current streak: {streak} days
+                      </Text>
+                    )}
+                  </View>
+                );
               }
               return (
                 <PawnCompanion

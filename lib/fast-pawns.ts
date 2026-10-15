@@ -18,6 +18,7 @@ export type FastPawnDef = {
 
 const PAWN_STORAGE_KEY = "prayercircle.fastPawn.v1";
 const PAWN_NAME_KEY = "prayercircle.pawnName.v1";
+const PAWN_PET_UNLOCKED_KEY = "prayercircle.pawnPetUnlocked.v1";
 
 export const FAST_PAWNS: FastPawnDef[] = [
   { id: "pebble", name: "Pebble", level: 1 },
@@ -116,4 +117,34 @@ export function usePawnName() {
   }, []);
 
   return { name, setName, hydrated };
+}
+
+
+/** Pawn pet unlock — earned at 40-day streak, kept forever. */
+export function usePawnPetUnlocked() {
+  const [unlocked, setUnlockedState] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(PAWN_PET_UNLOCKED_KEY)
+      .then((raw) => {
+        if (!active) return;
+        if (raw === "1") setUnlockedState(true);
+        setHydrated(true);
+      })
+      .catch(() => {
+        if (active) setHydrated(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const unlock = useCallback(() => {
+    setUnlockedState(true);
+    AsyncStorage.setItem(PAWN_PET_UNLOCKED_KEY, "1").catch(() => undefined);
+  }, []);
+
+  return { unlocked, unlock, hydrated };
 }

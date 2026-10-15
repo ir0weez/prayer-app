@@ -126,6 +126,7 @@ export type EventKeyword = {
 };
 
 export const EVENT_KEYWORD_MAP: EventKeyword[] = [
+  { keywords: ["fast", "fasting"], label: "Fast", emoji: "🙏✝️", icon: "local-fire-department", bgColor: "#4A2E1E", textColor: "#FFE0B2", accentColor: "#FF8F00" },
   { keywords: ["bbq", "barbecue", "grill"], label: "BBQ", emoji: "🍖🔥", icon: "outdoor-grill", bgColor: "#5D2E1E", textColor: "#E65100", accentColor: "#FF6D00", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-bbq-97bqCESdoVbdAzptsewrTq.webp" },
   { keywords: ["church", "service", "sunday"], label: "Church", emoji: "⛪", icon: "church", bgColor: "#3E6B8E", textColor: "#1A237E", accentColor: "#3F51B5", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-church-WqiT4f26sQR8Hye2vQMv8H.webp" },
   { keywords: ["worship", "praise"], label: "Worship", emoji: "🎵🙌", icon: "music-note", bgColor: "#4E2E6E", textColor: "#4A148C", accentColor: "#9C27B0", imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663609244773/nMR2WBPF4HZKAwU9JYNSWY/event-worship-QUx7n49Cz5dTeimaAz3yrf.webp" },
@@ -180,11 +181,11 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function detectEventKeyword(title: string): EventKeyword | null {
-  const lower = title.toLowerCase();
+export function detectEventKeyword(title: string, location?: string, notes?: string): EventKeyword | null {
+  const combined = [title, location || "", notes || ""].join(" ").toLowerCase();
   for (const entry of EVENT_KEYWORD_MAP) {
     for (const kw of entry.keywords) {
-      if (lower.includes(kw)) return entry;
+      if (combined.includes(kw)) return entry;
     }
   }
   return null;

@@ -1936,6 +1936,28 @@ function ChurchScene() {
   );
 }
 
+/** Fast: cross on a hill at dawn with rising light — Christian fasting. */
+function FastScene() {
+  return (
+    <SceneRoot base="#4A2E1E">
+      {/* Dawn glow */}
+      <BreatheGlow color="#FFB74D" size={160} left="38%" bottom={10} min={0.25} max={0.45} duration={5200} />
+      <View style={{ position: "absolute", left: "44%", bottom: 40, width: 60, height: 60, borderRadius: 30, backgroundColor: "#FFD54F", opacity: 0.9 }} />
+      {/* Hill */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -30, height: 70, borderRadius: 35, backgroundColor: "#3E2723" }} />
+      {/* Cross */}
+      <View style={{ position: "absolute", left: "47%", bottom: 34, width: 10, height: 64, borderRadius: 5, backgroundColor: "#2B1A12" }} />
+      <View style={{ position: "absolute", left: "41%", bottom: 72, width: 44, height: 10, borderRadius: 5, backgroundColor: "#2B1A12" }} />
+      {/* Light rays */}
+      <View style={{ position: "absolute", left: "30%", top: -10, width: 20, height: 110, backgroundColor: "#FFFFFF", opacity: 0.08, transform: [{ rotate: "18deg" }] }} />
+      <View style={{ position: "absolute", left: "62%", top: -10, width: 26, height: 120, backgroundColor: "#FFFFFF", opacity: 0.1, transform: [{ rotate: "-14deg" }] }} />
+      {/* Rising light particles */}
+      <TwinkleField color="#FFE9A8" count={8} seed={21} />
+      <DriftingCloud top={14} size={44} duration={30000} delay={2000} />
+    </SceneRoot>
+  );
+}
+
 /** Worship: dove in light rays with rising notes. */
 function WorshipScene() {
   return (
@@ -6622,6 +6644,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
   }
   switch (label) {
     case "BBQ": return <BBQScene />;
+    case "Fast": return <FastScene />;
     case "Church": return <ChurchScene />;
     case "Worship": return <WorshipScene />;
     case "Bible Study": return <BibleStudyScene />;
@@ -11903,9 +11926,19 @@ export function ScheduleTab({
                     multiline
                     returnKeyType="done"
                   />
-                  {detectEventKeyword(formTitle)?.label !== "Rest" && (
-                    <>
-                      <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>COLOR</Text>
+                  {(() => {
+                    const detectedKeyword = detectEventKeyword(formTitle, formLocation, formNotes);
+                    if (detectedKeyword) {
+                      return (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                          <MaterialIcons name="auto-awesome" size={20} color={colors.primary} />
+                          <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600", flex: 1 }}>
+                            Custom card: {detectedKeyword.label}
+                          </Text>
+                        </View>
+                      );
+                    }
+                    return (<>
                       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
                         {COLOR_PALETTE.map((color) => (
                           <Pressable
@@ -11923,8 +11956,8 @@ export function ScheduleTab({
                           />
                         ))}
                       </View>
-                    </>
-                  )}
+                    </>);
+                  })()}
                 </View>
               )}
               showsVerticalScrollIndicator={false}

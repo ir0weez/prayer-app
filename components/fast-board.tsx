@@ -492,6 +492,191 @@ function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
   );
 }
 
+/** View-based pawn with bob animation (for the View-based board). */
+function ViewPawn({ color, size }: { color: string; size: number }) {
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const rise = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: -4, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    rise.start();
+    return () => rise.stop();
+  }, [bob]);
+  const ballSize = 22;
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        left: (size - ballSize) / 2,
+        top: (size - ballSize) / 2 - 2,
+        width: ballSize,
+        height: ballSize,
+        borderRadius: ballSize / 2,
+        backgroundColor: color,
+        borderWidth: 2.5,
+        borderColor: "#FFFFFF",
+        transform: [{ translateY: bob }],
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <View
+        style={{
+          position: "absolute",
+          left: 3,
+          top: 2,
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: "#FFFFFF",
+          opacity: 0.55,
+        }}
+      />
+    </Animated.View>
+  );
+}
+
+/** Fast View-based day tile. Uses percentage positioning to match the 360 viewBox. */
+const FastTileView = memo(function FastTileView({
+  date,
+  dayNum,
+  x,
+  y,
+  size,
+  status,
+  isToday,
+  isMilestone,
+  isFirst,
+  isLast,
+  special,
+  colors,
+  pawnColor,
+  svgH,
+  onPress,
+  onLongPress,
+}: {
+  date: string;
+  dayNum: number;
+  x: number;
+  y: number;
+  size: number;
+  status?: string;
+  isToday: boolean;
+  isMilestone: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  special: FastSpecialKind | null;
+  colors: FastBoardColors;
+  pawnColor: string;
+  svgH: number;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  // Position as percentage of 360 viewBox width; height is fixed svgH
+  const leftPct = (x / 360) * 100;
+  const top = y;
+
+  let bg = colors.surface;
+  let border = colors.border;
+  let borderW = 1.5;
+  if (status === "completed") { bg = "#22C55E"; border = "#22C55E"; }
+  else if (status === "skipped") { bg = "#F59E0B"; border = "#F59E0B"; }
+  else if (status === "missed") { bg = "rgba(239,68,68,0.12)"; border = "#EF4444"; borderW = 2.5; }
+  if (isToday) { border = pawnColor; borderW = 2.5; }
+
+  const specialMeta = special ? {
+    grace: { bg: "#F59E0B", icon: "✦" },
+    wilderness: { bg: "#EF4444", icon: "!" },
+    trivia: { bg: "#7C5CFF", icon: "?" },
+  }[special] : null;
+
+  const badge = !special && status ? (
+    status === "completed" ? { bg: "#F97316", icon: "🔥" } :
+    status === "missed" ? { bg: "#EF4444", icon: "×" } :
+    { bg: "#FFFFFF", icon: "⏸", border: "#F59E0B" }
+  ) : null;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={{
+        position: "absolute",
+        left: `${leftPct}%`,
+        top,
+        width: size,
+        height: size,
+        aspectRatio: 1,
+      }}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 10,
+          backgroundColor: bg,
+          borderWidth: borderW,
+          borderColor: border,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {status === "completed" && <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "800" }}>✓</Text>}
+        {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 18, fontWeight: "800" }}>×</Text>}
+        {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
+        {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
+        {isToday && <ViewPawn color={pawnColor} size={size} />}
+      </View>
+      {specialMeta && (
+        <View
+          style={{
+            position: "absolute",
+            right: -4,
+            top: -4,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: specialMeta.bg,
+            borderWidth: 2,
+            borderColor: colors.surface,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{specialMeta.icon}</Text>
+        </View>
+      )}
+      {badge && (
+        <View
+          style={{
+            position: "absolute",
+            right: -4,
+            top: -4,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: badge.bg,
+            borderWidth: 2,
+            borderColor: badge.border || colors.surface,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: badge.icon === "⏸" ? "#F59E0B" : "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{badge.icon}</Text>
+        </View>
+      )}
+      {isMilestone && !isLast && status !== "completed" && (
+        <Text style={{ position: "absolute", bottom: -14, left: 0, right: 0, textAlign: "center", color: colors.muted, fontSize: 9, fontWeight: "700" }}>
+          {dayNum}
+        </Text>
+      )}
+    </Pressable>
+  );
+});
+
 /** SVG day tile. */
 /** SVG day tile. Mark animations: when status changes, the tile briefly pulses. */
 const SvgDayTile = memo(function SvgDayTile({
@@ -558,7 +743,7 @@ const SvgDayTile = memo(function SvgDayTile({
       {isFirst && (
         <SvgText x={cx} y={cy + 5} textAnchor="middle" fontSize={13} fill={colors.muted}>{"\u2691"}</SvgText>
       )}
-      {isMilestone && !isLast && (
+      {isMilestone && !isLast && status !== "completed" && (
         <SvgText x={cx} y={y + 48} textAnchor="middle" fontSize={9} fontWeight="700" fill={colors.muted}>{String(dayNum)}</SvgText>
       )}
       {isLast && (
@@ -664,15 +849,19 @@ export function FastBoard({
     <View>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
       <View style={{ height: 10 }} />
-      <Svg viewBox={`0 0 360 ${svgH}`} style={{ width: "100%", height: svgH }}>
-        <Polyline
-          points={trailPoints}
-          fill="none"
-          stroke={colors.border}
-          strokeWidth={3}
-          strokeDasharray="1 7"
-          strokeLinecap="round"
-        />
+      <View style={{ height: svgH, position: "relative" }}>
+        {/* Dotted trail — single SVG, cheap */}
+        <Svg viewBox={`0 0 360 ${svgH}`} style={{ position: "absolute", width: "100%", height: svgH }}>
+          <Polyline
+            points={trailPoints}
+            fill="none"
+            stroke={colors.border}
+            strokeWidth={3}
+            strokeDasharray="1 7"
+            strokeLinecap="round"
+          />
+        </Svg>
+        {/* Tiles as native Views — fast */}
         {visibleIndices.map((i) => {
           const date = pageDays[i];
           const dayNum = pageStart + i + 1;
@@ -680,22 +869,28 @@ export function FastBoard({
           const status = fast.dayStatuses[date];
           const isToday = dayNum - 1 === todayIndex;
           const special = getSpecialSpace(dayNum, total);
+          const isMilestone = dayNum % 10 === 0;
+          const tileSize = isMilestone ? 48 : 44;
+          const tileOff = (44 - tileSize) / 2;
+          // Scale positions from 360 viewBox to actual width
+          // Using percentage-based positioning via the 360 viewBox scale
           return (
-            <SvgDayTile
+            <FastTileView
               key={date}
               date={date}
               dayNum={dayNum}
-              x={p.x}
-              y={p.y}
+              x={p.x + tileOff}
+              y={p.y + tileOff}
+              size={tileSize}
               status={status}
               isToday={isToday}
-              isMilestone={dayNum % 10 === 0}
+              isMilestone={isMilestone}
               isFirst={dayNum === 1}
               isLast={dayNum === total}
               special={special}
               colors={colors}
               pawnColor={colors.primary}
-              tileRef={isToday ? todayTileRef : undefined}
+              svgH={svgH}
               onPress={() => {
                 if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);
                 else onPressTile?.(date, dayNum);
@@ -704,7 +899,7 @@ export function FastBoard({
             />
           );
         })}
-      </Svg>
+      </View>
       <FastTriviaModal
         visible={triviaDay !== null}
         dayNum={triviaDay ?? 1}

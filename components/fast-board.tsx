@@ -466,25 +466,104 @@ export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: Fas
  * matching the approved mockup. Rows wind left-to-right, then right-to-left.
  * Fasts over 60 days paginate into 30-day windows.
  */
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const AnimatedG = Animated.createAnimatedComponent(G);
 
-/** Gentle bobbing pawn for the SVG board (cy only, no native driver for SVG attrs). */
+/** Gentle bobbing pawn for the SVG board. */
 function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
-  const bob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const rise = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: -4, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ]),
-    );
-    rise.start();
-    return () => rise.stop();
-  }, [bob]);
   return (
     <G>
-      <AnimatedCircle cx={cx} cy={Animated.add(bob, cy - 2)} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
-      <AnimatedCircle cx={cx - 3.5} cy={Animated.add(bob, cy - 5.5)} r={3} fill="#FFFFFF" opacity={0.55} />
+      <Circle cx={cx} cy={cy - 2} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
+      <Circle cx={cx - 3.5} cy={cy - 5.5} r={3} fill="#FFFFFF" opacity={0.55} />
+    </G>
+  );
+}
+
+/** SVG day tile. */
+/** SVG day tile. Mark animations: when status changes, the tile briefly pulses. */
+function SvgDayTile({
+  date,
+  dayNum,
+  x,
+  y,
+  status,
+  isToday,
+  isMilestone,
+  isFirst,
+  isLast,
+  special,
+  colors,
+  pawnColor,
+  onPress,
+  onLongPress,
+  tileRef,
+}: {
+  date: string;
+  dayNum: number;
+  x: number;
+  y: number;
+  status: FastDayStatus | undefined;
+  isToday: boolean;
+  isMilestone: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  special: FastSpecialKind | null;
+  colors: FastBoardColors;
+  pawnColor: string;
+  onPress: () => void;
+  onLongPress: () => void;
+  tileRef?: React.RefObject<any>;
+}) {
+  const size = isMilestone ? 38 : 34;
+  const off = (34 - size) / 2;
+  const cx = x + 17;
+  const cy = y + 17;
+
+  let fill = "transparent";
+  let stroke = colors.border;
+  let sw = 1.5;
+  if (status === "completed") { fill = "#22C55E"; stroke = "#22C55E"; }
+  else if (status === "skipped") { fill = "#F59E0B"; stroke = "#F59E0B"; }
+  else if (status === "missed") { fill = "rgba(239,68,68,0.12)"; stroke = "#EF4444"; sw = 2.5; }
+  if (isToday) { stroke = pawnColor; sw = 2.5; }
+
+  const markBadge = !special && status ? (
+    status === "completed" ? { bg: "#F97316", icon: "\U0001F525" } :
+    status === "missed" ? { bg: "#EF4444", icon: "\u00d7" } :
+    { bg: "#FFFFFF", icon: "\u23F8", border: "#F59E0B" }
+  ) : null;
+
+  return (
+    <G ref={tileRef} collapsable={false} onPress={onPress} onLongPress={onLongPress}>
+      <Rect x={x + off} y={y + off} width={size} height={size} rx={10} fill={fill} stroke={stroke} strokeWidth={sw} />
+      {status === "completed" && (
+        <Path d={`M${cx - 6} ${cy} l4 4 l8 -9`} stroke="#FFFFFF" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {status === "missed" && (
+        <Path d={`M${cx - 4} ${cy - 4} L${cx + 4} ${cy + 4} M${cx + 4} ${cy - 4} L${cx - 4} ${cy + 4}`} stroke="#EF4444" strokeWidth={2} strokeLinecap="round" />
+      )}
+      {isFirst && (
+        <SvgText x={cx} y={cy + 5} textAnchor="middle" fontSize={13} fill={colors.muted}>{"\u2691"}</SvgText>
+      )}
+      {isMilestone && !isLast && (
+        <SvgText x={cx} y={y + 48} textAnchor="middle" fontSize={9} fontWeight="700" fill={colors.muted}>{String(dayNum)}</SvgText>
+      )}
+      {isLast && (
+        <SvgText x={cx} y={cy + 4} textAnchor="middle" fontSize={11} fill={colors.muted}>{"\u2726"}</SvgText>
+      )}
+      {special && (
+        <G>
+          <Circle cx={cx + 13} cy={cy - 13} r={9} fill={SPECIAL_SVG_META[special].color} stroke={colors.surface} strokeWidth={2} />
+          <SvgText x={cx + 13} y={cy - 9} textAnchor="middle" fontSize={10} fontWeight="800" fill="#FFFFFF">{SPECIAL_SVG_META[special].icon}</SvgText>
+        </G>
+      )}
+      {markBadge && (
+        <G>
+          <Circle cx={cx + 13} cy={cy - 13} r={9} fill={markBadge.bg} stroke={markBadge.border || colors.surface} strokeWidth={2} />
+          <SvgText x={cx + 13} y={cy - 9} textAnchor="middle" fontSize={10} fontWeight="800" fill={markBadge.icon === "\u23F8" ? "#F59E0B" : "#FFFFFF"}>{markBadge.icon}</SvgText>
+        </G>
+      )}
+      {isToday && <SvgPawn cx={cx} cy={cy} color={pawnColor} />}
     </G>
   );
 }
@@ -550,115 +629,6 @@ export function FastBoard({
     })
     .join(" ");
 
-  const renderDay = (date: string, i: number) => {
-    const dayNum = pageStart + i + 1;
-    const p = pos(i);
-    const status = fast.dayStatuses[date];
-    const isToday = dayNum - 1 === todayIndex;
-    const isMilestone = dayNum % 10 === 0;
-    const isFirst = dayNum === 1;
-    const isLast = dayNum === total;
-    const size = isMilestone ? 38 : 34;
-    const off = (34 - size) / 2;
-    const special = getSpecialSpace(dayNum, total);
-
-    let fill = "transparent";
-    let stroke = colors.border;
-    let sw = 1.5;
-    if (status === "completed") { fill = "#22C55E"; stroke = "#22C55E"; }
-    else if (status === "skipped") { fill = "#F59E0B"; stroke = "#F59E0B"; }
-    else if (status === "missed") { fill = "rgba(239,68,68,0.12)"; stroke = "#EF4444"; sw = 2.5; }
-    if (isToday) { stroke = colors.primary; sw = 2.5; }
-
-    const cx = p.x + 17;
-    const cy = p.y + 17;
-
-    const handlePress = () => {
-      if (special === "trivia" && onTriviaCorrect) {
-        setTriviaDay(dayNum);
-      } else {
-        onPressTile?.(date, dayNum);
-      }
-    };
-    const handleLongPress = () => onLongPressTile?.(date, dayNum);
-
-    return (
-      <G
-        key={date}
-        ref={isToday ? todayTileRef : undefined}
-        collapsable={false}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-      >
-        <Rect
-          x={p.x + off}
-          y={p.y + off}
-          width={size}
-          height={size}
-          rx={10}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={sw}
-        />
-        {status === "completed" && (
-          <Path
-            d={`M${cx - 6} ${cy} l4 4 l8 -9`}
-            stroke="#FFFFFF"
-            strokeWidth={2.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-        {status === "missed" && (
-          <Path
-            d={`M${cx - 4} ${cy - 4} L${cx + 4} ${cy + 4} M${cx + 4} ${cy - 4} L${cx - 4} ${cy + 4}`}
-            stroke="#EF4444"
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-        )}
-        {isFirst && (
-          <SvgText x={cx} y={cy + 5} textAnchor="middle" fontSize={13} fill={colors.muted}>
-            {"\u2691"}
-          </SvgText>
-        )}
-        {isMilestone && !isLast && (
-          <SvgText x={cx} y={p.y + 48} textAnchor="middle" fontSize={9} fontWeight="700" fill={colors.muted}>
-            {String(dayNum)}
-          </SvgText>
-        )}
-        {isLast && (
-          <SvgText x={cx} y={cy + 4} textAnchor="middle" fontSize={11} fill={colors.muted}>
-            {"\u2726"}
-          </SvgText>
-        )}
-        {special && (
-          <G>
-            <Circle
-              cx={cx + 13}
-              cy={cy - 13}
-              r={9}
-              fill={SPECIAL_SVG_META[special].color}
-              stroke={colors.surface}
-              strokeWidth={2}
-            />
-            <SvgText
-              x={cx + 13}
-              y={cy - 9}
-              textAnchor="middle"
-              fontSize={10}
-              fontWeight="800"
-              fill="#FFFFFF"
-            >
-              {SPECIAL_SVG_META[special].icon}
-            </SvgText>
-          </G>
-        )}
-        {isToday && <SvgPawn cx={cx} cy={cy} color={colors.primary} />}
-      </G>
-    );
-  };
 
   return (
     <View>
@@ -673,7 +643,36 @@ export function FastBoard({
           strokeDasharray="1 7"
           strokeLinecap="round"
         />
-        {pageDays.map((date, i) => renderDay(date, i))}
+        {pageDays.map((date, i) => {
+          const dayNum = pageStart + i + 1;
+          const p = pos(i);
+          const status = fast.dayStatuses[date];
+          const isToday = dayNum - 1 === todayIndex;
+          const special = getSpecialSpace(dayNum, total);
+          return (
+            <SvgDayTile
+              key={date}
+              date={date}
+              dayNum={dayNum}
+              x={p.x}
+              y={p.y}
+              status={status}
+              isToday={isToday}
+              isMilestone={dayNum % 10 === 0}
+              isFirst={dayNum === 1}
+              isLast={dayNum === total}
+              special={special}
+              colors={colors}
+              pawnColor={colors.primary}
+              tileRef={isToday ? todayTileRef : undefined}
+              onPress={() => {
+                if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);
+                else onPressTile?.(date, dayNum);
+              }}
+              onLongPress={() => onLongPressTile?.(date, dayNum)}
+            />
+          );
+        })}
       </Svg>
       <FastTriviaModal
         visible={triviaDay !== null}

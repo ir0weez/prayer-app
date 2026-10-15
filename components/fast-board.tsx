@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Animated, Easing, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 const AnimatedPolyline = Animated.createAnimatedComponent(Polyline);
@@ -631,6 +631,93 @@ export function FastWaypointModal({
         </View>
       </Pressable>
     </Modal>
+  );
+}
+
+/** Pawn companion — your virtual pet. Mood based on fast progress, nameable, with thought bubbles. */
+export function PawnCompanion({
+  pawnId,
+  pawnName,
+  onNameChange,
+  mood,
+  colors,
+}: {
+  pawnId: string;
+  pawnName: string | null;
+  onNameChange: (name: string) => void;
+  mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging";
+  colors: FastBoardColors;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(pawnName || "");
+  const [bubbleIndex, setBubbleIndex] = useState(0);
+
+  const messages: Record<string, string[]> = {
+    celebrating: ["You did it! Another day stronger!", "Amazing! The streak lives on!", "That's the spirit! Keep shining!"],
+    happy: ["We're on a roll!", "This is the way.", "Feeling strong today!"],
+    content: ["Steady as she goes.", "One day at a time.", "Peaceful progress."],
+    sleepy: ["Ready when you are...", "A new day awaits...", "Take your time."],
+    encouraging: ["Yesterday's gone. Today's fresh.", "You got this. Start again.", "Every day is a new beginning."],
+  };
+  const moodEmoji = { celebrating: "🎉", happy: "😊", content: "😌", sleepy: "😴", encouraging: "💪" }[mood];
+  const msgs = messages[mood];
+
+  return (
+    <View style={{ alignItems: "center", paddingVertical: 12 }}>
+      {/* Thought bubble */}
+      <Pressable
+        onPress={() => setBubbleIndex((i) => (i + 1) % msgs.length)}
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 16,
+          paddingHorizontal: 14,
+          paddingVertical: 8,
+          marginBottom: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          maxWidth: 280,
+        }}
+      >
+        <Text style={{ color: colors.foreground, fontSize: 13, textAlign: "center" }}>
+          {moodEmoji} {msgs[bubbleIndex]}
+        </Text>
+        <Text style={{ color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 4 }}>tap for more</Text>
+      </Pressable>
+      {/* Pawn with its unique animation */}
+      <ViewPawn pawnId={pawnId} color={colors.primary} size={64} />
+      {/* Name */}
+      {editing ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Name your pawn"
+            placeholderTextColor={colors.muted}
+            style={{
+              color: colors.foreground,
+              fontSize: 16,
+              fontWeight: "700",
+              borderBottomWidth: 1,
+              borderBottomColor: colors.primary,
+              paddingVertical: 4,
+              minWidth: 120,
+              textAlign: "center",
+            }}
+            autoFocus
+            onSubmitEditing={() => { onNameChange(draft); setEditing(false); }}
+          />
+          <Pressable onPress={() => { onNameChange(draft); setEditing(false); }}>
+            <MaterialIcons name="check" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={() => { setDraft(pawnName || ""); setEditing(true); }} style={{ marginTop: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700" }}>
+            {pawnName || "Tap to name me"} ✏️
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 

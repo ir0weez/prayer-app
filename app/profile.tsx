@@ -8,7 +8,7 @@ import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet,
 
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
-import { FastBoard, FastPawnPicker, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
+import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -42,7 +42,7 @@ import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-stora
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
-import { useFastPawn } from "@/lib/fast-pawns";
+import { useFastPawn, usePawnName } from "@/lib/fast-pawns";
 
 type PersonalProfile = {
   name: string;
@@ -157,6 +157,7 @@ export default function ProfileScreen() {
   const [bookStatuses, setBookStatuses] = useState<Record<string, string>>({});
   const [profileLevel, setProfileLevel] = useState(1);
   const { pawnId, setPawnId } = useFastPawn();
+  const { name: pawnName, setName: setPawnName } = usePawnName();
   const profileScrollRef = useRef<ScrollView>(null);
   const fastTodayTileRef = useRef<View | null>(null);
   const fastBoardContainerRef = useRef<View | null>(null);
@@ -627,6 +628,37 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
+            {(() => {
+              // Pawn mood based on fast progress
+              let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" = "sleepy";
+              if (selectedFast) {
+                const days = getFastCalendarDays(selectedFast);
+                const todayIdx = days.indexOf(today);
+                const todayStatus = todayIdx >= 0 ? selectedFast.dayStatuses[days[todayIdx]] : undefined;
+                // Calculate streak
+                let streak = 0;
+                for (let i = todayIdx; i >= 0; i--) {
+                  const s = selectedFast.dayStatuses[days[i]];
+                  if (s === "completed") streak++;
+                  else break;
+                }
+                const yesterdayIdx = todayIdx - 1;
+                const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
+                if (todayStatus === "completed") mood = "celebrating";
+                else if (streak >= 7) mood = "happy";
+                else if (streak >= 3) mood = "content";
+                else if (yesterdayStatus === "missed") mood = "encouraging";
+              }
+              return (
+                <PawnCompanion
+                  pawnId={pawnId}
+                  pawnName={pawnName}
+                  onNameChange={setPawnName}
+                  mood={mood}
+                  colors={boardColors}
+                />
+              );
+            })()}
             <Text style={styles.sectionLabel}>BOARD</Text>
             <View
               ref={fastBoardContainerRef}

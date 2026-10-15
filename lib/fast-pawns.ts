@@ -17,6 +17,7 @@ export type FastPawnDef = {
 };
 
 const PAWN_STORAGE_KEY = "prayercircle.fastPawn.v1";
+const PAWN_NAME_KEY = "prayercircle.pawnName.v1";
 
 export const FAST_PAWNS: FastPawnDef[] = [
   { id: "pebble", name: "Pebble", level: 1 },
@@ -83,4 +84,36 @@ export function useFastPawn() {
   }, []);
 
   return { pawnId, setPawnId, hydrated };
+}
+
+
+/** Pawn companion name, stored persistently. */
+export function usePawnName() {
+  const [name, setNameState] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(PAWN_NAME_KEY)
+      .then((raw) => {
+        if (!active) return;
+        if (raw) setNameState(raw);
+        setHydrated(true);
+      })
+      .catch(() => {
+        if (active) setHydrated(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const setName = useCallback((n: string) => {
+    const trimmed = n.trim().slice(0, 20);
+    setNameState(trimmed || null);
+    if (trimmed) AsyncStorage.setItem(PAWN_NAME_KEY, trimmed).catch(() => undefined);
+    else AsyncStorage.removeItem(PAWN_NAME_KEY).catch(() => undefined);
+  }, []);
+
+  return { name, setName, hydrated };
 }

@@ -2585,9 +2585,23 @@ export default function HomeScreen() {
               ) : (
                 <View style={{ height: 10 }} />
               )}
-              <Text style={{ color: colors.muted, fontSize: 13 }}>
-                Your fast board lives on your fast page — open your profile to play.
-              </Text>
+              {activeFastProgress && (
+                <View style={{ marginTop: 4 }}>
+                  <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: "hidden" }}>
+                    <View
+                      style={{
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: colors.primary,
+                        width: `${Math.min(100, (activeFastProgress.completed / activeFast.durationDays) * 100)}%`,
+                      }}
+                    />
+                  </View>
+                  <Text style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}>
+                    {activeFastProgress.completed} of {activeFast.durationDays} days completed
+                  </Text>
+                </View>
+              )}
             </>
           )
         ) : (

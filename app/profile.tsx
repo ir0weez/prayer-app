@@ -694,6 +694,12 @@ export default function ProfileScreen() {
                   </View>
                 );
               }
+              const todayStatusForPet = (() => {
+                if (!selectedFast) return undefined;
+                const days = getFastCalendarDays(selectedFast);
+                const idx = days.indexOf(today);
+                return idx >= 0 ? selectedFast.dayStatuses[days[idx]] as "completed" | "missed" | "skipped" | undefined : undefined;
+              })();
               return (
                 <PawnCompanion
                   pawnId={pawnId}
@@ -701,6 +707,7 @@ export default function ProfileScreen() {
                   onNameChange={setPawnName}
                   mood={mood}
                   colors={boardColors}
+                  status={todayStatusForPet}
                 />
               );
             })()}

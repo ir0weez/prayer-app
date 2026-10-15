@@ -707,18 +707,93 @@ export function FastWaypointModal({
 }
 
 /** Pawn companion — your virtual pet. Mood based on fast progress, nameable, with thought bubbles. */
+
+/** One-shot reaction animation for the pawn when day status changes.
+ *  completed -> joyful jump & spin; missed -> sympathetic droop; skipped -> gentle nod. */
+export function PawnReaction({
+  status,
+  pawnId,
+  color,
+  size,
+}: {
+  status: "completed" | "missed" | "skipped" | undefined;
+  pawnId?: string;
+  color: string;
+  size: number;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const prevStatus = useRef(status);
+
+  useEffect(() => {
+    if (prevStatus.current === status) return;
+    prevStatus.current = status;
+    if (!status) return;
+
+    // Reset
+    scale.setValue(1);
+    rotate.setValue(0);
+    translateY.setValue(0);
+
+    if (status === "completed") {
+      // Joyful jump & spin
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(translateY, { toValue: -24, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: 0, duration: 350, easing: Easing.bounce, useNativeDriver: true }),
+        ]),
+        Animated.timing(rotate, { toValue: 1, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.3, duration: 250, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 350, useNativeDriver: true }),
+        ]),
+      ]).start(() => {
+        rotate.setValue(0);
+      });
+    } else if (status === "missed") {
+      // Sympathetic droop
+      Animated.sequence([
+        Animated.timing(translateY, { toValue: 10, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]).start();
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 0.85, duration: 400, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+    } else if (status === "skipped") {
+      // Gentle nod (understanding)
+      Animated.sequence([
+        Animated.timing(rotate, { toValue: 0.1, duration: 200, useNativeDriver: true }),
+        Animated.timing(rotate, { toValue: -0.1, duration: 200, useNativeDriver: true }),
+        Animated.timing(rotate, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [status]);
+
+  const spin = rotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+
+  return (
+    <Animated.View style={{ transform: [{ scale }, { rotate: spin }, { translateY }] }}>
+      <FastPawnShape id={pawnId || "pebble"} size={size} color={color} />
+    </Animated.View>
+  );
+}
+
 export function PawnCompanion({
   pawnId,
   pawnName,
   onNameChange,
   mood,
   colors,
+  status,
 }: {
   pawnId: string;
   pawnName: string | null;
   onNameChange: (name: string) => void;
   mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging";
   colors: FastBoardColors;
+  status?: "completed" | "missed" | "skipped";
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(pawnName || "");
@@ -797,8 +872,8 @@ export function PawnCompanion({
           marginBottom: 6,
         }}
       />
-      {/* Pawn (static to avoid scroll lag) */}
-      <FastPawnShape id={pawnId} size={64} color={colors.primary} />
+      {/* Pawn with reaction animations */}
+      <PawnReaction status={status} pawnId={pawnId} color={colors.primary} size={64} />
       {/* Name */}
       {editing ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>

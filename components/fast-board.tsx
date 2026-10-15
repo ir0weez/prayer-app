@@ -1083,6 +1083,27 @@ export function FastBoard({
   return (
     <View>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
+      {/* Special spaces legend */}
+      <View style={{ flexDirection: "row", gap: 12, marginTop: 8, marginBottom: 4, flexWrap: "wrap" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>✦</Text>
+          </View>
+          <Text style={{ color: colors.muted, fontSize: 11 }}>Grace +25</Text>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>!</Text>
+          </View>
+          <Text style={{ color: colors.muted, fontSize: 11 }}>Wilderness +50</Text>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#7C5CFF", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>?</Text>
+          </View>
+          <Text style={{ color: colors.muted, fontSize: 11 }}>Trivia +15</Text>
+        </View>
+      </View>
       <View style={{ height: 10 }} />
       <View style={{ height: svgH, position: "relative" }}>
         {/* Dotted trail — single SVG, cheap */}

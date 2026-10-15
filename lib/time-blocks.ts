@@ -123,8 +123,7 @@ export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
   const start = timeToMinutes(block.startTime);
   const end = timeToMinutes(block.endTime);
   const total = end - start;
-  // Half-hour block only when the gap is 30-59 min (no hour blocks).
-  // Hour gaps show hour blocks only — no half-hour remainder.
+  // Half-hour block only when the gap is 30-59 min (standalone).
   if (total >= 30 && total < 60) {
     return [{
       id: `${block.id}-half0`,
@@ -135,20 +134,28 @@ export function splitGapIntoHourlyBlocks(block: TimeBlock): TimeBlock[] {
     }];
   }
   if (total < 60) return [];
+  // Hour blocks; absorb any 30-59m remainder into the last block
+  // so adjacent time shows as one combined availability.
   const chunks: TimeBlock[] = [];
   let cursor = start;
   let index = 0;
   while (end - cursor >= 60) {
-    const chunkEnd = cursor + 60;
+    let chunkEnd = cursor + 60;
+    const remaining = end - chunkEnd;
+    // If remainder is 30-59m, absorb it into this (last) block
+    if (remaining >= 30 && remaining < 60) {
+      chunkEnd = end;
+    }
     chunks.push({
       id: `${block.id}-h${index}`,
       startTime: minutesToTime(cursor),
       endTime: minutesToTime(chunkEnd),
-      durationMinutes: 60,
-      label: "1h",
+      durationMinutes: chunkEnd - cursor,
+      label: chunkEnd - cursor >= 60 ? "1h" : "30m",
     });
     cursor = chunkEnd;
     index += 1;
+    if (cursor >= end) break;
   }
   return chunks;
 }

@@ -163,6 +163,9 @@ export default function ProfileScreen() {
   const fastTodayTileRef = useRef<View | null>(null);
   const fastBoardContainerRef = useRef<View | null>(null);
   const fastBoardY = useRef<number>(0);
+  const [showFastDayPill, setShowFastDayPill] = useState(true);
+  const scrollYRef = useRef(0);
+  const viewportHRef = useRef(800);
 
   const boardColors: FastBoardColors = useMemo(() => ({
     foreground: colors.foreground,
@@ -447,7 +450,25 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer className="flex-1 bg-background">
-      <ScrollView ref={profileScrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={profileScrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={100}
+        onLayout={(e) => { viewportHRef.current = e.nativeEvent.layout.height; }}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          scrollYRef.current = y;
+          if (selectedFast) {
+            const todayRow = Math.floor(getFastCalendarDays(selectedFast).indexOf(today) / 5);
+            const tileY = fastBoardY.current + 14 + todayRow * 112;
+            const viewportH = viewportHRef.current;
+            // Show pill only when today's tile is off-screen
+            const visible = tileY >= y && tileY <= y + viewportH;
+            setShowFastDayPill(!visible);
+          }
+        }}
+      >
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface }, pressed && styles.pressed]}>
             <MaterialIcons name={iconName("arrow-back")} size={26} color={colors.foreground} />
@@ -830,8 +851,8 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-      {/* Floating "today's fast day" pill — scrolls to today's board tile */}
-      {selectedFast && (
+      {/* Floating "today's fast day" pill — only when today's tile is off-screen */}
+      {selectedFast && showFastDayPill && (
         <Pressable
           onPress={scrollToFastToday}
           style={{

@@ -2585,7 +2585,12 @@ export default function HomeScreen() {
               ) : (
                 <View style={{ height: 10 }} />
               )}
-              {activeFastProgress && (
+              {activeFastProgress && (() => {
+                // Progress = how far into the fast chronologically (elapsed days), not completed count
+                const start = new Date(activeFast.startDate + "T00:00:00");
+                const now = new Date();
+                const elapsed = Math.min(activeFast.durationDays, Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000) + 1));
+                return (
                 <View style={{ marginTop: 4 }}>
                   <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: "hidden" }}>
                     <View
@@ -2593,15 +2598,16 @@ export default function HomeScreen() {
                         height: 8,
                         borderRadius: 4,
                         backgroundColor: colors.primary,
-                        width: `${Math.min(100, (activeFastProgress.completed / activeFast.durationDays) * 100)}%`,
+                        width: `${Math.min(100, (elapsed / activeFast.durationDays) * 100)}%`,
                       }}
                     />
                   </View>
                   <Text style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}>
-                    {activeFastProgress.completed} of {activeFast.durationDays} days completed
+                    Day {elapsed} of {activeFast.durationDays}
                   </Text>
                 </View>
-              )}
+                );
+              })()}
             </>
           )
         ) : (

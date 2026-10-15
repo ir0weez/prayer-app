@@ -1411,20 +1411,11 @@ export function FastBoard({
   const rowH = 112;
   const rows = Math.ceil(pageDays.length / perRow);
 
-  // Chunked rendering: render rows around today first, then the rest.
-  // This keeps the initial page load fast for long fasts.
-  const [renderAll, setRenderAll] = useState(rows <= 12);
-  useEffect(() => {
-    if (rows > 12) {
-      const t = setTimeout(() => setRenderAll(true), 300);
-      return () => clearTimeout(t);
-    }
-  }, [rows]);
+  // Scroll-based virtualization handles perf; no need for timed full render.
   const todayRowIdx = todayIndex >= 0 ? Math.floor(todayIndex / perRow) : 0;
   // Virtualization: only render tiles in the visible Y range (+ buffer).
   // Falls back to today-centered window if no range provided.
   const visibleIndices = (() => {
-    if (renderAll) return pageDays.map((_, i) => i);
     if (visibleYRange) {
       const { top, bottom } = visibleYRange;
       return pageDays.map((_, i) => i).filter((i) => {

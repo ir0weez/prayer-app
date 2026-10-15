@@ -22,7 +22,7 @@ export type FastBoardColors = {
 
 export type FastSpecialKind = "grace" | "wilderness" | "trivia";
 
-export type PilgrimWaypointKind = "rest" | "market" | "fair" | "slough";
+export type PilgrimWaypointKind = "rest" | "market" | "fair" | "slough" | "gate" | "hill" | "mountains" | "castle";
 
 export const PILGRIM_WAYPOINTS: Record<PilgrimWaypointKind, { icon: string; title: string; message: string }> = {
   rest: {
@@ -45,18 +45,43 @@ export const PILGRIM_WAYPOINTS: Record<PilgrimWaypointKind, { icon: string; titl
     title: "Slough of Despond",
     message: "The mud is deep here, but Help is on the way. Keep your eyes up — you will get through this.",
   },
+  gate: {
+    icon: "🚪",
+    title: "Wicket Gate",
+    message: "You've entered through the narrow gate. The path ahead is yours to walk.",
+  },
+  hill: {
+    icon: "⛰️",
+    title: "Hill of Difficulty",
+    message: "The climb is steep, but the view from the top makes every step worth it.",
+  },
+  mountains: {
+    icon: "🏔️",
+    title: "Delectable Mountains",
+    message: "From these heights you can glimpse the Celestial City. You're almost home.",
+  },
+  castle: {
+    icon: "🏰",
+    title: "Doubting Castle",
+    message: "Giant Despair whispers doubts, but you hold the key of Promise. Unlock the door and walk free.",
+  },
 };
 
 /** Pilgrim's Progress waypoints — restful landmarks, not skippable days. */
 export function getPilgrimWaypoint(dayNum: number, totalDays: number): PilgrimWaypointKind | null {
   if (dayNum < 1 || dayNum > totalDays || totalDays < 10) return null;
+  const eighth = Math.round(totalDays / 8);
   const third = Math.round(totalDays / 3);
   const twoThird = Math.round((totalDays * 2) / 3);
   const quarter = Math.round(totalDays / 4);
   const threeQuarter = Math.round((totalDays * 3) / 4);
+  if (dayNum === 3) return "gate";
+  if (dayNum === eighth && eighth > 5) return "hill";
   if (dayNum === third) return "market";
   if (dayNum === twoThird) return "fair";
   if (dayNum === quarter || dayNum === threeQuarter) return "slough";
+  if (dayNum === eighth * 5 && eighth * 5 < totalDays && eighth * 5 !== quarter && eighth * 5 !== threeQuarter) return "mountains";
+  if (dayNum === eighth * 7 && eighth * 7 < totalDays) return "castle";
   if (dayNum % 10 === 0 && dayNum % 7 !== 0) return "rest";
   return null;
 }
@@ -578,6 +603,54 @@ function WaypointVignette({ kind, pawnId, color }: { kind: PilgrimWaypointKind; 
       <Animated.View style={{ position: "absolute", bottom: 32, right: 32, width: 6, height: 6, borderRadius: 3, backgroundColor: "#8D6E63", opacity: splashOpacity }} />
     </View>
   );
+
+  // New waypoints: simple static vignettes (no extra animation for perf)
+  if (kind === "gate") {
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", bottom: 18, width: 60, height: 70, borderRadius: 8, backgroundColor: "#8D6E63" }} />
+        <View style={{ position: "absolute", bottom: 18, width: 40, height: 56, borderRadius: 6, backgroundColor: "#5D4037" }} />
+        <View style={{ marginTop: 20 }}>
+          <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+        </View>
+      </View>
+    );
+  }
+  if (kind === "hill") {
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", bottom: 10, width: 110, height: 50, backgroundColor: "#9CCC65", borderTopLeftRadius: 55, borderTopRightRadius: 55 }} />
+        <View style={{ position: "absolute", top: 18, }}>
+          <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+        </View>
+      </View>
+    );
+  }
+  if (kind === "mountains") {
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", bottom: 10, width: 0, height: 0, borderLeftWidth: 35, borderRightWidth: 35, borderBottomWidth: 60, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#78909C" }} />
+        <View style={{ position: "absolute", bottom: 52, width: 0, height: 0, borderLeftWidth: 12, borderRightWidth: 12, borderBottomWidth: 20, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FFFFFF" }} />
+        <View style={{ position: "absolute", bottom: 16, left: 20 }}>
+          <FastPawnShape id={pawnId || "pebble"} size={28} color={color} />
+        </View>
+      </View>
+    );
+  }
+  if (kind === "castle") {
+    return (
+      <View style={{ width: 120, height: 90, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", bottom: 10, width: 70, height: 60, borderRadius: 6, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", bottom: 60, left: 28, width: 16, height: 20, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", bottom: 60, right: 28, width: 16, height: 20, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", bottom: 10, width: 24, height: 36, borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", bottom: 18, left: 30 }}>
+          <FastPawnShape id={pawnId || "pebble"} size={28} color={color} />
+        </View>
+      </View>
+    );
+  }
+  return null;
 }
 
 export function FastWaypointModal({

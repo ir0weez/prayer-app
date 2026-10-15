@@ -729,28 +729,13 @@ export default function ProfileScreen() {
             })()}
             {selectedFast && selectedFast.durationDays >= 80 && (
               <>
-              <Text style={[styles.sectionLabel, { marginBottom: 8 }]}>SEASONS — TAP TO SWITCH QUARTER</Text>
+              <Text style={[styles.sectionLabel, { marginBottom: 8 }]}>SEASONS — TAP TO SWITCH</Text>
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                 {[0, 1, 2, 3].map((q) => {
                   const quarterSize = Math.ceil(selectedFast.durationDays / 4);
                   const qStart = q * quarterSize + 1;
                   const qEnd = Math.min((q + 1) * quarterSize, selectedFast.durationDays);
                   const isActive = activeQuarter === q;
-                  const SEASON_MAP = {
-                    Winter: { name: "Winter", icon: "❄️", bg: "#DBEAFE", accent: "#3B82F6", text: "#1E40AF" },
-                    Spring: { name: "Spring", icon: "🌸", bg: "#DCFCE7", accent: "#22C55E", text: "#166534" },
-                    Summer: { name: "Summer", icon: "☀️", bg: "#FEF3C7", accent: "#F59E0B", text: "#92400E" },
-                    Fall: { name: "Fall", icon: "🍂", bg: "#FFEDD5", accent: "#EA580C", text: "#9A3412" },
-                  };
-                  // Determine season from the quarter's middle date (calendar-based, not quarter index)
-                  const qMidOffset = qStart + Math.floor((qEnd - qStart) / 2) - 1;
-                  const qMidDate = new Date(selectedFast.startDate + "T00:00:00Z");
-                  qMidDate.setUTCDate(qMidDate.getUTCDate() + qMidOffset);
-                  const qMonth = qMidDate.getUTCMonth(); // 0-11
-                  const seasonKey = (qMonth === 11 || qMonth <= 1) ? "Winter"
-                    : (qMonth >= 2 && qMonth <= 4) ? "Spring"
-                    : (qMonth >= 5 && qMonth <= 7) ? "Summer" : "Fall";
-                  const season = SEASON_MAP[seasonKey];
                   // Date range label (e.g., "Jan-Mar")
                   const qStartDate = new Date(selectedFast.startDate + "T00:00:00Z");
                   qStartDate.setUTCDate(qStartDate.getUTCDate() + qStart - 1);
@@ -758,6 +743,17 @@ export default function ProfileScreen() {
                   qEndDate.setUTCDate(qEndDate.getUTCDate() + qEnd - 1);
                   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
                   const dateLabel = `${monthNames[qStartDate.getUTCMonth()]}-${monthNames[qEndDate.getUTCMonth()]}`;
+                  // Season for theming (based on middle month)
+                  const qMidDate = new Date(selectedFast.startDate + "T00:00:00Z");
+                  qMidDate.setUTCDate(qMidDate.getUTCDate() + qStart + Math.floor((qEnd - qStart) / 2) - 1);
+                  const qMonth = qMidDate.getUTCMonth();
+                  const seasonColors = (qMonth === 11 || qMonth <= 1)
+                    ? { bg: "#DBEAFE", accent: "#3B82F6", text: "#1E40AF" }
+                    : (qMonth >= 2 && qMonth <= 4)
+                    ? { bg: "#DCFCE7", accent: "#22C55E", text: "#166534" }
+                    : (qMonth >= 5 && qMonth <= 7)
+                    ? { bg: "#FEF3C7", accent: "#F59E0B", text: "#92400E" }
+                    : { bg: "#FFEDD5", accent: "#EA580C", text: "#9A3412" };
                   return (
                     <Pressable
                       key={q}
@@ -767,17 +763,16 @@ export default function ProfileScreen() {
                         paddingVertical: 10,
                         borderRadius: 12,
                         alignItems: "center",
-                        backgroundColor: isActive ? season.accent : season.bg,
+                        backgroundColor: isActive ? seasonColors.accent : seasonColors.bg,
                         borderWidth: isActive ? 0 : 1,
-                        borderColor: season.accent,
+                        borderColor: seasonColors.accent,
                       }}
                     >
-                      <Text style={{ fontSize: 16 }}>{season.icon}</Text>
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : season.text }}>
-                        {season.name}
-                      </Text>
-                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : season.text, opacity: 0.7 }}>
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : seasonColors.text }}>
                         Q{q + 1}
+                      </Text>
+                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : seasonColors.text, opacity: 0.7 }}>
+                        {dateLabel}
                       </Text>
                     </Pressable>
                   );

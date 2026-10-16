@@ -347,6 +347,11 @@ export default function HometownScreen() {
           {decorationAt(x, y) && (
             <Text style={{ fontSize: 22 }}>{DECORATIONS[decorationAt(x, y)!.type].icon}</Text>
           )}
+          {roadAt(x, y) && (
+            <View style={{ position: "absolute", width: cellSize, height: cellSize, backgroundColor: "#9CA3AF", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
+            </View>
+          )}
           {b && (b.accumulated || 0) > 0 && (
             <Pressable
               onPress={() => handleCollectBuilding(b.id)}
@@ -433,6 +438,33 @@ export default function HometownScreen() {
           <Text style={{ fontWeight: "700", marginBottom: 8 }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
           </Text>
+          {(buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y) || roadAt(selectedTile.x, selectedTile.y)) && (
+            <Pressable
+              onPress={() => {
+                const b = buildingAt(selectedTile.x, selectedTile.y);
+                const d = decorationAt(selectedTile.x, selectedTile.y);
+                const r = roadAt(selectedTile.x, selectedTile.y);
+                if (b) {
+                  Alert.alert("Remove Building?", `Remove ${BUILDINGS[b.type].name}?`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Remove", style: "destructive", onPress: () => {
+                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
+                      setSelectedTile(null);
+                    }},
+                  ]);
+                } else if (d) {
+                  saveTown({ ...town, decorations: town.decorations.filter(x => x.id !== d.id) });
+                  setSelectedTile(null);
+                } else if (r) {
+                  saveTown({ ...town, roads: (town.roads || []).filter(x => x.id !== r.id) });
+                  setSelectedTile(null);
+                }
+              }}
+              style={{ padding: 10, backgroundColor: "#FEE2E2", borderRadius: 10, alignItems: "center", marginBottom: 8 }}
+            >
+              <Text style={{ color: "#DC2626", fontWeight: "700" }}>🗑️ Remove</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={handlePlaceRoad}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}

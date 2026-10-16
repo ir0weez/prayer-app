@@ -8548,7 +8548,10 @@ function MinistryCard({
     contextMenuActions.push({
       label: 'Edit',
       icon: 'edit',
-      onPress: () => setDetailCardVisible(true),
+      onPress: () => {
+        setContextMenuVisible(false);
+        onEdit();
+      },
     });
   }
   contextMenuActions.push({

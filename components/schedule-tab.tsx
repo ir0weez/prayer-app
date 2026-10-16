@@ -8358,10 +8358,18 @@ function ReadArt({ line, surface }: MinistryArtPalette) {
 }
 
 /** Other — a quiet pulsing dot. */
-function OtherArt({ line }: MinistryArtPalette) {
+function OtherArt({ accent, line }: MinistryArtPalette) {
   return (
-    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center", flexDirection: "row" }}>
       <MicroPulse duration={2000} min={0.35} max={0.9}>
+        <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: line }} />
+      </MicroPulse>
+      <View style={{ width: 6 }} />
+      <MicroPulse duration={2000} min={0.35} max={0.9} delay={500}>
+        <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: accent }} />
+      </MicroPulse>
+      <View style={{ width: 6 }} />
+      <MicroPulse duration={2000} min={0.35} max={0.9} delay={1000}>
         <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: line }} />
       </MicroPulse>
     </View>
@@ -8422,7 +8430,7 @@ function MinistrySquare({
       <View
         style={{
           flex: 1,
-          backgroundColor: colors.surface,
+          backgroundColor: accent + "14",
           borderRadius: 12,
           borderWidth: 1.5,
           borderColor: accent,

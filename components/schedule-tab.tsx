@@ -11046,7 +11046,7 @@ export function ScheduleTab({
           return <BirthdayCard birthday={item.data} />;
         case "todo-pair":
           return (
-            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, marginVertical: 6 }}>
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 4, backgroundColor: colors.surface }}>
               {item.data.todos.map((t: any) => {
                 const todoColor = t.color || colors.primary;
                 return (

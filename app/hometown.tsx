@@ -212,7 +212,7 @@ export default function HometownScreen() {
               const multiplier = roadMultiplierForBuilding(t, b.id);
               return {
                 ...b,
-                accumulated: (b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier),
+                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier)) * 10) / 10,
                 lastTick: now,
               };
             }
@@ -422,8 +422,8 @@ export default function HometownScreen() {
     const updatedTown = { ...town, buildings: updatedBuildings };
     saveTown(updatedTown);
     const updatedCoins = {
-      balance: coins.balance + amount,
-      lifetimeEarned: coins.lifetimeEarned + amount,
+      balance: Math.round((coins.balance + amount) * 10) / 10,
+      lifetimeEarned: Math.round((coins.lifetimeEarned + amount) * 10) / 10,
     };
     saveCoins(updatedCoins);
   };

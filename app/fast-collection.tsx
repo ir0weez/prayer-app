@@ -106,7 +106,7 @@ function FastTrophyCard({
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: 20,
+        borderRadius: 28,
         marginBottom: 12,
         borderWidth: fullyComplete ? 2 : 1,
         borderColor: fullyComplete ? "#D4AF37" : colors.border,

@@ -17,6 +17,7 @@ import {
   type TownState,
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
+import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -36,6 +37,7 @@ export default function HometownScreen() {
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [town, setTown] = useState<TownState>({ buildings: [], lastIncomeDate: null });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
+  const [monumentCount, setMonumentCount] = useState(0);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   const saveTown = useCallback((next: TownState) => {
@@ -52,13 +54,15 @@ export default function HometownScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [coinsRaw, townRaw] = await Promise.all([
+        const [coinsRaw, townRaw, monumentsRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
+          AsyncStorage.getItem(MONUMENT_STORAGE_KEY),
         ]);
         const c = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         setCoins(c);
+        try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
 
         // Collect business income for missed days
         const today = getTodayISOString();
@@ -186,6 +190,16 @@ export default function HometownScreen() {
       <Text style={{ color: "#78716C", marginBottom: 12 }}>
         Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive.
       </Text>
+
+      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+        <Text style={{ fontSize: 28 }}>🪨</Text>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>Testimony Plaza</Text>
+          <Text style={{ fontSize: 12, color: "#78716C" }}>
+            {monumentCount} {monumentCount === 1 ? "testimony" : "testimonies"} raised — like Abraham's altars
+          </Text>
+        </View>
+      </View>
 
       <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
 

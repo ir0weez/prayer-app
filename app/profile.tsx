@@ -694,7 +694,7 @@ export default function ProfileScreen() {
             {(() => {
               // Calculate streak for mood; pet unlocks on 40+ day fasts (not streak)
               let streak = 0;
-              let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" = "sleepy";
+              let mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" | "building" = "sleepy";
               if (selectedFast) {
                 const days = getFastCalendarDays(selectedFast);
                 const todayIdx = days.indexOf(today);
@@ -711,7 +711,8 @@ export default function ProfileScreen() {
                 if (selectedFast.durationDays >= 40 && !petUnlocked) unlockPet();
                 const yesterdayIdx = todayIdx - 1;
                 const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
-                if (todayStatus === "completed") mood = "celebrating";
+                if (monuments[today]) mood = "building";
+                else if (todayStatus === "completed") mood = "celebrating";
                 else if (streak >= 7) mood = "happy";
                 else if (streak >= 3) mood = "content";
                 else if (yesterdayStatus === "missed") mood = "encouraging";

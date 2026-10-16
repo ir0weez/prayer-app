@@ -793,7 +793,7 @@ export function PawnCompanion({
   pawnId: string;
   pawnName: string | null;
   onNameChange: (name: string) => void;
-  mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging";
+  mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" | "building";
   colors: FastBoardColors;
   status?: "completed" | "missed" | "skipped";
 }) {
@@ -807,9 +807,10 @@ export function PawnCompanion({
     content: ["Steady as she goes.", "One day at a time.", "Peaceful progress."],
     sleepy: ["Ready when you are...", "A new day awaits...", "Take your time."],
     encouraging: ["Yesterday's gone. Today's fresh.", "You got this. Start again.", "Every day is a new beginning."],
+    building: ["Raising a testimony! 🪨", "Stone by stone...", "Abraham would be proud!"],
   };
-  const moodEmoji = { celebrating: "🎉", happy: "😊", content: "😌", sleepy: "😴", encouraging: "💪" }[mood];
-  const moodLabel = { celebrating: "Celebrating", happy: "Happy", content: "Content", sleepy: "Sleepy", encouraging: "Cheering you on" }[mood];
+  const moodEmoji = { celebrating: "🎉", happy: "😊", content: "😌", sleepy: "😴", encouraging: "💪", building: "🔨" }[mood];
+  const moodLabel = { celebrating: "Celebrating", happy: "Happy", content: "Content", sleepy: "Sleepy", encouraging: "Cheering you on", building: "Building" }[mood];
   const msgs = messages[mood];
   // Mood-tinted card background
   const moodTint = {
@@ -818,6 +819,7 @@ export function PawnCompanion({
     content: "#E0E7FF",
     sleepy: "#F3E8FF",
     encouraging: "#FFE4E6",
+    building: "#FEF3C7",
   }[mood];
 
   return (

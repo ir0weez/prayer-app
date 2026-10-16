@@ -9,6 +9,7 @@ import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet,
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
+import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -143,6 +144,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
+  const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [isEditingFast, setIsEditingFast] = useState(false);
@@ -202,6 +204,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       let isActive = true;
       loadXPState().then((state) => { if (isActive) setProfileLevel(state.level); }).catch(() => undefined);
+      AsyncStorage.getItem(MONUMENT_STORAGE_KEY).then(v => { try { setMonuments(parseMonuments(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -830,6 +833,7 @@ export default function ProfileScreen() {
               onTriviaCorrect={(points, dayNum) =>
                 awardBonusXP(points, `fast-trivia:${selectedFast.id}:day${dayNum}`)
               }
+              monuments={monuments}
             />
               );
             })()}

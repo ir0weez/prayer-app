@@ -128,6 +128,7 @@ import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@
 import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
+import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
@@ -1447,7 +1448,47 @@ export default function HomeScreen() {
       }
       return next;
     });
+    // Check for monument (testimony) — all four complete
+    void maybeAwardMonument(updatedPeople);
   }, [today, todayDayOfMonth, todayDayOfWeek]);
+
+  const maybeAwardMonument = useCallback(async (updatedPeople: Person[]) => {
+    const todayStr = getTodayISOString();
+    try {
+      const stored = await AsyncStorage.getItem(MONUMENT_STORAGE_KEY);
+      const monuments = parseMonuments(stored ? JSON.parse(stored) : {});
+      if (monuments[todayStr]) return; // already have one today
+
+      // 1. Pray Today complete?
+      const prayList = getPrayTodayList(updatedPeople, todayDayOfWeek, todayDayOfMonth);
+      const prayComplete = prayList.length > 0 && prayList.every((p) => hasPersonCompletedPrayerToday(p, todayStr));
+      if (!prayComplete) return;
+
+      // 2. All todos done?
+      const todosRaw = await AsyncStorage.getItem(SCHEDULE_TODOS_KEY);
+      const todos = todosRaw ? JSON.parse(todosRaw) : [];
+      const todayTodos = todos.filter((t: any) => t.date === todayStr);
+      if (todayTodos.length > 0 && !todayTodos.every((t: any) => t.isDone)) return;
+
+      // 3. All events done/passed?
+      const eventsRaw = await AsyncStorage.getItem(SCHEDULE_EVENTS_KEY);
+      const events = eventsRaw ? JSON.parse(eventsRaw) : [];
+      const todayEvents = events.filter((e: any) => e.date === todayStr);
+      if (todayEvents.length > 0 && !todayEvents.every((e: any) => e.isDone)) return;
+
+      // 4. Fast day green?
+      const fastsRaw = await AsyncStorage.getItem(FASTS_STORAGE_KEY);
+      const fasts = fastsRaw ? JSON.parse(fastsRaw) : [];
+      const hasGreenFast = fasts.some((f: any) => f.dayStatuses?.[todayStr] === "completed");
+      if (!hasGreenFast) return;
+
+      // All four! Award monument + 50 XP
+      const design = pickRandomMonument();
+      monuments[todayStr] = design;
+      await AsyncStorage.setItem(MONUMENT_STORAGE_KEY, JSON.stringify(monuments));
+      await awardCustomXP(50, `monument:${todayStr}`);
+    } catch {}
+  }, [today, todayDayOfWeek, todayDayOfMonth]);
 
   const commitPrayTodayPerson = useCallback((personId: string, position?: XpGainPosition) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

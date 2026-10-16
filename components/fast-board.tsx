@@ -12,6 +12,8 @@ import {
 import { FAST_TRIVIA_QUESTIONS } from "@/lib/fast-trivia";
 import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnId } from "@/lib/fast-pawns";
 
+import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
+
 export type FastBoardColors = {
   foreground: string;
   muted: string;
@@ -1236,6 +1238,7 @@ const FastTileView = memo(function FastTileView({
   svgH,
   total,
   waypoint,
+  monument,
   onWaypointPress,
   onPress,
   onLongPress,
@@ -1257,6 +1260,7 @@ const FastTileView = memo(function FastTileView({
   svgH: number;
   total: number;
   waypoint: PilgrimWaypointKind | null;
+  monument?: MonumentDesign | null;
   onWaypointPress: (kind: PilgrimWaypointKind) => void;
   onPress: () => void;
   onLongPress: () => void;
@@ -1312,6 +1316,11 @@ const FastTileView = memo(function FastTileView({
       >
         {status === "completed" && <GlowCheck color="#FFFFFF" fontSize={24} />}
         {status === "missed" && <Text style={{ color: "#EF4444", fontSize: 24, fontWeight: "800" }}>×</Text>}
+        {monument && (
+          <View style={{ position: "absolute", bottom: 2, right: 2, zIndex: 5 }}>
+            <Text style={{ fontSize: 14 }}>{MONUMENT_DESIGNS[monument].icon}</Text>
+          </View>
+        )}
         {isFirst && <Text style={{ color: colors.muted, fontSize: 13 }}>⚑</Text>}
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && (
@@ -1502,6 +1511,7 @@ export function FastBoard({
   onPressTile,
   onLongPressTile,
   visibleYRange,
+  monuments,
 }: {
   fast: PersonalFast;
   today: string;
@@ -1512,6 +1522,7 @@ export function FastBoard({
   onPressTile?: (date: string, dayNum: number, position?: { x: number; y: number }) => void;
   onLongPressTile?: (date: string, dayNum: number) => void;
   visibleYRange?: { top: number; bottom: number } | null;
+  monuments?: Record<string, MonumentDesign>;
 }) {
   const [triviaDay, setTriviaDay] = useState<number | null>(null);
   const [waypointKind, setWaypointKind] = useState<PilgrimWaypointKind | null>(null);
@@ -1667,6 +1678,7 @@ export function FastBoard({
               svgH={svgH}
               total={total}
               waypoint={getPilgrimWaypoint(dayNum, total)}
+              monument={monuments?.[date] ?? null}
               onWaypointPress={setWaypointKind}
               onPress={() => {
                 if (special === "trivia" && onTriviaCorrect) setTriviaDay(dayNum);

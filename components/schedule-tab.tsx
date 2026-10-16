@@ -8679,7 +8679,7 @@ function MinistryCard({
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
           <View style={[ministryStyles.card, {
-            backgroundColor: ministry.type === "Worship" ? "#FFFBEB" : colors.surface,
+            backgroundColor: ministry.isCompleted ? colors.surface : (ministry.color || "#7C5CFF") + "14",
             borderColor: ministry.color || "#7C5CFF",
             borderWidth: 1.5,
           }]}>
@@ -8694,22 +8694,22 @@ function MinistryCard({
               </View>
             )}
             {/* Type tag */}
-            <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 2 }]}>
-              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={11} color="#FFFFFF" />
-              <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "600", marginLeft: 2 }}>{ministry.type}</Text>
+            <View style={[ministryStyles.typeTag, { backgroundColor: ministry.color || "#7C5CFF", marginBottom: 4, paddingHorizontal: 10, paddingVertical: 4 }]}>
+              <MaterialIcons name={getMinistryTypeIcon(ministry.type as any) as any} size={14} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "700", marginLeft: 4 }}>{ministry.type}</Text>
             </View>
             {/* Title + time beside the animated type art */}
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={{ flex: 1, paddingRight: 6 }}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 {/* Title */}
-                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground, marginBottom: 2, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={1}>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground, marginBottom: 4, paddingRight: linkedPeople.length > 0 ? 30 : 0 }} numberOfLines={1}>
                   {ministry.title}
                 </Text>
                 {/* Time + Bible ref */}
                 {(ministry.startTime || ministry.bibleBook) && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {ministry.startTime && (
-                      <Text style={{ fontSize: 11, color: colors.muted }}>
+                      <Text style={{ fontSize: 14, color: colors.muted, fontWeight: "500" }}>
                         {format12HourTime(ministry.startTime)}{ministry.endTime ? ` – ${format12HourTime(ministry.endTime)}` : ""}
                       </Text>
                     )}

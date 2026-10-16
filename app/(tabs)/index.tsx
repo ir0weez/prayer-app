@@ -2677,9 +2677,6 @@ export default function HomeScreen() {
               );
             })}
           </View>
-          <Pressable onPress={handleTestNotification} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-            {renderSettingsRow("notifications", "Test notification", "Send a test alert in about 10 seconds")}
-          </Pressable>
         </View>
       </View>
 
@@ -2693,27 +2690,6 @@ export default function HomeScreen() {
         </Pressable>
         <Pressable onPress={handleImportData} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
           {renderSettingsRow("file-upload", "Import Data", "Restore a PrayerCircle backup from a JSON file")}
-        </Pressable>
-        <Pressable onPress={() => {
-          Alert.alert(
-            "Restore Prayer Streak",
-            "Set your streak to:",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "26", onPress: () => {
-                const today = getTodayISOString();
-                setStreakRecord({ streak: 26, lastCompletedDate: today });
-                AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 26, lastCompletedDate: today })).catch(() => undefined);
-              }},
-              { text: "27", onPress: () => {
-                const today = getTodayISOString();
-                setStreakRecord({ streak: 27, lastCompletedDate: today });
-                AsyncStorage.setItem(PRAYER_STREAK_STORAGE_KEY, JSON.stringify({ streak: 27, lastCompletedDate: today })).catch(() => undefined);
-              }},
-            ]
-          );
-        }} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-          {renderSettingsRow("refresh", "Restore Streak", "Set your prayer streak to 26 or 27")}
         </Pressable>
 
 

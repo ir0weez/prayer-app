@@ -12,6 +12,8 @@ export type PersonalFast = {
   focusItems: string[];
   dayStatuses: Record<string, FastDayStatus>;
   focusItemDailyStatuses?: Record<string, FocusItemDailyStatus[]>; // Track daily completion/missed status per focus item
+  dailyNotes?: Record<string, string>; // Date ISO -> short note on why/why not the day was completed
+  summary?: string; // AI-generated summary of the entire fast
   createdAt: string;
 };
 
@@ -22,6 +24,47 @@ export type FocusItemDailyStatus = {
   date: string; // ISO YYYY-MM-DD
   status: FocusItemStatus;
 };
+
+// Generate a summary of a completed fast from notes and stats
+export function generateFastSummary(fast: PersonalFast): string {
+  const days = Object.keys(fast.dayStatuses).sort();
+  const completed = days.filter(d => fast.dayStatuses[d] === "completed").length;
+  const skipped = days.filter(d => fast.dayStatuses[d] === "skipped").length;
+  const missed = days.filter(d => fast.dayStatuses[d] === "missed").length;
+  const total = fast.durationDays;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  
+  const notes = fast.dailyNotes || {};
+  const noteEntries = Object.entries(notes).filter(([_, note]) => note.trim().length > 0);
+  
+  let summary = `Completed ${completed} of ${total} days (${completionRate}%).`;
+  if (skipped > 0) summary += ` Skipped ${skipped} days.`;
+  if (missed > 0) summary += ` Missed ${missed} days.`;
+  
+  if (noteEntries.length > 0) {
+    summary += `\n\nKey moments:\n`;
+    // Include up to 5 notable notes
+    const notable = noteEntries.slice(0, 5);
+    for (const [date, note] of notable) {
+      summary += `• ${note}\n`;
+    }
+    if (noteEntries.length > 5) {
+      summary += `...and ${noteEntries.length - 5} more notes.`;
+    }
+  }
+  
+  if (completionRate >= 90) {
+    summary += `\n\nAn exceptional fast — you showed remarkable consistency and dedication.`;
+  } else if (completionRate >= 70) {
+    summary += `\n\nA strong fast with solid commitment through challenges.`;
+  } else if (completionRate >= 50) {
+    summary += `\n\nA meaningful fast — you persevered through a difficult season.`;
+  } else {
+    summary += `\n\nEvery fast teaches something. The fact that you started shows courage.`;
+  }
+  
+  return summary;
+}
 
 export const FAST_DURATIONS = [1, 7, 30, 40, 90, 365] as const;
 export const FAST_TYPES: { type: FastType; icon: string; color: string }[] = [

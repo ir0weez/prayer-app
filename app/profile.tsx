@@ -44,6 +44,7 @@ import { FASTS_STORAGE_KEY, PROFILE_STORAGE_KEY } from "@/lib/prayercircle-stora
 import { auraWashColor, getAvatarAura } from "@/lib/avatar-aura";
 import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
+import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
 
 type PersonalProfile = {
@@ -145,6 +146,9 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [prestigeLevel, setPrestigeLevel] = useState(0);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteDate, setNoteDate] = useState("");
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
@@ -328,8 +332,34 @@ export default function ProfileScreen() {
     }
     if (status !== "completed" && previousStatus === "completed") void revokeXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
     if (status === "missed" && previousStatus !== "missed") void loseHeart(heartKey, today, position).catch(() => undefined);
-    persistFasts(upsertFastDayStatus(fasts, selectedFast.id, dateString, status));
+    const updatedFasts = upsertFastDayStatus(fasts, selectedFast.id, dateString, status);
+    persistFasts(updatedFasts);
+    // Auto-generate summary if fast is complete and no summary yet
+    const updatedFast = updatedFasts.find(f => f.id === selectedFast.id);
+    if (updatedFast && !updatedFast.summary) {
+      const days = getFastCalendarDays(updatedFast);
+      const allMarked = days.every(d => updatedFast.dayStatuses[d]);
+      if (allMarked && days.length > 0) {
+        const withSummary = { ...updatedFast, summary: generateFastSummary(updatedFast) };
+        persistFasts(updatedFasts.map(f => f.id === updatedFast.id ? withSummary : f));
+      }
+    }
   };
+
+  const saveDailyNote = () => {
+    if (!selectedFast || !noteDate) return;
+    const updatedFast = {
+      ...selectedFast,
+      dailyNotes: { ...(selectedFast.dailyNotes || {}), [noteDate]: noteText.trim() },
+    };
+    const nextFasts = fasts.map(f => f.id === selectedFast.id ? updatedFast : f);
+    persistFasts(nextFasts);
+    setShowNoteInput(false);
+    setNoteText("");
+    setNoteDate("");
+  };
+
+
 
   const updateFocusItemStatusForFast = (focusItem: string, status: FocusItemStatus) => {
     if (!selectedFast) return;
@@ -733,6 +763,23 @@ export default function ProfileScreen() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
             </View>
+            <Pressable
+              onPress={() => {
+                setNoteDate(today);
+                setNoteText(selectedFast?.dailyNotes?.[today] || "");
+                setShowNoteInput(true);
+              }}
+              style={{ marginTop: 8, padding: 10, backgroundColor: colors.surface, borderRadius: 10, alignItems: "center" }}
+            >
+              <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                {selectedFast?.dailyNotes?.[today] ? "📝 Edit today's note" : "📝 Add a note for today"}
+              </Text>
+              {selectedFast?.dailyNotes?.[today] && (
+                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 4, fontStyle: "italic" }}>
+                  "{selectedFast.dailyNotes[today]}"
+                </Text>
+              )}
+            </Pressable>
 
             {(() => {
               // Calculate streak for mood; pet unlocks on 40+ day fasts (not streak)
@@ -973,6 +1020,32 @@ export default function ProfileScreen() {
         ) : null}
       </ScrollView>
       <AvatarPicker visible={showAvatarPicker} initialAvatarAsset={profile.avatarAsset} unlockedBookIds={unlockedBookIds} onClose={() => setShowAvatarPicker(false)} onUpload={handleUploadProfileAvatar} onSelect={handleSelectProfileAvatar} />
+
+      <Modal transparent visible={showNoteInput} animationType="slide" onRequestClose={() => setShowNoteInput(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Daily Note</Text>
+            <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>
+              Why did you {selectedFast?.dayStatuses?.[noteDate] === "completed" ? "complete" : "miss"} this day?
+            </Text>
+            <TextInput
+              value={noteText}
+              onChangeText={setNoteText}
+              placeholder="A short sentence..."
+              multiline
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 80, color: colors.foreground, marginBottom: 16 }}
+            />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable onPress={() => setShowNoteInput(false)} style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.border, alignItems: "center" }}>
+                <Text>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={saveDailyNote} style={{ flex: 1, padding: 12, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
+                <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal transparent visible={showFastCreator} animationType="slide" onRequestClose={() => {
         setShowFastCreator(false);

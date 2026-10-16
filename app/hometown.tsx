@@ -8,10 +8,14 @@ import {
   COINS_STORAGE_KEY,
   TOWN_GRID_SIZE,
   TOWN_STORAGE_KEY,
+  SHOP_OWNED_KEY,
   dailyIncomeForTown,
   parseCoins,
   parseTown,
+  parseOwnedItems,
   tierForFastDay,
+  incomeFor,
+  upgradeCostFor,
   type BuildingType,
   type DecorationType,
   type HometownCoins,
@@ -20,7 +24,6 @@ import {
   type TownState,
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
-import { SHOP_OWNED_KEY, parseOwnedItems } from "@/lib/hometown";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 
 function daysBetween(a: string, b: string): number {
@@ -133,7 +136,39 @@ export default function HometownScreen() {
         return;
       } else {
         const def = BUILDINGS[existing.type];
-        Alert.alert(def.name, `${def.description}\n\nEarns ${def.incomePerDay} coins/day while your streak is alive.`);
+        const level = existing.level || 1;
+        
+        const currentIncome = incomeFor(existing.type, level);
+        if (level >= 3) {
+          Alert.alert(`${def.name} (Lv 3)`, `${def.description}\n\nMax level! Earns ${currentIncome} coins/day.`);
+        } else {
+          const nextLevel = (level + 1) as 2 | 3;
+          const cost = upgradeCostFor(existing.type, nextLevel);
+          const nextIncome = incomeFor(existing.type, nextLevel);
+          Alert.alert(
+            `${def.name} (Lv ${level})`,
+            `${def.description}\n\nCurrently earns ${currentIncome} coins/day.\nUpgrade to Lv ${nextLevel}: ${nextIncome} coins/day.`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: `Upgrade 🪙${cost}`,
+                onPress: () => {
+                  if (coins.balance < cost) {
+                    Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance}.`);
+                    return;
+                  }
+                  const updated = town.buildings.map(b =>
+                    b.id === existing.id ? { ...b, level: nextLevel } : b
+                  );
+                  saveTown({ ...town, buildings: updated });
+                  const nextCoins = { balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned };
+                  setCoins(nextCoins);
+                  AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins)).catch(() => undefined);
+                },
+              },
+            ]
+          );
+        }
       }
       return;
     }
@@ -155,7 +190,7 @@ export default function HometownScreen() {
       Alert.alert("Already built", "You already have a pawn house!");
       return;
     }
-    const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y };
+    const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
     saveTown({ ...town, buildings: [...town.buildings, building] });
     saveCoins({ balance: coins.balance - def.cost, lifetimeEarned: coins.lifetimeEarned });
     setSelectedTile(null);
@@ -207,6 +242,11 @@ export default function HometownScreen() {
           {b && (
             <View style={{ alignItems: "center" }}>
               <Text style={{ fontSize: 22 }}>{BUILDINGS[b.type].icon}</Text>
+              {(b.level || 1) > 1 && (
+                <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
+                  {"★".repeat(b.level || 1)}
+                </Text>
+              )}
               {(b.type === "house" || b.type === "pawn-house") && (
                 <Text style={{ fontSize: 12, marginTop: -4 }}>{b.type === "pawn-house" ? "🐾" : townsfolkFor(b.id)}</Text>
               )}

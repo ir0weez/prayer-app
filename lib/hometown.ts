@@ -52,6 +52,21 @@ export const DECORATIONS: Record<DecorationType, {
   "lantern":  { name: "Lantern",  icon: "🏮", shopId: "dec-lantern" },
 };
 
+// Upgrade costs: L1->L2 = 3x base, L2->L3 = 5x base. Income: L2 = 2.5x, L3 = 5x.
+// Expensive on purpose — earned money, not easy money.
+export const UPGRADE_COST_MULT = { 2: 3, 3: 5 };
+export const UPGRADE_INCOME_MULT = { 1: 1, 2: 2.5, 3: 5 };
+
+export function upgradeCostFor(type: BuildingType, toLevel: 2 | 3): number {
+  const base = BUILDINGS[type].cost;
+  return Math.round(base * UPGRADE_COST_MULT[toLevel]);
+}
+
+export function incomeFor(type: BuildingType, level: 1 | 2 | 3): number {
+  const base = BUILDINGS[type].incomePerDay;
+  return Math.round(base * UPGRADE_INCOME_MULT[level]);
+}
+
 export const BUILDINGS: Record<BuildingType, {
   name: string;
   icon: string;
@@ -74,6 +89,7 @@ export type PlacedBuilding = {
   type: BuildingType;
   x: number;
   y: number;
+  level: 1 | 2 | 3;
 };
 
 export type PlacedDecoration = {
@@ -95,7 +111,7 @@ export function parseTown(value: unknown): TownState {
   if (!value || typeof value !== "object") return { buildings: [], decorations: [], lastIncomeDate: null };
   const t = value as Partial<TownState>;
   return {
-    buildings: Array.isArray(t.buildings) ? t.buildings.filter(b => b && typeof b.id === "string") : [],
+    buildings: Array.isArray(t.buildings) ? t.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: b.level === 2 || b.level === 3 ? b.level : 1 as const })) : [],
     decorations: Array.isArray(t.decorations) ? t.decorations.filter(d => d && typeof d.id === "string") : [],
     lastIncomeDate: typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null,
   };
@@ -103,8 +119,7 @@ export function parseTown(value: unknown): TownState {
 
 export function dailyIncomeForTown(town: TownState): number {
   return town.buildings.reduce((sum, b) => {
-    const def = BUILDINGS[b.type];
-    return sum + (def ? def.incomePerDay : 0);
+    return sum + incomeFor(b.type, b.level || 1);
   }, 0);
 }
 

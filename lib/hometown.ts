@@ -90,6 +90,8 @@ export type PlacedBuilding = {
   x: number;
   y: number;
   level: 1 | 2 | 3;
+  accumulated?: number;
+  lastTick?: string;
 };
 
 export type PlacedDecoration = {
@@ -125,18 +127,72 @@ export function parseTown(value: unknown): TownState {
   };
 }
 
+// Roads create a multiplier for connected buildings.
+// Buildings connected via adjacent roads form a network.
+// Multiplier = 1 + 0.25 * (networkSize - 1), so:
+// 1 building (no network) = 1x, 2 connected = 1.25x, 3 = 1.5x, 4 = 1.75x, etc.
+export function roadMultiplierForBuilding(town: TownState, buildingId: string): number {
+  const roads = town.roads || [];
+  const buildings = town.buildings;
+  if (roads.length === 0) return 1;
+
+  // Build adjacency: find all buildings connected via roads
+  const building = buildings.find(b => b.id === buildingId);
+  if (!building) return 1;
+
+  // BFS from this building through roads to find connected buildings
+  const visited = new Set<string>();
+  const roadVisited = new Set<string>();
+  const queue: Array<{x: number, y: number, isBuilding: boolean, id?: string}> = [
+    { x: building.x, y: building.y, isBuilding: true, id: building.id }
+  ];
+  visited.add(building.id);
+
+  const isAdjacent = (x1: number, y1: number, x2: number, y2: number) =>
+    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
+
+  let connectedCount = 1;
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    // Find adjacent roads
+    for (const road of roads) {
+      const roadKey = `${road.x},${road.y}`;
+      if (roadVisited.has(roadKey)) continue;
+      if (isAdjacent(current.x, current.y, road.x, road.y)) {
+        roadVisited.add(roadKey);
+        // From this road, find adjacent buildings
+        for (const b of buildings) {
+          if (visited.has(b.id)) continue;
+          if (isAdjacent(road.x, road.y, b.x, b.y)) {
+            visited.add(b.id);
+            connectedCount++;
+            queue.push({ x: b.x, y: b.y, isBuilding: true, id: b.id });
+          }
+        }
+        // Also continue through to other roads
+        for (const r2 of roads) {
+          const r2Key = `${r2.x},${r2.y}`;
+          if (roadVisited.has(r2Key)) continue;
+          if (isAdjacent(road.x, road.y, r2.x, r2.y)) {
+            roadVisited.add(r2Key);
+            queue.push({ x: r2.x, y: r2.y, isBuilding: false });
+          }
+        }
+      }
+    }
+  }
+
+  if (connectedCount <= 1) return 1;
+  return 1 + 0.25 * (connectedCount - 1);
+}
+
 export function dailyIncomeForTown(town: TownState): number {
-  const buildingIncome = town.buildings.reduce((sum, b) => {
-    return sum + incomeFor(b.type, b.level || 1);
+  return town.buildings.reduce((sum, b) => {
+    const base = incomeFor(b.type, b.level || 1);
+    const multiplier = roadMultiplierForBuilding(town, b.id);
+    return sum + (base * multiplier);
   }, 0);
-  // Roads: +0.5 coins per road connected to a building
-  const connectedRoads = (town.roads || []).filter(road => {
-    return town.buildings.some(b => 
-      (Math.abs(b.x - road.x) === 1 && b.y === road.y) ||
-      (Math.abs(b.y - road.y) === 1 && b.x === road.x)
-    );
-  });
-  return buildingIncome + (connectedRoads.length * 0.5);
 }
 
 // ---- Pawn House Interior ----

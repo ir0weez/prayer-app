@@ -10,6 +10,7 @@ import {
   TOWN_STORAGE_KEY,
   SHOP_OWNED_KEY,
   dailyIncomeForTown,
+  roadMultiplierForBuilding,
   parseCoins,
   parseTown,
   parseOwnedItems,
@@ -73,10 +74,35 @@ export default function HometownScreen() {
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
 
-  // Load + collect income on open
+  // Load + accumulate hourly coins on open
   useEffect(() => {
     (async () => {
       try {
+        // Accumulate 0.5 coins per hour per income building (with road multiplier)
+        const now = new Date().toISOString();
+        const townRawForAccum = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+        if (townRawForAccum) {
+          const t = parseTown(JSON.parse(townRawForAccum));
+          let changed = false;
+          const updatedBuildings = t.buildings.map(b => {
+            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
+            const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
+            if (hoursElapsed > 0 && incomeFor(b.type, b.level || 1) > 0) {
+              changed = true;
+              const multiplier = roadMultiplierForBuilding(t, b.id);
+              return {
+                ...b,
+                accumulated: (b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier),
+                lastTick: now,
+              };
+            }
+            return b.lastTick ? b : { ...b, lastTick: now };
+          });
+          if (changed) {
+            const updatedTown = { ...t, buildings: updatedBuildings };
+            await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(updatedTown));
+          }
+        }
         const [coinsRaw, townRaw, monumentsRaw, ownedRaw, backfillRaw, fastsRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
@@ -242,6 +268,22 @@ export default function HometownScreen() {
     setSelectedTile(null);
   };
 
+  const handleCollectBuilding = (buildingId: string) => {
+    const building = town.buildings.find(b => b.id === buildingId);
+    if (!building || !(building.accumulated || 0)) return;
+    const amount = building.accumulated || 0;
+    const updatedBuildings = town.buildings.map(b =>
+      b.id === buildingId ? { ...b, accumulated: 0, lastTick: new Date().toISOString() } : b
+    );
+    const updatedTown = { ...town, buildings: updatedBuildings };
+    saveTown(updatedTown);
+    const updatedCoins = {
+      balance: coins.balance + amount,
+      lifetimeEarned: coins.lifetimeEarned + amount,
+    };
+    saveCoins(updatedCoins);
+  };
+
   const handlePlaceRoad = () => {
     if (!selectedTile) return;
     if (buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y) || roadAt(selectedTile.x, selectedTile.y)) {
@@ -277,6 +319,19 @@ export default function HometownScreen() {
         >
           {decorationAt(x, y) && (
             <Text style={{ fontSize: 22 }}>{DECORATIONS[decorationAt(x, y)!.type].icon}</Text>
+          )}
+          {b && (b.accumulated || 0) > 0 && (
+            <Pressable
+              onPress={() => handleCollectBuilding(b.id)}
+              style={{ position: "absolute", top: -8, right: -8, zIndex: 10, alignItems: "center" }}
+            >
+              <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#F59E0B" }}>
+                <Text style={{ fontSize: 12 }}>🙏</Text>
+              </View>
+              <Text style={{ fontSize: 9, fontWeight: "700", color: "#92400E", marginTop: 1 }}>
+                +{(b.accumulated || 0).toFixed(1)}
+              </Text>
+            </Pressable>
           )}
           {b && (
             <View style={{ alignItems: "center" }}>
@@ -358,7 +413,7 @@ export default function HometownScreen() {
             <Text style={{ fontSize: 24 }}>🛣️</Text>
             <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={{ fontWeight: "600" }}>Road</Text>
-              <Text style={{ fontSize: 12, color: "#78716C" }}>Connect buildings • +0.5 🙏/day when touching a building</Text>
+              <Text style={{ fontSize: 12, color: "#78716C" }}>Connect buildings for earning multiplier</Text>
             </View>
             <Text style={{ fontWeight: "700", color: "#22C55E" }}>FREE</Text>
           </Pressable>

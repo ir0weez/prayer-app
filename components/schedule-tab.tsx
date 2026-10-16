@@ -8421,12 +8421,47 @@ function MinistrySquare({
 }) {
   const colors = useColors();
   const accent = ministry.color || "#7C5CFF";
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+
+  const handleLongPress = (e: any) => {
+    setContextMenuPos({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY });
+    setContextMenuVisible(true);
+  };
+
+  const contextMenuActions: ContextMenuAction[] = [];
+  if (onEdit) {
+    contextMenuActions.push({
+      label: 'Edit',
+      icon: 'edit',
+      onPress: () => {
+        setContextMenuVisible(false);
+        onEdit();
+      },
+    });
+  }
+  contextMenuActions.push({
+    label: ministry.isCompleted ? 'Mark Incomplete' : 'Mark Complete',
+    icon: ministry.isCompleted ? 'close-circle' : 'check-circle',
+    onPress: () => onToggle(),
+  });
+  if (onDelete) {
+    contextMenuActions.push({ label: 'Delete', icon: 'delete', onPress: onDelete, isDestructive: true });
+  }
+
   return (
     <Pressable
       onPress={(e) => onToggle({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
-      onLongPress={() => onEdit?.()}
+      onLongPress={handleLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
+      <ContextMenu
+        visible={contextMenuVisible}
+        x={contextMenuPos.x}
+        y={contextMenuPos.y}
+        actions={contextMenuActions}
+        onDismiss={() => setContextMenuVisible(false)}
+      />
       <View
         style={{
           flex: 1,

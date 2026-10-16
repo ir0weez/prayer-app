@@ -8128,12 +8128,18 @@ function PrayerArt({ accent, line }: MinistryArtPalette) {
 function FastArt({ accent }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroRise distance={14} duration={2600} delay={0}>
+        <Svg width={7} height={7} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.5} /></Svg>
+      </MicroRise>
       <MicroWobble duration={2400}>
         <View style={{ alignItems: "center" }}>
           <View style={{ width: 8, height: 36, borderRadius: 4, backgroundColor: accent }} />
           <View style={{ position: "absolute", top: 8, width: 24, height: 8, borderRadius: 4, backgroundColor: accent }} />
         </View>
       </MicroWobble>
+      <MicroRise distance={18} duration={3200} delay={1200}>
+        <Svg width={6} height={6} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.4} /></Svg>
+      </MicroRise>
     </View>
   );
 }
@@ -8164,6 +8170,7 @@ function BibleStudyArt({ accent, line, surface }: MinistryArtPalette) {
 function TeachingArt({ accent, line, soft }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ position: "absolute", right: 6, top: 8 }}><MicroRise distance={10} duration={2400} delay={0}><Svg width={6} height={6} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.4} /></Svg></MicroRise></View>
       <View style={{ width: 44, height: 30, borderRadius: 5, borderWidth: 2.5, borderColor: line, backgroundColor: soft, paddingHorizontal: 6, paddingVertical: 5, justifyContent: "space-between" }}>
         <MicroWriteLine color={accent} width={26} delay={0} />
         <MicroWriteLine color={line} width={18} delay={750} />
@@ -8201,9 +8208,10 @@ function OutreachArt({ accent, line }: MinistryArtPalette) {
 }
 
 /** Missions — a globe slowly turning, to the nations. */
-function MissionsArt({ line }: MinistryArtPalette) {
+function MissionsArt({ accent, line }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ position: "absolute", right: 8, top: 10 }}><MicroRise distance={12} duration={2800} delay={500}><Svg width={7} height={7} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.5} /></Svg></MicroRise></View>
       <MicroSpin duration={16000}>
         <Svg width={36} height={36} viewBox="0 0 36 36">
           <Circle cx={18} cy={18} r={15} fill="none" stroke={line} strokeWidth={2.5} />
@@ -8243,6 +8251,7 @@ function HospitalityArt({ line }: MinistryArtPalette) {
 function MarriageArt({ accent, line }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ position: "absolute", right: 10, top: 6 }}><MicroRise distance={14} duration={2400} delay={300}><Svg width={8} height={8} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.5} /></Svg></MicroRise></View>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Svg width={24} height={24} viewBox="0 0 24 24">
           <Circle cx={12} cy={12} r={9} fill="none" stroke={accent} strokeWidth={3} />
@@ -8261,6 +8270,7 @@ function MarriageArt({ accent, line }: MinistryArtPalette) {
 function ParentingArt({ accent, line }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ position: "absolute", left: 8, top: 8 }}><MicroRise distance={12} duration={2600} delay={700}><Svg width={7} height={7} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.45} /></Svg></MicroRise></View>
       <MicroGrow duration={2200} min={1} max={1.07}>
         <View style={{ alignItems: "center", justifyContent: "center" }}>
           <Svg width={40} height={38} viewBox="0 0 52 52">
@@ -8290,6 +8300,16 @@ function YouthArt({ accent, line }: MinistryArtPalette) {
       <MicroBob distance={6} duration={650}>{person(accent, 28)}</MicroBob>
       <View style={{ width: 4 }} />
       {person(line, 24)}
+      <View style={{ position: "absolute", top: 4, right: 8 }}>
+        <MicroRise distance={12} duration={2200} delay={0}>
+          <Svg width={8} height={8} viewBox="0 0 8 8"><Path d="M4 0l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill={accent} opacity={0.6} /></Svg>
+        </MicroRise>
+      </View>
+      <View style={{ position: "absolute", top: 10, left: 6 }}>
+        <MicroRise distance={10} duration={2800} delay={900}>
+          <Svg width={6} height={6} viewBox="0 0 8 8"><Path d="M4 0l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill={accent} opacity={0.5} /></Svg>
+        </MicroRise>
+      </View>
     </View>
   );
 }
@@ -8298,6 +8318,7 @@ function YouthArt({ accent, line }: MinistryArtPalette) {
 function ServiceArt({ accent, line }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ position: "absolute", right: 6, top: 12 }}><MicroRise distance={10} duration={2200} delay={200}><Svg width={6} height={6} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.5} /></Svg></MicroRise></View>
       <View>
         <Svg width={24} height={38} viewBox="0 0 24 38">
           <Rect x={7} y={1} width={10} height={17} rx={5} fill={line} />
@@ -8419,24 +8440,24 @@ function MinistrySquare({
             top: 0, left: 0, right: 0, bottom: 0,
             alignItems: "center",
             justifyContent: "center",
-            opacity: 0.15,
-            transform: [{ scale: 1.8 }],
+            opacity: 0.25,
+            transform: [{ scale: 2.2 }],
           }}
         >
           <MinistryTypeArt type={ministry.type} accent={accent} />
         </View>
         {/* Centered content */}
-        <View style={{ alignItems: "center" }}>
-          <View style={{ backgroundColor: accent, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 }}>
-            <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "700" }}>
+        <View style={{ alignItems: "center", paddingHorizontal: 6 }}>
+          <View style={{ backgroundColor: accent, borderRadius: 7, paddingHorizontal: 11, paddingVertical: 4, marginBottom: 8 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700" }}>
               {ministry.type}
             </Text>
           </View>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, textAlign: "center" }} numberOfLines={2}>
+          <Text style={{ fontSize: 20, fontWeight: "700", color: colors.foreground, textAlign: "center" }} numberOfLines={2}>
             {ministry.title}
           </Text>
           {ministry.startTime && (
-            <Text style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>
+            <Text style={{ fontSize: 14, color: colors.muted, marginTop: 4 }}>
               {format12HourTime(ministry.startTime)}
             </Text>
           )}
@@ -11381,7 +11402,7 @@ export function ScheduleTab({
         case "ministry-group": {
           const groupMinistries = item.data.ministries as ScheduleMinistry[];
           return (
-            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 12, marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 12, marginBottom: 8 }}>
               {groupMinistries.map((m) => (
                 <MinistrySquare
                   key={m.id}

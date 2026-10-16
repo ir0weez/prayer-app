@@ -131,6 +131,13 @@ export function getSpecialSpaceXP(kind: FastSpecialKind, dayNum: number): number
 /** Unlockable pawn shapes, 24px viewBox, single warm tone. */
 export function FastPawnShape({ id, size = 20, color = "#FFD54F" }: { id: string; size?: number; color?: string }) {
   const kind = getPawnDef(id).id;
+  // Use WebP art for pebble creatures
+  const pebbleImage = PEBBLE_IMAGES[id];
+  if (pebbleImage) {
+    return (
+      <Image source={pebbleImage} style={{ width: size, height: size, borderRadius: size / 4 }} resizeMode="contain" />
+    );
+  }
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       {kind === "pebble" && (

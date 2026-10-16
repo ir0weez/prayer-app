@@ -10,7 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
-import { COINS_STORAGE_KEY, parseCoins, type HometownCoins } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -147,6 +147,7 @@ export default function ProfileScreen() {
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
+  const [ownedShopIds, setOwnedShopIds] = useState<string[]>([]);
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [isEditingFast, setIsEditingFast] = useState(false);
@@ -208,6 +209,7 @@ export default function ProfileScreen() {
       loadXPState().then((state) => { if (isActive) setProfileLevel(state.level); }).catch(() => undefined);
       AsyncStorage.getItem(MONUMENT_STORAGE_KEY).then(v => { try { setMonuments(parseMonuments(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       AsyncStorage.getItem(COINS_STORAGE_KEY).then(v => { try { setCoins(parseCoins(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
+      AsyncStorage.getItem(SHOP_OWNED_KEY).then(v => { try { setOwnedShopIds(parseOwnedItems(v ? JSON.parse(v) : [])); } catch {} }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -875,6 +877,7 @@ export default function ProfileScreen() {
               pawnId={pawnId}
               onSelect={setPawnId}
               colors={boardColors}
+              ownedShopIds={ownedShopIds}
             />
           </>
         ) : (

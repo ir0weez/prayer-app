@@ -7,7 +7,8 @@ export type FastPawnId =
   | "crown" | "prayer" | "fish" | "dove" | "comet" | "shield"
   | "neon" | "sun"
   | "pebble-mossy" | "pebble-slate" | "pebble-ember" | "pebble-frost"
-  | "pebble-crystal" | "pebble-sand" | "pebble-ocean" | "pebble-golden";
+  | "pebble-crystal" | "pebble-sand" | "pebble-ocean" | "pebble-golden"
+  | "pebble-shadow" | "pebble-rainbow" | "pebble-diamond";
 
 export type FastPawnDef = {
   id: FastPawnId;
@@ -51,16 +52,25 @@ export const FAST_PAWNS: FastPawnDef[] = [
   { id: "pebble-frost", name: "Frost Pebble", level: 48 },
   { id: "pebble-crystal", name: "Crystal Pebble", level: 65 },
   { id: "pebble-golden", name: "Golden Pebble", level: 80 },
+  { id: "pebble-shadow", name: "Shadow Pebble", level: 0 },
+  { id: "pebble-rainbow", name: "Rainbow Pebble", level: 0 },
+  { id: "pebble-diamond", name: "Diamond Pebble", level: 0 },
 ];
 
-export function isPawnUnlocked(pawn: FastPawnDef, level: number, prayerStreak = 0): boolean {
+export function isPawnUnlocked(pawn: FastPawnDef, level: number, prayerStreak = 0, ownedShopIds: string[] = []): boolean {
   if (pawn.prayerStreak != null) return prayerStreak >= pawn.prayerStreak;
+  // Level 0 with no prayerStreak = shop-exclusive; check ownership
+  if (pawn.level === 0) {
+    const shopId = `pawn-${pawn.id.replace("pebble-", "")}`;
+    return ownedShopIds.includes(shopId);
+  }
   return level >= pawn.level;
 }
 
 /** Short unlock-condition label for the picker ("Lv 10" or "50-day prayer streak"). */
 export function pawnUnlockLabel(pawn: FastPawnDef): string {
   if (pawn.prayerStreak != null) return `${pawn.prayerStreak}-day prayer streak`;
+  if (pawn.level === 0) return "Town Shop";
   return `Lv ${pawn.level}`;
 }
 

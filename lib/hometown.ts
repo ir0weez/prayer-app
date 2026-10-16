@@ -203,9 +203,9 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "dec-garden", name: "Garden", icon: "🌷", cost: 60, tier: 1, type: "decoration", description: "Flowers for your townsfolk." },
   { id: "dec-lantern", name: "Lantern Post", icon: "🏮", cost: 40, tier: 1, type: "decoration", description: "Light for the streets." },
   // Pawn skins (recolors — detailed faces coming)
-  { id: "pawn-ember", name: "Ember Pawn", icon: "♟️", cost: 120, tier: 2, type: "pawn-skin", description: "A pawn wreathed in warm ember glow." },
-  { id: "pawn-frost", name: "Frost Pawn", icon: "♟️", cost: 200, tier: 3, type: "pawn-skin", description: "A pawn touched by winter's breath." },
-  { id: "pawn-gold", name: "Gilded Pawn", icon: "♟️", cost: 400, tier: 4, type: "pawn-skin", description: "A pawn of pure gold. For the committed." },
+  { id: "pawn-shadow", name: "Shadow Pebble", icon: "🌑", cost: 120, tier: 2, type: "pawn-skin", description: "A mysterious pebble from the deep dark." },
+  { id: "pawn-rainbow", name: "Rainbow Pebble", icon: "🌈", cost: 250, tier: 3, type: "pawn-skin", description: "Joy in every color." },
+  { id: "pawn-diamond", name: "Diamond Pebble", icon: "💎", cost: 500, tier: 4, type: "pawn-skin", description: "Pure brilliance. For the truly committed." },
 ];
 
 export const SHOP_OWNED_KEY = "prayercircle.hometown.shop-owned.v1";

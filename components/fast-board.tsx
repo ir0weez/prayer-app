@@ -259,12 +259,14 @@ export function FastPawnPicker({
   pawnId,
   onSelect,
   colors,
+  ownedShopIds,
 }: {
   level: number;
   prayerStreak: number;
   pawnId: string;
   onSelect: (id: FastPawnId) => void;
   colors: FastBoardColors;
+  ownedShopIds?: string[];
 }) {
   return (
     <View style={{ marginTop: 14 }}>
@@ -273,7 +275,7 @@ export function FastPawnPicker({
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
         {FAST_PAWNS.map((p) => {
-          const unlocked = isPawnUnlocked(p, level, prayerStreak);
+          const unlocked = isPawnUnlocked(p, level, prayerStreak, ownedShopIds);
           const selected = p.id === pawnId;
           return (
             <Pressable
@@ -979,6 +981,9 @@ const PEBBLE_IMAGES: Record<string, any> = {
   "pebble-sand": require("@/assets/pawns/pebbles/pebble-sand.webp"),
   "pebble-ocean": require("@/assets/pawns/pebbles/pebble-ocean.webp"),
   "pebble-golden": require("@/assets/pawns/pebbles/pebble-golden.webp"),
+  "pebble-shadow": require("@/assets/pawns/pebbles/pebble-shadow.webp"),
+  "pebble-rainbow": require("@/assets/pawns/pebbles/pebble-rainbow.webp"),
+  "pebble-diamond": require("@/assets/pawns/pebbles/pebble-diamond.webp"),
 };
 
 function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; size: number }) {

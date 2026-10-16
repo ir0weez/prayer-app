@@ -56,6 +56,82 @@ function nextId() {
   return `b${Date.now()}${idCounter}`;
 }
 
+// Building art using colored shapes (no emojis) - scales with footprint
+function BuildingArt({ type, size }: { type: string; size: number }) {
+  const s = size;
+  switch (type) {
+    case "house":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.7, height: s * 0.15, backgroundColor: "#DC2626", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+          <View style={{ width: s * 0.8, height: s * 0.5, backgroundColor: "#F59E0B", borderRadius: 4 }} />
+          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.2, height: s * 0.3, backgroundColor: "#78350F", borderRadius: 2 }} />
+        </View>
+      );
+    case "pawn-house":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.75, height: s * 0.15, backgroundColor: "#7C3AED", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#A78BFA", borderRadius: 4 }} />
+          <View style={{ position: "absolute", bottom: s * 0.08, width: s * 0.25, height: s * 0.25, backgroundColor: "#4C1D95", borderRadius: s * 0.125 }} />
+        </View>
+      );
+    case "farm":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.3, backgroundColor: "#22C55E", borderRadius: 4 }} />
+          <View style={{ width: s * 0.5, height: s * 0.4, backgroundColor: "#DC2626", borderRadius: 4, marginTop: -s * 0.1 }} />
+          <View style={{ width: s * 0.55, height: s * 0.12, backgroundColor: "#78350F", marginTop: -s * 0.42 }} />
+        </View>
+      );
+    case "shop":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.15, backgroundColor: "#EF4444", borderRadius: 4 }} />
+          <View style={{ width: s * 0.9, height: s * 0.5, backgroundColor: "#3B82F6", borderRadius: 4 }} />
+          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
+            <View style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#BFDBFE", marginHorizontal: 2, borderRadius: 2 }} />
+            <View style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#BFDBFE", marginHorizontal: 2, borderRadius: 2 }} />
+          </View>
+        </View>
+      );
+    case "bakery":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#F59E0B", borderRadius: 6 }} />
+          <View style={{ width: s * 0.6, height: s * 0.15, backgroundColor: "#92400E", borderRadius: 8, marginBottom: s * 0.1 }} />
+          <View style={{ position: "absolute", top: s * 0.15, width: s * 0.3, height: s * 0.2, backgroundColor: "#FEF3C7", borderRadius: s * 0.1 }} />
+        </View>
+      );
+    case "market":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.95, height: s * 0.7, backgroundColor: "#0EA5E9", borderRadius: 6 }} />
+          <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
+            {[0, 1, 2].map(i => (
+              <View key={i} style={{ width: s * 0.18, height: s * 0.3, backgroundColor: "#E0F2FE", marginHorizontal: 3, borderRadius: 2 }} />
+            ))}
+          </View>
+          <View style={{ width: s * 0.95, height: s * 0.12, backgroundColor: "#0369A1", borderRadius: 4, marginTop: s * 0.05 }} />
+        </View>
+      );
+    case "bank":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4 }} />
+          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={{ width: s * 0.12, height: s * 0.45, backgroundColor: "#9CA3AF", marginHorizontal: 4, borderRadius: 2 }} />
+            ))}
+          </View>
+          <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4, marginTop: s * 0.05 }} />
+        </View>
+      );
+    default:
+      return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
+  }
+}
+
 export default function HometownScreen() {
   const router = useRouter();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
@@ -367,7 +443,7 @@ export default function HometownScreen() {
           )}
           {b && isOrigin && (
             <View style={{ alignItems: "center", width: cellSize * footprint.w, height: cellSize * footprint.h, justifyContent: "center" }}>
-              <Text style={{ fontSize: 22 * Math.max(footprint.w, footprint.h) * 0.7 }}>{BUILDINGS[b.type].icon}</Text>
+              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.9} />
               {(b.level || 1) > 1 && (
                 <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
                   {"★".repeat(b.level || 1)}
@@ -485,7 +561,7 @@ export default function HometownScreen() {
                 onPress={() => handleBuild(type)}
                 style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, opacity: affordable ? 1 : 0.5 }}
               >
-                <Text style={{ fontSize: 24 }}>{def.icon}</Text>
+                <BuildingArt type={type} size={32} />
                 <View style={{ marginLeft: 10, flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: "#78716C" }}>{def.description}</Text>

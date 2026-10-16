@@ -28,10 +28,9 @@ export function normalizePrayerStreakRecord(
   const lastCompletedDate = typeof candidate.lastCompletedDate === "string" && parseDate(candidate.lastCompletedDate)
     ? candidate.lastCompletedDate
     : null;
-  if (!lastCompletedDate || lastCompletedDate === today || lastCompletedDate === getPreviousDate(today)) {
-    return { streak, lastCompletedDate };
-  }
-  return { streak: 0, lastCompletedDate: null };
+  // Don't silently wipe — preserve the stored streak. The advance logic
+  // handles gaps when the user actually completes a day.
+  return { streak, lastCompletedDate };
 }
 
 export function advancePrayerStreak(

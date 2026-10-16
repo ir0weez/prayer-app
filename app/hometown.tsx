@@ -56,11 +56,32 @@ function nextId() {
   return `b${Date.now()}${idCounter}`;
 }
 
-// Building art using colored shapes (no emojis) - scales with footprint
-function BuildingArt({ type, size }: { type: string; size: number }) {
+// Building art using colored shapes (no emojis) - shape evolves with level
+function BuildingArt({ type, size, level = 1 }: { type: string; size: number; level?: number }) {
   const s = size;
+  const lv = level || 1;
   switch (type) {
     case "house":
+      if (lv >= 3) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.18, backgroundColor: "#991B1B", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
+          <View style={{ width: s * 0.9, height: s * 0.55, backgroundColor: "#F59E0B", borderRadius: 6 }} />
+          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.25 }}>
+            <View style={{ width: s * 0.15, height: s * 0.15, backgroundColor: "#FEF3C7", marginHorizontal: 4, borderRadius: 2 }} />
+            <View style={{ width: s * 0.15, height: s * 0.15, backgroundColor: "#FEF3C7", marginHorizontal: 4, borderRadius: 2 }} />
+          </View>
+          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.18, height: s * 0.28, backgroundColor: "#78350F", borderRadius: 3 }} />
+          <View style={{ position: "absolute", top: s * 0.05, right: s * 0.15, width: s * 0.08, height: s * 0.2, backgroundColor: "#78716C", borderRadius: 2 }} />
+        </View>
+      );
+      if (lv >= 2) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.75, height: s * 0.16, backgroundColor: "#B91C1C", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+          <View style={{ width: s * 0.85, height: s * 0.52, backgroundColor: "#F59E0B", borderRadius: 5 }} />
+          <View style={{ position: "absolute", bottom: s * 0.2, left: s * 0.15, width: s * 0.14, height: s * 0.14, backgroundColor: "#FEF3C7", borderRadius: 2 }} />
+          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.18, height: s * 0.28, backgroundColor: "#78350F", borderRadius: 2 }} />
+        </View>
+      );
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ width: s * 0.7, height: s * 0.15, backgroundColor: "#DC2626", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
@@ -85,6 +106,28 @@ function BuildingArt({ type, size }: { type: string; size: number }) {
         </View>
       );
     case "shop":
+      if (lv >= 3) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.95, height: s * 0.18, backgroundColor: "#B91C1C", borderRadius: 5 }} />
+          <View style={{ flexDirection: "row" }}>
+            {[0,1,2,3].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.08, backgroundColor: "#FCA5A5", marginHorizontal: 1 }} />)}
+          </View>
+          <View style={{ width: s * 0.95, height: s * 0.55, backgroundColor: "#1D4ED8", borderRadius: 6 }} />
+          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
+            {[0,1,2].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.22, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />)}
+          </View>
+        </View>
+      );
+      if (lv >= 2) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.92, height: s * 0.16, backgroundColor: "#DC2626", borderRadius: 4 }} />
+          <View style={{ width: s * 0.92, height: s * 0.52, backgroundColor: "#2563EB", borderRadius: 5 }} />
+          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
+            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />
+            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />
+          </View>
+        </View>
+      );
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ width: s * 0.9, height: s * 0.15, backgroundColor: "#EF4444", borderRadius: 4 }} />
@@ -443,7 +486,7 @@ export default function HometownScreen() {
           )}
           {b && isOrigin && (
             <View style={{ alignItems: "center", width: cellSize * footprint.w, height: cellSize * footprint.h, justifyContent: "center" }}>
-              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.9} />
+              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.9} level={b.level || 1} />
               {(b.level || 1) > 1 && (
                 <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
                   {"★".repeat(b.level || 1)}

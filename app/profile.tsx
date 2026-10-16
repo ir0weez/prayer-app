@@ -684,7 +684,12 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>PREVIOUS FAST</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <Text style={styles.sectionLabel}>PREVIOUS FAST</Text>
+          <Pressable onPress={() => router.push("/fast-collection")} style={{ padding: 6 }}>
+            <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>View Collection →</Text>
+          </Pressable>
+        </View>
         {lastCompletedFast && lastCompletedFastProgress ? (
           <View style={styles.previousFastCard}>
             <View style={styles.previousFastHeader}>

@@ -8406,6 +8406,40 @@ function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
   }
 }
 /** Square ministry card for same-time groups: animated art behind centered text. */
+function RestSquare({
+  event,
+  onPress,
+  onLongPress,
+}: {
+  event: any;
+  onPress?: () => void;
+  onLongPress?: (e: any) => void;
+}) {
+  const colors = useColors();
+  const mood = getRestMood(event.startTime);
+  const mc = REST_MOODS[mood];
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
+    >
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+        {/* Sun animation in background */}
+        <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: mc.iconColor + "30", alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontSize: 36 }}>{mc.icon}</Text>
+        </View>
+        <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, marginTop: 50 }}>Rest</Text>
+        {event.startTime && (
+          <Text style={{ fontSize: 12, color: colors.muted }}>
+            {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 function MinistrySquare({
   ministry,
   groupSize,
@@ -10776,18 +10810,34 @@ export function ScheduleTab({
           group.push(pairedTimedItems[k]);
           k++;
         }
-        if (group.length >= 2 && group.length <= 3) {
-          // 2-3 at same time: side-by-side squares
+        // Check for Rest event at same time
+        let restEvent = null;
+        if (k < pairedTimedItems.length && pairedTimedItems[k].type === "event") {
+          const evt = pairedTimedItems[k].data;
+          // Check if it's a Rest event (by keyword or title)
+          const isRest = evt.title?.toLowerCase().includes("rest") || evt.keyword?.label === "Rest";
+          if (isRest && evt.startTime === item.data.startTime) {
+            restEvent = pairedTimedItems[k];
+            k++;
+          }
+        }
+        const totalItems = group.length + (restEvent ? 1 : 0);
+        if (totalItems >= 2 && totalItems <= 3) {
+          // 2-3 at same time: side-by-side squares (ministries + optional rest)
           finalTimedItems.push({
             type: "ministry-group",
-            id: `ministry-group-${group.map(g => g.id).join("-")}`,
-            data: { ministries: group.map(g => g.data) },
+            id: `ministry-group-${group.map(g => g.id).join("-")}${restEvent ? `-rest` : ``}`,
+            data: { 
+              ministries: group.map(g => g.data),
+              restEvent: restEvent?.data || null,
+            },
             sortTime: item.sortTime,
           });
           j = k;
         } else {
           // 1 or 4+: keep stacked
           group.forEach(g => finalTimedItems.push(g));
+          if (restEvent) finalTimedItems.push(restEvent);
           j = k;
         }
       } else {
@@ -11447,13 +11497,23 @@ export function ScheduleTab({
         }
         case "ministry-group": {
           const groupMinistries = item.data.ministries as ScheduleMinistry[];
+          const restEvent = item.data.restEvent;
+          const totalSquares = groupMinistries.length + (restEvent ? 1 : 0);
           return (
             <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 12, marginBottom: 8 }}>
+              {restEvent && (
+                <RestSquare
+                  key={restEvent.id}
+                  event={restEvent}
+                  onPress={() => {}}
+                  onLongPress={() => {}}
+                />
+              )}
               {groupMinistries.map((m) => (
                 <MinistrySquare
                   key={m.id}
                   ministry={m}
-                  groupSize={groupMinistries.length}
+                  groupSize={totalSquares}
                   onToggle={(position) => {
                     if (!m.isCompleted) onAwardXP?.("ministry-task", m.id, position);
                     else onRevokeXP?.("ministry-task", m.id, position);
@@ -13960,7 +14020,7 @@ const ministryStyles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    marginBottom: 6,
+    marginBottom: 0,
     marginHorizontal: 12,
     borderWidth: 1,
     position: "relative",

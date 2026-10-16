@@ -26,6 +26,21 @@ function daysBetween(a: string, b: string): number {
   return Math.floor((db - da) / 86400000);
 }
 
+const TOWNSFOLK = ["🧑", "👩", "🧓", "👴", "👦", "👧", "🧔", "👵"];
+const WORKERS: Record<string, string> = {
+  "farm": "🧑‍🌾",
+  "shop": "🧑‍💼",
+  "bakery": "🧑‍🍳",
+  "market": "🧑‍💼",
+  "bank": "🧑‍💼",
+};
+
+function townsfolkFor(buildingId: string): string {
+  let hash = 0;
+  for (let i = 0; i < buildingId.length; i++) hash = (hash * 31 + buildingId.charCodeAt(i)) % 1000;
+  return TOWNSFOLK[hash % TOWNSFOLK.length];
+}
+
 let idCounter = 0;
 function nextId() {
   idCounter += 1;
@@ -150,7 +165,17 @@ export default function HometownScreen() {
             justifyContent: "center",
           }}
         >
-          {b && <Text style={{ fontSize: 22 }}>{BUILDINGS[b.type].icon}</Text>}
+          {b && (
+            <View style={{ alignItems: "center" }}>
+              <Text style={{ fontSize: 22 }}>{BUILDINGS[b.type].icon}</Text>
+              {(b.type === "house" || b.type === "pawn-house") && (
+                <Text style={{ fontSize: 12, marginTop: -4 }}>{b.type === "pawn-house" ? "🐾" : townsfolkFor(b.id)}</Text>
+              )}
+              {WORKERS[b.type] && (
+                <Text style={{ fontSize: 12, marginTop: -4 }}>{WORKERS[b.type]}</Text>
+              )}
+            </View>
+          )}
         </Pressable>
       );
     }

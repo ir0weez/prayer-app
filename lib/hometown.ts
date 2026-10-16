@@ -187,6 +187,12 @@ export function roadMultiplierForBuilding(town: TownState, buildingId: string): 
   return 1 + 0.25 * (connectedCount - 1);
 }
 
+// Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3)
+export function buildingFootprint(level: number): { w: number; h: number } {
+  const s = Math.min(Math.max(level || 1, 1), 3);
+  return { w: s, h: s };
+}
+
 export function dailyIncomeForTown(town: TownState): number {
   return town.buildings.reduce((sum, b) => {
     const base = incomeFor(b.type, b.level || 1);

@@ -11,6 +11,7 @@ import {
   SHOP_OWNED_KEY,
   dailyIncomeForTown,
   roadMultiplierForBuilding,
+  buildingFootprint,
   parseCoins,
   parseTown,
   parseOwnedItems,
@@ -163,8 +164,15 @@ export default function HometownScreen() {
     })();
   }, []);
 
-  const buildingAt = (x: number, y: number): PlacedBuilding | undefined =>
-    town.buildings.find((b) => b.x === x && b.y === y);
+  const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
+    return town.buildings.find((b) => {
+      const { w, h } = buildingFootprint(b.level || 1);
+      return x >= b.x && x < b.x + w && y >= b.y && y < b.y + h;
+    });
+  };
+
+  const isBuildingOrigin = (b: PlacedBuilding, x: number, y: number): boolean =>
+    b.x === x && b.y === y;
 
   const roadAt = (x: number, y: number) => (town.roads || []).find(r => r.x === x && r.y === y);
   const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
@@ -196,6 +204,23 @@ export default function HometownScreen() {
           Alert.alert(`${def.name} (Lv 3)`, `${def.description}\n\nMax level! Earns ${currentIncome} coins/day.`);
         } else {
           const nextLevel = (level + 1) as 2 | 3;
+          // Check if expanded footprint fits
+          const { w, h } = buildingFootprint(nextLevel);
+          let fits = true
+          for (let dx = 0; dx < w; dx++) {
+            for (let dy = 0; dy < h; dy++) {
+              const nx = existing.x + dx, ny = existing.y + dy;
+              if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+              const other = buildingAt(nx, ny);
+              if (other && other.id !== existing.id) { fits = false; break; }
+              if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }
+            }
+            if (!fits) break;
+          }
+          if (!fits) {
+            Alert.alert("No Room", "Not enough space to expand this building! Clear adjacent tiles.");
+            return;
+          }
           const cost = upgradeCostFor(existing.type, nextLevel);
           const nextIncome = incomeFor(existing.type, nextLevel);
           Alert.alert(
@@ -302,7 +327,9 @@ export default function HometownScreen() {
     const cells = [];
     for (let x = 0; x < TOWN_GRID_SIZE; x++) {
       const b = buildingAt(x, y);
+      const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
+      const footprint = b ? buildingFootprint(b.level || 1) : { w: 1, h: 1 };
       cells.push(
         <Pressable
           key={`${x}-${y}`}
@@ -311,7 +338,7 @@ export default function HometownScreen() {
             width: cellSize,
             height: cellSize,
             backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : "#F3F4F6",
-            borderWidth: 1,
+            borderWidth: isOrigin || !b ? 1 : 0,
             borderColor: isSelected ? "#F59E0B" : "#E5E7EB",
             alignItems: "center",
             justifyContent: "center",
@@ -333,9 +360,9 @@ export default function HometownScreen() {
               </Text>
             </Pressable>
           )}
-          {b && (
-            <View style={{ alignItems: "center" }}>
-              <Text style={{ fontSize: 22 }}>{BUILDINGS[b.type].icon}</Text>
+          {b && isOrigin && (
+            <View style={{ alignItems: "center", width: cellSize * footprint.w, height: cellSize * footprint.h, justifyContent: "center" }}>
+              <Text style={{ fontSize: 22 * Math.max(footprint.w, footprint.h) * 0.7 }}>{BUILDINGS[b.type].icon}</Text>
               {(b.level || 1) > 1 && (
                 <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
                   {"★".repeat(b.level || 1)}

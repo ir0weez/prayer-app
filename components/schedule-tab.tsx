@@ -8551,7 +8551,7 @@ function MinistryCard({
                   </View>
                 )}
               </View>
-              <View pointerEvents="none" style={{ marginTop: 8 }}>
+              <View pointerEvents="none" style={{ justifyContent: "center", paddingLeft: 8, transform: [{ scale: 1.35 }] }}>
                 <MinistryTypeArt type={ministry.type} accent={ministry.color || "#7C5CFF"} />
               </View>
             </View>

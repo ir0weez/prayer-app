@@ -1221,6 +1221,49 @@ function GlowCheck({ color, fontSize }: { color: string; fontSize: number }) {
   return <Text style={{ color, fontSize, fontWeight: "800" }}>✓</Text>;
 }
 
+/** Pawn with waypoint-specific idle animations. Fair = joyful bounce, rest = gentle sway. */
+function WaypointPawn({ pawnId, color, size, waypoint }: {
+  pawnId?: string;
+  color: string;
+  size: number;
+  waypoint: PilgrimWaypointKind | null;
+}) {
+  const bounce = useRef(new Animated.Value(0)).current;
+  const sway = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (waypoint === "fair") {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounce, { toValue: -8, duration: 400, useNativeDriver: true }),
+          Animated.timing(bounce, { toValue: 0, duration: 400, useNativeDriver: true }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    }
+    if (waypoint === "rest") {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(sway, { toValue: 6, duration: 1200, useNativeDriver: true }),
+          Animated.timing(sway, { toValue: -6, duration: 1200, useNativeDriver: true }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    }
+  }, [waypoint]);
+
+  const translateY = waypoint === "fair" ? bounce : undefined;
+  const translateX = waypoint === "rest" ? sway : undefined;
+
+  return (
+    <Animated.View style={{ transform: [{ translateY: translateY || 0 }, { translateX: translateX || 0 }] }}>
+      <ViewPawn pawnId={pawnId} color={color} size={size} />
+    </Animated.View>
+  );
+}
+
 /** Fast View-based day tile. Uses percentage positioning to match the 360 viewBox. */
 const FastTileView = memo(function FastTileView({
   date,
@@ -1327,7 +1370,7 @@ const FastTileView = memo(function FastTileView({
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 10, elevation: 10 }}>
-            <ViewPawn pawnId={pawnId} color={pawnColor} size={size} />
+            <WaypointPawn pawnId={pawnId} color={pawnColor} size={size} waypoint={waypoint} />
           </View>
         )}
       </View>

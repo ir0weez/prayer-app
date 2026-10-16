@@ -129,6 +129,7 @@ import { loadUnifiedBible, getCurrentBibleDisplay } from "@/lib/bible-unified";
 import { normalizePrayerJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
+import { COINS_STORAGE_KEY, parseCoins } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
 import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 
@@ -1450,7 +1451,31 @@ export default function HomeScreen() {
     });
     // Check for monument (testimony) — all four complete
     void maybeAwardMonument(updatedPeople);
+    // Coin for praying through the ENTIRE list (all people, not just Pray Today)
+    void maybeAwardFullPrayerCoin(updatedPeople);
   }, [today, todayDayOfMonth, todayDayOfWeek]);
+
+  const maybeAwardFullPrayerCoin = useCallback(async (updatedPeople: Person[]) => {
+    const todayStr = getTodayISOString();
+    try {
+      // Already awarded today?
+      const awardedKey = `prayer-full-coin:${todayStr}`;
+      const awardedRaw = await AsyncStorage.getItem(awardedKey);
+      if (awardedRaw) return;
+
+      // Everyone prayed for?
+      if (updatedPeople.length === 0) return;
+      const allDone = updatedPeople.every((p) => hasPersonCompletedPrayerToday(p, todayStr));
+      if (!allDone) return;
+
+      // Award 1 coin
+      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+      const coins = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
+      const next = { balance: coins.balance + 1, lifetimeEarned: coins.lifetimeEarned + 1 };
+      await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+      await AsyncStorage.setItem(awardedKey, "1");
+    } catch {}
+  }, []);
 
   const maybeAwardMonument = useCallback(async (updatedPeople: Person[]) => {
     const todayStr = getTodayISOString();

@@ -85,3 +85,58 @@ export function dailyIncomeForTown(town: TownState): number {
     return sum + (def ? def.incomePerDay : 0);
   }, 0);
 }
+
+// ---- Pawn House Interior ----
+
+export type FurnitureType =
+  | "bed"
+  | "chair"
+  | "table"
+  | "lamp"
+  | "rug"
+  | "plant"
+  | "bookshelf"
+  | "fireplace";
+
+export const FURNITURE: Record<FurnitureType, {
+  name: string;
+  icon: string;
+  cost: number;
+  tier: HometownTier;
+}> = {
+  "bed":       { name: "Bed",       icon: "🛏️", cost: 8,  tier: 1 },
+  "chair":     { name: "Chair",     icon: "🪑", cost: 5,  tier: 1 },
+  "table":     { name: "Table",     icon: "🪟", cost: 10, tier: 1 },
+  "lamp":      { name: "Lamp",      icon: "🪔", cost: 12, tier: 1 },
+  "rug":       { name: "Rug",       icon: "🟫", cost: 6,  tier: 1 },
+  "plant":     { name: "Plant",     icon: "🪴", cost: 7,  tier: 2 },
+  "bookshelf": { name: "Bookshelf", icon: "📚", cost: 20, tier: 2 },
+  "fireplace": { name: "Fireplace", icon: "🔥", cost: 35, tier: 3 },
+};
+
+export type PlacedFurniture = {
+  id: string;
+  type: FurnitureType;
+  x: number;
+  y: number;
+};
+
+export type PawnHouseState = {
+  furniture: PlacedFurniture[];
+  size: number; // grid size: 4, 6, or 8
+};
+
+export const PAWN_HOUSE_STORAGE_KEY = "prayercircle.hometown.pawnhouse.v1";
+export const HOUSE_EXPAND_COSTS: Record<number, number> = {
+  4: 50,  // 4x4 -> 6x6
+  6: 150, // 6x6 -> 8x8
+};
+
+export function parsePawnHouse(value: unknown): PawnHouseState {
+  if (!value || typeof value !== "object") return { furniture: [], size: 4 };
+  const h = value as Partial<PawnHouseState>;
+  return {
+    furniture: Array.isArray(h.furniture) ? h.furniture.filter(f => f && typeof f.id === "string") : [],
+    size: h.size === 6 || h.size === 8 ? h.size : 4,
+  };
+}

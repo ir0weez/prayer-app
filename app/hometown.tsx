@@ -89,7 +89,8 @@ export default function HometownScreen() {
     const existing = buildingAt(x, y);
     if (existing) {
       if (existing.type === "pawn-house") {
-        Alert.alert("Pawn House", "Interior decorating coming soon!");
+        router.push("/pawn-house");
+        return;
       } else {
         const def = BUILDINGS[existing.type];
         Alert.alert(def.name, `${def.description}\n\nEarns ${def.incomePerDay} coins/day while your streak is alive.`);

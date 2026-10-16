@@ -685,7 +685,10 @@ export default function ProfileScreen() {
                 const days = getFastCalendarDays(selectedFast);
                 const todayIdx = days.indexOf(today);
                 const todayStatus = todayIdx >= 0 ? selectedFast.dayStatuses[days[todayIdx]] : undefined;
-                for (let i = todayIdx; i >= 0; i--) {
+                // Count streak from yesterday if today isn't marked yet — otherwise
+                // the pawn reads "sleepy" all day until you tap today complete.
+                const streakStartIdx = todayStatus === "completed" ? todayIdx : todayIdx - 1;
+                for (let i = streakStartIdx; i >= 0; i--) {
                   const s = selectedFast.dayStatuses[days[i]];
                   if (s === "completed") streak++;
                   else break;

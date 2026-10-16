@@ -8863,18 +8863,7 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
     return () => clearInterval(interval);
   }, [nameOpacity, people.length]);
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(attentionPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        ]),
-        Animated.timing(attentionPulse, { toValue: 0, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [attentionPulse]);
+  // Pulsing animation removed - static dot (was causing distracting blink)
 
   if (people.length === 0) return null;
   const activePerson = people[activeIndex % people.length];
@@ -8890,10 +8879,10 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
   const dotOpacity = attentionPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: 'transparent' }]} accessibilityRole="text">
-      <Animated.View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error, opacity: dotOpacity, transform: [{ scale: dotScale }] }]} />
-      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
+      <View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error }]} />
+      <Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground }]} numberOfLines={1}>
         {displayName} hasn’t been reached in {daysSinceReached} days.
-      </Animated.Text>
+      </Text>
     </View>
   );
 }

@@ -292,7 +292,7 @@ export default function HometownScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#FFFBEB" }} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: "#FFFBEB" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <Text style={{ fontSize: 24 }}>←</Text>

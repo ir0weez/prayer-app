@@ -11476,7 +11476,20 @@ export function ScheduleTab({
                     setShowAddModal(true);
                   }}
                   onDelete={() => {
-                    // Delete handled via edit form
+                    Alert.alert(
+                      'Delete Ministry',
+                      `Are you sure you want to delete "${m.title}"?`,
+                      [
+                        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          onPress: () => {
+                            setMinistries((prev) => prev.filter((x) => x.id !== m.id));
+                          },
+                          style: 'destructive',
+                        },
+                      ]
+                    );
                   }}
                 />
               ))}

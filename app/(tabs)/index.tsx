@@ -1439,7 +1439,13 @@ export default function HomeScreen() {
 
     setStreakRecord((previousRecord) => {
       if (previousRecord.lastCompletedDate === today) return previousRecord;
-      return advancePrayerStreak(previousRecord, today);
+      const next = advancePrayerStreak(previousRecord, today);
+      // If streak reset due to a missed day (had a streak, now back to 1), lose a heart
+      if (next.streak === 1 && previousRecord.streak > 1 && previousRecord.lastCompletedDate) {
+        const heartKey = `prayer-missed:${previousRecord.lastCompletedDate}`;
+        void loseHeart(heartKey, today).catch(() => undefined);
+      }
+      return next;
     });
   }, [today, todayDayOfMonth, todayDayOfWeek]);
 

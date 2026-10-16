@@ -838,6 +838,18 @@ export default function ProfileScreen() {
                 };
               }
               return (
+            <>
+            <Pressable
+              onPress={() => router.push("/hometown")}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 12 }}
+            >
+              <Text style={{ fontSize: 24 }}>🏘️</Text>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16 }}>Hometown</Text>
+                <Text style={{ fontSize: 12, color: "#78716C" }}>Build your town with fast coins • 🪙{coins.balance}</Text>
+              </View>
+              <Text style={{ fontSize: 20 }}>→</Text>
+            </Pressable>
             <FastBoard
               fast={boardFast}
               today={today}
@@ -852,6 +864,7 @@ export default function ProfileScreen() {
               }
               monuments={monuments}
             />
+              </>
               );
             })()}
             </View>

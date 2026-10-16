@@ -144,6 +144,7 @@ export default function ProfileScreen() {
   const today = getTodayISOString();
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
@@ -249,6 +250,9 @@ export default function ProfileScreen() {
 
   // Auto-select the quarter containing today for long fasts
   useEffect(() => {
+    AsyncStorage.getItem("prayercircle.hometown.prestige.v1").then(v => {
+      if (v) setPrestigeLevel(parseInt(v, 10) || 0);
+    }).catch(() => {});
     if (!quarterAutoSet && selectedFast && selectedFast.durationDays >= 80) {
       const days = getFastCalendarDays(selectedFast);
       const todayIdx = days.indexOf(today);
@@ -398,7 +402,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const createFast = () => {
+  const createFast = async () => {
     const focusItems = draftFastFocusInput.trim() ? [...draftFastFocusItems, draftFastFocusInput.trim()] : draftFastFocusItems;
     
     if (!normalizeFastDateInput(draftFastStartDate)) {
@@ -435,6 +439,15 @@ export default function ProfileScreen() {
       const nextFasts = [fast, ...fasts];
       persistFasts(nextFasts);
       setSelectedFastId(fast.id);
+      // Reset town for new fast, increment prestige
+      try {
+        const prestigeRaw = await AsyncStorage.getItem("prayercircle.hometown.prestige.v1");
+        const currentPrestige = prestigeRaw ? parseInt(prestigeRaw, 10) || 0 : 0;
+        await AsyncStorage.setItem("prayercircle.hometown.prestige.v1", String(currentPrestige + 1));
+        await AsyncStorage.setItem("prayercircle.hometown.coins.v1", JSON.stringify({ balance: 0, lifetimeEarned: 0 }));
+        await AsyncStorage.setItem("prayercircle.hometown.town.v1", JSON.stringify({ buildings: [], decorations: [], roads: [], lastIncomeDate: null }));
+        setPrestigeLevel(currentPrestige + 1);
+      } catch {}
     }
     
     setShowFastCreator(false);
@@ -558,7 +571,14 @@ export default function ProfileScreen() {
 
         <View style={[dynamicStyles.profileCard, { flexDirection: 'column', alignItems: 'flex-start' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-            <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
+            <View>
+              <Pressable onPress={() => setShowAvatarPicker(true)}><AvatarImage id="profile" name={profile.name} avatarAsset={profile.avatarAsset} auraId={profile.auraId} auraMode="animated" profileLevel={profileLevel} photoUri={profile.photoUri} size={76} fallbackColor={PURPLE} /></Pressable>
+              {prestigeLevel > 0 && (
+                <View style={{ position: "absolute", bottom: -4, right: -4, backgroundColor: "#F59E0B", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 2, borderColor: "#FFFFFF" }}>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>★{prestigeLevel}</Text>
+                </View>
+              )}
+            </View>
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>

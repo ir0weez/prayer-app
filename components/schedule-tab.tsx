@@ -11427,6 +11427,15 @@ export function ScheduleTab({
                     setFormDate(m.date);
                     setFormMinistryType(m.type);
                     setFormStartTime(m.startTime || "");
+                    setFormEndTime(m.endTime || "");
+                    setFormLocation(m.location || "");
+                    setFormNotes(m.notes || "");
+                    setFormBibleBook(m.bibleBook || "");
+                    setFormBibleChapter(m.bibleChapter || "");
+                    setFormColor(m.color || "#6366F1");
+                    setFormLinkedPeopleIds(m.linkedPeopleIds || []);
+                    setAddType("ministry");
+                    setShowAddModal(true);
                   }}
                   onDelete={() => {
                     // Delete handled via edit form

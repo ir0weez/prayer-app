@@ -77,13 +77,39 @@ export default function HometownScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [coinsRaw, townRaw, monumentsRaw, ownedRaw] = await Promise.all([
+        const [coinsRaw, townRaw, monumentsRaw, ownedRaw, backfillRaw, fastsRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
           AsyncStorage.getItem(MONUMENT_STORAGE_KEY),
           AsyncStorage.getItem(SHOP_OWNED_KEY),
+          AsyncStorage.getItem("prayercircle.hometown.coin-backfill.v1"),
+          AsyncStorage.getItem("prayercircle.fasts.v1"),
         ]);
-        const c = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
+        // One-time backfill: 1 coin per completed fast day before coins existed
+        let effectiveCoinsRaw = coinsRaw;
+        if (!backfillRaw) {
+          try {
+            const fasts = fastsRaw ? JSON.parse(fastsRaw) : [];
+            let completedCount = 0;
+            for (const f of fasts) {
+              const statuses = f.dayStatuses || {};
+              for (const d of Object.values(statuses)) {
+                if (d === "completed") completedCount++;
+              }
+            }
+            if (completedCount > 0) {
+              const c0 = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
+              const backfilled = {
+                balance: c0.balance + completedCount,
+                lifetimeEarned: c0.lifetimeEarned + completedCount,
+              };
+              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(backfilled));
+              effectiveCoinsRaw = JSON.stringify(backfilled);
+            }
+          } catch {}
+          await AsyncStorage.setItem("prayercircle.hometown.coin-backfill.v1", "1");
+        }
+        const c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         setCoins(c);
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}

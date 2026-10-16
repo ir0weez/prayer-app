@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: -apple-system, sans-serif; background: #f5f5f5; padding: 20px; margin: 0; }
+  h2 { font-size: 16px; color: #333; margin: 24px 0 12px; }
+  .card {
+    background: #fff;
+    border: 1.5px solid #22C55E;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    max-width: 400px;
+    position: relative;
+  }
+  .chip {
+    display: inline-block;
+    background: #22C55E;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .title { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+  .time { font-size: 12px; color: #888; }
+  .notes-small {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 28px; opacity: 0.25; letter-spacing: 4px;
+  }
+  .notes-big {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 44px; opacity: 0.5; letter-spacing: 2px;
+  }
+  .notes-bg {
+    position: absolute; right: 0; top: 0; bottom: 0; left: 0;
+    display: flex; align-items: center; justify-content: flex-end;
+    font-size: 72px; opacity: 0.08; padding-right: 12px;
+    pointer-events: none; overflow: hidden;
+  }
+  .row { display: flex; align-items: center; }
+  .row .text { flex: 1; }
+  .label { font-size: 11px; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h2>Current (from your screenshot)</h2>
+<div class="card">
+  <div class="chip">♪ Worship</div>
+  <div class="title">Album</div>
+  <div class="time">11:00 PM</div>
+  <div class="notes-small">♪ ♫</div>
+</div>
+
+<h2>Option 1: Bigger notes</h2>
+<div class="card">
+  <div class="chip">♪ Worship</div>
+  <div class="title">Album</div>
+  <div class="time">11:00 PM</div>
+  <div class="notes-big">♪ ♫ ♪</div>
+</div>
+<div class="label">Same design, notes 60% larger and more visible</div>
+
+<h2>Option 2: Notes as background texture</h2>
+<div class="card">
+  <div class="notes-bg">♪ ♫ ♪ ♫</div>
+  <div class="chip">♪ Worship</div>
+  <div class="title">Album</div>
+  <div class="time">11:00 PM</div>
+</div>
+<div class="label">Large faint notes fill the empty space behind the text</div>
+
+<h2>Option 3: Tighter layout</h2>
+<div class="card">
+  <div class="row">
+    <div class="text">
+      <div class="chip">♪ Worship</div>
+      <div class="title">Album</div>
+      <div class="time">11:00 PM</div>
+    </div>
+    <div style="font-size: 40px; opacity: 0.6;">♪♫</div>
+  </div>
+</div>
+<div class="label">Everything pulled together, no dead space on the right</div>
+
+<h2>Option 4: Centered</h2>
+<div class="card" style="text-align: center;">
+  <div class="chip">♪ Worship</div>
+  <div class="title" style="font-size: 17px;">Album</div>
+  <div class="time">11:00 PM</div>
+  <div style="font-size: 32px; opacity: 0.4; margin-top: 6px; letter-spacing: 8px;">♪ ♫ ♪</div>
+</div>
+<div class="label">Everything centered — chip, title, time, notes in a row below</div>
+
+</body>
+</html>

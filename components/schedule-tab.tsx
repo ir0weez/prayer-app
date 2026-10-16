@@ -8084,13 +8084,17 @@ function WorshipArt({ accent }: MinistryArtPalette) {
     </Svg>
   );
   return (
-    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 }}>
+    <View style={{ width: 72, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 }}>
       <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-        <MicroRise distance={18} duration={2100} delay={0}>{note(13, 20)}</MicroRise>
-        <View style={{ width: 6 }} />
-        <MicroRise distance={18} duration={2100} delay={700}>{note(11, 17)}</MicroRise>
-        <View style={{ width: 6 }} />
-        <MicroRise distance={18} duration={2100} delay={1400}>{note(13, 20)}</MicroRise>
+        <MicroRise distance={22} duration={2800} delay={0}>{note(11, 17)}</MicroRise>
+        <View style={{ width: 5 }} />
+        <MicroRise distance={18} duration={1900} delay={400}>{note(15, 23)}</MicroRise>
+        <View style={{ width: 5 }} />
+        <MicroRise distance={24} duration={2400} delay={900}>{note(12, 19)}</MicroRise>
+        <View style={{ width: 5 }} />
+        <MicroRise distance={20} duration={2100} delay={1300}>{note(16, 25)}</MicroRise>
+        <View style={{ width: 5 }} />
+        <MicroRise distance={26} duration={3100} delay={1700}>{note(10, 16)}</MicroRise>
       </View>
     </View>
   );
@@ -8099,16 +8103,23 @@ function WorshipArt({ accent }: MinistryArtPalette) {
 /** Prayer — a lit candle, flame flickering gently. */
 function PrayerArt({ accent, line }: MinistryArtPalette) {
   return (
-    <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 }}>
+    <View style={{ width: 52, height: 60, alignItems: "center", justifyContent: "flex-end", paddingBottom: 4 }}>
       <MicroWobble duration={900}>
-        <Svg width={13} height={17} viewBox="0 0 13 17">
+        <Svg width={18} height={24} viewBox="0 0 13 17">
           <Ellipse cx={6.5} cy={9.5} rx={4.2} ry={6.5} fill={accent} />
           <Ellipse cx={6.5} cy={10.5} rx={1.7} ry={3} fill="#FFFFFF" opacity={0.7} />
         </Svg>
       </MicroWobble>
-      <Svg width={16} height={24} viewBox="0 0 16 24" style={{ marginTop: 1 }}>
+      <Svg width={22} height={32} viewBox="0 0 16 24" style={{ marginTop: 1 }}>
         <Rect x={4} y={2} width={8} height={20} rx={2.5} fill={line} opacity={0.85} />
       </Svg>
+      {/* Floating embers */}
+      <MicroRise distance={16} duration={2000} delay={0}>
+        <Svg width={6} height={6} viewBox="0 0 6 6"><Ellipse cx={3} cy={3} rx={2} ry={2} fill={accent} opacity={0.6} /></Svg>
+      </MicroRise>
+      <MicroRise distance={20} duration={2600} delay={800}>
+        <Svg width={5} height={5} viewBox="0 0 6 6"><Ellipse cx={3} cy={3} rx={2} ry={2} fill={accent} opacity={0.5} /></Svg>
+      </MicroRise>
     </View>
   );
 }
@@ -8128,9 +8139,12 @@ function FastArt({ accent }: MinistryArtPalette) {
 }
 
 /** Bible Study — open book, page corner lifting and turning. */
-function BibleStudyArt({ line, surface }: MinistryArtPalette) {
+function BibleStudyArt({ accent, line, surface }: MinistryArtPalette) {
   return (
     <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+      <MicroRise distance={14} duration={2800} delay={0}>
+        <Svg width={8} height={8} viewBox="0 0 8 8"><Ellipse cx={4} cy={4} rx={3} ry={3} fill={accent} opacity={0.5} /></Svg>
+      </MicroRise>
       <View>
         <Svg width={40} height={32} viewBox="0 0 40 32">
           <Path d={MINISTRY_BOOK_PATH} fill="none" stroke={line} strokeWidth={2.4} />
@@ -8362,6 +8376,95 @@ function MinistryTypeArt({ type, accent }: { type: string; accent: string }) {
     default: return <OtherArt {...p} />;
   }
 }
+/** Square ministry card for same-time groups: animated art behind centered text. */
+function MinistrySquare({
+  ministry,
+  groupSize,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  ministry: ScheduleMinistry;
+  groupSize: number;
+  onToggle: (position?: XpGainPosition) => void;
+  onEdit?: (updatedMinistry?: ScheduleMinistry) => void;
+  onDelete?: () => void;
+}) {
+  const colors = useColors();
+  const accent = ministry.color || "#7C5CFF";
+  return (
+    <Pressable
+      onPress={(e) => onToggle({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+      onLongPress={() => onEdit?.()}
+      style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.surface,
+          borderRadius: 12,
+          borderWidth: 1.5,
+          borderColor: accent,
+          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 8,
+        }}
+      >
+        {/* Animated background art */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: 0.15,
+            transform: [{ scale: 1.8 }],
+          }}
+        >
+          <MinistryTypeArt type={ministry.type} accent={accent} />
+        </View>
+        {/* Centered content */}
+        <View style={{ alignItems: "center" }}>
+          <View style={{ backgroundColor: accent, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, marginBottom: 4 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "700" }}>
+              {ministry.type}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, textAlign: "center" }} numberOfLines={2}>
+            {ministry.title}
+          </Text>
+          {ministry.startTime && (
+            <Text style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>
+              {format12HourTime(ministry.startTime)}
+            </Text>
+          )}
+        </View>
+        {/* Bible book/chapter pill: bottom-right for 2, top-center for 3 */}
+        {ministry.bibleBook && (
+          <View
+            style={{
+              position: "absolute",
+              ...(groupSize === 3
+                ? { top: 6, alignSelf: "center" }
+                : { bottom: 6, right: 6 }),
+              backgroundColor: colors.primary + "22",
+              borderRadius: 5,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ fontSize: 9, color: colors.primary, fontWeight: "600" }}>
+              {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 function MinistryCard({
   ministry,
   onToggle,
@@ -8544,14 +8647,16 @@ function MinistryCard({
                       </Text>
                     )}
                     {ministry.bibleBook && (
-                      <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "500" }}>
-                        📖 {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
-                      </Text>
+                      <View style={{ backgroundColor: colors.primary + "22", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, marginTop: 4, alignSelf: "flex-start" }}>
+                        <Text style={{ fontSize: 10, color: colors.primary, fontWeight: "600" }}>
+                          {ministry.bibleBook}{ministry.bibleChapter ? ` ${ministry.bibleChapter}` : ""}
+                        </Text>
+                      </View>
                     )}
                   </View>
                 )}
               </View>
-              <View pointerEvents="none" style={{ justifyContent: "center", paddingLeft: 8, transform: [{ scale: 1.35 }] }}>
+              <View pointerEvents="none" style={{ marginTop: 8 }}>
                 <MinistryTypeArt type={ministry.type} accent={ministry.color || "#7C5CFF"} />
               </View>
             </View>
@@ -10585,6 +10690,45 @@ export function ScheduleTab({
       }
     }
 
+    // Pair same-time ministries: 2-3 uncompleted ministries at the same time
+    // render side-by-side as squares. 4+ stay stacked.
+    const finalTimedItems: typeof pairedTimedItems = [];
+    let j = 0;
+    while (j < pairedTimedItems.length) {
+      const item = pairedTimedItems[j];
+      if (item.type === "ministry" && !item.data.isCompleted && item.data.startTime) {
+        // Collect all consecutive ministries at the same time
+        const group = [item];
+        let k = j + 1;
+        while (
+          k < pairedTimedItems.length &&
+          pairedTimedItems[k].type === "ministry" &&
+          !pairedTimedItems[k].data.isCompleted &&
+          pairedTimedItems[k].data.startTime === item.data.startTime
+        ) {
+          group.push(pairedTimedItems[k]);
+          k++;
+        }
+        if (group.length >= 2 && group.length <= 3) {
+          // 2-3 at same time: side-by-side squares
+          finalTimedItems.push({
+            type: "ministry-group",
+            id: `ministry-group-${group.map(g => g.id).join("-")}`,
+            data: { ministries: group.map(g => g.data) },
+            sortTime: item.sortTime,
+          });
+          j = k;
+        } else {
+          // 1 or 4+: keep stacked
+          group.forEach(g => finalTimedItems.push(g));
+          j = k;
+        }
+      } else {
+        finalTimedItems.push(item);
+        j += 1;
+      }
+    }
+
     // Pinned holiday cards render first — right after time-off/birthdays,
     // before the chronological flow (and its NOW indicator).
     holidayPinnedItems.forEach((item) => items.push(item));
@@ -10599,17 +10743,17 @@ export function ScheduleTab({
     );
 
     if (selectedDate === todayISO && !liveScheduledCursor?.activeItemId && !nowInWhiteBlock) {
-      const insertionIndex = getCurrentTimeInsertionIndex(pairedTimedItems, currentTimeStr);
-      items.push(...pairedTimedItems.slice(0, insertionIndex));
+      const insertionIndex = getCurrentTimeInsertionIndex(finalTimedItems, currentTimeStr);
+      items.push(...finalTimedItems.slice(0, insertionIndex));
       items.push({
         type: "current-time-indicator",
         id: "current-time",
         data: { currentTime: currentTimeStr },
         sortTime: currentTimeStr,
       });
-      items.push(...pairedTimedItems.slice(insertionIndex));
+      items.push(...finalTimedItems.slice(insertionIndex));
     } else {
-      pairedTimedItems.forEach((item) => items.push(item));
+      finalTimedItems.forEach((item) => items.push(item));
     }
 
     // Add completed events at the end (after current-time-indicator if present)
@@ -11232,6 +11376,35 @@ export function ScheduleTab({
                 );
               }}
             />
+          );
+        }
+        case "ministry-group": {
+          const groupMinistries = item.data.ministries as ScheduleMinistry[];
+          return (
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 12, marginBottom: 8 }}>
+              {groupMinistries.map((m) => (
+                <MinistrySquare
+                  key={m.id}
+                  ministry={m}
+                  groupSize={groupMinistries.length}
+                  onToggle={(position) => {
+                    if (!m.isCompleted) onAwardXP?.("ministry-task", m.id, position);
+                    else onRevokeXP?.("ministry-task", m.id, position);
+                    setMinistries((prev) => toggleMinistryCompleted(prev, m.id));
+                  }}
+                  onEdit={() => {
+                    setEditingMinistry(m);
+                    setFormTitle(m.title);
+                    setFormDate(m.date);
+                    setFormMinistryType(m.type);
+                    setFormStartTime(m.startTime || "");
+                  }}
+                  onDelete={() => {
+                    // Delete handled via edit form
+                  }}
+                />
+              ))}
+            </View>
           );
         }
         case "bible-study": {

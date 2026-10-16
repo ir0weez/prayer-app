@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Animated, Easing, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import {
@@ -970,9 +970,39 @@ function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
 }
 
 /** View-based pawn with bob animation — renders the selected pawn shape, centered, with shine. */
+const PEBBLE_IMAGES: Record<string, any> = {
+  "pebble-mossy": require("@/assets/pawns/pebbles/pebble-mossy.webp"),
+  "pebble-slate": require("@/assets/pawns/pebbles/pebble-slate.webp"),
+  "pebble-ember": require("@/assets/pawns/pebbles/pebble-ember.webp"),
+  "pebble-frost": require("@/assets/pawns/pebbles/pebble-frost.webp"),
+  "pebble-crystal": require("@/assets/pawns/pebbles/pebble-crystal.webp"),
+  "pebble-sand": require("@/assets/pawns/pebbles/pebble-sand.webp"),
+  "pebble-ocean": require("@/assets/pawns/pebbles/pebble-ocean.webp"),
+  "pebble-golden": require("@/assets/pawns/pebbles/pebble-golden.webp"),
+};
+
 function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; size: number }) {
   const id = pawnId || "pebble";
   const anim = useRef(new Animated.Value(0)).current;
+
+  // Image-based pebble creatures
+  const pebbleImage = PEBBLE_IMAGES[id];
+  useEffect(() => {
+    if (!pebbleImage) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pebbleImage]);
+  if (pebbleImage) {
+    return (
+      <Animated.View style={{ transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }}>
+        <Image source={pebbleImage} style={{ width: size * 0.9, height: size * 0.9, borderRadius: size * 0.45 }} />
+      </Animated.View>
+    );
+  }
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation;

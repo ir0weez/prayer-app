@@ -5,7 +5,9 @@ export type FastPawnId =
   | "pebble" | "ring" | "heart" | "star" | "sketch" | "moon"
   | "flame" | "lightning" | "drop" | "diamond" | "leaf" | "chess"
   | "crown" | "prayer" | "fish" | "dove" | "comet" | "shield"
-  | "neon" | "sun";
+  | "neon" | "sun"
+  | "pebble-mossy" | "pebble-slate" | "pebble-ember" | "pebble-frost"
+  | "pebble-crystal" | "pebble-sand" | "pebble-ocean" | "pebble-golden";
 
 export type FastPawnDef = {
   id: FastPawnId;
@@ -41,6 +43,14 @@ export const FAST_PAWNS: FastPawnDef[] = [
   { id: "shield", name: "Shield", level: 85 },
   { id: "neon", name: "Neon", level: 90 },
   { id: "sun", name: "Sun", level: 100 },
+  { id: "pebble-mossy", name: "Mossy Pebble", level: 3 },
+  { id: "pebble-slate", name: "Slate Pebble", level: 7 },
+  { id: "pebble-sand", name: "Sandy Pebble", level: 14 },
+  { id: "pebble-ocean", name: "Ocean Pebble", level: 22 },
+  { id: "pebble-ember", name: "Ember Pebble", level: 33 },
+  { id: "pebble-frost", name: "Frost Pebble", level: 48 },
+  { id: "pebble-crystal", name: "Crystal Pebble", level: 65 },
+  { id: "pebble-golden", name: "Golden Pebble", level: 80 },
 ];
 
 export function isPawnUnlocked(pawn: FastPawnDef, level: number, prayerStreak = 0): boolean {

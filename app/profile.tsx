@@ -439,14 +439,36 @@ export default function ProfileScreen() {
       const nextFasts = [fast, ...fasts];
       persistFasts(nextFasts);
       setSelectedFastId(fast.id);
-      // Reset town for new fast, increment prestige
+      // Check for prestige (town reset with coin->XP conversion)
       try {
-        const prestigeRaw = await AsyncStorage.getItem("prayercircle.hometown.prestige.v1");
-        const currentPrestige = prestigeRaw ? parseInt(prestigeRaw, 10) || 0 : 0;
-        await AsyncStorage.setItem("prayercircle.hometown.prestige.v1", String(currentPrestige + 1));
-        await AsyncStorage.setItem("prayercircle.hometown.coins.v1", JSON.stringify({ balance: 0, lifetimeEarned: 0 }));
-        await AsyncStorage.setItem("prayercircle.hometown.town.v1", JSON.stringify({ buildings: [], decorations: [], roads: [], lastIncomeDate: null }));
-        setPrestigeLevel(currentPrestige + 1);
+        const coinsRaw = await AsyncStorage.getItem("prayercircle.hometown.coins.v1");
+        const coins = coinsRaw ? JSON.parse(coinsRaw) : { balance: 0 };
+        const townRaw = await AsyncStorage.getItem("prayercircle.hometown.town.v1");
+        const hasTown = townRaw && JSON.parse(townRaw).buildings?.length > 0;
+        if (hasTown || (coins.balance || 0) > 0) {
+          const xpGain = Math.floor((coins.balance || 0) * 10);
+          Alert.alert(
+            "Prestige Your Town?",
+            `Start fresh with a new town!\n\nYour ${coins.balance || 0} leftover 🙏 will become ${xpGain} XP.\nYour buildings and roads will reset, but shop purchases stay unlocked.`,
+            [
+              { text: "Keep Town", style: "cancel", onPress: () => {} },
+              {
+                text: "Prestige!",
+                onPress: async () => {
+                  try {
+                    if (xpGain > 0) await awardCustomXP(xpGain, `prestige:${Date.now()}`);
+                    const prestigeRaw = await AsyncStorage.getItem("prayercircle.hometown.prestige.v1");
+                    const currentPrestige = prestigeRaw ? parseInt(prestigeRaw, 10) || 0 : 0;
+                    await AsyncStorage.setItem("prayercircle.hometown.prestige.v1", String(currentPrestige + 1));
+                    await AsyncStorage.setItem("prayercircle.hometown.coins.v1", JSON.stringify({ balance: 0, lifetimeEarned: 0 }));
+                    await AsyncStorage.setItem("prayercircle.hometown.town.v1", JSON.stringify({ buildings: [], decorations: [], roads: [], lastIncomeDate: null }));
+                    setPrestigeLevel(currentPrestige + 1);
+                  } catch {}
+                },
+              },
+            ]
+          );
+        }
       } catch {}
     }
     

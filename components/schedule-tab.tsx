@@ -9045,8 +9045,8 @@ export function ScheduleTab({
   const [formNotes, setFormNotes] = useState("");
   const [formMinistryType, setFormMinistryType] = useState("Outreach");
   const [formDueDate, setFormDueDate] = useState("");
-  const [formBibleBook, setFormBibleBook] = useState("Genesis");
-  const [formBibleChapter, setFormBibleChapter] = useState("1");
+  const [formBibleBook, setFormBibleBook] = useState("");
+  const [formBibleChapter, setFormBibleChapter] = useState("");
   const [formColor, setFormColor] = useState("#6B7280"); // Default gray
   const [formOffEvent, setFormOffEvent] = useState(false);
   const [formPosterImage, setFormPosterImage] = useState<string | null>(null);
@@ -9966,7 +9966,7 @@ export function ScheduleTab({
     setFormTrackTitle("");
     setFormTrackKey("");
     setEditingWorshipAlbumId(null);
-    setFormBibleBook("Genesis");
+    setFormBibleBook("");
     setFormBibleChapter("1");
   };
 
@@ -11373,7 +11373,7 @@ export function ScheduleTab({
                 setFormLocation(item.data.location || "");
                 setFormTravelTimeMinutes(item.data.travelTimeMinutes ? String(item.data.travelTimeMinutes) : "");
                 setFormNotes(item.data.notes || "");
-                setFormBibleBook(item.data.bibleBook || "Genesis");
+                setFormBibleBook(item.data.bibleBook || "");
                 setFormBibleChapter(item.data.bibleChapter || "");
                 setFormColor(item.data.color || "#6366F1");
                 setFormLinkedPeopleIds(item.data.linkedPeopleIds || []);

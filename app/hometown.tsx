@@ -57,7 +57,7 @@ function nextId() {
 export default function HometownScreen() {
   const router = useRouter();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
-  const [town, setTown] = useState<TownState>({ buildings: [], decorations: [], lastIncomeDate: null });
+  const [town, setTown] = useState<TownState>({ buildings: [], decorations: [], roads: [], lastIncomeDate: null });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
@@ -140,6 +140,7 @@ export default function HometownScreen() {
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined =>
     town.buildings.find((b) => b.x === x && b.y === y);
 
+  const roadAt = (x: number, y: number) => (town.roads || []).find(r => r.x === x && r.y === y);
   const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
     town.decorations.find((d) => d.x === x && d.y === y);
 
@@ -177,7 +178,7 @@ export default function HometownScreen() {
             [
               { text: "Cancel", style: "cancel" },
               {
-                text: `Upgrade 🪙${cost}`,
+                text: `Upgrade 🙏${cost}`,
                 onPress: () => {
                   if (coins.balance < cost) {
                     Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance}.`);
@@ -241,6 +242,18 @@ export default function HometownScreen() {
     setSelectedTile(null);
   };
 
+  const handlePlaceRoad = () => {
+    if (!selectedTile) return;
+    if (buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y) || roadAt(selectedTile.x, selectedTile.y)) {
+      Alert.alert("Occupied", "This plot already has something on it.");
+      return;
+    }
+    const road = { id: `r${Date.now()}`, x: selectedTile.x, y: selectedTile.y };
+    const next = { ...town, roads: [...(town.roads || []), road] };
+    saveTown(next);
+    setSelectedTile(null);
+  };
+
   const cellSize = 40;
   const rows = [];
   for (let y = 0; y < TOWN_GRID_SIZE; y++) {
@@ -300,7 +313,7 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 22, fontWeight: "800" }}>🏘️ Hometown</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 16 }}>🪙</Text>
+          <Text style={{ fontSize: 16 }}>🙏</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
@@ -338,6 +351,17 @@ export default function HometownScreen() {
           <Text style={{ fontWeight: "700", marginBottom: 8 }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
           </Text>
+          <Pressable
+            onPress={handlePlaceRoad}
+            style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}
+          >
+            <Text style={{ fontSize: 24 }}>🛣️</Text>
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ fontWeight: "600" }}>Road</Text>
+              <Text style={{ fontSize: 12, color: "#78716C" }}>Connect buildings • +0.5 🙏/day when touching a building</Text>
+            </View>
+            <Text style={{ fontWeight: "700", color: "#22C55E" }}>FREE</Text>
+          </Pressable>
           {availableBuildings.map((type) => {
             const def = BUILDINGS[type];
             const affordable = coins.balance >= def.cost;
@@ -352,7 +376,7 @@ export default function HometownScreen() {
                   <Text style={{ fontWeight: "600" }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: "#78716C" }}>{def.description}</Text>
                 </View>
-                <Text style={{ fontWeight: "700" }}>🪙{def.cost}</Text>
+                <Text style={{ fontWeight: "700" }}>🙏{def.cost}</Text>
               </Pressable>
             );
           })}

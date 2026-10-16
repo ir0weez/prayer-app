@@ -562,10 +562,9 @@ export default function ProfileScreen() {
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontSize: 16 }}>🪙</Text>
-                <Text style={{ marginLeft: 6, fontWeight: '700', fontSize: 14, color: colors.foreground }}>{coins.balance}</Text>
-                <Text style={{ marginLeft: 4, fontSize: 12, color: colors.muted }}>town coins</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
+                <Text style={{ fontSize: 13 }}>🙏</Text>
+                <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{coins.balance}</Text>
               </View>
             </View>
           </View>
@@ -849,7 +848,7 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: 24 }}>🏘️</Text>
               <View style={{ marginLeft: 10, flex: 1 }}>
                 <Text style={{ fontWeight: "700", fontSize: 16 }}>Hometown</Text>
-                <Text style={{ fontSize: 12, color: "#78716C" }}>Build your town with fast coins • 🪙{coins.balance}</Text>
+                <Text style={{ fontSize: 12, color: "#78716C" }}>Build your town with fast coins • 🙏{coins.balance}</Text>
               </View>
               <Text style={{ fontSize: 20 }}>→</Text>
             </Pressable>

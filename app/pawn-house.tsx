@@ -158,7 +158,7 @@ export default function PawnHouseScreen() {
         <Text style={{ fontSize: 22, fontWeight: "800" }}>🏡 Pawn House</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 16 }}>🪙</Text>
+          <Text style={{ fontSize: 16 }}>🙏</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
@@ -175,7 +175,7 @@ export default function PawnHouseScreen() {
           style={{ backgroundColor: "#F59E0B", borderRadius: 12, padding: 12, alignItems: "center", marginBottom: 12 }}
         >
           <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>
-            Expand to {house.size === 4 ? "6x6" : "8x8"} — 🪙{expandCost}
+            Expand to {house.size === 4 ? "6x6" : "8x8"} — 🙏{expandCost}
           </Text>
         </Pressable>
       )}
@@ -194,7 +194,7 @@ export default function PawnHouseScreen() {
               >
                 <Text style={{ fontSize: 24 }}>{def.icon}</Text>
                 <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600" }}>{def.name}</Text>
-                <Text style={{ fontWeight: "700" }}>🪙{def.cost}</Text>
+                <Text style={{ fontWeight: "700" }}>🙏{def.cost}</Text>
               </Pressable>
             );
           })}

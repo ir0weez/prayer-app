@@ -99,28 +99,44 @@ export type PlacedDecoration = {
   y: number;
 };
 
+export type PlacedRoad = {
+  id: string;
+  x: number;
+  y: number;
+};
+
 export type TownState = {
   buildings: PlacedBuilding[];
   decorations: PlacedDecoration[];
+  roads: PlacedRoad[];
   lastIncomeDate: string | null;
 };
 
 export const TOWN_GRID_SIZE = 8;
 
 export function parseTown(value: unknown): TownState {
-  if (!value || typeof value !== "object") return { buildings: [], decorations: [], lastIncomeDate: null };
+  if (!value || typeof value !== "object") return { buildings: [], decorations: [], roads: [], lastIncomeDate: null };
   const t = value as Partial<TownState>;
   return {
     buildings: Array.isArray(t.buildings) ? t.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: b.level === 2 || b.level === 3 ? b.level : 1 as const })) : [],
     decorations: Array.isArray(t.decorations) ? t.decorations.filter(d => d && typeof d.id === "string") : [],
+    roads: Array.isArray(t.roads) ? t.roads.filter(r => r && typeof r.id === "string") : [],
     lastIncomeDate: typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null,
   };
 }
 
 export function dailyIncomeForTown(town: TownState): number {
-  return town.buildings.reduce((sum, b) => {
+  const buildingIncome = town.buildings.reduce((sum, b) => {
     return sum + incomeFor(b.type, b.level || 1);
   }, 0);
+  // Roads: +0.5 coins per road connected to a building
+  const connectedRoads = (town.roads || []).filter(road => {
+    return town.buildings.some(b => 
+      (Math.abs(b.x - road.x) === 1 && b.y === road.y) ||
+      (Math.abs(b.y - road.y) === 1 && b.x === road.x)
+    );
+  });
+  return buildingIncome + (connectedRoads.length * 0.5);
 }
 
 // ---- Pawn House Interior ----

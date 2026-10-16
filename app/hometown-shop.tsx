@@ -53,7 +53,7 @@ export default function HometownShopScreen() {
     }
     Alert.alert(
       `Buy ${item.name}?`,
-      `${item.description}\n\nCost: 🪙${item.cost}`,
+      `${item.description}\n\nCost: 🙏${item.cost}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -82,7 +82,7 @@ export default function HometownShopScreen() {
         <Text style={{ fontSize: 22, fontWeight: "800" }}>🛍️ Town Shop</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 16 }}>🪙</Text>
+          <Text style={{ fontSize: 16 }}>🙏</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
@@ -120,7 +120,7 @@ export default function HometownShopScreen() {
                   </View>
                   {!isOwned && !locked && (
                     <Text style={{ fontWeight: "700", color: affordable ? "#000" : "#999" }}>
-                      🪙{item.cost}
+                      🙏{item.cost}
                     </Text>
                   )}
                 </Pressable>

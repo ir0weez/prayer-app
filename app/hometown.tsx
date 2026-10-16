@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
   BUILDINGS,
+  DECORATIONS,
   COINS_STORAGE_KEY,
   TOWN_GRID_SIZE,
   TOWN_STORAGE_KEY,
@@ -12,11 +13,14 @@ import {
   parseTown,
   tierForFastDay,
   type BuildingType,
+  type DecorationType,
   type HometownCoins,
   type PlacedBuilding,
+  type PlacedDecoration,
   type TownState,
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
+import { SHOP_OWNED_KEY, parseOwnedItems } from "@/lib/hometown";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 
 function daysBetween(a: string, b: string): number {
@@ -50,9 +54,10 @@ function nextId() {
 export default function HometownScreen() {
   const router = useRouter();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
-  const [town, setTown] = useState<TownState>({ buildings: [], lastIncomeDate: null });
+  const [town, setTown] = useState<TownState>({ buildings: [], decorations: [], lastIncomeDate: null });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
+  const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   const saveTown = useCallback((next: TownState) => {
@@ -69,15 +74,17 @@ export default function HometownScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [coinsRaw, townRaw, monumentsRaw] = await Promise.all([
+        const [coinsRaw, townRaw, monumentsRaw, ownedRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
           AsyncStorage.getItem(MONUMENT_STORAGE_KEY),
+          AsyncStorage.getItem(SHOP_OWNED_KEY),
         ]);
         const c = parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         setCoins(c);
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
+        try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
         // Collect business income for missed days
         const today = getTodayISOString();
@@ -104,7 +111,21 @@ export default function HometownScreen() {
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined =>
     town.buildings.find((b) => b.x === x && b.y === y);
 
+  const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
+    town.decorations.find((d) => d.x === x && d.y === y);
+
   const handleTilePress = (x: number, y: number) => {
+    const existingDec = decorationAt(x, y);
+    if (existingDec) {
+      const def = DECORATIONS[existingDec.type];
+      Alert.alert(def.name, "A beautiful decoration.", [
+        { text: "OK" },
+        { text: "Remove", style: "destructive", onPress: () => {
+          saveTown({ ...town, decorations: town.decorations.filter(d => d.id !== existingDec.id) });
+        }},
+      ]);
+      return;
+    }
     const existing = buildingAt(x, y);
     if (existing) {
       if (existing.type === "pawn-house") {
@@ -144,6 +165,21 @@ export default function HometownScreen() {
     (t) => tier >= BUILDINGS[t].tier
   );
 
+  const ownedDecorations = (Object.keys(DECORATIONS) as DecorationType[]).filter(
+    (t) => ownedItems.includes(DECORATIONS[t].shopId)
+  );
+
+  const handlePlaceDecoration = (type: DecorationType) => {
+    if (!selectedTile) return;
+    if (buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y)) {
+      Alert.alert("Occupied", "This plot is already occupied.");
+      return;
+    }
+    const dec: PlacedDecoration = { id: `d${Date.now()}`, type, x: selectedTile.x, y: selectedTile.y };
+    saveTown({ ...town, decorations: [...town.decorations, dec] });
+    setSelectedTile(null);
+  };
+
   const cellSize = 40;
   const rows = [];
   for (let y = 0; y < TOWN_GRID_SIZE; y++) {
@@ -165,6 +201,9 @@ export default function HometownScreen() {
             justifyContent: "center",
           }}
         >
+          {decorationAt(x, y) && (
+            <Text style={{ fontSize: 22 }}>{DECORATIONS[decorationAt(x, y)!.type].icon}</Text>
+          )}
           {b && (
             <View style={{ alignItems: "center" }}>
               <Text style={{ fontSize: 22 }}>{BUILDINGS[b.type].icon}</Text>
@@ -251,6 +290,28 @@ export default function HometownScreen() {
               </Pressable>
             );
           })}
+          {ownedDecorations.length > 0 && (
+            <>
+              <Text style={{ fontWeight: "700", marginTop: 12, marginBottom: 8 }}>Decorations (owned)</Text>
+              {ownedDecorations.map((type) => {
+                const def = DECORATIONS[type];
+                // Check if already placed
+                const alreadyPlaced = town.decorations.some(d => d.type === type);
+                if (alreadyPlaced) return null;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => handlePlaceDecoration(type)}
+                    style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}
+                  >
+                    <Text style={{ fontSize: 24 }}>{def.icon}</Text>
+                    <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600" }}>{def.name}</Text>
+                    <Text style={{ color: "#22C55E", fontWeight: "600" }}>Place</Text>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
           <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
             <Text style={{ color: "#78716C" }}>Cancel</Text>
           </Pressable>

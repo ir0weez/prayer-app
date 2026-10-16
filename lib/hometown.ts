@@ -39,6 +39,19 @@ export type BuildingType =
   | "market"     // business: +8 coins/day (tier 3+)
   | "bank";      // business: +12 coins/day (tier 4)
 
+export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
+
+export const DECORATIONS: Record<DecorationType, {
+  name: string;
+  icon: string;
+  shopId: string;
+}> = {
+  "fountain": { name: "Fountain", icon: "⛲", shopId: "dec-fountain" },
+  "statue":   { name: "Statue",   icon: "🗽", shopId: "dec-statue" },
+  "garden":   { name: "Garden",   icon: "🌷", shopId: "dec-garden" },
+  "lantern":  { name: "Lantern",  icon: "🏮", shopId: "dec-lantern" },
+};
+
 export const BUILDINGS: Record<BuildingType, {
   name: string;
   icon: string;
@@ -63,18 +76,27 @@ export type PlacedBuilding = {
   y: number;
 };
 
+export type PlacedDecoration = {
+  id: string;
+  type: DecorationType;
+  x: number;
+  y: number;
+};
+
 export type TownState = {
   buildings: PlacedBuilding[];
+  decorations: PlacedDecoration[];
   lastIncomeDate: string | null;
 };
 
 export const TOWN_GRID_SIZE = 8;
 
 export function parseTown(value: unknown): TownState {
-  if (!value || typeof value !== "object") return { buildings: [], lastIncomeDate: null };
+  if (!value || typeof value !== "object") return { buildings: [], decorations: [], lastIncomeDate: null };
   const t = value as Partial<TownState>;
   return {
     buildings: Array.isArray(t.buildings) ? t.buildings.filter(b => b && typeof b.id === "string") : [],
+    decorations: Array.isArray(t.decorations) ? t.decorations.filter(d => d && typeof d.id === "string") : [],
     lastIncomeDate: typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null,
   };
 }

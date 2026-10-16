@@ -8880,9 +8880,9 @@ function PrayerCheckInNotice({ people, selectedDate }: { people: Person[]; selec
   return (
     <View style={[scheduleStyles.prayerCheckInNotice, { backgroundColor: 'transparent' }]} accessibilityRole="text">
       <View style={[scheduleStyles.prayerCheckInDot, { backgroundColor: colors.error }]} />
-      <Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground }]} numberOfLines={1}>
+      <Animated.Text style={[scheduleStyles.prayerCheckInText, { color: colors.foreground, opacity: nameOpacity }]} numberOfLines={1}>
         {displayName} hasn’t been reached in {daysSinceReached} days.
-      </Text>
+      </Animated.Text>
     </View>
   );
 }

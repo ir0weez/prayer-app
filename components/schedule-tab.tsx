@@ -8508,7 +8508,11 @@ function MinistryCard({
         style={({ pressed }) => [pressed && { opacity: 0.7 }]}
       >
         <ReAnimated.View style={[animatedCardStyle, glowAnimatedStyle]}>
-          <View style={[ministryStyles.card, { backgroundColor: colors.surface, borderColor: ministry.color || "#7C5CFF", borderWidth: 1.5 }]}>
+          <View style={[ministryStyles.card, {
+            backgroundColor: ministry.type === "Worship" ? "#FFFBEB" : colors.surface,
+            borderColor: ministry.color || "#7C5CFF",
+            borderWidth: 1.5,
+          }]}>
             {/* Mission Ticket - travel info */}
             {ministry.travelTimeMinutes != null && ministry.travelTimeMinutes > 0 && ministry.startTime && (
               <MinistryTicket ministry={ministry} colors={colors} />

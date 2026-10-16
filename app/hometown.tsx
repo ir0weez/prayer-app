@@ -229,7 +229,7 @@ export default function HometownScreen() {
             [
               { text: "Cancel", style: "cancel" },
               {
-                text: `Upgrade 🙏${cost}`,
+                text: `Upgrade 🪙${cost}`,
                 onPress: () => {
                   if (coins.balance < cost) {
                     Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance}.`);
@@ -353,7 +353,7 @@ export default function HometownScreen() {
               style={{ position: "absolute", top: -8, right: -8, zIndex: 10, alignItems: "center" }}
             >
               <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#F59E0B" }}>
-                <Text style={{ fontSize: 12 }}>🙏</Text>
+                <Text style={{ fontSize: 12 }}>🪙</Text>
               </View>
               <Text style={{ fontSize: 9, fontWeight: "700", color: "#92400E", marginTop: 1 }}>
                 +{(b.accumulated || 0).toFixed(1)}
@@ -395,7 +395,7 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 22, fontWeight: "800" }}>🏘️ Hometown</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 16 }}>🙏</Text>
+          <Text style={{ fontSize: 16 }}>🪙</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
@@ -458,7 +458,7 @@ export default function HometownScreen() {
                   <Text style={{ fontWeight: "600" }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: "#78716C" }}>{def.description}</Text>
                 </View>
-                <Text style={{ fontWeight: "700" }}>🙏{def.cost}</Text>
+                <Text style={{ fontWeight: "700" }}>🪙{def.cost}</Text>
               </Pressable>
             );
           })}

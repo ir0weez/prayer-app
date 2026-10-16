@@ -471,17 +471,21 @@ export default function HometownScreen() {
               <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
             </View>
           )}
-          {b && (b.accumulated || 0) > 0 && (
+          {b && incomeFor(b.type, b.level || 1) > 0 && (
             <Pressable
               onPress={() => handleCollectBuilding(b.id)}
               style={{ position: "absolute", top: -8, right: -8, zIndex: 10, alignItems: "center" }}
             >
-              <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#F59E0B" }}>
-                <Text style={{ fontSize: 12 }}>🪙</Text>
+              <View style={{ backgroundColor: (b.accumulated || 0) > 0 ? "#FEF3C7" : "#F3F4F6", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: (b.accumulated || 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>
+                <Text style={{ fontSize: 12, opacity: (b.accumulated || 0) > 0 ? 1 : 0.4 }}>🪙</Text>
               </View>
-              <Text style={{ fontSize: 9, fontWeight: "700", color: "#92400E", marginTop: 1 }}>
-                +{(b.accumulated || 0).toFixed(1)}
-              </Text>
+              {(b.accumulated || 0) > 0 ? (
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#92400E", marginTop: 1 }}>
+                  +{(b.accumulated || 0).toFixed(1)}
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 1 }}>earning</Text>
+              )}
             </Pressable>
           )}
           {b && isOrigin && (

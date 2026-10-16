@@ -10,6 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
+import { COINS_STORAGE_KEY, parseCoins, type HometownCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -145,6 +146,7 @@ export default function ProfileScreen() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [fasts, setFasts] = useState<PersonalFast[]>([]);
   const [monuments, setMonuments] = useState<Record<string, MonumentDesign>>({});
+  const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [selectedFastId, setSelectedFastId] = useState<string | null>(null);
   const [showFastCreator, setShowFastCreator] = useState(false);
   const [isEditingFast, setIsEditingFast] = useState(false);
@@ -205,6 +207,7 @@ export default function ProfileScreen() {
       let isActive = true;
       loadXPState().then((state) => { if (isActive) setProfileLevel(state.level); }).catch(() => undefined);
       AsyncStorage.getItem(MONUMENT_STORAGE_KEY).then(v => { try { setMonuments(parseMonuments(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
+      AsyncStorage.getItem(COINS_STORAGE_KEY).then(v => { try { setCoins(parseCoins(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -304,6 +307,12 @@ export default function ProfileScreen() {
     const heartKey = `fasting-day-missed:${selectedFast.id}:${dateString}`;
     if (status === "completed" && previousStatus !== "completed") {
       void awardXP("fasting-day", `${selectedFast.id}:${dateString}`, position).catch(() => undefined);
+      // Hometown: 1 coin per fast green day
+      setCoins((prev) => {
+        const next = { balance: prev.balance + 1, lifetimeEarned: prev.lifetimeEarned + 1 };
+        AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+        return next;
+      });
       // Special-space bonus, scaled by streak tier.
       const dayNum = selectedFastDays.indexOf(dateString) + 1;
       const special = dayNum > 0 ? getSpecialSpace(dayNum, selectedFast.durationDays) : null;
@@ -551,6 +560,11 @@ export default function ProfileScreen() {
             <View style={[styles.profileCopy, { marginLeft: 12 }]}>
               <Text style={dynamicStyles.profileName}>{profile.name}</Text>
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 16 }}>🪙</Text>
+                <Text style={{ marginLeft: 6, fontWeight: '700', fontSize: 14, color: colors.foreground }}>{coins.balance}</Text>
+                <Text style={{ marginLeft: 4, fontSize: 12, color: colors.muted }}>town coins</Text>
+              </View>
             </View>
           </View>
           <View style={styles.profileButtons}>

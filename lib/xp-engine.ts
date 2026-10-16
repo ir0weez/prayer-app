@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
@@ -369,6 +370,9 @@ export async function loseHeart(idempotencyKey: string, todayStr: string, positi
     totalXP = xpRequiredForLevel(newLevel);
     hearts = maxHeartsForLevel(newLevel);
     leveledDown = newLevel < previousLevel;
+    // Hometown: losing all hearts wipes the town (buildings + pawn house).
+    // Coins and shop purchases are kept so you can rebuild.
+    void AsyncStorage.multiRemove([TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY]).catch(() => undefined);
   }
   const next: XpState = { totalXP, level: getLevelForXP(totalXP), hearts, lastHeartRegenDate: current.lastHeartRegenDate };
   await Promise.all([

@@ -171,6 +171,18 @@ export default function HometownScreen() {
         </View>
       </View>
 
+      <Pressable
+        onPress={() => router.push("/hometown-shop")}
+        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}
+      >
+        <Text style={{ fontSize: 24 }}>🛍️</Text>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>Town Shop</Text>
+          <Text style={{ fontSize: 12, color: "#78716C" }}>Monuments, decorations, pawn skins</Text>
+        </View>
+        <Text style={{ fontSize: 20 }}>→</Text>
+      </Pressable>
+
       <Text style={{ color: "#78716C", marginBottom: 12 }}>
         Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive.
       </Text>

@@ -140,3 +140,40 @@ export function parsePawnHouse(value: unknown): PawnHouseState {
     size: h.size === 6 || h.size === 8 ? h.size : 4,
   };
 }
+
+// ---- Shop ----
+
+export type ShopItemType = "monument" | "decoration" | "pawn-skin";
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  icon: string;
+  cost: number;
+  tier: HometownTier;
+  type: ShopItemType;
+  description: string;
+};
+
+export const SHOP_ITEMS: ShopItem[] = [
+  // Premium monuments (tier 2+)
+  { id: "mon-golden-altar", name: "Golden Altar", icon: "✨", cost: 100, tier: 2, type: "monument", description: "A radiant golden altar for your testimonies." },
+  { id: "mon-crystal-pillar", name: "Crystal Pillar", icon: "💎", cost: 200, tier: 3, type: "monument", description: "A shimmering crystal memorial." },
+  { id: "mon-ancient-well", name: "Ancient Well", icon: "🏺", cost: 350, tier: 4, type: "monument", description: "A well of living water, echoing Abraham." },
+  // Town decorations
+  { id: "dec-fountain", name: "Fountain", icon: "⛲", cost: 80, tier: 2, type: "decoration", description: "A beautiful centerpiece for your town." },
+  { id: "dec-statue", name: "Statue", icon: "🗽", cost: 150, tier: 3, type: "decoration", description: "A monument to faithfulness." },
+  { id: "dec-garden", name: "Garden", icon: "🌷", cost: 60, tier: 1, type: "decoration", description: "Flowers for your townsfolk." },
+  { id: "dec-lantern", name: "Lantern Post", icon: "🏮", cost: 40, tier: 1, type: "decoration", description: "Light for the streets." },
+  // Pawn skins (recolors — detailed faces coming)
+  { id: "pawn-ember", name: "Ember Pawn", icon: "♟️", cost: 120, tier: 2, type: "pawn-skin", description: "A pawn wreathed in warm ember glow." },
+  { id: "pawn-frost", name: "Frost Pawn", icon: "♟️", cost: 200, tier: 3, type: "pawn-skin", description: "A pawn touched by winter's breath." },
+  { id: "pawn-gold", name: "Gilded Pawn", icon: "♟️", cost: 400, tier: 4, type: "pawn-skin", description: "A pawn of pure gold. For the committed." },
+];
+
+export const SHOP_OWNED_KEY = "prayercircle.hometown.shop-owned.v1";
+
+export function parseOwnedItems(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string");
+}

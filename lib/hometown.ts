@@ -144,6 +144,17 @@ export function churchNameFor(level: number): string {
 /** Coins/hour bonus per prayer contact prayed for today. */
 export const CHURCH_PRAYER_COINS_PER_HOUR = 2;
 
+/** Max blessed prayer villagers wandering town (also the prayer-star cap). */
+export const PRAYER_VILLAGER_CAP = 12;
+
+/**
+ * Daily prayer blessing: +3% coin income per prayer contact prayed for today.
+ * Resets each day with the prayer list.
+ */
+export function prayerMult(prayedCount: number): number {
+  return 1 + Math.min(Math.max(prayedCount || 0, 0), PRAYER_VILLAGER_CAP) * 0.03;
+}
+
 /**
  * Count of prayer contacts prayed for today (local date).
  * Reads prayercircle.people.v1 and checks lastPrayerCompletedDate.

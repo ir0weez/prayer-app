@@ -38,7 +38,9 @@ import {
   accrueBankDrips,
   bankFloorMultiplier,
   buildingFootprint,
-  prayedTodayCount,
+  prayedTodayPeople,
+  prayerMult,
+  PRAYER_VILLAGER_CAP,
   churchNameFor,
   CHURCH_PRAYER_COINS_PER_HOUR,
   parseCoins,
@@ -65,6 +67,7 @@ import {
   type TownMapId,
   type MapState,
   type TownState,
+  type PrayedPerson,
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
@@ -733,6 +736,7 @@ export default function HometownScreen() {
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [prayedToday, setPrayedToday] = useState(0);
+  const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
@@ -942,9 +946,15 @@ export default function HometownScreen() {
         try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
         const msMult = milestoneMultiplier(c.lifetimeEarned);
         // Prayer contacts prayed for today boost church income (+2/hr each)
+        // and send blessed villagers into town (+3% income each).
         let prayedCount = 0;
-        try { prayedCount = await prayedTodayCount(); } catch {}
+        try {
+          const people = await prayedTodayPeople();
+          setPrayedPeople(people.slice(0, PRAYER_VILLAGER_CAP));
+          prayedCount = people.length;
+        } catch {}
         setPrayedToday(prayedCount);
+        const prMult = prayerMult(prayedCount);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -963,7 +973,7 @@ export default function HometownScreen() {
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(t);
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult;
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult;
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
                 ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
@@ -1414,6 +1424,16 @@ export default function HometownScreen() {
         );
       })()}
 
+      {/* Prayer blessing chip */}
+      {prayedToday > 0 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start" }}>
+          <Text style={{ fontSize: 14 }}>🙏</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+            {prayedToday} prayed (+{Math.round((prayerMult(prayedToday) - 1) * 100)}% income)
+          </Text>
+        </View>
+      ) : null}
+
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -1576,7 +1596,7 @@ export default function HometownScreen() {
             </View>
           ))}
           {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} />
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} prayerPeople={prayedPeople} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>

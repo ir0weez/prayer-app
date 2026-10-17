@@ -4,7 +4,9 @@ import {
   BUILDINGS,
   buildingFootprint,
   townsfolkForHouse,
+  PRAYER_VILLAGER_CAP,
   type MapState,
+  type PrayedPerson,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
 
@@ -32,6 +34,8 @@ type NpcDef = {
   homeId: string;
   homeTile: Tile;
   color: string;
+  /** Blessed prayer visitor (golden glow) vs. regular house villager. */
+  blessed?: boolean;
 };
 
 type NpcLogic = {
@@ -39,6 +43,7 @@ type NpcLogic = {
   homeId: string;
   homeTile: Tile;
   color: string;
+  blessed?: boolean;
   pos: Animated.ValueXY;
   bob: Animated.Value;
   snore: Animated.Value;
@@ -141,11 +146,14 @@ export function TownNPCs({
   mapState,
   cellSize,
   onBankVisit,
+  prayerPeople,
 }: {
   mapState: MapState;
   cellSize: number;
   /** Called when an NPC arrives at a bank/bank-tower: (buildingId). */
   onBankVisit?: (buildingId: string) => void;
+  /** Prayer contacts prayed for today — each spawns a blessed golden villager. */
+  prayerPeople?: PrayedPerson[];
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -177,8 +185,30 @@ export function TownNPCs({
         });
       }
     }
+    // Blessed prayer visitors: each contact prayed for today sends a golden
+    // villager into town for the day. They gather at the church (or town
+    // center if no church yet) and wander like everyone else.
+    const church = mapState.buildings.find((b) => b.type === "church");
+    const cfp = church ? buildingFootprint(church.level || 1, church.type) : null;
+    const prayerHome: Tile = church && cfp
+      ? { x: church.x + cfp.w / 2 - 0.5, y: church.y + cfp.h / 2 - 0.5 }
+      : { x: 3.5, y: 3.5 };
+    const prayerList = (prayerPeople || []).slice(0, PRAYER_VILLAGER_CAP);
+    for (let pi = 0; pi < prayerList.length; pi++) {
+      const p = prayerList[pi];
+      defs.push({
+        id: `prayer-${p.id}`,
+        homeId: church ? church.id : "prayer-gate",
+        homeTile: {
+          x: prayerHome.x + (pi % 4) * 0.3,
+          y: prayerHome.y + Math.floor(pi / 4) * 0.3,
+        },
+        color: "#FBBF24",
+        blessed: true,
+      });
+    }
     return defs;
-  }, [mapState.buildings]);
+  }, [mapState.buildings, prayerPeople]);
 
   useEffect(() => {
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 });
@@ -323,6 +353,7 @@ export function TownNPCs({
         existing.homeId = def.homeId;
         existing.homeTile = def.homeTile;
         existing.color = def.color;
+        existing.blessed = def.blessed;
         if (existing.state === "idle") {
           existing.anim?.stop();
           existing.anim = null;
@@ -372,6 +403,7 @@ export function TownNPCs({
           homeId: def.homeId,
           homeTile: def.homeTile,
           color: def.color,
+          blessed: def.blessed,
           pos: new Animated.ValueXY(homePx),
           bob,
           snore,
@@ -421,6 +453,7 @@ export function TownNPCs({
         if (!npc) return null;
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
         const asleep = sleepingIds.has(id);
+        const blessed = !!npc.blessed;
         return (
           <Animated.View
             key={id}
@@ -434,6 +467,20 @@ export function TownNPCs({
               transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
             }}
           >
+            {/* golden halo for blessed prayer visitors */}
+            {blessed ? (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: "#FBBF24",
+                  opacity: 0.3,
+                }}
+              />
+            ) : null}
             {/* 💤 while asleep at home */}
             {asleep ? (
               <Animated.Text

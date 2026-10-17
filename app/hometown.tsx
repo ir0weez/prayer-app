@@ -544,7 +544,41 @@ export default function HometownScreen() {
             if (!fits) break;
           }
           if (!fits) {
-            Alert.alert("No Room", "Not enough space to expand this building! Clear adjacent tiles.");
+            const sellPriceNoRoom = Math.floor(BUILDINGS[existing.type].cost * 0.5);
+            Alert.alert(
+              `${def.name} (Lv ${level})`,
+              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${currentIncome} coins/day.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "↔️ Move",
+                  onPress: () => {
+                    setMovingBuilding(existing);
+                    Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
+                      { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
+                      { text: "OK" },
+                    ]);
+                  },
+                },
+                {
+                  text: `💰 Sell ${sellPriceNoRoom}`,
+                  style: "destructive",
+                  onPress: () => {
+                    Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPriceNoRoom} coins?`, [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Sell", style: "destructive", onPress: () => {
+                        saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                        const updatedCoins = {
+                          balance: Math.round((coins.balance + sellPriceNoRoom) * 10) / 10,
+                          lifetimeEarned: coins.lifetimeEarned,
+                        };
+                        saveCoins(updatedCoins);
+                      }},
+                    ]);
+                  },
+                },
+              ]
+            );
             return;
           }
           const cost = upgradeCostFor(existing.type, nextLevel);
@@ -750,18 +784,6 @@ export default function HometownScreen() {
         <View style={{ marginLeft: 10, flex: 1 }}>
           <Text style={{ fontWeight: "700", fontSize: 16 }}>Town Shop</Text>
           <Text style={{ fontSize: 12, color: "#78716C" }}>Monuments, decorations, pawn skins</Text>
-        </View>
-        <Text style={{ fontSize: 20 }}>→</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => router.push("/barbershop")}
-        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}
-      >
-        <Text style={{ fontSize: 24 }}>💈</Text>
-        <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>Barbershop</Text>
-          <Text style={{ fontSize: 12, color: "#78716C" }}>Trim your pawn's beard</Text>
         </View>
         <Text style={{ fontSize: 20 }}>→</Text>
       </Pressable>

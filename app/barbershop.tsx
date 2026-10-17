@@ -25,7 +25,7 @@ import {
   type PawnBeardStyle,
   type PawnHairStyle,
 } from "@/lib/pawn";
-import { COINS_STORAGE_KEY } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY } from "@/lib/hometown";
 
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
@@ -128,17 +128,26 @@ export default function BarbershopScreen() {
   const [ownedBeard, setOwnedBeard] = useState<PawnBeardStyle[]>(["none", "full"]);
   const [loaded, setLoaded] = useState(false);
 
+  const [hasShop, setHasShop] = useState(true);
+
   const refresh = useCallback(async () => {
-    const [p, c, oh, ob] = await Promise.all([
+    const [p, c, oh, ob, townRaw] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadOwnedHairStyles(),
       loadOwnedBeardStyles(),
+      AsyncStorage.getItem(TOWN_STORAGE_KEY),
     ]);
     setPawn(p);
     setCoins(c);
     setOwnedHair(oh);
     setOwnedBeard(ob);
+    // Must have placed a barbershop building to use this screen
+    try {
+      const town = townRaw ? JSON.parse(townRaw) : null;
+      const buildings = town?.buildings || [];
+      setHasShop(buildings.some((b: any) => b.type === "barbershop"));
+    } catch { setHasShop(false); }
     setLoaded(true);
   }, []);
 
@@ -238,6 +247,26 @@ export default function BarbershopScreen() {
 
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: BG }} />;
+  }
+
+  if (!hasShop) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BG, padding: 20, paddingTop: 56, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ fontSize: 48 }}>💈</Text>
+        <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 20, marginTop: 16, textAlign: "center" }}>
+          No Barbershop Yet
+        </Text>
+        <Text style={{ color: "#A78BFA", fontSize: 14, marginTop: 8, textAlign: "center" }}>
+          Place a Barbershop in your Hometown to trim beards and unlock styles.
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginTop: 24, backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 }}
+        >
+          <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Go Back</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   const beardLength = pawn ? beardGrowthFor(pawn) : 0;

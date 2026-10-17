@@ -46,6 +46,8 @@ import { getCompletedBookAvatarIds } from "@/lib/book-avatars";
 import { awardXP, awardCustomXP, loadXPState, loseHeart, restoreHeart, revokeXP, type XpGainPosition } from "@/lib/xp-engine";
 import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { PawnPreview } from "@/components/pawn-preview";
 
 type PersonalProfile = {
   name: string;
@@ -169,6 +171,7 @@ export default function ProfileScreen() {
   const { pawnId, setPawnId } = useFastPawn();
   const { name: pawnName, setName: setPawnName } = usePawnName();
   const { unlocked: petUnlocked, unlock: unlockPet } = usePawnPetUnlocked();
+  const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
   const profileScrollRef = useRef<ScrollView>(null);
   const fastTodayTileRef = useRef<View | null>(null);
   const fastBoardContainerRef = useRef<View | null>(null);
@@ -215,6 +218,7 @@ export default function ProfileScreen() {
       AsyncStorage.getItem(MONUMENT_STORAGE_KEY).then(v => { try { setMonuments(parseMonuments(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       AsyncStorage.getItem(COINS_STORAGE_KEY).then(v => { try { setCoins(parseCoins(v ? JSON.parse(v) : {})); } catch {} }).catch(() => undefined);
       AsyncStorage.getItem(SHOP_OWNED_KEY).then(v => { try { setOwnedShopIds(parseOwnedItems(v ? JSON.parse(v) : [])); } catch {} }).catch(() => undefined);
+      loadCustomPawn().then((p) => { if (isActive) setCustomPawn(p); }).catch(() => undefined);
       Promise.all([
         AsyncStorage.getItem(PROFILE_STORAGE_KEY),
         AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -840,6 +844,7 @@ export default function ProfileScreen() {
                   mood={mood}
                   colors={boardColors}
                   status={todayStatusForPet}
+                  customPawn={customPawn}
                 />
               );
             })()}
@@ -964,6 +969,27 @@ export default function ProfileScreen() {
               );
             })()}
             </View>
+            <Pressable
+              onPress={() => router.push("/pawn-creator")}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}
+            >
+              {customPawn ? (
+                <PawnPreview pawn={customPawn} size={44} />
+              ) : (
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
+                  <MaterialIcons name="brush" size={22} color="#A78BFA" />
+                </View>
+              )}
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: "#FFFFFF" }}>
+                  {customPawn ? (customPawn.name || "Your Pawn") : "Forge Your Pawn"}
+                </Text>
+                <Text style={{ fontSize: 12, color: "#A78BFA" }}>
+                  {customPawn ? "Tap to customize" : "Design your own pawn companion"}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
+            </Pressable>
             <FastPawnPicker
               level={profileLevel}
               prayerStreak={profile.personalPrayerStreak}

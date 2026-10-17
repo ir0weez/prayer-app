@@ -13,6 +13,8 @@ import { FAST_TRIVIA_QUESTIONS } from "@/lib/fast-trivia";
 import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnId } from "@/lib/fast-pawns";
 
 import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
+import { PawnPreview } from "@/components/pawn-preview";
+import type { CustomPawn } from "@/lib/pawn";
 
 export type FastBoardColors = {
   foreground: string;
@@ -798,6 +800,7 @@ export function PawnCompanion({
   mood,
   colors,
   status,
+  customPawn,
 }: {
   pawnId: string;
   pawnName: string | null;
@@ -805,6 +808,7 @@ export function PawnCompanion({
   mood: "celebrating" | "happy" | "content" | "sleepy" | "encouraging" | "building";
   colors: FastBoardColors;
   status?: "completed" | "missed" | "skipped";
+  customPawn?: CustomPawn | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(pawnName || "");
@@ -886,7 +890,11 @@ export function PawnCompanion({
         }}
       />
       {/* Pawn with reaction animations */}
-      <PawnReaction status={status} pawnId={pawnId} color={colors.primary} size={64} />
+      {customPawn ? (
+        <PawnPreview pawn={customPawn} size={72} />
+      ) : (
+        <PawnReaction status={status} pawnId={pawnId} color={colors.primary} size={64} />
+      )}
       {/* Name */}
       {editing ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>

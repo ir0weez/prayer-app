@@ -30,6 +30,8 @@ export type GearItem = {
   cost: number;
   /** fast days required to unlock (0 = none) */
   unlockDays: number;
+  /** shop building level required for this item to appear (1-3) */
+  minShopLevel: 1 | 2 | 3;
   description: string;
   boost: GearBoost;
   visual: GearVisual;
@@ -47,6 +49,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "checkroom",
     cost: 0,
     unlockDays: 0,
+    minShopLevel: 1,
     description: "A humble tunic. Every journey starts somewhere.",
     boost: {},
     visual: { bodyColor: "#D6C9A8" },
@@ -58,6 +61,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "checkroom",
     cost: 20,
     unlockDays: 0,
+    minShopLevel: 1,
     description: "A weathered cloak for the long road.",
     boost: {},
     visual: { bodyColor: "#4A5568", pattern: "collar" },
@@ -69,6 +73,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "workspace-premium",
     cost: 100,
     unlockDays: 40,
+    minShopLevel: 2,
     description: "Fit for one who has walked 40 days in faith.",
     boost: {},
     visual: { bodyColor: "#6D28D9", pattern: "belt" },
@@ -80,6 +85,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "nightlight",
     cost: 200,
     unlockDays: 100,
+    minShopLevel: 3,
     description: "Woven from a hundred days of discipline.",
     boost: {},
     visual: { bodyColor: "#1F2937", pattern: "stripes" },
@@ -92,6 +98,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "shield",
     cost: 30,
     unlockDays: 0,
+    minShopLevel: 1,
     description: "Padded cloth. +1 max heart.",
     boost: { hearts: 1 },
     visual: {},
@@ -103,6 +110,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "security",
     cost: 150,
     unlockDays: 40,
+    minShopLevel: 2,
     description: "Forged resolve. +2 max hearts.",
     boost: { hearts: 2 },
     visual: {},
@@ -115,6 +123,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "hiking",
     cost: 25,
     unlockDays: 0,
+    minShopLevel: 1,
     description: "A pilgrim's staff. +5% XP.",
     boost: { xpMult: 0.05 },
     visual: {},
@@ -126,6 +135,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "swords",
     cost: 120,
     unlockDays: 40,
+    minShopLevel: 2,
     description: "Sharpened by 40 days. +15% XP.",
     boost: { xpMult: 0.15 },
     visual: {},
@@ -137,6 +147,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "bolt",
     cost: 300,
     unlockDays: 100,
+    minShopLevel: 3,
     description: "A blade of first light. +30% XP.",
     boost: { xpMult: 0.3 },
     visual: {},
@@ -149,6 +160,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "construction",
     cost: 40,
     unlockDays: 0,
+    minShopLevel: 1,
     description: "Digs a little deeper. +10% town coins.",
     boost: { coinMult: 0.1 },
     visual: {},
@@ -160,6 +172,7 @@ export const GEAR_CATALOG: GearItem[] = [
     icon: "handyman",
     cost: 180,
     unlockDays: 40,
+    minShopLevel: 2,
     description: "Builds with intention. +25% town coins.",
     boost: { coinMult: 0.25 },
     visual: {},
@@ -169,6 +182,23 @@ export const GEAR_CATALOG: GearItem[] = [
 export const GEAR_BY_ID: Record<string, GearItem> = Object.fromEntries(
   GEAR_CATALOG.map((g) => [g.id, g])
 );
+
+/** Building type that sells each gear type. */
+export const GEAR_SHOP_BUILDINGS: Record<GearType, "clothes-shop" | "armory" | "weaponsmith" | "toolshop"> = {
+  clothes: "clothes-shop",
+  armor: "armory",
+  weapon: "weaponsmith",
+  tool: "toolshop",
+};
+
+/**
+ * Level of the placed shop building for a gear type across all maps (0 when none placed).
+ * Better gear unlocks as the shop is upgraded.
+ */
+export async function shopLevelFor(type: GearType): Promise<number> {
+  const { shopBuildingLevel } = await import("@/lib/hometown");
+  return shopBuildingLevel(GEAR_SHOP_BUILDINGS[type]);
+}
 
 export const GEAR_TYPE_META: Record<GearType, { title: string; route: string }> = {
   clothes: { title: "Clothes Shop", route: "/gear-shop?type=clothes" },

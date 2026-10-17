@@ -27,11 +27,11 @@ export const BEARD_GROWTH_PER_DAY = 12;
 
 export type PawnBeardStyle = "none" | "full" | "goatee" | "mustache";
 
-export const PAWN_BEARD_STYLES: { id: PawnBeardStyle; name: string; cost: number; description: string }[] = [
-  { id: "none", name: "Clean Shaven", cost: 0, description: "No beard, ever." },
-  { id: "full", name: "Full Beard", cost: 0, description: "The classic. Grows wild if you let it." },
-  { id: "goatee", name: "Goatee", cost: 15, description: "Chin patch. Sharp and deliberate." },
-  { id: "mustache", name: "Mustache", cost: 15, description: "Upper lip only. Distinguished." },
+export const PAWN_BEARD_STYLES: { id: PawnBeardStyle; name: string; cost: number; description: string; minShopLevel: 1 | 2 | 3 }[] = [
+  { id: "none", name: "Clean Shaven", cost: 0, description: "No beard, ever.", minShopLevel: 1 },
+  { id: "full", name: "Full Beard", cost: 0, description: "The classic. Grows wild if you let it.", minShopLevel: 1 },
+  { id: "goatee", name: "Goatee", cost: 15, description: "Chin patch. Sharp and deliberate.", minShopLevel: 2 },
+  { id: "mustache", name: "Mustache", cost: 15, description: "Upper lip only. Distinguished.", minShopLevel: 3 },
 ];
 
 export const BEARD_STYLES_STORAGE_KEY = "prayercircle.pawn.beardstyles.v1";
@@ -71,6 +71,15 @@ export async function styleDiscountMult(): Promise<number> {
 export function discountedStylePrice(cost: number, mult: number): number {
   if (cost <= 0) return 0;
   return Math.max(1, Math.ceil(cost * mult));
+}
+
+/**
+ * Level of the placed barbershop across all maps (0 when none placed).
+ * Better styles unlock as the barbershop is upgraded.
+ */
+export async function shopLevelFor(type: "barbershop"): Promise<number> {
+  const { shopBuildingLevel } = await import("@/lib/hometown");
+  return shopBuildingLevel(type);
 }
 
 /** Reset owned styles on prestige (back to defaults). */
@@ -147,17 +156,17 @@ export const PAWN_GENDERS: { id: PawnGender; label: string }[] = [
 
 export type HairStyleGender = "male" | "female" | "both";
 
-export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string; gender: HairStyleGender }[] = [
-  { id: "bald", label: "Bald", cost: 0, description: "Clean and simple.", gender: "both" },
-  { id: "short", label: "Short", cost: 0, description: "Neat and tidy.", gender: "both" },
-  { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides.", gender: "male" },
-  { id: "long", label: "Long", cost: 20, description: "Flowing locks.", gender: "male" },
-  { id: "mohawk", label: "Mohawk", cost: 25, description: "Bold strip down the middle.", gender: "male" },
-  { id: "bun", label: "Bun", cost: 25, description: "Top knot. Stylish.", gender: "male" },
-  { id: "bob", label: "Bob", cost: 15, description: "Chin-length bob.", gender: "female" },
-  { id: "ponytail", label: "Ponytail", cost: 20, description: "High ponytail.", gender: "female" },
-  { id: "braid", label: "Braid", cost: 25, description: "Long braid.", gender: "female" },
-  { id: "pixie", label: "Pixie", cost: 15, description: "Short pixie cut.", gender: "female" },
+export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string; gender: HairStyleGender; minShopLevel: 1 | 2 | 3 }[] = [
+  { id: "bald", label: "Bald", cost: 0, description: "Clean and simple.", gender: "both", minShopLevel: 1 },
+  { id: "short", label: "Short", cost: 0, description: "Neat and tidy.", gender: "both", minShopLevel: 1 },
+  { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides.", gender: "male", minShopLevel: 2 },
+  { id: "long", label: "Long", cost: 20, description: "Flowing locks.", gender: "male", minShopLevel: 2 },
+  { id: "mohawk", label: "Mohawk", cost: 25, description: "Bold strip down the middle.", gender: "male", minShopLevel: 3 },
+  { id: "bun", label: "Bun", cost: 25, description: "Top knot. Stylish.", gender: "male", minShopLevel: 3 },
+  { id: "bob", label: "Bob", cost: 15, description: "Chin-length bob.", gender: "female", minShopLevel: 1 },
+  { id: "ponytail", label: "Ponytail", cost: 20, description: "High ponytail.", gender: "female", minShopLevel: 2 },
+  { id: "braid", label: "Braid", cost: 25, description: "Long braid.", gender: "female", minShopLevel: 2 },
+  { id: "pixie", label: "Pixie", cost: 15, description: "Short pixie cut.", gender: "female", minShopLevel: 1 },
 ];
 
 export const PAWN_HAIR_COLORS: { id: string; name: string }[] = [

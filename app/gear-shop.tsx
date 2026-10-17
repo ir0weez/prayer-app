@@ -18,6 +18,7 @@ import {
   refreshGearBoostCache,
   saveEquipped,
   saveInventory,
+  shopLevelFor,
   type EquippedGear,
   type GearItem,
   type GearType,
@@ -83,23 +84,26 @@ export default function GearShopScreen() {
   const [inventory, setInventory] = useState<string[]>([]);
   const [equipped, setEquipped] = useState<EquippedGear>({ clothes: null, armor: null, weapon: null, tool: null });
   const [fastDay, setFastDay] = useState(1);
+  const [shopLevel, setShopLevel] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, c, inv, eq, day] = await Promise.all([
+    const [p, c, inv, eq, day, lvl] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadInventory(),
       loadEquipped(),
       loadFastDay(),
+      shopLevelFor(shopType),
     ]);
     setPawn(p);
     setCoins(c);
     setInventory(inv);
     setEquipped(eq);
     setFastDay(day);
+    setShopLevel(lvl);
     setLoaded(true);
-  }, []);
+  }, [shopType]);
 
   useEffect(() => {
     refresh();
@@ -113,6 +117,10 @@ export default function GearShopScreen() {
 
   const handleBuy = async (item: GearItem) => {
     if (inventory.includes(item.id)) return;
+    if (item.minShopLevel > shopLevel) {
+      Alert.alert("Locked", `Upgrade your shop to Lv ${item.minShopLevel} to unlock this.`);
+      return;
+    }
     if (!isUnlocked(item, fastDay)) {
       Alert.alert("Locked", `Requires a ${item.unlockDays}-day fast. You're on day ${fastDay}.`);
       return;
@@ -163,7 +171,9 @@ export default function GearShopScreen() {
         </Pressable>
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 24 }}>{meta.title}</Text>
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 24 }}>
+            {meta.title}{shopLevel > 0 ? ` · Lv ${shopLevel}` : ""}
+          </Text>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ fontSize: 16 }}>🪙</Text>
             <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{Math.floor(coins.balance)}</Text>
@@ -184,17 +194,24 @@ export default function GearShopScreen() {
           const owned = inventory.includes(item.id);
           const isEquipped = equipped[item.type] === item.id;
           const unlocked = isUnlocked(item, fastDay);
+          const levelLocked = item.minShopLevel > shopLevel;
+          const blocked = !unlocked || levelLocked;
           const boost = boostLabel(item);
           return (
-            <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: unlocked ? 1 : 0.6 }}>
+            <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(124,92,255,0.25)", alignItems: "center", justifyContent: "center" }}>
-                  <MaterialIcons name={item.icon as any} size={26} color={unlocked ? GOLD : "#6B7280"} />
+                  <MaterialIcons name={item.icon as any} size={26} color={blocked ? "#6B7280" : GOLD} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>{item.name}</Text>
                   <Text style={{ color: LABEL, fontSize: 12, marginTop: 2 }}>{item.description}</Text>
                   {boost && <Text style={{ color: GOLD, fontSize: 12, fontWeight: "700", marginTop: 2 }}>{boost}</Text>}
+                  {levelLocked && (
+                    <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
+                      🔒 Upgrade shop to Lv {item.minShopLevel}
+                    </Text>
+                  )}
                   {!unlocked && (
                     <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
                       🔒 Requires {item.unlockDays}-day fast (day {fastDay})
@@ -206,12 +223,12 @@ export default function GearShopScreen() {
                 {!owned ? (
                   <Pressable
                     onPress={() => handleBuy(item)}
-                    disabled={!unlocked}
+                    disabled={blocked}
                     style={{
                       flex: 1,
                       paddingVertical: 12,
                       borderRadius: 12,
-                      backgroundColor: unlocked ? ACCENT : "rgba(255,255,255,0.12)",
+                      backgroundColor: blocked ? "rgba(255,255,255,0.12)" : ACCENT,
                       alignItems: "center",
                     }}
                   >

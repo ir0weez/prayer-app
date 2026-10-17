@@ -250,6 +250,33 @@ export function parseTown(value: unknown): TownState {
     lastIncomeDate,
   };
 }
+/**
+ * Highest level of any placed building of the given type across all maps.
+ * Used for tiered shop inventory (better stock at higher shop levels).
+ * Returns 0 when no matching building is placed.
+ */
+export async function shopBuildingLevel(type: BuildingType): Promise<number> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+    if (!raw) return 0;
+    const town = parseTown(JSON.parse(raw));
+    let best = 0;
+    for (const mapId of TOWN_MAP_IDS) {
+      const map = town.maps[mapId];
+      if (!map) continue;
+      for (const b of map.buildings) {
+        if (b.type === type && typeof b.level === "number" && b.level > best) {
+          best = b.level;
+        }
+      }
+    }
+    return best;
+  } catch {
+    return 0;
+  }
+}
+
 
 // Roads create a multiplier for connected buildings.
 // Buildings connected via adjacent roads form a network.

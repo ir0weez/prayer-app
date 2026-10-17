@@ -15,6 +15,7 @@ import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnI
 import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
 import { PawnPreview } from "@/components/pawn-preview";
 import type { CustomPawn } from "@/lib/pawn";
+import { loadCustomPawn } from "@/lib/pawn";
 
 export type FastBoardColors = {
   foreground: string;
@@ -1314,6 +1315,25 @@ function WaypointPawn({ pawnId, color, size, waypoint }: {
   );
 }
 
+/** Pawn for today's tile - uses custom pawn if available, centered */
+function TodayPawn({ pawnId, color, size, waypoint }: { pawnId?: string; color: string; size: number; waypoint: any }) {
+  const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
+  
+  useEffect(() => {
+    loadCustomPawn().then(setCustomPawn).catch(() => {});
+  }, []);
+  
+  if (customPawn) {
+    return (
+      <View style={{ alignItems: "center", justifyContent: "center" }}>
+        <PawnPreview pawn={customPawn} size={size * 0.85} />
+      </View>
+    );
+  }
+  
+  return <WaypointPawn pawnId={pawnId} color={color} size={size} waypoint={waypoint} />;
+}
+
 /** Fast View-based day tile. Uses percentage positioning to match the 360 viewBox. */
 const FastTileView = memo(function FastTileView({
   date,
@@ -1420,7 +1440,7 @@ const FastTileView = memo(function FastTileView({
         {isLast && <Text style={{ color: colors.muted, fontSize: 11 }}>✦</Text>}
         {isToday && (
           <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 10, elevation: 10 }}>
-            <WaypointPawn pawnId={pawnId} color={pawnColor} size={size} waypoint={waypoint} />
+            <TodayPawn pawnId={pawnId} color={pawnColor} size={size} waypoint={waypoint} />
           </View>
         )}
       </View>

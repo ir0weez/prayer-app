@@ -547,6 +547,17 @@ export default function HometownScreen() {
         <Pressable
           key={`${x}-${y}`}
           onPress={() => handleTilePress(x, y)}
+          onLongPress={() => {
+            const b = buildingAt(x, y);
+            if (b) {
+              setMovingBuilding(b);
+              setSelectedTile(null);
+              Alert.alert("Move Mode", `Moving ${BUILDINGS[b.type].name}. Tap a new location.`, [
+                { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
+                { text: "OK" },
+              ]);
+            }
+          }}
           style={{
             width: cellSize,
             height: cellSize,
@@ -666,7 +677,7 @@ export default function HometownScreen() {
             <>
               {(() => {
                 const b = buildingAt(selectedTile.x, selectedTile.y);
-                if (b && isBuildingOrigin(b, selectedTile.x, selectedTile.y)) {
+                if (b) {
                   const sellPrice = Math.floor(BUILDINGS[b.type].cost * 0.5);
                   return (
                     <>

@@ -1,0 +1,178 @@
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { PawnPreview } from "@/components/pawn-preview";
+import {
+  BARBERSHOP_TRIM_COST,
+  beardGrowthFor,
+  beardLabel,
+  loadCustomPawn,
+  saveCustomPawn,
+  trimBeard,
+  type CustomPawn,
+} from "@/lib/pawn";
+import { COINS_STORAGE_KEY } from "@/lib/hometown";
+
+const BG = "#1E1B4B";
+const CARD = "rgba(255,255,255,0.08)";
+const LABEL = "#A78BFA";
+const ACCENT = "#7C5CFF";
+
+type Coins = { balance: number; lifetimeEarned: number };
+
+async function loadCoins(): Promise<Coins> {
+  try {
+    const raw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+    if (!raw) return { balance: 0, lifetimeEarned: 0 };
+    const c = JSON.parse(raw);
+    return {
+      balance: typeof c.balance === "number" ? c.balance : 0,
+      lifetimeEarned: typeof c.lifetimeEarned === "number" ? c.lifetimeEarned : 0,
+    };
+  } catch {
+    return { balance: 0, lifetimeEarned: 0 };
+  }
+}
+
+export default function BarbershopScreen() {
+  const router = useRouter();
+  const [pawn, setPawn] = useState<CustomPawn | null>(null);
+  const [coins, setCoins] = useState<Coins>({ balance: 0, lifetimeEarned: 0 });
+  const [loaded, setLoaded] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const [p, c] = await Promise.all([loadCustomPawn(), loadCoins()]);
+    setPawn(p);
+    setCoins(c);
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  const handleTrim = async () => {
+    if (!pawn) return;
+    if (coins.balance < BARBERSHOP_TRIM_COST) {
+      Alert.alert("Not enough coins", `A trim costs ${BARBERSHOP_TRIM_COST} coins. You have ${Math.floor(coins.balance)}.`);
+      return;
+    }
+    const trimmed = trimBeard(pawn);
+    await saveCustomPawn(trimmed);
+    const next: Coins = {
+      balance: Math.round((coins.balance - BARBERSHOP_TRIM_COST) * 10) / 10,
+      lifetimeEarned: coins.lifetimeEarned,
+    };
+    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    setPawn(trimmed);
+    setCoins(next);
+  };
+
+  if (!loaded) {
+    return <View style={{ flex: 1, backgroundColor: BG }} />;
+  }
+
+  const beardLength = pawn ? beardGrowthFor(pawn) : 0;
+  const isMale = pawn?.gender === "male";
+  const canTrim = isMale && beardLength > 0 && coins.balance >= BARBERSHOP_TRIM_COST;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      {/* decorative background shapes */}
+      <View pointerEvents="none" style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(124,92,255,0.18)" }} />
+      <View pointerEvents="none" style={{ position: "absolute", bottom: 120, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(76,29,149,0.35)" }} />
+
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {/* header */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+          <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
+            <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 20, fontWeight: "800", color: "#FFFFFF", textAlign: "center" }}>Barbershop</Text>
+            <Text style={{ fontSize: 13, color: LABEL, textAlign: "center", marginTop: 2 }}>Keep that beard in check</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {!pawn ? (
+          <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 24, alignItems: "center", marginTop: 16 }}>
+            <MaterialIcons name="person-add" size={40} color={LABEL} />
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16, marginTop: 12, textAlign: "center" }}>
+              No pawn yet
+            </Text>
+            <Text style={{ color: LABEL, fontSize: 13, marginTop: 6, textAlign: "center" }}>
+              Forge a pawn first, then come back for a trim.
+            </Text>
+            <Pressable
+              onPress={() => router.push("/pawn-creator")}
+              style={{ marginTop: 16, backgroundColor: ACCENT, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 }}
+            >
+              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Forge Your Pawn</Text>
+            </Pressable>
+          </View>
+        ) : !isMale ? (
+          <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 24, alignItems: "center", marginTop: 16 }}>
+            <PawnPreview pawn={pawn} size={120} />
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16, marginTop: 12, textAlign: "center" }}>
+              {pawn.name || "Your pawn"} is looking sharp
+            </Text>
+            <Text style={{ color: LABEL, fontSize: 13, marginTop: 6, textAlign: "center" }}>
+              Only male pawns grow beards — nothing to trim here.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
+              <PawnPreview pawn={pawn} size={150} />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 18, marginTop: 12 }}>
+                {beardLabel(beardLength)}
+              </Text>
+              <Text style={{ color: LABEL, fontSize: 13, marginTop: 4 }}>
+                Beards grow a little every day. A trim costs {BARBERSHOP_TRIM_COST} coins.
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={handleTrim}
+              disabled={!canTrim}
+              style={{
+                marginTop: 20,
+                paddingVertical: 14,
+                borderRadius: 14,
+                backgroundColor: canTrim ? ACCENT : "rgba(255,255,255,0.12)",
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="content-cut" size={20} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 8 }}>
+                Trim Beard ({BARBERSHOP_TRIM_COST} coins)
+              </Text>
+            </Pressable>
+            {!canTrim && beardLength <= 0 && (
+              <Text style={{ color: LABEL, fontSize: 12, textAlign: "center", marginTop: 8 }}>
+                Already clean shaven — check back tomorrow.
+              </Text>
+            )}
+            {!canTrim && beardLength > 0 && coins.balance < BARBERSHOP_TRIM_COST && (
+              <Text style={{ color: LABEL, fontSize: 12, textAlign: "center", marginTop: 8 }}>
+                Not enough coins for a trim right now.
+              </Text>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

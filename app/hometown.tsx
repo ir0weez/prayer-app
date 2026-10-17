@@ -675,6 +675,18 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 20 }}>→</Text>
       </Pressable>
 
+      <Pressable
+        onPress={() => router.push("/barbershop")}
+        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}
+      >
+        <Text style={{ fontSize: 24 }}>💈</Text>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>Barbershop</Text>
+          <Text style={{ fontSize: 12, color: "#78716C" }}>Trim your pawn's beard</Text>
+        </View>
+        <Text style={{ fontSize: 20 }}>→</Text>
+      </Pressable>
+
       <Text style={{ color: "#78716C", marginBottom: 12 }}>
         Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive.
       </Text>

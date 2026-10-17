@@ -7,6 +7,8 @@ import {
   PAWN_ACCESSORIES,
   PAWN_BODY_COLORS,
   PAWN_EYE_STYLES,
+  PAWN_GENDERS,
+  PAWN_HAIR_STYLES,
   PAWN_MOUTH_STYLES,
   defaultPawn,
   loadCustomPawn,
@@ -14,6 +16,8 @@ import {
   type CustomPawn,
   type PawnAccessory,
   type PawnEyeStyle,
+  type PawnGender,
+  type PawnHairStyle,
   type PawnMouthStyle,
 } from "@/lib/pawn";
 
@@ -112,6 +116,51 @@ export default function PawnCreatorScreen() {
           })}
         </View>
 
+        {/* gender */}
+        <SectionLabel>GENDER</SectionLabel>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          {PAWN_GENDERS.map((opt) => {
+            const selected = draft.gender === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => set("gender", opt.id as PawnGender)}
+                style={{ flex: 1, paddingVertical: 12, alignItems: "center", backgroundColor: CARD, borderRadius: 12, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+              >
+                <MaterialIcons name={opt.id === "male" ? "male" : "female"} size={22} color={selected ? "#FFFFFF" : LABEL} />
+                <Text style={{ fontSize: 13, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* hair */}
+        <SectionLabel>HAIR STYLE</SectionLabel>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+          {PAWN_HAIR_STYLES.map((opt) => {
+            const selected = draft.hairStyle === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => set("hairStyle", opt.id as PawnHairStyle)}
+                style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
+              >
+                <PawnPreview pawn={{ ...draft, hairStyle: opt.id as PawnHairStyle, eyeStyle: "round", mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
+                <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {draft.gender === "male" && (
+          <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
+            <MaterialIcons name="content-cut" size={20} color={LABEL} />
+            <Text style={{ fontSize: 12, color: LABEL, marginLeft: 8, flex: 1 }}>
+              Beards grow over time. Visit the barbershop to trim.
+            </Text>
+            <MaterialIcons name="chevron-right" size={20} color={LABEL} />
+          </Pressable>
+        )}
+
         {/* eyes */}
         <SectionLabel>EYES</SectionLabel>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
@@ -123,7 +172,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("eyeStyle", opt.id as PawnEyeStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, eyeStyle: opt.id as PawnEyeStyle, mouthStyle: "flat", accessory: "none" }} size={52} />
+                <PawnPreview pawn={{ ...draft, eyeStyle: opt.id as PawnEyeStyle, mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -141,7 +190,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("mouthStyle", opt.id as PawnMouthStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, mouthStyle: opt.id as PawnMouthStyle, eyeStyle: "round", accessory: "none" }} size={52} />
+                <PawnPreview pawn={{ ...draft, mouthStyle: opt.id as PawnMouthStyle, eyeStyle: "round", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -159,7 +208,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("accessory", opt.id as PawnAccessory)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, accessory: opt.id as PawnAccessory, eyeStyle: "round", mouthStyle: "smile" }} size={52} />
+                <PawnPreview pawn={{ ...draft, accessory: opt.id as PawnAccessory, eyeStyle: "round", mouthStyle: "smile", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );

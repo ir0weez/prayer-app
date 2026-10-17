@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import type { CustomPawn, PawnAccessory, PawnEyeStyle, PawnGender, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
+import type { CustomPawn, PawnAccessory, PawnBeardStyle, PawnEyeStyle, PawnGender, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
 import { beardGrowthFor, hairGrowthFor } from "@/lib/pawn";
 import type { GearItem } from "@/lib/gear";
 
@@ -88,14 +88,15 @@ function Mouth({ style, s }: { style: PawnMouthStyle; s: number }) {
 
 /** Flat, minimal hair (Notion-style). s = head width. */
 function Hair({ style, s, length = 0 }: { style: PawnHairStyle; s: number; length?: number }) {
-  // length 0-100 scales the side/back hair: at 0 only the cap shows, grows longer with length
-  const sideScale = 0.3 + (length / 100) * 0.7;
+  // length 0-100: dramatic growth. At 0, just the cap. At 100, long flowing hair.
+  // sideScale goes from 0.2 (barely there) to 1.6 (very long)
+  const sideScale = 0.2 + (length / 100) * 1.4;
   switch (style) {
     case "bald":
       return null;
     case "short":
       return (
-        <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * (0.18 + (length / 100) * 0.12), backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+        <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * (0.18 + (length / 100) * 0.22), backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
       );
     case "medium":
       return (
@@ -128,32 +129,39 @@ function Hair({ style, s, length = 0 }: { style: PawnHairStyle; s: number; lengt
 }
 
 /** Beard that grows with time (male pawns only). length 0-100. */
-function Beard({ length, s }: { length: number; s: number }) {
-  if (length <= 0) return null;
+function Beard({ length, s, style = "full" }: { length: number; s: number; style?: PawnBeardStyle }) {
+  if (length <= 0 || style === "none") return null;
   if (length <= 33) {
-    // stubble: scattered dots along the jaw
-    const dots: { left: number; top: number }[] = [
-      { left: 0.3, top: 0.62 }, { left: 0.42, top: 0.68 }, { left: 0.58, top: 0.68 },
-      { left: 0.7, top: 0.62 }, { left: 0.36, top: 0.74 }, { left: 0.5, top: 0.78 },
-      { left: 0.64, top: 0.74 }, { left: 0.5, top: 0.62 },
-    ];
-    const d = s * 0.035;
+    // stubble: subtle 5-o'clock shadow on the jaw (not dots)
+    const shadowW = style === "mustache" ? { left: s * 0.32, right: s * 0.32 } : style === "goatee" ? { left: s * 0.38, right: s * 0.38 } : { left: s * 0.22, right: s * 0.22 };
     return (
-      <>
-        {dots.map((p, i) => (
-          <View key={i} style={{ position: "absolute", left: s * p.left - d / 2, top: s * p.top - d / 2, width: d, height: d, borderRadius: d / 2, backgroundColor: "#9CA3AF" }} />
-        ))}
-      </>
+      <View style={{ position: "absolute", ...shadowW, top: s * 0.58, height: s * 0.24, backgroundColor: HAIR, opacity: 0.18, borderBottomLeftRadius: s * 0.12, borderBottomRightRadius: s * 0.12 }} />
+    );
+  }
+  if (style === "mustache") {
+    // mustache only: sits above the mouth
+    const w = s * 0.34;
+    const h = s * (length <= 66 ? 0.07 : 0.1);
+    return (
+      <View style={{ position: "absolute", top: s * 0.52, left: s * 0.5 - w / 2, width: w, height: h, backgroundColor: HAIR, borderRadius: s * 0.035 }} />
+    );
+  }
+  if (style === "goatee") {
+    // goatee: chin patch only
+    const w = s * 0.3;
+    const h = s * (length <= 66 ? 0.22 : 0.36);
+    return (
+      <View style={{ position: "absolute", top: s * 0.6, left: s * 0.5 - w / 2, width: w, height: h, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.1, borderBottomRightRadius: s * 0.1, borderTopLeftRadius: s * 0.04, borderTopRightRadius: s * 0.04 }} />
     );
   }
   if (length <= 66) {
-    // short beard: jaw + chin coverage
+    // short full beard: jaw + chin coverage
     const w = s * 0.56;
     return (
       <View style={{ position: "absolute", top: s * 0.52, left: s * 0.5 - w / 2, width: w, height: s * 0.3, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.14, borderBottomRightRadius: s * 0.14, borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06 }} />
     );
   }
-  // long beard: extends below the chin
+  // long full beard: extends below the chin
   const w = s * 0.6;
   return (
     <View style={{ position: "absolute", top: s * 0.52, left: s * 0.5 - w / 2, width: w, height: s * 0.48, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.2, borderBottomRightRadius: s * 0.2, borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06 }} />
@@ -245,7 +253,7 @@ export function PawnPreview({ pawn, size = 120, equippedGear }: { pawn: CustomPa
           <Hair style={pawn.hairStyle} s={headD} length={hairLength} />
           <Eyes style={pawn.eyeStyle} s={headD} />
           <Mouth style={pawn.mouthStyle} s={headD} />
-          <Beard length={beardLength} s={headD} />
+          <Beard length={beardLength} s={headD} style={pawn.beardStyle} />
         </View>
         {/* Accessories sit on the head */}
         <View style={{ position: "absolute", top: -headD * 0.28, width: headD, height: headD * 0.5 }}>

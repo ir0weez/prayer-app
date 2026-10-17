@@ -7,15 +7,23 @@ import { useFocusEffect } from "@react-navigation/native";
 import { PawnPreview } from "@/components/pawn-preview";
 import {
   BARBERSHOP_TRIM_COST,
+  PAWN_BEARD_STYLES,
+  PAWN_HAIR_STYLES,
   beardGrowthFor,
   beardLabel,
   cutHair,
   hairGrowthFor,
   hairLabel,
   loadCustomPawn,
+  loadOwnedBeardStyles,
+  loadOwnedHairStyles,
   saveCustomPawn,
+  saveOwnedBeardStyles,
+  saveOwnedHairStyles,
   trimBeard,
   type CustomPawn,
+  type PawnBeardStyle,
+  type PawnHairStyle,
 } from "@/lib/pawn";
 import { COINS_STORAGE_KEY } from "@/lib/hometown";
 
@@ -25,6 +33,78 @@ const LABEL = "#A78BFA";
 const ACCENT = "#7C5CFF";
 
 type Coins = { balance: number; lifetimeEarned: number };
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <Text style={{ color: LABEL, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginTop: 24, marginBottom: 10 }}>
+      {title}
+    </Text>
+  );
+}
+
+function StyleGridItem({
+  preview,
+  name,
+  owned,
+  equipped,
+  cost,
+  canAfford,
+  onBuy,
+  onEquip,
+}: {
+  preview: React.ReactNode;
+  name: string;
+  owned: boolean;
+  equipped: boolean;
+  cost: number;
+  canAfford: boolean;
+  onBuy: () => void;
+  onEquip: () => void;
+}) {
+  return (
+    <View
+      style={{
+        width: "31%",
+        backgroundColor: CARD,
+        borderRadius: 14,
+        padding: 10,
+        alignItems: "center",
+        marginBottom: 12,
+        borderWidth: equipped ? 2 : 0,
+        borderColor: "#FFFFFF",
+      }}
+    >
+      {preview}
+      <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 12, marginTop: 6, textAlign: "center" }}>{name}</Text>
+      {owned ? (
+        equipped ? (
+          <Text style={{ color: ACCENT, fontWeight: "800", fontSize: 12, marginTop: 6 }}>Equipped</Text>
+        ) : (
+          <Pressable
+            onPress={onEquip}
+            style={{ marginTop: 6, backgroundColor: "rgba(124,92,255,0.25)", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 12 }}>Equip</Text>
+          </Pressable>
+        )
+      ) : (
+        <Pressable
+          onPress={onBuy}
+          disabled={!canAfford}
+          style={{
+            marginTop: 6,
+            backgroundColor: canAfford ? ACCENT : "rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 12 }}>🪙 {cost}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
 async function loadCoins(): Promise<Coins> {
   try {
@@ -44,12 +124,21 @@ export default function BarbershopScreen() {
   const router = useRouter();
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [coins, setCoins] = useState<Coins>({ balance: 0, lifetimeEarned: 0 });
+  const [ownedHair, setOwnedHair] = useState<PawnHairStyle[]>(["bald", "short"]);
+  const [ownedBeard, setOwnedBeard] = useState<PawnBeardStyle[]>(["none", "full"]);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, c] = await Promise.all([loadCustomPawn(), loadCoins()]);
+    const [p, c, oh, ob] = await Promise.all([
+      loadCustomPawn(),
+      loadCoins(),
+      loadOwnedHairStyles(),
+      loadOwnedBeardStyles(),
+    ]);
     setPawn(p);
     setCoins(c);
+    setOwnedHair(oh);
+    setOwnedBeard(ob);
     setLoaded(true);
   }, []);
 
@@ -95,6 +184,56 @@ export default function BarbershopScreen() {
     await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
     setPawn(cut);
     setCoins(next);
+  };
+
+  const deductCoins = async (cost: number): Promise<boolean> => {
+    if (coins.balance < cost) {
+      Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${Math.floor(coins.balance)}.`);
+      return false;
+    }
+    const next: Coins = {
+      balance: Math.round((coins.balance - cost) * 10) / 10,
+      lifetimeEarned: coins.lifetimeEarned,
+    };
+    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    setCoins(next);
+    return true;
+  };
+
+  const handleBuyHair = async (id: PawnHairStyle, cost: number) => {
+    if (!pawn) return;
+    if (!(await deductCoins(cost))) return;
+    const nextOwned = ownedHair.includes(id) ? ownedHair : [...ownedHair, id];
+    await saveOwnedHairStyles(nextOwned);
+    setOwnedHair(nextOwned);
+    const updated = { ...pawn, hairStyle: id };
+    await saveCustomPawn(updated);
+    setPawn(updated);
+  };
+
+  const handleEquipHair = async (id: PawnHairStyle) => {
+    if (!pawn) return;
+    const updated = { ...pawn, hairStyle: id };
+    await saveCustomPawn(updated);
+    setPawn(updated);
+  };
+
+  const handleBuyBeard = async (id: PawnBeardStyle, cost: number) => {
+    if (!pawn) return;
+    if (!(await deductCoins(cost))) return;
+    const nextOwned = ownedBeard.includes(id) ? ownedBeard : [...ownedBeard, id];
+    await saveOwnedBeardStyles(nextOwned);
+    setOwnedBeard(nextOwned);
+    const updated = { ...pawn, beardStyle: id };
+    await saveCustomPawn(updated);
+    setPawn(updated);
+  };
+
+  const handleEquipBeard = async (id: PawnBeardStyle) => {
+    if (!pawn) return;
+    const updated = { ...pawn, beardStyle: id };
+    await saveCustomPawn(updated);
+    setPawn(updated);
   };
 
   if (!loaded) {
@@ -171,6 +310,27 @@ export default function BarbershopScreen() {
                 Cut Hair ({BARBERSHOP_TRIM_COST} coins)
               </Text>
             </Pressable>
+
+            <SectionHeader title="HAIR STYLES" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+              {PAWN_HAIR_STYLES.map((s) => {
+                const owned = ownedHair.includes(s.id);
+                const equipped = pawn.hairStyle === s.id;
+                return (
+                  <StyleGridItem
+                    key={s.id}
+                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} />}
+                    name={s.label}
+                    owned={owned}
+                    equipped={equipped}
+                    cost={s.cost}
+                    canAfford={coins.balance >= s.cost}
+                    onBuy={() => handleBuyHair(s.id, s.cost)}
+                    onEquip={() => handleEquipHair(s.id)}
+                  />
+                );
+              })}
+            </View>
           </>
         ) : (
           <>
@@ -240,6 +400,51 @@ export default function BarbershopScreen() {
                 Cut Hair ({BARBERSHOP_TRIM_COST} coins)
               </Text>
             </Pressable>
+
+            <SectionHeader title="HAIR STYLES" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+              {PAWN_HAIR_STYLES.map((s) => {
+                const owned = ownedHair.includes(s.id);
+                const equipped = pawn.hairStyle === s.id;
+                return (
+                  <StyleGridItem
+                    key={s.id}
+                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} />}
+                    name={s.label}
+                    owned={owned}
+                    equipped={equipped}
+                    cost={s.cost}
+                    canAfford={coins.balance >= s.cost}
+                    onBuy={() => handleBuyHair(s.id, s.cost)}
+                    onEquip={() => handleEquipHair(s.id)}
+                  />
+                );
+              })}
+            </View>
+
+            <SectionHeader title="BEARD STYLES" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+              {PAWN_BEARD_STYLES.map((s) => {
+                const owned = ownedBeard.includes(s.id);
+                const equipped = pawn.beardStyle === s.id;
+                return (
+                  <StyleGridItem
+                    key={s.id}
+                    preview={<PawnPreview pawn={{ ...pawn, beardStyle: s.id, beardLength: 55 }} size={64} />}
+                    name={s.name}
+                    owned={owned}
+                    equipped={equipped}
+                    cost={s.cost}
+                    canAfford={coins.balance >= s.cost}
+                    onBuy={() => handleBuyBeard(s.id, s.cost)}
+                    onEquip={() => handleEquipBeard(s.id)}
+                  />
+                );
+              })}
+            </View>
+            <Text style={{ color: LABEL, fontSize: 12, textAlign: "center", marginTop: 4 }}>
+              Styles you buy are yours forever.
+            </Text>
           </>
         )}
       </ScrollView>

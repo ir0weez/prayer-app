@@ -10,6 +10,7 @@ import {
   PAWN_GENDERS,
   PAWN_HAIR_STYLES,
   PAWN_BODY_STYLES,
+  loadOwnedHairStyles,
   PAWN_MOUTH_STYLES,
   defaultPawn,
   loadCustomPawn,
@@ -40,12 +41,14 @@ export default function PawnCreatorScreen() {
   const router = useRouter();
   const [draft, setDraft] = useState<CustomPawn>(() => defaultPawn());
   const [loaded, setLoaded] = useState(false);
+  const [ownedHair, setOwnedHair] = useState<string[]>(["bald", "short"]);
 
   useEffect(() => {
     loadCustomPawn().then((p) => {
       if (p) setDraft(p);
       setLoaded(true);
     });
+    loadOwnedHairStyles().then(setOwnedHair);
   }, []);
 
   const set = <K extends keyof CustomPawn>(key: K, value: CustomPawn[K]) =>
@@ -71,7 +74,7 @@ export default function PawnCreatorScreen() {
       <View pointerEvents="none" style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: "rgba(124,92,255,0.18)" }} />
       <View pointerEvents="none" style={{ position: "absolute", bottom: 120, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: "rgba(76,29,149,0.35)" }} />
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 56, paddingBottom: 40 }}>
         {/* header */}
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
           <Pressable onPress={() => router.back()} style={{ padding: 8, marginLeft: -8 }}>
@@ -160,7 +163,7 @@ export default function PawnCreatorScreen() {
         {/* hair */}
         <SectionLabel>HAIR STYLE</SectionLabel>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-          {PAWN_HAIR_STYLES.map((opt) => {
+          {PAWN_HAIR_STYLES.filter((opt) => ownedHair.includes(opt.id)).map((opt) => {
             const selected = draft.hairStyle === opt.id;
             return (
               <Pressable
@@ -174,15 +177,13 @@ export default function PawnCreatorScreen() {
             );
           })}
         </View>
-        {draft.gender === "male" && (
-          <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
-            <MaterialIcons name="content-cut" size={20} color={LABEL} />
-            <Text style={{ fontSize: 12, color: LABEL, marginLeft: 8, flex: 1 }}>
-              Beards grow over time. Visit the barbershop to trim.
-            </Text>
-            <MaterialIcons name="chevron-right" size={20} color={LABEL} />
-          </Pressable>
-        )}
+        <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
+          <MaterialIcons name="content-cut" size={20} color={LABEL} />
+          <Text style={{ fontSize: 12, color: LABEL, marginLeft: 8, flex: 1 }}>
+            Unlock more hair & beard styles at the barbershop. Beards grow over time.
+          </Text>
+          <MaterialIcons name="chevron-right" size={20} color={LABEL} />
+        </Pressable>
 
         {/* eyes */}
         <SectionLabel>EYES</SectionLabel>

@@ -21,8 +21,41 @@ export const PAWN_BODY_STYLES: { id: PawnBodyStyle; name: string }[] = [
   { id: "stocky", name: "Stocky" },
 ];
 
-export const HAIR_GROWTH_PER_DAY = 10;
+export const HAIR_GROWTH_PER_DAY = 12;
 export const HAIR_MAX = 100;
+export const BEARD_GROWTH_PER_DAY = 12;
+
+export type PawnBeardStyle = "none" | "full" | "goatee" | "mustache";
+
+export const PAWN_BEARD_STYLES: { id: PawnBeardStyle; name: string; cost: number; description: string }[] = [
+  { id: "none", name: "Clean Shaven", cost: 0, description: "No beard, ever." },
+  { id: "full", name: "Full Beard", cost: 0, description: "The classic. Grows wild if you let it." },
+  { id: "goatee", name: "Goatee", cost: 15, description: "Chin patch. Sharp and deliberate." },
+  { id: "mustache", name: "Mustache", cost: 15, description: "Upper lip only. Distinguished." },
+];
+
+export const BEARD_STYLES_STORAGE_KEY = "prayercircle.pawn.beardstyles.v1";
+
+export async function loadOwnedBeardStyles(): Promise<PawnBeardStyle[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(BEARD_STYLES_STORAGE_KEY);
+    if (!raw) return ["none", "full"];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return ["none", "full"];
+    const valid = arr.filter((s): s is PawnBeardStyle => ["none", "full", "goatee", "mustache"].includes(s));
+    if (!valid.includes("none")) valid.push("none");
+    if (!valid.includes("full")) valid.push("full");
+    return valid;
+  } catch { return ["none", "full"]; }
+}
+
+export async function saveOwnedBeardStyles(styles: PawnBeardStyle[]): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(BEARD_STYLES_STORAGE_KEY, JSON.stringify(styles));
+  } catch {}
+}
 
 export type CustomPawn = {
   id: string;
@@ -38,7 +71,8 @@ export type CustomPawn = {
   beardLength: number;
   /** ISO timestamp of the last trim (baseline for growth). */
   lastTrim: string;
-  /** Hair length (0-100) at the time of lastHaircut. Grows +10/day. */
+  beardStyle: PawnBeardStyle;
+  /** Hair length (0-100) at the time of lastHaircut. Grows +12/day. */
   hairLength: number;
   /** ISO timestamp of the last haircut (baseline for growth). */
   lastHaircut: string;
@@ -84,16 +118,38 @@ export const PAWN_GENDERS: { id: PawnGender; label: string }[] = [
   { id: "female", label: "Female" },
 ];
 
-export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string }[] = [
-  { id: "bald", label: "Bald" },
-  { id: "short", label: "Short" },
-  { id: "medium", label: "Medium" },
-  { id: "long", label: "Long" },
-  { id: "mohawk", label: "Mohawk" },
-  { id: "bun", label: "Bun" },
+export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string }[] = [
+  { id: "bald", label: "Bald", cost: 0, description: "Clean and simple." },
+  { id: "short", label: "Short", cost: 0, description: "Neat and tidy." },
+  { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides." },
+  { id: "long", label: "Long", cost: 20, description: "Flowing locks." },
+  { id: "mohawk", label: "Mohawk", cost: 25, description: "Bold strip down the middle." },
+  { id: "bun", label: "Bun", cost: 25, description: "Top knot. Stylish." },
 ];
 
-export const BEARD_GROWTH_PER_DAY = 15;
+export const HAIR_STYLES_STORAGE_KEY = "prayercircle.pawn.hairstyles.v1";
+
+export async function loadOwnedHairStyles(): Promise<PawnHairStyle[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(HAIR_STYLES_STORAGE_KEY);
+    if (!raw) return ["bald", "short"];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return ["bald", "short"];
+    const valid = arr.filter((s): s is PawnHairStyle => ["bald", "short", "medium", "long", "mohawk", "bun"].includes(s));
+    if (!valid.includes("bald")) valid.push("bald");
+    if (!valid.includes("short")) valid.push("short");
+    return valid;
+  } catch { return ["bald", "short"]; }
+}
+
+export async function saveOwnedHairStyles(styles: PawnHairStyle[]): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(HAIR_STYLES_STORAGE_KEY, JSON.stringify(styles));
+  } catch {}
+}
+
 export const BEARD_MAX = 100;
 export const BARBERSHOP_TRIM_COST = 5;
 
@@ -125,6 +181,7 @@ export function defaultPawn(): CustomPawn {
     gender: "male",
     hairStyle: "short",
     bodyStyle: "pebble",
+    beardStyle: "full",
     beardLength: 0,
     lastTrim: now,
     hairLength: 0,
@@ -152,6 +209,7 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
     gender: isGender(p.gender) ? p.gender : "male",
     hairStyle: isHairStyle(p.hairStyle) ? p.hairStyle : "short",
     bodyStyle: ["pebble", "round", "tall", "stocky"].includes(p.bodyStyle as string) ? (p.bodyStyle as PawnBodyStyle) : "pebble",
+    beardStyle: ["none", "full", "goatee", "mustache"].includes(p.beardStyle as string) ? (p.beardStyle as PawnBeardStyle) : "full",
     beardLength,
     lastTrim: typeof p.lastTrim === "string" ? p.lastTrim : new Date().toISOString(),
     hairLength: typeof p.hairLength === "number" && isFinite(p.hairLength) ? Math.max(0, Math.min(HAIR_MAX, p.hairLength)) : 0,

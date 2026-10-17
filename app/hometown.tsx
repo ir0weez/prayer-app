@@ -814,6 +814,8 @@ export default function HometownScreen() {
             const fp = buildingFootprint(b.level || 1);
             const hasIncome = incomeFor(b.type, b.level || 1) > 0;
             if (!hasIncome) return null;
+            // Only show the coin once something has accumulated
+            if (!(b.accumulated && b.accumulated > 0)) return null;
             return (
               <View
                 key={`coin-${b.id}`}

@@ -5,8 +5,7 @@ import { useRouter } from "expo-router";
 import {
   BUILDINGS,
   DECORATIONS,
-  COINS_STORAGE_KEY,
-  TOWN_GRID_SIZE,
+  COINS_STORAGE_KEY,  TOWN_GRID_SIZE,
   TOWN_STORAGE_KEY,
   SHOP_OWNED_KEY,
   MAP_INFO,
@@ -69,6 +68,7 @@ import {
   type TownState,
   type PrayedPerson,
 } from "@/lib/hometown";
+import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
@@ -964,6 +964,9 @@ export default function HometownScreen() {
         } catch {}
         setPrayedToday(prayedCount);
         const prMult = prayerMult(prayedCount);
+        // Pawn house rooms + desirables boost coin income
+        let houseCoinMult = 0;
+        try { houseCoinMult = (await refreshHouseBonusCache()).coinMult; } catch {}
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -982,7 +985,7 @@ export default function HometownScreen() {
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(t);
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult;
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * (1 + houseCoinMult);
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
                 ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
@@ -1016,7 +1019,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned));
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult);
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);

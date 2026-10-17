@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
 import { getCachedBoosts, refreshGearBoostCache } from "./gear";
 import { getCachedStatBoosts, refreshStatBoostCache, grantStatPointsForLevel } from "./character-stats";
+import { getCachedHouseBonuses } from "./pawn-house";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
@@ -206,7 +207,14 @@ export function applyXPAward(state: XpState, action: XpAction): XpAwardResult {
     statMult = statBoosts.fastXpMult;
   }
   // Gear XP multiplier (weapons).
-  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult + statMult));
+  // Pawn house room bonuses: bedroom boosts all XP; bathroom/kitchen/study
+  // boost their category.
+  const house = getCachedHouseBonuses();
+  let houseMult = house.allXpMult;
+  if (PRAYER_XP_ACTIONS.includes(action)) houseMult += house.prayerXpMult;
+  else if (BIBLE_XP_ACTIONS.includes(action)) houseMult += house.bibleXpMult;
+  else if (action === "fasting-day") houseMult += house.fastXpMult;
+  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult + statMult + houseMult));
   const totalXP = previous.totalXP + points;
   const level = getLevelForXP(totalXP);
   // Crossing a heart milestone immediately grants the new heart.

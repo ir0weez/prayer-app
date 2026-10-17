@@ -801,8 +801,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult), 0);
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

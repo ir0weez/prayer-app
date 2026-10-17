@@ -10,7 +10,6 @@ import {
   PAWN_GENDERS,
   PAWN_HAIR_STYLES,
   PAWN_BODY_STYLES,
-  loadOwnedHairStyles,
   PAWN_MOUTH_STYLES,
   defaultPawn,
   loadCustomPawn,
@@ -41,14 +40,12 @@ export default function PawnCreatorScreen() {
   const router = useRouter();
   const [draft, setDraft] = useState<CustomPawn>(() => defaultPawn());
   const [loaded, setLoaded] = useState(false);
-  const [ownedHair, setOwnedHair] = useState<string[]>(["bald", "short"]);
 
   useEffect(() => {
     loadCustomPawn().then((p) => {
       if (p) setDraft(p);
       setLoaded(true);
     });
-    loadOwnedHairStyles().then(setOwnedHair);
   }, []);
 
   const set = <K extends keyof CustomPawn>(key: K, value: CustomPawn[K]) =>
@@ -160,27 +157,11 @@ export default function PawnCreatorScreen() {
           })}
         </View>
 
-        {/* hair */}
-        <SectionLabel>HAIR STYLE</SectionLabel>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-          {PAWN_HAIR_STYLES.filter((opt) => ownedHair.includes(opt.id)).map((opt) => {
-            const selected = draft.hairStyle === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => set("hairStyle", opt.id as PawnHairStyle)}
-                style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
-              >
-                <PawnPreview pawn={{ ...draft, hairStyle: opt.id as PawnHairStyle, eyeStyle: "round", mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
-                <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
+        {/* barbershop link for hair/beard */}
+        <Pressable onPress={() => router.push("/barbershop")} style={{ marginTop: 8, marginBottom: 8, flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 12, padding: 12 }}>
           <MaterialIcons name="content-cut" size={20} color={LABEL} />
           <Text style={{ fontSize: 12, color: LABEL, marginLeft: 8, flex: 1 }}>
-            Unlock more hair & beard styles at the barbershop. Beards grow over time.
+            Hair & beard styles live at the barbershop. Beards grow over time.
           </Text>
           <MaterialIcons name="chevron-right" size={20} color={LABEL} />
         </Pressable>

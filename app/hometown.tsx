@@ -35,6 +35,7 @@ import {
   FRENZY_COOLDOWN_MS,
   FRENZY_MULT,
   bankInteriorBonus,
+  accrueBankDrips,
   bankFloorMultiplier,
   buildingFootprint,
   parseCoins,
@@ -663,6 +664,47 @@ export default function HometownScreen() {
     });
   }, [activeMap]);
 
+  /**
+   * NPC bank visit bonus: a townsfolk/commuter arriving at a bank or
+   * bank-tower adds +1 coin × building level to that building's
+   * tap-to-collect total. Capped at 5 visit bonuses per bank per hour.
+   */
+  const handleBankVisit = useCallback((buildingId: string) => {
+    const hourBucket = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+    setTown(prev => {
+      const maps = { ...prev.maps };
+      let changed = false;
+      for (const mapId of TOWN_MAP_IDS) {
+        const m = maps[mapId];
+        const idx = m.buildings.findIndex(b => b.id === buildingId);
+        if (idx === -1) continue;
+        const b = m.buildings[idx];
+        const count = b.visitBonusHour === hourBucket ? (b.visitBonusCount || 0) : 0;
+        if (count >= 5) break; // hourly cap reached
+        const bonus = Math.max(1, b.level || 1);
+        maps[mapId] = {
+          ...m,
+          buildings: m.buildings.map(x =>
+            x.id === buildingId
+              ? {
+                  ...x,
+                  accumulated: Math.round(((x.accumulated || 0) + bonus) * 10) / 10,
+                  visitBonusCount: count + 1,
+                  visitBonusHour: hourBucket,
+                }
+              : x
+          ),
+        };
+        changed = true;
+        break;
+      }
+      if (!changed) return prev;
+      const updated = { ...prev, maps };
+      AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+      return updated;
+    });
+  }, []);
+
   const saveCoins = useCallback((next: HometownCoins) => {
     setCoins(next);
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
@@ -768,8 +810,10 @@ export default function HometownScreen() {
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
         // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
-        // Preload bank interior bonuses (async) for bank/bank-tower buildings
-        const interiorBonuses: Record<string, { mult: number; flatPerDay: number }> = {};
+        // Preload bank interior bonuses (async) for bank/bank-tower buildings.
+        // ATM & vault bonuses drip as collectible coins INSIDE the bank (tapped
+        // in the interior), so they are not part of the auto hourly add.
+        const interiorBonuses: Record<string, Awaited<ReturnType<typeof bankInteriorBonus>>> = {};
         try {
           const bankIds: string[] = [];
           for (const id of TOWN_MAP_IDS) {
@@ -789,6 +833,8 @@ export default function HometownScreen() {
         try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
         const msMult = milestoneMultiplier(c.lifetimeEarned);
         const newMaps = { ...t.maps };
+        // ATM/vault drip accruals, applied after the loop (async storage writes)
+        const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
@@ -800,14 +846,20 @@ export default function HometownScreen() {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
-              const ib = interiorBonuses[b.id] ?? { mult: 1, flatPerDay: 0 };
+              const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(t);
+              const basePerHour = 0.5 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult;
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult
-                    + (hoursElapsed * ib.flatPerDay) / 24
+                ? hoursElapsed * basePerHour
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
+              // ATM & vault bonuses drip as collectible coins inside the bank
+              // interior instead of auto-adding to the building total.
+              if (earnsCoins && (b.type === "bank" || b.type === "bank-tower") &&
+                  (ib.vaultDrips.length > 0 || ib.atmDrips.length > 0)) {
+                dripOps.push({ buildingId: b.id, hours: hoursElapsed, basePerHour });
+              }
               return {
                 ...b,
                 accumulated: Math.round(((b.accumulated || 0) + add) * 10) / 10,
@@ -819,6 +871,10 @@ export default function HometownScreen() {
           newMaps[id] = { ...m, buildings: updatedBuildings };
         }
         t = { ...t, maps: newMaps };
+        // Accrue ATM/vault drips onto interior furniture (collectible inside)
+        try {
+          await Promise.all(dripOps.map((op) => accrueBankDrips(op.buildingId, op.hours, op.basePerHour)));
+        } catch {}
 
         // Collect business income for missed days (all maps)
         const lastDate = t.lastIncomeDate;
@@ -1404,7 +1460,7 @@ export default function HometownScreen() {
             </View>
           ))}
           {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
-          <TownNPCs mapState={map} cellSize={cellSize} />
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -1416,6 +1472,7 @@ export default function HometownScreen() {
                 mapState={map}
                 cellSize={cellSize}
                 hometownNpcCount={countHometownNpcs(town.maps.town.buildings)}
+                onBankVisit={handleBankVisit}
               />
             </>
           )}

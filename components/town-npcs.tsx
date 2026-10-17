@@ -47,6 +47,8 @@ type NpcLogic = {
   px: number;
   py: number;
   anim: Animated.CompositeAnimation | null;
+  destBuildingId?: string;
+  destType?: string;
 };
 
 const tileKey = (x: number, y: number) => `${x},${y}`;
@@ -133,10 +135,21 @@ export function countHometownNpcs(townBuildings: { type: string; level?: number 
   return Math.min(total, MAX_NPCS);
 }
 
-export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize: number }) {
+export function TownNPCs({
+  mapState,
+  cellSize,
+  onBankVisit,
+}: {
+  mapState: MapState;
+  cellSize: number;
+  /** Called when an NPC arrives at a bank/bank-tower: (buildingId). */
+  onBankVisit?: (buildingId: string) => void;
+}) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
   mapStateRef.current = mapState;
+  const visitRef = useRef(onBankVisit);
+  visitRef.current = onBankVisit;
   const [renderIds, setRenderIds] = useState<string[]>([]);
 
   // NPCs per house scale with house level (L1=2 … L5/Mansion=6). Nothing else is residential.
@@ -165,7 +178,7 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 });
     const logic = logicRef.current;
 
-    const pickDestination = (npc: NpcLogic): Tile | null => {
+    const pickDestination = (npc: NpcLogic): { tile: Tile; buildingId: string; type: string } | null => {
       const ms = mapStateRef.current;
       const businesses = ms.buildings.filter((b) => {
         if (b.id === npc.homeId) return false;
@@ -180,7 +193,11 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
       if (pool.length === 0) return null;
       const b = pool[Math.floor(Math.random() * pool.length)];
       const fp = buildingFootprint(b.level || 1, b.type);
-      return { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 };
+      return {
+        tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+        buildingId: b.id,
+        type: b.type,
+      };
     };
 
     const arrive = (npc: NpcLogic) => {
@@ -188,6 +205,12 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
       if (npc.state === "walking") {
         npc.state = "visiting";
         npc.waitUntil = now + 3000 + Math.random() * 5000;
+        // Visiting a bank? Customers doing business — bonus coins for the bank.
+        if ((npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
+          try {
+            visitRef.current?.(npc.destBuildingId);
+          } catch {}
+        }
       } else if (npc.state === "returning") {
         npc.state = "idle";
         npc.waitUntil = now + 2000 + Math.random() * 4000;
@@ -228,8 +251,10 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
             continue;
           }
           const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
-          npc.waypoints = buildPath(mapStateRef.current, fromTile, dest, cellSize);
+          npc.waypoints = buildPath(mapStateRef.current, fromTile, dest.tile, cellSize);
           npc.wpIndex = 0;
+          npc.destBuildingId = dest.buildingId;
+          npc.destType = dest.type;
           npc.state = "walking";
           stepNpc(npc);
         } else if (npc.state === "visiting" && now >= npc.waitUntil) {
@@ -390,6 +415,8 @@ type CityNpcLogic = {
   py: number;
   anim: Animated.CompositeAnimation | null;
   visitsLeft: number;
+  destBuildingId?: string;
+  destType?: string;
 };
 
 // Slightly more "downtown" palette for city folk
@@ -404,11 +431,15 @@ const CITY_NPC_COLORS = [
   "#22D3EE",
 ];
 
-function cityBuildingCenterTiles(mapState: MapState): Tile[] {
-  const out: Tile[] = [];
+function cityBuildingCenterTiles(mapState: MapState): { tile: Tile; id: string; type: string }[] {
+  const out: { tile: Tile; id: string; type: string }[] = [];
   for (const b of mapState.buildings) {
     const fp = buildingFootprint(b.level || 1, b.type, !!(b as any).plotId);
-    out.push({ x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 });
+    out.push({
+      tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+      id: b.id,
+      type: b.type,
+    });
   }
   return out;
 }
@@ -440,16 +471,21 @@ export function CityNPCs({
   mapState,
   cellSize,
   hometownNpcCount,
+  onBankVisit,
 }: {
   mapState: MapState;
   cellSize: number;
   hometownNpcCount: number;
+  /** Called when a commuter arrives at a bank/bank-tower: (buildingId). */
+  onBankVisit?: (buildingId: string) => void;
 }) {
   const logicRef = useRef<Record<string, CityNpcLogic>>({});
   const mapStateRef = useRef(mapState);
   mapStateRef.current = mapState;
   const countRef = useRef(hometownNpcCount);
   countRef.current = hometownNpcCount;
+  const visitRef = useRef(onBankVisit);
+  visitRef.current = onBankVisit;
   const nextSpawnAt = useRef<number>(0);
   const [renderIds, setRenderIds] = useState<string[]>([]);
 
@@ -532,6 +568,16 @@ export function CityNPCs({
       }
       npc.state = "visiting";
       npc.waitUntil = now + (npc.kind === "worker" ? 2000 + Math.random() * 2500 : 3000 + Math.random() * 4000);
+      // Commuter visiting a bank? Customers doing business — bonus coins for the bank.
+      if (
+        npc.kind === "commuter" &&
+        (npc.destType === "bank" || npc.destType === "bank-tower") &&
+        npc.destBuildingId
+      ) {
+        try {
+          visitRef.current?.(npc.destBuildingId);
+        } catch {}
+      }
     };
 
     const pickWorkerDest = (npc: CityNpcLogic): Tile | null => {
@@ -544,7 +590,7 @@ export function CityNPCs({
       return per[Math.floor(Math.random() * per.length)];
     };
 
-    const pickCommuterDest = (): Tile | null => {
+    const pickCommuterDest = (): { tile: Tile; id: string; type: string } | null => {
       const ms = mapStateRef.current;
       const spots = cityBuildingCenterTiles(ms);
       if (spots.length === 0) return null;
@@ -562,15 +608,26 @@ export function CityNPCs({
         nextSpawnAt.current = now + 9000 + Math.random() * 9000;
         setRenderIds(Object.keys(logic));
       }
+      const startWalk = (npc: CityNpcLogic, dest: Tile | { tile: Tile; id: string; type: string }) => {
+        const tile = (dest as { tile?: Tile }).tile ?? (dest as Tile);
+        const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
+        npc.waypoints = buildPath(mapStateRef.current, fromTile, tile, cellSize);
+        npc.wpIndex = 0;
+        if ((dest as { id?: string }).id) {
+          npc.destBuildingId = (dest as { id: string }).id;
+          npc.destType = (dest as { type: string }).type;
+        } else {
+          npc.destBuildingId = undefined;
+          npc.destType = undefined;
+        }
+        npc.state = "walking";
+        stepNpc(npc);
+      };
       for (const npc of Object.values(logic)) {
         if (npc.state === "idle" && now >= npc.waitUntil) {
           const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest();
           if (!dest) { npc.waitUntil = now + 4000; continue; }
-          const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
-          npc.waypoints = buildPath(mapStateRef.current, fromTile, dest, cellSize);
-          npc.wpIndex = 0;
-          npc.state = "walking";
-          stepNpc(npc);
+          startWalk(npc, dest);
         } else if (npc.state === "visiting" && now >= npc.waitUntil) {
           if (npc.kind === "commuter") {
             npc.visitsLeft -= 1;
@@ -579,6 +636,8 @@ export function CityNPCs({
               const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
               npc.waypoints = buildPath(mapStateRef.current, fromTile, randomEdgeTile(), cellSize);
               npc.wpIndex = 0;
+              npc.destBuildingId = undefined;
+              npc.destType = undefined;
               npc.state = "leaving";
               stepNpc(npc);
               continue;
@@ -586,11 +645,7 @@ export function CityNPCs({
           }
           const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest();
           if (!dest) { npc.waitUntil = now + 4000; continue; }
-          const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
-          npc.waypoints = buildPath(mapStateRef.current, fromTile, dest, cellSize);
-          npc.wpIndex = 0;
-          npc.state = "walking";
-          stepNpc(npc);
+          startWalk(npc, dest);
         }
       }
     };

@@ -335,6 +335,10 @@ export type PlacedBuilding = {
   workers?: number; // hired townsfolk (0-3), each +10% output
   accumulated?: number;
   lastTick?: string;
+  /** NPC bank-visit bonus tracking: count of visit bonuses in the current hour bucket. */
+  visitBonusCount?: number;
+  /** Hour bucket (YYYY-MM-DDTHH) for visitBonusCount — max 5 visit bonuses per bank per hour. */
+  visitBonusHour?: string;
 };
 
 export type PlacedDecoration = {
@@ -853,6 +857,10 @@ export type BankFurnitureItem = {
   y: number;
   /** Price paid — sold back at full refund. */
   cost: number;
+  /** Uncollected drip coins sitting on this item (ATMs & vaults). Tap in the interior to collect. */
+  pending?: number;
+  /** ISO timestamp of the last drip accrual for this item. */
+  lastTick?: string;
 };
 
 /** One floor's layout inside a bank building. */
@@ -1056,6 +1064,12 @@ export function parseBankInterior(value: unknown): BankInteriorState {
             x: i.x as number,
             y: i.y as number,
             cost: (i as { cost: number }).cost,
+            ...(typeof (i as { pending?: unknown }).pending === "number"
+              ? { pending: (i as { pending: number }).pending }
+              : {}),
+            ...(typeof (i as { lastTick?: unknown }).lastTick === "string"
+              ? { lastTick: (i as { lastTick: string }).lastTick }
+              : {}),
           }))
       : [];
   // Migrate legacy flat shape { desks, carpets } -> floors["1"]
@@ -1123,37 +1137,113 @@ export function connectedDeskCount(items: { desks: BankInteriorItem[]; carpets: 
   return connected;
 }
 
+export type BankDripItem = { id: string; floor: number; perDay: number };
+
 /**
- * Full interior bonus for a bank building: desk network + furniture bonuses
- * aggregated across ALL floors. Returns a multiplier plus flat coins/day
- * (ATMs). This feeds the hourly coin accumulation, so furniture bonuses show
- * up in the building's tap-to-collect total.
+ * Interior bonus for a bank building, split into two parts:
+ * - `mult`: auto-applied multiplier (desk network + non-vault furniture %).
+ *   This still feeds hourly coin accumulation directly.
+ * - `vaultDrips` / `atmDrips`: per-item coin drips that accumulate as
+ *   collectible `pending` coins ON the furniture inside the bank interior.
+ *   ATMs drip their flat coins/day; vaults drip their % as coins against the
+ *   bank's hourly base income. Tapping the coin inside moves it to the
+ *   building's tap-to-collect total.
  */
-export async function bankInteriorBonus(buildingId: string): Promise<{ mult: number; flatPerDay: number }> {
+export async function bankInteriorBonus(buildingId: string): Promise<{
+  mult: number;
+  vaultDrips: BankDripItem[];
+  atmDrips: BankDripItem[];
+}> {
   try {
     const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     const raw = await AsyncStorage.getItem(bankInteriorKey(buildingId));
-    if (!raw) return { mult: 1, flatPerDay: 0 };
+    if (!raw) return { mult: 1, vaultDrips: [], atmDrips: [] };
     const state = parseBankInterior(JSON.parse(raw));
     let mult = 1;
-    let flatPerDay = 0;
+    const vaultDrips: BankDripItem[] = [];
+    const atmDrips: BankDripItem[] = [];
     for (const [floorKey, floorInterior] of Object.entries(state.floors)) {
       const floor = parseInt(floorKey, 10) || 1;
       mult += connectedDeskCount(floorInterior) * bankDeskBonusPerDesk(floor);
       for (const item of floorInterior.furniture) {
         const def = bankFurnitureDef(item.type, floor);
         if (!def) continue;
-        mult += def.effectPct / 100;
-        flatPerDay += def.flatPerDay;
+        if (item.type === "vault") {
+          // Vault % becomes a collectible drip instead of an auto multiplier.
+          // perDay is resolved against the bank's base income at accrual time.
+          vaultDrips.push({ id: item.id, floor, perDay: -1 });
+        } else if (item.type === "atm") {
+          atmDrips.push({ id: item.id, floor, perDay: def.flatPerDay });
+        } else {
+          mult += def.effectPct / 100;
+        }
       }
     }
-    return { mult, flatPerDay };
+    return { mult, vaultDrips, atmDrips };
   } catch {
-    return { mult: 1, flatPerDay: 0 };
+    return { mult: 1, vaultDrips: [], atmDrips: [] };
   }
 }
 
-/** Interior multiplier only (desk network + furniture %). Loads interior from storage by building ID. */
+/**
+ * Accrue collectible drip coins onto a bank's ATM & vault furniture.
+ * - `hoursElapsed`: whole hours since the last tick.
+ * - `basePerHour`: the bank's hourly coin add BEFORE vault/atm bonuses
+ *   (the full hourly chain minus the drip parts). Each vault drips
+ *   basePerHour × its % per hour; each ATM drips flatPerDay/24 per hour.
+ * Writes `pending` onto each item in interior storage. No-op when there is
+ * nothing to accrue.
+ */
+export async function accrueBankDrips(
+  buildingId: string,
+  hoursElapsed: number,
+  basePerHour: number
+): Promise<void> {
+  if (hoursElapsed <= 0 || basePerHour <= 0) return;
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const key = bankInteriorKey(buildingId);
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return;
+    const state = parseBankInterior(JSON.parse(raw));
+    let touched = false;
+    const now = new Date().toISOString();
+    for (const [floorKey, floorInterior] of Object.entries(state.floors)) {
+      const floor = parseInt(floorKey, 10) || 1;
+      let floorTouched = false;
+      const nextFurniture = floorInterior.furniture.map((item) => {
+        if (item.type !== "atm" && item.type !== "vault") return item;
+        const def = bankFurnitureDef(item.type, floor);
+        if (!def) return item;
+        let drip = 0;
+        if (item.type === "atm") {
+          drip = (def.flatPerDay / 24) * hoursElapsed;
+        } else {
+          // vault: its % expressed as coins against the bank's hourly base
+          drip = basePerHour * (def.effectPct / 100) * hoursElapsed;
+        }
+        if (drip <= 0) return item;
+        floorTouched = true;
+        return {
+          ...item,
+          pending: Math.round(((item.pending || 0) + drip) * 10) / 10,
+          lastTick: now,
+        };
+      });
+      if (floorTouched) {
+        touched = true;
+        state.floors[floorKey] = { ...floorInterior, furniture: nextFurniture };
+      }
+    }
+    if (touched) {
+      await AsyncStorage.setItem(key, JSON.stringify(state));
+    }
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Interior multiplier only (desk network + furniture %, vaults excluded — they drip). Loads interior from storage by building ID. */
 export async function bankDeskMultiplier(buildingId: string): Promise<number> {
   return (await bankInteriorBonus(buildingId)).mult;
 }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -112,6 +112,204 @@ function DeskShape({ connected }: { connected: boolean }) {
 
 type MoveKind = "desk" | "carpet" | "furniture";
 
+const VISITOR_COLORS = ["#F9A8D4", "#93C5FD", "#86EFAC", "#FDE68A", "#C4B5FD", "#FDBA74"];
+
+/** Tiny pulsing coin that sits on an ATM/vault with uncollected drip coins. Tap to collect. */
+function DripCoin({ amount, onCollect }: { amount: number; onCollect: () => void }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+  }, [pulse]);
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
+  const label = amount >= 10 ? `${Math.round(amount)}` : `${Math.round(amount * 10) / 10}`;
+  return (
+    <Pressable
+      onPress={onCollect}
+      style={{ position: "absolute", right: 1, top: -4, alignItems: "center", zIndex: 5 }}
+    >
+      <Animated.View
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: "#FBBF24",
+          borderWidth: 2,
+          borderColor: "#B45309",
+          alignItems: "center",
+          justifyContent: "center",
+          transform: [{ scale }],
+          shadowColor: "#B45309",
+          shadowOpacity: 0.35,
+          shadowRadius: 3,
+          shadowOffset: { width: 0, height: 1 },
+        }}
+      >
+        <Text style={{ fontSize: 10, fontWeight: "900", color: "#92400E" }}>¢</Text>
+      </Animated.View>
+      <Text style={{ fontSize: 9, fontWeight: "800", color: "#92400E", marginTop: 1 }}>+{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Tiny visitor NPCs wandering the bank floor (prefer carpet tiles). Purely visual. */
+function BankInteriorVisitors({
+  floorInterior,
+  cellSize,
+  w,
+  h,
+  count,
+}: {
+  floorInterior: BankFloorInterior;
+  cellSize: number;
+  w: number;
+  h: number;
+  count: number;
+}) {
+  const logicRef = useRef<Record<string, { pos: Animated.ValueXY; bob: Animated.Value; px: number; py: number; anim: Animated.CompositeAnimation | null; waitUntil: number }>>({});
+  const [, force] = useState(0);
+
+  const spots = useMemo(() => {
+    const carpets = floorInterior.carpets.map((c) => ({ x: c.x, y: c.y }));
+    if (carpets.length > 0) return carpets;
+    const all: { x: number; y: number }[] = [];
+    for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) all.push({ x, y });
+    return all;
+  }, [floorInterior.carpets, w, h]);
+  const spotsRef = useRef(spots);
+  spotsRef.current = spots;
+
+  useEffect(() => {
+    const toPx = (t: { x: number; y: number }) => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize });
+    const logic = logicRef.current;
+    const ids: string[] = [];
+    for (let i = 0; i < Math.max(0, Math.min(3, count)); i++) ids.push(`biv${i}`);
+
+    for (const id of ids) {
+      if (!logic[id]) {
+        const start = spotsRef.current[Math.floor(Math.random() * spotsRef.current.length)] ?? { x: 0, y: 0 };
+        const p = toPx(start);
+        const bob = new Animated.Value(0);
+        const bobDur = 900 + Math.random() * 600;
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(bob, { toValue: 1, duration: bobDur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(bob, { toValue: 0, duration: bobDur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ])
+        ).start();
+        logic[id] = {
+          pos: new Animated.ValueXY(p),
+          bob,
+          px: p.x,
+          py: p.y,
+          anim: null,
+          waitUntil: Date.now() + 1000 + Math.random() * 3000,
+        };
+      }
+    }
+    for (const id of Object.keys(logic)) {
+      if (!ids.includes(id)) {
+        logic[id].anim?.stop();
+        delete logic[id];
+      }
+    }
+    force((n) => n + 1);
+
+    const step = (id: string) => {
+      const v = logic[id];
+      if (!v) return;
+      const dest = spotsRef.current[Math.floor(Math.random() * spotsRef.current.length)];
+      if (!dest) return;
+      const p = toPx(dest);
+      const dist = Math.hypot(p.x - v.px, p.y - v.py);
+      const duration = Math.max(400, (dist / 34) * 1000);
+      v.anim?.stop();
+      v.anim = Animated.timing(v.pos, {
+        toValue: { x: p.x, y: p.y },
+        duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      });
+      v.anim.start(({ finished }) => {
+        if (!finished) return;
+        v.px = p.x;
+        v.py = p.y;
+        v.waitUntil = Date.now() + 2000 + Math.random() * 3000;
+      });
+    };
+
+    // Wander driver: each visitor walks to a random spot, waits, walks again.
+    const stops = ids.map((id) => {
+      let alive = true;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const loop = () => {
+        if (!alive || !logic[id]) return;
+        step(id);
+        const check = () => {
+          if (!alive || !logic[id]) return;
+          if (Date.now() >= logic[id].waitUntil) loop();
+          else timer = setTimeout(check, 600);
+        };
+        timer = setTimeout(check, 600);
+      };
+      timer = setTimeout(loop, 1200 + Math.random() * 2500);
+      return () => {
+        alive = false;
+        if (timer) clearTimeout(timer);
+      };
+    });
+    return () => {
+      stops.forEach((stop) => stop());
+      for (const id of Object.keys(logic)) logic[id].anim?.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, cellSize, w, h]);
+
+  const ids = Object.keys(logicRef.current);
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
+      {ids.map((id, i) => {
+        const v = logicRef.current[id];
+        if (!v) return null;
+        const bobY = v.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+        return (
+          <Animated.View
+            key={id}
+            style={{
+              position: "absolute",
+              left: -7,
+              top: -9,
+              width: 14,
+              height: 18,
+              alignItems: "center",
+              transform: [...v.pos.getTranslateTransform(), { translateY: bobY }],
+            }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: VISITOR_COLORS[i % VISITOR_COLORS.length] }} />
+            <View
+              style={{
+                width: 10,
+                height: 7,
+                borderTopLeftRadius: 3,
+                borderTopRightRadius: 3,
+                borderBottomLeftRadius: 2,
+                borderBottomRightRadius: 2,
+                backgroundColor: VISITOR_COLORS[i % VISITOR_COLORS.length],
+                marginTop: 0.5,
+                opacity: 0.92,
+              }}
+            />
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function BankInteriorScreen() {
   const router = useRouter();
   const { buildingId } = useLocalSearchParams<{ buildingId?: string }>();
@@ -205,12 +403,14 @@ export default function BankInteriorScreen() {
     })();
   }, [storageKey]);
 
-  // Totals across ALL floors for the banner
+  // Totals across ALL floors for the banner.
+  // ATMs & vaults drip collectible coins onto their tiles (tap to collect)
+  // instead of auto-adding, so they don't count toward the auto multiplier.
   const totals = useMemo(() => {
     let mult = 1;
-    let flat = 0;
     let connectedTotal = 0;
     let furnitureCount = 0;
+    let dripCount = 0;
     for (let f = 1; f <= numFloors; f++) {
       const fi = interior.floors[String(f)] ?? EMPTY_FLOOR;
       const c = connectedDeskCount(fi);
@@ -219,12 +419,15 @@ export default function BankInteriorScreen() {
       for (const item of fi.furniture) {
         const def = bankFurnitureDef(item.type, f);
         if (!def) continue;
-        mult += def.effectPct / 100;
-        flat += def.flatPerDay;
         furnitureCount += 1;
+        if (item.type === "atm" || item.type === "vault") {
+          dripCount += 1;
+        } else {
+          mult += def.effectPct / 100;
+        }
       }
     }
-    return { mult, flat, connectedTotal, furnitureCount };
+    return { mult, connectedTotal, furnitureCount, dripCount };
   }, [interior, numFloors]);
 
   const network = useMemo(() => activeNetworkTiles(floorInterior), [floorInterior]);
@@ -421,6 +624,39 @@ export default function BankInteriorScreen() {
     setSelectedTile(null);
   };
 
+  /**
+   * Collect drip coins sitting on an ATM/vault: moves the item's pending
+   * coins into the bank building's tap-to-collect total outside.
+   */
+  const handleCollectDrip = useCallback(
+    async (floorNum: number, itemId: string) => {
+      const fi = interior.floors[String(floorNum)] ?? EMPTY_FLOOR;
+      const item = fi.furniture.find((f) => f.id === itemId);
+      const amount = Math.round((item?.pending || 0) * 10) / 10;
+      if (!item || amount <= 0) return;
+      // Zero the item's pending
+      saveFloor(floorNum, {
+        ...fi,
+        furniture: fi.furniture.map((f) => (f.id === itemId ? { ...f, pending: 0 } : f)),
+      });
+      // Add to the bank building's accumulated total outside
+      if (!buildingId) return;
+      try {
+        const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+        const town = parseTown(townRaw ? JSON.parse(townRaw) : {});
+        for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+          town.maps[mapId].buildings = town.maps[mapId].buildings.map((b) =>
+            b.id === buildingId
+              ? { ...b, accumulated: Math.round(((b.accumulated || 0) + amount) * 10) / 10 }
+              : b
+          );
+        }
+        await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
+      } catch {}
+    },
+    [interior, buildingId, saveFloor]
+  );
+
   const cellSize = 40;
   const { w, h } = BANK_INTERIOR_GRID;
   // Current tile of the item being moved (for origin highlight)
@@ -524,12 +760,13 @@ export default function BankInteriorScreen() {
         <View style={{ marginLeft: 10, flex: 1 }}>
           <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>
             Interior bonus: ×{totals.mult.toFixed(2)}
-            {totals.flat > 0 && <Text style={{ color: "#4ADE80" }}> + {totals.flat}/day</Text>}
+            {totals.dripCount > 0 && <Text style={{ color: "#4ADE80" }}> · 🪙 dripping inside</Text>}
           </Text>
           <Text style={{ color: "#A8A29E", fontSize: 12 }}>
             {totals.connectedTotal === 0 && totals.furnitureCount === 0
               ? "Place desks, connect them with carpet, and add furniture to boost this bank's earnings."
               : `${totals.connectedTotal} connected desk${totals.connectedTotal === 1 ? "" : "s"} · ${totals.furnitureCount} furniture boosting earnings.`}
+            {totals.dripCount > 0 && " Tap the coins on ATMs & vaults to collect."}
           </Text>
         </View>
       </View>
@@ -603,7 +840,40 @@ export default function BankInteriorScreen() {
           Floor {safeFloor} · {themeName}
         </Text>
       </View>
-      <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
+      <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <View style={{ position: "relative", width: w * cellSize, height: h * cellSize }}>
+          {rows}
+          {/* Collectible drip coins on ATMs & vaults */}
+          {floorInterior.furniture.map((f) => {
+            if (f.type !== "atm" && f.type !== "vault") return null;
+            const pending = Math.round((f.pending || 0) * 10) / 10;
+            if (pending <= 0) return null;
+            return (
+              <View
+                key={`drip-${f.id}`}
+                style={{
+                  position: "absolute",
+                  left: f.x * cellSize,
+                  top: f.y * cellSize,
+                  width: cellSize,
+                  height: cellSize,
+                }}
+                pointerEvents="box-none"
+              >
+                <DripCoin amount={pending} onCollect={() => handleCollectDrip(safeFloor, f.id)} />
+              </View>
+            );
+          })}
+          {/* Wandering customer visitors */}
+          <BankInteriorVisitors
+            floorInterior={floorInterior}
+            cellSize={cellSize}
+            w={w}
+            h={h}
+            count={Math.min(Math.max(building?.level || 1, 1), 3)}
+          />
+        </View>
+      </View>
 
       {moveItem ? (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>

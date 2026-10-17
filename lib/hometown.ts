@@ -113,14 +113,55 @@ export const DECORATIONS: Record<DecorationType, {
 export const UPGRADE_COST_MULT = { 2: 3, 3: 5 };
 export const UPGRADE_INCOME_MULT = { 1: 1, 2: 2.5, 3: 5 };
 
-export function upgradeCostFor(type: BuildingType, toLevel: 2 | 3): number {
-  const base = BUILDINGS[type].cost;
-  return Math.round(base * UPGRADE_COST_MULT[toLevel]);
+// Houses upgrade through 5 tiers (Cottage -> Mansion), each level +1 townsman.
+export const HOUSE_LEVEL_NAMES: Record<number, string> = {
+  1: "Cottage", 2: "House", 3: "Townhouse", 4: "Villa", 5: "Mansion",
+};
+export const HOUSE_UPGRADE_COSTS: Record<number, number> = { 2: 10, 3: 25, 4: 50, 5: 100 };
+
+/** Max upgrade level for a building type (houses go to 5, everything else 3). */
+export function maxLevelFor(type: BuildingType): number {
+  return type === "house" ? 5 : 3;
 }
 
-export function incomeFor(type: BuildingType, level: 1 | 2 | 3): number {
+/** Display name for a house at a given level. */
+export function houseNameFor(level: number): string {
+  return HOUSE_LEVEL_NAMES[Math.min(Math.max(level || 1, 1), 5)] ?? "Cottage";
+}
+
+/** Townsfolk housed: L1=2, each level +1, L5 (Mansion)=6. */
+export function townsfolkForHouse(level: number): number {
+  return 1 + Math.min(Math.max(level || 1, 1), 5);
+}
+
+/** Total townsfolk across all houses on the town map. */
+export function totalTownsfolk(town: TownState): number {
+  const townMap = town.maps?.town;
+  if (!townMap) return 0;
+  return townMap.buildings
+    .filter((b) => b.type === "house")
+    .reduce((sum, b) => sum + townsfolkForHouse(b.level || 1), 0);
+}
+
+/**
+ * Population economy: more townsfolk = more customers = more income.
+ * +2% per townsman, capped at +100% (2.0x at 50 townsfolk).
+ */
+export function populationMult(town: TownState): number {
+  return Math.min(2, 1 + totalTownsfolk(town) * 0.02);
+}
+
+export function upgradeCostFor(type: BuildingType, toLevel: number): number {
+  if (type === "house") return HOUSE_UPGRADE_COSTS[toLevel] ?? 0;
+  const base = BUILDINGS[type].cost;
+  return Math.round(base * (UPGRADE_COST_MULT as Record<number, number>)[toLevel]);
+}
+
+export function incomeFor(type: BuildingType, level: number): number {
   const base = BUILDINGS[type].incomePerDay;
-  return Math.round(base * UPGRADE_INCOME_MULT[level]);
+  if (base === 0) return 0;
+  const mult = UPGRADE_INCOME_MULT[Math.min(Math.max(level || 1, 1), 3) as 1 | 2 | 3];
+  return Math.round(base * mult);
 }
 
 export type BuildingDef = {
@@ -194,14 +235,16 @@ export const CITY_PLOT_INCOME_MULT = { 1: 1, 2: 2, 3: 3.5 };
 /** Income multiplier for a plot building (1 for non-plot buildings). */
 export function plotIncomeMult(b: PlacedBuilding): number {
   if (!b.plotId) return 1;
-  return CITY_PLOT_INCOME_MULT[b.level || 1] ?? 1;
+  return CITY_PLOT_INCOME_MULT[Math.min(b.level || 1, 3) as 1 | 2 | 3] ?? 1;
 }
 
 /** Daily coin income for a placed building — plot-aware. */
 export function effectiveIncomeFor(b: PlacedBuilding): number {
   const level = b.level || 1;
   const base = BUILDINGS[b.type].incomePerDay;
-  const mult = b.plotId ? CITY_PLOT_INCOME_MULT[level] : UPGRADE_INCOME_MULT[level];
+  if (base === 0) return 0;
+  const clamped = Math.min(Math.max(level, 1), 3) as 1 | 2 | 3;
+  const mult = b.plotId ? CITY_PLOT_INCOME_MULT[clamped] : UPGRADE_INCOME_MULT[clamped];
   return Math.round(base * mult);
 }
 
@@ -228,12 +271,52 @@ export function plotAt(x: number, y: number): CityPlot | undefined {
   return CITY_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
 }
 
+// ---- City streets: pre-built downtown road grid (permanent infrastructure) ----
+// Streets run ADJACENT to plots (never on them), forming a downtown grid.
+// West Ave / East Ave / South Blvd form the perimeter; Midtown Blvd cuts
+// east-west past the central tower; the uptown connector links the two
+// northern plots to each other.
+/** Raw street tiles for the city map. */
+export const CITY_STREETS: Array<{ x: number; y: number }> = [
+  // West Ave (x=0)
+  { x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 },
+  { x: 0, y: 4 }, { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 0, y: 7 },
+  // East Ave (x=7)
+  { x: 7, y: 0 }, { x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 },
+  { x: 7, y: 4 }, { x: 7, y: 5 }, { x: 7, y: 6 }, { x: 7, y: 7 },
+  // South Blvd (y=7)
+  { x: 1, y: 7 }, { x: 2, y: 7 }, { x: 3, y: 7 },
+  { x: 4, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 },
+  // Midtown Blvd (y=4, broken by the central tower superblock)
+  { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 },
+  // Uptown connector (links the two northern plots)
+  { x: 3, y: 2 }, { x: 4, y: 2 },
+];
+
+/** City streets as PlacedRoads with stable ids (idempotent seeding). */
+export function cityStreetRoads(): PlacedRoad[] {
+  return CITY_STREETS.map((s) => ({ id: `city-street-${s.x}-${s.y}`, x: s.x, y: s.y }));
+}
+
+/** True for road tiles that are permanent city infrastructure. */
+export function isCityStreet(road: PlacedRoad): boolean {
+  return typeof road.id === "string" && road.id.startsWith("city-street-");
+}
+
+/** Seed any missing city streets into a city MapState (idempotent). */
+export function ensureCityStreets(map: MapState): MapState {
+  const existing = new Set((map.roads || []).map((r) => r.id));
+  const missing = cityStreetRoads().filter((r) => !existing.has(r.id));
+  if (missing.length === 0) return map;
+  return { ...map, roads: [...(map.roads || []), ...missing] };
+}
+
 export type PlacedBuilding = {
   id: string;
   type: BuildingType;
   x: number;
   y: number;
-  level: 1 | 2 | 3;
+  level: 1 | 2 | 3 | 4 | 5;
   floors?: number; // bank-tower stories (default 1, max 5)
   plotId?: string; // city plot id — fixed-position plot building (no move/sell)
   workers?: number; // hired townsfolk (0-3), each +10% output
@@ -275,7 +358,7 @@ export function emptyTownState(): TownState {
   return {
     maps: {
       town: emptyMapState(),
-      city: emptyMapState(),
+      city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
       school: emptyMapState(),
       reserve: emptyMapState(),
@@ -288,7 +371,7 @@ function parseMapState(value: unknown): MapState {
   if (!value || typeof value !== "object") return emptyMapState();
   const m = value as Partial<MapState>;
   return {
-    buildings: Array.isArray(m.buildings) ? m.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: b.level === 2 || b.level === 3 ? b.level : 1 as const })) : [],
+    buildings: Array.isArray(m.buildings) ? m.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: [1, 2, 3, 4, 5].includes(b.level) ? b.level : 1 as const })) : [],
     decorations: Array.isArray(m.decorations) ? m.decorations.filter(d => d && typeof d.id === "string") : [],
     roads: Array.isArray(m.roads) ? m.roads.filter(r => r && typeof r.id === "string") : [],
   };
@@ -304,7 +387,7 @@ export function parseTown(value: unknown): TownState {
     return {
       maps: {
         town: parseMapState(raw.town),
-        city: parseMapState(raw.city),
+        city: ensureCityStreets(parseMapState(raw.city)),
         mall: parseMapState(raw.mall),
         school: parseMapState(raw.school),
         reserve: parseMapState(raw.reserve),
@@ -316,7 +399,7 @@ export function parseTown(value: unknown): TownState {
   return {
     maps: {
       town: parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads }),
-      city: emptyMapState(),
+      city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
       school: emptyMapState(),
       reserve: emptyMapState(),
@@ -474,6 +557,8 @@ const CITY_BIG_TYPES: BuildingType[] = ["bank-tower", "department-store", "hotel
 export function buildingFootprint(level: number, type?: BuildingType, isPlot?: boolean): { w: number; h: number } {
   // City plot buildings are fixed 2x2 — upgrades grow taller, not wider
   if (isPlot) return { w: 2, h: 2 };
+  // Houses stay 1x1 at every level — they get fancier, not bigger
+  if (type === "house") return { w: 1, h: 1 };
   const s = Math.min(Math.max(level || 1, 1), 3);
   if (type && CITY_BIG_TYPES.includes(type)) {
     const big = s + 1; // L1=2, L2=3, L3=4
@@ -483,9 +568,11 @@ export function buildingFootprint(level: number, type?: BuildingType, isPlot?: b
 }
 
 /** XP per day for a building type/level (0 for coin buildings). */
-export function xpIncomeFor(type: BuildingType, level: 1 | 2 | 3): number {
+export function xpIncomeFor(type: BuildingType, level: number): number {
   const base = BUILDINGS[type].xpPerDay;
-  return Math.round(base * UPGRADE_INCOME_MULT[level]);
+  if (base === 0) return 0;
+  const mult = UPGRADE_INCOME_MULT[Math.min(Math.max(level || 1, 1), 3) as 1 | 2 | 3];
+  return Math.round(base * mult);
 }
 
 /** Shop types that give adjacency bonuses to neighboring income buildings. */
@@ -620,10 +707,11 @@ export const FRENZY_MULT = 2;
 
 export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
+  const popMult = town ? populationMult(town) : 1;
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult;
     return sum + (base * multiplier);
   }, 0);
 }

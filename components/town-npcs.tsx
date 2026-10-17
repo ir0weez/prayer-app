@@ -3,6 +3,7 @@ import { Animated, Easing, View } from "react-native";
 import {
   BUILDINGS,
   buildingFootprint,
+  townsfolkForHouse,
   type MapState,
 } from "@/lib/hometown";
 
@@ -124,10 +125,12 @@ function buildPath(mapState: MapState, fromTile: Tile, toTile: Tile, cellSize: n
   return out.length > 0 ? out : [dest];
 }
 
-/** Number of hometown NPCs (2 per cottage, capped) — the single source of population. */
-export function countHometownNpcs(townBuildings: { type: string }[]): number {
-  const houses = townBuildings.filter((b) => b.type === "house").length;
-  return Math.min(houses * 2, MAX_NPCS);
+/** Number of hometown NPCs (2 + 1 per house level, capped) — the single source of population. */
+export function countHometownNpcs(townBuildings: { type: string; level?: number }[]): number {
+  const total = townBuildings
+    .filter((b) => b.type === "house")
+    .reduce((sum, b) => sum + townsfolkForHouse(b.level || 1), 0);
+  return Math.min(total, MAX_NPCS);
 }
 
 export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize: number }) {
@@ -136,7 +139,7 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
   mapStateRef.current = mapState;
   const [renderIds, setRenderIds] = useState<string[]>([]);
 
-  // 2 NPCs per cottage ("house"). Nothing else is residential.
+  // NPCs per house scale with house level (L1=2 … L5/Mansion=6). Nothing else is residential.
   const npcDefs = useMemo<NpcDef[]>(() => {
     const defs: NpcDef[] = [];
     const houses = mapState.buildings.filter((b) => b.type === "house");
@@ -144,12 +147,13 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
       const fp = buildingFootprint(h.level || 1, h.type);
       const cx = h.x + fp.w / 2;
       const cy = h.y + fp.h / 2;
-      for (let i = 0; i < 2 && defs.length < MAX_NPCS; i++) {
+      const count = townsfolkForHouse(h.level || 1);
+      for (let i = 0; i < count && defs.length < MAX_NPCS; i++) {
         defs.push({
           id: `${h.id}-npc${i}`,
           homeId: h.id,
-          // slight per-NPC offset so the pair don't stack
-          homeTile: { x: cx - 0.5 + i * 0.35, y: cy - 0.5 },
+          // slight per-NPC offset so they don't stack
+          homeTile: { x: cx - 0.5 + (i % 3) * 0.35, y: cy - 0.5 + Math.floor(i / 3) * 0.3 },
           color: NPC_COLORS[(defs.length * 3 + h.x + h.y) % NPC_COLORS.length],
         });
       }

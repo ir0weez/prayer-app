@@ -22,6 +22,10 @@ import {
   totalHiredWorkers,
   milestoneMultiplier,
   milestoneFor,
+  maxLevelFor,
+  houseNameFor,
+  townsfolkForHouse,
+  populationMult,
   WORKER_HIRE_COST,
   MAX_WORKERS_PER_BUILDING,
   FRENZY_STORAGE_KEY,
@@ -45,6 +49,7 @@ import {
   upgradeCostFor,
   CITY_PLOTS,
   plotAt,
+  isCityStreet,
   loadPurchasedPlots,
   savePurchasedPlots,
   type CityPlot,
@@ -105,6 +110,40 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
   const LIT = "#FDE68A";
   switch (type) {
     case "house":
+      // L5 Mansion — grand estate with columns, gate, and fountain
+      if (lv >= 5) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.95, height: s * 0.14, backgroundColor: "#7C2D12", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
+          <View style={{ width: s * 0.98, height: s * 0.5, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#D6A85C" }} />
+          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.42 }}>
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={{ width: s * 0.09, height: s * 0.32, backgroundColor: "#FFFFFF", marginHorizontal: s * 0.045, borderRadius: 2, borderWidth: 1, borderColor: "#D6A85C" }} />
+            ))}
+          </View>
+          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.24 }}>
+            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FDE68A", marginHorizontal: 3, borderRadius: 2 }} />
+            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FDE68A", marginHorizontal: 3, borderRadius: 2 }} />
+          </View>
+          <View style={{ position: "absolute", bottom: s * 0.04, width: s * 0.2, height: s * 0.22, backgroundColor: "#7C2D12", borderRadius: 3 }} />
+          <View style={{ position: "absolute", bottom: s * 0.01, left: s * 0.06, width: s * 0.12, height: s * 0.1, backgroundColor: "#60A5FA", borderRadius: 6 }} />
+          <View style={{ position: "absolute", bottom: s * 0.01, right: s * 0.06, width: s * 0.12, height: s * 0.1, backgroundColor: "#60A5FA", borderRadius: 6 }} />
+        </View>
+      );
+      // L4 Villa — two stories, balcony
+      if (lv >= 4) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.16, backgroundColor: "#9A3412", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
+          <View style={{ width: s * 0.94, height: s * 0.6, backgroundColor: "#FDBA74", borderRadius: 6 }} />
+          <View style={{ position: "absolute", bottom: s * 0.38, width: s * 0.7, height: s * 0.05, backgroundColor: "#78350F", borderRadius: 2 }} />
+          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.44 }}>
+            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", marginHorizontal: 4, borderRadius: 2 }} />
+            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", marginHorizontal: 4, borderRadius: 2 }} />
+          </View>
+          <View style={{ position: "absolute", bottom: s * 0.18, left: s * 0.18, width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", borderRadius: 2 }} />
+          <View style={{ position: "absolute", bottom: s * 0.04, width: s * 0.18, height: s * 0.26, backgroundColor: "#78350F", borderRadius: 3 }} />
+        </View>
+      );
+      // L3 Townhouse — tall and narrow, two windows up top
       if (lv >= 3) return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ width: s * 0.85, height: s * 0.18, backgroundColor: "#991B1B", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
@@ -117,6 +156,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
           <View style={{ position: "absolute", top: s * 0.05, right: s * 0.15, width: s * 0.08, height: s * 0.2, backgroundColor: "#78716C", borderRadius: 2 }} />
         </View>
       );
+      // L2 House
       if (lv >= 2) return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ width: s * 0.75, height: s * 0.16, backgroundColor: "#B91C1C", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
@@ -125,6 +165,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
           <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.18, height: s * 0.28, backgroundColor: "#78350F", borderRadius: 2 }} />
         </View>
       );
+      // L1 Cottage
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ width: s * 0.7, height: s * 0.15, backgroundColor: "#DC2626", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
@@ -746,8 +787,9 @@ export default function HometownScreen() {
               const deskMult = deskMults[b.id] ?? 1;
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
+              const popMult = populationMult(t);
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
               return {
                 ...b,
@@ -989,10 +1031,10 @@ export default function HometownScreen() {
         const def = BUILDINGS[existing.type];
         const level = existing.level || 1;
 
-        if (level >= 3) {
+        if (level >= maxLevelFor(existing.type)) {
           setPopupBuilding(existing);
         } else {
-          const nextLevel = (level + 1) as 2 | 3;
+          const nextLevel = level + 1;
           // Check if expanded footprint fits
           const { w, h } = buildingFootprint(nextLevel, existing.type);
           let fits = true
@@ -1453,6 +1495,10 @@ export default function HometownScreen() {
                     saveMap({ ...map, decorations: map.decorations.filter(x => x.id !== d.id) });
                     setSelectedTile(null);
                   } else if (r) {
+                    if (isCityStreet(r)) {
+                      Alert.alert("City Street", "City streets are permanent infrastructure and can't be removed.");
+                      return;
+                    }
                     saveMap({ ...map, roads: (map.roads || []).filter(x => x.id !== r.id) });
                     setSelectedTile(null);
                   } else if (b) {
@@ -1611,8 +1657,9 @@ export default function HometownScreen() {
               if (!b) return null;
               const def = BUILDINGS[b.type];
               const level = b.level || 1;
-              const isMax = level >= 3;
-              const nextLevel = (level + 1) as 2 | 3;
+              const maxLv = maxLevelFor(b.type);
+              const isMax = level >= maxLv;
+              const nextLevel = Math.min(level + 1, maxLv) as 1 | 2 | 3 | 4 | 5;
               // Check if upgrade footprint fits
               let fits = true;
               if (!isMax) {
@@ -1694,7 +1741,7 @@ export default function HometownScreen() {
               return (
                 <>
                   <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 8 }}>
-                    {def.name} (Lv {level})
+                    {b.type === "house" ? houseNameFor(level) : def.name} (Lv {level})
                   </Text>
                   <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
                     {def.description}
@@ -1702,9 +1749,15 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
                     Currently earns {incomeLabelFor(b)}.
                   </Text>
-                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
-                    Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
-                  </Text>
+                  {b.type === "house" ? (
+                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                      🏠 {townsfolkForHouse(level)} townsfolk live here{!isMax ? ` (+1 at ${houseNameFor(nextLevel)})` : " — a grand Mansion!"}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                      Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
+                    </Text>
+                  )}
                   {!isMax && !fits && (
                     <Text style={{ fontSize: 14, color: "#DC2626", marginBottom: 16 }}>
                       Not enough space to expand! Clear adjacent tiles.
@@ -1721,21 +1774,23 @@ export default function HometownScreen() {
                       style={{ backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
-                        ⬆️ Upgrade to Lv {nextLevel} 🪙{upgradeCost}
+                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost}
                       </Text>
                       <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
                         {incomeLabelFor(preview)}
                       </Text>
                     </Pressable>
                   )}
-                  <Pressable
-                    onPress={doHireWorker}
-                    style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
-                  >
-                    <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>
-                      👷 Hire Worker 🪙{WORKER_HIRE_COST} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
-                    </Text>
-                  </Pressable>
+                  {b.type !== "house" && (
+                    <Pressable
+                      onPress={doHireWorker}
+                      style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                    >
+                      <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>
+                        👷 Hire Worker 🪙{WORKER_HIRE_COST} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                      </Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     onPress={doMove}
                     style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}

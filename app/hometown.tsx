@@ -566,38 +566,20 @@ export default function HometownScreen() {
             </View>
           )}
           {b && isOrigin && incomeFor(b.type, b.level || 1) > 0 && (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handleCollectBuilding(b.id);
-              }}
-              style={{ position: "absolute", top: 2, right: 2, zIndex: 10, alignItems: "center", padding: 8 }}
-            >
-              <View style={{ backgroundColor: (b.accumulated || 0) > 0 ? "#FEF3C7" : "#F3F4F6", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: (b.accumulated || 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>
-                <Text style={{ fontSize: 12, opacity: (b.accumulated || 0) > 0 ? 1 : 0.4 }}>🪙</Text>
-              </View>
-              {(b.accumulated || 0) > 0 ? (
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#92400E", marginTop: 1 }}>
-                  +{(b.accumulated || 0).toFixed(1)}
-                </Text>
-              ) : (
-                <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 1 }}>earning</Text>
-              )}
-            </Pressable>
+            <View style={{ position: "absolute", top: -6, right: -6, zIndex: 100 }}>
+              <SpinningCoin
+                amount={b.accumulated || 0}
+                onCollect={() => handleCollectBuilding(b.id)}
+              />
+            </View>
           )}
           {b && isOrigin && (
-            <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: cellSize * footprint.w, height: cellSize * footprint.h, alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.9} level={b.level || 1} />
+            <View style={{ alignItems: "center", justifyContent: "center" }}>
+              <BuildingArt type={b.type} size={cellSize * 0.85} level={b.level || 1} />
               {(b.level || 1) > 1 && (
                 <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
                   {"★".repeat(b.level || 1)}
                 </Text>
-              )}
-              {(b.type === "house" || b.type === "pawn-house") && (
-                <Text style={{ fontSize: 12, marginTop: -4 }}>{b.type === "pawn-house" ? "🐾" : townsfolkFor(b.id)}</Text>
-              )}
-              {WORKERS[b.type] && (
-                <Text style={{ fontSize: 12, marginTop: -4 }}>{WORKERS[b.type]}</Text>
               )}
             </View>
           )}

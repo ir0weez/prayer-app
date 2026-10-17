@@ -595,6 +595,7 @@ export default function HometownScreen() {
   const lastFrenzyRef = useRef(0);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
+  const [popupBuilding, setPopupBuilding] = useState<PlacedBuilding | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -989,41 +990,7 @@ export default function HometownScreen() {
         const level = existing.level || 1;
 
         if (level >= 3) {
-          const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
-          Alert.alert(
-            `${def.name} (Lv 3)`,
-            `${def.description}\n\nMax level! Earns ${incomeLabelFor(existing)}.`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "↔️ Move",
-                onPress: () => {
-                  setMovingBuilding(existing);
-                  Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
-                    { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
-                    { text: "OK" },
-                  ]);
-                },
-              },
-              {
-                text: `💰 Sell ${sellPrice}`,
-                style: "destructive",
-                onPress: () => {
-                  Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Sell", style: "destructive", onPress: () => {
-                      saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
-                      const updatedCoins = {
-                        balance: Math.round((coins.balance + sellPrice) * 10) / 10,
-                        lifetimeEarned: coins.lifetimeEarned,
-                      };
-                      saveCoins(updatedCoins);
-                    }},
-                  ]);
-                },
-              },
-            ]
-          );
+          setPopupBuilding(existing);
         } else {
           const nextLevel = (level + 1) as 2 | 3;
           // Check if expanded footprint fits
@@ -1040,110 +1007,10 @@ export default function HometownScreen() {
             if (!fits) break;
           }
           if (!fits) {
-            const sellPriceNoRoom = Math.floor(BUILDINGS[existing.type].cost * 0.5);
-            Alert.alert(
-              `${def.name} (Lv ${level})`,
-              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${incomeLabelFor(existing)}.`,
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "↔️ Move",
-                  onPress: () => {
-                    setMovingBuilding(existing);
-                    Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
-                      { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
-                      { text: "OK" },
-                    ]);
-                  },
-                },
-                {
-                  text: `💰 Sell ${sellPriceNoRoom}`,
-                  style: "destructive",
-                  onPress: () => {
-                    Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPriceNoRoom} coins?`, [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Sell", style: "destructive", onPress: () => {
-                        saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
-                        const updatedCoins = {
-                          balance: Math.round((coins.balance + sellPriceNoRoom) * 10) / 10,
-                          lifetimeEarned: coins.lifetimeEarned,
-                        };
-                        saveCoins(updatedCoins);
-                      }},
-                    ]);
-                  },
-                },
-              ]
-            );
+            setPopupBuilding(existing);
             return;
           }
-          const cost = upgradeCostFor(existing.type, nextLevel);
-          const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
-          const workerCount = existing.workers || 0;
-          const workerLine = `\nWorkers: ${workerCount}/${MAX_WORKERS_PER_BUILDING} (+${Math.round(workerCount * 10)}% output)`;
-          Alert.alert(
-            `${def.name} (Lv ${level})`,
-            `${def.description}\n\nCurrently earns ${incomeLabelFor(existing)}.${workerLine}\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor({ ...existing, level: nextLevel })}.`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "↔️ Move",
-                onPress: () => {
-                  setMovingBuilding(existing);
-                  Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
-                    { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
-                    { text: "OK" },
-                  ]);
-                },
-              },
-              {
-                text: `💰 Sell ${sellPrice}`,
-                style: "destructive",
-                onPress: () => {
-                  Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Sell", style: "destructive", onPress: () => {
-                      saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
-                      const updatedCoins = {
-                        balance: Math.round((coins.balance + sellPrice) * 10) / 10,
-                        lifetimeEarned: coins.lifetimeEarned,
-                      };
-                      saveCoins(updatedCoins);
-                    }},
-                  ]);
-                },
-              },
-              {
-                text: `👷 Hire Worker 🪙${WORKER_HIRE_COST} (${workerCount}/${MAX_WORKERS_PER_BUILDING})`,
-                onPress: () => {
-                  const earns = effectiveIncomeFor(existing) > 0 || xpIncomeFor(existing.type, existing.level || 1) > 0;
-                  if (!earns) {
-                    Alert.alert("No income", "Workers only help buildings that earn coins or XP.");
-                    return;
-                  }
-                  if (workerCount >= MAX_WORKERS_PER_BUILDING) {
-                    Alert.alert("Full crew", "This building already has the maximum workers.");
-                    return;
-                  }
-                  const available = countHometownNpcs(town.maps.town.buildings) - totalHiredWorkers(town);
-                  if (available <= 0) {
-                    Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
-                    return;
-                  }
-                  if (coins.balance < WORKER_HIRE_COST) {
-                    Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${Math.floor(coins.balance)}.`);
-                    return;
-                  }
-                  const updated = map.buildings.map(x =>
-                    x.id === existing.id ? { ...x, workers: (x.workers || 0) + 1 } : x
-                  );
-                  saveMap({ ...map, buildings: updated });
-                  saveCoins({ balance: Math.round((coins.balance - WORKER_HIRE_COST) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
-                },
-              },
-            ],
-            { cancelable: true }
-          );
+          setPopupBuilding(existing);
         }
       }
       return;
@@ -1723,6 +1590,176 @@ export default function HometownScreen() {
           </View>
         </View>
       )}
+
+      {/* Building popup modal — replaces Alert (Android cuts off 4+ buttons) */}
+      <Modal
+        visible={popupBuilding !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPopupBuilding(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setPopupBuilding(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 20, width: "100%", maxWidth: 340 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const b = popupBuilding;
+              if (!b) return null;
+              const def = BUILDINGS[b.type];
+              const level = b.level || 1;
+              const isMax = level >= 3;
+              const nextLevel = (level + 1) as 2 | 3;
+              // Check if upgrade footprint fits
+              let fits = true;
+              if (!isMax) {
+                const { w, h } = buildingFootprint(nextLevel, b.type);
+                for (let dx = 0; dx < w && fits; dx++) {
+                  for (let dy = 0; dy < h && fits; dy++) {
+                    const nx = b.x + dx, ny = b.y + dy;
+                    if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+                    const other = buildingAt(nx, ny);
+                    if (other && other.id !== b.id) { fits = false; break; }
+                    if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }
+                  }
+                }
+              }
+              const canUpgrade = !isMax && fits;
+              const upgradeCost = !isMax ? upgradeCostFor(b.type, nextLevel) : 0;
+              const sellPrice = Math.floor(def.cost * 0.5);
+              const workerCount = b.workers || 0;
+              const preview = { ...b, level: nextLevel };
+
+              const doUpgrade = () => {
+                if (coins.balance < upgradeCost) {
+                  Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${Math.floor(coins.balance)}.`);
+                  return;
+                }
+                const updated = map.buildings.map(x => x.id === b.id ? { ...x, level: nextLevel } : x);
+                saveMap({ ...map, buildings: updated });
+                saveCoins({ balance: Math.round((coins.balance - upgradeCost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+                setPopupBuilding(null);
+              };
+              const doMove = () => {
+                setPopupBuilding(null);
+                setMovingBuilding(b);
+                Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
+                  { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
+                  { text: "OK" },
+                ]);
+              };
+              const doSell = () => {
+                Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Sell", style: "destructive", onPress: () => {
+                    saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== b.id) });
+                    saveCoins({
+                      balance: Math.round((coins.balance + sellPrice) * 10) / 10,
+                      lifetimeEarned: coins.lifetimeEarned,
+                    });
+                    setPopupBuilding(null);
+                  }},
+                ]);
+              };
+              const doHireWorker = () => {
+                const earns = effectiveIncomeFor(b) > 0 || xpIncomeFor(b.type, b.level || 1) > 0;
+                if (!earns) {
+                  Alert.alert("No income", "Workers only help buildings that earn coins or XP.");
+                  return;
+                }
+                if (workerCount >= MAX_WORKERS_PER_BUILDING) {
+                  Alert.alert("Full crew", "This building already has the maximum workers.");
+                  return;
+                }
+                const available = countHometownNpcs(town.maps.town.buildings) - totalHiredWorkers(town);
+                if (available <= 0) {
+                  Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
+                  return;
+                }
+                if (coins.balance < WORKER_HIRE_COST) {
+                  Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${Math.floor(coins.balance)}.`);
+                  return;
+                }
+                const updated = map.buildings.map(x =>
+                  x.id === b.id ? { ...x, workers: (x.workers || 0) + 1 } : x
+                );
+                saveMap({ ...map, buildings: updated });
+                saveCoins({ balance: Math.round((coins.balance - WORKER_HIRE_COST) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+                setPopupBuilding({ ...b, workers: workerCount + 1 });
+              };
+
+              return (
+                <>
+                  <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 8 }}>
+                    {def.name} (Lv {level})
+                  </Text>
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
+                    {def.description}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
+                    Currently earns {incomeLabelFor(b)}.
+                  </Text>
+                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                    Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
+                  </Text>
+                  {!isMax && !fits && (
+                    <Text style={{ fontSize: 14, color: "#DC2626", marginBottom: 16 }}>
+                      Not enough space to expand! Clear adjacent tiles.
+                    </Text>
+                  )}
+                  {isMax && (
+                    <Text style={{ fontSize: 14, color: "#059669", marginBottom: 16, fontWeight: "600" }}>
+                      Max level!
+                    </Text>
+                  )}
+                  {canUpgrade && (
+                    <Pressable
+                      onPress={doUpgrade}
+                      style={{ backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                    >
+                      <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
+                        ⬆️ Upgrade to Lv {nextLevel} 🪙{upgradeCost}
+                      </Text>
+                      <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
+                        {incomeLabelFor(preview)}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={doHireWorker}
+                    style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                  >
+                    <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>
+                      👷 Hire Worker 🪙{WORKER_HIRE_COST} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={doMove}
+                    style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                  >
+                    <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>↔️ Move</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={doSell}
+                    style={{ backgroundColor: "#FEF2F2", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                  >
+                    <Text style={{ color: "#DC2626", fontWeight: "700", fontSize: 16 }}>💰 Sell {sellPrice}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setPopupBuilding(null)}
+                    style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
+                  >
+                    <Text style={{ color: "#6B7280", fontWeight: "600", fontSize: 16 }}>Cancel</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

@@ -145,7 +145,7 @@ export function churchNameFor(level: number): string {
 export const CHURCH_PRAYER_COINS_PER_HOUR = 2;
 
 /** Max blessed prayer villagers wandering town (also the prayer-star cap). */
-export const PRAYER_VILLAGER_CAP = 12;
+export const PRAYER_VILLAGER_CAP = 40;
 
 /**
  * Coin storage cap for a building's `accumulated` total, by level.

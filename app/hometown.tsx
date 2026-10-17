@@ -72,6 +72,15 @@ import {
   saveFellowship,
   fellowshipMult,
   type FellowshipState,
+  loadRemembrance,
+  saveRemembrance,
+  remembranceMult,
+  remembranceRefundFor,
+  emptyRemembrance,
+  REMEMBRANCE_MALL_REFUND_KEY,
+  REMEMBRANCE_UPGRADE_COSTS,
+  type RememberedPerson,
+  type RemembranceState,
   type CityPlot,
   type TownLot,
   type BuildingType,
@@ -103,6 +112,7 @@ import { MapSigns } from "@/components/map-signs";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type ResidentInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
+import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -954,6 +964,8 @@ export default function HometownScreen() {
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
   const [gatheringNow, setGatheringNow] = useState(false);
+  // Garden of Remembrance: loved ones remembered here, with garden upgrades.
+  const [remembrance, setRemembrance] = useState<RemembranceState>(() => emptyRemembrance());
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -1140,8 +1152,29 @@ export default function HometownScreen() {
           } catch {}
           await AsyncStorage.setItem("prayercircle.hometown.coin-backfill.v1", "1");
         }
-        const c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
+        let c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
+        // One-time Mall → Garden of Remembrance migration: refund retired mall
+        // buildings at FULL price (base cost + upgrades paid), then clear the map.
+        try {
+          const refundDone = await AsyncStorage.getItem(REMEMBRANCE_MALL_REFUND_KEY);
+          const mallBuildings = t.maps.mall?.buildings || [];
+          if (!refundDone && mallBuildings.length > 0) {
+            const refund = mallBuildings.reduce((sum, b) => sum + remembranceRefundFor(b), 0);
+            if (refund > 0) {
+              c = { balance: c.balance + refund, lifetimeEarned: c.lifetimeEarned + refund };
+              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(c));
+            }
+            t = { ...t, maps: { ...t.maps, mall: { buildings: [], decorations: [], roads: [] } } };
+            await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
+            await AsyncStorage.setItem(REMEMBRANCE_MALL_REFUND_KEY, "1");
+          } else if (!refundDone) {
+            await AsyncStorage.setItem(REMEMBRANCE_MALL_REFUND_KEY, "1");
+          }
+        } catch {}
+        // Garden of Remembrance state (loved ones + garden level)
+        let remembranceState = emptyRemembrance();
+        try { remembranceState = await loadRemembrance(); setRemembrance(remembranceState); } catch {}
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
@@ -1216,6 +1249,8 @@ export default function HometownScreen() {
         }
         setFellowship(fellowshipState);
         const fellowshipBonus = fellowshipMult(fellowshipState);
+        // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
+        const remembranceBonus = remembranceMult(remembranceState.people.length);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -1234,7 +1269,7 @@ export default function HometownScreen() {
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(residentList.length, avgCottageLevel(t));
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * (1 + houseCoinMult);
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * (1 + houseCoinMult);
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
                 ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
@@ -1270,7 +1305,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, residentList.length, avgCottageLevel(t));
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, residentList.length, avgCottageLevel(t), remembranceBonus);
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);
@@ -1790,6 +1825,16 @@ export default function HometownScreen() {
         );
       })()}
 
+      {/* Remembrance chip — loved ones remembered in the garden */}
+      {remembrance.people.length > 0 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FDF6EC", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#E7D8B7" }}>
+          <Text style={{ fontSize: 14 }}>🕯️</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#8A6D1B" }}>
+            {remembrance.people.length} remembered (+{((remembranceMult(remembrance.people.length) - 1) * 100).toFixed(1)}% income)
+          </Text>
+        </View>
+      ) : null}
+
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -1859,7 +1904,7 @@ export default function HometownScreen() {
       )}
 
       <Text style={{ color: pt.subtext, marginBottom: 12 }}>
-        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
+        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}>
@@ -1893,7 +1938,45 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 18, color: pt.subtext }}>›</Text>
       </Pressable>
 
-      {activeMap === "reserve" ? (
+      {activeMap === "mall" ? (
+        <GardenOfRemembrance
+          remembrance={remembrance}
+          timeOfDay={timeOfDay}
+          pt={pt}
+          coins={coins.balance}
+          onAddPerson={(name, note, flower) => {
+            const person: RememberedPerson = {
+              id: `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`,
+              name,
+              note,
+              addedAt: new Date().toISOString(),
+              flower,
+            };
+            const next = { ...remembrance, people: [...remembrance.people, person] };
+            setRemembrance(next);
+            saveRemembrance(next);
+          }}
+          onUpdateNote={(id, note) => {
+            const next = { ...remembrance, people: remembrance.people.map((p) => (p.id === id ? { ...p, note } : p)) };
+            setRemembrance(next);
+            saveRemembrance(next);
+          }}
+          onRemovePerson={(id) => {
+            const next = { ...remembrance, people: remembrance.people.filter((p) => p.id !== id) };
+            setRemembrance(next);
+            saveRemembrance(next);
+          }}
+          onUpgrade={() => {
+            const nextLevel = (remembrance.level + 1) as 2 | 3;
+            const cost = REMEMBRANCE_UPGRADE_COSTS[nextLevel];
+            if (coinsRef.current.balance < cost) return;
+            addCoins(-cost);
+            const next = { ...remembrance, level: nextLevel };
+            setRemembrance(next);
+            saveRemembrance(next);
+          }}
+        />
+      ) : activeMap === "reserve" ? (
         <View style={{ alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 48, marginBottom: 16 }}>
           <Text style={{ fontSize: 56 }}>❓</Text>
           <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 12, color: pt.text }}>Coming Soon</Text>
@@ -2080,7 +2163,7 @@ export default function HometownScreen() {
       </View>
       )}
 
-      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && (
         <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})

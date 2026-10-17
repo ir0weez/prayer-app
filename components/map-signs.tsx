@@ -3,7 +3,7 @@ import { MAP_INFO, type TownMapId } from "@/lib/hometown";
 
 /**
  * Wooden directional signpost pointing to the neighboring maps:
- * City to the left, Mall up top, School to the right.
+ * City to the left, Garden of Remembrance up top, School to the right.
  * Tapping an arm switches to that map (or runs the unlock flow).
  * Locked maps show a lock + cost on their arm.
  */

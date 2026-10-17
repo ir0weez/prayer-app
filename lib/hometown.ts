@@ -45,7 +45,10 @@ export type MapInfo = {
 export const MAP_INFO: Record<TownMapId, MapInfo> = {
   town:    { name: "Hometown", icon: "🏠", description: "Your starter town", unlockCost: 0, comingSoon: false },
   city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 1500, comingSoon: false },
-  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 1000, comingSoon: false },
+  // NOTE: the "mall" map id is legacy storage — it now renders the Garden of
+  // Remembrance, a sacred memorial space. The id is kept so existing unlock
+  // state carries over.
+  mall:    { name: "Garden of Remembrance", icon: "🌸", description: "A sacred place to remember loved ones", unlockCost: 1000, comingSoon: false },
   school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 1000, comingSoon: false },
   reserve: { name: "???",      icon: "❓", description: "Coming soon", unlockCost: 0, comingSoon: true },
 };
@@ -393,11 +396,12 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
   "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 460, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
   "office":           { name: "Office Tower",     icon: "🏢", cost: 400, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
-  // Mall — income properties
-  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: ["mall"], description: "Hungry shoppers. +8 coins/day." },
-  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: ["mall"], description: "Quiet readers. +6 coins/day." },
-  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["mall"], description: "Tokens and high scores. +10 coins/day." },
-  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: ["mall"], description: "Now showing. +12 coins/day." },
+  // Mall (retired) — the map is now the Garden of Remembrance. Defs are kept
+  // so old saves can be refunded at full price; maps: [] means unbuildable.
+  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +8 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: [], description: "Quiet readers. +6 coins/day." },
+  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: [], description: "Tokens and high scores. +10 coins/day." },
+  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: [], description: "Now showing. +12 coins/day." },
   // School — XP earners
   "library":   { name: "Library",   icon: "📖", cost: 130, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
   "classroom": { name: "Classroom", icon: "📝", cost: 105,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
@@ -564,6 +568,101 @@ export function fellowshipMult(state: FellowshipState | null, now: Date = new Da
   const hoursSince = (now.getTime() - earnedAt) / 3600000;
   if (hoursSince < 0 || hoursSince >= 24) return 1;
   return 1 + state.villagers * state.rate;
+}
+
+// ---- Garden of Remembrance ----
+// The old Mall map is now a sacred memorial garden. Loved ones are remembered
+// here — each gets a flower and a place on the memorial wall. Their memory
+// blesses the town: +0.5% income each.
+
+export type RememberedPerson = {
+  id: string;
+  name: string;
+  note: string;
+  addedAt: string; // ISO timestamp
+  flower: number; // flower style index 0-5
+};
+
+export type RemembranceState = {
+  people: RememberedPerson[];
+  level: 1 | 2 | 3;
+};
+
+export const REMEMBRANCE_STORAGE_KEY = "prayercircle.hometown.remembrance.v1";
+export const REMEMBRANCE_MALL_REFUND_KEY = "prayercircle.hometown.mall-refund.v1";
+
+/** Garden upgrade costs: L1 is the map unlock itself; L2/L3 upgrade the garden. */
+export const REMEMBRANCE_UPGRADE_COSTS: Record<2 | 3, number> = { 2: 800, 3: 1200 };
+
+/** Flower styles available for remembered loved ones. */
+export const REMEMBRANCE_FLOWERS = [
+  { name: "Rose", petal: "#E11D48", center: "#FDE68A" },
+  { name: "Lily", petal: "#F8FAFC", center: "#FBBF24" },
+  { name: "Sunflower", petal: "#F59E0B", center: "#78350F" },
+  { name: "Violet", petal: "#8B5CF6", center: "#FDE68A" },
+  { name: "Pink", petal: "#EC4899", center: "#FFF7ED" },
+  { name: "Forget-me-not", petal: "#60A5FA", center: "#FEF3C7" },
+] as const;
+
+export function emptyRemembrance(): RemembranceState {
+  return { people: [], level: 1 };
+}
+
+export function parseRemembrance(value: unknown): RemembranceState {
+  const fallback = emptyRemembrance();
+  if (!value || typeof value !== "object") return fallback;
+  const s = value as Partial<RemembranceState>;
+  const people = Array.isArray(s.people)
+    ? s.people
+        .filter((p) => p && typeof p.id === "string" && typeof p.name === "string")
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          note: typeof p.note === "string" ? p.note : "",
+          addedAt: typeof p.addedAt === "string" ? p.addedAt : new Date().toISOString(),
+          flower: typeof p.flower === "number" ? Math.abs(Math.floor(p.flower)) % REMEMBRANCE_FLOWERS.length : 0,
+        }))
+    : [];
+  const level = s.level === 2 || s.level === 3 ? s.level : 1;
+  return { people, level };
+}
+
+export async function loadRemembrance(): Promise<RemembranceState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(REMEMBRANCE_STORAGE_KEY);
+    if (!raw) return emptyRemembrance();
+    return parseRemembrance(JSON.parse(raw));
+  } catch { return emptyRemembrance(); }
+}
+
+export async function saveRemembrance(s: RemembranceState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(REMEMBRANCE_STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/**
+ * Remembrance income multiplier. Each remembered loved one's memory blesses
+ * the town: +0.5% income per person. Small, meaningful, forever.
+ */
+export function remembranceMult(count: number): number {
+  return 1 + Math.max(0, Math.floor(count || 0)) * 0.005;
+}
+
+/**
+ * Full refund value for a retired mall building: base cost + all upgrade
+ * costs paid. Used once during the Mall → Garden migration.
+ */
+export function remembranceRefundFor(b: PlacedBuilding): number {
+  const def = BUILDINGS[b.type];
+  if (!def) return 0;
+  let total = def.cost;
+  for (let l = 2; l <= (b.level || 1); l++) {
+    try { total += upgradeCostFor(b.type, l as 2 | 3 | 4 | 5); } catch {}
+  }
+  return total;
 }
 
 // ---- City streets: proper downtown grid (permanent infrastructure) ----
@@ -1145,13 +1244,13 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1, remembranceBonus: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = populationMult(residentCount, avgLevel);
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -1160,8 +1259,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, residentCount, avgLevel), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1, remembranceBonus: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, residentCount, avgLevel, remembranceBonus), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

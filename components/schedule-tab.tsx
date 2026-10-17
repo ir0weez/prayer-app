@@ -8424,12 +8424,12 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-        {/* Sun animation in background */}
-        <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: mc.iconColor + "30", alignItems: "center", justifyContent: "center" }}>
-          <MaterialIcons name={mc.icon as any} size={36} color={mc.iconColor} />
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+        {/* Sun icon in soft circle */}
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: mc.bg + "25", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+          <MaterialIcons name={mc.icon as any} size={32} color={mc.bg} />
         </View>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, marginTop: 50 }}>Rest</Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>Rest</Text>
         {event.startTime && (
           <Text style={{ fontSize: 12, color: colors.muted }}>
             {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}

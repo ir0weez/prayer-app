@@ -10,7 +10,7 @@ export type PawnEyeStyle = "round" | "happy" | "sleepy" | "determined" | "starry
 export type PawnMouthStyle = "smile" | "open" | "flat" | "smirk";
 export type PawnAccessory = "none" | "tophat" | "crown" | "halo" | "cap";
 export type PawnGender = "male" | "female";
-export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun" | "bob" | "ponytail" | "braid" | "pixie";
+export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun" | "bob" | "ponytail" | "braid" | "pixie" | "fade" | "buzz" | "curly" | "dreads" | "pompadour" | "sidepart" | "pigtails" | "highbun" | "wavy" | "lob";
 
 export type PawnBodyStyle = "pebble" | "round" | "tall" | "stocky";
 
@@ -167,6 +167,16 @@ export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number;
   { id: "ponytail", label: "Ponytail", cost: 20, description: "High ponytail.", gender: "female", minShopLevel: 2 },
   { id: "braid", label: "Braid", cost: 25, description: "Long braid.", gender: "female", minShopLevel: 2 },
   { id: "pixie", label: "Pixie", cost: 15, description: "Short pixie cut.", gender: "female", minShopLevel: 1 },
+  { id: "fade", label: "Fade", cost: 15, description: "Short sides, longer on top.", gender: "male", minShopLevel: 1 },
+  { id: "buzz", label: "Buzz Cut", cost: 15, description: "Very short all over.", gender: "male", minShopLevel: 1 },
+  { id: "curly", label: "Curly", cost: 20, description: "Round curly top.", gender: "male", minShopLevel: 2 },
+  { id: "sidepart", label: "Side Part", cost: 20, description: "Neat side sweep.", gender: "male", minShopLevel: 2 },
+  { id: "dreads", label: "Dreadlocks", cost: 30, description: "Hanging locks.", gender: "male", minShopLevel: 3 },
+  { id: "pompadour", label: "Pompadour", cost: 30, description: "Swept up high in front.", gender: "male", minShopLevel: 3 },
+  { id: "pigtails", label: "Pigtails", cost: 15, description: "Two side ponytails.", gender: "female", minShopLevel: 1 },
+  { id: "lob", label: "Lob", cost: 15, description: "Long bob, shoulder length.", gender: "female", minShopLevel: 1 },
+  { id: "wavy", label: "Wavy", cost: 20, description: "Shoulder-length waves.", gender: "female", minShopLevel: 2 },
+  { id: "highbun", label: "High Bun", cost: 20, description: "Bun piled high on top.", gender: "female", minShopLevel: 2 },
 ];
 
 export const PAWN_HAIR_COLORS: { id: string; name: string }[] = [

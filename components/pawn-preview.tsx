@@ -165,6 +165,97 @@ function Hair({ style, s, length = 0, color = HAIR }: { style: PawnHairStyle; s:
           <View style={{ position: "absolute", top: -s * 0.12, left: s * 0.64, width: s * 0.1, height: s * 0.14, backgroundColor: color, borderRadius: s * 0.03, transform: [{ rotate: "18deg" }] }} />
         </>
       );
+    case "fade":
+      // Fade: short sides, textured longer top
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.02, left: s * 0.09, width: s * 0.82, height: s * 0.2, backgroundColor: color, borderTopLeftRadius: s * 0.14, borderTopRightRadius: s * 0.14, borderBottomLeftRadius: s * 0.04, borderBottomRightRadius: s * 0.04 }} />
+          <View style={{ position: "absolute", top: -s * 0.08, left: s * 0.28, width: s * 0.44, height: s * 0.12, backgroundColor: color, borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06, borderBottomLeftRadius: s * 0.02, borderBottomRightRadius: s * 0.02 }} />
+        </>
+      );
+    case "buzz":
+      // Buzz cut: very short cap hugging the head
+      return (
+        <View style={{ position: "absolute", top: -s * 0.01, left: s * 0.1, width: s * 0.8, height: s * 0.14, backgroundColor: color, borderTopLeftRadius: s * 0.12, borderTopRightRadius: s * 0.12, borderBottomLeftRadius: s * 0.04, borderBottomRightRadius: s * 0.04 }} />
+      );
+    case "curly":
+      // Curly: cluster of round curls on top
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.2, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: -s * 0.14, left: s * 0.2, width: s * 0.18, height: s * 0.18, borderRadius: s * 0.09, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: -s * 0.15, left: s * 0.4, width: s * 0.2, height: s * 0.2, borderRadius: s * 0.1, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: -s * 0.14, left: s * 0.62, width: s * 0.18, height: s * 0.18, borderRadius: s * 0.09, backgroundColor: color }} />
+        </>
+      );
+    case "dreads":
+      // Dreadlocks: cap with hanging locks on the sides
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.22, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.12, left: s * 0.05, width: s * 0.1, height: s * 0.5, backgroundColor: color, borderRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.12, left: s * 0.19, width: s * 0.1, height: s * 0.42, backgroundColor: color, borderRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.12, right: s * 0.19, width: s * 0.1, height: s * 0.42, backgroundColor: color, borderRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.12, right: s * 0.05, width: s * 0.1, height: s * 0.5, backgroundColor: color, borderRadius: s * 0.05 }} />
+        </>
+      );
+    case "pompadour":
+      // Pompadour: big quiff swept up in front
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.02, left: s * 0.08, width: s * 0.84, height: s * 0.18, backgroundColor: color, borderTopLeftRadius: s * 0.14, borderTopRightRadius: s * 0.14, borderBottomLeftRadius: s * 0.04, borderBottomRightRadius: s * 0.04 }} />
+          <View style={{ position: "absolute", top: -s * 0.2, left: s * 0.3, width: s * 0.42, height: s * 0.24, backgroundColor: color, borderTopLeftRadius: s * 0.12, borderTopRightRadius: s * 0.12, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05, transform: [{ rotate: "-8deg" }] }} />
+        </>
+      );
+    case "sidepart":
+      // Side part: cap with a diagonal fringe swept across the forehead
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.2, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.1, left: s * 0.12, width: s * 0.62, height: s * 0.12, backgroundColor: color, borderRadius: s * 0.06, transform: [{ rotate: "-10deg" }] }} />
+        </>
+      );
+    case "pigtails":
+      // Pigtails: two tied puffs with hanging tails
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.22, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.02, left: -s * 0.02, width: s * 0.13, height: s * 0.13, borderRadius: s * 0.065, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: s * 0.12, left: -s * 0.04, width: s * 0.12, height: s * 0.4, backgroundColor: color, borderRadius: s * 0.06 }} />
+          <View style={{ position: "absolute", top: s * 0.02, right: -s * 0.02, width: s * 0.13, height: s * 0.13, borderRadius: s * 0.065, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: s * 0.12, right: -s * 0.04, width: s * 0.12, height: s * 0.4, backgroundColor: color, borderRadius: s * 0.06 }} />
+        </>
+      );
+    case "highbun":
+      // High bun: bun piled high on top of the head
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.3, left: s * 0.5 - s * 0.12, width: s * 0.24, height: s * 0.24, borderRadius: s * 0.12, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.22, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+        </>
+      );
+    case "wavy":
+      // Wavy: shoulder-length waves from stacked rounded segments
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.05, width: s * 0.9, height: s * 0.24, backgroundColor: color, borderTopLeftRadius: s * 0.17, borderTopRightRadius: s * 0.17, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.16, left: s * 0.0, width: s * 0.16, height: s * 0.2, borderRadius: s * 0.08, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: s * 0.32, left: s * 0.02, width: s * 0.16, height: s * 0.2, borderRadius: s * 0.08, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: s * 0.16, right: s * 0.0, width: s * 0.16, height: s * 0.2, borderRadius: s * 0.08, backgroundColor: color }} />
+          <View style={{ position: "absolute", top: s * 0.32, right: s * 0.02, width: s * 0.16, height: s * 0.2, borderRadius: s * 0.08, backgroundColor: color }} />
+        </>
+      );
+    case "lob":
+      // Lob: long bob, straight and shoulder-length
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.05, width: s * 0.9, height: s * 0.3, backgroundColor: color, borderTopLeftRadius: s * 0.18, borderTopRightRadius: s * 0.18, borderBottomLeftRadius: s * 0.04, borderBottomRightRadius: s * 0.04 }} />
+          <View style={{ position: "absolute", top: s * 0.22, left: s * 0.02, width: s * 0.13, height: s * 0.4, backgroundColor: color, borderRadius: s * 0.06 }} />
+          <View style={{ position: "absolute", top: s * 0.22, right: s * 0.02, width: s * 0.13, height: s * 0.4, backgroundColor: color, borderRadius: s * 0.06 }} />
+        </>
+      );
+    default:
+      return null;
   }
 }
 
@@ -195,16 +286,16 @@ function Beard({ length, s, style = "full" }: { length: number; s: number; style
     );
   }
   if (length <= 66) {
-    // short full beard: jaw + chin coverage
-    const w = s * 0.56;
+    // short full beard: covers the full lower face — cheeks, jaw, chin, framing the mouth
+    const w = s * 0.78;
     return (
-      <View style={{ position: "absolute", top: s * 0.52, left: s * 0.5 - w / 2, width: w, height: s * 0.3, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.14, borderBottomRightRadius: s * 0.14, borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06 }} />
+      <View style={{ position: "absolute", top: s * 0.44, left: s * 0.5 - w / 2, width: w, height: s * 0.36, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.18, borderBottomRightRadius: s * 0.18, borderTopLeftRadius: s * 0.1, borderTopRightRadius: s * 0.1 }} />
     );
   }
-  // long full beard: extends below the chin
-  const w = s * 0.6;
+  // long full beard: full lower-face coverage, extends below the chin
+  const w = s * 0.8;
   return (
-    <View style={{ position: "absolute", top: s * 0.52, left: s * 0.5 - w / 2, width: w, height: s * 0.48, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.2, borderBottomRightRadius: s * 0.2, borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06 }} />
+    <View style={{ position: "absolute", top: s * 0.44, left: s * 0.5 - w / 2, width: w, height: s * 0.56, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.24, borderBottomRightRadius: s * 0.24, borderTopLeftRadius: s * 0.1, borderTopRightRadius: s * 0.1 }} />
   );
 }
 

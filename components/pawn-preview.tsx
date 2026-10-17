@@ -93,11 +93,12 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
       const h = s * 0.34;
       const top = -s * 0.16;
       return (
-        <>
-          <View style={{ position: "absolute", top, left: cx - w / 2, width: w, height: h, borderRadius: s * 0.03, backgroundColor: "#111827" }} />
-          <View style={{ position: "absolute", top: top + h - s * 0.02, left: cx - w * 0.75, width: w * 1.5, height: s * 0.05, borderRadius: s * 0.025, backgroundColor: "#111827" }} />
-          <View style={{ position: "absolute", top: top + h * 0.62, left: cx - w / 2, width: w, height: s * 0.05, backgroundColor: "#DC2626" }} />
-        </>
+        <View style={{ position: "absolute", top, left: 0, right: 0, alignItems: "center", height: h + s * 0.05 }}>
+          <View style={{ width: w, height: h, borderRadius: s * 0.03, backgroundColor: "#111827" }}>
+            <View style={{ position: "absolute", top: h * 0.62, left: 0, right: 0, height: s * 0.05, backgroundColor: "#DC2626" }} />
+          </View>
+          <View style={{ width: w * 1.5, height: s * 0.05, borderRadius: s * 0.025, backgroundColor: "#111827", marginTop: -s * 0.02 }} />
+        </View>
       );
     }
     case "crown": {
@@ -121,10 +122,10 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
       const w = s * 0.52;
       const top = -s * 0.1;
       return (
-        <>
-          <View style={{ position: "absolute", top, left: cx - w / 2, width: w, height: w * 0.52, backgroundColor: "#DC2626", borderTopLeftRadius: w / 2, borderTopRightRadius: w / 2 }} />
-          <View style={{ position: "absolute", top: top + w * 0.42, left: cx + w * 0.1, width: w * 0.5, height: s * 0.045, borderRadius: s * 0.022, backgroundColor: "#991B1B" }} />
-        </>
+        <View style={{ position: "absolute", top, left: 0, right: 0, alignItems: "center" }}>
+          <View style={{ width: w, height: w * 0.52, backgroundColor: "#DC2626", borderTopLeftRadius: w / 2, borderTopRightRadius: w / 2 }} />
+          <View style={{ width: w * 0.5, height: s * 0.045, borderRadius: s * 0.022, backgroundColor: "#991B1B", marginTop: -s * 0.01, marginLeft: w * 0.3 }} />
+        </View>
       );
     }
   }

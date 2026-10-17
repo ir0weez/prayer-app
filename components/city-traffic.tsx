@@ -117,16 +117,47 @@ function CarBody({ color, dir }: { color: string; dir: Dir }) {
   );
 }
 
-export function CityTraffic({ cellSize }: { cellSize: number }) {
+export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carCount?: number }) {
   const logicRef = useRef<Record<string, CarLogic>>({});
   const [renderIds, setRenderIds] = useState<string[]>([]);
   const [orients, setOrients] = useState<Record<string, Dir>>({});
   const orientsRef = useRef<Record<string, Dir>>({});
   orientsRef.current = orients;
+  const carCountRef = useRef(carCount);
+  carCountRef.current = carCount;
 
   useEffect(() => {
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize });
     const logic = logicRef.current;
+
+    const spawnCars = () => {
+      const n = Math.max(0, Math.min(CAR_LOOPS.length, Math.floor(carCountRef.current)));
+      // Full rebuild: stop everything, spawn exactly n cars
+      for (const id of Object.keys(logic)) {
+        logic[id].anim?.stop();
+        delete logic[id];
+      }
+      // Spawn one car per loop up to the count, staggered along the route
+      for (let i = 0; i < n; i++) {
+        const id = `car-${i}`;
+        const loop = CAR_LOOPS[i];
+        const waypoints = loop.map(toPx);
+        const startIdx = Math.floor((i * 3) % waypoints.length);
+        const start = waypoints[startIdx];
+        const car: CarLogic = {
+          id,
+          color: CAR_COLORS[i % CAR_COLORS.length],
+          waypoints,
+          wpIndex: (startIdx + 1) % waypoints.length,
+          pos: new Animated.ValueXY(start),
+          px: start.x, py: start.y,
+          anim: null,
+        };
+        logic[id] = car;
+        stepCar(car);
+      }
+      setRenderIds(Object.keys(logic));
+    };
 
     const stepCar = (car: CarLogic) => {
       const wp = car.waypoints[car.wpIndex % car.waypoints.length];
@@ -150,31 +181,13 @@ export function CityTraffic({ cellSize }: { cellSize: number }) {
       });
     };
 
-    // Spawn one car per loop, staggered along the route
-    CAR_LOOPS.forEach((loop, i) => {
-      const id = `car-${i}`;
-      if (logic[id]) return;
-      const waypoints = loop.map(toPx);
-      const startIdx = Math.floor((i * 3) % waypoints.length);
-      const start = waypoints[startIdx];
-      const car: CarLogic = {
-        id,
-        color: CAR_COLORS[i % CAR_COLORS.length],
-        waypoints,
-        wpIndex: (startIdx + 1) % waypoints.length,
-        pos: new Animated.ValueXY(start),
-        px: start.x, py: start.y,
-        anim: null,
-      };
-      logic[id] = car;
-      stepCar(car);
-    });
-    setRenderIds(Object.keys(logic));
+    // Spawn cars on mount / resize, and whenever the house count changes
+    spawnCars();
 
     return () => {
       for (const car of Object.values(logic)) car.anim?.stop();
     };
-  }, [cellSize]);
+  }, [cellSize, carCount]);
 
   return (
     <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">

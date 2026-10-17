@@ -1393,7 +1393,10 @@ export default function HometownScreen() {
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
-              <CityTraffic cellSize={cellSize} />
+              <CityTraffic
+                cellSize={cellSize}
+                carCount={Math.min(6, Math.max(0, town.maps.town.buildings.filter((b) => b.type === "house").length))}
+              />
               <CityNPCs
                 mapState={map}
                 cellSize={cellSize}

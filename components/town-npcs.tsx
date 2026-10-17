@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, View } from "react-native";
+import { Animated, Easing, Text, View } from "react-native";
 import {
   BUILDINGS,
   buildingFootprint,
   townsfolkForHouse,
   type MapState,
 } from "@/lib/hometown";
+import { getTimeOfDay } from "@/lib/daynight";
 
 const NPC_SIZE = 16;
 const SPEED_PX_PER_SEC = 42;
@@ -40,6 +41,7 @@ type NpcLogic = {
   color: string;
   pos: Animated.ValueXY;
   bob: Animated.Value;
+  snore: Animated.Value;
   state: "idle" | "walking" | "visiting" | "returning";
   waitUntil: number;
   waypoints: Px[];
@@ -151,6 +153,10 @@ export function TownNPCs({
   const visitRef = useRef(onBankVisit);
   visitRef.current = onBankVisit;
   const [renderIds, setRenderIds] = useState<string[]>([]);
+  // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
+  const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
+  const sleepingRef = useRef<Set<string>>(new Set());
+  const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
   // NPCs per house scale with house level (L1=2 … L5/Mansion=6). Nothing else is residential.
   const npcDefs = useMemo<NpcDef[]>(() => {
@@ -202,11 +208,14 @@ export function TownNPCs({
 
     const arrive = (npc: NpcLogic) => {
       const now = Date.now();
+      const nightNow = getTimeOfDay() === "night";
       if (npc.state === "walking") {
         npc.state = "visiting";
-        npc.waitUntil = now + 3000 + Math.random() * 5000;
+        // At night the town is asleep — just a quick peek before heading home.
+        // Businesses are closed, so no bank-visit bonus either.
+        npc.waitUntil = now + (nightNow ? 1200 : 3000 + Math.random() * 5000);
         // Visiting a bank? Customers doing business — bonus coins for the bank.
-        if ((npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
+        if (!nightNow && (npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
           try {
             visitRef.current?.(npc.destBuildingId);
           } catch {}
@@ -243,7 +252,26 @@ export function TownNPCs({
 
     const tick = () => {
       const now = Date.now();
+      const night = getTimeOfDay() === "night";
+      if (night !== nightRef.current) {
+        nightRef.current = night;
+        if (!night) {
+          // Morning: stagger the wake-up so the whole town doesn't pour out at once.
+          for (const npc of Object.values(logic)) {
+            if (npc.state === "idle") npc.waitUntil = now + 1500 + Math.random() * 5000;
+          }
+        }
+      }
       for (const npc of Object.values(logic)) {
+        if (night) {
+          if (npc.state === "idle") continue; // home asleep — stay put
+          if (npc.state === "visiting") {
+            // Cut the visit short so they head home; the branch below sends them.
+            if (now < npc.waitUntil) npc.waitUntil = now;
+          } else {
+            continue; // walking / returning: let them finish the current leg, no teleports
+          }
+        }
         if (npc.state === "idle" && now >= npc.waitUntil) {
           const dest = pickDestination(npc);
           if (!dest) {
@@ -264,6 +292,24 @@ export function TownNPCs({
           npc.state = "returning";
           stepNpc(npc);
         }
+      }
+      // Sync the sleeping set for the 💤 render (only fires when someone dozes off / wakes).
+      const next = new Set<string>();
+      if (night) {
+        for (const npc of Object.values(logic)) {
+          if (npc.state === "idle") next.add(npc.id);
+        }
+      }
+      const prev = sleepingRef.current;
+      let changed = next.size !== prev.size;
+      if (!changed) {
+        for (const id of next) {
+          if (!prev.has(id)) { changed = true; break; }
+        }
+      }
+      if (changed) {
+        sleepingRef.current = next;
+        setSleepingIds(next);
       }
     };
 
@@ -303,6 +349,24 @@ export function TownNPCs({
             }),
           ])
         ).start();
+        // Slow rising 💤 loop — only rendered while the villager sleeps.
+        const snore = new Animated.Value(0);
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(snore, {
+              toValue: 1,
+              duration: 1500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+            Animated.timing(snore, {
+              toValue: 0,
+              duration: 1500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
         logic[def.id] = {
           id: def.id,
           homeId: def.homeId,
@@ -310,6 +374,7 @@ export function TownNPCs({
           color: def.color,
           pos: new Animated.ValueXY(homePx),
           bob,
+          snore,
           state: "idle",
           waitUntil: Date.now() + 1500 + Math.random() * 5000,
           waypoints: [],
@@ -328,6 +393,20 @@ export function TownNPCs({
     }
     setRenderIds(Object.keys(logic));
 
+    // Initial night/sleep sync (app opened at night → villagers already asleep).
+    {
+      const night0 = getTimeOfDay() === "night";
+      nightRef.current = night0;
+      const s0 = new Set<string>();
+      if (night0) {
+        for (const [id, npc] of Object.entries(logic)) {
+          if (npc.state === "idle") s0.add(id);
+        }
+      }
+      sleepingRef.current = s0;
+      setSleepingIds(s0);
+    }
+
     const timer = setInterval(tick, 700);
     return () => clearInterval(timer);
   }, [npcDefs, cellSize]);
@@ -341,6 +420,7 @@ export function TownNPCs({
         const npc = logicRef.current[id];
         if (!npc) return null;
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
+        const asleep = sleepingIds.has(id);
         return (
           <Animated.View
             key={id}
@@ -354,6 +434,22 @@ export function TownNPCs({
               transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
             }}
           >
+            {/* 💤 while asleep at home */}
+            {asleep ? (
+              <Animated.Text
+                style={{
+                  position: "absolute",
+                  top: -16,
+                  fontSize: 11,
+                  opacity: npc.snore.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+                  transform: [
+                    { translateY: npc.snore.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+                  ],
+                }}
+              >
+                💤
+              </Animated.Text>
+            ) : null}
             {/* head */}
             <View
               style={{
@@ -417,6 +513,8 @@ type CityNpcLogic = {
   visitsLeft: number;
   destBuildingId?: string;
   destType?: string;
+  /** Workers clock out at night (hidden until morning). */
+  offShift?: boolean;
 };
 
 // Slightly more "downtown" palette for city folk
@@ -488,6 +586,7 @@ export function CityNPCs({
   visitRef.current = onBankVisit;
   const nextSpawnAt = useRef<number>(0);
   const [renderIds, setRenderIds] = useState<string[]>([]);
+  const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
   // Worker defs: 2 per L2 plot building, 4 per L3. L1 is quiet.
   const workerDefs = useMemo(() => {
@@ -569,8 +668,10 @@ export function CityNPCs({
       npc.state = "visiting";
       npc.waitUntil = now + (npc.kind === "worker" ? 2000 + Math.random() * 2500 : 3000 + Math.random() * 4000);
       // Commuter visiting a bank? Customers doing business — bonus coins for the bank.
+      // (Closed at night — the city is asleep.)
       if (
         npc.kind === "commuter" &&
+        getTimeOfDay() !== "night" &&
         (npc.destType === "bank" || npc.destType === "bank-tower") &&
         npc.destBuildingId
       ) {
@@ -599,9 +700,38 @@ export function CityNPCs({
 
     const tick = () => {
       const now = Date.now();
-      // Commuter spawner — keep the target population topped up
+      const night = getTimeOfDay() === "night";
+      if (night !== nightRef.current) {
+        nightRef.current = night;
+        if (night) {
+          // Night falls: workers clock out, commuters head home. The city sleeps.
+          for (const npc of Object.values(logic)) {
+            if (npc.kind === "worker") {
+              npc.anim?.stop();
+              npc.offShift = true;
+              npc.state = "idle";
+              npc.waypoints = [];
+              npc.wpIndex = 0;
+            } else if (npc.state === "visiting") {
+              npc.visitsLeft = 0;
+              npc.waitUntil = now;
+            }
+          }
+        } else {
+          // Morning: workers clock back in, staggered.
+          for (const npc of Object.values(logic)) {
+            if (npc.kind === "worker" && npc.offShift) {
+              npc.offShift = false;
+              npc.state = "idle";
+              npc.waitUntil = now + Math.random() * 5000;
+            }
+          }
+        }
+        setRenderIds(Object.keys(logic)); // re-render to hide / show workers
+      }
+      // Commuter spawner — keep the target population topped up (nobody commutes at night)
       const activeCommuters = Object.values(logic).filter((n) => n.kind === "commuter").length;
-      const target = Math.round((countRef.current || 0) * 0.25);
+      const target = night ? 0 : Math.round((countRef.current || 0) * 0.25);
       if (activeCommuters < target && now >= nextSpawnAt.current) {
         const id = `commuter-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
         logic[id] = makeNpc(id, "commuter", "commuter", randomEdgeTile());
@@ -624,6 +754,8 @@ export function CityNPCs({
         stepNpc(npc);
       };
       for (const npc of Object.values(logic)) {
+        if (npc.offShift) continue; // clocked out for the night
+        if (night && npc.kind === "commuter") npc.visitsLeft = 0; // no late-night errands
         if (npc.state === "idle" && now >= npc.waitUntil) {
           const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest();
           if (!dest) { npc.waitUntil = now + 4000; continue; }
@@ -679,7 +811,7 @@ export function CityNPCs({
     <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
       {renderIds.map((id) => {
         const npc = logicRef.current[id];
-        if (!npc) return null;
+        if (!npc || npc.offShift) return null;
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
         return (
           <Animated.View

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
+import { getTimeOfDay } from "@/lib/daynight";
 
 // ---------------------------------------------------------------------------
 // CityTraffic: flat little cars circulating the downtown street grid.
@@ -125,13 +126,23 @@ export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carC
   orientsRef.current = orients;
   const carCountRef = useRef(carCount);
   carCountRef.current = carCount;
+  // At night the city sleeps — no traffic, regardless of house count.
+  const [isNight, setIsNight] = useState(() => getTimeOfDay() === "night");
+  useEffect(() => {
+    const id = setInterval(() => {
+      const n = getTimeOfDay() === "night";
+      setIsNight((prev) => (prev === n ? prev : n));
+    }, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize });
     const logic = logicRef.current;
 
     const spawnCars = () => {
-      const n = Math.max(0, Math.min(CAR_LOOPS.length, Math.floor(carCountRef.current)));
+      const raw = isNight ? 0 : carCountRef.current;
+      const n = Math.max(0, Math.min(CAR_LOOPS.length, Math.floor(raw)));
       // Full rebuild: stop everything, spawn exactly n cars
       for (const id of Object.keys(logic)) {
         logic[id].anim?.stop();
@@ -181,13 +192,14 @@ export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carC
       });
     };
 
-    // Spawn cars on mount / resize, and whenever the house count changes
+    // Spawn cars on mount / resize, whenever the house count changes,
+    // or when night falls / lifts (city sleeps at night).
     spawnCars();
 
     return () => {
       for (const car of Object.values(logic)) car.anim?.stop();
     };
-  }, [cellSize, carCount]);
+  }, [cellSize, carCount, isNight]);
 
   return (
     <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">

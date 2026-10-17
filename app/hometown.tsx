@@ -565,24 +565,7 @@ export default function HometownScreen() {
               <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
             </View>
           )}
-          {b && isOrigin && incomeFor(b.type, b.level || 1) > 0 && (
-            <View style={{ position: "absolute", top: -6, right: -6, zIndex: 100 }}>
-              <SpinningCoin
-                amount={b.accumulated || 0}
-                onCollect={() => handleCollectBuilding(b.id)}
-              />
-            </View>
-          )}
-          {b && isOrigin && (
-            <View style={{ alignItems: "center", justifyContent: "center" }}>
-              <BuildingArt type={b.type} size={cellSize * 0.85} level={b.level || 1} />
-              {(b.level || 1) > 1 && (
-                <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
-                  {"★".repeat(b.level || 1)}
-                </Text>
-              )}
-            </View>
-          )}
+          {null}
         </Pressable>
       );
     }
@@ -633,7 +616,46 @@ export default function HometownScreen() {
         </View>
       </View>
 
-      <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
+      <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <View style={{ position: "relative" }}>
+          {rows}
+          {/* Buildings overlay - positioned by grid coordinates */}
+          {town.buildings.map((b) => {
+            const fp = buildingFootprint(b.level || 1);
+            const hasIncome = incomeFor(b.type, b.level || 1) > 0;
+            return (
+              <View
+                key={`bldg-${b.id}`}
+                pointerEvents="box-none"
+                style={{
+                  position: "absolute",
+                  left: b.x * cellSize,
+                  top: b.y * cellSize,
+                  width: fp.w * cellSize,
+                  height: fp.h * cellSize,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} />
+                {(b.level || 1) > 1 && (
+                  <Text style={{ fontSize: 10, color: "#F59E0B", fontWeight: "700" }}>
+                    {"★".repeat(b.level || 1)}
+                  </Text>
+                )}
+                {hasIncome && (
+                  <View style={{ position: "absolute", top: -10, right: -10 }}>
+                    <SpinningCoin
+                      amount={b.accumulated || 0}
+                      onCollect={() => handleCollectBuilding(b.id)}
+                    />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
 
       {selectedTile && (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginTop: 8 }}>

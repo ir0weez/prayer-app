@@ -414,7 +414,41 @@ export default function HometownScreen() {
         
         const currentIncome = incomeFor(existing.type, level);
         if (level >= 3) {
-          Alert.alert(`${def.name} (Lv 3)`, `${def.description}\n\nMax level! Earns ${currentIncome} coins/day.`);
+          const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
+          Alert.alert(
+            `${def.name} (Lv 3)`,
+            `${def.description}\n\nMax level! Earns ${currentIncome} coins/day.`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "↔️ Move",
+                onPress: () => {
+                  setMovingBuilding(existing);
+                  Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
+                    { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
+                    { text: "OK" },
+                  ]);
+                },
+              },
+              {
+                text: `💰 Sell ${sellPrice}`,
+                style: "destructive",
+                onPress: () => {
+                  Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Sell", style: "destructive", onPress: () => {
+                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                      const updatedCoins = {
+                        balance: Math.round((coins.balance + sellPrice) * 10) / 10,
+                        lifetimeEarned: coins.lifetimeEarned,
+                      };
+                      saveCoins(updatedCoins);
+                    }},
+                  ]);
+                },
+              },
+            ]
+          );
         } else {
           const nextLevel = (level + 1) as 2 | 3;
           // Check if expanded footprint fits
@@ -436,11 +470,39 @@ export default function HometownScreen() {
           }
           const cost = upgradeCostFor(existing.type, nextLevel);
           const nextIncome = incomeFor(existing.type, nextLevel);
+          const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
           Alert.alert(
             `${def.name} (Lv ${level})`,
             `${def.description}\n\nCurrently earns ${currentIncome} coins/day.\nUpgrade to Lv ${nextLevel}: ${nextIncome} coins/day.`,
             [
               { text: "Cancel", style: "cancel" },
+              {
+                text: "↔️ Move",
+                onPress: () => {
+                  setMovingBuilding(existing);
+                  Alert.alert("Move Mode", `Moving ${def.name}. Tap a new location.`, [
+                    { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
+                    { text: "OK" },
+                  ]);
+                },
+              },
+              {
+                text: `💰 Sell ${sellPrice}`,
+                style: "destructive",
+                onPress: () => {
+                  Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Sell", style: "destructive", onPress: () => {
+                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                      const updatedCoins = {
+                        balance: Math.round((coins.balance + sellPrice) * 10) / 10,
+                        lifetimeEarned: coins.lifetimeEarned,
+                      };
+                      saveCoins(updatedCoins);
+                    }},
+                  ]);
+                },
+              },
               {
                 text: `Upgrade 🪙${cost}`,
                 onPress: () => {

@@ -8,14 +8,20 @@ import {
   BANK_DESK_COST,
   BANK_INTERIOR_GRID,
   BANK_MAX_DESKS,
+  BANK_MAX_FLOORS,
   COINS_STORAGE_KEY,
+  TOWN_STORAGE_KEY,
+  bankFloorCost,
+  bankFloorMultiplier,
   bankInteriorKey,
   connectedDeskCount,
   parseBankInterior,
   parseCoins,
+  parseTown,
   type BankInteriorItem,
   type BankInteriorState,
   type HometownCoins,
+  type PlacedBuilding,
 } from "@/lib/hometown";
 import { completeMission, loadMissions, type Mission } from "@/lib/missions";
 
@@ -98,6 +104,7 @@ export default function BankInteriorScreen() {
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [interior, setInterior] = useState<BankInteriorState>({ desks: [], carpets: [] });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
+  const [building, setBuilding] = useState<PlacedBuilding | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const storageKey = buildingId ? bankInteriorKey(buildingId) : null;
@@ -115,15 +122,52 @@ export default function BankInteriorScreen() {
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
 
+  const handleAddFloor = useCallback(async () => {
+    if (!building || building.type !== "bank-tower") return;
+    const current = building.floors || 1;
+    if (current >= BANK_MAX_FLOORS) return;
+    const cost = bankFloorCost(current);
+    if (coins.balance < cost) {
+      Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost} coins.`);
+      return;
+    }
+    try {
+      const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+      const town = parseTown(townRaw ? JSON.parse(townRaw) : {});
+      let updated: PlacedBuilding | null = null;
+      for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+        town.maps[mapId].buildings = town.maps[mapId].buildings.map((b) => {
+          if (b.id === building!.id) {
+            updated = { ...b, floors: current + 1 };
+            return updated;
+          }
+          return b;
+        });
+      }
+      await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
+      if (updated) setBuilding(updated);
+      saveCoins({ balance: Math.round((coins.balance - cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+    } catch {}
+  }, [building, coins, saveCoins]);
+
   useEffect(() => {
     (async () => {
       try {
-        const [coinsRaw, interiorRaw, missions] = await Promise.all([
+        const [coinsRaw, interiorRaw, missions, townRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           storageKey ? AsyncStorage.getItem(storageKey) : null,
           loadMissions(),
+          AsyncStorage.getItem(TOWN_STORAGE_KEY),
         ]);
         setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+        // Find this building for floor management (bank-tower only)
+        try {
+          const town = parseTown(townRaw ? JSON.parse(townRaw) : {});
+          outer: for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+            const found = town.maps[mapId].buildings.find((b) => b.id === buildingId);
+            if (found) { setBuilding(found); break outer; }
+          }
+        } catch {}
         setInterior(parseBankInterior(interiorRaw ? JSON.parse(interiorRaw) : {}));
         // Complete the bank-visit mission on entry
         const visit = missions.find((m: Mission) => m.type === "bank-visit" && !m.completed);
@@ -264,6 +308,37 @@ export default function BankInteriorScreen() {
           </Text>
         </View>
       </View>
+
+      {building?.type === "bank-tower" && (() => {
+        const fl = building.floors || 1;
+        const maxed = fl >= BANK_MAX_FLOORS;
+        const cost = bankFloorCost(fl);
+        const canAfford = coins.balance >= cost;
+        return (
+          <View style={{ backgroundColor: "#1E3A8A", borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
+            <MaterialIcons name="apartment" size={24} color="#FDE68A" />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>
+                {fl}/{BANK_MAX_FLOORS} floors · ×{bankFloorMultiplier(fl).toFixed(1)} earnings
+              </Text>
+              <Text style={{ color: "#BFDBFE", fontSize: 12 }}>
+                {maxed ? "Tower complete! Maximum height reached." : `Each floor adds +50% to this tower's income.`}
+              </Text>
+            </View>
+            {!maxed && (
+              <Pressable
+                onPress={handleAddFloor}
+                disabled={!canAfford}
+                style={{ backgroundColor: canAfford ? "#FDE68A" : "#4B5563", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: canAfford ? 1 : 0.6 }}
+              >
+                <Text style={{ fontWeight: "800", color: canAfford ? "#1E3A8A" : "#D1D5DB", fontSize: 13 }}>
+                  +Floor 🪙{cost}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      })()}
 
       <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
 

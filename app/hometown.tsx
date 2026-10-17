@@ -70,6 +70,7 @@ import { generateDailyMissions, loadMissions, completeMission, pendingMissions, 
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalOverlay } from "@/components/seasonal-overlay";
 import { TownNPCs, CityNPCs, countHometownNpcs } from "@/components/town-npcs";
+import { CityTraffic } from "@/components/city-traffic";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -1397,11 +1398,14 @@ export default function HometownScreen() {
           <TownNPCs mapState={map} cellSize={cellSize} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
-            <CityNPCs
-              mapState={map}
-              cellSize={cellSize}
-              hometownNpcCount={countHometownNpcs(town.maps.town.buildings)}
-            />
+            <>
+              <CityTraffic cellSize={cellSize} />
+              <CityNPCs
+                mapState={map}
+                cellSize={cellSize}
+                hometownNpcCount={countHometownNpcs(town.maps.town.buildings)}
+              />
+            </>
           )}
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {

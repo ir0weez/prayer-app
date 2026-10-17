@@ -1,0 +1,204 @@
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, View } from "react-native";
+
+// ---------------------------------------------------------------------------
+// CityTraffic: flat little cars circulating the downtown street grid.
+// Purely visual — pointerEvents="none", native-driver animations.
+// Cars follow street tiles (avenues x=2/x=5, boulevards y=2/y=5).
+// ---------------------------------------------------------------------------
+
+type Tile = { x: number; y: number };
+type Px = { x: number; y: number };
+
+const CAR_SPEED_PX_PER_SEC = 60;
+const CAR_COLORS = ["#EF4444", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#E2E8F0"];
+
+type Dir = "E" | "W" | "N" | "S";
+
+// Tile loops — all tiles are city streets (avenues x=2/x=5, boulevards y=2/y=5)
+const CAR_LOOPS: Tile[][] = [
+  // Center block — clockwise
+  [
+    { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }, { x: 5, y: 2 },
+    { x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 },
+    { x: 4, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 5 },
+    { x: 2, y: 4 }, { x: 2, y: 3 },
+  ],
+  // Center block — counter-clockwise
+  [
+    { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 },
+    { x: 3, y: 5 }, { x: 4, y: 5 }, { x: 5, y: 5 },
+    { x: 5, y: 4 }, { x: 5, y: 3 }, { x: 5, y: 2 },
+    { x: 4, y: 2 }, { x: 3, y: 2 },
+  ],
+  // West Ave — southbound then back north
+  [
+    { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 },
+    { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 2, y: 6 }, { x: 2, y: 7 },
+    { x: 2, y: 6 }, { x: 2, y: 5 }, { x: 2, y: 4 }, { x: 2, y: 3 },
+    { x: 2, y: 2 }, { x: 2, y: 1 },
+  ],
+  // East Ave — northbound then back south
+  [
+    { x: 5, y: 7 }, { x: 5, y: 6 }, { x: 5, y: 5 }, { x: 5, y: 4 },
+    { x: 5, y: 3 }, { x: 5, y: 2 }, { x: 5, y: 1 }, { x: 5, y: 0 },
+    { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }, { x: 5, y: 4 },
+    { x: 5, y: 5 }, { x: 5, y: 6 },
+  ],
+  // North Blvd — eastbound then back west
+  [
+    { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 },
+    { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 },
+    { x: 6, y: 2 }, { x: 5, y: 2 }, { x: 4, y: 2 }, { x: 3, y: 2 },
+    { x: 2, y: 2 }, { x: 1, y: 2 },
+  ],
+  // South Blvd — westbound then back east
+  [
+    { x: 7, y: 5 }, { x: 6, y: 5 }, { x: 5, y: 5 }, { x: 4, y: 5 },
+    { x: 3, y: 5 }, { x: 2, y: 5 }, { x: 1, y: 5 }, { x: 0, y: 5 },
+    { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
+    { x: 5, y: 5 }, { x: 6, y: 5 },
+  ],
+];
+
+type CarLogic = {
+  id: string;
+  color: string;
+  waypoints: Px[];
+  wpIndex: number;
+  pos: Animated.ValueXY;
+  px: number;
+  py: number;
+  anim: Animated.CompositeAnimation | null;
+};
+
+function dirOf(from: Px, to: Px): Dir {
+  if (to.x > from.x) return "E";
+  if (to.x < from.x) return "W";
+  if (to.y > from.y) return "S";
+  return "N";
+}
+
+function CarBody({ color, dir }: { color: string; dir: Dir }) {
+  const horizontal = dir === "E" || dir === "W";
+  const w = horizontal ? 28 : 15;
+  const h = horizontal ? 15 : 28;
+  // Windshield sits toward the front of travel
+  const shieldStyle = horizontal
+    ? {
+        width: 9, height: 11, borderRadius: 2,
+        left: dir === "E" ? 15 : 4, top: 2,
+      }
+    : {
+        width: 11, height: 9, borderRadius: 2,
+        left: 2, top: dir === "S" ? 15 : 4,
+      };
+  const wheelA = horizontal
+    ? { left: 5, top: -3, width: 7, height: 4 }
+    : { left: -3, top: 5, width: 4, height: 7 };
+  const wheelB = horizontal
+    ? { left: 16, top: -3, width: 7, height: 4 }
+    : { left: -3, top: 16, width: 4, height: 7 };
+  const wheelC = horizontal
+    ? { left: 5, top: h - 1, width: 7, height: 4 }
+    : { left: w - 1, top: 5, width: 4, height: 7 };
+  const wheelD = horizontal
+    ? { left: 16, top: h - 1, width: 7, height: 4 }
+    : { left: w - 1, top: 16, width: 4, height: 7 };
+  return (
+    <View style={{ width: w, height: h }}>
+      {[wheelA, wheelB, wheelC, wheelD].map((ws, i) => (
+        <View key={i} style={[{ position: "absolute", backgroundColor: "#1F2937", borderRadius: 2 }, ws]} />
+      ))}
+      <View style={{ width: w, height: h, borderRadius: 6, backgroundColor: color }}>
+        <View style={[{ position: "absolute", backgroundColor: "rgba(255,255,255,0.75)" }, shieldStyle]} />
+      </View>
+    </View>
+  );
+}
+
+export function CityTraffic({ cellSize }: { cellSize: number }) {
+  const logicRef = useRef<Record<string, CarLogic>>({});
+  const [renderIds, setRenderIds] = useState<string[]>([]);
+  const [orients, setOrients] = useState<Record<string, Dir>>({});
+  const orientsRef = useRef<Record<string, Dir>>({});
+  orientsRef.current = orients;
+
+  useEffect(() => {
+    const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize });
+    const logic = logicRef.current;
+
+    const stepCar = (car: CarLogic) => {
+      const wp = car.waypoints[car.wpIndex % car.waypoints.length];
+      const dist = Math.hypot(wp.x - car.px, wp.y - car.py);
+      const duration = Math.max(250, (dist / CAR_SPEED_PX_PER_SEC) * 1000);
+      const d = dirOf({ x: car.px, y: car.py }, wp);
+      if (orientsRef.current[car.id] !== d) {
+        orientsRef.current = { ...orientsRef.current, [car.id]: d };
+        setOrients(orientsRef.current);
+      }
+      car.anim?.stop();
+      car.anim = Animated.timing(car.pos, {
+        toValue: { x: wp.x, y: wp.y },
+        duration, easing: Easing.linear, useNativeDriver: true,
+      });
+      car.anim.start(({ finished }) => {
+        if (!finished) return;
+        car.px = wp.x; car.py = wp.y;
+        car.wpIndex = (car.wpIndex + 1) % car.waypoints.length;
+        stepCar(car);
+      });
+    };
+
+    // Spawn one car per loop, staggered along the route
+    CAR_LOOPS.forEach((loop, i) => {
+      const id = `car-${i}`;
+      if (logic[id]) return;
+      const waypoints = loop.map(toPx);
+      const startIdx = Math.floor((i * 3) % waypoints.length);
+      const start = waypoints[startIdx];
+      const car: CarLogic = {
+        id,
+        color: CAR_COLORS[i % CAR_COLORS.length],
+        waypoints,
+        wpIndex: (startIdx + 1) % waypoints.length,
+        pos: new Animated.ValueXY(start),
+        px: start.x, py: start.y,
+        anim: null,
+      };
+      logic[id] = car;
+      stepCar(car);
+    });
+    setRenderIds(Object.keys(logic));
+
+    return () => {
+      for (const car of Object.values(logic)) car.anim?.stop();
+    };
+  }, [cellSize]);
+
+  return (
+    <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">
+      {renderIds.map((id) => {
+        const car = logicRef.current[id];
+        if (!car) return null;
+        const dir = orients[id] || "E";
+        const horizontal = dir === "E" || dir === "W";
+        const cw = horizontal ? 28 : 15;
+        const ch = horizontal ? 15 : 28;
+        return (
+          <Animated.View
+            key={id}
+            style={{
+              position: "absolute",
+              left: -cw / 2, top: -ch / 2,
+              transform: [{ translateX: car.pos.x }, { translateY: car.pos.y }],
+            }}
+            pointerEvents="none"
+          >
+            <CarBody color={car.color} dir={dir} />
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}

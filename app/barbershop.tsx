@@ -142,11 +142,20 @@ export default function BarbershopScreen() {
     setCoins(c);
     setOwnedHair(oh);
     setOwnedBeard(ob);
-    // Must have placed a barbershop building to use this screen
+    // Must have placed a barbershop building to use this screen (check all maps)
     try {
       const town = townRaw ? JSON.parse(townRaw) : null;
-      const buildings = town?.buildings || [];
-      setHasShop(buildings.some((b: any) => b.type === "barbershop"));
+      const maps = town?.maps;
+      let found = false;
+      if (maps && typeof maps === "object") {
+        for (const m of Object.values(maps) as any[]) {
+          if (m?.buildings?.some((b: any) => b.type === "barbershop")) { found = true; break; }
+        }
+      } else {
+        // Old single-map format
+        found = (town?.buildings || []).some((b: any) => b.type === "barbershop");
+      }
+      setHasShop(found);
     } catch { setHasShop(false); }
     setLoaded(true);
   }, []);

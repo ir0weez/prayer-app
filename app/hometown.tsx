@@ -617,6 +617,13 @@ export default function HometownScreen() {
   const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
     map.decorations.find((d) => d.x === x && d.y === y);
 
+  /** "12 coins/day" or "50 XP/day" depending on the building. */
+  const incomeLabel = (type: BuildingType, level: 1 | 2 | 3): string => {
+    const xp = xpIncomeFor(type, level);
+    if (xp > 0) return `${xp} XP/day`;
+    return `${incomeFor(type, level)} coins/day`;
+  };
+
   const handleTilePress = (x: number, y: number) => {
     // Move mode: place the moving building here
     if (movingBuilding) {
@@ -677,13 +684,12 @@ export default function HometownScreen() {
       } else {
         const def = BUILDINGS[existing.type];
         const level = existing.level || 1;
-        
-        const currentIncome = incomeFor(existing.type, level);
+
         if (level >= 3) {
           const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
           Alert.alert(
             `${def.name} (Lv 3)`,
-            `${def.description}\n\nMax level! Earns ${currentIncome} coins/day.`,
+            `${def.description}\n\nMax level! Earns ${incomeLabel(existing.type, level)}.`,
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -734,7 +740,7 @@ export default function HometownScreen() {
             const sellPriceNoRoom = Math.floor(BUILDINGS[existing.type].cost * 0.5);
             Alert.alert(
               `${def.name} (Lv ${level})`,
-              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${currentIncome} coins/day.`,
+              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${incomeLabel(existing.type, level)}.`,
               [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -769,11 +775,10 @@ export default function HometownScreen() {
             return;
           }
           const cost = upgradeCostFor(existing.type, nextLevel);
-          const nextIncome = incomeFor(existing.type, nextLevel);
           const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
           Alert.alert(
             `${def.name} (Lv ${level})`,
-            `${def.description}\n\nCurrently earns ${currentIncome} coins/day.\nUpgrade to Lv ${nextLevel}: ${nextIncome} coins/day.`,
+            `${def.description}\n\nCurrently earns ${incomeLabel(existing.type, level)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabel(existing.type, nextLevel)}.`,
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -960,13 +965,53 @@ export default function HometownScreen() {
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <Text style={{ fontSize: 24 }}>←</Text>
         </Pressable>
-        <Text style={{ fontSize: 22, fontWeight: "800" }}>🏘️ Hometown</Text>
+        <Text style={{ fontSize: 22, fontWeight: "800" }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
+
+      {/* Map selector */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+        {TOWN_MAP_IDS.map((id) => {
+          const info = MAP_INFO[id];
+          const unlocked = unlockedMaps.includes(id);
+          const isActive = activeMap === id;
+          const label = info.comingSoon
+            ? `${info.icon} ${info.name}`
+            : unlocked
+              ? `${info.icon} ${info.name}`
+              : `${info.icon} ${info.name} 🔒 ${info.unlockCost}🪙`;
+          return (
+            <Pressable
+              key={id}
+              onPress={() => {
+                if (info.comingSoon) {
+                  Alert.alert(info.name, "This map is coming soon!");
+                  return;
+                }
+                if (!unlocked) {
+                  handleUnlockMap(id);
+                  return;
+                }
+                switchMap(id);
+              }}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 20,
+                backgroundColor: isActive ? "#1D4ED8" : "#FFFFFF",
+                borderWidth: isActive ? 0 : 1,
+                borderColor: "#E5E7EB",
+              }}
+            >
+              <Text style={{ fontWeight: "700", color: isActive ? "#FFFFFF" : "#374151", fontSize: 13 }}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       <Pressable
         onPress={() => router.push("/hometown-shop")}
@@ -994,9 +1039,19 @@ export default function HometownScreen() {
         </View>
       </View>
 
+      {activeMap === "reserve" ? (
+        <View style={{ alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 48, marginBottom: 16 }}>
+          <Text style={{ fontSize: 56 }}>❓</Text>
+          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 12 }}>Coming Soon</Text>
+          <Text style={{ color: "#78716C", textAlign: "center", marginTop: 8 }}>
+            A new frontier awaits beyond the {MAP_INFO.school.name}...
+          </Text>
+        </View>
+      ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <View style={{ position: "relative" }}>
           {rows}
+          <SeasonalOverlay width={TOWN_GRID_SIZE * cellSize} height={TOWN_GRID_SIZE * cellSize} />
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);
@@ -1023,12 +1078,13 @@ export default function HometownScreen() {
               </View>
             );
           })}
-          {/* Coins overlay - only coins capture touches */}
+          {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);
-            const hasIncome = incomeFor(b.type, b.level || 1) > 0;
-            if (!hasIncome) return null;
-            // Only show the coin once something has accumulated
+            const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
+            const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
+            if (!earnsCoins && !earnsXP) return null;
+            // Only show the collectible once something has accumulated
             if (!(b.accumulated && b.accumulated > 0)) return null;
             return (
               <View
@@ -1046,6 +1102,7 @@ export default function HometownScreen() {
               >
                 <SpinningCoin
                   amount={b.accumulated || 0}
+                  kind={earnsXP ? "xp" : "coins"}
                   onCollect={() => handleCollectBuilding(b.id)}
                 />
               </View>
@@ -1053,8 +1110,9 @@ export default function HometownScreen() {
           })}
         </View>
       </View>
+      )}
 
-      {selectedTile && (
+      {selectedTile && activeMap !== "reserve" && (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8 }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})

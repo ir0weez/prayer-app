@@ -207,39 +207,51 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
   }
 }
 
-/** Renders a custom pawn as pure React Native shapes (no emoji). */
+/** Renders a custom pawn as a chess-pawn silhouette: round head + cylindrical body. */
 export function PawnPreview({ pawn, size = 120 }: { pawn: CustomPawn; size?: number }) {
   const s = size;
   const bodyStyle = pawn.bodyStyle || 'pebble';
-  // Body dimensions vary by style
-  let bodyW: number, bodyH: number, borderRadius: number;
+  // Head is constant; body proportions vary by style
+  const headD = s * 0.52;
+  let bodyW: number, bodyH: number, baseW: number;
   switch (bodyStyle) {
     case 'round':
-      bodyW = s * 0.85; bodyH = s * 0.85; borderRadius = bodyW * 0.5;
+      bodyW = s * 0.5; bodyH = s * 0.3; baseW = s * 0.62;
       break;
     case 'tall':
-      bodyW = s * 0.65; bodyH = s * 0.95; borderRadius = bodyW * 0.45;
+      bodyW = s * 0.38; bodyH = s * 0.42; baseW = s * 0.52;
       break;
     case 'stocky':
-      bodyW = s * 0.9; bodyH = s * 0.75; borderRadius = bodyW * 0.4;
+      bodyW = s * 0.56; bodyH = s * 0.26; baseW = s * 0.68;
       break;
     case 'pebble':
     default:
-      bodyW = s * 0.78; bodyH = s * 0.88; borderRadius = bodyW * 0.48;
+      bodyW = s * 0.44; bodyH = s * 0.34; baseW = s * 0.58;
       break;
   }
   const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
   const hairLength = hairGrowthFor(pawn);
+  const headR = headD / 2;
   return (
     <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-      <View style={{ width: bodyW, height: bodyH, marginBottom: s * 0.04 }}>
-        <View style={{ position: "absolute", left: (s - bodyW) / 2, top: 0, width: bodyW, height: bodyH, borderRadius, backgroundColor: pawn.bodyColor }}>
-          <Hair style={pawn.hairStyle} s={bodyW} length={hairLength} />
-          <Eyes style={pawn.eyeStyle} s={bodyW} />
-          <Mouth style={pawn.mouthStyle} s={bodyW} />
-          <Beard length={beardLength} s={bodyW} />
+      <View style={{ alignItems: "center", marginBottom: s * 0.02 }}>
+        {/* Head */}
+        <View style={{ width: headD, height: headD, borderRadius: headR, backgroundColor: pawn.bodyColor }}>
+          <Hair style={pawn.hairStyle} s={headD} length={hairLength} />
+          <Eyes style={pawn.eyeStyle} s={headD} />
+          <Mouth style={pawn.mouthStyle} s={headD} />
+          <Beard length={beardLength} s={headD} />
         </View>
-        <Accessory kind={pawn.accessory} s={bodyW} />
+        {/* Accessories sit on the head */}
+        <View style={{ position: "absolute", top: -headD * 0.28, width: headD, height: headD * 0.5 }}>
+          <Accessory kind={pawn.accessory} s={headD} />
+        </View>
+        {/* Collar */}
+        <View style={{ width: bodyW * 1.15, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: pawn.bodyColor, marginTop: -s * 0.02, opacity: 0.85 }} />
+        {/* Cylindrical body */}
+        <View style={{ width: bodyW, height: bodyH, backgroundColor: pawn.bodyColor, borderBottomLeftRadius: bodyW * 0.18, borderBottomRightRadius: bodyW * 0.18 }} />
+        {/* Base */}
+        <View style={{ width: baseW, height: s * 0.09, borderRadius: s * 0.045, backgroundColor: pawn.bodyColor, marginTop: -s * 0.01 }} />
       </View>
     </View>
   );

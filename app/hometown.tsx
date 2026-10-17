@@ -1162,14 +1162,7 @@ export default function HometownScreen() {
           onPress={() => handleTilePress(x, y)}
           onLongPress={() => {
             const b = buildingAt(x, y);
-            if (b && !b.plotId) {
-              setMovingBuilding(b);
-              setSelectedTile(null);
-              Alert.alert("Move Mode", `Moving ${BUILDINGS[b.type].name}. Tap a new location.`, [
-                { text: "Cancel", style: "cancel", onPress: () => setMovingBuilding(null) },
-                { text: "OK" },
-              ]);
-            }
+            if (b) setPopupBuilding(b);
           }}
           style={{
             width: cellSize,

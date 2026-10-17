@@ -840,17 +840,183 @@ export type BankInteriorItem = {
   kind: "desk" | "carpet";
   x: number;
   y: number;
+  /** Price paid — used for full-refund sells. Legacy items omit this. */
+  cost?: number;
+};
+
+export type BankFurnitureType = "teller" | "atm" | "vault" | "plant" | "chandelier" | "guard";
+
+export type BankFurnitureItem = {
+  id: string;
+  type: BankFurnitureType;
+  x: number;
+  y: number;
+  /** Price paid — sold back at full refund. */
+  cost: number;
+};
+
+/** One floor's layout inside a bank building. */
+export type BankFloorInterior = {
+  desks: BankInteriorItem[];
+  carpets: BankInteriorItem[];
+  furniture: BankFurnitureItem[];
 };
 
 export type BankInteriorState = {
-  desks: BankInteriorItem[];
-  carpets: BankInteriorItem[];
+  /** Keyed by floor number ("1", "2", ...). */
+  floors: Record<string, BankFloorInterior>;
 };
 
 export const BANK_INTERIOR_GRID = { w: 8, h: 6 };
 export const BANK_DESK_COST = 20;
 export const BANK_CARPET_COST = 5;
 export const BANK_MAX_DESKS = 6;
+
+/** Floor themes: each bank story has its own decorating tier. */
+export const BANK_FLOOR_THEMES = ["Lobby", "Executive", "Prestige", "Royal", "Penthouse"];
+export function bankFloorTheme(floor: number): string {
+  const i = Math.min(Math.max(floor, 1), 5) - 1;
+  return BANK_FLOOR_THEMES[i];
+}
+
+/** Price multiplier per floor: 1x, 1.5x, 2x, 2.5x, 3x. */
+export function bankFloorPriceMult(floor: number): number {
+  const f = Math.min(Math.max(Math.round(floor) || 1, 1), 5);
+  return 1 + (f - 1) * 0.5;
+}
+
+/** Desk cost scales by floor (20 / 30 / 40 / 50 / 60). */
+export function bankDeskCost(floor: number): number {
+  return Math.round(BANK_DESK_COST * bankFloorPriceMult(floor));
+}
+
+/** Carpet cost scales by floor. Floor 1 carpets are 1 coin. */
+export function bankCarpetCost(floor: number): number {
+  if (floor <= 1) return 1;
+  return Math.max(1, Math.round(bankFloorPriceMult(floor)));
+}
+
+const DESK_TIER_NAMES = ["Desk", "Executive Desk", "Mahogany Desk", "Marble Desk", "Gold Desk"];
+export function bankDeskName(floor: number): string {
+  return DESK_TIER_NAMES[Math.min(Math.max(floor, 1), 5) - 1];
+}
+
+const CARPET_TIER_NAMES = ["Carpet", "Executive Carpet", "Marble Floor", "Silk Carpet", "Gold-Leaf Floor"];
+export function bankCarpetName(floor: number): string {
+  return CARPET_TIER_NAMES[Math.min(Math.max(floor, 1), 5) - 1];
+}
+
+/** Carpet tile tint per floor tier. */
+const CARPET_TIER_COLORS = ["#E7DCC8", "#DCC9A3", "#EDE9E1", "#F1E3C6", "#F5DC8A"];
+export function bankCarpetColor(floor: number): string {
+  return CARPET_TIER_COLORS[Math.min(Math.max(floor, 1), 5) - 1];
+}
+
+/** Connected-desk network bonus per desk, per floor tier (25% → 45%). */
+export function bankDeskBonusPerDesk(floor: number): number {
+  return 0.25 + (Math.min(Math.max(floor, 1), 5) - 1) * 0.05;
+}
+
+// ---- Bank furniture catalog (per floor tier) ----
+
+export type BankFurnitureDef = {
+  type: BankFurnitureType;
+  name: string;
+  icon: string;
+  cost: number;
+  /** Max placeable per floor. */
+  max: number;
+  /** Additive % income bonus per item (e.g. 10 = +10%). */
+  effectPct: number;
+  /** Flat coins/day per item (ATMs). */
+  flatPerDay: number;
+  blurb: string;
+};
+
+type FurnitureTierSpec = {
+  name: string;
+  icon: string;
+  cost: number;
+  max: number;
+  effectPct: number;
+  flatPerDay: number;
+  blurb: string;
+};
+
+/** [type, tier1..tier5 specs] */
+const BANK_FURNITURE_SPECS: Array<{ type: BankFurnitureType; tiers: [FurnitureTierSpec, FurnitureTierSpec, FurnitureTierSpec, FurnitureTierSpec, FurnitureTierSpec] }> = [
+  {
+    type: "plant",
+    tiers: [
+      { name: "Potted Plant", icon: "🪴", cost: 10, max: 6, effectPct: 2, flatPerDay: 0, blurb: "+2% income" },
+      { name: "Marble Planter", icon: "🌿", cost: 15, max: 6, effectPct: 3, flatPerDay: 0, blurb: "+3% income" },
+      { name: "Topiary", icon: "🌳", cost: 20, max: 6, effectPct: 4, flatPerDay: 0, blurb: "+4% income" },
+      { name: "Royal Garden Bed", icon: "🌺", cost: 25, max: 6, effectPct: 5, flatPerDay: 0, blurb: "+5% income" },
+      { name: "Oasis Palm", icon: "🌴", cost: 30, max: 6, effectPct: 6, flatPerDay: 0, blurb: "+6% income" },
+    ],
+  },
+  {
+    type: "teller",
+    tiers: [
+      { name: "Teller Window", icon: "🖥️", cost: 50, max: 4, effectPct: 10, flatPerDay: 0, blurb: "+10% income" },
+      { name: "Executive Teller", icon: "🖥️", cost: 75, max: 4, effectPct: 15, flatPerDay: 0, blurb: "+15% income" },
+      { name: "Prestige Teller", icon: "🖥️", cost: 100, max: 4, effectPct: 20, flatPerDay: 0, blurb: "+20% income" },
+      { name: "Royal Teller Suite", icon: "🖥️", cost: 125, max: 4, effectPct: 25, flatPerDay: 0, blurb: "+25% income" },
+      { name: "Penthouse Concierge", icon: "🖥️", cost: 150, max: 4, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
+    ],
+  },
+  {
+    type: "guard",
+    tiers: [
+      { name: "Security Guard", icon: "🛡️", cost: 80, max: 2, effectPct: 12, flatPerDay: 0, blurb: "+12% income" },
+      { name: "Elite Guard", icon: "🛡️", cost: 120, max: 2, effectPct: 18, flatPerDay: 0, blurb: "+18% income" },
+      { name: "Tactical Guard", icon: "🛡️", cost: 160, max: 2, effectPct: 24, flatPerDay: 0, blurb: "+24% income" },
+      { name: "Royal Guard", icon: "🛡️", cost: 200, max: 2, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
+      { name: "Secret Service", icon: "🛡️", cost: 240, max: 2, effectPct: 36, flatPerDay: 0, blurb: "+36% income" },
+    ],
+  },
+  {
+    type: "atm",
+    tiers: [
+      { name: "ATM", icon: "🏧", cost: 75, max: 2, effectPct: 0, flatPerDay: 5, blurb: "+5 coins/day" },
+      { name: "Express ATM", icon: "🏧", cost: 115, max: 2, effectPct: 0, flatPerDay: 8, blurb: "+8 coins/day" },
+      { name: "Gold ATM", icon: "🏧", cost: 150, max: 2, effectPct: 0, flatPerDay: 10, blurb: "+10 coins/day" },
+      { name: "Platinum ATM", icon: "🏧", cost: 190, max: 2, effectPct: 0, flatPerDay: 13, blurb: "+13 coins/day" },
+      { name: "Diamond ATM", icon: "🏧", cost: 225, max: 2, effectPct: 0, flatPerDay: 15, blurb: "+15 coins/day" },
+    ],
+  },
+  {
+    type: "chandelier",
+    tiers: [
+      { name: "Chandelier", icon: "💡", cost: 100, max: 2, effectPct: 15, flatPerDay: 0, blurb: "+15% income" },
+      { name: "Crystal Chandelier", icon: "💡", cost: 150, max: 2, effectPct: 22, flatPerDay: 0, blurb: "+22% income" },
+      { name: "Grand Chandelier", icon: "🕯️", cost: 200, max: 2, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
+      { name: "Diamond Chandelier", icon: "💎", cost: 250, max: 2, effectPct: 38, flatPerDay: 0, blurb: "+38% income" },
+      { name: "Starlight Chandelier", icon: "✨", cost: 300, max: 2, effectPct: 45, flatPerDay: 0, blurb: "+45% income" },
+    ],
+  },
+  {
+    type: "vault",
+    tiers: [
+      { name: "Vault", icon: "🔐", cost: 150, max: 1, effectPct: 25, flatPerDay: 0, blurb: "+25% income" },
+      { name: "Reinforced Vault", icon: "🔐", cost: 225, max: 1, effectPct: 38, flatPerDay: 0, blurb: "+38% income" },
+      { name: "Titanium Vault", icon: "🔐", cost: 300, max: 1, effectPct: 50, flatPerDay: 0, blurb: "+50% income" },
+      { name: "Crown Vault", icon: "👑", cost: 375, max: 1, effectPct: 62, flatPerDay: 0, blurb: "+62% income" },
+      { name: "Fort Knox Vault", icon: "💰", cost: 450, max: 1, effectPct: 75, flatPerDay: 0, blurb: "+75% income" },
+    ],
+  },
+];
+
+/** Furniture catalog for a given floor tier (1–5). */
+export function bankFurnitureCatalog(floor: number): BankFurnitureDef[] {
+  const i = Math.min(Math.max(Math.round(floor) || 1, 1), 5) - 1;
+  return BANK_FURNITURE_SPECS.map((s) => ({ type: s.type, ...s.tiers[i] }));
+}
+
+/** Single furniture def lookup (for bonus math on placed items). */
+export function bankFurnitureDef(type: BankFurnitureType, floor: number): BankFurnitureDef | undefined {
+  return bankFurnitureCatalog(floor).find((d) => d.type === type);
+}
 
 export function bankInteriorKey(buildingId: string): string {
   return `prayercircle.hometown.bank.${buildingId}.v1`;

@@ -341,9 +341,22 @@ export default function BankInteriorScreen() {
     [interior, saveInterior]
   );
 
-  const saveCoins = useCallback((next: HometownCoins) => {
-    setCoins(next);
-    AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+  // Ref mirror of coins for fresh reads inside event handlers (avoids stale closures).
+  const coinsRef = useRef(coins);
+  useEffect(() => {
+    coinsRef.current = coins;
+  }, [coins]);
+
+  // Transactional coin delta: functional setState so concurrent transactions never clobber each other.
+  const addCoins = useCallback((delta: number) => {
+    setCoins(prev => {
+      const next = {
+        balance: Math.round((prev.balance + delta) * 10) / 10,
+        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 10) / 10 : prev.lifetimeEarned,
+      };
+      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
   }, []);
 
   const floorInterior: BankFloorInterior = interior.floors[String(safeFloor)] ?? EMPTY_FLOOR;
@@ -353,7 +366,7 @@ export default function BankInteriorScreen() {
     const current = building.floors || 1;
     if (current >= BANK_MAX_FLOORS) return;
     const cost = bankFloorCost(current);
-    if (coins.balance < cost) {
+    if (coinsRef.current.balance < cost) {
       Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost} coins.`);
       return;
     }
@@ -372,9 +385,9 @@ export default function BankInteriorScreen() {
       }
       await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
       if (updated) setBuilding(updated);
-      saveCoins({ balance: Math.round((coins.balance - cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+      addCoins(-cost);
     } catch {}
-  }, [building, coins, saveCoins]);
+  }, [building, addCoins]);
 
   useEffect(() => {
     (async () => {
@@ -507,7 +520,7 @@ export default function BankInteriorScreen() {
                   ...floorInterior,
                   furniture: floorInterior.furniture.filter((f) => f.id !== existing.id),
                 });
-                saveCoins({ balance: coins.balance + existing.cost, lifetimeEarned: coins.lifetimeEarned });
+                addCoins(existing.cost);
               },
             },
           ]
@@ -535,7 +548,7 @@ export default function BankInteriorScreen() {
                   ...floorInterior,
                   carpets: floorInterior.carpets.filter((c) => c.id !== existing.id),
                 });
-                saveCoins({ balance: coins.balance + refund, lifetimeEarned: coins.lifetimeEarned });
+                addCoins(refund);
               },
             },
           ]
@@ -591,7 +604,7 @@ export default function BankInteriorScreen() {
       Alert.alert("Max desks", `Each floor can hold ${BANK_MAX_DESKS} desks.`);
       return;
     }
-    if (coins.balance < cost) {
+    if (coinsRef.current.balance < cost) {
       Alert.alert("Not enough coins", `You need ${cost} coins.`);
       return;
     }
@@ -601,7 +614,7 @@ export default function BankInteriorScreen() {
     } else {
       saveFloor(safeFloor, { ...floorInterior, carpets: [...floorInterior.carpets, item] });
     }
-    saveCoins({ balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned });
+    addCoins(-cost);
     setSelectedTile(null);
   };
 
@@ -614,13 +627,13 @@ export default function BankInteriorScreen() {
       Alert.alert("Max reached", `Each floor can hold ${def.max} × ${def.name}.`);
       return;
     }
-    if (coins.balance < def.cost) {
+    if (coinsRef.current.balance < def.cost) {
       Alert.alert("Not enough coins", `You need ${def.cost} coins.`);
       return;
     }
     const item: BankFurnitureItem = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, cost: def.cost };
     saveFloor(safeFloor, { ...floorInterior, furniture: [...floorInterior.furniture, item] });
-    saveCoins({ balance: coins.balance - def.cost, lifetimeEarned: coins.lifetimeEarned });
+    addCoins(-def.cost);
     setSelectedTile(null);
   };
 

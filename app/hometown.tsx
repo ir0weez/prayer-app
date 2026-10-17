@@ -710,6 +710,25 @@ export default function HometownScreen() {
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
 
+  // Ref mirror of coins for fresh reads inside event handlers (avoids stale closures).
+  const coinsRef = useRef(coins);
+  useEffect(() => {
+    coinsRef.current = coins;
+  }, [coins]);
+
+  // Transactional coin delta: functional setState so concurrent transactions
+  // (sell, upgrade, collect, hire, purchases) never clobber each other.
+  const addCoins = useCallback((delta: number) => {
+    setCoins(prev => {
+      const next = {
+        balance: Math.round((prev.balance + delta) * 10) / 10,
+        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 10) / 10 : prev.lifetimeEarned,
+      };
+      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
   const switchMap = useCallback((id: TownMapId) => {
     setActiveMap(id);
     setSelectedTile(null);
@@ -722,8 +741,8 @@ export default function HometownScreen() {
       Alert.alert(info.name, "This map is coming soon!");
       return;
     }
-    if (coins.balance < info.unlockCost) {
-      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${Math.floor(coins.balance)}.`);
+    if (coinsRef.current.balance < info.unlockCost) {
+      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${Math.floor(coinsRef.current.balance)}.`);
       return;
     }
     Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${info.unlockCost} coins.`, [
@@ -734,12 +753,12 @@ export default function HometownScreen() {
           const next = [...unlockedMaps, id];
           setUnlockedMaps(next);
           AsyncStorage.setItem(MAP_UNLOCKED_KEY, JSON.stringify(next)).catch(() => undefined);
-          saveCoins({ balance: coins.balance - info.unlockCost, lifetimeEarned: coins.lifetimeEarned });
+          addCoins(-info.unlockCost);
           switchMap(id);
         },
       },
     ]);
-  }, [coins, unlockedMaps, saveCoins, switchMap]);
+  }, [unlockedMaps, addCoins, switchMap]);
 
   // Signpost taps mirror the map pill behavior: unlock flow or switch.
   const handleMapSignSelect = useCallback((id: TownMapId) => {
@@ -937,7 +956,7 @@ export default function HometownScreen() {
         }
       }
     }
-    if (coins.balance < plot.cost) {
+    if (coinsRef.current.balance < plot.cost) {
       Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${Math.floor(coins.balance)}.`);
       return;
     }
@@ -964,7 +983,7 @@ export default function HometownScreen() {
             setPurchasedPlots(nextPlots);
             savePurchasedPlots(nextPlots);
             saveMap({ ...map, buildings: [...map.buildings, building] });
-            saveCoins({ balance: Math.round((coins.balance - plot.cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+            addCoins(-plot.cost);
           },
         },
       ]
@@ -1003,13 +1022,13 @@ export default function HometownScreen() {
         {
           text: `Upgrade 🪙${cost}`,
           onPress: () => {
-            if (coins.balance < cost) {
+            if (coinsRef.current.balance < cost) {
               Alert.alert("Not enough coins", `You need ${cost} coins. You have ${Math.floor(coins.balance)}.`);
               return;
             }
             const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: nextLevel } : x));
             saveMap({ ...map, buildings: updated });
-            saveCoins({ balance: Math.round((coins.balance - cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+            addCoins(-cost);
           },
         },
       ]
@@ -1140,7 +1159,7 @@ export default function HometownScreen() {
       Alert.alert("Locked", `Unlocks at tier ${def.tier} (day ${def.tier === 2 ? 40 : def.tier === 3 ? 100 : 250} of your fast).`);
       return;
     }
-    if (coins.balance < def.cost) {
+    if (coinsRef.current.balance < def.cost) {
       Alert.alert("Not enough coins", `You need ${def.cost} coins. You have ${coins.balance}.`);
       return;
     }
@@ -1150,7 +1169,7 @@ export default function HometownScreen() {
     }
     const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
     saveMap({ ...map, buildings: [...map.buildings, building] });
-    saveCoins({ balance: coins.balance - def.cost, lifetimeEarned: coins.lifetimeEarned });
+    addCoins(-def.cost);
     setSelectedTile(null);
   };
 
@@ -1200,11 +1219,7 @@ export default function HometownScreen() {
       const xp = Math.max(1, Math.floor(amount));
       awardCustomXP(xp, `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
     } else {
-      const updatedCoins = {
-        balance: Math.round((coins.balance + amount) * 10) / 10,
-        lifetimeEarned: Math.round((coins.lifetimeEarned + amount) * 10) / 10,
-      };
-      saveCoins(updatedCoins);
+      addCoins(amount);
     }
   };
 
@@ -1548,11 +1563,7 @@ export default function HometownScreen() {
                             { text: "Cancel", style: "cancel" },
                             { text: "Sell", style: "destructive", onPress: () => {
                               saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== b.id) });
-                              const updatedCoins = {
-                                balance: Math.round((coins.balance + sellPrice) * 10) / 10,
-                                lifetimeEarned: coins.lifetimeEarned,
-                              };
-                              saveCoins(updatedCoins);
+                              addCoins(sellPrice);
                               setSelectedTile(null);
                             }},
                           ]);
@@ -1762,13 +1773,13 @@ export default function HometownScreen() {
               const preview = { ...b, level: nextLevel };
 
               const doUpgrade = () => {
-                if (coins.balance < upgradeCost) {
+                if (coinsRef.current.balance < upgradeCost) {
                   Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${Math.floor(coins.balance)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x => x.id === b.id ? { ...x, level: nextLevel } : x);
                 saveMap({ ...map, buildings: updated });
-                saveCoins({ balance: Math.round((coins.balance - upgradeCost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+                addCoins(-upgradeCost);
                 setPopupBuilding(null);
               };
               const doMove = () => {
@@ -1784,10 +1795,7 @@ export default function HometownScreen() {
                   { text: "Cancel", style: "cancel" },
                   { text: "Sell", style: "destructive", onPress: () => {
                     saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== b.id) });
-                    saveCoins({
-                      balance: Math.round((coins.balance + sellPrice) * 10) / 10,
-                      lifetimeEarned: coins.lifetimeEarned,
-                    });
+                    addCoins(sellPrice);
                     setPopupBuilding(null);
                   }},
                 ]);
@@ -1807,7 +1815,7 @@ export default function HometownScreen() {
                   Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
                   return;
                 }
-                if (coins.balance < WORKER_HIRE_COST) {
+                if (coinsRef.current.balance < WORKER_HIRE_COST) {
                   Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${Math.floor(coins.balance)}.`);
                   return;
                 }
@@ -1815,7 +1823,7 @@ export default function HometownScreen() {
                   x.id === b.id ? { ...x, workers: (x.workers || 0) + 1 } : x
                 );
                 saveMap({ ...map, buildings: updated });
-                saveCoins({ balance: Math.round((coins.balance - WORKER_HIRE_COST) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+                addCoins(-WORKER_HIRE_COST);
                 setPopupBuilding({ ...b, workers: workerCount + 1 });
               };
 

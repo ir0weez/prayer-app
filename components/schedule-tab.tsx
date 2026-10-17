@@ -10799,15 +10799,26 @@ export function ScheduleTab({
           group.push(pairedTimedItems[k]);
           k++;
         }
-        // Check for Rest event at same time
+        // Check for Rest event at same time (before or after)
         let restEvent = null;
+        // Check after
         if (k < pairedTimedItems.length && pairedTimedItems[k].type === "event") {
           const evt = pairedTimedItems[k].data;
-          // Check if it's a Rest event (by keyword or title)
-          const isRest = evt.title?.toLowerCase().includes("rest") || evt.keyword?.label === "Rest";
+          const isRest = evt.title?.toLowerCase().includes("rest");
           if (isRest && evt.startTime === item.data.startTime) {
             restEvent = pairedTimedItems[k];
             k++;
+          }
+        }
+        // Check before (if not found after) - look at previous item
+        if (!restEvent && j > 0) {
+          const prev = finalTimedItems[finalTimedItems.length - 1];
+          if (prev?.type === "event") {
+            const evt = prev.data;
+            const isRest = evt.title?.toLowerCase().includes("rest");
+            if (isRest && evt.startTime === item.data.startTime) {
+              restEvent = finalTimedItems.pop();
+            }
           }
         }
         const totalItems = group.length + (restEvent ? 1 : 0);

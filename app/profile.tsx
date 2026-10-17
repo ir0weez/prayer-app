@@ -993,6 +993,23 @@ export default function ProfileScreen() {
               </View>
               <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
             </Pressable>
+            <Pressable
+              onPress={() => router.push("/character")}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="person" size={22} color="#A78BFA" />
+              </View>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: "#FFFFFF" }}>
+                  Character Stats
+                </Text>
+                <Text style={{ fontSize: 12, color: "#A78BFA" }}>
+                  Spend level-up points, unlock perks
+                </Text>
+              </View>
+              <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
+            </Pressable>
             <FastPawnPicker
               level={profileLevel}
               prayerStreak={profile.personalPrayerStreak}

@@ -18,6 +18,7 @@ import {
   barbershopBoostForBuilding,
   shopAdjacencyBonusForBuilding,
   bankDeskMultiplier,
+  bankFloorMultiplier,
   buildingFootprint,
   parseCoins,
   parseTown,
@@ -42,6 +43,7 @@ import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/mo
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
+import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalOverlay } from "@/components/seasonal-overlay";
 import { TownNPCs } from "@/components/town-npcs";
 
@@ -74,7 +76,7 @@ function nextId() {
 }
 
 // Building art using colored shapes (no emojis) - shape evolves with level
-function BuildingArt({ type, size, level = 1 }: { type: string; size: number; level?: number }) {
+function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size: number; level?: number; floors?: number }) {
   const s = size;
   const lv = level || 1;
   switch (type) {
@@ -245,50 +247,77 @@ function BuildingArt({ type, size, level = 1 }: { type: string; size: number; le
           </View>
         </View>
       );
-    case "bank-tower":
+    case "bank-tower": {
+      // Stacked stories — one segment per floor, grows taller with floors
+      const stories = Math.min(Math.max(floors || 1, 1), 5);
+      const segH = (s * 0.82) / stories;
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.6, height: s * 0.85, backgroundColor: "#1E3A8A", borderRadius: 4, alignItems: "center", paddingTop: s * 0.08 }}>
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} style={{ width: s * 0.4, height: s * 0.08, backgroundColor: "#FDE68A", marginVertical: s * 0.03, borderRadius: 2 }} />
+          <View style={{ width: s * 0.62, alignItems: "center" }}>
+            {Array.from({ length: stories }).map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  width: s * 0.62,
+                  height: segH,
+                  backgroundColor: i === 0 ? "#1E3A8A" : "#2748A8",
+                  borderTopWidth: i > 0 ? 1 : 0,
+                  borderTopColor: "#172554",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderTopLeftRadius: i === stories - 1 ? 4 : 0,
+                  borderTopRightRadius: i === stories - 1 ? 4 : 0,
+                }}
+              >
+                <View style={{ flexDirection: "row" }}>
+                  {[0, 1, 2].map(j => (
+                    <View key={j} style={{ width: s * 0.1, height: segH * 0.4, backgroundColor: "#FDE68A", marginHorizontal: s * 0.02, borderRadius: 1 }} />
+                  ))}
+                </View>
+              </View>
             ))}
+            <View style={{ width: s * 0.7, height: s * 0.07, backgroundColor: "#172554", borderRadius: 3, marginTop: 1 }} />
           </View>
-          <View style={{ width: s * 0.7, height: s * 0.08, backgroundColor: "#172554", borderRadius: 3, marginTop: 1 }} />
         </View>
       );
+    }
     case "department-store":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#EF4444" }} />)}
+            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.08, backgroundColor: i % 2 ? "#FFFFFF" : "#EF4444" }} />)}
           </View>
-          <View style={{ width: s * 0.95, height: s * 0.6, backgroundColor: "#7C3AED", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
-            <View style={{ flexDirection: "row" }}>
-              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#DDD6FE", marginHorizontal: 4, borderRadius: 2 }} />)}
-            </View>
+          <View style={{ width: s * 0.95, height: s * 0.72, backgroundColor: "#7C3AED", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
+            {[0, 1].map(r => (
+              <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.03 }}>
+                {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: "#DDD6FE", marginHorizontal: 4, borderRadius: 2 }} />)}
+              </View>
+            ))}
           </View>
         </View>
       );
     case "hotel":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center", paddingTop: s * 0.08 }}>
-            <View style={{ width: s * 0.34, height: s * 0.2, backgroundColor: "#FEF3C7", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: s * 0.14, fontWeight: "800", color: "#92400E" }}>H</Text>
+          <View style={{ width: s * 0.7, height: s * 0.82, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center", paddingTop: s * 0.06 }}>
+            <View style={{ width: s * 0.34, height: s * 0.16, backgroundColor: "#FEF3C7", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: s * 0.12, fontWeight: "800", color: "#92400E" }}>H</Text>
             </View>
-            <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
-              {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.2, backgroundColor: "#FDE68A", marginHorizontal: 4, borderRadius: 2 }} />)}
-            </View>
+            {[0, 1, 2].map(r => (
+              <View key={r} style={{ flexDirection: "row", marginTop: s * 0.05 }}>
+                {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.12, backgroundColor: "#FDE68A", marginHorizontal: 4, borderRadius: 2 }} />)}
+              </View>
+            ))}
           </View>
         </View>
       );
     case "office":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.65, height: s * 0.8, backgroundColor: "#93C5FD", borderRadius: 4, alignItems: "center", paddingTop: s * 0.06 }}>
-            {[0, 1, 2].map(i => (
-              <View key={i} style={{ flexDirection: "row", marginVertical: s * 0.025 }}>
-                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.1, backgroundColor: "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
+          <View style={{ width: s * 0.65, height: s * 0.88, backgroundColor: "#93C5FD", borderRadius: 4, alignItems: "center", paddingTop: s * 0.05 }}>
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
+                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
               </View>
             ))}
           </View>
@@ -571,6 +600,9 @@ export default function HometownScreen() {
         let missions: Mission[] = [];
         try { missions = await generateDailyMissions(); } catch {}
         setMissions(missions);
+        // Generosity stat boosts coin earnings
+        let generosityMult = 0;
+        try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
         const newMaps = { ...t.maps };
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
@@ -584,8 +616,9 @@ export default function HometownScreen() {
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
               const deskMult = deskMults[b.id] ?? 1;
+              const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * gearCoinMult
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * gearCoinMult * (1 + generosityMult)
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
               return {
                 ...b,
@@ -629,7 +662,7 @@ export default function HometownScreen() {
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
-      const { w, h } = buildingFootprint(b.level || 1);
+      const { w, h } = buildingFootprint(b.level || 1, b.type);
       return x >= b.x && x < b.x + w && y >= b.y && y < b.y + h;
     });
   };
@@ -651,7 +684,7 @@ export default function HometownScreen() {
   const handleTilePress = (x: number, y: number) => {
     // Move mode: place the moving building here
     if (movingBuilding) {
-      const { w, h } = buildingFootprint(movingBuilding.level || 1);
+      const { w, h } = buildingFootprint(movingBuilding.level || 1, movingBuilding.type);
       let fits = true;
       for (let dx = 0; dx < w; dx++) {
         for (let dy = 0; dy < h; dy++) {
@@ -751,7 +784,7 @@ export default function HometownScreen() {
         } else {
           const nextLevel = (level + 1) as 2 | 3;
           // Check if expanded footprint fits
-          const { w, h } = buildingFootprint(nextLevel);
+          const { w, h } = buildingFootprint(nextLevel, existing.type);
           let fits = true
           for (let dx = 0; dx < w; dx++) {
             for (let dy = 0; dy < h; dy++) {
@@ -941,7 +974,7 @@ export default function HometownScreen() {
       const b = buildingAt(x, y);
       const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
-      const footprint = b ? buildingFootprint(b.level || 1) : { w: 1, h: 1 };
+      const footprint = b ? buildingFootprint(b.level || 1, b.type) : { w: 1, h: 1 };
       cells.push(
         <Pressable
           key={`${x}-${y}`}
@@ -1097,7 +1130,7 @@ export default function HometownScreen() {
           <SeasonalOverlay width={TOWN_GRID_SIZE * cellSize} height={TOWN_GRID_SIZE * cellSize} />
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1);
+            const fp = buildingFootprint(b.level || 1, b.type);
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -1112,7 +1145,7 @@ export default function HometownScreen() {
                   justifyContent: "center",
                 }}
               >
-                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} />
+                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} floors={b.floors || 1} />
                 {(b.level || 1) > 1 && (
                   <Text style={{ fontSize: 10, color: "#F59E0B", fontWeight: "700" }}>
                     {"★".repeat(b.level || 1)}
@@ -1125,7 +1158,7 @@ export default function HometownScreen() {
           <TownNPCs mapState={map} cellSize={cellSize} />
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1);
+            const fp = buildingFootprint(b.level || 1, b.type);
             const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (!earnsCoins && !earnsXP) return null;

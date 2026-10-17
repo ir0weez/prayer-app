@@ -430,6 +430,7 @@ const SHOP_TYPES: BuildingType[] = [
   "barbershop", "clothes-shop", "armory", "weaponsmith", "toolshop",
   "food-court", "bookstore", "arcade", "cinema",
   "bank-tower", "department-store", "hotel", "office",
+  "pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner",
 ];
 
 /**
@@ -473,10 +474,25 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   return 1 + Math.min(shopCount, 4) * 0.15;
 }
 
+// ---- Bank tower floors ----
+// Bank-towers can grow upward: each added floor costs more but multiplies earnings.
+export const BANK_MAX_FLOORS = 5;
+/** Cost to add the next floor when the tower currently has `currentFloors` (1-4). */
+export function bankFloorCost(currentFloors: number): number {
+  const costs: Record<number, number> = { 1: 100, 2: 250, 3: 500, 4: 1000 };
+  return costs[currentFloors] ?? 0;
+}
+/** Income multiplier for a bank-tower with `floors` stories: +50% per extra floor. */
+export function bankFloorMultiplier(floors: number): number {
+  const f = Math.min(Math.max(floors || 1, 1), BANK_MAX_FLOORS);
+  return 1 + (f - 1) * 0.5;
+}
+
 export function dailyIncomeForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => {
     const base = incomeFor(b.type, b.level || 1);
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id);
+    const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult;
     return sum + (base * multiplier);
   }, 0);
 }

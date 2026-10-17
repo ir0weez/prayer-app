@@ -135,7 +135,7 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
     const defs: NpcDef[] = [];
     const houses = mapState.buildings.filter((b) => b.type === "house");
     for (const h of houses) {
-      const fp = buildingFootprint(h.level || 1);
+      const fp = buildingFootprint(h.level || 1, h.type);
       const cx = h.x + fp.w / 2;
       const cy = h.y + fp.h / 2;
       for (let i = 0; i < 2 && defs.length < MAX_NPCS; i++) {
@@ -169,7 +169,7 @@ export function TownNPCs({ mapState, cellSize }: { mapState: MapState; cellSize:
       }
       if (pool.length === 0) return null;
       const b = pool[Math.floor(Math.random() * pool.length)];
-      const fp = buildingFootprint(b.level || 1);
+      const fp = buildingFootprint(b.level || 1, b.type);
       return { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 };
     };
 

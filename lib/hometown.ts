@@ -939,7 +939,7 @@ export type BankFurnitureDef = {
   /** Additive % income bonus per item (e.g. 10 = +10%). */
   effectPct: number;
   /** Flat coins/day per item (ATMs). */
-  flatPerDay: number;
+  flatPerHour: number;
   blurb: string;
 };
 
@@ -949,7 +949,7 @@ type FurnitureTierSpec = {
   cost: number;
   max: number;
   effectPct: number;
-  flatPerDay: number;
+  flatPerHour: number;
   blurb: string;
 };
 
@@ -958,61 +958,61 @@ const BANK_FURNITURE_SPECS: Array<{ type: BankFurnitureType; tiers: [FurnitureTi
   {
     type: "plant",
     tiers: [
-      { name: "Potted Plant", icon: "🪴", cost: 10, max: 6, effectPct: 2, flatPerDay: 0, blurb: "+2% income" },
-      { name: "Marble Planter", icon: "🌿", cost: 15, max: 6, effectPct: 3, flatPerDay: 0, blurb: "+3% income" },
-      { name: "Topiary", icon: "🌳", cost: 20, max: 6, effectPct: 4, flatPerDay: 0, blurb: "+4% income" },
-      { name: "Royal Garden Bed", icon: "🌺", cost: 25, max: 6, effectPct: 5, flatPerDay: 0, blurb: "+5% income" },
-      { name: "Oasis Palm", icon: "🌴", cost: 30, max: 6, effectPct: 6, flatPerDay: 0, blurb: "+6% income" },
+      { name: "Potted Plant", icon: "🪴", cost: 10, max: 6, effectPct: 2, flatPerHour: 0, blurb: "+2% income" },
+      { name: "Marble Planter", icon: "🌿", cost: 15, max: 6, effectPct: 3, flatPerHour: 0, blurb: "+3% income" },
+      { name: "Topiary", icon: "🌳", cost: 20, max: 6, effectPct: 4, flatPerHour: 0, blurb: "+4% income" },
+      { name: "Royal Garden Bed", icon: "🌺", cost: 25, max: 6, effectPct: 5, flatPerHour: 0, blurb: "+5% income" },
+      { name: "Oasis Palm", icon: "🌴", cost: 30, max: 6, effectPct: 6, flatPerHour: 0, blurb: "+6% income" },
     ],
   },
   {
     type: "teller",
     tiers: [
-      { name: "Teller Window", icon: "🖥️", cost: 50, max: 4, effectPct: 10, flatPerDay: 0, blurb: "+10% income" },
-      { name: "Executive Teller", icon: "🖥️", cost: 75, max: 4, effectPct: 15, flatPerDay: 0, blurb: "+15% income" },
-      { name: "Prestige Teller", icon: "🖥️", cost: 100, max: 4, effectPct: 20, flatPerDay: 0, blurb: "+20% income" },
-      { name: "Royal Teller Suite", icon: "🖥️", cost: 125, max: 4, effectPct: 25, flatPerDay: 0, blurb: "+25% income" },
-      { name: "Penthouse Concierge", icon: "🖥️", cost: 150, max: 4, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
+      { name: "Teller Window", icon: "🖥️", cost: 50, max: 4, effectPct: 10, flatPerHour: 0, blurb: "+10% income" },
+      { name: "Executive Teller", icon: "🖥️", cost: 75, max: 4, effectPct: 15, flatPerHour: 0, blurb: "+15% income" },
+      { name: "Prestige Teller", icon: "🖥️", cost: 100, max: 4, effectPct: 20, flatPerHour: 0, blurb: "+20% income" },
+      { name: "Royal Teller Suite", icon: "🖥️", cost: 125, max: 4, effectPct: 25, flatPerHour: 0, blurb: "+25% income" },
+      { name: "Penthouse Concierge", icon: "🖥️", cost: 150, max: 4, effectPct: 30, flatPerHour: 0, blurb: "+30% income" },
     ],
   },
   {
     type: "guard",
     tiers: [
-      { name: "Security Guard", icon: "🛡️", cost: 80, max: 2, effectPct: 12, flatPerDay: 0, blurb: "+12% income" },
-      { name: "Elite Guard", icon: "🛡️", cost: 120, max: 2, effectPct: 18, flatPerDay: 0, blurb: "+18% income" },
-      { name: "Tactical Guard", icon: "🛡️", cost: 160, max: 2, effectPct: 24, flatPerDay: 0, blurb: "+24% income" },
-      { name: "Royal Guard", icon: "🛡️", cost: 200, max: 2, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
-      { name: "Secret Service", icon: "🛡️", cost: 240, max: 2, effectPct: 36, flatPerDay: 0, blurb: "+36% income" },
+      { name: "Security Guard", icon: "🛡️", cost: 80, max: 2, effectPct: 12, flatPerHour: 0, blurb: "+12% income" },
+      { name: "Elite Guard", icon: "🛡️", cost: 120, max: 2, effectPct: 18, flatPerHour: 0, blurb: "+18% income" },
+      { name: "Tactical Guard", icon: "🛡️", cost: 160, max: 2, effectPct: 24, flatPerHour: 0, blurb: "+24% income" },
+      { name: "Royal Guard", icon: "🛡️", cost: 200, max: 2, effectPct: 30, flatPerHour: 0, blurb: "+30% income" },
+      { name: "Secret Service", icon: "🛡️", cost: 240, max: 2, effectPct: 36, flatPerHour: 0, blurb: "+36% income" },
     ],
   },
   {
     type: "atm",
     tiers: [
-      { name: "ATM", icon: "🏧", cost: 75, max: 2, effectPct: 0, flatPerDay: 5, blurb: "+5 coins/day" },
-      { name: "Express ATM", icon: "🏧", cost: 115, max: 2, effectPct: 0, flatPerDay: 8, blurb: "+8 coins/day" },
-      { name: "Gold ATM", icon: "🏧", cost: 150, max: 2, effectPct: 0, flatPerDay: 10, blurb: "+10 coins/day" },
-      { name: "Platinum ATM", icon: "🏧", cost: 190, max: 2, effectPct: 0, flatPerDay: 13, blurb: "+13 coins/day" },
-      { name: "Diamond ATM", icon: "🏧", cost: 225, max: 2, effectPct: 0, flatPerDay: 15, blurb: "+15 coins/day" },
+      { name: "ATM", icon: "🏧", cost: 150, max: 2, effectPct: 0, flatPerHour: 8, blurb: "+8 coins/hour" },
+      { name: "Express ATM", icon: "🏧", cost: 230, max: 2, effectPct: 0, flatPerHour: 12, blurb: "+12 coins/hour" },
+      { name: "Gold ATM", icon: "🏧", cost: 300, max: 2, effectPct: 0, flatPerHour: 16, blurb: "+16 coins/hour" },
+      { name: "Platinum ATM", icon: "🏧", cost: 380, max: 2, effectPct: 0, flatPerHour: 20, blurb: "+20 coins/hour" },
+      { name: "Diamond ATM", icon: "🏧", cost: 450, max: 2, effectPct: 0, flatPerHour: 25, blurb: "+25 coins/hour" },
     ],
   },
   {
     type: "chandelier",
     tiers: [
-      { name: "Chandelier", icon: "💡", cost: 100, max: 2, effectPct: 15, flatPerDay: 0, blurb: "+15% income" },
-      { name: "Crystal Chandelier", icon: "💡", cost: 150, max: 2, effectPct: 22, flatPerDay: 0, blurb: "+22% income" },
-      { name: "Grand Chandelier", icon: "🕯️", cost: 200, max: 2, effectPct: 30, flatPerDay: 0, blurb: "+30% income" },
-      { name: "Diamond Chandelier", icon: "💎", cost: 250, max: 2, effectPct: 38, flatPerDay: 0, blurb: "+38% income" },
-      { name: "Starlight Chandelier", icon: "✨", cost: 300, max: 2, effectPct: 45, flatPerDay: 0, blurb: "+45% income" },
+      { name: "Chandelier", icon: "💡", cost: 100, max: 2, effectPct: 15, flatPerHour: 0, blurb: "+15% income" },
+      { name: "Crystal Chandelier", icon: "💡", cost: 150, max: 2, effectPct: 22, flatPerHour: 0, blurb: "+22% income" },
+      { name: "Grand Chandelier", icon: "🕯️", cost: 200, max: 2, effectPct: 30, flatPerHour: 0, blurb: "+30% income" },
+      { name: "Diamond Chandelier", icon: "💎", cost: 250, max: 2, effectPct: 38, flatPerHour: 0, blurb: "+38% income" },
+      { name: "Starlight Chandelier", icon: "✨", cost: 300, max: 2, effectPct: 45, flatPerHour: 0, blurb: "+45% income" },
     ],
   },
   {
     type: "vault",
     tiers: [
-      { name: "Vault", icon: "🔐", cost: 150, max: 1, effectPct: 25, flatPerDay: 0, blurb: "+25% income" },
-      { name: "Reinforced Vault", icon: "🔐", cost: 225, max: 1, effectPct: 38, flatPerDay: 0, blurb: "+38% income" },
-      { name: "Titanium Vault", icon: "🔐", cost: 300, max: 1, effectPct: 50, flatPerDay: 0, blurb: "+50% income" },
-      { name: "Crown Vault", icon: "👑", cost: 375, max: 1, effectPct: 62, flatPerDay: 0, blurb: "+62% income" },
-      { name: "Fort Knox Vault", icon: "💰", cost: 450, max: 1, effectPct: 75, flatPerDay: 0, blurb: "+75% income" },
+      { name: "Vault", icon: "🔐", cost: 300, max: 1, effectPct: 25, flatPerHour: 0, blurb: "+25%/hr income" },
+      { name: "Reinforced Vault", icon: "🔐", cost: 450, max: 1, effectPct: 35, flatPerHour: 0, blurb: "+35%/hr income" },
+      { name: "Titanium Vault", icon: "🔐", cost: 600, max: 1, effectPct: 50, flatPerHour: 0, blurb: "+50%/hr income" },
+      { name: "Crown Vault", icon: "👑", cost: 800, max: 1, effectPct: 65, flatPerHour: 0, blurb: "+65%/hr income" },
+      { name: "Fort Knox Vault", icon: "💰", cost: 1000, max: 1, effectPct: 80, flatPerHour: 0, blurb: "+80%/hr income" },
     ],
   },
 ];
@@ -1036,8 +1036,8 @@ export function bankInteriorKey(buildingId: string): string {
 export const ATM_STORAGE_CAPS = [50, 150, 400];
 export const VAULT_STORAGE_CAPS = [200, 500, 1200];
 /** Cost to upgrade from level N to N+1. */
-export const ATM_STORAGE_UPGRADE_COSTS = [30, 80];
-export const VAULT_STORAGE_UPGRADE_COSTS = [100, 250];
+export const ATM_STORAGE_UPGRADE_COSTS = [60, 160];
+export const VAULT_STORAGE_UPGRADE_COSTS = [200, 500];
 export const MAX_STORAGE_LEVEL = 2;
 
 /** Coin cap for an ATM/vault at a given storage upgrade level. */
@@ -1163,7 +1163,7 @@ export function connectedDeskCount(items: { desks: BankInteriorItem[]; carpets: 
   return connected;
 }
 
-export type BankDripItem = { id: string; floor: number; perDay: number };
+export type BankDripItem = { id: string; floor: number; perHour: number };
 
 /**
  * Interior bonus for a bank building, split into two parts:
@@ -1171,7 +1171,7 @@ export type BankDripItem = { id: string; floor: number; perDay: number };
  *   This still feeds hourly coin accumulation directly.
  * - `vaultDrips` / `atmDrips`: per-item coin drips that accumulate as
  *   collectible `pending` coins ON the furniture inside the bank interior.
- *   ATMs drip their flat coins/day; vaults drip their % as coins against the
+ *   ATMs drip their flat coins/hour; vaults drip their % as coins against the
  *   bank's hourly base income. Tapping the coin inside moves it to the
  *   building's tap-to-collect total.
  */
@@ -1197,9 +1197,9 @@ export async function bankInteriorBonus(buildingId: string): Promise<{
         if (item.type === "vault") {
           // Vault % becomes a collectible drip instead of an auto multiplier.
           // perDay is resolved against the bank's base income at accrual time.
-          vaultDrips.push({ id: item.id, floor, perDay: -1 });
+          vaultDrips.push({ id: item.id, floor, perHour: -1 });
         } else if (item.type === "atm") {
-          atmDrips.push({ id: item.id, floor, perDay: def.flatPerDay });
+          atmDrips.push({ id: item.id, floor, perHour: def.flatPerHour });
         } else {
           mult += def.effectPct / 100;
         }
@@ -1216,7 +1216,7 @@ export async function bankInteriorBonus(buildingId: string): Promise<{
  * - `hoursElapsed`: whole hours since the last tick.
  * - `basePerHour`: the bank's hourly coin add BEFORE vault/atm bonuses
  *   (the full hourly chain minus the drip parts). Each vault drips
- *   basePerHour × its % per hour; each ATM drips flatPerDay/24 per hour.
+ *   basePerHour × its % per hour; each ATM drips flatPerHour per hour.
  * Writes `pending` onto each item in interior storage. No-op when there is
  * nothing to accrue.
  */
@@ -1246,7 +1246,7 @@ export async function accrueBankDrips(
         if (currentPending >= cap) return item; // storage full — must collect first
         let drip = 0;
         if (item.type === "atm") {
-          drip = (def.flatPerDay / 24) * hoursElapsed;
+          drip = def.flatPerHour * hoursElapsed;
         } else {
           // vault: its % expressed as coins against the bank's hourly base
           drip = basePerHour * (def.effectPct / 100) * hoursElapsed;

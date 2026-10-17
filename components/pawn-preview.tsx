@@ -1,6 +1,7 @@
 import { View } from "react-native";
 import type { CustomPawn, PawnAccessory, PawnEyeStyle, PawnGender, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
 import { beardGrowthFor, hairGrowthFor } from "@/lib/pawn";
+import type { GearItem } from "@/lib/gear";
 
 const INK = "#1F2937";
 const HAIR = "#111827";
@@ -208,7 +209,7 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
 }
 
 /** Renders a custom pawn as a chess-pawn silhouette: round head + cylindrical body. */
-export function PawnPreview({ pawn, size = 120 }: { pawn: CustomPawn; size?: number }) {
+export function PawnPreview({ pawn, size = 120, equippedGear }: { pawn: CustomPawn; size?: number; equippedGear?: GearItem | null }) {
   const s = size;
   const bodyStyle = pawn.bodyStyle || 'pebble';
   // Head is constant; body proportions vary by style
@@ -232,6 +233,10 @@ export function PawnPreview({ pawn, size = 120 }: { pawn: CustomPawn; size?: num
   const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
   const hairLength = hairGrowthFor(pawn);
   const headR = headD / 2;
+  // Clothes gear overrides the body/base/collar color; head keeps the pawn's color.
+  const gear = equippedGear && equippedGear.type === "clothes" ? equippedGear : null;
+  const clothColor = gear?.visual.bodyColor || pawn.bodyColor;
+  const pattern = gear?.visual.pattern;
   return (
     <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
       <View style={{ alignItems: "center", marginBottom: s * 0.02 }}>
@@ -247,11 +252,28 @@ export function PawnPreview({ pawn, size = 120 }: { pawn: CustomPawn; size?: num
           <Accessory kind={pawn.accessory} s={headD} />
         </View>
         {/* Collar */}
-        <View style={{ width: bodyW * 1.15, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: pawn.bodyColor, marginTop: -s * 0.02, opacity: 0.85 }} />
+        <View style={{ width: bodyW * 1.15, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: clothColor, marginTop: -s * 0.02, opacity: pattern === "collar" ? 1 : 0.85, borderWidth: pattern === "collar" ? 2 : 0, borderColor: "#FBBF24" }} />
         {/* Cylindrical body */}
-        <View style={{ width: bodyW, height: bodyH, backgroundColor: pawn.bodyColor, borderBottomLeftRadius: bodyW * 0.18, borderBottomRightRadius: bodyW * 0.18 }} />
+        <View style={{ width: bodyW, height: bodyH, backgroundColor: clothColor, borderBottomLeftRadius: bodyW * 0.18, borderBottomRightRadius: bodyW * 0.18, overflow: "hidden" }}>
+          {pattern === "stripes" && (
+            <>
+              <View style={{ position: "absolute", top: bodyH * 0.25, left: 0, right: 0, height: bodyH * 0.12, backgroundColor: "rgba(255,255,255,0.35)" }} />
+              <View style={{ position: "absolute", top: bodyH * 0.55, left: 0, right: 0, height: bodyH * 0.12, backgroundColor: "rgba(255,255,255,0.35)" }} />
+            </>
+          )}
+          {pattern === "dots" && (
+            <>
+              <View style={{ position: "absolute", top: bodyH * 0.2, left: bodyW * 0.25, width: bodyW * 0.12, height: bodyW * 0.12, borderRadius: bodyW * 0.06, backgroundColor: "rgba(255,255,255,0.4)" }} />
+              <View style={{ position: "absolute", top: bodyH * 0.45, left: bodyW * 0.55, width: bodyW * 0.12, height: bodyW * 0.12, borderRadius: bodyW * 0.06, backgroundColor: "rgba(255,255,255,0.4)" }} />
+              <View style={{ position: "absolute", top: bodyH * 0.65, left: bodyW * 0.3, width: bodyW * 0.12, height: bodyW * 0.12, borderRadius: bodyW * 0.06, backgroundColor: "rgba(255,255,255,0.4)" }} />
+            </>
+          )}
+          {pattern === "belt" && (
+            <View style={{ position: "absolute", bottom: bodyH * 0.15, left: 0, right: 0, height: bodyH * 0.18, backgroundColor: "#92400E" }} />
+          )}
+        </View>
         {/* Base */}
-        <View style={{ width: baseW, height: s * 0.09, borderRadius: s * 0.045, backgroundColor: pawn.bodyColor, marginTop: -s * 0.01 }} />
+        <View style={{ width: baseW, height: s * 0.09, borderRadius: s * 0.045, backgroundColor: clothColor, marginTop: -s * 0.01 }} />
       </View>
     </View>
   );

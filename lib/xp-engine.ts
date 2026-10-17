@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
+import { getCachedBoosts, refreshGearBoostCache } from "./gear";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
@@ -113,10 +114,10 @@ export function xpRequiredForLevel(level: number): number {
 /** Levels that grant +1 max heart each. */
 export const XP_HEART_MILESTONES = [25, 50, 75, 100];
 
-/** Maximum hearts for a level: 4 base, +1 at each milestone (25/50/75/100). */
+/** Maximum hearts for a level: 4 base, +1 at each milestone (25/50/75/100), + gear bonus. */
 export function maxHeartsForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return 4 + XP_HEART_MILESTONES.filter((milestone) => safeLevel >= milestone).length;
+  return 4 + XP_HEART_MILESTONES.filter((milestone) => safeLevel >= milestone).length + getCachedBoosts().hearts;
 }
 
 function daysBetweenDateStrings(from: string, to: string): number {
@@ -187,7 +188,9 @@ export function normalizeXPState(value: unknown): XpState {
 
 export function applyXPAward(state: XpState, action: XpAction): XpAwardResult {
   const previous = normalizeXPState(state);
-  const points = XP_ACTION_POINTS[action];
+  const basePoints = XP_ACTION_POINTS[action];
+  // Gear XP multiplier (weapons).
+  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult));
   const totalXP = previous.totalXP + points;
   const level = getLevelForXP(totalXP);
   // Crossing a heart milestone immediately grants the new heart.
@@ -233,6 +236,7 @@ export async function awardXP(action: XpAction, idempotencyKey: string, position
   if (awards.includes(key)) {
     return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
   }
+  await refreshGearBoostCache();
   const result = applyXPAward(current, action);
   await Promise.all([
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
@@ -264,7 +268,8 @@ export async function awardCustomXP(points: number, idempotencyKey: string, posi
   if (awards.includes(key)) {
     return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
   }
-  const safePoints = Math.max(0, Math.floor(points));
+  await refreshGearBoostCache();
+  const safePoints = Math.max(0, Math.floor(points * (1 + getCachedBoosts().xpMult)));
   const previous = current;
   const totalXP = previous.totalXP + safePoints;
   const level = getLevelForXP(totalXP);

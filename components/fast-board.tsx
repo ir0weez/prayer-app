@@ -14,6 +14,7 @@ import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnI
 
 import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
 import { PawnPreview } from "@/components/pawn-preview";
+import { GEAR_BY_ID, loadEquipped, type GearItem } from "@/lib/gear";
 import type { CustomPawn } from "@/lib/pawn";
 import { loadCustomPawn } from "@/lib/pawn";
 
@@ -1318,19 +1319,26 @@ function WaypointPawn({ pawnId, color, size, waypoint }: {
 /** Pawn for today's tile - uses custom pawn if available, centered */
 function TodayPawn({ pawnId, color, size, waypoint }: { pawnId?: string; color: string; size: number; waypoint: any }) {
   const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
-  
+  const [equippedClothes, setEquippedClothes] = useState<GearItem | null>(null);
+
   useEffect(() => {
     loadCustomPawn().then(setCustomPawn).catch(() => {});
+    (async () => {
+      try {
+        const eq = await loadEquipped();
+        if (eq.clothes && GEAR_BY_ID[eq.clothes]) setEquippedClothes(GEAR_BY_ID[eq.clothes]);
+      } catch {}
+    })();
   }, []);
-  
+
   if (customPawn) {
     return (
       <View style={{ alignItems: "center", justifyContent: "center" }}>
-        <PawnPreview pawn={customPawn} size={size * 0.85} />
+        <PawnPreview pawn={customPawn} size={size * 0.85} equippedGear={equippedClothes} />
       </View>
     );
   }
-  
+
   return <WaypointPawn pawnId={pawnId} color={color} size={size} waypoint={waypoint} />;
 }
 

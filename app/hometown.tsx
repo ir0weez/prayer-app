@@ -28,6 +28,7 @@ import {
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
+import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -186,6 +187,49 @@ function BuildingArt({ type, size, level = 1 }: { type: string; size: number; le
           </View>
         </View>
       );
+    case "clothes-shop":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FDE68A", borderRadius: 6, borderWidth: 2, borderColor: "#D97706", alignItems: "center", justifyContent: "center" }}>
+            {/* Shirt shape */}
+            <View style={{ width: s * 0.4, height: s * 0.34, backgroundColor: "#3B82F6", borderRadius: 4 }} />
+            <View style={{ position: "absolute", top: s * 0.12, left: s * 0.12, width: s * 0.14, height: s * 0.1, backgroundColor: "#3B82F6", transform: [{ rotate: "25deg" }], borderRadius: 3 }} />
+            <View style={{ position: "absolute", top: s * 0.12, right: s * 0.12, width: s * 0.14, height: s * 0.1, backgroundColor: "#3B82F6", transform: [{ rotate: "-25deg" }], borderRadius: 3 }} />
+          </View>
+        </View>
+      );
+    case "armory":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#E5E7EB", borderRadius: 6, borderWidth: 2, borderColor: "#6B7280", alignItems: "center", justifyContent: "center" }}>
+            {/* Shield */}
+            <View style={{ width: s * 0.4, height: s * 0.44, backgroundColor: "#9CA3AF", borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06, borderBottomLeftRadius: s * 0.2, borderBottomRightRadius: s * 0.2, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: s * 0.16, height: s * 0.16, borderRadius: s * 0.08, backgroundColor: "#6B7280" }} />
+            </View>
+          </View>
+        </View>
+      );
+    case "weaponsmith":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FEE2E2", borderRadius: 6, borderWidth: 2, borderColor: "#B91C1C", alignItems: "center", justifyContent: "center" }}>
+            {/* Crossed swords */}
+            <View style={{ width: s * 0.1, height: s * 0.44, backgroundColor: "#9CA3AF", borderRadius: 3, transform: [{ rotate: "35deg" }] }} />
+            <View style={{ position: "absolute", width: s * 0.1, height: s * 0.44, backgroundColor: "#9CA3AF", borderRadius: 3, transform: [{ rotate: "-35deg" }] }} />
+            <View style={{ position: "absolute", width: s * 0.3, height: s * 0.06, backgroundColor: "#78350F", borderRadius: 3 }} />
+          </View>
+        </View>
+      );
+    case "toolshop":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#B45309", alignItems: "center", justifyContent: "center" }}>
+            {/* Hammer */}
+            <View style={{ width: s * 0.34, height: s * 0.14, backgroundColor: "#6B7280", borderRadius: 4 }} />
+            <View style={{ position: "absolute", top: s * 0.3, width: s * 0.08, height: s * 0.3, backgroundColor: "#92400E", borderRadius: 3 }} />
+          </View>
+        </View>
+      );
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -283,6 +327,9 @@ export default function HometownScreen() {
   useEffect(() => {
     (async () => {
       try {
+        // Refresh gear boosts (tools boost town coins)
+        await refreshGearBoostCache();
+        const gearCoinMult = 1 + getCachedBoosts().coinMult;
         // Accumulate 0.5 coins per hour per income building (with road multiplier)
         const now = new Date().toISOString();
         const townRawForAccum = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
@@ -298,7 +345,7 @@ export default function HometownScreen() {
               const shopBoost = barbershopBoostForBuilding(t, b.id);
               return {
                 ...b,
-                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier * shopBoost)) * 10) / 10,
+                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier * shopBoost * gearCoinMult)) * 10) / 10,
                 lastTick: now,
               };
             }
@@ -427,6 +474,18 @@ export default function HometownScreen() {
         return;
       } else if (existing.type === "barbershop") {
         router.push("/barbershop");
+        return;
+      } else if (existing.type === "clothes-shop") {
+        router.push("/gear-shop?type=clothes");
+        return;
+      } else if (existing.type === "armory") {
+        router.push("/gear-shop?type=armor");
+        return;
+      } else if (existing.type === "weaponsmith") {
+        router.push("/gear-shop?type=weapon");
+        return;
+      } else if (existing.type === "toolshop") {
+        router.push("/gear-shop?type=tool");
         return;
       } else {
         const def = BUILDINGS[existing.type];

@@ -38,7 +38,11 @@ export type BuildingType =
   | "bakery"     // business: +5 coins/day (tier 2+)
   | "market"     // business: +8 coins/day (tier 3+)
   | "bank"       // business: +12 coins/day (tier 4)
-  | "barbershop"; // service: +1 coin/day, boosts connected businesses +25%
+  | "barbershop" // service: +1 coin/day, boosts connected businesses +25%
+  | "clothes-shop" // gear: clothes shop
+  | "armory"       // gear: armor shop
+  | "weaponsmith"  // gear: weapon shop
+  | "toolshop";    // gear: tool shop
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -84,6 +88,10 @@ export const BUILDINGS: Record<BuildingType, {
   "market":     { name: "Market",     icon: "🏬", cost: 120, tier: 3, incomePerDay: 8,  description: "+8 coins per day while your streak is alive." },
   "bank":       { name: "Bank",       icon: "🏦", cost: 250, tier: 4, incomePerDay: 12, description: "+12 coins per day while your streak is alive." },
   "barbershop": { name: "Barbershop", icon: "💈", cost: 40,  tier: 2, incomePerDay: 1,  description: "+1 coin/day. Boosts connected businesses +25%." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 50, tier: 2, incomePerDay: 1, description: "Buy outfits for your pawn. +1 coin/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 80, tier: 2, incomePerDay: 2,  description: "Buy armor for +hearts. +2 coins/day." },
+  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 80, tier: 2, incomePerDay: 2,  description: "Buy weapons for +XP. +2 coins/day." },
+  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 60, tier: 2, incomePerDay: 1,  description: "Buy tools for +coins. +1 coin/day." },
 };
 
 export type PlacedBuilding = {

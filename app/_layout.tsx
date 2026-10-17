@@ -23,6 +23,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { refreshGearBoostCache } from "@/lib/gear";
 import {
   completeScheduledNotificationItem,
   configureLocalNotifications,
@@ -50,6 +51,8 @@ function RootLayoutContent() {
   useEffect(() => {
     initManusRuntime();
     configureLocalNotifications();
+    // Warm the gear boost cache so XP/hearts/coin boosts apply everywhere.
+    refreshGearBoostCache().catch(() => {});
     // If the prayer timer's End button relaunched the app while JS was dead,
     // clear the orphaned notification now.
     try {

@@ -312,7 +312,7 @@ export default function BankInteriorScreen() {
         return;
       }
       if (existing.kind === "carpet") {
-        const refund = existing.cost ?? BANK_CARPET_COST;
+        const refund = existing.cost ?? 5; // legacy carpets cost 5 coins
         Alert.alert(
           carpetName,
           `${carpetName} connects desks together.\nSells back for full price.`,

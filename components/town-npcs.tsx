@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, View } from "react-native";
 import {
   BUILDINGS,
   buildingFootprint,
@@ -15,6 +15,10 @@ import { getTimeOfDay } from "@/lib/daynight";
 const NPC_SIZE = 16;
 const SPEED_PX_PER_SEC = 42;
 const MAX_NPCS = 24;
+
+// Animated Pressable so blessed villagers can be tapped without losing their
+// native-driver movement transform.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // Soft pastel body colors — cute, not distracting
 const NPC_COLORS = [
@@ -38,6 +42,10 @@ type NpcDef = {
   color: string;
   /** Blessed prayer visitor (golden glow) vs. regular house villager. */
   blessed?: boolean;
+  /** Prayer contact name (blessed villagers only). */
+  name?: string;
+  /** Prayer contact id (blessed villagers only). */
+  prayerId?: string;
 };
 
 type NpcLogic = {
@@ -46,6 +54,8 @@ type NpcLogic = {
   homeTile: Tile;
   color: string;
   blessed?: boolean;
+  name?: string;
+  prayerId?: string;
   pos: Animated.ValueXY;
   bob: Animated.Value;
   snore: Animated.Value;
@@ -149,6 +159,7 @@ export function TownNPCs({
   cellSize,
   onBankVisit,
   prayerPeople,
+  onPrayerVillagerTap,
 }: {
   mapState: MapState;
   cellSize: number;
@@ -156,16 +167,24 @@ export function TownNPCs({
   onBankVisit?: (buildingId: string) => void;
   /** Prayer contacts prayed for today — each spawns a blessed golden villager. */
   prayerPeople?: PrayedPerson[];
+  /** Called when a blessed prayer villager is tapped: ({ id, name }). */
+  onPrayerVillagerTap?: (person: { id: string; name: string }) => void;
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
   mapStateRef.current = mapState;
   const visitRef = useRef(onBankVisit);
   visitRef.current = onBankVisit;
+  const tapRef = useRef(onPrayerVillagerTap);
+  tapRef.current = onPrayerVillagerTap;
   const [renderIds, setRenderIds] = useState<string[]>([]);
   // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
   const sleepingRef = useRef<Set<string>>(new Set());
+  // Blessed villagers currently visiting the church or a restaurant show their
+  // name above them (the fellowship moment). Capped at 15, closest first.
+  const [namedIds, setNamedIds] = useState<Set<string>>(new Set());
+  const namedRef = useRef<Set<string>>(new Set());
   const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
   // NPCs per house scale with house level (L1=2 … L5/Mansion=6). Nothing else is residential.
@@ -207,6 +226,8 @@ export function TownNPCs({
         },
         color: "#FBBF24",
         blessed: true,
+        name: p.name,
+        prayerId: String(p.id),
       });
     }
     return defs;
@@ -351,6 +372,39 @@ export function TownNPCs({
         sleepingRef.current = next;
         setSleepingIds(next);
       }
+      // Sync name labels: blessed villagers visiting the church or a restaurant
+      // show their names (the fellowship moment). Cap at 15, closest to the
+      // building center first, so busy days don't turn into label chaos.
+      const candidates: { id: string; d: number }[] = [];
+      if (!night) {
+        for (const npc of Object.values(logic)) {
+          if (!npc.blessed || npc.state !== "visiting" || !npc.name) continue;
+          const dt = npc.destType;
+          if (dt !== "church" && !isRestaurantType(dt as any)) continue;
+          let d = 0;
+          const b = mapStateRef.current.buildings.find((x) => x.id === npc.destBuildingId);
+          if (b) {
+            const fp = buildingFootprint(b.level || 1, b.type);
+            const cx = (b.x + fp.w / 2) * cellSize;
+            const cy = (b.y + fp.h / 2) * cellSize;
+            d = Math.hypot(npc.px - cx, npc.py - cy);
+          }
+          candidates.push({ id: npc.id, d });
+        }
+      }
+      candidates.sort((a, b) => a.d - b.d);
+      const nextNamed = new Set(candidates.slice(0, 15).map((c) => c.id));
+      const prevNamed = namedRef.current;
+      let namedChanged = nextNamed.size !== prevNamed.size;
+      if (!namedChanged) {
+        for (const id of nextNamed) {
+          if (!prevNamed.has(id)) { namedChanged = true; break; }
+        }
+      }
+      if (namedChanged) {
+        namedRef.current = nextNamed;
+        setNamedIds(nextNamed);
+      }
     };
 
     // Reconcile NPCs with current buildings
@@ -364,6 +418,8 @@ export function TownNPCs({
         existing.homeTile = def.homeTile;
         existing.color = def.color;
         existing.blessed = def.blessed;
+        existing.name = def.name;
+        existing.prayerId = def.prayerId;
         if (existing.state === "idle") {
           existing.anim?.stop();
           existing.anim = null;
@@ -414,6 +470,8 @@ export function TownNPCs({
           homeTile: def.homeTile,
           color: def.color,
           blessed: def.blessed,
+          name: def.name,
+          prayerId: def.prayerId,
           pos: new Animated.ValueXY(homePx),
           bob,
           snore,
@@ -455,7 +513,7 @@ export function TownNPCs({
 
   return (
     <View
-      pointerEvents="none"
+      pointerEvents="box-none"
       style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}
     >
       {renderIds.map((id) => {
@@ -464,19 +522,9 @@ export function TownNPCs({
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
         const asleep = sleepingIds.has(id);
         const blessed = !!npc.blessed;
-        return (
-          <Animated.View
-            key={id}
-            style={{
-              position: "absolute",
-              left: -NPC_SIZE / 2,
-              top: -(NPC_SIZE + 6) / 2,
-              width: NPC_SIZE,
-              height: NPC_SIZE + 6,
-              alignItems: "center",
-              transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
-            }}
-          >
+        const showName = blessed && namedIds.has(id) && !!npc.name;
+        const body = (
+          <>
             {/* golden halo for blessed prayer visitors */}
             {blessed ? (
               <View
@@ -506,6 +554,28 @@ export function TownNPCs({
               >
                 💤
               </Animated.Text>
+            ) : null}
+            {/* name label — only while visiting the church or a restaurant */}
+            {showName ? (
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{
+                  position: "absolute",
+                  top: -30,
+                  left: -37,
+                  width: 90,
+                  textAlign: "center",
+                  fontSize: 10,
+                  fontWeight: "700",
+                  color: "#FDE68A",
+                  textShadowColor: "rgba(0,0,0,0.65)",
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 2,
+                }}
+              >
+                {npc.name}
+              </Text>
             ) : null}
             {/* head */}
             <View
@@ -537,6 +607,30 @@ export function TownNPCs({
                 opacity: 0.92,
               }}
             />
+          </>
+        );
+        const frameStyle = {
+          position: "absolute" as const,
+          left: -NPC_SIZE / 2,
+          top: -(NPC_SIZE + 6) / 2,
+          width: NPC_SIZE,
+          height: NPC_SIZE + 6,
+          alignItems: "center" as const,
+          transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
+        };
+        // Blessed villagers are tappable — tap to see who they are.
+        // House villagers stay ambient and never intercept touches.
+        return blessed ? (
+          <AnimatedPressable
+            key={id}
+            onPress={() => tapRef.current?.({ id: npc.prayerId || npc.id, name: npc.name || "Friend" })}
+            style={frameStyle}
+          >
+            {body}
+          </AnimatedPressable>
+        ) : (
+          <Animated.View key={id} pointerEvents="none" style={frameStyle}>
+            {body}
           </Animated.View>
         );
       })}

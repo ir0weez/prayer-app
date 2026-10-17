@@ -940,6 +940,7 @@ export default function HometownScreen() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [prayedToday, setPrayedToday] = useState(0);
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
+  const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
@@ -1963,8 +1964,8 @@ export default function HometownScreen() {
               <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2 }}>{lot.name}</Text>
             </View>
           ))}
-          {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} prayerPeople={prayedPeople} />
+          {/* Ambient townsfolk — above buildings, below coins; only blessed villagers capture touches */}
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} prayerPeople={prayedPeople} onPrayerVillagerTap={(p) => setPrayerVillagerInfo(p)} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -2434,6 +2435,71 @@ export default function HometownScreen() {
                 </>
               );
             })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+      {/* Prayer villager identity — tap a golden villager to see who walks with you */}
+      <Modal
+        visible={prayerVillagerInfo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPrayerVillagerInfo(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setPrayerVillagerInfo(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* little golden villager */}
+            <View style={{ alignItems: "center" }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: "#FBBF24",
+                  opacity: 0.25,
+                  position: "absolute",
+                  top: -8,
+                }}
+              />
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ flexDirection: "row", gap: 3 }}>
+                  <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
+                  <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
+                </View>
+              </View>
+              <View
+                style={{
+                  width: 22,
+                  height: 16,
+                  borderTopLeftRadius: 8,
+                  borderTopRightRadius: 8,
+                  borderBottomLeftRadius: 4,
+                  borderBottomRightRadius: 4,
+                  backgroundColor: "#FBBF24",
+                  marginTop: 1,
+                }}
+              />
+            </View>
+            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginTop: 12, textAlign: "center" }}>
+              {prayerVillagerInfo?.name}
+            </Text>
+            <Text style={{ color: "#B45309", fontSize: 14, fontWeight: "600", marginTop: 6 }}>
+              🙏 Prayed for today
+            </Text>
+            <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
+              Walking with you in Hometown
+            </Text>
+            <Pressable
+              onPress={() => setPrayerVillagerInfo(null)}
+              style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Close</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>

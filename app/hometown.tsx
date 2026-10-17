@@ -68,7 +68,8 @@ import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
-import { SeasonalOverlay } from "@/components/seasonal-overlay";
+import { SeasonalBorder } from "@/components/seasonal-border";
+import { MapSigns } from "@/components/map-signs";
 import { TownNPCs, CityNPCs, countHometownNpcs } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
 
@@ -698,6 +699,20 @@ export default function HometownScreen() {
     ]);
   }, [coins, unlockedMaps, saveCoins, switchMap]);
 
+  // Signpost taps mirror the map pill behavior: unlock flow or switch.
+  const handleMapSignSelect = useCallback((id: TownMapId) => {
+    const info = MAP_INFO[id];
+    if (info.comingSoon) {
+      Alert.alert(info.name, "This map is coming soon!");
+      return;
+    }
+    if (!unlockedMaps.includes(id)) {
+      handleUnlockMap(id);
+      return;
+    }
+    switchMap(id);
+  }, [unlockedMaps, handleUnlockMap, switchMap]);
+
   // Load + accumulate hourly income on open (across all maps)
   useEffect(() => {
     (async () => {
@@ -1319,9 +1334,9 @@ export default function HometownScreen() {
         </View>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <SeasonalBorder>
         <View style={{ position: "relative" }}>
           {rows}
-          <SeasonalOverlay width={TOWN_GRID_SIZE * cellSize} height={TOWN_GRID_SIZE * cellSize} />
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
@@ -1436,6 +1451,14 @@ export default function HometownScreen() {
             );
           })}
         </View>
+        </SeasonalBorder>
+        {activeMap === "town" && (
+          <MapSigns
+            activeMap={activeMap}
+            unlockedMaps={unlockedMaps}
+            onSelectMap={handleMapSignSelect}
+          />
+        )}
       </View>
       )}
 

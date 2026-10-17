@@ -44,9 +44,9 @@ export type MapInfo = {
 
 export const MAP_INFO: Record<TownMapId, MapInfo> = {
   town:    { name: "Hometown", icon: "🏠", description: "Your starter town", unlockCost: 0, comingSoon: false },
-  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 200, comingSoon: false },
-  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 150, comingSoon: false },
-  school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 150, comingSoon: false },
+  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 1000, comingSoon: false },
+  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 750, comingSoon: false },
+  school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 750, comingSoon: false },
   reserve: { name: "???",      icon: "❓", description: "Coming soon", unlockCost: 0, comingSoon: true },
 };
 

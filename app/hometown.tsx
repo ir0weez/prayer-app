@@ -27,7 +27,6 @@ import {
   parseUnlockedMaps,
   emptyTownState,
   tierForFastDay,
-  incomeFor,
   effectiveIncomeFor,
   plotIncomeMult,
   xpIncomeFor,
@@ -36,7 +35,6 @@ import {
   plotAt,
   loadPurchasedPlots,
   savePurchasedPlots,
-  CITY_PLOTS_STORAGE_KEY,
   type CityPlot,
   type BuildingType,
   type DecorationType,
@@ -88,6 +86,11 @@ function nextId() {
 function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size: number; level?: number; floors?: number }) {
   const s = size;
   const lv = level || 1;
+  // City towers feel more alive as they level up: more lit windows.
+  // L1 ~30% lit (quiet), L2 ~60% (busy), L3 ~90% (buzzing).
+  const litRatio = lv >= 3 ? 0.9 : lv === 2 ? 0.6 : 0.3;
+  const isLit = (i: number, j: number) => ((i * 7 + j * 13 + lv * 5) % 10) < litRatio * 10;
+  const LIT = "#FDE68A";
   switch (type) {
     case "house":
       if (lv >= 3) return (
@@ -280,7 +283,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
               >
                 <View style={{ flexDirection: "row" }}>
                   {[0, 1, 2].map(j => (
-                    <View key={j} style={{ width: s * 0.1, height: segH * 0.4, backgroundColor: "#FDE68A", marginHorizontal: s * 0.02, borderRadius: 1 }} />
+                    <View key={j} style={{ width: s * 0.1, height: segH * 0.4, backgroundColor: isLit(i, j) ? LIT : "#1E3A8A", marginHorizontal: s * 0.02, borderRadius: 1 }} />
                   ))}
                 </View>
               </View>
@@ -299,7 +302,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
           <View style={{ width: s * 0.95, height: s * 0.72, backgroundColor: "#7C3AED", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
             {[0, 1].map(r => (
               <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.03 }}>
-                {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: "#DDD6FE", marginHorizontal: 4, borderRadius: 2 }} />)}
+                {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: isLit(r, i) ? LIT : "#4C1D95", marginHorizontal: 4, borderRadius: 2 }} />)}
               </View>
             ))}
           </View>
@@ -314,7 +317,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
             </View>
             {[0, 1, 2].map(r => (
               <View key={r} style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-                {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.12, backgroundColor: "#FDE68A", marginHorizontal: 4, borderRadius: 2 }} />)}
+                {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.12, backgroundColor: isLit(r, i) ? LIT : "#78350F", marginHorizontal: 4, borderRadius: 2 }} />)}
               </View>
             ))}
           </View>
@@ -326,7 +329,7 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
           <View style={{ width: s * 0.65, height: s * 0.88, backgroundColor: "#93C5FD", borderRadius: 4, alignItems: "center", paddingTop: s * 0.05 }}>
             {[0, 1, 2, 3].map(i => (
               <View key={i} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
-                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
+                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: isLit(i, j) ? LIT : "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
               </View>
             ))}
           </View>
@@ -693,7 +696,7 @@ export default function HometownScreen() {
           const updatedBuildings = m.buildings.map(b => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
             const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
-            const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
+            const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (hoursElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
               const multiplier = roadMultiplierForBuilding(m, b.id);
@@ -702,7 +705,7 @@ export default function HometownScreen() {
               const deskMult = deskMults[b.id] ?? 1;
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * gearCoinMult * (1 + generosityMult)
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult)
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
               return {
                 ...b,
@@ -758,13 +761,6 @@ export default function HometownScreen() {
   const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
     map.decorations.find((d) => d.x === x && d.y === y);
 
-  /** "12 coins/day" or "50 XP/day" depending on the building. */
-  const incomeLabel = (type: BuildingType, level: 1 | 2 | 3): string => {
-    const xp = xpIncomeFor(type, level);
-    if (xp > 0) return `${xp} XP/day`;
-    return `${incomeFor(type, level)} coins/day`;
-  };
-
   /** Plot-aware income label ("87 coins/day"). */
   const incomeLabelFor = (b: PlacedBuilding): string => {
     const xp = xpIncomeFor(b.type, b.level || 1);
@@ -775,6 +771,15 @@ export default function HometownScreen() {
   /** Purchase a city plot (creates the L1 building). */
   const handlePurchasePlot = (plot: CityPlot) => {
     const def = BUILDINGS[plot.buildingType];
+    // Don't build over legacy free-placed buildings
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        if (buildingAt(plot.x + dx, plot.y + dy)) {
+          Alert.alert("Plot Occupied", "There's already a building on this lot. Move or sell it first.");
+          return;
+        }
+      }
+    }
     if (coins.balance < plot.cost) {
       Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${Math.floor(coins.balance)}.`);
       return;
@@ -857,17 +862,27 @@ export default function HometownScreen() {
   const handleTilePress = (x: number, y: number) => {
     // City map: plots only — no free placement
     if (activeMap === "city") {
-      const plot = plotAt(x, y);
-      if (plot) {
-        if (purchasedPlots.includes(plot.id)) {
-          const b = map.buildings.find(bb => bb.plotId === plot.id);
-          if (b) { handlePlotBuildingPress(b, plot); return; }
+      const existing = buildingAt(x, y);
+      // Plot buildings get the plot treatment (upgrade only, no move/sell)
+      if (existing?.plotId) {
+        const plot = CITY_PLOTS.find(p => p.id === existing.plotId);
+        if (plot) { handlePlotBuildingPress(existing, plot); return; }
+      }
+      // Legacy free-placed buildings (pre-plots) keep normal handling
+      if (!existing) {
+        const plot = plotAt(x, y);
+        if (plot) {
+          if (purchasedPlots.includes(plot.id)) {
+            const b = map.buildings.find(bb => bb.plotId === plot.id);
+            if (b) { handlePlotBuildingPress(b, plot); return; }
+          }
+          handlePurchasePlot(plot);
+          return;
         }
-        handlePurchasePlot(plot);
+        // Tapped outside any plot — ignore (city is plots-only)
         return;
       }
-      // Tapped outside any plot — ignore (city is plots-only)
-      return;
+      // else: legacy building tapped — fall through to normal handling below
     }
     // Move mode: place the moving building here
     if (movingBuilding) {
@@ -936,7 +951,7 @@ export default function HometownScreen() {
           const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
           Alert.alert(
             `${def.name} (Lv 3)`,
-            `${def.description}\n\nMax level! Earns ${incomeLabel(existing.type, level)}.`,
+            `${def.description}\n\nMax level! Earns ${incomeLabelFor(existing)}.`,
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -987,7 +1002,7 @@ export default function HometownScreen() {
             const sellPriceNoRoom = Math.floor(BUILDINGS[existing.type].cost * 0.5);
             Alert.alert(
               `${def.name} (Lv ${level})`,
-              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${incomeLabel(existing.type, level)}.`,
+              `Not enough space to expand! Clear adjacent tiles.\n\nCurrently earns ${incomeLabelFor(existing)}.`,
               [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -1025,7 +1040,7 @@ export default function HometownScreen() {
           const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
           Alert.alert(
             `${def.name} (Lv ${level})`,
-            `${def.description}\n\nCurrently earns ${incomeLabel(existing.type, level)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabel(existing.type, nextLevel)}.`,
+            `${def.description}\n\nCurrently earns ${incomeLabelFor(existing)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor({ ...existing, level: nextLevel })}.`,
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -1167,7 +1182,7 @@ export default function HometownScreen() {
           onPress={() => handleTilePress(x, y)}
           onLongPress={() => {
             const b = buildingAt(x, y);
-            if (b) {
+            if (b && !b.plotId) {
               setMovingBuilding(b);
               setSelectedTile(null);
               Alert.alert("Move Mode", `Moving ${BUILDINGS[b.type].name}. Tap a new location.`, [
@@ -1288,7 +1303,7 @@ export default function HometownScreen() {
       )}
 
       <Text style={{ color: "#78716C", marginBottom: 12 }}>
-        Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive.
+        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}>
@@ -1332,6 +1347,21 @@ export default function HometownScreen() {
                 }}
               >
                 <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} floors={b.floors || 1} />
+                {/* L3 city towers glow with activity */}
+                {(b.level || 1) >= 3 && !!b.plotId && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      bottom: 2,
+                      width: fp.w * cellSize * 0.7,
+                      height: 10,
+                      backgroundColor: "#FDE68A",
+                      opacity: 0.35,
+                      borderRadius: 5,
+                    }}
+                  />
+                )}
                 {(b.level || 1) > 1 && (
                   <Text style={{ fontSize: 10, color: "#F59E0B", fontWeight: "700" }}>
                     {"★".repeat(b.level || 1)}
@@ -1340,12 +1370,45 @@ export default function HometownScreen() {
               </View>
             );
           })}
+          {/* City plots: FOR SALE lots (unpurchased) */}
+          {activeMap === "city" && CITY_PLOTS.filter(p => !purchasedPlots.includes(p.id)).map((plot) => (
+            <View
+              key={`plot-${plot.id}`}
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: plot.x * cellSize,
+                top: plot.y * cellSize,
+                width: 2 * cellSize,
+                height: 2 * cellSize,
+                borderWidth: 2,
+                borderStyle: "dashed",
+                borderColor: "#9CA3AF",
+                borderRadius: 8,
+                backgroundColor: "rgba(156, 163, 175, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{plot.cost}</Text>
+              <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
+            </View>
+          ))}
           {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
           <TownNPCs mapState={map} cellSize={cellSize} />
+          {/* City life: plot workers + commuters from town */}
+          {activeMap === "city" && (
+            <CityNPCs
+              mapState={map}
+              cellSize={cellSize}
+              hometownNpcCount={countHometownNpcs(town.maps.town.buildings)}
+            />
+          )}
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
-            const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
+            const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (!earnsCoins && !earnsXP) return null;
             // Only show the collectible once something has accumulated
@@ -1376,7 +1439,7 @@ export default function HometownScreen() {
       </View>
       )}
 
-      {selectedTile && activeMap !== "reserve" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8 }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})

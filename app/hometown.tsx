@@ -38,6 +38,9 @@ import {
   accrueBankDrips,
   bankFloorMultiplier,
   buildingFootprint,
+  prayedTodayCount,
+  churchNameFor,
+  CHURCH_PRAYER_COINS_PER_HOUR,
   parseCoins,
   parseTown,
   parseOwnedItems,
@@ -103,7 +106,7 @@ function nextId() {
 }
 
 // Building art using colored shapes (no emojis) - shape evolves with level
-function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size: number; level?: number; floors?: number }) {
+function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number }) {
   const s = size;
   const lv = level || 1;
   // City towers feel more alive as they level up: more lit windows.
@@ -257,6 +260,92 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
           <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4, marginTop: s * 0.05 }} />
         </View>
       );
+    case "church": {
+      // L1 Chapel — small white chapel with steeple; L2 Church — stained glass;
+      // L3 Cathedral — grand twin spires.
+      const isCath = lv >= 3;
+      const isChurch = lv >= 2;
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* Main body */}
+          <View style={{
+            width: s * (isCath ? 0.95 : isChurch ? 0.85 : 0.75),
+            height: s * (isCath ? 0.62 : isChurch ? 0.55 : 0.48),
+            backgroundColor: "#FFFBEB", borderRadius: 4,
+            borderWidth: 2, borderColor: "#D6C79A",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            {/* Stained glass windows */}
+            <View style={{ flexDirection: "row" }}>
+              {(isCath ? [0, 1, 2] : isChurch ? [0, 1] : [0]).map(i => (
+                <View key={i} style={{
+                  width: s * 0.13, height: s * 0.22, marginHorizontal: 3,
+                  backgroundColor: i % 2 === 0 ? "#93C5FD" : "#C4B5FD",
+                  borderTopLeftRadius: s * 0.065, borderTopRightRadius: s * 0.065,
+                  borderWidth: 1, borderColor: "#92400E",
+                }} />
+              ))}
+            </View>
+            {/* Door */}
+            <View style={{
+              position: "absolute", bottom: 0,
+              width: s * 0.16, height: s * 0.24,
+              backgroundColor: "#78350F",
+              borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08,
+            }} />
+          </View>
+          {/* Roof */}
+          <View style={{
+            position: "absolute", bottom: s * (isCath ? 0.62 : isChurch ? 0.55 : 0.48),
+            width: 0, height: 0,
+            borderLeftWidth: s * (isCath ? 0.475 : isChurch ? 0.425 : 0.375),
+            borderRightWidth: s * (isCath ? 0.475 : isChurch ? 0.425 : 0.375),
+            borderBottomWidth: s * 0.22,
+            borderLeftColor: "transparent", borderRightColor: "transparent",
+            borderBottomColor: "#92400E",
+          }} />
+          {/* Steeple(s) */}
+          {isCath ? (
+            <>
+              <View style={{ position: "absolute", left: s * 0.06, bottom: s * 0.62, width: s * 0.16, height: s * 0.3, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
+              <View style={{ position: "absolute", left: s * 0.06, bottom: s * 0.9, width: 0, height: 0, borderLeftWidth: s * 0.08, borderRightWidth: s * 0.08, borderBottomWidth: s * 0.14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
+              <View style={{ position: "absolute", left: s * 0.125, bottom: s * 1.0, width: s * 0.03, height: s * 0.08, backgroundColor: "#FBBF24" }} />
+              <View style={{ position: "absolute", left: s * 0.095, bottom: s * 1.05, width: s * 0.09, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+              <View style={{ position: "absolute", right: s * 0.06, bottom: s * 0.62, width: s * 0.16, height: s * 0.3, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
+              <View style={{ position: "absolute", right: s * 0.06, bottom: s * 0.9, width: 0, height: 0, borderLeftWidth: s * 0.08, borderRightWidth: s * 0.08, borderBottomWidth: s * 0.14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
+              <View style={{ position: "absolute", right: s * 0.125, bottom: s * 1.0, width: s * 0.03, height: s * 0.08, backgroundColor: "#FBBF24" }} />
+              <View style={{ position: "absolute", right: s * 0.095, bottom: s * 1.05, width: s * 0.09, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+            </>
+          ) : (
+            <>
+              <View style={{ position: "absolute", bottom: s * (isChurch ? 0.72 : 0.65), width: s * 0.18, height: s * 0.28, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
+              <View style={{ position: "absolute", bottom: s * (isChurch ? 0.98 : 0.91), width: 0, height: 0, borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09, borderBottomWidth: s * 0.15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
+              {/* Cross */}
+              <View style={{ position: "absolute", bottom: s * (isChurch ? 1.1 : 1.03), left: s * 0.485, width: s * 0.03, height: s * 0.1, backgroundColor: "#FBBF24" }} />
+              <View style={{ position: "absolute", bottom: s * (isChurch ? 1.14 : 1.07), left: s * 0.45, width: s * 0.1, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+            </>
+          )}
+          {/* Prayer residents: glowing figures gathered around the church */}
+          {prayedCount > 0 && (
+            <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: -s * 0.06, flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
+              {Array.from({ length: Math.min(prayedCount, 6) }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: s * 0.1, height: s * 0.14, marginHorizontal: 1,
+                    backgroundColor: "#FDE68A", borderRadius: s * 0.05,
+                    borderWidth: 1, borderColor: "#F59E0B",
+                  }}
+                />
+              ))}
+              {prayedCount > 6 && (
+                <Text style={{ fontSize: 10, color: "#92400E", fontWeight: "700", marginLeft: 2 }}>+{prayedCount - 6}</Text>
+              )}
+            </View>
+          )}
+        </View>
+      );
+    }
     case "barbershop":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
@@ -643,6 +732,7 @@ export default function HometownScreen() {
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [prayedToday, setPrayedToday] = useState(0);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
@@ -851,6 +941,10 @@ export default function HometownScreen() {
         let generosityMult = 0;
         try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
         const msMult = milestoneMultiplier(c.lifetimeEarned);
+        // Prayer contacts prayed for today boost church income (+2/hr each)
+        let prayedCount = 0;
+        try { prayedCount = await prayedTodayCount(); } catch {}
+        setPrayedToday(prayedCount);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -870,8 +964,12 @@ export default function HometownScreen() {
               const wMult = workerMult(b);
               const popMult = populationMult(t);
               const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult;
+              // Church: +2 coins/hour for each prayer contact prayed for today
+              const churchPrayerBonus = b.type === "church" && earnsCoins
+                ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
+                : 0;
               const add = earnsCoins
-                ? hoursElapsed * basePerHour
+                ? hoursElapsed * basePerHour + churchPrayerBonus
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
               // ATM & vault bonuses drip as collectible coins inside the bank
               // interior instead of auto-adding to the building total.
@@ -1103,6 +1201,9 @@ export default function HometownScreen() {
         return;
       } else if (existing.type === "bank" || existing.type === "bank-tower") {
         router.push(`/bank-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "church") {
+        router.push(`/church-interior?buildingId=${existing.id}`);
         return;
       } else if (existing.type === "barbershop") {
         router.push("/barbershop");
@@ -1425,7 +1526,7 @@ export default function HometownScreen() {
                   justifyContent: "center",
                 }}
               >
-                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} floors={b.floors || 1} />
+                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
                 {/* L3 city towers glow with activity */}
                 {(b.level || 1) >= 3 && !!b.plotId && (
                   <View
@@ -1830,7 +1931,7 @@ export default function HometownScreen() {
               return (
                 <>
                   <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 8 }}>
-                    {b.type === "house" ? houseNameFor(level) : def.name} (Lv {level})
+                    {b.type === "house" ? houseNameFor(level) : b.type === "church" ? churchNameFor(level) : def.name} (Lv {level})
                   </Text>
                   <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
                     {def.description}
@@ -1838,7 +1939,11 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
                     Currently earns {incomeLabelFor(b)}.
                   </Text>
-                  {b.type === "house" ? (
+                  {b.type === "church" ? (
+                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                      🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
+                    </Text>
+                  ) : b.type === "house" ? (
                     <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
                       🏠 {townsfolkForHouse(level)} townsfolk live here{!isMax ? ` (+1 at ${houseNameFor(nextLevel)})` : " — a grand Mansion!"}
                     </Text>
@@ -1863,7 +1968,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
-                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost}
+                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost}
                       </Text>
                       <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
                         {incomeLabelFor(preview)}

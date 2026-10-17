@@ -93,7 +93,9 @@ export type BuildingType =
   | "burger-joint"
   | "taco-stand"
   | "sushi-bar"
-  | "diner";
+  | "diner"
+  // Church (prayer residents)
+  | "church";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -127,6 +129,56 @@ export function maxLevelFor(type: BuildingType): number {
 /** Display name for a house at a given level. */
 export function houseNameFor(level: number): string {
   return HOUSE_LEVEL_NAMES[Math.min(Math.max(level || 1, 1), 5)] ?? "Cottage";
+}
+
+// Church upgrades: Chapel -> Church -> Cathedral, grander at each tier.
+export const CHURCH_LEVEL_NAMES: Record<number, string> = {
+  1: "Chapel", 2: "Church", 3: "Cathedral",
+};
+
+/** Display name for a church at a given level. */
+export function churchNameFor(level: number): string {
+  return CHURCH_LEVEL_NAMES[Math.min(Math.max(level || 1, 1), 3)] ?? "Chapel";
+}
+
+/** Coins/hour bonus per prayer contact prayed for today. */
+export const CHURCH_PRAYER_COINS_PER_HOUR = 2;
+
+/**
+ * Count of prayer contacts prayed for today (local date).
+ * Reads prayercircle.people.v1 and checks lastPrayerCompletedDate.
+ */
+export async function prayedTodayCount(): Promise<number> {
+  const people = await prayedTodayPeople();
+  return people.length;
+}
+
+/** Minimal shape of a prayer contact prayed for today (for candle wall / pews). */
+export type PrayedPerson = { id: string; name: string; accentColor?: string };
+
+/**
+ * Prayer contacts prayed for today (local date), with id + name.
+ * Reads prayercircle.people.v1 and checks lastPrayerCompletedDate.
+ */
+export async function prayedTodayPeople(): Promise<PrayedPerson[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem("prayercircle.people.v1");
+    if (!raw) return [];
+    const people = JSON.parse(raw);
+    if (!Array.isArray(people)) return [];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    return people
+      .filter((p: any) => p?.lastPrayerCompletedDate === today)
+      .map((p: any) => ({
+        id: String(p?.id ?? p?.name ?? Math.random()),
+        name: String(p?.name ?? "Friend"),
+        accentColor: typeof p?.accentColor === "string" ? p.accentColor : undefined,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 /** Townsfolk housed: L1=2, each level +1, L5 (Mansion)=6. */
@@ -188,6 +240,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "armory":       { name: "Armory",       icon: "🛡️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +2 coins/day." },
   "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +2 coins/day." },
   "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 80, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +1 coin/day." },
+  "church":       { name: "Chapel",       icon: "⛪", cost: 100, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +2 coins/hour for each person you've prayed for today." },
   // City — big buildings, big earnings
   "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 650, tier: 1, incomePerDay: 25, xpPerDay: 0, maps: ["city"], description: "A towering bank. +25 coins/day." },
   "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },

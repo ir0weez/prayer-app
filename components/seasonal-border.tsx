@@ -96,6 +96,34 @@ function TwinkleStar({ left, top, size, delay, duration }: { left: number; top: 
   );
 }
 
+/** A golden prayer star — brighter and larger than regular stars. */
+function PrayerStar({ left, top, delay }: { left: number; top: number; delay: number }) {
+  const opacity = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const twinkle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.5, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => twinkle.start(), delay);
+    return () => {
+      clearTimeout(t);
+      twinkle.stop();
+    };
+  }, [delay, opacity]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", left, top, opacity }}
+    >
+      <Text style={{ fontSize: 12, color: "#FDE68A", textShadowColor: "#FBBF24", textShadowRadius: 6 }}>⭐</Text>
+    </Animated.View>
+  );
+}
+
 /** A snowflake drifting gently downward. */
 function Snowflake({ left, delay, duration, size }: { left: number; delay: number; duration: number; size: number }) {
   const y = useRef(new Animated.Value(-10)).current;
@@ -213,6 +241,22 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
     const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
+  // Prayer stars: one golden star per person prayed for today.
+  const [prayerStarCount, setPrayerStarCount] = React.useState(0);
+  useEffect(() => {
+    (async () => {
+      try {
+        const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+        const raw = await AsyncStorage.getItem("prayercircle.people.v1");
+        if (!raw) return;
+        const people = JSON.parse(raw);
+        if (!Array.isArray(people)) return;
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        setPrayerStarCount(people.filter((p: any) => p?.lastPrayerCompletedDate === today).length);
+      } catch {}
+    })();
+  }, []);
   const sky = SKY_THEMES[timeOfDay];
   const decor = BORDER_DECOR[theme];
   const subtle = theme === "normal";
@@ -245,6 +289,15 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
             <TwinkleStar left={170} top={20} size={2} delay={400} duration={1900} />
             <TwinkleStar left={290} top={22} size={2} delay={1100} duration={2300} />
             <TwinkleStar left={100} top={22} size={2} delay={700} duration={2100} />
+            {/* Prayer stars: one golden star per person prayed for today */}
+            {Array.from({ length: Math.min(prayerStarCount, 12) }).map((_, i) => (
+              <PrayerStar
+                key={`prayer-${i}`}
+                left={10 + ((i * 47) % 320)}
+                top={2 + ((i * 31) % 20)}
+                delay={i * 350}
+              />
+            ))}
           </>
         )}
         {showSnow && (

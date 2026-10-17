@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -173,6 +173,74 @@ function BuildingArt({ type, size, level = 1 }: { type: string; size: number; le
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
+}
+
+/** Spinning coin with accumulated amount underneath */
+function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => void }) {
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const spin = Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    spin.start();
+    return () => spin.stop();
+  }, []);
+
+  const rotateY = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const hasAmount = amount > 0;
+
+  return (
+    <Pressable
+      onPress={(e) => {
+        e.stopPropagation();
+        onCollect();
+      }}
+      style={{ alignItems: "center", padding: 4, zIndex: 10 }}
+    >
+      <Animated.View
+        style={{
+          transform: [{ rotateY }],
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: hasAmount ? "#FBBF24" : "#E5E7EB",
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: 2,
+          borderColor: hasAmount ? "#D97706" : "#9CA3AF",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 3,
+          elevation: 3,
+        }}
+      >
+        <Text style={{ fontSize: 20 }}>🪙</Text>
+      </Animated.View>
+      <Text style={{
+        fontSize: 10,
+        fontWeight: "700",
+        color: hasAmount ? "#92400E" : "#9CA3AF",
+        marginTop: 2,
+        backgroundColor: "rgba(255,255,255,0.9)",
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 8,
+      }}>
+        {hasAmount ? `+${amount.toFixed(1)}` : "earning"}
+      </Text>
+    </Pressable>
+  );
 }
 
 export default function HometownScreen() {
@@ -499,8 +567,11 @@ export default function HometownScreen() {
           )}
           {b && isOrigin && incomeFor(b.type, b.level || 1) > 0 && (
             <Pressable
-              onPress={() => handleCollectBuilding(b.id)}
-              style={{ position: "absolute", top: -8, right: -8, zIndex: 10, alignItems: "center" }}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleCollectBuilding(b.id);
+              }}
+              style={{ position: "absolute", top: 2, right: 2, zIndex: 10, alignItems: "center", padding: 8 }}
             >
               <View style={{ backgroundColor: (b.accumulated || 0) > 0 ? "#FEF3C7" : "#F3F4F6", borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: (b.accumulated || 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>
                 <Text style={{ fontSize: 12, opacity: (b.accumulated || 0) > 0 ? 1 : 0.4 }}>🪙</Text>

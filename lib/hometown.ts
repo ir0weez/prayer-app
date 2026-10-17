@@ -148,6 +148,35 @@ export const CHURCH_PRAYER_COINS_PER_HOUR = 2;
 export const PRAYER_VILLAGER_CAP = 12;
 
 /**
+ * Coin storage cap for a building's `accumulated` total, by level.
+ * Hourly income stops accumulating when full — upgrading raises the cap.
+ * Balanced for idle play: L1 fills in ~5-8hrs (a few check-ins/day, sleep is safe).
+ * High-income buildings (city plots, bank towers) scale by their income multiplier.
+ * Buildings with no income (houses) don't need caps.
+ */
+export const BUILDING_STORAGE_CAPS: Record<number, number> = {
+  1: 25,
+  2: 75,
+  3: 200,
+  4: 500,
+  5: 1000,
+};
+
+/** Max coins a building can hold uncollected (level base × income multipliers). */
+export function buildingStorageCap(b: PlacedBuilding): number {
+  const level = Math.min(Math.max(b.level || 1, 1), 5);
+  const base = BUILDING_STORAGE_CAPS[level] ?? 25;
+  // Scale for high-income buildings so they don't fill instantly
+  const incomeMult = plotIncomeMult(b) * (b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1);
+  return Math.round(base * incomeMult);
+}
+
+/** True if a building's accumulated coins have hit its storage cap. */
+export function isBuildingStorageFull(b: PlacedBuilding): boolean {
+  return (b.accumulated || 0) >= buildingStorageCap(b) - 0.001;
+}
+
+/**
  * Daily prayer blessing: +3% coin income per prayer contact prayed for today.
  * Resets each day with the prayer list.
  */
@@ -388,6 +417,127 @@ export function ensureCityStreets(map: MapState): MapState {
   return { ...map, roads: [...nonCityRoads, ...fresh], buildings: moved };
 }
 
+// ---- Town neighborhood: heavenly hometown lots (no free placement on town map) ----
+// A winding neighborhood — cul-de-sac cottages, Chapel Hill, Main Street shops.
+// Lots are fixed and unlockable; buildings on lots can't be moved or sold (like city plots).
+
+export type TownLot = {
+  id: string;
+  x: number;
+  y: number;
+  /** Lot footprint in tiles. Buildings on lots keep a fixed footprint (grow "better", not bigger). */
+  w: number;
+  h: number;
+  allowedTypes: BuildingType[];
+  cost: number; // coins for the lot (building cost is separate)
+  name: string;
+};
+
+/** Commercial building types allowed on flexible Main Street shop lots. */
+const TOWN_SHOP_TYPES: BuildingType[] = [
+  "shop", "bakery", "market", "bank",
+  "barbershop", "clothes-shop", "armory", "weaponsmith", "toolshop",
+  "pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner",
+];
+
+export const TOWN_LOTS: TownLot[] = [
+  // Cul-de-sac cottages (top-left, 1x1 — houses stay cozy)
+  { id: "town-lot-h1", x: 0, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  { id: "town-lot-h2", x: 1, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  { id: "town-lot-h3", x: 2, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  { id: "town-lot-h4", x: 0, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  { id: "town-lot-h5", x: 1, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  { id: "town-lot-h6", x: 2, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  // Chapel Hill — the church, prominent at the top of the neighborhood
+  { id: "town-lot-church", x: 4, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
+  // Hearthside — the pawn's home, near the church
+  { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 25, name: "Hearthside" },
+  // Sunny Acres — farm on the west side
+  { id: "town-lot-farm", x: 0, y: 5, w: 2, h: 2, allowedTypes: ["farm"], cost: 50, name: "Sunny Acres" },
+  // Main Street shops (flexible commercial)
+  { id: "town-lot-s1", x: 2, y: 5, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West" },
+  { id: "town-lot-s2", x: 5, y: 5, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East" },
+  { id: "town-lot-s3", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Shops" },
+];
+
+/** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
+export const TOWN_PATH: Array<{ x: number; y: number }> = [
+  // Main street S-curve: enters west, winds through, exits east
+  { x: 0, y: 3 }, { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 },
+  { x: 3, y: 4 }, { x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 },
+  { x: 6, y: 3 }, { x: 7, y: 3 },
+  // Cul-de-sac connector (cottages)
+  { x: 1, y: 2 },
+  // Farm spur (driveway to Sunny Acres)
+  { x: 0, y: 4 },
+];
+
+/** Town path roads with stable ids (idempotent seeding). */
+export function townPathRoads(): PlacedRoad[] {
+  return TOWN_PATH.map((s) => ({ id: `town-path-${s.x}-${s.y}`, x: s.x, y: s.y }));
+}
+
+/** True for road tiles that are permanent neighborhood infrastructure. */
+export function isTownPath(road: PlacedRoad): boolean {
+  return typeof road.id === "string" && road.id.startsWith("town-path-");
+}
+
+/** Find the town lot containing tile (x, y), if any. */
+export function townLotAt(x: number, y: number): TownLot | undefined {
+  return TOWN_LOTS.find((l) => x >= l.x && x < l.x + l.w && y >= l.y && y < l.y + l.h);
+}
+
+/** True if a building sits on a town lot (fixed position, no move/sell). */
+export function isTownLotBuilding(b: PlacedBuilding): boolean {
+  return typeof b.townLotId === "string" && b.townLotId.length > 0;
+}
+
+/** True if a building has a fixed footprint (city plot or town lot). */
+export function hasFixedFootprint(b: PlacedBuilding): boolean {
+  return !!(b.plotId || b.townLotId);
+}
+
+/**
+ * Migrate the town map to the heavenly neighborhood layout (idempotent).
+ * - Assigns existing buildings to matching lots (first-come, first-served).
+ * - Removes old user-placed roads; seeds the winding neighborhood path.
+ * - Buildings that don't fit in lots stay as legacy free-placed buildings.
+ * NPCs, prayer villagers, church mechanics, and income are untouched.
+ */
+export function ensureTownNeighborhood(map: MapState): MapState {
+  // 1. Roads: drop non-path roads, seed the winding path.
+  const existingPathIds = new Set(
+    (map.roads || []).filter(isTownPath).map((r) => r.id)
+  );
+  const freshPath = townPathRoads().filter((r) => !existingPathIds.has(r.id));
+  const nonPathRoads = (map.roads || []).filter((r) => !isTownPath(r));
+
+  // 2. Buildings: assign unassigned buildings to empty lots by type.
+  const buildings = map.buildings || [];
+  const occupiedLotIds = new Set<string>(
+    buildings.map((b) => b.townLotId).filter((id): id is string => !!id)
+  );
+  const moved = buildings.map((b) => {
+    if (b.townLotId) return b; // already on a lot
+    const lot = TOWN_LOTS.find(
+      (l) => !occupiedLotIds.has(l.id) && l.allowedTypes.includes(b.type)
+    );
+    if (!lot) return b; // no fitting lot — stays as legacy free-placed
+    occupiedLotIds.add(lot.id);
+    if (b.x === lot.x && b.y === lot.y) return { ...b, townLotId: lot.id };
+    return { ...b, x: lot.x, y: lot.y, townLotId: lot.id };
+  });
+
+  const roadsChanged = freshPath.length > 0 || nonPathRoads.length > 0;
+  const buildingsChanged = moved.some((b, i) => b !== buildings[i]);
+  if (!roadsChanged && !buildingsChanged) return map;
+  return {
+    ...map,
+    roads: [...(map.roads || []).filter(isTownPath), ...freshPath],
+    buildings: moved,
+  };
+}
+
 export type PlacedBuilding = {
   id: string;
   type: BuildingType;
@@ -396,6 +546,7 @@ export type PlacedBuilding = {
   level: 1 | 2 | 3 | 4 | 5;
   floors?: number; // bank-tower stories (default 1, max 5)
   plotId?: string; // city plot id — fixed-position plot building (no move/sell)
+  townLotId?: string; // town neighborhood lot id — fixed-position lot building (no move/sell)
   workers?: number; // hired townsfolk (0-3), each +10% output
   accumulated?: number;
   lastTick?: string;
@@ -467,7 +618,7 @@ export function parseTown(value: unknown): TownState {
     const raw = t.maps as Partial<Record<TownMapId, unknown>>;
     return {
       maps: {
-        town: parseMapState(raw.town),
+        town: ensureTownNeighborhood(parseMapState(raw.town)),
         city: ensureCityStreets(parseMapState(raw.city)),
         mall: parseMapState(raw.mall),
         school: parseMapState(raw.school),
@@ -479,7 +630,7 @@ export function parseTown(value: unknown): TownState {
   // Old single-map format: migrate everything into the town map
   return {
     maps: {
-      town: parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads }),
+      town: ensureTownNeighborhood(parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads })),
       city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
       school: emptyMapState(),
@@ -674,7 +825,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   const building = buildings.find(b => b.id === buildingId);
   if (!building) return 1;
 
-  const fp = buildingFootprint(building.level || 1, building.type, !!building.plotId);
+  const fp = buildingFootprint(building.level || 1, building.type, hasFixedFootprint(building));
   // Collect all tiles of the target building
   const myTiles = new Set<string>();
   for (let dx = 0; dx < fp.w; dx++)
@@ -688,7 +839,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   for (const other of buildings) {
     if (other.id === buildingId) continue;
     if (!SHOP_TYPES.includes(other.type)) continue;
-    const ofp = buildingFootprint(other.level || 1, other.type, !!other.plotId);
+    const ofp = buildingFootprint(other.level || 1, other.type, hasFixedFootprint(other));
     let adjacent = false;
     for (let dx = 0; dx < ofp.w && !adjacent; dx++) {
       for (let dy = 0; dy < ofp.h && !adjacent; dy++) {

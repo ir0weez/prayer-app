@@ -57,7 +57,15 @@ import {
   isCityStreet,
   loadPurchasedPlots,
   savePurchasedPlots,
+  TOWN_LOTS,
+  townLotAt,
+  isTownLotBuilding,
+  isTownPath,
+  hasFixedFootprint,
+  buildingStorageCap,
+  isBuildingStorageFull,
   type CityPlot,
+  type TownLot,
   type BuildingType,
   type DecorationType,
   type HometownCoins,
@@ -633,7 +641,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
 }
 
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
-function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean }) {
+function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -703,6 +711,11 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false }: { a
           <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>2x</Text>
         </View>
       )}
+      {isFull && !frenzy && (
+        <View style={{ position: "absolute", top: -8, right: -8, backgroundColor: "#DC2626", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>FULL</Text>
+        </View>
+      )}
       <Text style={{
         fontSize: 10,
         fontWeight: "700",
@@ -713,7 +726,7 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false }: { a
         paddingVertical: 1,
         borderRadius: 8,
       }}>
-        {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(1)}`) : "earning"}
+        {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(2)}`) : "earning"}
       </Text>
     </Pressable>
   );
@@ -791,7 +804,7 @@ export default function HometownScreen() {
             x.id === buildingId
               ? {
                   ...x,
-                  accumulated: Math.round(((x.accumulated || 0) + bonus) * 10) / 10,
+                  accumulated: Math.round(Math.min(buildingStorageCap(x), (x.accumulated || 0) + bonus) * 100) / 100,
                   visitBonusCount: count + 1,
                   visitBonusHour: hourBucket,
                 }
@@ -1001,7 +1014,9 @@ export default function HometownScreen() {
               }
               return {
                 ...b,
-                accumulated: Math.round(((b.accumulated || 0) + add) * 10) / 10,
+                accumulated: earnsCoins
+                  ? Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100
+                  : Math.round(((b.accumulated || 0) + add) * 100) / 100,
                 lastTick: now,
               };
             }
@@ -1045,7 +1060,7 @@ export default function HometownScreen() {
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
-      const { w, h } = buildingFootprint(b.level || 1, b.type, !!b.plotId);
+      const { w, h } = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
       return x >= b.x && x < b.x + w && y >= b.y && y < b.y + h;
     });
   };
@@ -1155,6 +1170,56 @@ export default function HometownScreen() {
     );
   };
 
+  /** Purchase a town neighborhood lot (creates the L1 building). Lot + building paid together. */
+  const handleTownLotPress = (lot: TownLot) => {
+    const options = lot.allowedTypes
+      .filter((type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town"))
+      .map((type) => {
+        const def = BUILDINGS[type];
+        const total = lot.cost + def.cost;
+        return {
+          text: `${def.name} — 🪙${total}`,
+          onPress: () => {
+            if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
+              Alert.alert("Already built", "You already have a pawn house!");
+              return;
+            }
+            if (coinsRef.current.balance < total) {
+              Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${Math.floor(coins.balance)}.`);
+              return;
+            }
+            const now = new Date().toISOString();
+            const building: PlacedBuilding = {
+              id: `townlot-${lot.id}-${Date.now()}`,
+              type,
+              x: lot.x,
+              y: lot.y,
+              level: 1,
+              townLotId: lot.id,
+              lastTick: now,
+              accumulated: 0,
+            };
+            saveMap({ ...map, buildings: [...map.buildings, building] });
+            addCoins(-total);
+          },
+        };
+      });
+    if (options.length === 0) {
+      Alert.alert("Locked", "No buildings available for this lot yet. Keep growing your fast streak!");
+      return;
+    }
+    Alert.alert(
+      `${lot.name} — FOR SALE`,
+      `Purchase this lot for ${lot.cost} coins and choose what to build.\n\nLot buildings have a fixed home here — they can't be moved or sold, only upgraded.`,
+      [{ text: "Cancel", style: "cancel" }, ...options]
+    );
+  };
+
+  /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
+  const handleTownLotBuildingPress = (b: PlacedBuilding) => {
+    setPopupBuilding(b);
+  };
+
   const handleTilePress = (x: number, y: number) => {
     // City map: plots only — no free placement
     if (activeMap === "city") {
@@ -1180,9 +1245,31 @@ export default function HometownScreen() {
       }
       // else: legacy building tapped — fall through to normal handling below
     }
+    // Town map: neighborhood lots only — no free placement
+    if (activeMap === "town") {
+      const existing = buildingAt(x, y);
+      // Town lot buildings: popup with upgrade only (no move/sell)
+      if (existing?.townLotId) {
+        handleTownLotBuildingPress(existing);
+        return;
+      }
+      // Legacy free-placed buildings (pre-neighborhood) keep normal handling
+      if (!existing) {
+        const lot = townLotAt(x, y);
+        if (lot) {
+          const b = map.buildings.find((bb) => bb.townLotId === lot.id);
+          if (b) { handleTownLotBuildingPress(b); return; }
+          handleTownLotPress(lot);
+          return;
+        }
+        // Tapped outside any lot — ignore (town is lots-only)
+        return;
+      }
+      // else: legacy building tapped — fall through to normal handling below
+    }
     // Move mode: place the moving building here
     if (movingBuilding) {
-      const { w, h } = buildingFootprint(movingBuilding.level || 1, movingBuilding.type, !!movingBuilding.plotId);
+      const { w, h } = buildingFootprint(movingBuilding.level || 1, movingBuilding.type, hasFixedFootprint(movingBuilding));
       let fits = true;
       for (let dx = 0; dx < w; dx++) {
         for (let dy = 0; dy < h; dy++) {
@@ -1251,7 +1338,7 @@ export default function HometownScreen() {
         } else {
           const nextLevel = level + 1;
           // Check if expanded footprint fits
-          const { w, h } = buildingFootprint(nextLevel, existing.type);
+          const { w, h } = buildingFootprint(nextLevel, existing.type, hasFixedFootprint(existing));
           let fits = true
           for (let dx = 0; dx < w; dx++) {
             for (let dy = 0; dy < h; dy++) {
@@ -1365,7 +1452,7 @@ export default function HometownScreen() {
       const b = buildingAt(x, y);
       const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
-      const footprint = b ? buildingFootprint(b.level || 1, b.type, !!b.plotId) : { w: 1, h: 1 };
+      const footprint = b ? buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b)) : { w: 1, h: 1 };
       cells.push(
         <Pressable
           key={`${x}-${y}`}
@@ -1543,7 +1630,7 @@ export default function HometownScreen() {
           {rows}
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
+            const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -1607,6 +1694,34 @@ export default function HometownScreen() {
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
+          {/* Town neighborhood lots: soft heavenly glow (unpurchased) */}
+          {activeMap === "town" && TOWN_LOTS.filter(lot => !map.buildings.some(b => b.townLotId === lot.id)).map((lot) => (
+            <View
+              key={`townlot-${lot.id}`}
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: lot.x * cellSize,
+                top: lot.y * cellSize,
+                width: lot.w * cellSize,
+                height: lot.h * cellSize,
+                borderWidth: 2,
+                borderColor: "#FCD34D",
+                borderRadius: 12,
+                backgroundColor: "rgba(253, 224, 71, 0.10)",
+                alignItems: "center",
+                justifyContent: "center",
+                shadowColor: "#F59E0B",
+                shadowOpacity: 0.35,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>FOR SALE</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
+              <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2 }}>{lot.name}</Text>
+            </View>
+          ))}
           {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
           <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} prayerPeople={prayedPeople} />
           {/* City life: plot workers + commuters from town */}
@@ -1626,7 +1741,7 @@ export default function HometownScreen() {
           )}
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
+            const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (!earnsCoins && !earnsXP) return null;
@@ -1651,6 +1766,7 @@ export default function HometownScreen() {
                   kind={earnsXP ? "xp" : "coins"}
                   onCollect={() => handleCollectBuilding(b.id)}
                   frenzy={frenzyActive}
+                  isFull={!earnsXP && isBuildingStorageFull(b)}
                 />
               </View>
             );
@@ -1667,7 +1783,7 @@ export default function HometownScreen() {
       </View>
       )}
 
-      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && (
         <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
@@ -1888,7 +2004,7 @@ export default function HometownScreen() {
               // Check if upgrade footprint fits
               let fits = true;
               if (!isMax) {
-                const { w, h } = buildingFootprint(nextLevel, b.type);
+                const { w, h } = buildingFootprint(nextLevel, b.type, hasFixedFootprint(b));
                 for (let dx = 0; dx < w && fits; dx++) {
                   for (let dy = 0; dy < h && fits; dy++) {
                     const nx = b.x + dx, ny = b.y + dy;
@@ -1971,6 +2087,41 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 4 }}>
                     Currently earns {incomeLabelFor(b)}.
                   </Text>
+                  {effectiveIncomeFor(b) > 0 && (() => {
+                    const cap = buildingStorageCap(b);
+                    const stored = b.accumulated || 0;
+                    const pct = Math.min(1, stored / cap);
+                    const isFull = isBuildingStorageFull(b);
+                    return (
+                      <View style={{ marginBottom: 12 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+                          <Text style={{ fontSize: 13, color: pt.subtext, fontWeight: "600" }}>
+                            Storage: {stored.toFixed(2)}/{cap}
+                          </Text>
+                          {isFull && (
+                            <View style={{ marginLeft: 8, backgroundColor: "#DC2626", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                              <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>FULL</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={{ height: 6, backgroundColor: pt.bg, borderRadius: 3, overflow: "hidden" }}>
+                          <View
+                            style={{
+                              height: 6,
+                              width: `${pct * 100}%`,
+                              backgroundColor: isFull ? "#DC2626" : "#F59E0B",
+                              borderRadius: 3,
+                            }}
+                          />
+                        </View>
+                        {!isMax && (
+                          <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
+                            Upgrade to Lv {nextLevel} for {buildingStorageCap(preview)} storage
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
@@ -2017,18 +2168,22 @@ export default function HometownScreen() {
                       </Text>
                     </Pressable>
                   )}
+                  {activeMap !== "town" && (
                   <Pressable
                     onPress={doMove}
                     style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                   >
                     <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>↔️ Move</Text>
                   </Pressable>
+                  )}
+                  {!isTownLotBuilding(b) && (
                   <Pressable
                     onPress={doSell}
                     style={{ backgroundColor: "#FEF2F2", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                   >
                     <Text style={{ color: "#DC2626", fontWeight: "700", fontSize: 16 }}>💰 Sell {sellPrice}</Text>
                   </Pressable>
+                  )}
                   <Pressable
                     onPress={() => setPopupBuilding(null)}
                     style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center" }}

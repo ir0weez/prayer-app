@@ -40,6 +40,7 @@ import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/mo
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { SeasonalOverlay } from "@/components/seasonal-overlay";
+import { TownNPCs } from "@/components/town-npcs";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -1078,6 +1079,8 @@ export default function HometownScreen() {
               </View>
             );
           })}
+          {/* Ambient townsfolk — above buildings, below coins, never intercept touches */}
+          <TownNPCs mapState={map} cellSize={cellSize} />
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);

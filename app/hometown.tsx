@@ -180,6 +180,7 @@ export default function HometownScreen() {
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [town, setTown] = useState<TownState>({ buildings: [], decorations: [], roads: [], lastIncomeDate: null });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
+  const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
@@ -298,6 +299,31 @@ export default function HometownScreen() {
     town.decorations.find((d) => d.x === x && d.y === y);
 
   const handleTilePress = (x: number, y: number) => {
+    // Move mode: place the moving building here
+    if (movingBuilding) {
+      const { w, h } = buildingFootprint(movingBuilding.level || 1);
+      let fits = true;
+      for (let dx = 0; dx < w; dx++) {
+        for (let dy = 0; dy < h; dy++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+          const other = buildingAt(nx, ny);
+          if (other && other.id !== movingBuilding.id) { fits = false; break; }
+          if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }
+        }
+        if (!fits) break;
+      }
+      if (!fits) {
+        Alert.alert("No Room", "Can't move here - not enough space.");
+        return;
+      }
+      const updatedBuildings = town.buildings.map(b =>
+        b.id === movingBuilding.id ? { ...b, x, y } : b
+      );
+      saveTown({ ...town, buildings: updatedBuildings });
+      setMovingBuilding(null);
+      return;
+    }
     const existingDec = decorationAt(x, y);
     if (existingDec) {
       const def = DECORATIONS[existingDec.type];
@@ -562,31 +588,74 @@ export default function HometownScreen() {
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
           </Text>
           {(buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y) || roadAt(selectedTile.x, selectedTile.y)) && (
-            <Pressable
-              onPress={() => {
+            <>
+              {(() => {
                 const b = buildingAt(selectedTile.x, selectedTile.y);
-                const d = decorationAt(selectedTile.x, selectedTile.y);
-                const r = roadAt(selectedTile.x, selectedTile.y);
-                if (b) {
-                  Alert.alert("Remove Building?", `Remove ${BUILDINGS[b.type].name}?`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Remove", style: "destructive", onPress: () => {
-                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
-                      setSelectedTile(null);
-                    }},
-                  ]);
-                } else if (d) {
-                  saveTown({ ...town, decorations: town.decorations.filter(x => x.id !== d.id) });
-                  setSelectedTile(null);
-                } else if (r) {
-                  saveTown({ ...town, roads: (town.roads || []).filter(x => x.id !== r.id) });
-                  setSelectedTile(null);
+                if (b && isBuildingOrigin(b, selectedTile.x, selectedTile.y)) {
+                  const sellPrice = Math.floor(BUILDINGS[b.type].cost * 0.5);
+                  return (
+                    <>
+                      <Pressable
+                        onPress={() => {
+                          setMovingBuilding(b);
+                          setSelectedTile(null);
+                          Alert.alert("Move Mode", "Tap a new location to move this building.");
+                        }}
+                        style={{ padding: 10, backgroundColor: "#DBEAFE", borderRadius: 10, alignItems: "center", marginBottom: 8 }}
+                      >
+                        <Text style={{ color: "#1D4ED8", fontWeight: "700" }}>↔️ Move Building</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert("Sell Building?", `Sell ${BUILDINGS[b.type].name} for ${sellPrice} coins?`, [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Sell", style: "destructive", onPress: () => {
+                              saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
+                              const updatedCoins = {
+                                balance: Math.round((coins.balance + sellPrice) * 10) / 10,
+                                lifetimeEarned: coins.lifetimeEarned,
+                              };
+                              saveCoins(updatedCoins);
+                              setSelectedTile(null);
+                            }},
+                          ]);
+                        }}
+                        style={{ padding: 10, backgroundColor: "#FEF3C7", borderRadius: 10, alignItems: "center", marginBottom: 8 }}
+                      >
+                        <Text style={{ color: "#92400E", fontWeight: "700" }}>💰 Sell for {sellPrice}</Text>
+                      </Pressable>
+                    </>
+                  );
                 }
-              }}
-              style={{ padding: 10, backgroundColor: "#FEE2E2", borderRadius: 10, alignItems: "center", marginBottom: 8 }}
-            >
-              <Text style={{ color: "#DC2626", fontWeight: "700" }}>🗑️ Remove</Text>
-            </Pressable>
+                return null;
+              })()}
+              <Pressable
+                onPress={() => {
+                  const b = buildingAt(selectedTile.x, selectedTile.y);
+                  const d = decorationAt(selectedTile.x, selectedTile.y);
+                  const r = roadAt(selectedTile.x, selectedTile.y);
+                  if (b && !isBuildingOrigin(b, selectedTile.x, selectedTile.y)) return;
+                  if (d) {
+                    saveTown({ ...town, decorations: town.decorations.filter(x => x.id !== d.id) });
+                    setSelectedTile(null);
+                  } else if (r) {
+                    saveTown({ ...town, roads: (town.roads || []).filter(x => x.id !== r.id) });
+                    setSelectedTile(null);
+                  } else if (b) {
+                    Alert.alert("Remove Building?", `Remove ${BUILDINGS[b.type].name}? (No refund)`, [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Remove", style: "destructive", onPress: () => {
+                        saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
+                        setSelectedTile(null);
+                      }},
+                    ]);
+                  }
+                }}
+                style={{ padding: 10, backgroundColor: "#FEE2E2", borderRadius: 10, alignItems: "center", marginBottom: 8 }}
+              >
+                <Text style={{ color: "#DC2626", fontWeight: "700" }}>🗑️ Remove</Text>
+              </Pressable>
+            </>
           )}
           <Pressable
             onPress={handlePlaceRoad}

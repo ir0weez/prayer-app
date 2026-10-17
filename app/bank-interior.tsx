@@ -25,6 +25,8 @@ import {
   parseBankInterior,
   parseCoins,
   parseTown,
+  storageCapFor,
+  storageUpgradeCostFor,
   type BankFloorInterior,
   type BankFurnitureItem,
   type BankFurnitureType,
@@ -113,6 +115,39 @@ function DeskShape({ connected }: { connected: boolean }) {
 type MoveKind = "desk" | "carpet" | "furniture";
 
 const VISITOR_COLORS = ["#F9A8D4", "#93C5FD", "#86EFAC", "#FDE68A", "#C4B5FD", "#FDBA74"];
+
+/** Tiny storage fill bar under an ATM/vault tile. Shows FULL when capped. */
+function StorageBar({ pending, cap }: { pending: number; cap: number }) {
+  const fill = cap > 0 ? Math.min(1, pending / cap) : 0;
+  const isFull = pending >= cap && cap > 0;
+  return (
+    <View style={{ alignItems: "center", marginTop: 1 }}>
+      <View
+        style={{
+          width: 30,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: "#E7DCC8",
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            width: `${Math.round(fill * 100)}%`,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: isFull ? "#EF4444" : "#FBBF24",
+          }}
+        />
+      </View>
+      {isFull && (
+        <Text style={{ fontSize: 7, fontWeight: "900", color: "#EF4444", marginTop: 0 }}>
+          FULL
+        </Text>
+      )}
+    </View>
+  );
+}
 
 /** Tiny pulsing coin that sits on an ATM/vault with uncollected drip coins. Tap to collect. */
 function DripCoin({ amount, onCollect }: { amount: number; onCollect: () => void }) {
@@ -501,9 +536,23 @@ export default function BankInteriorScreen() {
     if (existing) {
       if (existing.kind === "furniture") {
         const def = bankFurnitureDef(existing.type, safeFloor);
+        const storageType: "atm" | "vault" | null =
+          existing.type === "atm" || existing.type === "vault" ? existing.type : null;
+        const storageLvl = existing.storageLevel ?? 0;
+        const cap = storageType ? storageCapFor(storageType, storageLvl) : 0;
+        const pendingAmt = Math.round((existing.pending || 0) * 10) / 10;
+        const upgradeCost = storageType ? storageUpgradeCostFor(storageType, storageLvl) : null;
+        const storageLine = storageType
+          ? `\n🪙 Storage: ${pendingAmt}/${cap}${pendingAmt >= cap ? " FULL" : ""}`
+          : "";
+        const upgradeLine = storageType && upgradeCost != null
+          ? `\nUpgrade storage → ${storageCapFor(storageType, storageLvl + 1)} cap (🪙${upgradeCost})`
+          : storageType
+            ? "\nStorage maxed out!"
+            : "";
         Alert.alert(
           def?.name ?? "Furniture",
-          `${def?.blurb ?? ""}${def?.blurb ? "\n" : ""}Sells back for full price.`,
+          `${def?.blurb ?? ""}${def?.blurb ? "\n" : ""}Sells back for full price.${storageLine}${upgradeLine}`,
           [
             { text: "Cancel", style: "cancel" },
             {
@@ -513,6 +562,26 @@ export default function BankInteriorScreen() {
                 setMoveItem({ id: existing.id, kind: "furniture" });
               },
             },
+            ...(storageType && upgradeCost != null
+              ? [
+                  {
+                    text: `⬆️ Storage 🪙${upgradeCost}`,
+                    onPress: () => {
+                      if (coinsRef.current.balance < upgradeCost) {
+                        Alert.alert("Not enough coins", `You need ${upgradeCost} coins.`);
+                        return;
+                      }
+                      saveFloor(safeFloor, {
+                        ...floorInterior,
+                        furniture: floorInterior.furniture.map((f) =>
+                          f.id === existing.id ? { ...f, storageLevel: storageLvl + 1 } : f
+                        ),
+                      });
+                      addCoins(-upgradeCost);
+                    },
+                  },
+                ]
+              : []),
             {
               text: `Sell 🪙${existing.cost}`,
               onPress: () => {
@@ -732,9 +801,17 @@ export default function BankInteriorScreen() {
             </View>
           )}
           {item?.kind === "furniture" && (
-            <Text style={{ fontSize: 22, opacity: isMovingOrigin ? 0.4 : 1 }}>
-              {bankFurnitureDef(item.type, safeFloor)?.icon ?? "🪑"}
-            </Text>
+            <View style={{ alignItems: "center", justifyContent: "center", opacity: isMovingOrigin ? 0.4 : 1 }}>
+              <Text style={{ fontSize: 22 }}>
+                {bankFurnitureDef(item.type, safeFloor)?.icon ?? "🪑"}
+              </Text>
+              {(item.type === "atm" || item.type === "vault") && (
+                <StorageBar
+                  pending={item.pending || 0}
+                  cap={storageCapFor(item.type, item.storageLevel)}
+                />
+              )}
+            </View>
           )}
         </Pressable>
       );

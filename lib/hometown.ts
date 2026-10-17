@@ -861,6 +861,8 @@ export type BankFurnitureItem = {
   pending?: number;
   /** ISO timestamp of the last drip accrual for this item. */
   lastTick?: string;
+  /** Storage upgrade level for ATMs & vaults (0, 1, 2). Higher = bigger coin cap. */
+  storageLevel?: number;
 };
 
 /** One floor's layout inside a bank building. */
@@ -1030,6 +1032,27 @@ export function bankInteriorKey(buildingId: string): string {
   return `prayercircle.hometown.bank.${buildingId}.v1`;
 }
 
+/** Storage caps for ATM/vault drip coins, per storage upgrade level (0, 1, 2). */
+export const ATM_STORAGE_CAPS = [50, 150, 400];
+export const VAULT_STORAGE_CAPS = [200, 500, 1200];
+/** Cost to upgrade from level N to N+1. */
+export const ATM_STORAGE_UPGRADE_COSTS = [30, 80];
+export const VAULT_STORAGE_UPGRADE_COSTS = [100, 250];
+export const MAX_STORAGE_LEVEL = 2;
+
+/** Coin cap for an ATM/vault at a given storage upgrade level. */
+export function storageCapFor(type: "atm" | "vault", storageLevel?: number): number {
+  const lvl = Math.min(Math.max(storageLevel ?? 0, 0), MAX_STORAGE_LEVEL);
+  return type === "atm" ? ATM_STORAGE_CAPS[lvl] : VAULT_STORAGE_CAPS[lvl];
+}
+
+/** Upgrade cost from the current storage level to the next (null when maxed). */
+export function storageUpgradeCostFor(type: "atm" | "vault", storageLevel?: number): number | null {
+  const lvl = Math.min(Math.max(storageLevel ?? 0, 0), MAX_STORAGE_LEVEL);
+  if (lvl >= MAX_STORAGE_LEVEL) return null;
+  return type === "atm" ? ATM_STORAGE_UPGRADE_COSTS[lvl] : VAULT_STORAGE_UPGRADE_COSTS[lvl];
+}
+
 export function parseBankInterior(value: unknown): BankInteriorState {
   const emptyFloor = (): BankFloorInterior => ({ desks: [], carpets: [], furniture: [] });
   if (!value || typeof value !== "object") return { floors: {} };
@@ -1069,6 +1092,9 @@ export function parseBankInterior(value: unknown): BankInteriorState {
               : {}),
             ...(typeof (i as { lastTick?: unknown }).lastTick === "string"
               ? { lastTick: (i as { lastTick: string }).lastTick }
+              : {}),
+            ...(typeof (i as { storageLevel?: unknown }).storageLevel === "number"
+              ? { storageLevel: Math.min(Math.max((i as { storageLevel: number }).storageLevel, 0), 2) }
               : {}),
           }))
       : [];
@@ -1215,6 +1241,9 @@ export async function accrueBankDrips(
         if (item.type !== "atm" && item.type !== "vault") return item;
         const def = bankFurnitureDef(item.type, floor);
         if (!def) return item;
+        const cap = storageCapFor(item.type, item.storageLevel);
+        const currentPending = item.pending || 0;
+        if (currentPending >= cap) return item; // storage full — must collect first
         let drip = 0;
         if (item.type === "atm") {
           drip = (def.flatPerDay / 24) * hoursElapsed;
@@ -1226,7 +1255,7 @@ export async function accrueBankDrips(
         floorTouched = true;
         return {
           ...item,
-          pending: Math.round(((item.pending || 0) + drip) * 10) / 10,
+          pending: Math.min(cap, Math.round((currentPending + drip) * 10) / 10),
           lastTick: now,
         };
       });

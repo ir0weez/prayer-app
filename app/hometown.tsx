@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -23,7 +23,6 @@ import {
   milestoneFor,
   maxLevelFor,
   houseNameFor,
-  townsfolkForHouse,
   populationMult,
   WORKER_HIRE_COST,
   MAX_WORKERS_PER_BUILDING,
@@ -84,6 +83,13 @@ import {
   type MapState,
   type TownState,
   type PrayedPerson,
+  type Resident,
+  loadResidents,
+  saveResidents,
+  getAllPrayerPeople,
+  autoAssignResidents,
+  avgCottageLevel,
+  MAX_RESIDENTS,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { getTodayISOString } from "@/lib/prayercircle-data";
@@ -95,7 +101,7 @@ import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stat
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
-import { TownNPCs, CityNPCs, countHometownNpcs } from "@/components/town-npcs";
+import { TownNPCs, CityNPCs, countHometownNpcs, type ResidentInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
 
 function daysBetween(a: string, b: string): number {
@@ -940,7 +946,10 @@ export default function HometownScreen() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [prayedToday, setPrayedToday] = useState(0);
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
-  const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
+  const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string; blessed: boolean } | null>(null);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [residentPickerVisible, setResidentPickerVisible] = useState(false);
+  const [allPrayerPeople, setAllPrayerPeople] = useState<{ id: string; name: string; accentColor?: string }[]>([]);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
@@ -949,6 +958,21 @@ export default function HometownScreen() {
 
   // The active map's state (all grid logic operates on this)
   const map: MapState = town.maps[activeMap];
+
+  // Unified villagers: residents (permanent, blessed when prayed for today)
+  // + visitors (non-resident prayed-for contacts, temporary golden guests).
+  const { residentInfos, visitorInfos } = useMemo(() => {
+    const prayedIds = new Set(prayedPeople.map((p) => String(p.id)));
+    const residentIds = new Set(residents.map((r) => r.personId));
+    const infos: ResidentInfo[] = residents.map((r) => ({
+      personId: r.personId,
+      name: r.name,
+      accentColor: r.accentColor,
+      blessed: prayedIds.has(r.personId),
+    }));
+    const visitorList = prayedPeople.filter((p) => !residentIds.has(String(p.id)));
+    return { residentInfos: infos, visitorInfos: visitorList };
+  }, [residents, prayedPeople]);
 
   const saveTown = useCallback((next: TownState) => {
     setTown(next);
@@ -1161,6 +1185,16 @@ export default function HometownScreen() {
         } catch {}
         setPrayedToday(prayedCount);
         const prMult = prayerMult(prayedCount);
+        // Permanent town residents — Jonathan's chosen people (max 24).
+        // Auto-assign the most-prayed-for people on first run.
+        let residentList: Resident[] = [];
+        try {
+          residentList = await loadResidents();
+          if (residentList.length === 0) {
+            residentList = await autoAssignResidents();
+          }
+          setResidents(residentList);
+        } catch {}
         // Pawn house rooms + desirables boost coin income
         let houseCoinMult = 0;
         try { houseCoinMult = (await refreshHouseBonusCache()).coinMult; } catch {}
@@ -1199,7 +1233,7 @@ export default function HometownScreen() {
               const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
-              const popMult = populationMult(t);
+              const popMult = populationMult(residentList.length, avgCottageLevel(t));
               const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * (1 + houseCoinMult);
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
@@ -1236,7 +1270,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus);
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, residentList.length, avgCottageLevel(t));
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);
@@ -1838,6 +1872,27 @@ export default function HometownScreen() {
         </View>
       </View>
 
+      {/* Residents — Jonathan's chosen people who live in town */}
+      <Pressable
+        onPress={async () => {
+          try {
+            const all = await getAllPrayerPeople();
+            setAllPrayerPeople(all.map((p) => ({ id: p.id, name: p.name, accentColor: p.accentColor })));
+          } catch {}
+          setResidentPickerVisible(true);
+        }}
+        style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}
+      >
+        <Text style={{ fontSize: 28 }}>🏘️</Text>
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text }}>Residents</Text>
+          <Text style={{ fontSize: 12, color: pt.subtext }}>
+            {residents.length}/{MAX_RESIDENTS} chosen people live here — tap to choose
+          </Text>
+        </View>
+        <Text style={{ fontSize: 18, color: pt.subtext }}>›</Text>
+      </Pressable>
+
       {activeMap === "reserve" ? (
         <View style={{ alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 48, marginBottom: 16 }}>
           <Text style={{ fontSize: 56 }}>❓</Text>
@@ -1964,8 +2019,8 @@ export default function HometownScreen() {
               <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2 }}>{lot.name}</Text>
             </View>
           ))}
-          {/* Ambient townsfolk — above buildings, below coins; only blessed villagers capture touches */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} prayerPeople={prayedPeople} onPrayerVillagerTap={(p) => setPrayerVillagerInfo(p)} />
+          {/* Townsfolk — Jonathan's chosen residents + prayed-for visitors; all tappable */}
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} residents={residentInfos} visitors={visitorInfos} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -1976,7 +2031,7 @@ export default function HometownScreen() {
               <CityNPCs
                 mapState={map}
                 cellSize={cellSize}
-                hometownNpcCount={countHometownNpcs(town.maps.town.buildings)}
+                hometownNpcCount={countHometownNpcs(residents.length)}
                 onBankVisit={handleBankVisit}
               />
             </>
@@ -2301,7 +2356,7 @@ export default function HometownScreen() {
                   Alert.alert("Full crew", "This building already has the maximum workers.");
                   return;
                 }
-                const available = countHometownNpcs(town.maps.town.buildings) - totalHiredWorkers(town);
+                const available = countHometownNpcs(residents.length) - totalHiredWorkers(town);
                 if (available <= 0) {
                   Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
                   return;
@@ -2369,9 +2424,21 @@ export default function HometownScreen() {
                       🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
                     </Text>
                   ) : b.type === "house" ? (
-                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                      🏠 {townsfolkForHouse(level)} townsfolk live here{!isMax ? ` (+1 at ${houseNameFor(nextLevel)})` : " — a grand Mansion!"}
-                    </Text>
+                    (() => {
+                      const cottages = town.maps.town.buildings
+                        .filter((x) => x.type === "house")
+                        .sort((a, b2) => (a.townLotId || a.id).localeCompare(b2.townLotId || b2.id));
+                      const cIdx = cottages.findIndex((x) => x.id === b.id);
+                      const homed = cIdx >= 0
+                        ? residents.filter((_, i) => cottages.length > 0 && Math.floor(i / 6) % cottages.length === cIdx).length
+                        : 0;
+                      const happy = Math.round((level - 1) * 5);
+                      return (
+                        <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
+                          🏠 Home to {homed} resident{homed === 1 ? "" : "s"}{happy > 0 ? ` (+${happy}% happiness)` : ""}{!isMax ? ` — upgrade to ${houseNameFor(nextLevel)}` : " — a grand Mansion!"}
+                        </Text>
+                      );
+                    })()
                   ) : (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
@@ -2438,7 +2505,7 @@ export default function HometownScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-      {/* Prayer villager identity — tap a golden villager to see who walks with you */}
+      {/* Villager identity — tap a resident or lit candle to see who walks with you */}
       <Modal
         visible={prayerVillagerInfo !== null}
         transparent
@@ -2453,7 +2520,7 @@ export default function HometownScreen() {
             style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
             onPress={(e) => e.stopPropagation()}
           >
-            {/* little golden villager */}
+            {/* little villager — golden when lit */}
             <View style={{ alignItems: "center" }}>
               <View
                 style={{
@@ -2461,12 +2528,12 @@ export default function HometownScreen() {
                   height: 40,
                   borderRadius: 20,
                   backgroundColor: "#FBBF24",
-                  opacity: 0.25,
+                  opacity: prayerVillagerInfo?.blessed ? 0.25 : 0,
                   position: "absolute",
                   top: -8,
                 }}
               />
-              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: prayerVillagerInfo?.blessed ? "#FBBF24" : "#CBD5E1", alignItems: "center", justifyContent: "center" }}>
                 <View style={{ flexDirection: "row", gap: 3 }}>
                   <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
                   <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
@@ -2480,7 +2547,7 @@ export default function HometownScreen() {
                   borderTopRightRadius: 8,
                   borderBottomLeftRadius: 4,
                   borderBottomRightRadius: 4,
-                  backgroundColor: "#FBBF24",
+                  backgroundColor: prayerVillagerInfo?.blessed ? "#FBBF24" : "#CBD5E1",
                   marginTop: 1,
                 }}
               />
@@ -2488,17 +2555,112 @@ export default function HometownScreen() {
             <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginTop: 12, textAlign: "center" }}>
               {prayerVillagerInfo?.name}
             </Text>
-            <Text style={{ color: "#B45309", fontSize: 14, fontWeight: "600", marginTop: 6 }}>
-              🙏 Prayed for today
-            </Text>
+            {prayerVillagerInfo?.blessed ? (
+              <Text style={{ color: "#B45309", fontSize: 14, fontWeight: "600", marginTop: 6 }}>
+                🕯️ Lit candle — prayed for today
+              </Text>
+            ) : (
+              <Text style={{ color: pt.subtext, fontSize: 14, fontWeight: "600", marginTop: 6 }}>
+                Home in Hometown
+              </Text>
+            )}
             <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
-              Walking with you in Hometown
+              {prayerVillagerInfo?.blessed
+                ? "Glowing with your prayers"
+                : "Pray for them today to light their candle"}
             </Text>
             <Pressable
               onPress={() => setPrayerVillagerInfo(null)}
               style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      {/* Resident picker — choose up to 24 people to live in town permanently */}
+      <Modal
+        visible={residentPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResidentPickerVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setResidentPickerVisible(false)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "80%" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", textAlign: "center" }}>
+              🏘️ Choose Residents
+            </Text>
+            <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 6, textAlign: "center", marginBottom: 12 }}>
+              {residents.length}/{MAX_RESIDENTS} — these people live in your town.{"\n"}Pray for them and they'll glow.
+            </Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {allPrayerPeople.map((p) => {
+                const isResident = residents.some((r) => r.personId === p.id);
+                const canAdd = residents.length < MAX_RESIDENTS;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={async () => {
+                      let next: Resident[];
+                      if (isResident) {
+                        next = residents.filter((r) => r.personId !== p.id);
+                      } else {
+                        if (!canAdd) return;
+                        next = [...residents, { personId: p.id, name: p.name, accentColor: p.accentColor }];
+                      }
+                      setResidents(next);
+                      try { await saveResidents(next); } catch {}
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      marginBottom: 4,
+                      backgroundColor: isResident ? "#FEF3C7" : "transparent",
+                      opacity: !isResident && !canAdd ? 0.4 : 1,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: p.accentColor || "#CBD5E1",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>
+                        {p.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={{ color: pt.text, fontSize: 16, fontWeight: isResident ? "700" : "400", flex: 1 }}>
+                      {p.name}
+                    </Text>
+                    <Text style={{ fontSize: 20 }}>{isResident ? "✅" : "⭕"}</Text>
+                  </Pressable>
+                );
+              })}
+              {allPrayerPeople.length === 0 && (
+                <Text style={{ color: pt.subtext, textAlign: "center", padding: 20 }}>
+                  No prayer contacts yet. Add people on the People tab first.
+                </Text>
+              )}
+            </ScrollView>
+            <Pressable
+              onPress={() => setResidentPickerVisible(false)}
+              style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, backgroundColor: "#F59E0B", alignItems: "center" }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Done</Text>
             </Pressable>
           </Pressable>
         </Pressable>

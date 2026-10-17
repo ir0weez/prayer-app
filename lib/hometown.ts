@@ -230,6 +230,96 @@ export function townsfolkForHouse(level: number): number {
   return 1 + Math.min(Math.max(level || 1, 1), 5);
 }
 
+/** Max permanent town residents — 4 cottage lots × 6 each. */
+export const MAX_RESIDENTS = 24;
+
+/** A permanent town resident: one of Jonathan's chosen people who lives in town. */
+export type Resident = {
+  personId: string;
+  name: string;
+  accentColor?: string;
+};
+
+export const RESIDENTS_STORAGE_KEY = "prayercircle.hometown.residents.v1";
+
+/** Load saved residents. */
+export async function loadResidents(): Promise<Resident[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(RESIDENTS_STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((r: any) => r && typeof r.personId === "string" && typeof r.name === "string")
+      .slice(0, MAX_RESIDENTS)
+      .map((r: any) => ({
+        personId: String(r.personId),
+        name: String(r.name),
+        accentColor: typeof r.accentColor === "string" ? r.accentColor : undefined,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Save residents. */
+export async function saveResidents(residents: Resident[]): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(
+      RESIDENTS_STORAGE_KEY,
+      JSON.stringify(residents.slice(0, MAX_RESIDENTS))
+    );
+  } catch {}
+}
+
+/** Everyone in the prayer list (for the resident picker). Sorted by name. */
+export async function getAllPrayerPeople(): Promise<
+  { id: string; name: string; accentColor?: string; lastPrayedDate: string | null; lastPrayerCompletedDate?: string | null }[]
+> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem("prayercircle.people.v1");
+    if (!raw) return [];
+    const people = JSON.parse(raw);
+    if (!Array.isArray(people)) return [];
+    return people
+      .filter((p: any) => p && p.name && !p.isPersonal)
+      .map((p: any) => ({
+        id: String(p.id ?? p.name),
+        name: String(p.name),
+        accentColor: typeof p.accentColor === "string" ? p.accentColor : undefined,
+        lastPrayedDate: typeof p.lastPrayedDate === "string" ? p.lastPrayedDate : null,
+        lastPrayerCompletedDate:
+          typeof p.lastPrayerCompletedDate === "string" ? p.lastPrayerCompletedDate : null,
+      }))
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Auto-pick initial residents: the most-prayed-for people first
+ * (by most recent prayer date), up to MAX_RESIDENTS.
+ */
+export async function autoAssignResidents(): Promise<Resident[]> {
+  const all = await getAllPrayerPeople();
+  const ranked = [...all].sort((a, b) => {
+    const da = a.lastPrayerCompletedDate || a.lastPrayedDate || "";
+    const db = b.lastPrayerCompletedDate || b.lastPrayedDate || "";
+    return db.localeCompare(da);
+  });
+  const picked = ranked.slice(0, MAX_RESIDENTS).map((p) => ({
+    personId: p.id,
+    name: p.name,
+    accentColor: p.accentColor,
+  }));
+  await saveResidents(picked);
+  return picked;
+}
+
 /** Total townsfolk across all houses on the town map. */
 export function totalTownsfolk(town: TownState): number {
   const townMap = town.maps?.town;
@@ -239,12 +329,23 @@ export function totalTownsfolk(town: TownState): number {
     .reduce((sum, b) => sum + townsfolkForHouse(b.level || 1), 0);
 }
 
+/** Average cottage level across town (happier homes → happier residents). */
+export function avgCottageLevel(town: TownState): number {
+  const townMap = town.maps?.town;
+  if (!townMap) return 1;
+  const houses = townMap.buildings.filter((b) => b.type === "house");
+  if (houses.length === 0) return 1;
+  return houses.reduce((sum, b) => sum + (b.level || 1), 0) / houses.length;
+}
+
 /**
- * Population economy: more townsfolk = more customers = more income.
- * +2% per townsman, capped at +100% (2.0x at 50 townsfolk).
+ * Population economy: each resident = +2% income. Higher cottage levels make
+ * residents happier: each level adds +5% to their contribution.
+ * 24 residents in L1 cottages = 1.48x; in L5 cottages = ~1.58x.
  */
-export function populationMult(town: TownState): number {
-  return Math.min(2, 1 + totalTownsfolk(town) * 0.02);
+export function populationMult(residentCount: number, avgLevel: number = 1): number {
+  const levelMult = 1 + (Math.min(Math.max(avgLevel, 1), 5) - 1) * 0.05;
+  return Math.min(2, 1 + Math.max(residentCount || 0, 0) * 0.02 * levelMult);
 }
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
@@ -1044,9 +1145,9 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
-  const popMult = town ? populationMult(town) : 1;
+  const popMult = populationMult(residentCount, avgLevel);
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
@@ -1059,8 +1160,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, residentCount, avgLevel), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

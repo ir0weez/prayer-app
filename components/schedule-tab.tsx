@@ -8427,7 +8427,7 @@ function RestSquare({
       <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
         {/* Sun animation in background */}
         <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, backgroundColor: mc.iconColor + "30", alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ fontSize: 36 }}>{mc.icon}</Text>
+          <MaterialIcons name={mc.icon as any} size={36} color={mc.iconColor} />
         </View>
         <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground, marginTop: 50 }}>Rest</Text>
         {event.startTime && (

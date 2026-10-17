@@ -471,7 +471,7 @@ export default function HometownScreen() {
               <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
             </View>
           )}
-          {b && incomeFor(b.type, b.level || 1) > 0 && (
+          {b && isOrigin && incomeFor(b.type, b.level || 1) > 0 && (
             <Pressable
               onPress={() => handleCollectBuilding(b.id)}
               style={{ position: "absolute", top: -8, right: -8, zIndex: 10, alignItems: "center" }}
@@ -489,8 +489,8 @@ export default function HometownScreen() {
             </Pressable>
           )}
           {b && isOrigin && (
-            <View style={{ alignItems: "center", width: cellSize * footprint.w, height: cellSize * footprint.h, justifyContent: "center" }}>
-              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.9} level={b.level || 1} />
+            <View style={{ position: "absolute", left: 0, top: 0, width: cellSize * footprint.w, height: cellSize * footprint.h, alignItems: "center", justifyContent: "center", zIndex: 5 }}>
+              <BuildingArt type={b.type} size={cellSize * Math.min(footprint.w, footprint.h) * 0.85} level={b.level || 1} />
               {(b.level || 1) > 1 && (
                 <Text style={{ fontSize: 8, color: "#F59E0B", fontWeight: "700" }}>
                   {"★".repeat(b.level || 1)}

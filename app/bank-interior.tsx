@@ -104,6 +104,7 @@ export default function BankInteriorScreen() {
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [interior, setInterior] = useState<BankInteriorState>({ desks: [], carpets: [] });
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
+  const [moveItem, setMoveItem] = useState<{ id: string; kind: "desk" | "carpet" } | null>(null);
   const [building, setBuilding] = useState<PlacedBuilding | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -186,6 +187,35 @@ export default function BankInteriorScreen() {
     interior.carpets.find((c) => c.x === x && c.y === y);
 
   const handleTilePress = (x: number, y: number) => {
+    // --- Move mode ---
+    if (moveItem) {
+      const existing = itemAt(x, y);
+      if (existing && existing.id === moveItem.id) {
+        // tapped the item itself: put it back (cancel)
+        setMoveItem(null);
+        return;
+      }
+      if (existing) {
+        // different occupied tile: cancel move mode
+        setMoveItem(null);
+        return;
+      }
+      // empty destination: move it (free — already paid)
+      if (moveItem.kind === "desk") {
+        saveInterior({
+          ...interior,
+          desks: interior.desks.map((d) => (d.id === moveItem.id ? { ...d, x, y } : d)),
+        });
+      } else {
+        saveInterior({
+          ...interior,
+          carpets: interior.carpets.map((c) => (c.id === moveItem.id ? { ...c, x, y } : c)),
+        });
+      }
+      setMoveItem(null);
+      return;
+    }
+    // --- Normal mode ---
     const existing = itemAt(x, y);
     if (existing) {
       Alert.alert(
@@ -195,6 +225,13 @@ export default function BankInteriorScreen() {
           : "Carpet connects desks together.",
         [
           { text: "Cancel", style: "cancel" },
+          {
+            text: "Move",
+            onPress: () => {
+              setSelectedTile(null);
+              setMoveItem({ id: existing.id, kind: existing.kind });
+            },
+          },
           {
             text: "Remove",
             style: "destructive",
@@ -211,6 +248,19 @@ export default function BankInteriorScreen() {
       return;
     }
     setSelectedTile({ x, y });
+  };
+
+  const handleTileLongPress = (x: number, y: number) => {
+    if (moveItem) {
+      // long-press also confirms/cancels during move mode
+      handleTilePress(x, y);
+      return;
+    }
+    const existing = itemAt(x, y);
+    if (!existing) return;
+    // pick up the item — enters move mode
+    setSelectedTile(null);
+    setMoveItem({ id: existing.id, kind: existing.kind });
   };
 
   const handlePlace = (kind: "desk" | "carpet") => {
@@ -236,6 +286,12 @@ export default function BankInteriorScreen() {
 
   const cellSize = 40;
   const { w, h } = BANK_INTERIOR_GRID;
+  // Current tile of the item being moved (for origin highlight)
+  const movingTile = moveItem
+    ? (moveItem.kind === "desk"
+        ? interior.desks.find((d) => d.id === moveItem.id)
+        : interior.carpets.find((c) => c.id === moveItem.id))
+    : undefined;
   const rows = [];
   for (let y = 0; y < h; y++) {
     const cells = [];
@@ -245,27 +301,48 @@ export default function BankInteriorScreen() {
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
       const isActiveCarpet = item?.kind === "carpet" && network.carpets.has(key);
       const isConnectedDesk = item?.kind === "desk" && network.desks.has(key);
+      const isMovingOrigin = !!moveItem && movingTile?.x === x && movingTile?.y === y;
+      const isMoveTarget = !!moveItem && !item && !isMovingOrigin;
+      const bgColor = isMovingOrigin
+        ? "#DBEAFE" // picked-up item's tile: blue tint
+        : isMoveTarget
+          ? "#ECFDF5" // valid destination: green glow
+          : isSelected
+            ? "#FEF3C7"
+            : item?.kind === "carpet"
+              ? isActiveCarpet
+                ? "#A7F3D0" // active network carpet: green tint
+                : "#E7DCC8" // plain carpet
+              : "#F5F1E8"; // floor
+      const borderColor = isMovingOrigin
+        ? "#2563EB"
+        : isMoveTarget
+          ? "#6EE7B7"
+          : isSelected
+            ? "#F59E0B"
+            : isActiveCarpet
+              ? "#34D399"
+              : "#E7DCC8";
       cells.push(
         <Pressable
           key={key}
           onPress={() => handleTilePress(x, y)}
+          onLongPress={() => handleTileLongPress(x, y)}
           style={{
             width: cellSize,
             height: cellSize,
-            backgroundColor: isSelected
-              ? "#FEF3C7"
-              : item?.kind === "carpet"
-                ? isActiveCarpet
-                  ? "#A7F3D0" // active network carpet: green tint
-                  : "#E7DCC8" // plain carpet
-                : "#F5F1E8", // floor
-            borderWidth: 1,
-            borderColor: isSelected ? "#F59E0B" : isActiveCarpet ? "#34D399" : "#E7DCC8",
+            backgroundColor: bgColor,
+            borderWidth: isMovingOrigin || isMoveTarget ? 2 : 1,
+            borderColor,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          {item?.kind === "desk" && <DeskShape connected={isConnectedDesk} />}
+          {item?.kind === "desk" && (
+            <View style={{ opacity: isMovingOrigin ? 0.4 : 1 }}>
+              <DeskShape connected={isConnectedDesk} />
+            </View>
+          )}
         </Pressable>
       );
     }
@@ -342,7 +419,19 @@ export default function BankInteriorScreen() {
 
       <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
 
-      {selectedTile ? (
+      {moveItem ? (
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>
+          <Text style={{ fontWeight: "700", marginBottom: 4, color: "#1C1917" }}>
+            Moving {moveItem.kind === "desk" ? "Desk" : "Carpet"} — tap a glowing tile to place it
+          </Text>
+          <Text style={{ color: "#78716C", fontSize: 13, marginBottom: 8 }}>
+            Moving is free. Tap the item again to put it back where it was.
+          </Text>
+          <Pressable onPress={() => setMoveItem(null)} style={{ alignItems: "center" }}>
+            <Text style={{ color: "#2563EB", fontWeight: "700" }}>Cancel move</Text>
+          </Pressable>
+        </View>
+      ) : selectedTile ? (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: "#1C1917" }}>
             Place on tile ({selectedTile.x}, {selectedTile.y})
@@ -385,7 +474,8 @@ export default function BankInteriorScreen() {
         </View>
       ) : (
         <Text style={{ color: "#78716C", textAlign: "center", fontSize: 13 }}>
-          Tap an empty tile to place a desk or carpet. Connect desks with carpet paths to boost earnings.
+          Tap an empty tile to place a desk or carpet. Connect desks with carpet paths to boost earnings.{"\n"}
+          Long-press a desk or carpet to move it.
         </Text>
       )}
     </ScrollView>

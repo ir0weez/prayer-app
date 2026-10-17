@@ -221,10 +221,10 @@ export type CityPlot = {
 };
 
 export const CITY_PLOTS: CityPlot[] = [
-  { id: "plot-city-1", x: 1, y: 1, buildingType: "bank-tower",       cost: 200, name: "Financial District Lot" },
-  { id: "plot-city-2", x: 5, y: 1, buildingType: "department-store", cost: 300, name: "Retail Row Lot" },
-  { id: "plot-city-3", x: 1, y: 5, buildingType: "hotel",            cost: 250, name: "Hospitality Lot" },
-  { id: "plot-city-4", x: 5, y: 5, buildingType: "office",           cost: 250, name: "Business Park Lot" },
+  { id: "plot-city-1", x: 0, y: 0, buildingType: "bank-tower",       cost: 200, name: "Financial District Lot" },
+  { id: "plot-city-2", x: 6, y: 0, buildingType: "department-store", cost: 300, name: "Retail Row Lot" },
+  { id: "plot-city-3", x: 0, y: 6, buildingType: "hotel",            cost: 250, name: "Hospitality Lot" },
+  { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 250, name: "Business Park Lot" },
   { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 400, name: "Central Tower Lot" },
   { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 350, name: "Uptown Lot" },
 ];
@@ -271,26 +271,24 @@ export function plotAt(x: number, y: number): CityPlot | undefined {
   return CITY_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
 }
 
-// ---- City streets: pre-built downtown road grid (permanent infrastructure) ----
-// Streets run ADJACENT to plots (never on them), forming a downtown grid.
-// West Ave / East Ave / South Blvd form the perimeter; Midtown Blvd cuts
-// east-west past the central tower; the uptown connector links the two
-// northern plots to each other.
+// ---- City streets: proper downtown grid (permanent infrastructure) ----
+// Vertical avenues at x=2 and x=5, horizontal boulevards at y=2 and y=5.
+// This cuts the 8x8 map into nine 2x2 city blocks; each plot fills a block
+// and is surrounded by streets on all sides.
 /** Raw street tiles for the city map. */
 export const CITY_STREETS: Array<{ x: number; y: number }> = [
-  // West Ave (x=0)
-  { x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 },
-  { x: 0, y: 4 }, { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 0, y: 7 },
-  // East Ave (x=7)
-  { x: 7, y: 0 }, { x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 },
-  { x: 7, y: 4 }, { x: 7, y: 5 }, { x: 7, y: 6 }, { x: 7, y: 7 },
-  // South Blvd (y=7)
-  { x: 1, y: 7 }, { x: 2, y: 7 }, { x: 3, y: 7 },
-  { x: 4, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 },
-  // Midtown Blvd (y=4, broken by the central tower superblock)
-  { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 },
-  // Uptown connector (links the two northern plots)
-  { x: 3, y: 2 }, { x: 4, y: 2 },
+  // West Ave (x=2, full height)
+  { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 },
+  { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 2, y: 6 }, { x: 2, y: 7 },
+  // East Ave (x=5, full height)
+  { x: 5, y: 0 }, { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 },
+  { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 5, y: 6 }, { x: 5, y: 7 },
+  // North Blvd (y=2, skipping avenue intersections)
+  { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 3, y: 2 },
+  { x: 4, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 },
+  // South Blvd (y=5, skipping avenue intersections)
+  { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 3, y: 5 },
+  { x: 4, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 },
 ];
 
 /** City streets as PlacedRoads with stable ids (idempotent seeding). */
@@ -305,10 +303,25 @@ export function isCityStreet(road: PlacedRoad): boolean {
 
 /** Seed any missing city streets into a city MapState (idempotent). */
 export function ensureCityStreets(map: MapState): MapState {
-  const existing = new Set((map.roads || []).map((r) => r.id));
-  const missing = cityStreetRoads().filter((r) => !existing.has(r.id));
-  if (missing.length === 0) return map;
-  return { ...map, roads: [...(map.roads || []), ...missing] };
+  // Migration: drop ALL old city-street roads (layout changed) so only the
+  // current grid remains. Ids are stable per tile, so this is idempotent.
+  const nonCityRoads = (map.roads || []).filter((r) => !isCityStreet(r));
+  const existing = new Set(nonCityRoads.map((r) => r.id));
+  const fresh = cityStreetRoads().filter((r) => !existing.has(r.id));
+  let buildings = map.buildings || [];
+  // Migration: plot buildings follow their plot to its new block position.
+  const moved = buildings.map((b) => {
+    const plotId = (b as PlacedBuilding).plotId;
+    if (!plotId) return b;
+    const plot = CITY_PLOTS.find((p) => p.id === plotId);
+    if (!plot) return b;
+    if (b.x === plot.x && b.y === plot.y) return b;
+    return { ...b, x: plot.x, y: plot.y };
+  });
+  const streetsChanged = fresh.length > 0 || nonCityRoads.length !== (map.roads || []).length;
+  const buildingsChanged = moved.some((b, i) => b !== buildings[i]);
+  if (!streetsChanged && !buildingsChanged) return map;
+  return { ...map, roads: [...nonCityRoads, ...fresh], buildings: moved };
 }
 
 export type PlacedBuilding = {

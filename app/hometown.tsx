@@ -630,14 +630,13 @@ export default function HometownScreen() {
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <View style={{ position: "relative" }}>
           {rows}
-          {/* Buildings overlay - positioned by grid coordinates */}
+          {/* Buildings overlay - buildings don't capture touches, coins do */}
           {town.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);
-            const hasIncome = incomeFor(b.type, b.level || 1) > 0;
             return (
               <View
                 key={`bldg-${b.id}`}
-                pointerEvents="box-none"
+                pointerEvents="none"
                 style={{
                   position: "absolute",
                   left: b.x * cellSize,
@@ -654,14 +653,32 @@ export default function HometownScreen() {
                     {"★".repeat(b.level || 1)}
                   </Text>
                 )}
-                {hasIncome && (
-                  <View style={{ position: "absolute", top: -10, right: -10 }}>
-                    <SpinningCoin
-                      amount={b.accumulated || 0}
-                      onCollect={() => handleCollectBuilding(b.id)}
-                    />
-                  </View>
-                )}
+              </View>
+            );
+          })}
+          {/* Coins overlay - only coins capture touches */}
+          {town.buildings.map((b) => {
+            const fp = buildingFootprint(b.level || 1);
+            const hasIncome = incomeFor(b.type, b.level || 1) > 0;
+            if (!hasIncome) return null;
+            return (
+              <View
+                key={`coin-${b.id}`}
+                pointerEvents="box-none"
+                style={{
+                  position: "absolute",
+                  left: b.x * cellSize + fp.w * cellSize - 30,
+                  top: b.y * cellSize - 14,
+                  width: 60,
+                  height: 60,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <SpinningCoin
+                  amount={b.accumulated || 0}
+                  onCollect={() => handleCollectBuilding(b.id)}
+                />
               </View>
             );
           })}

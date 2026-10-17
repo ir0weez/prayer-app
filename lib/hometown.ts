@@ -236,6 +236,7 @@ export type PlacedBuilding = {
   level: 1 | 2 | 3;
   floors?: number; // bank-tower stories (default 1, max 5)
   plotId?: string; // city plot id — fixed-position plot building (no move/sell)
+  workers?: number; // hired townsfolk (0-3), each +10% output
   accumulated?: number;
   lastTick?: string;
 };
@@ -565,22 +566,74 @@ export function mapHasPopulation(map: MapState, town?: TownState): boolean {
   return false;
 }
 
-export function dailyIncomeForMap(map: MapState, town?: TownState): number {
+// ---- Idle mechanics: workers, coin milestones, tap frenzy ----
+
+export const WORKER_HIRE_COST = 25;
+export const MAX_WORKERS_PER_BUILDING = 3;
+export const WORKER_INCOME_BOOST = 0.1; // +10% output per worker
+
+/** Output multiplier from hired workers: 1 + 0.1 per worker. */
+export function workerMult(b: PlacedBuilding): number {
+  return 1 + WORKER_INCOME_BOOST * (b.workers || 0);
+}
+
+/** Total hired workers across all maps (for the NPC availability cap). */
+export function totalHiredWorkers(town: TownState): number {
+  return TOWN_MAP_IDS.reduce(
+    (sum, id) => sum + town.maps[id].buildings.reduce((s, b) => s + (b.workers || 0), 0),
+    0
+  );
+}
+
+export type CoinMilestone = { threshold: number; mult: number; name: string };
+
+export const COIN_MILESTONES: CoinMilestone[] = [
+  { threshold: 500, mult: 1.05, name: "Bronze Merchant" },
+  { threshold: 1500, mult: 1.10, name: "Silver Trader" },
+  { threshold: 5000, mult: 1.20, name: "Gold Tycoon" },
+  { threshold: 15000, mult: 1.35, name: "Platinum Magnate" },
+];
+
+/** Highest milestone reached for a lifetime earnings total (null if none). */
+export function milestoneFor(lifetimeEarned: number): { current: CoinMilestone | null; next: CoinMilestone | null } {
+  let current: CoinMilestone | null = null;
+  let next: CoinMilestone | null = null;
+  for (const m of COIN_MILESTONES) {
+    if (lifetimeEarned >= m.threshold) current = m;
+    else if (!next) next = m;
+  }
+  return { current, next };
+}
+
+/** Permanent coin-income multiplier from lifetime earnings milestones. */
+export function milestoneMultiplier(lifetimeEarned: number): number {
+  return milestoneFor(lifetimeEarned).current?.mult ?? 1;
+}
+
+// Tap frenzy: rapid-tap a coin 5+ times in 2s → 2x collects for 10s (5-min cooldown)
+export const FRENZY_STORAGE_KEY = "prayercircle.hometown.frenzy.v1";
+export const FRENZY_TAPS_NEEDED = 5;
+export const FRENZY_WINDOW_MS = 2000;
+export const FRENZY_DURATION_MS = 10000;
+export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
+export const FRENZY_MULT = 2;
+
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult;
     return sum + (base * multiplier);
   }, 0);
 }
 
 export function dailyXPForMap(map: MapState): number {
-  return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1), 0);
+  return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town), 0);
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult), 0);
 }
 
 export function dailyXPForTown(town: TownState): number {

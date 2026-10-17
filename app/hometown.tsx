@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -18,6 +18,18 @@ import {
   barbershopBoostForBuilding,
   shopAdjacencyBonusForBuilding,
   mapHasPopulation,
+  workerMult,
+  totalHiredWorkers,
+  milestoneMultiplier,
+  milestoneFor,
+  WORKER_HIRE_COST,
+  MAX_WORKERS_PER_BUILDING,
+  FRENZY_STORAGE_KEY,
+  FRENZY_TAPS_NEEDED,
+  FRENZY_WINDOW_MS,
+  FRENZY_DURATION_MS,
+  FRENZY_COOLDOWN_MS,
+  FRENZY_MULT,
   bankDeskMultiplier,
   bankFloorMultiplier,
   buildingFootprint,
@@ -484,8 +496,9 @@ function BuildingArt({ type, size, level = 1, floors = 1 }: { type: string; size
 }
 
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
-function SpinningCoin({ amount, kind = "coins", onCollect }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void }) {
+function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean }) {
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const spin = Animated.loop(
@@ -499,6 +512,18 @@ function SpinningCoin({ amount, kind = "coins", onCollect }: { amount: number; k
     spin.start();
     return () => spin.stop();
   }, []);
+
+  useEffect(() => {
+    if (!frenzy) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [frenzy]);
 
   const rotateY = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -518,24 +543,29 @@ function SpinningCoin({ amount, kind = "coins", onCollect }: { amount: number; k
     >
       <Animated.View
         style={{
-          transform: [{ rotateY }],
+          transform: [{ rotateY }, { scale: frenzy ? pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) : 1 }],
           width: 36,
           height: 36,
           borderRadius: 18,
-          backgroundColor: hasAmount ? (isXP ? "#C4B5FD" : "#FBBF24") : "#E5E7EB",
+          backgroundColor: frenzy ? "#FDE047" : hasAmount ? (isXP ? "#C4B5FD" : "#FBBF24") : "#E5E7EB",
           alignItems: "center",
           justifyContent: "center",
           borderWidth: 2,
-          borderColor: hasAmount ? (isXP ? "#7C3AED" : "#D97706") : "#9CA3AF",
-          shadowColor: "#000",
+          borderColor: frenzy ? "#CA8A04" : hasAmount ? (isXP ? "#7C3AED" : "#D97706") : "#9CA3AF",
+          shadowColor: frenzy ? "#CA8A04" : "#000",
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 3,
-          elevation: 3,
+          shadowOpacity: frenzy ? 0.6 : 0.2,
+          shadowRadius: frenzy ? 8 : 3,
+          elevation: frenzy ? 8 : 3,
         }}
       >
         <Text style={{ fontSize: 20 }}>{isXP ? "⚡" : "🪙"}</Text>
       </Animated.View>
+      {frenzy && (
+        <View style={{ position: "absolute", top: -8, right: -8, backgroundColor: "#CA8A04", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>2x</Text>
+        </View>
+      )}
       <Text style={{
         fontSize: 10,
         fontWeight: "700",
@@ -558,6 +588,11 @@ export default function HometownScreen() {
   const [town, setTown] = useState<TownState>(() => emptyTownState());
   const [activeMap, setActiveMap] = useState<TownMapId>("town");
   const [unlockedMaps, setUnlockedMaps] = useState<TownMapId[]>(["town"]);
+  // Tap frenzy: 5+ rapid taps → 2x collects for 10s (5-min cooldown)
+  const [frenzyActive, setFrenzyActive] = useState(false);
+  const tapTimesRef = useRef<number[]>([]);
+  const frenzyUntilRef = useRef(0);
+  const lastFrenzyRef = useRef(0);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
@@ -667,6 +702,10 @@ export default function HometownScreen() {
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
+        try {
+          const lastFrenzy = await AsyncStorage.getItem(FRENZY_STORAGE_KEY);
+          lastFrenzyRef.current = lastFrenzy ? parseInt(lastFrenzy, 10) || 0 : 0;
+        } catch {}
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
@@ -690,6 +729,7 @@ export default function HometownScreen() {
         // Generosity stat boosts coin earnings
         let generosityMult = 0;
         try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
+        const msMult = milestoneMultiplier(c.lifetimeEarned);
         const newMaps = { ...t.maps };
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
@@ -704,9 +744,10 @@ export default function HometownScreen() {
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
               const deskMult = deskMults[b.id] ?? 1;
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
+              const wMult = workerMult(b);
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult)
-                : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult
+                : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
               return {
                 ...b,
                 accumulated: Math.round(((b.accumulated || 0) + add) * 10) / 10,
@@ -723,7 +764,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t);
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned));
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);
@@ -1038,9 +1079,11 @@ export default function HometownScreen() {
           }
           const cost = upgradeCostFor(existing.type, nextLevel);
           const sellPrice = Math.floor(BUILDINGS[existing.type].cost * 0.5);
+          const workerCount = existing.workers || 0;
+          const workerLine = `\nWorkers: ${workerCount}/${MAX_WORKERS_PER_BUILDING} (+${Math.round(workerCount * 10)}% output)`;
           Alert.alert(
             `${def.name} (Lv ${level})`,
-            `${def.description}\n\nCurrently earns ${incomeLabelFor(existing)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor({ ...existing, level: nextLevel })}.`,
+            `${def.description}\n\nCurrently earns ${incomeLabelFor(existing)}.${workerLine}\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor({ ...existing, level: nextLevel })}.`,
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -1071,22 +1114,35 @@ export default function HometownScreen() {
                 },
               },
               {
-                text: `Upgrade 🪙${cost}`,
+                text: `👷 Hire Worker 🪙${WORKER_HIRE_COST} (${workerCount}/${MAX_WORKERS_PER_BUILDING})`,
                 onPress: () => {
-                  if (coins.balance < cost) {
-                    Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance}.`);
+                  const earns = effectiveIncomeFor(existing) > 0 || xpIncomeFor(existing.type, existing.level || 1) > 0;
+                  if (!earns) {
+                    Alert.alert("No income", "Workers only help buildings that earn coins or XP.");
                     return;
                   }
-                  const updated = map.buildings.map(b =>
-                    b.id === existing.id ? { ...b, level: nextLevel } : b
+                  if (workerCount >= MAX_WORKERS_PER_BUILDING) {
+                    Alert.alert("Full crew", "This building already has the maximum workers.");
+                    return;
+                  }
+                  const available = countHometownNpcs(town.maps.town.buildings) - totalHiredWorkers(town);
+                  if (available <= 0) {
+                    Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
+                    return;
+                  }
+                  if (coins.balance < WORKER_HIRE_COST) {
+                    Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${Math.floor(coins.balance)}.`);
+                    return;
+                  }
+                  const updated = map.buildings.map(x =>
+                    x.id === existing.id ? { ...x, workers: (x.workers || 0) + 1 } : x
                   );
                   saveMap({ ...map, buildings: updated });
-                  const nextCoins = { balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned };
-                  setCoins(nextCoins);
-                  AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins)).catch(() => undefined);
+                  saveCoins({ balance: Math.round((coins.balance - WORKER_HIRE_COST) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
                 },
               },
-            ]
+            ],
+            { cancelable: true }
           );
         }
       }
@@ -1136,9 +1192,23 @@ export default function HometownScreen() {
   };
 
   const handleCollectBuilding = (buildingId: string) => {
+    const now = Date.now();
+    // Frenzy tap tracking (every press counts, even on empty coins)
+    const recentTaps = tapTimesRef.current.filter(t => now - t < FRENZY_WINDOW_MS);
+    recentTaps.push(now);
+    tapTimesRef.current = recentTaps;
+    if (recentTaps.length >= FRENZY_TAPS_NEEDED && now >= frenzyUntilRef.current && now - lastFrenzyRef.current >= FRENZY_COOLDOWN_MS) {
+      // FRENZY!
+      lastFrenzyRef.current = now;
+      frenzyUntilRef.current = now + FRENZY_DURATION_MS;
+      setFrenzyActive(true);
+      AsyncStorage.setItem(FRENZY_STORAGE_KEY, String(now)).catch(() => undefined);
+      setTimeout(() => { frenzyUntilRef.current = 0; setFrenzyActive(false); }, FRENZY_DURATION_MS);
+    }
     const building = map.buildings.find(b => b.id === buildingId);
     if (!building || !(building.accumulated || 0)) return;
-    const amount = building.accumulated || 0;
+    let amount = building.accumulated || 0;
+    if (now < frenzyUntilRef.current) amount = Math.round(amount * FRENZY_MULT * 10) / 10;
     const updatedBuildings = map.buildings.map(b =>
       b.id === buildingId ? { ...b, accumulated: 0, lastTick: new Date().toISOString() } : b
     );
@@ -1233,6 +1303,25 @@ export default function HometownScreen() {
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
         </View>
       </View>
+
+      {/* Coin milestone chip */}
+      {(() => {
+        const { current, next } = milestoneFor(coins.lifetimeEarned);
+        if (!current && !next) return null;
+        return (
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#EDE9FE", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start" }}>
+            <Text style={{ fontSize: 14 }}>🏆</Text>
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#5B21B6" }}>
+              {current ? `${current.name} +${Math.round((current.mult - 1) * 100)}%` : "No milestone yet"}
+            </Text>
+            {next && (
+              <Text style={{ marginLeft: 6, fontSize: 12, color: "#7C3AED" }}>
+                → {next.name} at {next.threshold.toLocaleString()} lifetime
+              </Text>
+            )}
+          </View>
+        );
+      })()}
 
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
@@ -1431,6 +1520,7 @@ export default function HometownScreen() {
                   amount={b.accumulated || 0}
                   kind={earnsXP ? "xp" : "coins"}
                   onCollect={() => handleCollectBuilding(b.id)}
+                  frenzy={frenzyActive}
                 />
               </View>
             );

@@ -441,13 +441,11 @@ const TOWN_SHOP_TYPES: BuildingType[] = [
 ];
 
 export const TOWN_LOTS: TownLot[] = [
-  // Cul-de-sac cottages (top-left, 1x1 — houses stay cozy)
+  // Cul-de-sac cottages (top-left, 1x1 — houses stay cozy; 4 lots = 24 villagers maxed)
   { id: "town-lot-h1", x: 0, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h2", x: 1, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
-  { id: "town-lot-h3", x: 2, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h4", x: 0, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h5", x: 1, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
-  { id: "town-lot-h6", x: 2, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   // Chapel Hill — the church, prominent at the top of the neighborhood
   { id: "town-lot-church", x: 4, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
   // Hearthside — the pawn's home, near the church
@@ -513,12 +511,20 @@ export function ensureTownNeighborhood(map: MapState): MapState {
   const nonPathRoads = (map.roads || []).filter((r) => !isTownPath(r));
 
   // 2. Buildings: assign unassigned buildings to empty lots by type.
+  //    Buildings on lots that no longer exist (dangling townLotId) are
+  //    treated as unassigned and re-homed to a free matching lot if possible.
+  const validLotIds = new Set(TOWN_LOTS.map((l) => l.id));
   const buildings = map.buildings || [];
-  const occupiedLotIds = new Set<string>(
-    buildings.map((b) => b.townLotId).filter((id): id is string => !!id)
-  );
-  const moved = buildings.map((b) => {
-    if (b.townLotId) return b; // already on a lot
+  const occupiedLotIds = new Set<string>();
+  const normalized = buildings.map((b) => {
+    if (b.townLotId && validLotIds.has(b.townLotId)) {
+      occupiedLotIds.add(b.townLotId);
+      return b;
+    }
+    return b.townLotId ? { ...b, townLotId: undefined } : b;
+  });
+  const moved = normalized.map((b) => {
+    if (b.townLotId) return b; // already on a valid lot
     const lot = TOWN_LOTS.find(
       (l) => !occupiedLotIds.has(l.id) && l.allowedTypes.includes(b.type)
     );

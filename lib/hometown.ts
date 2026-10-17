@@ -44,9 +44,9 @@ export type MapInfo = {
 
 export const MAP_INFO: Record<TownMapId, MapInfo> = {
   town:    { name: "Hometown", icon: "🏠", description: "Your starter town", unlockCost: 0, comingSoon: false },
-  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 1000, comingSoon: false },
-  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 750, comingSoon: false },
-  school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 750, comingSoon: false },
+  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 1500, comingSoon: false },
+  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 1000, comingSoon: false },
+  school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 1000, comingSoon: false },
   reserve: { name: "???",      icon: "❓", description: "Coming soon", unlockCost: 0, comingSoon: true },
 };
 
@@ -117,7 +117,7 @@ export const UPGRADE_INCOME_MULT = { 1: 1, 2: 2.5, 3: 5 };
 export const HOUSE_LEVEL_NAMES: Record<number, string> = {
   1: "Cottage", 2: "House", 3: "Townhouse", 4: "Villa", 5: "Mansion",
 };
-export const HOUSE_UPGRADE_COSTS: Record<number, number> = { 2: 10, 3: 25, 4: 50, 5: 100 };
+export const HOUSE_UPGRADE_COSTS: Record<number, number> = { 2: 15, 3: 40, 4: 75, 5: 150 };
 
 /** Max upgrade level for a building type (houses go to 5, everything else 3). */
 export function maxLevelFor(type: BuildingType): number {
@@ -178,36 +178,36 @@ export type BuildingDef = {
 export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
   "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
-  "farm":       { name: "Farm",       icon: "🌾", cost: 15,  tier: 1, incomePerDay: 2,  xpPerDay: 0, maps: ["town"], description: "+2 coins per day while your streak is alive." },
-  "shop":       { name: "Shop",       icon: "🏪", cost: 30,  tier: 1, incomePerDay: 3,  xpPerDay: 0, maps: ["town"], description: "+3 coins per day while your streak is alive." },
-  "bakery":     { name: "Bakery",     icon: "🥖", cost: 60,  tier: 2, incomePerDay: 5,  xpPerDay: 0, maps: ["town"], description: "+5 coins per day while your streak is alive." },
-  "market":     { name: "Market",     icon: "🏬", cost: 120, tier: 3, incomePerDay: 8,  xpPerDay: 0, maps: ["town"], description: "+8 coins per day while your streak is alive." },
-  "bank":       { name: "Bank",       icon: "🏦", cost: 250, tier: 4, incomePerDay: 12, xpPerDay: 0, maps: ["town"], description: "+12 coins per day while your streak is alive." },
-  "barbershop": { name: "Barbershop", icon: "💈", cost: 40,  tier: 1, incomePerDay: 1,  xpPerDay: 0, maps: ["town"], description: "+1 coin/day. Boosts connected businesses +25%." },
-  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 50, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +1 coin/day." },
-  "armory":       { name: "Armory",       icon: "🛡️", cost: 80, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +2 coins/day." },
-  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 80, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +2 coins/day." },
-  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 60, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +1 coin/day." },
+  "farm":       { name: "Farm",       icon: "🌾", cost: 20,  tier: 1, incomePerDay: 2,  xpPerDay: 0, maps: ["town"], description: "+2 coins per day while your streak is alive." },
+  "shop":       { name: "Shop",       icon: "🏪", cost: 40,  tier: 1, incomePerDay: 3,  xpPerDay: 0, maps: ["town"], description: "+3 coins per day while your streak is alive." },
+  "bakery":     { name: "Bakery",     icon: "🥖", cost: 80,  tier: 2, incomePerDay: 5,  xpPerDay: 0, maps: ["town"], description: "+5 coins per day while your streak is alive." },
+  "market":     { name: "Market",     icon: "🏬", cost: 160, tier: 3, incomePerDay: 8,  xpPerDay: 0, maps: ["town"], description: "+8 coins per day while your streak is alive." },
+  "bank":       { name: "Bank",       icon: "🏦", cost: 350, tier: 4, incomePerDay: 12, xpPerDay: 0, maps: ["town"], description: "+12 coins per day while your streak is alive." },
+  "barbershop": { name: "Barbershop", icon: "💈", cost: 60,  tier: 1, incomePerDay: 1,  xpPerDay: 0, maps: ["town"], description: "+1 coin/day. Boosts connected businesses +25%." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 65, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +1 coin/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +2 coins/day." },
+  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +2 coins/day." },
+  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 80, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +1 coin/day." },
   // City — big buildings, big earnings
-  "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 500, tier: 1, incomePerDay: 25, xpPerDay: 0, maps: ["city"], description: "A towering bank. +25 coins/day." },
-  "department-store": { name: "Department Store", icon: "🏬", cost: 400, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
-  "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 350, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
-  "office":           { name: "Office Tower",     icon: "🏢", cost: 300, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
+  "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 650, tier: 1, incomePerDay: 25, xpPerDay: 0, maps: ["city"], description: "A towering bank. +25 coins/day." },
+  "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
+  "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 460, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
+  "office":           { name: "Office Tower",     icon: "🏢", cost: 400, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
   // Mall — income properties
-  "food-court": { name: "Food Court", icon: "🍔", cost: 100, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: ["mall"], description: "Hungry shoppers. +8 coins/day." },
-  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 80,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: ["mall"], description: "Quiet readers. +6 coins/day." },
-  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 120, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["mall"], description: "Tokens and high scores. +10 coins/day." },
-  "cinema":     { name: "Cinema",     icon: "🎬", cost: 150, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: ["mall"], description: "Now showing. +12 coins/day." },
+  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: ["mall"], description: "Hungry shoppers. +8 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: ["mall"], description: "Quiet readers. +6 coins/day." },
+  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["mall"], description: "Tokens and high scores. +10 coins/day." },
+  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: ["mall"], description: "Now showing. +12 coins/day." },
   // School — XP earners
-  "library":   { name: "Library",   icon: "📖", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
-  "classroom": { name: "Classroom", icon: "📝", cost: 80,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
-  "chapel":    { name: "Chapel",    icon: "⛪", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
+  "library":   { name: "Library",   icon: "📖", cost: 130, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
+  "classroom": { name: "Classroom", icon: "📝", cost: 105,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
+  "chapel":    { name: "Chapel",    icon: "⛪", cost: 160, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
   // Restaurants — hometown food businesses
-  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 60, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +3 coins/day." },
-  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 60, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +3 coins/day." },
-  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 45, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +2 coins/day." },
-  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 80, tier: 1, incomePerDay: 4, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +4 coins/day." },
-  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 50, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
+  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 80, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +3 coins/day." },
+  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 80, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +3 coins/day." },
+  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 60, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +2 coins/day." },
+  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 105, tier: 1, incomePerDay: 4, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +4 coins/day." },
+  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 65, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
 };
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
@@ -221,12 +221,12 @@ export type CityPlot = {
 };
 
 export const CITY_PLOTS: CityPlot[] = [
-  { id: "plot-city-1", x: 0, y: 0, buildingType: "bank-tower",       cost: 200, name: "Financial District Lot" },
-  { id: "plot-city-2", x: 6, y: 0, buildingType: "department-store", cost: 300, name: "Retail Row Lot" },
-  { id: "plot-city-3", x: 0, y: 6, buildingType: "hotel",            cost: 250, name: "Hospitality Lot" },
-  { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 250, name: "Business Park Lot" },
-  { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 400, name: "Central Tower Lot" },
-  { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 350, name: "Uptown Lot" },
+  { id: "plot-city-1", x: 0, y: 0, buildingType: "bank-tower",       cost: 300, name: "Financial District Lot" },
+  { id: "plot-city-2", x: 6, y: 0, buildingType: "department-store", cost: 450, name: "Retail Row Lot" },
+  { id: "plot-city-3", x: 0, y: 6, buildingType: "hotel",            cost: 375, name: "Hospitality Lot" },
+  { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 375, name: "Business Park Lot" },
+  { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 600, name: "Central Tower Lot" },
+  { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 525, name: "Uptown Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -672,7 +672,7 @@ export function mapHasPopulation(map: MapState, town?: TownState): boolean {
 
 // ---- Idle mechanics: workers, coin milestones, tap frenzy ----
 
-export const WORKER_HIRE_COST = 25;
+export const WORKER_HIRE_COST = 40;
 export const MAX_WORKERS_PER_BUILDING = 3;
 export const WORKER_INCOME_BOOST = 0.1; // +10% output per worker
 

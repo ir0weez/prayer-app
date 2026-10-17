@@ -1,0 +1,318 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  BANK_CARPET_COST,
+  BANK_DESK_COST,
+  BANK_INTERIOR_GRID,
+  BANK_MAX_DESKS,
+  COINS_STORAGE_KEY,
+  bankInteriorKey,
+  connectedDeskCount,
+  parseBankInterior,
+  parseCoins,
+  type BankInteriorItem,
+  type BankInteriorState,
+  type HometownCoins,
+} from "@/lib/hometown";
+import { completeMission, loadMissions, type Mission } from "@/lib/missions";
+
+let idCounter = 0;
+function nextId() {
+  idCounter += 1;
+  return `bi${Date.now()}${idCounter}`;
+}
+
+// Tiles that are part of the connected desk network (for highlight)
+function activeNetworkTiles(state: BankInteriorState): { desks: Set<string>; carpets: Set<string> } {
+  const { desks, carpets } = state;
+  const carpetSet = new Set(carpets.map((c) => `${c.x},${c.y}`));
+  const deskSet = new Set(desks.map((d) => `${d.x},${d.y}`));
+  const walkable = new Set([...carpetSet, ...deskSet]);
+  const neighbors = (x: number, y: number) => [
+    [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+  ] as Array<[number, number]>;
+
+  // Find desks that connect to another desk
+  const connectedDeskKeys = new Set<string>();
+  const deskReach: Map<string, Set<string>> = new Map();
+  for (const desk of desks) {
+    const key = `${desk.x},${desk.y}`;
+    const visited = new Set<string>([key]);
+    const queue: Array<[number, number]> = [[desk.x, desk.y]];
+    let foundOther = false;
+    while (queue.length > 0) {
+      const [cx, cy] = queue.shift()!;
+      for (const [nx, ny] of neighbors(cx, cy)) {
+        const nkey = `${nx},${ny}`;
+        if (visited.has(nkey) || !walkable.has(nkey)) continue;
+        visited.add(nkey);
+        if (deskSet.has(nkey) && nkey !== key) foundOther = true;
+        queue.push([nx, ny]);
+      }
+    }
+    deskReach.set(key, visited);
+    if (foundOther) connectedDeskKeys.add(key);
+  }
+
+  // Active carpets = carpet tiles visited from any connected desk
+  const activeCarpets = new Set<string>();
+  for (const key of connectedDeskKeys) {
+    const visited = deskReach.get(key);
+    if (!visited) continue;
+    for (const v of visited) {
+      if (carpetSet.has(v)) activeCarpets.add(v);
+    }
+  }
+  return { desks: connectedDeskKeys, carpets: activeCarpets };
+}
+
+function DeskShape({ connected }: { connected: boolean }) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      {/* desktop surface */}
+      <View
+        style={{
+          width: 30,
+          height: 10,
+          borderRadius: 2,
+          backgroundColor: connected ? "#92400E" : "#B45309",
+          borderWidth: connected ? 2 : 0,
+          borderColor: "#34D399",
+        }}
+      />
+      {/* legs */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", width: 26 }}>
+        <View style={{ width: 4, height: 10, backgroundColor: "#78350F", borderRadius: 1 }} />
+        <View style={{ width: 4, height: 10, backgroundColor: "#78350F", borderRadius: 1 }} />
+      </View>
+    </View>
+  );
+}
+
+export default function BankInteriorScreen() {
+  const router = useRouter();
+  const { buildingId } = useLocalSearchParams<{ buildingId?: string }>();
+  const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
+  const [interior, setInterior] = useState<BankInteriorState>({ desks: [], carpets: [] });
+  const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  const storageKey = buildingId ? bankInteriorKey(buildingId) : null;
+
+  const saveInterior = useCallback(
+    (next: BankInteriorState) => {
+      setInterior(next);
+      if (storageKey) AsyncStorage.setItem(storageKey, JSON.stringify(next)).catch(() => undefined);
+    },
+    [storageKey]
+  );
+
+  const saveCoins = useCallback((next: HometownCoins) => {
+    setCoins(next);
+    AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [coinsRaw, interiorRaw, missions] = await Promise.all([
+          AsyncStorage.getItem(COINS_STORAGE_KEY),
+          storageKey ? AsyncStorage.getItem(storageKey) : null,
+          loadMissions(),
+        ]);
+        setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+        setInterior(parseBankInterior(interiorRaw ? JSON.parse(interiorRaw) : {}));
+        // Complete the bank-visit mission on entry
+        const visit = missions.find((m: Mission) => m.type === "bank-visit" && !m.completed);
+        if (visit) await completeMission(visit.id);
+      } catch {}
+      setLoaded(true);
+    })();
+  }, [storageKey]);
+
+  const connected = connectedDeskCount(interior);
+  const multiplier = 1 + connected * 0.25;
+  const network = useMemo(() => activeNetworkTiles(interior), [interior]);
+
+  const itemAt = (x: number, y: number): BankInteriorItem | undefined =>
+    interior.desks.find((d) => d.x === x && d.y === y) ??
+    interior.carpets.find((c) => c.x === x && c.y === y);
+
+  const handleTilePress = (x: number, y: number) => {
+    const existing = itemAt(x, y);
+    if (existing) {
+      Alert.alert(
+        existing.kind === "desk" ? "Desk" : "Carpet",
+        existing.kind === "desk"
+          ? "Desks connected by carpet to another desk earn +25% each."
+          : "Carpet connects desks together.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: () => {
+              if (existing.kind === "desk") {
+                saveInterior({ ...interior, desks: interior.desks.filter((d) => d.id !== existing.id) });
+              } else {
+                saveInterior({ ...interior, carpets: interior.carpets.filter((c) => c.id !== existing.id) });
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+    setSelectedTile({ x, y });
+  };
+
+  const handlePlace = (kind: "desk" | "carpet") => {
+    if (!selectedTile) return;
+    const cost = kind === "desk" ? BANK_DESK_COST : BANK_CARPET_COST;
+    if (kind === "desk" && interior.desks.length >= BANK_MAX_DESKS) {
+      Alert.alert("Max desks", `Your bank can hold ${BANK_MAX_DESKS} desks.`);
+      return;
+    }
+    if (coins.balance < cost) {
+      Alert.alert("Not enough coins", `You need ${cost} coins.`);
+      return;
+    }
+    const item: BankInteriorItem = { id: nextId(), kind, x: selectedTile.x, y: selectedTile.y };
+    if (kind === "desk") {
+      saveInterior({ ...interior, desks: [...interior.desks, item] });
+    } else {
+      saveInterior({ ...interior, carpets: [...interior.carpets, item] });
+    }
+    saveCoins({ balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned });
+    setSelectedTile(null);
+  };
+
+  const cellSize = 40;
+  const { w, h } = BANK_INTERIOR_GRID;
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    const cells = [];
+    for (let x = 0; x < w; x++) {
+      const item = itemAt(x, y);
+      const key = `${x},${y}`;
+      const isSelected = selectedTile?.x === x && selectedTile?.y === y;
+      const isActiveCarpet = item?.kind === "carpet" && network.carpets.has(key);
+      const isConnectedDesk = item?.kind === "desk" && network.desks.has(key);
+      cells.push(
+        <Pressable
+          key={key}
+          onPress={() => handleTilePress(x, y)}
+          style={{
+            width: cellSize,
+            height: cellSize,
+            backgroundColor: isSelected
+              ? "#FEF3C7"
+              : item?.kind === "carpet"
+                ? isActiveCarpet
+                  ? "#A7F3D0" // active network carpet: green tint
+                  : "#E7DCC8" // plain carpet
+                : "#F5F1E8", // floor
+            borderWidth: 1,
+            borderColor: isSelected ? "#F59E0B" : isActiveCarpet ? "#34D399" : "#E7DCC8",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {item?.kind === "desk" && <DeskShape connected={isConnectedDesk} />}
+        </Pressable>
+      );
+    }
+    rows.push(
+      <View key={y} style={{ flexDirection: "row" }}>
+        {cells}
+      </View>
+    );
+  }
+
+  if (!loaded) {
+    return <View style={{ flex: 1, backgroundColor: "#FDF6E3" }} />;
+  }
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+        <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+          <MaterialIcons name="arrow-back" size={24} color="#1C1917" />
+        </Pressable>
+        <Text style={{ fontSize: 22, fontWeight: "800", color: "#1C1917" }}>Bank Interior</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
+          <Text style={{ fontSize: 16 }}>🪙</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700", color: "#1C1917" }}>{coins.balance}</Text>
+        </View>
+      </View>
+
+      {/* Multiplier banner */}
+      <View style={{ backgroundColor: "#1C1917", borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
+        <MaterialIcons name="trending-up" size={24} color="#4ADE80" />
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>
+            Desk network: ×{multiplier.toFixed(2)}
+          </Text>
+          <Text style={{ color: "#A8A29E", fontSize: 12 }}>
+            {connected === 0
+              ? "Place desks and connect them with carpet for +25% each."
+              : `${connected} connected desk${connected > 1 ? "s" : ""} boosting earnings.`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
+
+      {selectedTile ? (
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>
+          <Text style={{ fontWeight: "700", marginBottom: 8, color: "#1C1917" }}>
+            Place on tile ({selectedTile.x}, {selectedTile.y})
+          </Text>
+          <Pressable
+            onPress={() => handlePlace("desk")}
+            disabled={coins.balance < BANK_DESK_COST || interior.desks.length >= BANK_MAX_DESKS}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 10,
+              opacity: coins.balance < BANK_DESK_COST || interior.desks.length >= BANK_MAX_DESKS ? 0.5 : 1,
+            }}
+          >
+            <View style={{ width: 32, alignItems: "center" }}>
+              <DeskShape connected={false} />
+            </View>
+            <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600", color: "#1C1917" }}>
+              Desk ({interior.desks.length}/{BANK_MAX_DESKS})
+            </Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{BANK_DESK_COST}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handlePlace("carpet")}
+            disabled={coins.balance < BANK_CARPET_COST}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 10,
+              opacity: coins.balance < BANK_CARPET_COST ? 0.5 : 1,
+            }}
+          >
+            <View style={{ width: 32, height: 24, borderRadius: 4, backgroundColor: "#E7DCC8", borderWidth: 1, borderColor: "#D6C9B0" }} />
+            <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600", color: "#1C1917" }}>Carpet tile</Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{BANK_CARPET_COST}</Text>
+          </Pressable>
+          <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
+            <Text style={{ color: "#78716C" }}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Text style={{ color: "#78716C", textAlign: "center", fontSize: 13 }}>
+          Tap an empty tile to place a desk or carpet. Connect desks with carpet paths to boost earnings.
+        </Text>
+      )}
+    </ScrollView>
+  );
+}

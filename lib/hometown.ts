@@ -87,7 +87,13 @@ export type BuildingType =
   // School buildings (earn XP)
   | "library"
   | "classroom"
-  | "chapel";
+  | "chapel"
+  // Restaurants (hometown food businesses)
+  | "pizza-place"
+  | "burger-joint"
+  | "taco-stand"
+  | "sushi-bar"
+  | "diner";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -155,6 +161,12 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "library":   { name: "Library",   icon: "📖", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
   "classroom": { name: "Classroom", icon: "📝", cost: 80,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
   "chapel":    { name: "Chapel",    icon: "⛪", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
+  // Restaurants — hometown food businesses
+  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 60, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +3 coins/day." },
+  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 60, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +3 coins/day." },
+  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 45, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +2 coins/day." },
+  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 80, tier: 1, incomePerDay: 4, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +4 coins/day." },
+  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 50, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
 };
 
 export type PlacedBuilding = {
@@ -163,6 +175,7 @@ export type PlacedBuilding = {
   x: number;
   y: number;
   level: 1 | 2 | 3;
+  floors?: number; // bank-tower stories (default 1, max 5)
   accumulated?: number;
   lastTick?: string;
 };
@@ -367,7 +380,7 @@ export function barbershopBoostForBuilding(map: MapState, buildingId: string): n
         for (const b of buildings) {
           if (visitedBuildings.has(b.id)) continue;
           // Check adjacency to any tile of the building's footprint
-          const fp = buildingFootprint(b.level || 1);
+          const fp = buildingFootprint(b.level || 1, b.type);
           let adjacent = false;
           for (let dx = 0; dx < fp.w && !adjacent; dx++) {
             for (let dy = 0; dy < fp.h && !adjacent; dy++) {
@@ -394,9 +407,15 @@ export function barbershopBoostForBuilding(map: MapState, buildingId: string): n
   return 1;
 }
 
-// Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3)
-export function buildingFootprint(level: number): { w: number; h: number } {
+// Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3).
+// City buildings are big: minimum 2x2 at L1 (L1=2x2, L2=3x3, L3=4x4).
+const CITY_BIG_TYPES: BuildingType[] = ["bank-tower", "department-store", "hotel", "office"];
+export function buildingFootprint(level: number, type?: BuildingType): { w: number; h: number } {
   const s = Math.min(Math.max(level || 1, 1), 3);
+  if (type && CITY_BIG_TYPES.includes(type)) {
+    const big = s + 1; // L1=2, L2=3, L3=4
+    return { w: big, h: big };
+  }
   return { w: s, h: s };
 }
 
@@ -423,7 +442,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   const building = buildings.find(b => b.id === buildingId);
   if (!building) return 1;
 
-  const fp = buildingFootprint(building.level || 1);
+  const fp = buildingFootprint(building.level || 1, building.type);
   // Collect all tiles of the target building
   const myTiles = new Set<string>();
   for (let dx = 0; dx < fp.w; dx++)
@@ -437,7 +456,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   for (const other of buildings) {
     if (other.id === buildingId) continue;
     if (!SHOP_TYPES.includes(other.type)) continue;
-    const ofp = buildingFootprint(other.level || 1);
+    const ofp = buildingFootprint(other.level || 1, other.type);
     let adjacent = false;
     for (let dx = 0; dx < ofp.w && !adjacent; dx++) {
       for (let dy = 0; dy < ofp.h && !adjacent; dy++) {
@@ -564,4 +583,91 @@ export const SHOP_OWNED_KEY = "prayercircle.hometown.shop-owned.v1";
 export function parseOwnedItems(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === "string");
+}
+
+// ---- Bank Interior ----
+
+export type BankInteriorItem = {
+  id: string;
+  kind: "desk" | "carpet";
+  x: number;
+  y: number;
+};
+
+export type BankInteriorState = {
+  desks: BankInteriorItem[];
+  carpets: BankInteriorItem[];
+};
+
+export const BANK_INTERIOR_GRID = { w: 8, h: 6 };
+export const BANK_DESK_COST = 20;
+export const BANK_CARPET_COST = 5;
+export const BANK_MAX_DESKS = 6;
+
+export function bankInteriorKey(buildingId: string): string {
+  return `prayercircle.hometown.bank.${buildingId}.v1`;
+}
+
+export function parseBankInterior(value: unknown): BankInteriorState {
+  if (!value || typeof value !== "object") return { desks: [], carpets: [] };
+  const s = value as Partial<BankInteriorState>;
+  const clean = (arr: unknown) =>
+    Array.isArray(arr) ? arr.filter(i => i && typeof i.id === "string" && typeof i.x === "number" && typeof i.y === "number") : [];
+  return { desks: clean(s.desks) as BankInteriorItem[], carpets: clean(s.carpets) as BankInteriorItem[] };
+}
+
+/**
+ * Desk network multiplier: a desk counts as "connected" if it can reach
+ * another desk via orthogonally-adjacent carpet tiles (BFS through carpets + desks).
+ * Each connected desk gives +25% to the bank's earnings.
+ */
+export function connectedDeskCount(state: BankInteriorState): number {
+  const { desks, carpets } = state;
+  if (desks.length < 2) return 0;
+
+  const carpetSet = new Set(carpets.map(c => `${c.x},${c.y}`));
+  const deskSet = new Set(desks.map(d => `${d.x},${d.y}`));
+  // Walkable = carpet tiles + desk tiles
+  const walkable = new Set([...carpetSet, ...deskSet]);
+
+  const neighbors = (x: number, y: number) => [
+    [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+  ];
+
+  // BFS from each desk; a desk is connected if it reaches a different desk
+  let connected = 0;
+  for (const desk of desks) {
+    const visited = new Set<string>([`${desk.x},${desk.y}`]);
+    const queue: Array<[number, number]> = [[desk.x, desk.y]];
+    let foundOther = false;
+    while (queue.length > 0 && !foundOther) {
+      const [cx, cy] = queue.shift()!;
+      for (const [nx, ny] of neighbors(cx, cy)) {
+        const key = `${nx},${ny}`;
+        if (visited.has(key) || !walkable.has(key)) continue;
+        visited.add(key);
+        // Found a different desk?
+        if (deskSet.has(key) && key !== `${desk.x},${desk.y}`) {
+          foundOther = true;
+          break;
+        }
+        queue.push([nx, ny]);
+      }
+    }
+    if (foundOther) connected++;
+  }
+  return connected;
+}
+
+/** 1 + 0.25 per connected desk. Loads interior from storage by building ID. */
+export async function bankDeskMultiplier(buildingId: string): Promise<number> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(bankInteriorKey(buildingId));
+    if (!raw) return 1;
+    const state = parseBankInterior(JSON.parse(raw));
+    return 1 + connectedDeskCount(state) * 0.25;
+  } catch {
+    return 1;
+  }
 }

@@ -271,13 +271,26 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
   };
 }
 
+/** Devotion growth multiplier (cached; call refreshStatBoostCache() to warm). */
+let cachedGrowthMult = 0;
+export function setCachedGrowthMult(mult: number): void {
+  cachedGrowthMult = mult;
+}
+try {
+  // Warm lazily without creating an import cycle (character-stats never imports pawn).
+  import("./character-stats").then((m) => {
+    cachedGrowthMult = m.getCachedStatBoosts().growthMult;
+  }).catch(() => {});
+} catch {}
+
 /** Current beard length (0-100) for a pawn, including growth since last trim. Female pawns always return 0. */
 export function beardGrowthFor(pawn: CustomPawn): number {
   if (pawn.gender !== "male") return 0;
   const last = new Date(pawn.lastTrim).getTime();
   if (!isFinite(last)) return Math.max(0, Math.min(BEARD_MAX, pawn.beardLength || 0));
   const days = Math.max(0, (Date.now() - last) / 86400000);
-  return Math.max(0, Math.min(BEARD_MAX, (pawn.beardLength || 0) + days * BEARD_GROWTH_PER_DAY));
+  const rate = BEARD_GROWTH_PER_DAY * (1 + cachedGrowthMult);
+  return Math.max(0, Math.min(BEARD_MAX, (pawn.beardLength || 0) + days * rate));
 }
 
 /** Trim the beard back to zero and reset the growth clock. */
@@ -290,7 +303,8 @@ export function hairGrowthFor(pawn: CustomPawn): number {
   const last = new Date(pawn.lastHaircut).getTime();
   if (!isFinite(last)) return Math.max(0, Math.min(HAIR_MAX, pawn.hairLength || 0));
   const days = Math.max(0, (Date.now() - last) / 86400000);
-  return Math.max(0, Math.min(HAIR_MAX, (pawn.hairLength || 0) + days * HAIR_GROWTH_PER_DAY));
+  const rate = HAIR_GROWTH_PER_DAY * (1 + cachedGrowthMult);
+  return Math.max(0, Math.min(HAIR_MAX, (pawn.hairLength || 0) + days * rate));
 }
 
 /** Cut hair back to zero and reset the growth clock. */

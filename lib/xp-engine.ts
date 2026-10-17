@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
 import { getCachedBoosts, refreshGearBoostCache } from "./gear";
+import { getCachedStatBoosts, refreshStatBoostCache, grantStatPointsForLevel } from "./character-stats";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
@@ -186,11 +187,26 @@ export function normalizeXPState(value: unknown): XpState {
   return { totalXP, level, hearts, lastHeartRegenDate };
 }
 
+const PRAYER_XP_ACTIONS: XpAction[] = ["scheduled-prayer", "prayer-time-bonus", "reached-stamp"];
+const BIBLE_XP_ACTIONS: XpAction[] = ["daily-reading", "book-complete", "bible-complete"];
+
 export function applyXPAward(state: XpState, action: XpAction): XpAwardResult {
   const previous = normalizeXPState(state);
-  const basePoints = XP_ACTION_POINTS[action];
+  let basePoints = XP_ACTION_POINTS[action];
+  const statBoosts = getCachedStatBoosts();
+  // Character stat multipliers by category.
+  let statMult = 0;
+  if (PRAYER_XP_ACTIONS.includes(action)) {
+    // Intercessor perk: prayers for others give double XP.
+    if (action === "reached-stamp" && statBoosts.intercessor) basePoints *= 2;
+    statMult = statBoosts.prayerXpMult;
+  } else if (BIBLE_XP_ACTIONS.includes(action)) {
+    statMult = statBoosts.bibleXpMult;
+  } else if (action === "fasting-day") {
+    statMult = statBoosts.fastXpMult;
+  }
   // Gear XP multiplier (weapons).
-  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult));
+  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult + statMult));
   const totalXP = previous.totalXP + points;
   const level = getLevelForXP(totalXP);
   // Crossing a heart milestone immediately grants the new heart.
@@ -237,11 +253,15 @@ export async function awardXP(action: XpAction, idempotencyKey: string, position
     return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
   }
   await refreshGearBoostCache();
+  await refreshStatBoostCache();
   const result = applyXPAward(current, action);
   await Promise.all([
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
     AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
   ]);
+  if (result.levelUp) {
+    grantStatPointsForLevel(result.state.level).catch(() => {});
+  }
   emitXPGain(result.points, "gain", position);
   return result;
 }
@@ -269,6 +289,7 @@ export async function awardCustomXP(points: number, idempotencyKey: string, posi
     return { state: current, awarded: false, points: 0, previousLevel: current.level, levelUp: false };
   }
   await refreshGearBoostCache();
+  await refreshStatBoostCache();
   const safePoints = Math.max(0, Math.floor(points * (1 + getCachedBoosts().xpMult)));
   const previous = current;
   const totalXP = previous.totalXP + safePoints;
@@ -286,6 +307,9 @@ export async function awardCustomXP(points: number, idempotencyKey: string, posi
     AsyncStorage.setItem(XP_STORAGE_KEY, JSON.stringify(result.state)),
     AsyncStorage.setItem(XP_AWARDS_STORAGE_KEY, JSON.stringify([...awards, key])),
   ]);
+  if (result.levelUp) {
+    grantStatPointsForLevel(result.state.level).catch(() => {});
+  }
   emitXPGain(result.points, "gain", position);
   return result;
 }

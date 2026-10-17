@@ -17,6 +17,7 @@ import {
   roadMultiplierForBuilding,
   barbershopBoostForBuilding,
   shopAdjacencyBonusForBuilding,
+  bankDeskMultiplier,
   buildingFootprint,
   parseCoins,
   parseTown,
@@ -40,6 +41,7 @@ import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
 import { SeasonalOverlay } from "@/components/seasonal-overlay";
 import { TownNPCs } from "@/components/town-npcs";
 
@@ -446,6 +448,8 @@ export default function HometownScreen() {
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [missionsVisible, setMissionsVisible] = useState(false);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -551,6 +555,22 @@ export default function HometownScreen() {
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
         // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
+        // Preload bank desk multipliers (async) for bank/bank-tower buildings
+        const deskMults: Record<string, number> = {};
+        try {
+          const bankIds: string[] = [];
+          for (const id of TOWN_MAP_IDS) {
+            for (const b of t.maps[id].buildings) {
+              if (b.type === "bank" || b.type === "bank-tower") bankIds.push(b.id);
+            }
+          }
+          const mults = await Promise.all(bankIds.map((bid) => bankDeskMultiplier(bid)));
+          bankIds.forEach((bid, i) => { deskMults[bid] = mults[i]; });
+        } catch {}
+        // Generate today's missions
+        let missions: Mission[] = [];
+        try { missions = await generateDailyMissions(); } catch {}
+        setMissions(missions);
         const newMaps = { ...t.maps };
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
@@ -563,8 +583,9 @@ export default function HometownScreen() {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
+              const deskMult = deskMults[b.id] ?? 1;
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * gearCoinMult
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * gearCoinMult
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
               return {
                 ...b,
@@ -668,6 +689,9 @@ export default function HometownScreen() {
     if (existing) {
       if (existing.type === "pawn-house") {
         router.push("/pawn-house");
+        return;
+      } else if (existing.type === "bank" || existing.type === "bank-tower") {
+        router.push(`/bank-interior?buildingId=${existing.id}`);
         return;
       } else if (existing.type === "barbershop") {
         router.push("/barbershop");
@@ -1028,6 +1052,22 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 20 }}>→</Text>
       </Pressable>
 
+      {pendingMissions(missions).length > 0 && (
+        <Pressable
+          onPress={() => setMissionsVisible(true)}
+          style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: "#FCD34D" }}
+        >
+          <Text style={{ fontSize: 24 }}>📋</Text>
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            <Text style={{ fontWeight: "700", fontSize: 16, color: "#92400E" }}>
+              {pendingMissions(missions).length} mission{pendingMissions(missions).length > 1 ? "s" : ""} available
+            </Text>
+            <Text style={{ fontSize: 12, color: "#B45309" }}>Complete them for bonus coins & XP</Text>
+          </View>
+          <Text style={{ fontSize: 20, color: "#92400E" }}>→</Text>
+        </Pressable>
+      )}
+
       <Text style={{ color: "#78716C", marginBottom: 12 }}>
         Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive.
       </Text>
@@ -1246,6 +1286,69 @@ export default function HometownScreen() {
           <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
             <Text style={{ color: "#78716C" }}>Cancel</Text>
           </Pressable>
+        </View>
+      )}
+
+      {/* Missions modal */}
+      {missionsVisible && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}>
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, width: "100%", maxHeight: "80%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              <Text style={{ fontSize: 20, fontWeight: "800", flex: 1 }}>Missions</Text>
+              <Pressable onPress={() => setMissionsVisible(false)}>
+                <Text style={{ fontSize: 20, color: "#78716C" }}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView>
+              {missions.filter((m) => !m.completed).length === 0 && (
+                <Text style={{ color: "#78716C", textAlign: "center", paddingVertical: 16 }}>
+                  No missions right now. Check back tomorrow!
+                </Text>
+              )}
+              {missions.filter((m) => !m.completed).map((m) => (
+                <View key={m.id} style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <Text style={{ fontWeight: "700", fontSize: 15 }}>{m.title}</Text>
+                  <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{m.description}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                    <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                      {m.rewardCoins > 0 && (
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {m.rewardCoins}</Text>
+                      )}
+                      {m.rewardXP > 0 && (
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
+                      )}
+                    </View>
+                    <Pressable
+                      onPress={async () => {
+                        const next = await completeMission(m.id);
+                        setMissions(next);
+                        // Refresh coin display
+                        try {
+                          const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+                          setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+                        } catch {}
+                      }}
+                      style={{ backgroundColor: "#22C55E", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+                    >
+                      <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Done</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              {missions.filter((m) => m.completed).length > 0 && (
+                <>
+                  <Text style={{ fontWeight: "700", fontSize: 13, color: "#9CA3AF", marginTop: 4, marginBottom: 8 }}>
+                    Completed
+                  </Text>
+                  {missions.filter((m) => m.completed).map((m) => (
+                    <View key={m.id} style={{ paddingVertical: 6, opacity: 0.5 }}>
+                      <Text style={{ fontSize: 13, textDecorationLine: "line-through" }}>{m.title}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
         </View>
       )}
     </ScrollView>

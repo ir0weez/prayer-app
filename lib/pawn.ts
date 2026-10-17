@@ -10,7 +10,7 @@ export type PawnEyeStyle = "round" | "happy" | "sleepy" | "determined" | "starry
 export type PawnMouthStyle = "smile" | "open" | "flat" | "smirk";
 export type PawnAccessory = "none" | "tophat" | "crown" | "halo" | "cap";
 export type PawnGender = "male" | "female";
-export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun";
+export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun" | "bob" | "ponytail" | "braid" | "pixie";
 
 export type PawnBodyStyle = "pebble" | "round" | "tall" | "stocky";
 
@@ -57,6 +57,31 @@ export async function saveOwnedBeardStyles(styles: PawnBeardStyle[]): Promise<vo
   } catch {}
 }
 
+/** 75% off style prices until first prestige (new-player discount). */
+export async function styleDiscountMult(): Promise<number> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem("prayercircle.hometown.prestige.v1");
+    const level = raw ? parseInt(raw, 10) || 0 : 0;
+    return level === 0 ? 0.25 : 1;
+  } catch { return 1; }
+}
+
+/** Discounted price for a style (rounded up, min 1 if original cost > 0). */
+export function discountedStylePrice(cost: number, mult: number): number {
+  if (cost <= 0) return 0;
+  return Math.max(1, Math.ceil(cost * mult));
+}
+
+/** Reset owned styles on prestige (back to defaults). */
+export async function resetOwnedStyles(): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(HAIR_STYLES_STORAGE_KEY, JSON.stringify(["bald", "short"]));
+    await AsyncStorage.setItem(BEARD_STYLES_STORAGE_KEY, JSON.stringify(["none", "full"]));
+  } catch {}
+}
+
 export type CustomPawn = {
   id: string;
   name: string;
@@ -72,6 +97,8 @@ export type CustomPawn = {
   /** ISO timestamp of the last trim (baseline for growth). */
   lastTrim: string;
   beardStyle: PawnBeardStyle;
+  /** Hair color (hex). */
+  hairColor: string;
   /** Hair length (0-100) at the time of lastHaircut. Grows +12/day. */
   hairLength: number;
   /** ISO timestamp of the last haircut (baseline for growth). */
@@ -118,13 +145,28 @@ export const PAWN_GENDERS: { id: PawnGender; label: string }[] = [
   { id: "female", label: "Female" },
 ];
 
-export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string }[] = [
-  { id: "bald", label: "Bald", cost: 0, description: "Clean and simple." },
-  { id: "short", label: "Short", cost: 0, description: "Neat and tidy." },
-  { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides." },
-  { id: "long", label: "Long", cost: 20, description: "Flowing locks." },
-  { id: "mohawk", label: "Mohawk", cost: 25, description: "Bold strip down the middle." },
-  { id: "bun", label: "Bun", cost: 25, description: "Top knot. Stylish." },
+export type HairStyleGender = "male" | "female" | "both";
+
+export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string; gender: HairStyleGender }[] = [
+  { id: "bald", label: "Bald", cost: 0, description: "Clean and simple.", gender: "both" },
+  { id: "short", label: "Short", cost: 0, description: "Neat and tidy.", gender: "both" },
+  { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides.", gender: "male" },
+  { id: "long", label: "Long", cost: 20, description: "Flowing locks.", gender: "male" },
+  { id: "mohawk", label: "Mohawk", cost: 25, description: "Bold strip down the middle.", gender: "male" },
+  { id: "bun", label: "Bun", cost: 25, description: "Top knot. Stylish.", gender: "male" },
+  { id: "bob", label: "Bob", cost: 15, description: "Chin-length bob.", gender: "female" },
+  { id: "ponytail", label: "Ponytail", cost: 20, description: "High ponytail.", gender: "female" },
+  { id: "braid", label: "Braid", cost: 25, description: "Long braid.", gender: "female" },
+  { id: "pixie", label: "Pixie", cost: 15, description: "Short pixie cut.", gender: "female" },
+];
+
+export const PAWN_HAIR_COLORS: { id: string; name: string }[] = [
+  { id: "#111827", name: "Black" },
+  { id: "#5C3D2E", name: "Brown" },
+  { id: "#D4A54C", name: "Blonde" },
+  { id: "#8B3A3A", name: "Auburn" },
+  { id: "#6B7280", name: "Grey" },
+  { id: "#7C3AED", name: "Purple" },
 ];
 
 export const HAIR_STYLES_STORAGE_KEY = "prayercircle.pawn.hairstyles.v1";
@@ -136,7 +178,7 @@ export async function loadOwnedHairStyles(): Promise<PawnHairStyle[]> {
     if (!raw) return ["bald", "short"];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return ["bald", "short"];
-    const valid = arr.filter((s): s is PawnHairStyle => ["bald", "short", "medium", "long", "mohawk", "bun"].includes(s));
+    const valid = arr.filter((s): s is PawnHairStyle => PAWN_HAIR_STYLES.some((h) => h.id === s));
     if (!valid.includes("bald")) valid.push("bald");
     if (!valid.includes("short")) valid.push("short");
     return valid;
@@ -185,6 +227,7 @@ export function defaultPawn(): CustomPawn {
     beardLength: 0,
     lastTrim: now,
     hairLength: 0,
+    hairColor: "#111827",
     lastHaircut: now,
     createdAt: now,
   };
@@ -212,6 +255,7 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
     beardStyle: ["none", "full", "goatee", "mustache"].includes(p.beardStyle as string) ? (p.beardStyle as PawnBeardStyle) : "full",
     beardLength,
     lastTrim: typeof p.lastTrim === "string" ? p.lastTrim : new Date().toISOString(),
+    hairColor: typeof p.hairColor === "string" && PAWN_HAIR_COLORS.some((c) => c.id === p.hairColor) ? p.hairColor : "#111827",
     hairLength: typeof p.hairLength === "number" && isFinite(p.hairLength) ? Math.max(0, Math.min(HAIR_MAX, p.hairLength)) : 0,
     lastHaircut: typeof p.lastHaircut === "string" ? p.lastHaircut : new Date().toISOString(),
     createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),

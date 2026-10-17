@@ -8,6 +8,7 @@ import { PawnPreview } from "@/components/pawn-preview";
 import {
   BARBERSHOP_TRIM_COST,
   PAWN_BEARD_STYLES,
+  PAWN_HAIR_COLORS,
   PAWN_HAIR_STYLES,
   beardGrowthFor,
   beardLabel,
@@ -24,6 +25,8 @@ import {
   type CustomPawn,
   type PawnBeardStyle,
   type PawnHairStyle,
+  styleDiscountMult,
+  discountedStylePrice,
 } from "@/lib/pawn";
 import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY } from "@/lib/hometown";
 
@@ -126,18 +129,21 @@ export default function BarbershopScreen() {
   const [coins, setCoins] = useState<Coins>({ balance: 0, lifetimeEarned: 0 });
   const [ownedHair, setOwnedHair] = useState<PawnHairStyle[]>(["bald", "short"]);
   const [ownedBeard, setOwnedBeard] = useState<PawnBeardStyle[]>(["none", "full"]);
+  const [discountMult, setDiscountMult] = useState(1);
   const [loaded, setLoaded] = useState(false);
 
   const [hasShop, setHasShop] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [p, c, oh, ob, townRaw] = await Promise.all([
+    const [p, c, oh, ob, townRaw, disc] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadOwnedHairStyles(),
       loadOwnedBeardStyles(),
       AsyncStorage.getItem(TOWN_STORAGE_KEY),
+      styleDiscountMult(),
     ]);
+    setDiscountMult(disc);
     setPawn(p);
     setCoins(c);
     setOwnedHair(oh);
@@ -254,6 +260,13 @@ export default function BarbershopScreen() {
     setPawn(updated);
   };
 
+  const handleHairColor = async (color: string) => {
+    if (!pawn || pawn.hairColor === color) return;
+    const updated = { ...pawn, hairColor: color };
+    await saveCustomPawn(updated);
+    setPawn(updated);
+  };
+
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: BG }} />;
   }
@@ -349,11 +362,17 @@ export default function BarbershopScreen() {
               </Text>
             </Pressable>
 
+            {discountMult < 1 && (
+              <Text style={{ color: "#4ADE80", fontSize: 12, textAlign: "center", marginBottom: 8, fontWeight: "700" }}>
+                🎉 75% OFF — new pawn discount! (Ends after first prestige)
+              </Text>
+            )}
             <SectionHeader title="HAIR STYLES" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
-              {PAWN_HAIR_STYLES.map((s) => {
+              {PAWN_HAIR_STYLES.filter((s) => s.gender === "both" || s.gender === pawn.gender).map((s) => {
                 const owned = ownedHair.includes(s.id);
                 const equipped = pawn.hairStyle === s.id;
+                const price = discountedStylePrice(s.cost, discountMult);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -361,11 +380,40 @@ export default function BarbershopScreen() {
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
-                    cost={s.cost}
-                    canAfford={coins.balance >= s.cost}
-                    onBuy={() => handleBuyHair(s.id, s.cost)}
+                    cost={price}
+                    canAfford={coins.balance >= price}
+                    onBuy={() => handleBuyHair(s.id, discountedStylePrice(s.cost, discountMult))}
                     onEquip={() => handleEquipHair(s.id)}
                   />
+                );
+              })}
+            </View>
+
+            <SectionHeader title="HAIR COLOR" />
+            <Text style={{ color: LABEL, fontSize: 12, marginBottom: 8 }}>
+              Free to change, anytime.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+              {PAWN_HAIR_COLORS.map((c) => {
+                const selected = (pawn.hairColor || "#111827") === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => handleHairColor(c.id)}
+                    accessibilityLabel={c.name}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: c.id,
+                      borderWidth: selected ? 3 : 1,
+                      borderColor: selected ? "#FFFFFF" : "rgba(255,255,255,0.25)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {selected && <MaterialIcons name="check" size={22} color="#FFFFFF" />}
+                  </Pressable>
                 );
               })}
             </View>
@@ -439,11 +487,17 @@ export default function BarbershopScreen() {
               </Text>
             </Pressable>
 
+            {discountMult < 1 && (
+              <Text style={{ color: "#4ADE80", fontSize: 12, textAlign: "center", marginBottom: 8, fontWeight: "700" }}>
+                🎉 75% OFF — new pawn discount! (Ends after first prestige)
+              </Text>
+            )}
             <SectionHeader title="HAIR STYLES" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
-              {PAWN_HAIR_STYLES.map((s) => {
+              {PAWN_HAIR_STYLES.filter((s) => s.gender === "both" || s.gender === pawn.gender).map((s) => {
                 const owned = ownedHair.includes(s.id);
                 const equipped = pawn.hairStyle === s.id;
+                const price = discountedStylePrice(s.cost, discountMult);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -451,11 +505,40 @@ export default function BarbershopScreen() {
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
-                    cost={s.cost}
-                    canAfford={coins.balance >= s.cost}
-                    onBuy={() => handleBuyHair(s.id, s.cost)}
+                    cost={price}
+                    canAfford={coins.balance >= price}
+                    onBuy={() => handleBuyHair(s.id, discountedStylePrice(s.cost, discountMult))}
                     onEquip={() => handleEquipHair(s.id)}
                   />
+                );
+              })}
+            </View>
+
+            <SectionHeader title="HAIR COLOR" />
+            <Text style={{ color: LABEL, fontSize: 12, marginBottom: 8 }}>
+              Free to change, anytime.
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+              {PAWN_HAIR_COLORS.map((c) => {
+                const selected = (pawn.hairColor || "#111827") === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => handleHairColor(c.id)}
+                    accessibilityLabel={c.name}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: c.id,
+                      borderWidth: selected ? 3 : 1,
+                      borderColor: selected ? "#FFFFFF" : "rgba(255,255,255,0.25)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {selected && <MaterialIcons name="check" size={22} color="#FFFFFF" />}
+                  </Pressable>
                 );
               })}
             </View>
@@ -465,6 +548,7 @@ export default function BarbershopScreen() {
               {PAWN_BEARD_STYLES.map((s) => {
                 const owned = ownedBeard.includes(s.id);
                 const equipped = pawn.beardStyle === s.id;
+                const price = discountedStylePrice(s.cost, discountMult);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -472,9 +556,9 @@ export default function BarbershopScreen() {
                     name={s.name}
                     owned={owned}
                     equipped={equipped}
-                    cost={s.cost}
-                    canAfford={coins.balance >= s.cost}
-                    onBuy={() => handleBuyBeard(s.id, s.cost)}
+                    cost={price}
+                    canAfford={coins.balance >= price}
+                    onBuy={() => handleBuyBeard(s.id, price)}
                     onEquip={() => handleEquipBeard(s.id)}
                   />
                 );

@@ -1320,6 +1320,8 @@ function WaypointPawn({ pawnId, color, size, waypoint }: {
 function TodayPawn({ pawnId, color, size, waypoint }: { pawnId?: string; color: string; size: number; waypoint: any }) {
   const [customPawn, setCustomPawn] = useState<CustomPawn | null>(null);
   const [equippedClothes, setEquippedClothes] = useState<GearItem | null>(null);
+  // Gentle levitation like the classic pebble
+  const levitate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadCustomPawn().then(setCustomPawn).catch(() => {});
@@ -1331,11 +1333,24 @@ function TodayPawn({ pawnId, color, size, waypoint }: { pawnId?: string; color: 
     })();
   }, []);
 
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(levitate, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(levitate, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [levitate]);
+
+  const floatY = levitate.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
+
   if (customPawn) {
     return (
-      <View style={{ alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{ alignItems: "center", justifyContent: "center", transform: [{ translateY: floatY }] }}>
         <PawnPreview pawn={customPawn} size={size * 0.85} equippedGear={equippedClothes} />
-      </View>
+      </Animated.View>
     );
   }
 

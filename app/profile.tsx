@@ -496,6 +496,9 @@ export default function ProfileScreen() {
                     await AsyncStorage.setItem("prayercircle.hometown.prestige.v1", String(currentPrestige + 1));
                     await AsyncStorage.setItem("prayercircle.hometown.coins.v1", JSON.stringify({ balance: 0, lifetimeEarned: 0 }));
                     await AsyncStorage.setItem("prayercircle.hometown.town.v1", JSON.stringify({ buildings: [], decorations: [], roads: [], lastIncomeDate: null }));
+                    // Style unlocks reset too — buy them again
+                    await AsyncStorage.setItem("prayercircle.pawn.hairstyles.v1", JSON.stringify(["bald", "short"]));
+                    await AsyncStorage.setItem("prayercircle.pawn.beardstyles.v1", JSON.stringify(["none", "full"]));
                     setPrestigeLevel(currentPrestige + 1);
                   } catch {}
                 },

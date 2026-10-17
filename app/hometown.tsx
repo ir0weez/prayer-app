@@ -64,6 +64,15 @@ import {
   hasFixedFootprint,
   buildingStorageCap,
   isBuildingStorageFull,
+  isRestaurantType,
+  RESTAURANT_GATHER_CAPS,
+  isGatheringTime,
+  totalGatherCapacity,
+  fellowshipRate,
+  loadFellowship,
+  saveFellowship,
+  fellowshipMult,
+  type FellowshipState,
   type CityPlot,
   type TownLot,
   type BuildingType,
@@ -635,6 +644,178 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           </View>
         </View>
       );
+    case "upper-room":
+      // The Upper Room — warm communal dining hall.
+      // L1: simple tables + candles. L2: banquet tables + lanterns. L3: grand hall + chandeliers.
+      if (lv >= 3) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* Grand hall */}
+          <View style={{ width: s * 0.95, height: s * 0.68, backgroundColor: "#92400E", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
+            {/* Golden chandeliers */}
+            <View style={{ flexDirection: "row", position: "absolute", top: s * 0.06 }}>
+              {[0, 1, 2].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.06 }}>
+                  <View style={{ width: 2, height: s * 0.08, backgroundColor: "#78350F" }} />
+                  <View style={{ width: s * 0.12, height: s * 0.05, backgroundColor: "#FBBF24", borderRadius: 3 }} />
+                  <View style={{ width: s * 0.04, height: s * 0.04, backgroundColor: "#FEF3C7", borderRadius: s * 0.02, marginTop: 1 }} />
+                </View>
+              ))}
+            </View>
+            {/* Long banquet table with glowing centerpiece */}
+            <View style={{ width: s * 0.75, height: s * 0.1, backgroundColor: "#78350F", borderRadius: 4 }} />
+            <View style={{ width: s * 0.1, height: s * 0.1, backgroundColor: "#FDE68A", borderRadius: s * 0.05, marginTop: -s * 0.1, shadowColor: "#FBBF24", shadowOpacity: 0.8, shadowRadius: 8 }} />
+            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
+              {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.1, height: s * 0.1, backgroundColor: isLit(2, i) ? LIT : "#451A03", marginHorizontal: 3, borderRadius: 2 }} />)}
+            </View>
+          </View>
+          <View style={{ width: s * 0.98, height: s * 0.08, backgroundColor: "#451A03", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+      if (lv >= 2) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.62, backgroundColor: "#B45309", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
+            {/* Hanging lanterns */}
+            <View style={{ flexDirection: "row", position: "absolute", top: s * 0.08 }}>
+              {[0, 1].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.1 }}>
+                  <View style={{ width: 2, height: s * 0.06, backgroundColor: "#78350F" }} />
+                  <View style={{ width: s * 0.09, height: s * 0.09, backgroundColor: "#F59E0B", borderRadius: s * 0.045 }} />
+                </View>
+              ))}
+            </View>
+            {/* Banquet table */}
+            <View style={{ width: s * 0.68, height: s * 0.09, backgroundColor: "#92400E", borderRadius: 4 }} />
+            <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
+              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.04, height: s * 0.06, backgroundColor: "#FDE68A", marginHorizontal: 6, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#D97706", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.08 }}>
+            {/* Simple tables with warm candles */}
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.08 }}>
+                  <View style={{ width: s * 0.22, height: s * 0.07, backgroundColor: "#92400E", borderRadius: 3 }} />
+                  <View style={{ width: s * 0.03, height: s * 0.05, backgroundColor: "#FEF3C7", borderRadius: 2, marginTop: -s * 0.1 }} />
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      );
+    case "manna-house":
+      // Manna House — cozy bakery for breaking bread.
+      if (lv >= 3) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.92, height: s * 0.66, backgroundColor: "#F59E0B", borderRadius: 6, alignItems: "center", paddingTop: s * 0.06 }}>
+            <View style={{ width: s * 0.5, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 5 }}>
+              <Text style={{ fontSize: s * 0.06, fontWeight: "800", color: "#FEF3C7", textAlign: "center", marginTop: s * 0.015 }}>MANNA</Text>
+            </View>
+            {/* Golden chandelier + bread display */}
+            <View style={{ alignItems: "center", marginTop: s * 0.04 }}>
+              <View style={{ width: 2, height: s * 0.06, backgroundColor: "#78350F" }} />
+              <View style={{ width: s * 0.2, height: s * 0.06, backgroundColor: "#FBBF24", borderRadius: 4 }} />
+            </View>
+            <View style={{ flexDirection: "row", marginTop: s * 0.06 }}>
+              {[0, 1, 2].map(i => (
+                <View key={i} style={{ width: s * 0.16, height: s * 0.1, backgroundColor: "#FDE68A", borderRadius: s * 0.05, marginHorizontal: 4, borderWidth: 1, borderColor: "#D97706" }} />
+              ))}
+            </View>
+            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
+              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.12, height: s * 0.12, backgroundColor: isLit(1, i) ? LIT : "#92400E", marginHorizontal: 5, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+      if (lv >= 2) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.88, height: s * 0.6, backgroundColor: "#FBBF24", borderRadius: 6, alignItems: "center", paddingTop: s * 0.08 }}>
+            {/* Hanging lanterns */}
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.12 }}>
+                  <View style={{ width: 2, height: s * 0.05, backgroundColor: "#92400E" }} />
+                  <View style={{ width: s * 0.08, height: s * 0.08, backgroundColor: "#F59E0B", borderRadius: s * 0.04 }} />
+                </View>
+              ))}
+            </View>
+            {/* Bread shelves */}
+            <View style={{ marginTop: s * 0.08 }}>
+              {[0, 1].map(r => (
+                <View key={r} style={{ flexDirection: "row", marginVertical: 3 }}>
+                  {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.14, height: s * 0.08, backgroundColor: "#FEF3C7", borderRadius: s * 0.04, marginHorizontal: 3 }} />)}
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      );
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#FCD34D", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            {/* Simple bread + candle */}
+            <View style={{ width: s * 0.3, height: s * 0.16, backgroundColor: "#FEF3C7", borderRadius: s * 0.08, borderWidth: 1, borderColor: "#D97706" }} />
+            <View style={{ width: s * 0.04, height: s * 0.08, backgroundColor: "#FDE68A", borderRadius: 2, marginTop: 6 }} />
+          </View>
+        </View>
+      );
+    case "feast-hall":
+      // Feast Hall — grand banquet building.
+      if (lv >= 3) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.95, height: s * 0.7, backgroundColor: "#7C2D12", borderRadius: 6, alignItems: "center", paddingTop: s * 0.05 }}>
+            {/* Twin golden chandeliers */}
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.14 }}>
+                  <View style={{ width: 2, height: s * 0.07, backgroundColor: "#451A03" }} />
+                  <View style={{ width: s * 0.16, height: s * 0.07, backgroundColor: "#FBBF24", borderRadius: 4 }} />
+                  <View style={{ flexDirection: "row", marginTop: 2 }}>
+                    {[0, 1, 2].map(j => <View key={j} style={{ width: s * 0.03, height: s * 0.03, backgroundColor: "#FEF3C7", borderRadius: s * 0.015, marginHorizontal: 2 }} />)}
+                  </View>
+                </View>
+              ))}
+            </View>
+            {/* Glowing centerpiece table */}
+            <View style={{ width: s * 0.7, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 4, marginTop: s * 0.06 }} />
+            <View style={{ width: s * 0.14, height: s * 0.14, backgroundColor: "#FDE68A", borderRadius: s * 0.07, marginTop: -s * 0.12, shadowColor: "#FBBF24", shadowOpacity: 0.9, shadowRadius: 10 }} />
+            <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
+              {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.11, height: s * 0.14, backgroundColor: isLit(0, i) ? LIT : "#451A03", marginHorizontal: 4, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+      if (lv >= 2) return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.64, backgroundColor: "#9A3412", borderRadius: 6, alignItems: "center", paddingTop: s * 0.08 }}>
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1, 2].map(i => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.07 }}>
+                  <View style={{ width: 2, height: s * 0.05, backgroundColor: "#451A03" }} />
+                  <View style={{ width: s * 0.08, height: s * 0.08, backgroundColor: "#FBBF24", borderRadius: s * 0.04 }} />
+                </View>
+              ))}
+            </View>
+            <View style={{ width: s * 0.65, height: s * 0.09, backgroundColor: "#7C2D12", borderRadius: 4, marginTop: s * 0.08 }} />
+            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
+              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.1, height: s * 0.12, backgroundColor: isLit(2, i) ? LIT : "#451A03", marginHorizontal: 5, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.88, height: s * 0.58, backgroundColor: "#C2410C", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.08 }}>
+            <View style={{ width: s * 0.6, height: s * 0.08, backgroundColor: "#7C2D12", borderRadius: 4 }} />
+            <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
+              {[0, 1].map(i => <View key={i} style={{ width: s * 0.04, height: s * 0.06, backgroundColor: "#FDE68A", marginHorizontal: 8, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -761,6 +942,8 @@ export default function HometownScreen() {
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
+  const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
+  const [gatheringNow, setGatheringNow] = useState(false);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -980,6 +1163,24 @@ export default function HometownScreen() {
         // Pawn house rooms + desirables boost coin income
         let houseCoinMult = 0;
         try { houseCoinMult = (await refreshHouseBonusCache()).coinMult; } catch {}
+        // Fellowship: if the gathering is happening now (Mon/Wed/Fri 6-8pm),
+        // breaking bread together sets a 24h income blessing.
+        const gathering = isGatheringTime();
+        setGatheringNow(gathering);
+        let fellowshipState: FellowshipState | null = null;
+        try { fellowshipState = await loadFellowship(); } catch {}
+        if (gathering) {
+          const cityBuildings = t.maps.city?.buildings || [];
+          const capacity = totalGatherCapacity(cityBuildings);
+          const rate = fellowshipRate(cityBuildings);
+          if (capacity > 0 && rate > 0 && prayedCount > 0) {
+            const villagers = Math.min(prayedCount, capacity, PRAYER_VILLAGER_CAP);
+            fellowshipState = { villagers, rate, earnedAt: new Date().toISOString() };
+            try { await saveFellowship(fellowshipState); } catch {}
+          }
+        }
+        setFellowship(fellowshipState);
+        const fellowshipBonus = fellowshipMult(fellowshipState);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -998,7 +1199,7 @@ export default function HometownScreen() {
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(t);
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * (1 + houseCoinMult);
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * (1 + houseCoinMult);
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
                 ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
@@ -1034,7 +1235,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult);
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus);
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);
@@ -1148,9 +1349,16 @@ export default function HometownScreen() {
     const nextLevel = (level + 1) as 2 | 3;
     const cost = upgradeCostFor(b.type, nextLevel);
     const preview: PlacedBuilding = { ...b, level: nextLevel };
+    const isRestaurant = isRestaurantType(b.type);
+    const upgradeBlurb = isRestaurant
+      ? `Upgrade to Lv ${nextLevel}: ${incomeLabelFor(preview)} — grander hall, more villagers can gather, bigger fellowship blessing.`
+      : `Upgrade to Lv ${nextLevel}: ${incomeLabelFor(preview)} — taller tower, more life, bigger payouts.`;
+    const capacityBlurb = isRestaurant
+      ? `\nGathering capacity: ${RESTAURANT_GATHER_CAPS[level] ?? 10} → ${RESTAURANT_GATHER_CAPS[nextLevel] ?? 10} villagers.`
+      : "";
     Alert.alert(
       `${def.name} (Lv ${level}) — ${plot.name}`,
-      `${def.description}\n\nCurrently earns ${incomeLabelFor(b)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor(preview)} — taller tower, more life, bigger payouts.\n\nPlots can't be moved or sold.`,
+      `${def.description}\n\nCurrently earns ${incomeLabelFor(b)}.\n${upgradeBlurb}${capacityBlurb}\n\nPlots can't be moved or sold.`,
       [
         { text: "Cancel", style: "cancel" },
         ...enterActions,
@@ -1533,6 +1741,20 @@ export default function HometownScreen() {
         </View>
       ) : null}
 
+      {/* Fellowship chip — breaking bread blessing (24h) */}
+      {(() => {
+        const fm = fellowshipMult(fellowship);
+        if (fm <= 1) return null;
+        return (
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FDE68A" }}>
+            <Text style={{ fontSize: 14 }}>🍞</Text>
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+              Fellowship: +{((fm - 1) * 100).toFixed(1)}%{gatheringNow ? " — breaking bread now!" : ""}
+            </Text>
+          </View>
+        );
+      })()}
+
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -1658,6 +1880,25 @@ export default function HometownScreen() {
                       backgroundColor: "#FDE68A",
                       opacity: 0.35,
                       borderRadius: 5,
+                    }}
+                  />
+                )}
+                {/* The Gathering: warm golden glow around restaurants while breaking bread */}
+                {gatheringNow && isRestaurantType(b.type) && !!b.plotId && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      left: -6,
+                      top: -6,
+                      width: fp.w * cellSize + 12,
+                      height: fp.h * cellSize + 12,
+                      backgroundColor: "#FBBF24",
+                      opacity: 0.25,
+                      borderRadius: 12,
+                      shadowColor: "#F59E0B",
+                      shadowOpacity: 0.6,
+                      shadowRadius: 16,
                     }}
                   />
                 )}

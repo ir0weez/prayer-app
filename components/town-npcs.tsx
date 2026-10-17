@@ -5,6 +5,8 @@ import {
   buildingFootprint,
   townsfolkForHouse,
   PRAYER_VILLAGER_CAP,
+  isRestaurantType,
+  isGatheringTime,
   type MapState,
   type PrayedPerson,
 } from "@/lib/hometown";
@@ -222,6 +224,12 @@ export function TownNPCs({
         return !!def && (def.incomePerDay > 0 || def.xpPerDay > 0);
       });
       let pool = businesses;
+      // The Gathering: blessed prayer villagers head to Restaurant Row to break
+      // bread together (Mon/Wed/Fri 6-8pm). A shared meal, not just a visit.
+      if (npc.blessed && isGatheringTime()) {
+        const restaurants = businesses.filter((b) => isRestaurantType(b.type));
+        if (restaurants.length > 0) pool = restaurants;
+      }
       if (pool.length === 0) {
         // no shops yet — visit a neighbor's cottage instead
         pool = ms.buildings.filter((b) => b.type === "house" && b.id !== npc.homeId);
@@ -243,7 +251,9 @@ export function TownNPCs({
         npc.state = "visiting";
         // At night the town is asleep — just a quick peek before heading home.
         // Businesses are closed, so no bank-visit bonus either.
-        npc.waitUntil = now + (nightNow ? 1200 : 3000 + Math.random() * 5000);
+        // During the gathering, blessed villagers linger for a real shared meal.
+        const gatheringMeal = npc.blessed && isGatheringTime() && npc.destType && isRestaurantType(npc.destType as any);
+        npc.waitUntil = now + (nightNow ? 1200 : gatheringMeal ? 12000 + Math.random() * 8000 : 3000 + Math.random() * 5000);
         // Visiting a bank? Customers doing business — bonus coins for the bank.
         if (!nightNow && (npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
           try {

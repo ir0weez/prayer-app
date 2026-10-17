@@ -95,7 +95,11 @@ export type BuildingType =
   | "sushi-bar"
   | "diner"
   // Church (prayer residents)
-  | "church";
+  | "church"
+  // Restaurant Row (city gathering spots for breaking bread)
+  | "upper-room"
+  | "manna-house"
+  | "feast-hall";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -245,6 +249,8 @@ export function populationMult(town: TownState): number {
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
   if (type === "house") return HOUSE_UPGRADE_COSTS[toLevel] ?? 0;
+  // Restaurant Row has fixed upgrade costs (the banquet gets grander).
+  if (isRestaurantType(type)) return RESTAURANT_UPGRADE_COSTS[toLevel] ?? 0;
   const base = BUILDINGS[type].cost;
   return Math.round(base * (UPGRADE_COST_MULT as Record<number, number>)[toLevel]);
 }
@@ -301,6 +307,10 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 60, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +2 coins/day." },
   "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 105, tier: 1, incomePerDay: 4, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +4 coins/day." },
   "diner":        { name: "Pancake Diner", icon: "🥞", cost: 65, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
+  // Restaurant Row — city gathering spots where prayer villagers break bread
+  "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +22 coins/day." },
+  "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +20 coins/day." },
+  "feast-hall":  { name: "Feast Hall",     icon: "🍷", cost: 300, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "A grand banquet hall. +24 coins/day." },
 };
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
@@ -320,6 +330,10 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 375, name: "Business Park Lot" },
   { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 600, name: "Central Tower Lot" },
   { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 525, name: "Uptown Lot" },
+  // Restaurant Row — where the prayer villagers gather to break bread
+  { id: "plot-rest-1", x: 0, y: 3, buildingType: "upper-room",  cost: 300, name: "Restaurant Row West" },
+  { id: "plot-rest-2", x: 6, y: 3, buildingType: "manna-house", cost: 300, name: "Restaurant Row East" },
+  { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 300, name: "Feast Hall Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -362,6 +376,93 @@ export async function savePurchasedPlots(ids: string[]): Promise<void> {
 
 export function plotAt(x: number, y: number): CityPlot | undefined {
   return CITY_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
+}
+
+// ---- Restaurant Row: breaking bread ----
+
+/** True for the three Restaurant Row building types. */
+export function isRestaurantType(type: BuildingType): boolean {
+  return type === "upper-room" || type === "manna-house" || type === "feast-hall";
+}
+
+/** Fixed upgrade costs for restaurants: L1 purchase is the plot cost (300c). */
+export const RESTAURANT_UPGRADE_COSTS: Record<number, number> = { 2: 500, 3: 800 };
+
+/** How many villagers can gather at each restaurant level. */
+export const RESTAURANT_GATHER_CAPS: Record<number, number> = { 1: 10, 2: 25, 3: 40 };
+
+/** Fellowship bonus per gathered villager, by restaurant level. */
+export const RESTAURANT_FELLOWSHIP_RATES: Record<number, number> = { 1: 0.005, 2: 0.0075, 3: 0.01 };
+
+/**
+ * The Gathering: Mon/Wed/Fri, 6–8pm. Prayer villagers path to Restaurant Row
+ * to break bread together. A shared meal, not every night — so it feels special.
+ */
+export function isGatheringTime(date: Date = new Date()): boolean {
+  const day = date.getDay(); // 1=Mon, 3=Wed, 5=Fri
+  const hour = date.getHours();
+  return (day === 1 || day === 3 || day === 5) && hour >= 18 && hour < 20;
+}
+
+/** Total gathering capacity across all purchased restaurants. */
+export function totalGatherCapacity(buildings: PlacedBuilding[]): number {
+  return buildings
+    .filter((b) => isRestaurantType(b.type) && b.plotId)
+    .reduce((sum, b) => sum + (RESTAURANT_GATHER_CAPS[b.level || 1] ?? 10), 0);
+}
+
+/** Fellowship rate = the rate of the highest-level restaurant (the flagship). */
+export function fellowshipRate(buildings: PlacedBuilding[]): number {
+  const levels = buildings
+    .filter((b) => isRestaurantType(b.type) && b.plotId)
+    .map((b) => b.level || 1);
+  if (levels.length === 0) return 0;
+  const best = Math.max(...levels);
+  return RESTAURANT_FELLOWSHIP_RATES[best] ?? 0.005;
+}
+
+// ---- Fellowship bonus: persists 24h after each gathering ----
+
+export const FELLOWSHIP_STORAGE_KEY = "prayercircle.hometown.fellowship.v1";
+
+export type FellowshipState = {
+  /** Villagers who broke bread at the last gathering. */
+  villagers: number;
+  /** Per-villager rate at the time. */
+  rate: number;
+  /** ISO timestamp of the gathering. */
+  earnedAt: string;
+};
+
+export async function loadFellowship(): Promise<FellowshipState | null> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(FELLOWSHIP_STORAGE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (typeof s.villagers !== "number" || typeof s.rate !== "number" || typeof s.earnedAt !== "string") return null;
+    return s as FellowshipState;
+  } catch { return null; }
+}
+
+export async function saveFellowship(s: FellowshipState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(FELLOWSHIP_STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/**
+ * Fellowship income multiplier. The breaking-bread blessing lasts 24 hours
+ * after each gathering: 1 + (villagers × rate).
+ */
+export function fellowshipMult(state: FellowshipState | null, now: Date = new Date()): number {
+  if (!state || state.villagers <= 0 || state.rate <= 0) return 1;
+  const earnedAt = new Date(state.earnedAt).getTime();
+  if (isNaN(earnedAt)) return 1;
+  const hoursSince = (now.getTime() - earnedAt) / 3600000;
+  if (hoursSince < 0 || hoursSince >= 24) return 1;
+  return 1 + state.villagers * state.rate;
 }
 
 // ---- City streets: proper downtown grid (permanent infrastructure) ----
@@ -943,13 +1044,13 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = town ? populationMult(town) : 1;
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -958,8 +1059,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

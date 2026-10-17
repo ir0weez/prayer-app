@@ -406,10 +406,58 @@ export function xpIncomeFor(type: BuildingType, level: 1 | 2 | 3): number {
   return Math.round(base * UPGRADE_INCOME_MULT[level]);
 }
 
+/** Shop types that give adjacency bonuses to neighboring income buildings. */
+const SHOP_TYPES: BuildingType[] = [
+  "barbershop", "clothes-shop", "armory", "weaponsmith", "toolshop",
+  "food-court", "bookstore", "arcade", "cinema",
+  "bank-tower", "department-store", "hotel", "office",
+];
+
+/**
+ * Commercial district bonus: income buildings adjacent to shops earn more.
+ * +15% per adjacent shop, capped at +60% (4 shops).
+ * Footprint-aware: checks all tiles of both buildings for orthogonal adjacency.
+ */
+export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string): number {
+  const buildings = map.buildings;
+  const building = buildings.find(b => b.id === buildingId);
+  if (!building) return 1;
+
+  const fp = buildingFootprint(building.level || 1);
+  // Collect all tiles of the target building
+  const myTiles = new Set<string>();
+  for (let dx = 0; dx < fp.w; dx++)
+    for (let dy = 0; dy < fp.h; dy++)
+      myTiles.add(`${building.x + dx},${building.y + dy}`);
+
+  const isOrthogonal = (x1: number, y1: number, x2: number, y2: number) =>
+    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
+
+  let shopCount = 0;
+  for (const other of buildings) {
+    if (other.id === buildingId) continue;
+    if (!SHOP_TYPES.includes(other.type)) continue;
+    const ofp = buildingFootprint(other.level || 1);
+    let adjacent = false;
+    for (let dx = 0; dx < ofp.w && !adjacent; dx++) {
+      for (let dy = 0; dy < ofp.h && !adjacent; dy++) {
+        const ox = other.x + dx, oy = other.y + dy;
+        for (const t of myTiles) {
+          const [tx, ty] = t.split(",").map(Number);
+          if (isOrthogonal(ox, oy, tx, ty)) { adjacent = true; break; }
+        }
+      }
+    }
+    if (adjacent) shopCount++;
+  }
+
+  return 1 + Math.min(shopCount, 4) * 0.15;
+}
+
 export function dailyIncomeForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => {
     const base = incomeFor(b.type, b.level || 1);
-    const multiplier = roadMultiplierForBuilding(map, b.id);
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id);
     return sum + (base * multiplier);
   }, 0);
 }

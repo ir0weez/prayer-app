@@ -16,6 +16,7 @@ import {
   dailyXPForTown,
   roadMultiplierForBuilding,
   barbershopBoostForBuilding,
+  shopAdjacencyBonusForBuilding,
   buildingFootprint,
   parseCoins,
   parseTown,
@@ -561,8 +562,9 @@ export default function HometownScreen() {
             if (hoursElapsed > 0 && (earnsCoins || earnsXP)) {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
+              const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * gearCoinMult
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * gearCoinMult
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
               return {
                 ...b,

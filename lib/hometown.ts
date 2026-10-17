@@ -1023,20 +1023,70 @@ export function bankInteriorKey(buildingId: string): string {
 }
 
 export function parseBankInterior(value: unknown): BankInteriorState {
-  if (!value || typeof value !== "object") return { desks: [], carpets: [] };
-  const s = value as Partial<BankInteriorState>;
-  const clean = (arr: unknown) =>
-    Array.isArray(arr) ? arr.filter(i => i && typeof i.id === "string" && typeof i.x === "number" && typeof i.y === "number") : [];
-  return { desks: clean(s.desks) as BankInteriorItem[], carpets: clean(s.carpets) as BankInteriorItem[] };
+  const emptyFloor = (): BankFloorInterior => ({ desks: [], carpets: [], furniture: [] });
+  if (!value || typeof value !== "object") return { floors: {} };
+  const s = value as Partial<BankInteriorState> & { desks?: unknown; carpets?: unknown };
+  const cleanItems = (arr: unknown): BankInteriorItem[] =>
+    Array.isArray(arr)
+      ? arr
+          .filter((i) => i && typeof i.id === "string" && typeof i.x === "number" && typeof i.y === "number")
+          .map((i) => ({
+            id: i.id as string,
+            kind: (i as { kind?: unknown }).kind === "carpet" ? ("carpet" as const) : ("desk" as const),
+            x: i.x as number,
+            y: i.y as number,
+            ...(typeof (i as { cost?: unknown }).cost === "number" ? { cost: (i as { cost: number }).cost } : {}),
+          }))
+      : [];
+  const cleanFurniture = (arr: unknown): BankFurnitureItem[] =>
+    Array.isArray(arr)
+      ? arr
+          .filter(
+            (i) =>
+              i &&
+              typeof i.id === "string" &&
+              typeof i.type === "string" &&
+              typeof i.x === "number" &&
+              typeof i.y === "number" &&
+              typeof i.cost === "number"
+          )
+          .map((i) => ({
+            id: i.id as string,
+            type: (i as { type: BankFurnitureType }).type,
+            x: i.x as number,
+            y: i.y as number,
+            cost: (i as { cost: number }).cost,
+          }))
+      : [];
+  // Migrate legacy flat shape { desks, carpets } -> floors["1"]
+  if (!s.floors && (Array.isArray(s.desks) || Array.isArray(s.carpets))) {
+    return {
+      floors: {
+        "1": { desks: cleanItems(s.desks), carpets: cleanItems(s.carpets), furniture: [] },
+      },
+    };
+  }
+  const floors: Record<string, BankFloorInterior> = {};
+  if (s.floors && typeof s.floors === "object") {
+    for (const [k, v] of Object.entries(s.floors)) {
+      const fv = (v || {}) as Partial<BankFloorInterior>;
+      floors[k] = {
+        desks: cleanItems(fv.desks),
+        carpets: cleanItems(fv.carpets),
+        furniture: cleanFurniture(fv.furniture),
+      };
+    }
+  }
+  return { floors };
 }
 
 /**
  * Desk network multiplier: a desk counts as "connected" if it can reach
  * another desk via orthogonally-adjacent carpet tiles (BFS through carpets + desks).
- * Each connected desk gives +25% to the bank's earnings.
+ * Each connected desk gives a per-floor-tier bonus (25% on floor 1, up to 45% on floor 5).
  */
-export function connectedDeskCount(state: BankInteriorState): number {
-  const { desks, carpets } = state;
+export function connectedDeskCount(items: { desks: BankInteriorItem[]; carpets: BankInteriorItem[] }): number {
+  const { desks, carpets } = items;
   if (desks.length < 2) return 0;
 
   const carpetSet = new Set(carpets.map(c => `${c.x},${c.y}`));
@@ -1073,15 +1123,37 @@ export function connectedDeskCount(state: BankInteriorState): number {
   return connected;
 }
 
-/** 1 + 0.25 per connected desk. Loads interior from storage by building ID. */
-export async function bankDeskMultiplier(buildingId: string): Promise<number> {
+/**
+ * Full interior bonus for a bank building: desk network + furniture bonuses
+ * aggregated across ALL floors. Returns a multiplier plus flat coins/day
+ * (ATMs). This feeds the hourly coin accumulation, so furniture bonuses show
+ * up in the building's tap-to-collect total.
+ */
+export async function bankInteriorBonus(buildingId: string): Promise<{ mult: number; flatPerDay: number }> {
   try {
     const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     const raw = await AsyncStorage.getItem(bankInteriorKey(buildingId));
-    if (!raw) return 1;
+    if (!raw) return { mult: 1, flatPerDay: 0 };
     const state = parseBankInterior(JSON.parse(raw));
-    return 1 + connectedDeskCount(state) * 0.25;
+    let mult = 1;
+    let flatPerDay = 0;
+    for (const [floorKey, floorInterior] of Object.entries(state.floors)) {
+      const floor = parseInt(floorKey, 10) || 1;
+      mult += connectedDeskCount(floorInterior) * bankDeskBonusPerDesk(floor);
+      for (const item of floorInterior.furniture) {
+        const def = bankFurnitureDef(item.type, floor);
+        if (!def) continue;
+        mult += def.effectPct / 100;
+        flatPerDay += def.flatPerDay;
+      }
+    }
+    return { mult, flatPerDay };
   } catch {
-    return 1;
+    return { mult: 1, flatPerDay: 0 };
   }
+}
+
+/** Interior multiplier only (desk network + furniture %). Loads interior from storage by building ID. */
+export async function bankDeskMultiplier(buildingId: string): Promise<number> {
+  return (await bankInteriorBonus(buildingId)).mult;
 }

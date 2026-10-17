@@ -4,20 +4,30 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
-  BANK_CARPET_COST,
-  BANK_DESK_COST,
   BANK_INTERIOR_GRID,
   BANK_MAX_DESKS,
   BANK_MAX_FLOORS,
   COINS_STORAGE_KEY,
   TOWN_STORAGE_KEY,
+  bankCarpetColor,
+  bankCarpetCost,
+  bankCarpetName,
+  bankDeskBonusPerDesk,
+  bankDeskCost,
+  bankDeskName,
   bankFloorCost,
   bankFloorMultiplier,
+  bankFloorTheme,
+  bankFurnitureCatalog,
+  bankFurnitureDef,
   bankInteriorKey,
   connectedDeskCount,
   parseBankInterior,
   parseCoins,
   parseTown,
+  type BankFloorInterior,
+  type BankFurnitureItem,
+  type BankFurnitureType,
   type BankInteriorItem,
   type BankInteriorState,
   type HometownCoins,
@@ -31,9 +41,11 @@ function nextId() {
   return `bi${Date.now()}${idCounter}`;
 }
 
+const EMPTY_FLOOR: BankFloorInterior = { desks: [], carpets: [], furniture: [] };
+
 // Tiles that are part of the connected desk network (for highlight)
-function activeNetworkTiles(state: BankInteriorState): { desks: Set<string>; carpets: Set<string> } {
-  const { desks, carpets } = state;
+function activeNetworkTiles(items: { desks: BankInteriorItem[]; carpets: BankInteriorItem[] }): { desks: Set<string>; carpets: Set<string> } {
+  const { desks, carpets } = items;
   const carpetSet = new Set(carpets.map((c) => `${c.x},${c.y}`));
   const deskSet = new Set(desks.map((d) => `${d.x},${d.y}`));
   const walkable = new Set([...carpetSet, ...deskSet]);
@@ -98,17 +110,22 @@ function DeskShape({ connected }: { connected: boolean }) {
   );
 }
 
+type MoveKind = "desk" | "carpet" | "furniture";
+
 export default function BankInteriorScreen() {
   const router = useRouter();
   const { buildingId } = useLocalSearchParams<{ buildingId?: string }>();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
-  const [interior, setInterior] = useState<BankInteriorState>({ desks: [], carpets: [] });
+  const [interior, setInterior] = useState<BankInteriorState>({ floors: {} });
+  const [floor, setFloor] = useState(1);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
-  const [moveItem, setMoveItem] = useState<{ id: string; kind: "desk" | "carpet" } | null>(null);
+  const [moveItem, setMoveItem] = useState<{ id: string; kind: MoveKind } | null>(null);
   const [building, setBuilding] = useState<PlacedBuilding | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const storageKey = buildingId ? bankInteriorKey(buildingId) : null;
+  const numFloors = building?.type === "bank-tower" ? Math.min(Math.max(building.floors || 1, 1), BANK_MAX_FLOORS) : 1;
+  const safeFloor = Math.min(Math.max(floor, 1), numFloors);
 
   const saveInterior = useCallback(
     (next: BankInteriorState) => {
@@ -118,10 +135,20 @@ export default function BankInteriorScreen() {
     [storageKey]
   );
 
+  const saveFloor = useCallback(
+    (f: number, next: BankFloorInterior) => {
+      const nf: BankInteriorState = { floors: { ...interior.floors, [String(f)]: next } };
+      saveInterior(nf);
+    },
+    [interior, saveInterior]
+  );
+
   const saveCoins = useCallback((next: HometownCoins) => {
     setCoins(next);
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
+
+  const floorInterior: BankFloorInterior = interior.floors[String(safeFloor)] ?? EMPTY_FLOOR;
 
   const handleAddFloor = useCallback(async () => {
     if (!building || building.type !== "bank-tower") return;
@@ -178,13 +205,46 @@ export default function BankInteriorScreen() {
     })();
   }, [storageKey]);
 
-  const connected = connectedDeskCount(interior);
-  const multiplier = 1 + connected * 0.25;
-  const network = useMemo(() => activeNetworkTiles(interior), [interior]);
+  // Totals across ALL floors for the banner
+  const totals = useMemo(() => {
+    let mult = 1;
+    let flat = 0;
+    let connectedTotal = 0;
+    let furnitureCount = 0;
+    for (let f = 1; f <= numFloors; f++) {
+      const fi = interior.floors[String(f)] ?? EMPTY_FLOOR;
+      const c = connectedDeskCount(fi);
+      connectedTotal += c;
+      mult += c * bankDeskBonusPerDesk(f);
+      for (const item of fi.furniture) {
+        const def = bankFurnitureDef(item.type, f);
+        if (!def) continue;
+        mult += def.effectPct / 100;
+        flat += def.flatPerDay;
+        furnitureCount += 1;
+      }
+    }
+    return { mult, flat, connectedTotal, furnitureCount };
+  }, [interior, numFloors]);
 
-  const itemAt = (x: number, y: number): BankInteriorItem | undefined =>
-    interior.desks.find((d) => d.x === x && d.y === y) ??
-    interior.carpets.find((c) => c.x === x && c.y === y);
+  const network = useMemo(() => activeNetworkTiles(floorInterior), [floorInterior]);
+  const catalog = useMemo(() => bankFurnitureCatalog(safeFloor), [safeFloor]);
+  const deskCost = bankDeskCost(safeFloor);
+  const carpetCost = bankCarpetCost(safeFloor);
+  const deskName = bankDeskName(safeFloor);
+  const carpetName = bankCarpetName(safeFloor);
+  const carpetColor = bankCarpetColor(safeFloor);
+  const deskBonusPct = Math.round(bankDeskBonusPerDesk(safeFloor) * 100);
+
+  const itemAt = (x: number, y: number): (BankInteriorItem & { kind: MoveKind }) | (BankFurnitureItem & { kind: "furniture" }) | undefined =>
+    (floorInterior.desks.find((d) => d.x === x && d.y === y) as (BankInteriorItem & { kind: MoveKind }) | undefined) ??
+    (floorInterior.carpets.find((c) => c.x === x && c.y === y) as (BankInteriorItem & { kind: MoveKind }) | undefined) ??
+    (floorInterior.furniture.find((f) => f.x === x && f.y === y)
+      ? { ...floorInterior.furniture.find((f) => f.x === x && f.y === y)!, kind: "furniture" as const }
+      : undefined);
+
+  const moveKindLabel = (kind: MoveKind) =>
+    kind === "desk" ? deskName : kind === "carpet" ? carpetName : "Furniture";
 
   const handleTilePress = (x: number, y: number) => {
     // --- Move mode ---
@@ -202,14 +262,19 @@ export default function BankInteriorScreen() {
       }
       // empty destination: move it (free — already paid)
       if (moveItem.kind === "desk") {
-        saveInterior({
-          ...interior,
-          desks: interior.desks.map((d) => (d.id === moveItem.id ? { ...d, x, y } : d)),
+        saveFloor(safeFloor, {
+          ...floorInterior,
+          desks: floorInterior.desks.map((d) => (d.id === moveItem.id ? { ...d, x, y } : d)),
+        });
+      } else if (moveItem.kind === "carpet") {
+        saveFloor(safeFloor, {
+          ...floorInterior,
+          carpets: floorInterior.carpets.map((c) => (c.id === moveItem.id ? { ...c, x, y } : c)),
         });
       } else {
-        saveInterior({
-          ...interior,
-          carpets: interior.carpets.map((c) => (c.id === moveItem.id ? { ...c, x, y } : c)),
+        saveFloor(safeFloor, {
+          ...floorInterior,
+          furniture: floorInterior.furniture.map((f) => (f.id === moveItem.id ? { ...f, x, y } : f)),
         });
       }
       setMoveItem(null);
@@ -218,29 +283,82 @@ export default function BankInteriorScreen() {
     // --- Normal mode ---
     const existing = itemAt(x, y);
     if (existing) {
+      if (existing.kind === "furniture") {
+        const def = bankFurnitureDef(existing.type, safeFloor);
+        Alert.alert(
+          def?.name ?? "Furniture",
+          `${def?.blurb ?? ""}${def?.blurb ? "\n" : ""}Sells back for full price.`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Move",
+              onPress: () => {
+                setSelectedTile(null);
+                setMoveItem({ id: existing.id, kind: "furniture" });
+              },
+            },
+            {
+              text: `Sell 🪙${existing.cost}`,
+              onPress: () => {
+                saveFloor(safeFloor, {
+                  ...floorInterior,
+                  furniture: floorInterior.furniture.filter((f) => f.id !== existing.id),
+                });
+                saveCoins({ balance: coins.balance + existing.cost, lifetimeEarned: coins.lifetimeEarned });
+              },
+            },
+          ]
+        );
+        return;
+      }
+      if (existing.kind === "carpet") {
+        const refund = existing.cost ?? BANK_CARPET_COST;
+        Alert.alert(
+          carpetName,
+          `${carpetName} connects desks together.\nSells back for full price.`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Move",
+              onPress: () => {
+                setSelectedTile(null);
+                setMoveItem({ id: existing.id, kind: "carpet" });
+              },
+            },
+            {
+              text: `Sell 🪙${refund}`,
+              onPress: () => {
+                saveFloor(safeFloor, {
+                  ...floorInterior,
+                  carpets: floorInterior.carpets.filter((c) => c.id !== existing.id),
+                });
+                saveCoins({ balance: coins.balance + refund, lifetimeEarned: coins.lifetimeEarned });
+              },
+            },
+          ]
+        );
+        return;
+      }
       Alert.alert(
-        existing.kind === "desk" ? "Desk" : "Carpet",
-        existing.kind === "desk"
-          ? "Desks connected by carpet to another desk earn +25% each."
-          : "Carpet connects desks together.",
+        deskName,
+        `${deskName}s connected by ${carpetName.toLowerCase()} to another desk earn +${deskBonusPct}% each.`,
         [
           { text: "Cancel", style: "cancel" },
           {
             text: "Move",
             onPress: () => {
               setSelectedTile(null);
-              setMoveItem({ id: existing.id, kind: existing.kind });
+              setMoveItem({ id: existing.id, kind: "desk" });
             },
           },
           {
             text: "Remove",
             style: "destructive",
             onPress: () => {
-              if (existing.kind === "desk") {
-                saveInterior({ ...interior, desks: interior.desks.filter((d) => d.id !== existing.id) });
-              } else {
-                saveInterior({ ...interior, carpets: interior.carpets.filter((c) => c.id !== existing.id) });
-              }
+              saveFloor(safeFloor, {
+                ...floorInterior,
+                desks: floorInterior.desks.filter((d) => d.id !== existing.id),
+              });
             },
           },
         ]
@@ -265,22 +383,41 @@ export default function BankInteriorScreen() {
 
   const handlePlace = (kind: "desk" | "carpet") => {
     if (!selectedTile) return;
-    const cost = kind === "desk" ? BANK_DESK_COST : BANK_CARPET_COST;
-    if (kind === "desk" && interior.desks.length >= BANK_MAX_DESKS) {
-      Alert.alert("Max desks", `Your bank can hold ${BANK_MAX_DESKS} desks.`);
+    const cost = kind === "desk" ? deskCost : carpetCost;
+    if (kind === "desk" && floorInterior.desks.length >= BANK_MAX_DESKS) {
+      Alert.alert("Max desks", `Each floor can hold ${BANK_MAX_DESKS} desks.`);
       return;
     }
     if (coins.balance < cost) {
       Alert.alert("Not enough coins", `You need ${cost} coins.`);
       return;
     }
-    const item: BankInteriorItem = { id: nextId(), kind, x: selectedTile.x, y: selectedTile.y };
+    const item: BankInteriorItem = { id: nextId(), kind, x: selectedTile.x, y: selectedTile.y, cost };
     if (kind === "desk") {
-      saveInterior({ ...interior, desks: [...interior.desks, item] });
+      saveFloor(safeFloor, { ...floorInterior, desks: [...floorInterior.desks, item] });
     } else {
-      saveInterior({ ...interior, carpets: [...interior.carpets, item] });
+      saveFloor(safeFloor, { ...floorInterior, carpets: [...floorInterior.carpets, item] });
     }
     saveCoins({ balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned });
+    setSelectedTile(null);
+  };
+
+  const handlePlaceFurniture = (type: BankFurnitureType) => {
+    if (!selectedTile) return;
+    const def = catalog.find((d) => d.type === type);
+    if (!def) return;
+    const count = floorInterior.furniture.filter((f) => f.type === type).length;
+    if (count >= def.max) {
+      Alert.alert("Max reached", `Each floor can hold ${def.max} × ${def.name}.`);
+      return;
+    }
+    if (coins.balance < def.cost) {
+      Alert.alert("Not enough coins", `You need ${def.cost} coins.`);
+      return;
+    }
+    const item: BankFurnitureItem = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, cost: def.cost };
+    saveFloor(safeFloor, { ...floorInterior, furniture: [...floorInterior.furniture, item] });
+    saveCoins({ balance: coins.balance - def.cost, lifetimeEarned: coins.lifetimeEarned });
     setSelectedTile(null);
   };
 
@@ -289,8 +426,10 @@ export default function BankInteriorScreen() {
   // Current tile of the item being moved (for origin highlight)
   const movingTile = moveItem
     ? (moveItem.kind === "desk"
-        ? interior.desks.find((d) => d.id === moveItem.id)
-        : interior.carpets.find((c) => c.id === moveItem.id))
+        ? floorInterior.desks.find((d) => d.id === moveItem.id)
+        : moveItem.kind === "carpet"
+          ? floorInterior.carpets.find((c) => c.id === moveItem.id)
+          : floorInterior.furniture.find((f) => f.id === moveItem.id))
     : undefined;
   const rows = [];
   for (let y = 0; y < h; y++) {
@@ -312,7 +451,7 @@ export default function BankInteriorScreen() {
             : item?.kind === "carpet"
               ? isActiveCarpet
                 ? "#A7F3D0" // active network carpet: green tint
-                : "#E7DCC8" // plain carpet
+                : carpetColor // tier-themed carpet
               : "#F5F1E8"; // floor
       const borderColor = isMovingOrigin
         ? "#2563EB"
@@ -343,6 +482,11 @@ export default function BankInteriorScreen() {
               <DeskShape connected={isConnectedDesk} />
             </View>
           )}
+          {item?.kind === "furniture" && (
+            <Text style={{ fontSize: 22, opacity: isMovingOrigin ? 0.4 : 1 }}>
+              {bankFurnitureDef(item.type, safeFloor)?.icon ?? "🪑"}
+            </Text>
+          )}
         </Pressable>
       );
     }
@@ -356,6 +500,9 @@ export default function BankInteriorScreen() {
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: "#FDF6E3" }} />;
   }
+
+  const themeName = bankFloorTheme(safeFloor);
+  const desksMaxed = floorInterior.desks.length >= BANK_MAX_DESKS;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
@@ -371,17 +518,18 @@ export default function BankInteriorScreen() {
         </View>
       </View>
 
-      {/* Multiplier banner */}
+      {/* Bonus banner */}
       <View style={{ backgroundColor: "#1C1917", borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
         <MaterialIcons name="trending-up" size={24} color="#4ADE80" />
         <View style={{ marginLeft: 10, flex: 1 }}>
           <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>
-            Desk network: ×{multiplier.toFixed(2)}
+            Interior bonus: ×{totals.mult.toFixed(2)}
+            {totals.flat > 0 && <Text style={{ color: "#4ADE80" }}> + {totals.flat}/day</Text>}
           </Text>
           <Text style={{ color: "#A8A29E", fontSize: 12 }}>
-            {connected === 0
-              ? "Place desks and connect them with carpet for +25% each."
-              : `${connected} connected desk${connected > 1 ? "s" : ""} boosting earnings.`}
+            {totals.connectedTotal === 0 && totals.furnitureCount === 0
+              ? "Place desks, connect them with carpet, and add furniture to boost this bank's earnings."
+              : `${totals.connectedTotal} connected desk${totals.connectedTotal === 1 ? "" : "s"} · ${totals.furnitureCount} furniture boosting earnings.`}
           </Text>
         </View>
       </View>
@@ -417,12 +565,50 @@ export default function BankInteriorScreen() {
         );
       })()}
 
+      {/* Floor selector */}
+      {numFloors > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: "row" }}>
+            {Array.from({ length: numFloors }, (_, i) => i + 1).map((f) => {
+              const active = f === safeFloor;
+              return (
+                <Pressable
+                  key={f}
+                  onPress={() => { setFloor(f); setSelectedTile(null); if (moveItem) setMoveItem(null); }}
+                  style={{
+                    backgroundColor: active ? "#1C1917" : "#FFFFFF",
+                    borderRadius: 10,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    marginRight: 8,
+                    borderWidth: 1,
+                    borderColor: active ? "#1C1917" : "#E7DCC8",
+                  }}
+                >
+                  <Text style={{ fontWeight: "800", color: active ? "#FFFFFF" : "#1C1917", fontSize: 13 }}>
+                    Floor {f}
+                  </Text>
+                  <Text style={{ color: active ? "#A8A29E" : "#78716C", fontSize: 11 }}>
+                    {bankFloorTheme(f)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      )}
+
+      <View style={{ alignItems: "center", marginBottom: 8 }}>
+        <Text style={{ color: "#78716C", fontSize: 12, marginBottom: 6 }}>
+          Floor {safeFloor} · {themeName}
+        </Text>
+      </View>
       <View style={{ alignItems: "center", marginBottom: 16 }}>{rows}</View>
 
       {moveItem ? (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>
           <Text style={{ fontWeight: "700", marginBottom: 4, color: "#1C1917" }}>
-            Moving {moveItem.kind === "desk" ? "Desk" : "Carpet"} — tap a glowing tile to place it
+            Moving {moveKindLabel(moveItem.kind)} — tap a glowing tile to place it
           </Text>
           <Text style={{ color: "#78716C", fontSize: 13, marginBottom: 8 }}>
             Moving is free. Tap the item again to put it back where it was.
@@ -434,48 +620,97 @@ export default function BankInteriorScreen() {
       ) : selectedTile ? (
         <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: "#1C1917" }}>
-            Place on tile ({selectedTile.x}, {selectedTile.y})
+            Place on tile ({selectedTile.x}, {selectedTile.y}) — Floor {safeFloor} · {themeName}
           </Text>
           <Pressable
             onPress={() => handlePlace("desk")}
-            disabled={coins.balance < BANK_DESK_COST || interior.desks.length >= BANK_MAX_DESKS}
+            disabled={coins.balance < deskCost || desksMaxed}
             style={{
               flexDirection: "row",
               alignItems: "center",
               paddingVertical: 10,
-              opacity: coins.balance < BANK_DESK_COST || interior.desks.length >= BANK_MAX_DESKS ? 0.5 : 1,
+              opacity: coins.balance < deskCost || desksMaxed ? 0.5 : 1,
             }}
           >
             <View style={{ width: 32, alignItems: "center" }}>
               <DeskShape connected={false} />
             </View>
-            <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600", color: "#1C1917" }}>
-              Desk ({interior.desks.length}/{BANK_MAX_DESKS})
-            </Text>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{BANK_DESK_COST}</Text>
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ fontWeight: "600", color: "#1C1917" }}>
+                {deskName} ({floorInterior.desks.length}/{BANK_MAX_DESKS})
+              </Text>
+              <Text style={{ color: "#78716C", fontSize: 12 }}>+{deskBonusPct}% each when connected</Text>
+            </View>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{deskCost}</Text>
           </Pressable>
           <Pressable
             onPress={() => handlePlace("carpet")}
-            disabled={coins.balance < BANK_CARPET_COST}
+            disabled={coins.balance < carpetCost}
             style={{
               flexDirection: "row",
               alignItems: "center",
               paddingVertical: 10,
-              opacity: coins.balance < BANK_CARPET_COST ? 0.5 : 1,
+              opacity: coins.balance < carpetCost ? 0.5 : 1,
             }}
           >
-            <View style={{ width: 32, height: 24, borderRadius: 4, backgroundColor: "#E7DCC8", borderWidth: 1, borderColor: "#D6C9B0" }} />
-            <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600", color: "#1C1917" }}>Carpet tile</Text>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{BANK_CARPET_COST}</Text>
+            <View style={{ width: 32, height: 24, borderRadius: 4, backgroundColor: carpetColor, borderWidth: 1, borderColor: "#D6C9B0" }} />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ fontWeight: "600", color: "#1C1917" }}>{carpetName}</Text>
+              <Text style={{ color: "#78716C", fontSize: 12 }}>Connects desks · sells back full price</Text>
+            </View>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{carpetCost}</Text>
           </Pressable>
+
+          <Text style={{ fontWeight: "700", marginTop: 8, marginBottom: 4, color: "#1C1917" }}>Furniture</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: "row" }}>
+              {catalog.map((def) => {
+                const count = floorInterior.furniture.filter((f) => f.type === def.type).length;
+                const maxed = count >= def.max;
+                const afford = coins.balance >= def.cost;
+                const disabled = maxed || !afford;
+                return (
+                  <Pressable
+                    key={def.type}
+                    onPress={() => handlePlaceFurniture(def.type)}
+                    disabled={disabled}
+                    style={{
+                      width: 96,
+                      backgroundColor: "#FDF6E3",
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: "#E7DCC8",
+                      padding: 8,
+                      marginRight: 8,
+                      alignItems: "center",
+                      opacity: disabled ? 0.5 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 24 }}>{def.icon}</Text>
+                    <Text style={{ fontWeight: "700", fontSize: 11, color: "#1C1917", textAlign: "center", marginTop: 4 }} numberOfLines={2}>
+                      {def.name}
+                    </Text>
+                    <Text style={{ fontSize: 10, color: "#78716C", marginTop: 2 }}>{def.blurb}</Text>
+                    <Text style={{ fontSize: 10, color: "#78716C", marginTop: 2 }}>
+                      {count}/{def.max}
+                    </Text>
+                    <Text style={{ fontWeight: "700", fontSize: 12, color: "#1C1917", marginTop: 2 }}>
+                      🪙{def.cost}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
           <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
             <Text style={{ color: "#78716C" }}>Cancel</Text>
           </Pressable>
         </View>
       ) : (
         <Text style={{ color: "#78716C", textAlign: "center", fontSize: 13 }}>
-          Tap an empty tile to place a desk or carpet. Connect desks with carpet paths to boost earnings.{"\n"}
-          Long-press a desk or carpet to move it.
+          Tap an empty tile to place desks, {carpetName.toLowerCase()}s, or furniture.{"\n"}
+          Long-press any item to move it. Tap furniture or {carpetName.toLowerCase()}s to sell them back.
         </Text>
       )}
     </ScrollView>

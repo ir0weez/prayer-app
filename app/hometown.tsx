@@ -34,7 +34,7 @@ import {
   FRENZY_DURATION_MS,
   FRENZY_COOLDOWN_MS,
   FRENZY_MULT,
-  bankDeskMultiplier,
+  bankInteriorBonus,
   bankFloorMultiplier,
   buildingFootprint,
   parseCoins,
@@ -753,8 +753,8 @@ export default function HometownScreen() {
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
         // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
-        // Preload bank desk multipliers (async) for bank/bank-tower buildings
-        const deskMults: Record<string, number> = {};
+        // Preload bank interior bonuses (async) for bank/bank-tower buildings
+        const interiorBonuses: Record<string, { mult: number; flatPerDay: number }> = {};
         try {
           const bankIds: string[] = [];
           for (const id of TOWN_MAP_IDS) {
@@ -762,8 +762,8 @@ export default function HometownScreen() {
               if (b.type === "bank" || b.type === "bank-tower") bankIds.push(b.id);
             }
           }
-          const mults = await Promise.all(bankIds.map((bid) => bankDeskMultiplier(bid)));
-          bankIds.forEach((bid, i) => { deskMults[bid] = mults[i]; });
+          const bonuses = await Promise.all(bankIds.map((bid) => bankInteriorBonus(bid)));
+          bankIds.forEach((bid, i) => { interiorBonuses[bid] = bonuses[i]; });
         } catch {}
         // Generate today's missions
         let missions: Mission[] = [];
@@ -785,12 +785,13 @@ export default function HometownScreen() {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
-              const deskMult = deskMults[b.id] ?? 1;
+              const ib = interiorBonuses[b.id] ?? { mult: 1, flatPerDay: 0 };
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(t);
               const add = earnsCoins
-                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * deskMult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult
+                    + (hoursElapsed * ib.flatPerDay) / 24
                 : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
               return {
                 ...b,

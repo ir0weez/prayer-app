@@ -31,3 +31,24 @@ export const SKY_THEMES: Record<TimeOfDay, SkyTheme> = {
   evening: { bg: "#E8937C", glow: "#FFD9A8", orb: "#FF9E5C", isNight: false, showSun: true },
   night: { bg: "#1E1E45", glow: "#34346E", orb: "#F4F1DE", isNight: true, showSun: false },
 };
+
+export type PageTheme = {
+  /** Whole-screen background, in the same hue family as the sky. */
+  bg: string;
+  /** Card surface. */
+  card: string;
+  /** Primary text. */
+  text: string;
+  /** Secondary text. */
+  subtext: string;
+  /** Hairline borders. */
+  border: string;
+};
+
+/** Mature page palette that shifts with the day and echoes the sky. */
+export const PAGE_THEMES: Record<TimeOfDay, PageTheme> = {
+  morning: { bg: "#FFF7ED", card: "#FFFFFF", text: "#1C1917", subtext: "#78716C", border: "#E5E7EB" },
+  afternoon: { bg: "#F0F9FF", card: "#FFFFFF", text: "#0C1A2B", subtext: "#64748B", border: "#E2E8F0" },
+  evening: { bg: "#FFF7ED", card: "#FFFFFF", text: "#1C1917", subtext: "#78716C", border: "#E5E7EB" },
+  night: { bg: "#1E1B2E", card: "#2B2842", text: "#F1EDFF", subtext: "#B8B3D1", border: "#3D3860" },
+};

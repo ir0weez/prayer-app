@@ -77,6 +77,7 @@ import { generateDailyMissions, loadMissions, completeMission, pendingMissions, 
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
+import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
 
@@ -724,6 +725,14 @@ export default function HometownScreen() {
   const [town, setTown] = useState<TownState>(() => emptyTownState());
   const [activeMap, setActiveMap] = useState<TownMapId>("town");
   const [unlockedMaps, setUnlockedMaps] = useState<TownMapId[]>(["town"]);
+  // Day/night page theme: re-evaluate every 5 minutes so the whole
+  // screen shifts with the sky.
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => getTimeOfDay());
+  useEffect(() => {
+    const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+  const pt = PAGE_THEMES[timeOfDay];
   // Tap frenzy: 5+ rapid taps → 2x collects for 10s (5-min cooldown)
   const [frenzyActive, setFrenzyActive] = useState(false);
   const tapTimesRef = useRef<number[]>([]);
@@ -1392,12 +1401,12 @@ export default function HometownScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#FFFBEB" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
-          <Text style={{ fontSize: 24 }}>←</Text>
+          <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
         </Pressable>
-        <Text style={{ fontSize: 22, fontWeight: "800" }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
+        <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
@@ -1463,12 +1472,12 @@ export default function HometownScreen() {
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 20,
-                backgroundColor: isActive ? "#1D4ED8" : "#FFFFFF",
+                backgroundColor: isActive ? "#1D4ED8" : pt.card,
                 borderWidth: isActive ? 0 : 1,
-                borderColor: "#E5E7EB",
+                borderColor: pt.border,
               }}
             >
-              <Text style={{ fontWeight: "700", color: isActive ? "#FFFFFF" : "#374151", fontSize: 13 }}>{label}</Text>
+              <Text style={{ fontWeight: "700", color: isActive ? "#FFFFFF" : pt.text, fontSize: 13 }}>{label}</Text>
             </Pressable>
           );
         })}
@@ -1476,14 +1485,14 @@ export default function HometownScreen() {
 
       <Pressable
         onPress={() => router.push("/hometown-shop")}
-        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}
+        style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}
       >
         <Text style={{ fontSize: 24 }}>🛍️</Text>
         <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>Town Shop</Text>
-          <Text style={{ fontSize: 12, color: "#78716C" }}>Monuments, decorations, pawn skins</Text>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text }}>Town Shop</Text>
+          <Text style={{ fontSize: 12, color: pt.subtext }}>Monuments, decorations, pawn skins</Text>
         </View>
-        <Text style={{ fontSize: 20 }}>→</Text>
+        <Text style={{ fontSize: 20, color: pt.subtext }}>→</Text>
       </Pressable>
 
       {pendingMissions(missions).length > 0 && (
@@ -1502,25 +1511,25 @@ export default function HometownScreen() {
         </Pressable>
       )}
 
-      <Text style={{ color: "#78716C", marginBottom: 12 }}>
+      <Text style={{ color: pt.subtext, marginBottom: 12 }}>
         {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
-      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}>
         <Text style={{ fontSize: 28 }}>🪨</Text>
         <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>Testimony Plaza</Text>
-          <Text style={{ fontSize: 12, color: "#78716C" }}>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text }}>Testimony Plaza</Text>
+          <Text style={{ fontSize: 12, color: pt.subtext }}>
             {monumentCount} {monumentCount === 1 ? "testimony" : "testimonies"} raised — like Abraham's altars
           </Text>
         </View>
       </View>
 
       {activeMap === "reserve" ? (
-        <View style={{ alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 48, marginBottom: 16 }}>
+        <View style={{ alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 48, marginBottom: 16 }}>
           <Text style={{ fontSize: 56 }}>❓</Text>
-          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 12 }}>Coming Soon</Text>
-          <Text style={{ color: "#78716C", textAlign: "center", marginTop: 8 }}>
+          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 12, color: pt.text }}>Coming Soon</Text>
+          <Text style={{ color: pt.subtext, textAlign: "center", marginTop: 8 }}>
             A new frontier awaits beyond the {MAP_INFO.school.name}...
           </Text>
         </View>
@@ -1656,8 +1665,8 @@ export default function HometownScreen() {
       )}
 
       {selectedTile && activeMap !== "reserve" && activeMap !== "city" && (
-        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12, padding: 12, marginTop: 8 }}>
-          <Text style={{ fontWeight: "700", marginBottom: 8 }}>
+        <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
+          <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
           </Text>
           {(buildingAt(selectedTile.x, selectedTile.y) || decorationAt(selectedTile.x, selectedTile.y) || roadAt(selectedTile.x, selectedTile.y)) && (
@@ -1736,8 +1745,8 @@ export default function HometownScreen() {
           >
             <Text style={{ fontSize: 24 }}>🛣️</Text>
             <View style={{ marginLeft: 10, flex: 1 }}>
-              <Text style={{ fontWeight: "600" }}>Road</Text>
-              <Text style={{ fontSize: 12, color: "#78716C" }}>Connect buildings for earning multiplier</Text>
+              <Text style={{ fontWeight: "600", color: pt.text }}>Road</Text>
+              <Text style={{ fontSize: 12, color: pt.subtext }}>Connect buildings for earning multiplier</Text>
             </View>
             <Text style={{ fontWeight: "700", color: "#22C55E" }}>FREE</Text>
           </Pressable>
@@ -1752,16 +1761,16 @@ export default function HometownScreen() {
               >
                 <BuildingArt type={type} size={32} />
                 <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={{ fontWeight: "600" }}>{def.name}</Text>
-                  <Text style={{ fontSize: 12, color: "#78716C" }}>{def.description}</Text>
+                  <Text style={{ fontWeight: "600", color: pt.text }}>{def.name}</Text>
+                  <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>
                 </View>
-                <Text style={{ fontWeight: "700" }}>🪙{def.cost}</Text>
+                <Text style={{ fontWeight: "700", color: pt.text }}>🪙{def.cost}</Text>
               </Pressable>
             );
           })}
           {ownedDecorations.length > 0 && (
             <>
-              <Text style={{ fontWeight: "700", marginTop: 12, marginBottom: 8 }}>Decorations (owned)</Text>
+              <Text style={{ fontWeight: "700", marginTop: 12, marginBottom: 8, color: pt.text }}>Decorations (owned)</Text>
               {ownedDecorations.map((type) => {
                 const def = DECORATIONS[type];
                 // Check if already placed
@@ -1774,7 +1783,7 @@ export default function HometownScreen() {
                     style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}
                   >
                     <Text style={{ fontSize: 24 }}>{def.icon}</Text>
-                    <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600" }}>{def.name}</Text>
+                    <Text style={{ marginLeft: 10, flex: 1, fontWeight: "600", color: pt.text }}>{def.name}</Text>
                     <Text style={{ color: "#22C55E", fontWeight: "600" }}>Place</Text>
                   </Pressable>
                 );
@@ -1782,7 +1791,7 @@ export default function HometownScreen() {
             </>
           )}
           <Pressable onPress={() => setSelectedTile(null)} style={{ marginTop: 8, alignItems: "center" }}>
-            <Text style={{ color: "#78716C" }}>Cancel</Text>
+            <Text style={{ color: pt.subtext }}>Cancel</Text>
           </Pressable>
         </View>
       )}
@@ -1790,23 +1799,23 @@ export default function HometownScreen() {
       {/* Missions modal */}
       {missionsVisible && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}>
-          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, width: "100%", maxHeight: "80%" }}>
+          <View style={{ backgroundColor: pt.card, borderRadius: 16, padding: 16, width: "100%", maxHeight: "80%" }}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-              <Text style={{ fontSize: 20, fontWeight: "800", flex: 1 }}>Missions</Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", flex: 1, color: pt.text }}>Missions</Text>
               <Pressable onPress={() => setMissionsVisible(false)}>
-                <Text style={{ fontSize: 20, color: "#78716C" }}>✕</Text>
+                <Text style={{ fontSize: 20, color: pt.subtext }}>✕</Text>
               </Pressable>
             </View>
             <ScrollView>
               {missions.filter((m) => !m.completed).length === 0 && (
-                <Text style={{ color: "#78716C", textAlign: "center", paddingVertical: 16 }}>
+                <Text style={{ color: pt.subtext, textAlign: "center", paddingVertical: 16 }}>
                   No missions right now. Check back tomorrow!
                 </Text>
               )}
               {missions.filter((m) => !m.completed).map((m) => (
-                <View key={m.id} style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                  <Text style={{ fontWeight: "700", fontSize: 15 }}>{m.title}</Text>
-                  <Text style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>{m.description}</Text>
+                <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text }}>{m.title}</Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 4 }}>{m.description}</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                     <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
                       {m.rewardCoins > 0 && (
@@ -1862,7 +1871,7 @@ export default function HometownScreen() {
           onPress={() => setPopupBuilding(null)}
         >
           <Pressable
-            style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 20, width: "100%", maxWidth: 340 }}
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 340 }}
             onPress={(e) => e.stopPropagation()}
           >
             {(() => {
@@ -1950,25 +1959,25 @@ export default function HometownScreen() {
 
               return (
                 <>
-                  <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 8 }}>
+                  <Text style={{ fontSize: 20, fontWeight: "800", marginBottom: 8, color: pt.text }}>
                     {b.type === "house" ? houseNameFor(level) : b.type === "church" ? churchNameFor(level) : def.name} (Lv {level})
                   </Text>
-                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
+                  <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 4 }}>
                     {def.description}
                   </Text>
-                  <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 4 }}>
+                  <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 4 }}>
                     Currently earns {incomeLabelFor(b)}.
                   </Text>
                   {b.type === "church" ? (
-                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
                     </Text>
                   ) : b.type === "house" ? (
-                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       🏠 {townsfolkForHouse(level)} townsfolk live here{!isMax ? ` (+1 at ${houseNameFor(nextLevel)})` : " — a grand Mansion!"}
                     </Text>
                   ) : (
-                    <Text style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
+                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
                     </Text>
                   )}
@@ -1998,18 +2007,18 @@ export default function HometownScreen() {
                   {b.type !== "house" && (
                     <Pressable
                       onPress={doHireWorker}
-                      style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                      style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
-                      <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>
+                      <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>
                         👷 Hire Worker 🪙{WORKER_HIRE_COST} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
                       </Text>
                     </Pressable>
                   )}
                   <Pressable
                     onPress={doMove}
-                    style={{ backgroundColor: "#F3F4F6", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                    style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                   >
-                    <Text style={{ color: "#111827", fontWeight: "700", fontSize: 16 }}>↔️ Move</Text>
+                    <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>↔️ Move</Text>
                   </Pressable>
                   <Pressable
                     onPress={doSell}
@@ -2021,7 +2030,7 @@ export default function HometownScreen() {
                     onPress={() => setPopupBuilding(null)}
                     style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
                   >
-                    <Text style={{ color: "#6B7280", fontWeight: "600", fontSize: 16 }}>Cancel</Text>
+                    <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 16 }}>Cancel</Text>
                   </Pressable>
                 </>
               );

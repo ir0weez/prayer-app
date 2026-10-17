@@ -1,48 +1,17 @@
 import React, { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Animated, Easing, Text, View } from "react-native";
-import { getSeasonTheme, type SeasonTheme } from "@/lib/seasons";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
 
 /**
- * Living seasonal border: the town sits in a landscape that breathes
- * with the day. Sky color shifts morning → afternoon → evening → night,
- * with drifting clouds by day, twinkling stars by night, falling snow
- * in December, and drifting fog in spooky season.
+ * Living sky border: the town sits under a sky that breathes with the
+ * day. Sky color shifts morning → afternoon → evening → night, with
+ * drifting clouds by day, twinkling stars by night, and gentle snowfall
+ * in December. Mature and calm — no cartoon decorations.
  * Purely decorative — pointerEvents disabled, native-driver animations.
  */
 
 const BORDER_PAD = 26;
-const EMOJI_SIZE = 18;
-
-type EdgeDecor = { top: string[]; bottom: string[]; left: string[]; right: string[] };
-
-const BORDER_DECOR: Record<SeasonTheme, EdgeDecor> = {
-  spooky: {
-    top: ["🕸️", "🦇", "🎃", "🦇", "🕸️"],
-    bottom: ["🎃", "👻", "🦇", "👻", "🎃"],
-    left: ["🌲", "🦇", "🌲", "🎃"],
-    right: ["🌲", "👻", "🌲", "🦇"],
-  },
-  fall: {
-    top: ["🍂", "🦃", "🍁", "🦃", "🍂"],
-    bottom: ["🍁", "🌾", "🍂", "🌾", "🍁"],
-    left: ["🌳", "🍂", "🦃", "🍁"],
-    right: ["🌳", "🍁", "🍂", "🦃"],
-  },
-  christmas: {
-    top: ["🎄", "❄️", "🎅", "❄️", "🎄"],
-    bottom: ["❄️", "⛄", "🎄", "⛄", "❄️"],
-    left: ["🎄", "❄️", "🎄", "🎁"],
-    right: ["🎄", "🎁", "🎄", "❄️"],
-  },
-  normal: {
-    top: ["🌲", "🌳", "🌲", "🌳", "🌲"],
-    bottom: ["🌿", "🌳", "🌿", "🌳", "🌿"],
-    left: ["🌲", "🌳", "🌲", "🌳"],
-    right: ["🌲", "🌳", "🌲", "🌳"],
-  },
-};
 
 /** A soft cloud drifting across the top of the frame. */
 function DriftingCloud({ top, size, duration, delay, color }: { top: number; size: number; duration: number; delay: number; color: string }) {
@@ -124,7 +93,8 @@ function PrayerStar({ left, top, delay }: { left: number; top: number; delay: nu
   );
 }
 
-/** A snowflake drifting gently downward. */
+/** A snowflake drifting gently downward (December only). Rendered as a
+ *  soft white dot — calm, not cartoonish. */
 function Snowflake({ left, delay, duration, size }: { left: number; delay: number; duration: number; size: number }) {
   const y = useRef(new Animated.Value(-10)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -159,48 +129,7 @@ function Snowflake({ left, delay, duration, size }: { left: number; delay: numbe
       pointerEvents="none"
       style={{ position: "absolute", left, top: 0, opacity, transform: [{ translateY: y }] }}
     >
-      <Text style={{ fontSize: size, color: "#FFFFFF" }}>❄</Text>
-    </Animated.View>
-  );
-}
-
-/** A wisp of fog drifting low (spooky season). */
-function FogWisp({ top, duration, delay }: { top: number; duration: number; delay: number }) {
-  const translateX = useRef(new Animated.Value(-120)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const drift = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, { toValue: 420, duration, easing: Easing.linear, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: -120, duration: 1, useNativeDriver: true }),
-      ])
-    );
-    const fade = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.35, duration: duration * 0.3, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.35, duration: duration * 0.4, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: duration * 0.3, useNativeDriver: true }),
-      ])
-    );
-    const t = setTimeout(() => {
-      drift.start();
-      fade.start();
-    }, delay);
-    return () => {
-      clearTimeout(t);
-      drift.stop();
-      fade.stop();
-    };
-  }, [delay, duration, translateX, opacity]);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{ position: "absolute", top, left: 0, opacity, transform: [{ translateX }] }}
-    >
-      <View style={{ width: 110, height: 22, backgroundColor: "#C4B5FD", borderRadius: 11 }} />
-      <View style={{ position: "absolute", left: 30, top: -8, width: 60, height: 18, backgroundColor: "#C4B5FD", borderRadius: 9 }} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#FFFFFF" }} />
     </Animated.View>
   );
 }
@@ -233,7 +162,6 @@ function CelestialOrb({ color, glowColor, isMoon }: { color: string; glowColor: 
 }
 
 export function SeasonalBorder({ children }: { children: ReactNode }) {
-  const theme = getSeasonTheme();
   // Re-evaluate time of day every 5 minutes so the sky shifts
   // if the hour boundary passes while the app is open.
   const [timeOfDay, setTimeOfDay] = React.useState<TimeOfDay>(() => getTimeOfDay());
@@ -258,13 +186,9 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
     })();
   }, []);
   const sky = SKY_THEMES[timeOfDay];
-  const decor = BORDER_DECOR[theme];
-  const subtle = theme === "normal";
-  const decorOpacity = sky.isNight ? 0.55 : subtle ? 0.6 : 0.9;
 
-  const isDay = !sky.isNight;
-  const showSnow = theme === "christmas";
-  const showFog = theme === "spooky";
+  // Gentle snowfall in December — calm white dots, no cartoon glyphs.
+  const showSnow = new Date().getMonth() === 11;
 
   return (
     <View style={{ padding: BORDER_PAD, position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden" }}>
@@ -312,58 +236,10 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
             <Snowflake left={270} delay={1800} duration={9800} size={10} />
           </>
         )}
-        {showFog && (
-          <>
-            <FogWisp top={8} duration={30000} delay={0} />
-            <FogWisp top={16} duration={38000} delay={12000} />
-          </>
-        )}
       </View>
 
       {/* Sun / moon */}
       <CelestialOrb color={sky.orb} glowColor={sky.glow} isMoon={sky.isNight} />
-
-      {/* Seasonal emoji decorations (dimmed at night) */}
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", top: 2, left: 0, right: 0, flexDirection: "row", justifyContent: "space-around" }}
-      >
-        {decor.top.map((e, i) => (
-          <Text key={i} style={{ fontSize: EMOJI_SIZE, opacity: decorOpacity }}>
-            {e}
-          </Text>
-        ))}
-      </View>
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", bottom: 2, left: 0, right: 0, flexDirection: "row", justifyContent: "space-around" }}
-      >
-        {decor.bottom.map((e, i) => (
-          <Text key={i} style={{ fontSize: EMOJI_SIZE, opacity: decorOpacity }}>
-            {e}
-          </Text>
-        ))}
-      </View>
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", left: 2, top: BORDER_PAD, bottom: BORDER_PAD, flexDirection: "column", justifyContent: "space-around" }}
-      >
-        {decor.left.map((e, i) => (
-          <Text key={i} style={{ fontSize: EMOJI_SIZE, opacity: decorOpacity }}>
-            {e}
-          </Text>
-        ))}
-      </View>
-      <View
-        pointerEvents="none"
-        style={{ position: "absolute", right: 2, top: BORDER_PAD, bottom: BORDER_PAD, flexDirection: "column", justifyContent: "space-around" }}
-      >
-        {decor.right.map((e, i) => (
-          <Text key={i} style={{ fontSize: EMOJI_SIZE, opacity: decorOpacity }}>
-            {e}
-          </Text>
-        ))}
-      </View>
       {children}
     </View>
   );

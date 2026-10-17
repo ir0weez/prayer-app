@@ -9,26 +9,37 @@ import {
   TOWN_GRID_SIZE,
   TOWN_STORAGE_KEY,
   SHOP_OWNED_KEY,
+  MAP_INFO,
+  MAP_UNLOCKED_KEY,
+  TOWN_MAP_IDS,
   dailyIncomeForTown,
+  dailyXPForTown,
   roadMultiplierForBuilding,
   barbershopBoostForBuilding,
   buildingFootprint,
   parseCoins,
   parseTown,
   parseOwnedItems,
+  parseUnlockedMaps,
+  emptyTownState,
   tierForFastDay,
   incomeFor,
+  xpIncomeFor,
   upgradeCostFor,
   type BuildingType,
   type DecorationType,
   type HometownCoins,
   type PlacedBuilding,
   type PlacedDecoration,
+  type TownMapId,
+  type MapState,
   type TownState,
 } from "@/lib/hometown";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
+import { awardCustomXP } from "@/lib/xp-engine";
+import { SeasonalOverlay } from "@/components/seasonal-overlay";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -230,13 +241,132 @@ function BuildingArt({ type, size, level = 1 }: { type: string; size: number; le
           </View>
         </View>
       );
+    case "bank-tower":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.6, height: s * 0.85, backgroundColor: "#1E3A8A", borderRadius: 4, alignItems: "center", paddingTop: s * 0.08 }}>
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={{ width: s * 0.4, height: s * 0.08, backgroundColor: "#FDE68A", marginVertical: s * 0.03, borderRadius: 2 }} />
+            ))}
+          </View>
+          <View style={{ width: s * 0.7, height: s * 0.08, backgroundColor: "#172554", borderRadius: 3, marginTop: 1 }} />
+        </View>
+      );
+    case "department-store":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#EF4444" }} />)}
+          </View>
+          <View style={{ width: s * 0.95, height: s * 0.6, backgroundColor: "#7C3AED", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#DDD6FE", marginHorizontal: 4, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+    case "hotel":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center", paddingTop: s * 0.08 }}>
+            <View style={{ width: s * 0.34, height: s * 0.2, backgroundColor: "#FEF3C7", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: s * 0.14, fontWeight: "800", color: "#92400E" }}>H</Text>
+            </View>
+            <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
+              {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.2, backgroundColor: "#FDE68A", marginHorizontal: 4, borderRadius: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+    case "office":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.65, height: s * 0.8, backgroundColor: "#93C5FD", borderRadius: 4, alignItems: "center", paddingTop: s * 0.06 }}>
+            {[0, 1, 2].map(i => (
+              <View key={i} style={{ flexDirection: "row", marginVertical: s * 0.025 }}>
+                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.1, backgroundColor: "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    case "food-court":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.55, backgroundColor: "#F97316", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: s * 0.32 }}>🍔</Text>
+          </View>
+          <View style={{ width: s * 0.9, height: s * 0.1, backgroundColor: "#9A3412", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "bookstore":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#92400E", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: s * 0.32 }}>📚</Text>
+          </View>
+          <View style={{ width: s * 0.85, height: s * 0.1, backgroundColor: "#451A03", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "arcade":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.6, backgroundColor: "#4C1D95", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: s * 0.32 }}>🕹️</Text>
+            <View style={{ flexDirection: "row", marginTop: 2 }}>
+              {["#F0ABFC", "#67E8F9", "#FDE68A"].map((c, i) => <View key={i} style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: c, marginHorizontal: 2 }} />)}
+            </View>
+          </View>
+        </View>
+      );
+    case "cinema":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.14, backgroundColor: "#FBBF24", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: s * 0.09, fontWeight: "800", color: "#78350F" }}>CINEMA</Text>
+          </View>
+          <View style={{ width: s * 0.85, height: s * 0.5, backgroundColor: "#1F2937", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: s * 0.5, height: s * 0.28, backgroundColor: "#E5E7EB", borderRadius: 3 }} />
+          </View>
+        </View>
+      );
+    case "library":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#0F766E", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: s * 0.32 }}>📖</Text>
+          </View>
+          <View style={{ width: s * 0.9, height: s * 0.1, backgroundColor: "#134E4A", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "classroom":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.9, height: s * 0.6, backgroundColor: "#15803D", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: s * 0.55, height: s * 0.3, backgroundColor: "#166534", borderRadius: 3, borderWidth: 2, borderColor: "#BBF7D0", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: s * 0.16, color: "#FFFFFF", fontWeight: "700" }}>A+</Text>
+            </View>
+          </View>
+        </View>
+      );
+    case "chapel":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ width: s * 0.7, height: s * 0.55, backgroundColor: "#F8FAFC", borderRadius: 5, borderWidth: 2, borderColor: "#CBD5E1", alignItems: "center", paddingTop: s * 0.06 }}>
+            <View style={{ width: s * 0.08, height: s * 0.22, backgroundColor: "#B45309", borderRadius: 2 }} />
+            <View style={{ position: "absolute", top: s * 0.1, width: s * 0.2, height: s * 0.07, backgroundColor: "#B45309", borderRadius: 2 }} />
+            <View style={{ width: s * 0.3, height: s * 0.18, backgroundColor: "#BFDBFE", borderRadius: 8, marginTop: s * 0.04 }} />
+          </View>
+          <View style={{ width: s * 0.8, height: s * 0.08, backgroundColor: "#94A3B8", borderRadius: 3, marginTop: 1 }} />
+        </View>
+      );
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
 }
 
-/** Spinning coin with accumulated amount underneath */
-function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => void }) {
+/** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
+function SpinningCoin({ amount, kind = "coins", onCollect }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void }) {
   const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -258,6 +388,7 @@ function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => 
   });
 
   const hasAmount = amount > 0;
+  const isXP = kind === "xp";
 
   return (
     <Pressable
@@ -273,11 +404,11 @@ function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => 
           width: 36,
           height: 36,
           borderRadius: 18,
-          backgroundColor: hasAmount ? "#FBBF24" : "#E5E7EB",
+          backgroundColor: hasAmount ? (isXP ? "#C4B5FD" : "#FBBF24") : "#E5E7EB",
           alignItems: "center",
           justifyContent: "center",
           borderWidth: 2,
-          borderColor: hasAmount ? "#D97706" : "#9CA3AF",
+          borderColor: hasAmount ? (isXP ? "#7C3AED" : "#D97706") : "#9CA3AF",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.2,
@@ -285,19 +416,19 @@ function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => 
           elevation: 3,
         }}
       >
-        <Text style={{ fontSize: 20 }}>🪙</Text>
+        <Text style={{ fontSize: 20 }}>{isXP ? "⚡" : "🪙"}</Text>
       </Animated.View>
       <Text style={{
         fontSize: 10,
         fontWeight: "700",
-        color: hasAmount ? "#92400E" : "#9CA3AF",
+        color: hasAmount ? (isXP ? "#5B21B6" : "#92400E") : "#9CA3AF",
         marginTop: 2,
         backgroundColor: "rgba(255,255,255,0.9)",
         paddingHorizontal: 6,
         paddingVertical: 1,
         borderRadius: 8,
       }}>
-        {hasAmount ? `+${amount.toFixed(1)}` : "earning"}
+        {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(1)}`) : "earning"}
       </Text>
     </Pressable>
   );
@@ -306,63 +437,85 @@ function SpinningCoin({ amount, onCollect }: { amount: number; onCollect: () => 
 export default function HometownScreen() {
   const router = useRouter();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
-  const [town, setTown] = useState<TownState>({ buildings: [], decorations: [], roads: [], lastIncomeDate: null });
+  const [town, setTown] = useState<TownState>(() => emptyTownState());
+  const [activeMap, setActiveMap] = useState<TownMapId>("town");
+  const [unlockedMaps, setUnlockedMaps] = useState<TownMapId[]>(["town"]);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
 
+  // The active map's state (all grid logic operates on this)
+  const map: MapState = town.maps[activeMap];
+
   const saveTown = useCallback((next: TownState) => {
     setTown(next);
     AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
+
+  /** Persist a new state for the currently active map. */
+  const saveMap = useCallback((next: MapState) => {
+    setTown(prev => {
+      const updated: TownState = { ...prev, maps: { ...prev.maps, [activeMap]: next } };
+      AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(updated)).catch(() => undefined);
+      return updated;
+    });
+  }, [activeMap]);
 
   const saveCoins = useCallback((next: HometownCoins) => {
     setCoins(next);
     AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
   }, []);
 
-  // Load + accumulate hourly coins on open
+  const switchMap = useCallback((id: TownMapId) => {
+    setActiveMap(id);
+    setSelectedTile(null);
+    setMovingBuilding(null);
+  }, []);
+
+  const handleUnlockMap = useCallback((id: TownMapId) => {
+    const info = MAP_INFO[id];
+    if (info.comingSoon) {
+      Alert.alert(info.name, "This map is coming soon!");
+      return;
+    }
+    if (coins.balance < info.unlockCost) {
+      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${Math.floor(coins.balance)}.`);
+      return;
+    }
+    Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${info.unlockCost} coins.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Unlock",
+        onPress: () => {
+          const next = [...unlockedMaps, id];
+          setUnlockedMaps(next);
+          AsyncStorage.setItem(MAP_UNLOCKED_KEY, JSON.stringify(next)).catch(() => undefined);
+          saveCoins({ balance: coins.balance - info.unlockCost, lifetimeEarned: coins.lifetimeEarned });
+          switchMap(id);
+        },
+      },
+    ]);
+  }, [coins, unlockedMaps, saveCoins, switchMap]);
+
+  // Load + accumulate hourly income on open (across all maps)
   useEffect(() => {
     (async () => {
       try {
         // Refresh gear boosts (tools boost town coins)
         await refreshGearBoostCache();
         const gearCoinMult = 1 + getCachedBoosts().coinMult;
-        // Accumulate 0.5 coins per hour per income building (with road multiplier)
         const now = new Date().toISOString();
-        const townRawForAccum = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
-        if (townRawForAccum) {
-          const t = parseTown(JSON.parse(townRawForAccum));
-          let changed = false;
-          const updatedBuildings = t.buildings.map(b => {
-            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
-            const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
-            if (hoursElapsed > 0 && incomeFor(b.type, b.level || 1) > 0) {
-              changed = true;
-              const multiplier = roadMultiplierForBuilding(t, b.id);
-              const shopBoost = barbershopBoostForBuilding(t, b.id);
-              return {
-                ...b,
-                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier * shopBoost * gearCoinMult)) * 10) / 10,
-                lastTick: now,
-              };
-            }
-            return b.lastTick ? b : { ...b, lastTick: now };
-          });
-          if (changed) {
-            const updatedTown = { ...t, buildings: updatedBuildings };
-            await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(updatedTown));
-          }
-        }
-        const [coinsRaw, townRaw, monumentsRaw, ownedRaw, backfillRaw, fastsRaw] = await Promise.all([
+        const today = getTodayISOString();
+        const [coinsRaw, townRaw, monumentsRaw, ownedRaw, backfillRaw, fastsRaw, unlockedRaw] = await Promise.all([
           AsyncStorage.getItem(COINS_STORAGE_KEY),
           AsyncStorage.getItem(TOWN_STORAGE_KEY),
           AsyncStorage.getItem(MONUMENT_STORAGE_KEY),
           AsyncStorage.getItem(SHOP_OWNED_KEY),
           AsyncStorage.getItem("prayercircle.hometown.coin-backfill.v1"),
           AsyncStorage.getItem("prayercircle.fasts.v1"),
+          AsyncStorage.getItem(MAP_UNLOCKED_KEY),
         ]);
         // One-time backfill: 1 coin per completed fast day before coins existed
         let effectiveCoinsRaw = coinsRaw;
@@ -390,24 +543,58 @@ export default function HometownScreen() {
         }
         const c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
+        setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         setCoins(c);
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
 
-        // Collect business income for missed days
-        const today = getTodayISOString();
+        // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
+        const newMaps = { ...t.maps };
+        for (const id of TOWN_MAP_IDS) {
+          const m = newMaps[id];
+          const updatedBuildings = m.buildings.map(b => {
+            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
+            const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
+            const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
+            const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
+            if (hoursElapsed > 0 && (earnsCoins || earnsXP)) {
+              const multiplier = roadMultiplierForBuilding(m, b.id);
+              const shopBoost = barbershopBoostForBuilding(m, b.id);
+              const add = earnsCoins
+                ? hoursElapsed * 0.5 * multiplier * shopBoost * gearCoinMult
+                : (hoursElapsed * xpIncomeFor(b.type, b.level || 1)) / 24;
+              return {
+                ...b,
+                accumulated: Math.round(((b.accumulated || 0) + add) * 10) / 10,
+                lastTick: now,
+              };
+            }
+            return b.lastTick ? b : { ...b, lastTick: now };
+          });
+          newMaps[id] = { ...m, buildings: updatedBuildings };
+        }
+        t = { ...t, maps: newMaps };
+
+        // Collect business income for missed days (all maps)
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDay = dailyIncomeForTown(t);
-          if (days > 0 && perDay > 0) {
-            const earned = days * perDay;
-            const nextCoins = {
-              balance: c.balance + earned,
-              lifetimeEarned: c.lifetimeEarned + earned,
-            };
-            saveCoins(nextCoins);
-            Alert.alert("Business Income", `Your town earned ${earned} coins while you were away!`);
+          const perDayCoins = dailyIncomeForTown(t);
+          const perDayXP = dailyXPForTown(t);
+          if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
+            const earnedCoins = Math.floor(days * perDayCoins);
+            const earnedXP = Math.round(days * perDayXP);
+            if (earnedCoins > 0) {
+              const nextCoins = {
+                balance: c.balance + earnedCoins,
+                lifetimeEarned: c.lifetimeEarned + earnedCoins,
+              };
+              saveCoins(nextCoins);
+            }
+            if (earnedXP > 0) {
+              await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);
+            }
+            Alert.alert("Town Income", `Your towns earned ${earnedCoins} coins${earnedXP > 0 ? ` and ${earnedXP} XP` : ""} while you were away!`);
           }
         }
         t = { ...t, lastIncomeDate: today };
@@ -417,7 +604,7 @@ export default function HometownScreen() {
   }, []);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
-    return town.buildings.find((b) => {
+    return map.buildings.find((b) => {
       const { w, h } = buildingFootprint(b.level || 1);
       return x >= b.x && x < b.x + w && y >= b.y && y < b.y + h;
     });
@@ -426,9 +613,9 @@ export default function HometownScreen() {
   const isBuildingOrigin = (b: PlacedBuilding, x: number, y: number): boolean =>
     b.x === x && b.y === y;
 
-  const roadAt = (x: number, y: number) => (town.roads || []).find(r => r.x === x && r.y === y);
+  const roadAt = (x: number, y: number) => (map.roads || []).find(r => r.x === x && r.y === y);
   const decorationAt = (x: number, y: number): PlacedDecoration | undefined =>
-    town.decorations.find((d) => d.x === x && d.y === y);
+    map.decorations.find((d) => d.x === x && d.y === y);
 
   const handleTilePress = (x: number, y: number) => {
     // Move mode: place the moving building here
@@ -449,10 +636,10 @@ export default function HometownScreen() {
         Alert.alert("No Room", "Can't move here - not enough space.");
         return;
       }
-      const updatedBuildings = town.buildings.map(b =>
+      const updatedBuildings = map.buildings.map(b =>
         b.id === movingBuilding.id ? { ...b, x, y } : b
       );
-      saveTown({ ...town, buildings: updatedBuildings });
+      saveMap({ ...map, buildings: updatedBuildings });
       setMovingBuilding(null);
       return;
     }
@@ -462,7 +649,7 @@ export default function HometownScreen() {
       Alert.alert(def.name, "A beautiful decoration.", [
         { text: "OK" },
         { text: "Remove", style: "destructive", onPress: () => {
-          saveTown({ ...town, decorations: town.decorations.filter(d => d.id !== existingDec.id) });
+          saveMap({ ...map, decorations: map.decorations.filter(d => d.id !== existingDec.id) });
         }},
       ]);
       return;
@@ -516,7 +703,7 @@ export default function HometownScreen() {
                   Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
                     { text: "Cancel", style: "cancel" },
                     { text: "Sell", style: "destructive", onPress: () => {
-                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                      saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
                       const updatedCoins = {
                         balance: Math.round((coins.balance + sellPrice) * 10) / 10,
                         lifetimeEarned: coins.lifetimeEarned,
@@ -567,7 +754,7 @@ export default function HometownScreen() {
                     Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPriceNoRoom} coins?`, [
                       { text: "Cancel", style: "cancel" },
                       { text: "Sell", style: "destructive", onPress: () => {
-                        saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                        saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
                         const updatedCoins = {
                           balance: Math.round((coins.balance + sellPriceNoRoom) * 10) / 10,
                           lifetimeEarned: coins.lifetimeEarned,
@@ -606,7 +793,7 @@ export default function HometownScreen() {
                   Alert.alert("Sell Building?", `Sell ${def.name} for ${sellPrice} coins?`, [
                     { text: "Cancel", style: "cancel" },
                     { text: "Sell", style: "destructive", onPress: () => {
-                      saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== existing.id) });
+                      saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== existing.id) });
                       const updatedCoins = {
                         balance: Math.round((coins.balance + sellPrice) * 10) / 10,
                         lifetimeEarned: coins.lifetimeEarned,
@@ -623,10 +810,10 @@ export default function HometownScreen() {
                     Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance}.`);
                     return;
                   }
-                  const updated = town.buildings.map(b =>
+                  const updated = map.buildings.map(b =>
                     b.id === existing.id ? { ...b, level: nextLevel } : b
                   );
-                  saveTown({ ...town, buildings: updated });
+                  saveMap({ ...map, buildings: updated });
                   const nextCoins = { balance: coins.balance - cost, lifetimeEarned: coins.lifetimeEarned };
                   setCoins(nextCoins);
                   AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(nextCoins)).catch(() => undefined);
@@ -652,18 +839,18 @@ export default function HometownScreen() {
       Alert.alert("Not enough coins", `You need ${def.cost} coins. You have ${coins.balance}.`);
       return;
     }
-    if (type === "pawn-house" && town.buildings.some((b) => b.type === "pawn-house")) {
+    if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
       Alert.alert("Already built", "You already have a pawn house!");
       return;
     }
     const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
-    saveTown({ ...town, buildings: [...town.buildings, building] });
+    saveMap({ ...map, buildings: [...map.buildings, building] });
     saveCoins({ balance: coins.balance - def.cost, lifetimeEarned: coins.lifetimeEarned });
     setSelectedTile(null);
   };
 
   const availableBuildings = (Object.keys(BUILDINGS) as BuildingType[]).filter(
-    (t) => tier >= BUILDINGS[t].tier
+    (t) => tier >= BUILDINGS[t].tier && BUILDINGS[t].maps.includes(activeMap)
   );
 
   const ownedDecorations = (Object.keys(DECORATIONS) as DecorationType[]).filter(
@@ -677,24 +864,29 @@ export default function HometownScreen() {
       return;
     }
     const dec: PlacedDecoration = { id: `d${Date.now()}`, type, x: selectedTile.x, y: selectedTile.y };
-    saveTown({ ...town, decorations: [...town.decorations, dec] });
+    saveMap({ ...map, decorations: [...map.decorations, dec] });
     setSelectedTile(null);
   };
 
   const handleCollectBuilding = (buildingId: string) => {
-    const building = town.buildings.find(b => b.id === buildingId);
+    const building = map.buildings.find(b => b.id === buildingId);
     if (!building || !(building.accumulated || 0)) return;
     const amount = building.accumulated || 0;
-    const updatedBuildings = town.buildings.map(b =>
+    const updatedBuildings = map.buildings.map(b =>
       b.id === buildingId ? { ...b, accumulated: 0, lastTick: new Date().toISOString() } : b
     );
-    const updatedTown = { ...town, buildings: updatedBuildings };
-    saveTown(updatedTown);
-    const updatedCoins = {
-      balance: Math.round((coins.balance + amount) * 10) / 10,
-      lifetimeEarned: Math.round((coins.lifetimeEarned + amount) * 10) / 10,
-    };
-    saveCoins(updatedCoins);
+    saveMap({ ...map, buildings: updatedBuildings });
+    if (xpIncomeFor(building.type, building.level || 1) > 0) {
+      // School building: awards XP instead of coins
+      const xp = Math.max(1, Math.floor(amount));
+      awardCustomXP(xp, `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
+    } else {
+      const updatedCoins = {
+        balance: Math.round((coins.balance + amount) * 10) / 10,
+        lifetimeEarned: Math.round((coins.lifetimeEarned + amount) * 10) / 10,
+      };
+      saveCoins(updatedCoins);
+    }
   };
 
   const handlePlaceRoad = () => {
@@ -704,7 +896,7 @@ export default function HometownScreen() {
       return;
     }
     const road = { id: `r${Date.now()}`, x: selectedTile.x, y: selectedTile.y };
-    const next = { ...town, roads: [...(town.roads || []), road] };
+    const next = { ...town, roads: [...(map.roads || []), road] };
     saveTown(next);
     setSelectedTile(null);
   };
@@ -806,7 +998,7 @@ export default function HometownScreen() {
         <View style={{ position: "relative" }}>
           {rows}
           {/* Buildings overlay - buildings don't capture touches, coins do */}
-          {town.buildings.map((b) => {
+          {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);
             return (
               <View
@@ -832,7 +1024,7 @@ export default function HometownScreen() {
             );
           })}
           {/* Coins overlay - only coins capture touches */}
-          {town.buildings.map((b) => {
+          {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1);
             const hasIncome = incomeFor(b.type, b.level || 1) > 0;
             if (!hasIncome) return null;
@@ -890,7 +1082,7 @@ export default function HometownScreen() {
                           Alert.alert("Sell Building?", `Sell ${BUILDINGS[b.type].name} for ${sellPrice} coins?`, [
                             { text: "Cancel", style: "cancel" },
                             { text: "Sell", style: "destructive", onPress: () => {
-                              saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
+                              saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== b.id) });
                               const updatedCoins = {
                                 balance: Math.round((coins.balance + sellPrice) * 10) / 10,
                                 lifetimeEarned: coins.lifetimeEarned,
@@ -916,16 +1108,16 @@ export default function HometownScreen() {
                   const r = roadAt(selectedTile.x, selectedTile.y);
                   if (b && !isBuildingOrigin(b, selectedTile.x, selectedTile.y)) return;
                   if (d) {
-                    saveTown({ ...town, decorations: town.decorations.filter(x => x.id !== d.id) });
+                    saveMap({ ...map, decorations: map.decorations.filter(x => x.id !== d.id) });
                     setSelectedTile(null);
                   } else if (r) {
-                    saveTown({ ...town, roads: (town.roads || []).filter(x => x.id !== r.id) });
+                    saveMap({ ...map, roads: (map.roads || []).filter(x => x.id !== r.id) });
                     setSelectedTile(null);
                   } else if (b) {
                     Alert.alert("Remove Building?", `Remove ${BUILDINGS[b.type].name}? (No refund)`, [
                       { text: "Cancel", style: "cancel" },
                       { text: "Remove", style: "destructive", onPress: () => {
-                        saveTown({ ...town, buildings: town.buildings.filter(x => x.id !== b.id) });
+                        saveMap({ ...map, buildings: map.buildings.filter(x => x.id !== b.id) });
                         setSelectedTile(null);
                       }},
                     ]);
@@ -972,7 +1164,7 @@ export default function HometownScreen() {
               {ownedDecorations.map((type) => {
                 const def = DECORATIONS[type];
                 // Check if already placed
-                const alreadyPlaced = town.decorations.some(d => d.type === type);
+                const alreadyPlaced = map.decorations.some(d => d.type === type);
                 if (alreadyPlaced) return null;
                 return (
                   <Pressable

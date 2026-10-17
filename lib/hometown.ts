@@ -28,6 +28,37 @@ export function tierForFastDay(dayNum: number): HometownTier {
   return 1;
 }
 
+// ---- Multi-map ----
+
+export type TownMapId = "town" | "city" | "mall" | "school" | "reserve";
+
+export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "reserve"];
+
+export type MapInfo = {
+  name: string;
+  icon: string;
+  description: string;
+  unlockCost: number; // coins to unlock (0 = free)
+  comingSoon: boolean;
+};
+
+export const MAP_INFO: Record<TownMapId, MapInfo> = {
+  town:    { name: "Hometown", icon: "🏠", description: "Your starter town", unlockCost: 0, comingSoon: false },
+  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 200, comingSoon: false },
+  mall:    { name: "Mall",     icon: "🏬", description: "Buy shop units as income properties", unlockCost: 150, comingSoon: false },
+  school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 150, comingSoon: false },
+  reserve: { name: "???",      icon: "❓", description: "Coming soon", unlockCost: 0, comingSoon: true },
+};
+
+export const MAP_UNLOCKED_KEY = "prayercircle.hometown.maps.unlocked.v1";
+
+export function parseUnlockedMaps(value: unknown): TownMapId[] {
+  if (!Array.isArray(value)) return ["town"];
+  const valid = value.filter((v): v is TownMapId => typeof v === "string" && (TOWN_MAP_IDS as string[]).includes(v));
+  if (!valid.includes("town")) valid.unshift("town");
+  return valid;
+}
+
 // ---- Town ----
 
 export type BuildingType =
@@ -42,7 +73,21 @@ export type BuildingType =
   | "clothes-shop" // gear: clothes shop
   | "armory"       // gear: armor shop
   | "weaponsmith"  // gear: weapon shop
-  | "toolshop";    // gear: tool shop
+  | "toolshop"     // gear: tool shop
+  // City buildings (big earners)
+  | "bank-tower"
+  | "department-store"
+  | "hotel"
+  | "office"
+  // Mall units (income properties)
+  | "food-court"
+  | "bookstore"
+  | "arcade"
+  | "cinema"
+  // School buildings (earn XP)
+  | "library"
+  | "classroom"
+  | "chapel";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -72,26 +117,44 @@ export function incomeFor(type: BuildingType, level: 1 | 2 | 3): number {
   return Math.round(base * UPGRADE_INCOME_MULT[level]);
 }
 
-export const BUILDINGS: Record<BuildingType, {
+export type BuildingDef = {
   name: string;
   icon: string;
   cost: number;
   tier: HometownTier;
-  incomePerDay: number;
+  incomePerDay: number; // coins per day (0 if XP-only)
+  xpPerDay: number;     // XP per day (0 for coin buildings)
+  maps: TownMapId[];    // which maps this building can be placed on
   description: string;
-}> = {
-  "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  description: "A cozy home for your townsfolk." },
-  "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  description: "Your pawn's home. Tap to enter and decorate." },
-  "farm":       { name: "Farm",       icon: "🌾", cost: 15,  tier: 1, incomePerDay: 2,  description: "+2 coins per day while your streak is alive." },
-  "shop":       { name: "Shop",       icon: "🏪", cost: 30,  tier: 1, incomePerDay: 3,  description: "+3 coins per day while your streak is alive." },
-  "bakery":     { name: "Bakery",     icon: "🥖", cost: 60,  tier: 2, incomePerDay: 5,  description: "+5 coins per day while your streak is alive." },
-  "market":     { name: "Market",     icon: "🏬", cost: 120, tier: 3, incomePerDay: 8,  description: "+8 coins per day while your streak is alive." },
-  "bank":       { name: "Bank",       icon: "🏦", cost: 250, tier: 4, incomePerDay: 12, description: "+12 coins per day while your streak is alive." },
-  "barbershop": { name: "Barbershop", icon: "💈", cost: 40,  tier: 1, incomePerDay: 1,  description: "+1 coin/day. Boosts connected businesses +25%." },
-  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 50, tier: 1, incomePerDay: 1, description: "Buy outfits for your pawn. +1 coin/day." },
-  "armory":       { name: "Armory",       icon: "🛡️", cost: 80, tier: 1, incomePerDay: 2,  description: "Buy armor for +hearts. +2 coins/day." },
-  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 80, tier: 1, incomePerDay: 2,  description: "Buy weapons for +XP. +2 coins/day." },
-  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 60, tier: 1, incomePerDay: 1,  description: "Buy tools for +coins. +1 coin/day." },
+};
+
+export const BUILDINGS: Record<BuildingType, BuildingDef> = {
+  "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
+  "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
+  "farm":       { name: "Farm",       icon: "🌾", cost: 15,  tier: 1, incomePerDay: 2,  xpPerDay: 0, maps: ["town"], description: "+2 coins per day while your streak is alive." },
+  "shop":       { name: "Shop",       icon: "🏪", cost: 30,  tier: 1, incomePerDay: 3,  xpPerDay: 0, maps: ["town"], description: "+3 coins per day while your streak is alive." },
+  "bakery":     { name: "Bakery",     icon: "🥖", cost: 60,  tier: 2, incomePerDay: 5,  xpPerDay: 0, maps: ["town"], description: "+5 coins per day while your streak is alive." },
+  "market":     { name: "Market",     icon: "🏬", cost: 120, tier: 3, incomePerDay: 8,  xpPerDay: 0, maps: ["town"], description: "+8 coins per day while your streak is alive." },
+  "bank":       { name: "Bank",       icon: "🏦", cost: 250, tier: 4, incomePerDay: 12, xpPerDay: 0, maps: ["town"], description: "+12 coins per day while your streak is alive." },
+  "barbershop": { name: "Barbershop", icon: "💈", cost: 40,  tier: 1, incomePerDay: 1,  xpPerDay: 0, maps: ["town"], description: "+1 coin/day. Boosts connected businesses +25%." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 50, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +1 coin/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 80, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +2 coins/day." },
+  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 80, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +2 coins/day." },
+  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 60, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +1 coin/day." },
+  // City — big buildings, big earnings
+  "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 500, tier: 1, incomePerDay: 25, xpPerDay: 0, maps: ["city"], description: "A towering bank. +25 coins/day." },
+  "department-store": { name: "Department Store", icon: "🏬", cost: 400, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
+  "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 350, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
+  "office":           { name: "Office Tower",     icon: "🏢", cost: 300, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
+  // Mall — income properties
+  "food-court": { name: "Food Court", icon: "🍔", cost: 100, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: ["mall"], description: "Hungry shoppers. +8 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 80,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: ["mall"], description: "Quiet readers. +6 coins/day." },
+  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 120, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["mall"], description: "Tokens and high scores. +10 coins/day." },
+  "cinema":     { name: "Cinema",     icon: "🎬", cost: 150, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: ["mall"], description: "Now showing. +12 coins/day." },
+  // School — XP earners
+  "library":   { name: "Library",   icon: "📖", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
+  "classroom": { name: "Classroom", icon: "📝", cost: 80,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
+  "chapel":    { name: "Chapel",    icon: "⛪", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
 };
 
 export type PlacedBuilding = {
@@ -117,23 +180,74 @@ export type PlacedRoad = {
   y: number;
 };
 
-export type TownState = {
+export type MapState = {
   buildings: PlacedBuilding[];
   decorations: PlacedDecoration[];
   roads: PlacedRoad[];
+};
+
+export type TownState = {
+  maps: Record<TownMapId, MapState>;
   lastIncomeDate: string | null;
 };
 
 export const TOWN_GRID_SIZE = 8;
 
-export function parseTown(value: unknown): TownState {
-  if (!value || typeof value !== "object") return { buildings: [], decorations: [], roads: [], lastIncomeDate: null };
-  const t = value as Partial<TownState>;
+export function emptyMapState(): MapState {
+  return { buildings: [], decorations: [], roads: [] };
+}
+
+export function emptyTownState(): TownState {
   return {
-    buildings: Array.isArray(t.buildings) ? t.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: b.level === 2 || b.level === 3 ? b.level : 1 as const })) : [],
-    decorations: Array.isArray(t.decorations) ? t.decorations.filter(d => d && typeof d.id === "string") : [],
-    roads: Array.isArray(t.roads) ? t.roads.filter(r => r && typeof r.id === "string") : [],
-    lastIncomeDate: typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null,
+    maps: {
+      town: emptyMapState(),
+      city: emptyMapState(),
+      mall: emptyMapState(),
+      school: emptyMapState(),
+      reserve: emptyMapState(),
+    },
+    lastIncomeDate: null,
+  };
+}
+
+function parseMapState(value: unknown): MapState {
+  if (!value || typeof value !== "object") return emptyMapState();
+  const m = value as Partial<MapState>;
+  return {
+    buildings: Array.isArray(m.buildings) ? m.buildings.filter(b => b && typeof b.id === "string").map(b => ({ ...b, level: b.level === 2 || b.level === 3 ? b.level : 1 as const })) : [],
+    decorations: Array.isArray(m.decorations) ? m.decorations.filter(d => d && typeof d.id === "string") : [],
+    roads: Array.isArray(m.roads) ? m.roads.filter(r => r && typeof r.id === "string") : [],
+  };
+}
+
+export function parseTown(value: unknown): TownState {
+  if (!value || typeof value !== "object") return emptyTownState();
+  const t = value as Partial<TownState> & { buildings?: unknown; decorations?: unknown; roads?: unknown };
+  const lastIncomeDate = typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null;
+  // New multi-map format
+  if (t.maps && typeof t.maps === "object") {
+    const raw = t.maps as Partial<Record<TownMapId, unknown>>;
+    return {
+      maps: {
+        town: parseMapState(raw.town),
+        city: parseMapState(raw.city),
+        mall: parseMapState(raw.mall),
+        school: parseMapState(raw.school),
+        reserve: parseMapState(raw.reserve),
+      },
+      lastIncomeDate,
+    };
+  }
+  // Old single-map format: migrate everything into the town map
+  return {
+    maps: {
+      town: parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads }),
+      city: emptyMapState(),
+      mall: emptyMapState(),
+      school: emptyMapState(),
+      reserve: emptyMapState(),
+    },
+    lastIncomeDate,
   };
 }
 
@@ -141,9 +255,9 @@ export function parseTown(value: unknown): TownState {
 // Buildings connected via adjacent roads form a network.
 // Multiplier = 1 + 0.25 * (networkSize - 1), so:
 // 1 building (no network) = 1x, 2 connected = 1.25x, 3 = 1.5x, 4 = 1.75x, etc.
-export function roadMultiplierForBuilding(town: TownState, buildingId: string): number {
-  const roads = town.roads || [];
-  const buildings = town.buildings;
+export function roadMultiplierForBuilding(map: MapState, buildingId: string): number {
+  const roads = map.roads || [];
+  const buildings = map.buildings;
   if (roads.length === 0) return 1;
 
   // Build adjacency: find all buildings connected via roads
@@ -198,9 +312,9 @@ export function roadMultiplierForBuilding(town: TownState, buildingId: string): 
 }
 
 /** Returns 1.25 if the building is connected via roads to a barbershop, else 1. */
-export function barbershopBoostForBuilding(town: TownState, buildingId: string): number {
-  const roads = town.roads || [];
-  const buildings = town.buildings;
+export function barbershopBoostForBuilding(map: MapState, buildingId: string): number {
+  const roads = map.roads || [];
+  const buildings = map.buildings;
   if (roads.length === 0) return 1;
 
   const building = buildings.find(b => b.id === buildingId);
@@ -259,12 +373,30 @@ export function buildingFootprint(level: number): { w: number; h: number } {
   return { w: s, h: s };
 }
 
-export function dailyIncomeForTown(town: TownState): number {
-  return town.buildings.reduce((sum, b) => {
+/** XP per day for a building type/level (0 for coin buildings). */
+export function xpIncomeFor(type: BuildingType, level: 1 | 2 | 3): number {
+  const base = BUILDINGS[type].xpPerDay;
+  return Math.round(base * UPGRADE_INCOME_MULT[level]);
+}
+
+export function dailyIncomeForMap(map: MapState): number {
+  return map.buildings.reduce((sum, b) => {
     const base = incomeFor(b.type, b.level || 1);
-    const multiplier = roadMultiplierForBuilding(town, b.id);
+    const multiplier = roadMultiplierForBuilding(map, b.id);
     return sum + (base * multiplier);
   }, 0);
+}
+
+export function dailyXPForMap(map: MapState): number {
+  return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1), 0);
+}
+
+export function dailyIncomeForTown(town: TownState): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id]), 0);
+}
+
+export function dailyXPForTown(town: TownState): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyXPForMap(town.maps[id]), 0);
 }
 
 // ---- Pawn House Interior ----

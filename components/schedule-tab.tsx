@@ -8418,6 +8418,20 @@ function RestSquare({
   const colors = useColors();
   const mood = getRestMood(event.startTime);
   const mc = REST_MOODS[mood];
+  // Gentle breathing animation on the icon
+  const breathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [breathe]);
+  const iconScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+  const iconOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
   return (
     <Pressable
       onPress={onPress}
@@ -8425,10 +8439,10 @@ function RestSquare({
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={{ flex: 1, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-        {/* Sun icon in soft circle */}
-        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: mc.bg + "25", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-          <MaterialIcons name={mc.icon as any} size={32} color={mc.bg} />
-        </View>
+        {/* Icon with no tinted background, gentle breathing animation */}
+        <Animated.View style={{ transform: [{ scale: iconScale }], opacity: iconOpacity, marginBottom: 8 }}>
+          <MaterialIcons name={mc.icon as any} size={40} color={mc.iconColor} />
+        </Animated.View>
         <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>Rest</Text>
         {event.startTime && (
           <Text style={{ fontSize: 12, color: colors.muted }}>

@@ -9,6 +9,7 @@ import {
   PAWN_EYE_STYLES,
   PAWN_GENDERS,
   PAWN_HAIR_STYLES,
+  PAWN_BODY_STYLES,
   PAWN_MOUTH_STYLES,
   defaultPawn,
   loadCustomPawn,
@@ -18,6 +19,7 @@ import {
   type PawnEyeStyle,
   type PawnGender,
   type PawnHairStyle,
+  type PawnBodyStyle,
   type PawnMouthStyle,
 } from "@/lib/pawn";
 
@@ -105,7 +107,28 @@ export default function PawnCreatorScreen() {
           />
         </View>
 
-        {/* body color */}
+        {/* body shape */}
+        <SectionLabel>BODY SHAPE</SectionLabel>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
+          {PAWN_BODY_STYLES.map((opt) => {
+            const selected = draft.bodyStyle === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => setDraft({ ...draft, bodyStyle: opt.id as PawnBodyStyle })}
+                style={{
+                  width: 72, height: 88, borderRadius: 12, alignItems: "center", justifyContent: "center",
+                  backgroundColor: selected ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.07)",
+                  borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF",
+                }}
+              >
+                <PawnPreview pawn={{ ...draft, bodyStyle: opt.id as PawnBodyStyle, beardLength: 0, hairLength: 0 }} size={52} />
+                <Text style={{ fontSize: 10, color: selected ? "#FFFFFF" : "#A78BFA", marginTop: 2, fontWeight: selected ? "700" : "400" }}>{opt.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <SectionLabel>BODY COLOR</SectionLabel>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {PAWN_BODY_COLORS.map((c) => {

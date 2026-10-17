@@ -37,7 +37,8 @@ export type BuildingType =
   | "shop"       // business: +3 coins/day
   | "bakery"     // business: +5 coins/day (tier 2+)
   | "market"     // business: +8 coins/day (tier 3+)
-  | "bank";      // business: +12 coins/day (tier 4)
+  | "bank"       // business: +12 coins/day (tier 4)
+  | "barbershop"; // service: +1 coin/day, boosts connected businesses +25%
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -82,6 +83,7 @@ export const BUILDINGS: Record<BuildingType, {
   "bakery":     { name: "Bakery",     icon: "🥖", cost: 60,  tier: 2, incomePerDay: 5,  description: "+5 coins per day while your streak is alive." },
   "market":     { name: "Market",     icon: "🏬", cost: 120, tier: 3, incomePerDay: 8,  description: "+8 coins per day while your streak is alive." },
   "bank":       { name: "Bank",       icon: "🏦", cost: 250, tier: 4, incomePerDay: 12, description: "+12 coins per day while your streak is alive." },
+  "barbershop": { name: "Barbershop", icon: "💈", cost: 40,  tier: 2, incomePerDay: 1,  description: "+1 coin/day. Boosts connected businesses +25%." },
 };
 
 export type PlacedBuilding = {
@@ -185,6 +187,62 @@ export function roadMultiplierForBuilding(town: TownState, buildingId: string): 
 
   if (connectedCount <= 1) return 1;
   return 1 + 0.25 * (connectedCount - 1);
+}
+
+/** Returns 1.25 if the building is connected via roads to a barbershop, else 1. */
+export function barbershopBoostForBuilding(town: TownState, buildingId: string): number {
+  const roads = town.roads || [];
+  const buildings = town.buildings;
+  if (roads.length === 0) return 1;
+
+  const building = buildings.find(b => b.id === buildingId);
+  if (!building) return 1;
+  // Barbershop doesn't boost itself
+  if (building.type === "barbershop") return 1;
+
+  const isAdjacent = (x1: number, y1: number, x2: number, y2: number) =>
+    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
+
+  // BFS through road network looking for a barbershop
+  const visitedBuildings = new Set<string>([building.id]);
+  const roadVisited = new Set<string>();
+  const queue: Array<{ x: number; y: number }> = [{ x: building.x, y: building.y }];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const road of roads) {
+      const roadKey = `${road.x},${road.y}`;
+      if (roadVisited.has(roadKey)) continue;
+      if (isAdjacent(current.x, current.y, road.x, road.y)) {
+        roadVisited.add(roadKey);
+        for (const b of buildings) {
+          if (visitedBuildings.has(b.id)) continue;
+          // Check adjacency to any tile of the building's footprint
+          const fp = buildingFootprint(b.level || 1);
+          let adjacent = false;
+          for (let dx = 0; dx < fp.w && !adjacent; dx++) {
+            for (let dy = 0; dy < fp.h && !adjacent; dy++) {
+              if (isAdjacent(road.x, road.y, b.x + dx, b.y + dy)) adjacent = true;
+            }
+          }
+          if (adjacent) {
+            if (b.type === "barbershop") return 1.25;
+            visitedBuildings.add(b.id);
+            queue.push({ x: b.x, y: b.y });
+          }
+        }
+        for (const r2 of roads) {
+          const r2Key = `${r2.x},${r2.y}`;
+          if (roadVisited.has(r2Key)) continue;
+          if (isAdjacent(road.x, road.y, r2.x, r2.y)) {
+            roadVisited.add(r2Key);
+            queue.push({ x: r2.x, y: r2.y });
+          }
+        }
+      }
+    }
+  }
+  return 1;
 }
 
 // Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3)

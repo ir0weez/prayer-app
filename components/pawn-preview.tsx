@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import type { CustomPawn, PawnAccessory, PawnEyeStyle, PawnGender, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
-import { beardGrowthFor } from "@/lib/pawn";
+import { beardGrowthFor, hairGrowthFor } from "@/lib/pawn";
 
 const INK = "#1F2937";
 const HAIR = "#111827";
@@ -86,28 +86,30 @@ function Mouth({ style, s }: { style: PawnMouthStyle; s: number }) {
 }
 
 /** Flat, minimal hair (Notion-style). s = head width. */
-function Hair({ style, s }: { style: PawnHairStyle; s: number }) {
+function Hair({ style, s, length = 0 }: { style: PawnHairStyle; s: number; length?: number }) {
+  // length 0-100 scales the side/back hair: at 0 only the cap shows, grows longer with length
+  const sideScale = 0.3 + (length / 100) * 0.7;
   switch (style) {
     case "bald":
       return null;
     case "short":
       return (
-        <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.24, backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+        <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * (0.18 + (length / 100) * 0.12), backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
       );
     case "medium":
       return (
         <>
           <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.24, backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
-          <View style={{ position: "absolute", top: s * 0.14, left: s * 0.05, width: s * 0.1, height: s * 0.24, backgroundColor: HAIR, borderRadius: s * 0.05 }} />
-          <View style={{ position: "absolute", top: s * 0.14, right: s * 0.05, width: s * 0.1, height: s * 0.24, backgroundColor: HAIR, borderRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.14, left: s * 0.05, width: s * 0.1, height: s * 0.24 * sideScale, backgroundColor: HAIR, borderRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.14, right: s * 0.05, width: s * 0.1, height: s * 0.24 * sideScale, backgroundColor: HAIR, borderRadius: s * 0.05 }} />
         </>
       );
     case "long":
       return (
         <>
           <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.24, backgroundColor: HAIR, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
-          <View style={{ position: "absolute", top: s * 0.12, left: s * 0.02, width: s * 0.14, height: s * 0.62, backgroundColor: HAIR, borderRadius: s * 0.07 }} />
-          <View style={{ position: "absolute", top: s * 0.12, right: s * 0.02, width: s * 0.14, height: s * 0.62, backgroundColor: HAIR, borderRadius: s * 0.07 }} />
+          <View style={{ position: "absolute", top: s * 0.12, left: s * 0.02, width: s * 0.14, height: s * 0.62 * sideScale, backgroundColor: HAIR, borderRadius: s * 0.07 }} />
+          <View style={{ position: "absolute", top: s * 0.12, right: s * 0.02, width: s * 0.14, height: s * 0.62 * sideScale, backgroundColor: HAIR, borderRadius: s * 0.07 }} />
         </>
       );
     case "mohawk":
@@ -208,14 +210,31 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
 /** Renders a custom pawn as pure React Native shapes (no emoji). */
 export function PawnPreview({ pawn, size = 120 }: { pawn: CustomPawn; size?: number }) {
   const s = size;
-  const bodyW = s * 0.78;
-  const bodyH = s * 0.88;
+  const bodyStyle = pawn.bodyStyle || 'pebble';
+  // Body dimensions vary by style
+  let bodyW: number, bodyH: number, borderRadius: number;
+  switch (bodyStyle) {
+    case 'round':
+      bodyW = s * 0.85; bodyH = s * 0.85; borderRadius = bodyW * 0.5;
+      break;
+    case 'tall':
+      bodyW = s * 0.65; bodyH = s * 0.95; borderRadius = bodyW * 0.45;
+      break;
+    case 'stocky':
+      bodyW = s * 0.9; bodyH = s * 0.75; borderRadius = bodyW * 0.4;
+      break;
+    case 'pebble':
+    default:
+      bodyW = s * 0.78; bodyH = s * 0.88; borderRadius = bodyW * 0.48;
+      break;
+  }
   const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
+  const hairLength = hairGrowthFor(pawn);
   return (
     <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
       <View style={{ width: bodyW, height: bodyH, marginBottom: s * 0.04 }}>
-        <View style={{ position: "absolute", left: (s - bodyW) / 2, top: 0, width: bodyW, height: bodyH, borderRadius: bodyW * 0.48, backgroundColor: pawn.bodyColor }}>
-          <Hair style={pawn.hairStyle} s={bodyW} />
+        <View style={{ position: "absolute", left: (s - bodyW) / 2, top: 0, width: bodyW, height: bodyH, borderRadius, backgroundColor: pawn.bodyColor }}>
+          <Hair style={pawn.hairStyle} s={bodyW} length={hairLength} />
           <Eyes style={pawn.eyeStyle} s={bodyW} />
           <Mouth style={pawn.mouthStyle} s={bodyW} />
           <Beard length={beardLength} s={bodyW} />

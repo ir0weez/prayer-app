@@ -12,6 +12,18 @@ export type PawnAccessory = "none" | "tophat" | "crown" | "halo" | "cap";
 export type PawnGender = "male" | "female";
 export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun";
 
+export type PawnBodyStyle = "pebble" | "round" | "tall" | "stocky";
+
+export const PAWN_BODY_STYLES: { id: PawnBodyStyle; name: string }[] = [
+  { id: "pebble", name: "Pebble" },
+  { id: "round", name: "Round" },
+  { id: "tall", name: "Tall" },
+  { id: "stocky", name: "Stocky" },
+];
+
+export const HAIR_GROWTH_PER_DAY = 10;
+export const HAIR_MAX = 100;
+
 export type CustomPawn = {
   id: string;
   name: string;
@@ -21,10 +33,15 @@ export type CustomPawn = {
   accessory: PawnAccessory;
   gender: PawnGender;
   hairStyle: PawnHairStyle;
+  bodyStyle: PawnBodyStyle;
   /** Beard length (0-100) at the time of lastTrim. Grows +15/day for male pawns. */
   beardLength: number;
   /** ISO timestamp of the last trim (baseline for growth). */
   lastTrim: string;
+  /** Hair length (0-100) at the time of lastHaircut. Grows +10/day. */
+  hairLength: number;
+  /** ISO timestamp of the last haircut (baseline for growth). */
+  lastHaircut: string;
   createdAt: string;
 };
 
@@ -107,8 +124,11 @@ export function defaultPawn(): CustomPawn {
     accessory: "none",
     gender: "male",
     hairStyle: "short",
+    bodyStyle: "pebble",
     beardLength: 0,
     lastTrim: now,
+    hairLength: 0,
+    lastHaircut: now,
     createdAt: now,
   };
 }
@@ -131,8 +151,11 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
     accessory: isAccessory(p.accessory) ? p.accessory : "none",
     gender: isGender(p.gender) ? p.gender : "male",
     hairStyle: isHairStyle(p.hairStyle) ? p.hairStyle : "short",
+    bodyStyle: ["pebble", "round", "tall", "stocky"].includes(p.bodyStyle as string) ? (p.bodyStyle as PawnBodyStyle) : "pebble",
     beardLength,
     lastTrim: typeof p.lastTrim === "string" ? p.lastTrim : new Date().toISOString(),
+    hairLength: typeof p.hairLength === "number" && isFinite(p.hairLength) ? Math.max(0, Math.min(HAIR_MAX, p.hairLength)) : 0,
+    lastHaircut: typeof p.lastHaircut === "string" ? p.lastHaircut : new Date().toISOString(),
     createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
   };
 }
@@ -149,6 +172,28 @@ export function beardGrowthFor(pawn: CustomPawn): number {
 /** Trim the beard back to zero and reset the growth clock. */
 export function trimBeard(pawn: CustomPawn): CustomPawn {
   return { ...pawn, beardLength: 0, lastTrim: new Date().toISOString() };
+}
+
+/** Current hair length (0-100), including growth since last haircut. */
+export function hairGrowthFor(pawn: CustomPawn): number {
+  const last = new Date(pawn.lastHaircut).getTime();
+  if (!isFinite(last)) return Math.max(0, Math.min(HAIR_MAX, pawn.hairLength || 0));
+  const days = Math.max(0, (Date.now() - last) / 86400000);
+  return Math.max(0, Math.min(HAIR_MAX, (pawn.hairLength || 0) + days * HAIR_GROWTH_PER_DAY));
+}
+
+/** Cut hair back to zero and reset the growth clock. */
+export function cutHair(pawn: CustomPawn): CustomPawn {
+  return { ...pawn, hairLength: 0, lastHaircut: new Date().toISOString() };
+}
+
+/** Friendly label for a hair length. */
+export function hairLabel(length: number): string {
+  if (length <= 0) return "Fresh cut";
+  if (length <= 20) return "Just growing";
+  if (length <= 45) return "Getting shaggy";
+  if (length <= 75) return "Needs a cut";
+  return "Wild hair!";
 }
 
 /** Friendly label for a beard length. */

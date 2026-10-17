@@ -9,6 +9,9 @@ import {
   BARBERSHOP_TRIM_COST,
   beardGrowthFor,
   beardLabel,
+  cutHair,
+  hairGrowthFor,
+  hairLabel,
   loadCustomPawn,
   saveCustomPawn,
   trimBeard,
@@ -77,13 +80,32 @@ export default function BarbershopScreen() {
     setCoins(next);
   };
 
+  const handleHaircut = async () => {
+    if (!pawn) return;
+    if (coins.balance < BARBERSHOP_TRIM_COST) {
+      Alert.alert("Not enough coins", `A haircut costs ${BARBERSHOP_TRIM_COST} coins. You have ${Math.floor(coins.balance)}.`);
+      return;
+    }
+    const cut = cutHair(pawn);
+    await saveCustomPawn(cut);
+    const next: Coins = {
+      balance: Math.round((coins.balance - BARBERSHOP_TRIM_COST) * 10) / 10,
+      lifetimeEarned: coins.lifetimeEarned,
+    };
+    await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+    setPawn(cut);
+    setCoins(next);
+  };
+
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: BG }} />;
   }
 
   const beardLength = pawn ? beardGrowthFor(pawn) : 0;
+  const hairLength = pawn ? hairGrowthFor(pawn) : 0;
   const isMale = pawn?.gender === "male";
   const canTrim = isMale && beardLength > 0 && coins.balance >= BARBERSHOP_TRIM_COST;
+  const canCut = hairLength > 0 && pawn?.hairStyle !== "bald" && coins.balance >= BARBERSHOP_TRIM_COST;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -121,15 +143,35 @@ export default function BarbershopScreen() {
             </Pressable>
           </View>
         ) : !isMale ? (
-          <View style={{ backgroundColor: CARD, borderRadius: 16, padding: 24, alignItems: "center", marginTop: 16 }}>
-            <PawnPreview pawn={pawn} size={120} />
-            <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16, marginTop: 12, textAlign: "center" }}>
-              {pawn.name || "Your pawn"} is looking sharp
-            </Text>
-            <Text style={{ color: LABEL, fontSize: 13, marginTop: 6, textAlign: "center" }}>
-              Only male pawns grow beards — nothing to trim here.
-            </Text>
-          </View>
+          <>
+            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
+              <PawnPreview pawn={pawn} size={150} />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 18, marginTop: 12 }}>
+                {hairLabel(hairLength)}
+              </Text>
+              <Text style={{ color: LABEL, fontSize: 13, marginTop: 4 }}>
+                Hair grows a little every day. A cut costs {BARBERSHOP_TRIM_COST} coins.
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleHaircut}
+              disabled={!canCut}
+              style={{
+                marginTop: 20,
+                paddingVertical: 14,
+                borderRadius: 14,
+                backgroundColor: canCut ? ACCENT : "rgba(255,255,255,0.12)",
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="content-cut" size={20} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 8 }}>
+                Cut Hair ({BARBERSHOP_TRIM_COST} coins)
+              </Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 24, marginTop: 8 }}>
@@ -170,6 +212,34 @@ export default function BarbershopScreen() {
                 Not enough coins for a trim right now.
               </Text>
             )}
+
+            {/* Hair section for males */}
+            <View style={{ alignItems: "center", backgroundColor: CARD, borderRadius: 16, paddingVertical: 20, marginTop: 16 }}>
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
+                {hairLabel(hairLength)}
+              </Text>
+              <Text style={{ color: LABEL, fontSize: 12, marginTop: 4 }}>
+                Hair also grows daily.
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleHaircut}
+              disabled={!canCut}
+              style={{
+                marginTop: 12,
+                paddingVertical: 14,
+                borderRadius: 14,
+                backgroundColor: canCut ? ACCENT : "rgba(255,255,255,0.12)",
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="content-cut" size={20} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 8 }}>
+                Cut Hair ({BARBERSHOP_TRIM_COST} coins)
+              </Text>
+            </Pressable>
           </>
         )}
       </ScrollView>

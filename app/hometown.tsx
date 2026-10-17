@@ -11,6 +11,7 @@ import {
   SHOP_OWNED_KEY,
   dailyIncomeForTown,
   roadMultiplierForBuilding,
+  barbershopBoostForBuilding,
   buildingFootprint,
   parseCoins,
   parseTown,
@@ -170,6 +171,21 @@ function BuildingArt({ type, size, level = 1 }: { type: string; size: number; le
           <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4, marginTop: s * 0.05 }} />
         </View>
       );
+    case "barbershop":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
+          {/* Building */}
+          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#F3F4F6", borderRadius: 6, borderWidth: 2, borderColor: "#D1D5DB", alignItems: "center", justifyContent: "center" }}>
+            <View style={{ width: s * 0.5, height: s * 0.25, backgroundColor: "#BFDBFE", borderRadius: 4 }} />
+          </View>
+          {/* Barber pole */}
+          <View style={{ position: "absolute", right: s * 0.08, top: s * 0.15, width: s * 0.14, height: s * 0.5, backgroundColor: "#FFFFFF", borderRadius: s * 0.07, borderWidth: 1, borderColor: "#D1D5DB", overflow: "hidden" }}>
+            <View style={{ position: "absolute", top: 0, width: "200%", height: "33%", backgroundColor: "#EF4444", transform: [{ rotate: "-20deg" }], marginLeft: "-50%" }} />
+            <View style={{ position: "absolute", top: "33%", left: 0, right: 0, height: "34%", backgroundColor: "#FFFFFF" }} />
+            <View style={{ position: "absolute", bottom: 0, width: "200%", height: "33%", backgroundColor: "#3B82F6", transform: [{ rotate: "-20deg" }], marginLeft: "-50%" }} />
+          </View>
+        </View>
+      );
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -279,9 +295,10 @@ export default function HometownScreen() {
             if (hoursElapsed > 0 && incomeFor(b.type, b.level || 1) > 0) {
               changed = true;
               const multiplier = roadMultiplierForBuilding(t, b.id);
+              const shopBoost = barbershopBoostForBuilding(t, b.id);
               return {
                 ...b,
-                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier)) * 10) / 10,
+                accumulated: Math.round(((b.accumulated || 0) + (hoursElapsed * 0.5 * multiplier * shopBoost)) * 10) / 10,
                 lastTick: now,
               };
             }
@@ -407,6 +424,9 @@ export default function HometownScreen() {
     if (existing) {
       if (existing.type === "pawn-house") {
         router.push("/pawn-house");
+        return;
+      } else if (existing.type === "barbershop") {
+        router.push("/barbershop");
         return;
       } else {
         const def = BUILDINGS[existing.type];

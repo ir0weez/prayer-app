@@ -17,6 +17,7 @@ import {
   roadMultiplierForBuilding,
   barbershopBoostForBuilding,
   shopAdjacencyBonusForBuilding,
+  mapHasPopulation,
   bankDeskMultiplier,
   bankFloorMultiplier,
   buildingFootprint,
@@ -27,8 +28,16 @@ import {
   emptyTownState,
   tierForFastDay,
   incomeFor,
+  effectiveIncomeFor,
+  plotIncomeMult,
   xpIncomeFor,
   upgradeCostFor,
+  CITY_PLOTS,
+  plotAt,
+  loadPurchasedPlots,
+  savePurchasedPlots,
+  CITY_PLOTS_STORAGE_KEY,
+  type CityPlot,
   type BuildingType,
   type DecorationType,
   type HometownCoins,
@@ -45,7 +54,7 @@ import { awardCustomXP } from "@/lib/xp-engine";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalOverlay } from "@/components/seasonal-overlay";
-import { TownNPCs } from "@/components/town-npcs";
+import { TownNPCs, CityNPCs, countHometownNpcs } from "@/components/town-npcs";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -552,6 +561,7 @@ export default function HometownScreen() {
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [missionsVisible, setMissionsVisible] = useState(false);
+  const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -652,6 +662,7 @@ export default function HometownScreen() {
         const c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
+        try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
@@ -684,7 +695,7 @@ export default function HometownScreen() {
             const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
             const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-            if (hoursElapsed > 0 && (earnsCoins || earnsXP)) {
+            if (hoursElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
@@ -735,7 +746,7 @@ export default function HometownScreen() {
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
-      const { w, h } = buildingFootprint(b.level || 1, b.type);
+      const { w, h } = buildingFootprint(b.level || 1, b.type, !!b.plotId);
       return x >= b.x && x < b.x + w && y >= b.y && y < b.y + h;
     });
   };
@@ -754,10 +765,113 @@ export default function HometownScreen() {
     return `${incomeFor(type, level)} coins/day`;
   };
 
+  /** Plot-aware income label ("87 coins/day"). */
+  const incomeLabelFor = (b: PlacedBuilding): string => {
+    const xp = xpIncomeFor(b.type, b.level || 1);
+    if (xp > 0) return `${xp} XP/day`;
+    return `${effectiveIncomeFor(b)} coins/day`;
+  };
+
+  /** Purchase a city plot (creates the L1 building). */
+  const handlePurchasePlot = (plot: CityPlot) => {
+    const def = BUILDINGS[plot.buildingType];
+    if (coins.balance < plot.cost) {
+      Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${Math.floor(coins.balance)}.`);
+      return;
+    }
+    Alert.alert(
+      `${plot.name} — FOR SALE`,
+      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${plot.cost} coins?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: `Buy for ${plot.cost}🪙`,
+          onPress: () => {
+            const now = new Date().toISOString();
+            const building: PlacedBuilding = {
+              id: `plot-${plot.id}-${Date.now()}`,
+              type: plot.buildingType,
+              x: plot.x,
+              y: plot.y,
+              level: 1,
+              plotId: plot.id,
+              lastTick: now,
+              accumulated: 0,
+            };
+            const nextPlots = [...purchasedPlots, plot.id];
+            setPurchasedPlots(nextPlots);
+            savePurchasedPlots(nextPlots);
+            saveMap({ ...map, buildings: [...map.buildings, building] });
+            saveCoins({ balance: Math.round((coins.balance - plot.cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+          },
+        },
+      ]
+    );
+  };
+
+  /** Tap a purchased plot building: upgrade only (no move/sell). */
+  const handlePlotBuildingPress = (b: PlacedBuilding, plot: CityPlot) => {
+    const def = BUILDINGS[b.type];
+    const level = b.level || 1;
+    // Bank towers route to their interior, with plot upgrade offered there too
+    const enterActions: { text: string; onPress?: () => void; style?: "cancel" | "destructive" | "default" }[] = [];
+    if (b.type === "bank-tower") {
+      enterActions.push({
+        text: "🏦 Enter Bank",
+        onPress: () => router.push(`/bank-interior?buildingId=${b.id}`),
+      });
+    }
+    if (level >= 3) {
+      Alert.alert(
+        `${def.name} (Lv 3) — ${plot.name}`,
+        `${def.description}\n\nMax level! Earns ${incomeLabelFor(b)}. This prime plot can't be moved or sold.`,
+        [{ text: "OK" }, ...enterActions]
+      );
+      return;
+    }
+    const nextLevel = (level + 1) as 2 | 3;
+    const cost = upgradeCostFor(b.type, nextLevel);
+    const preview: PlacedBuilding = { ...b, level: nextLevel };
+    Alert.alert(
+      `${def.name} (Lv ${level}) — ${plot.name}`,
+      `${def.description}\n\nCurrently earns ${incomeLabelFor(b)}.\nUpgrade to Lv ${nextLevel}: ${incomeLabelFor(preview)} — taller tower, more life, bigger payouts.\n\nPlots can't be moved or sold.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        ...enterActions,
+        {
+          text: `Upgrade 🪙${cost}`,
+          onPress: () => {
+            if (coins.balance < cost) {
+              Alert.alert("Not enough coins", `You need ${cost} coins. You have ${Math.floor(coins.balance)}.`);
+              return;
+            }
+            const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: nextLevel } : x));
+            saveMap({ ...map, buildings: updated });
+            saveCoins({ balance: Math.round((coins.balance - cost) * 10) / 10, lifetimeEarned: coins.lifetimeEarned });
+          },
+        },
+      ]
+    );
+  };
+
   const handleTilePress = (x: number, y: number) => {
+    // City map: plots only — no free placement
+    if (activeMap === "city") {
+      const plot = plotAt(x, y);
+      if (plot) {
+        if (purchasedPlots.includes(plot.id)) {
+          const b = map.buildings.find(bb => bb.plotId === plot.id);
+          if (b) { handlePlotBuildingPress(b, plot); return; }
+        }
+        handlePurchasePlot(plot);
+        return;
+      }
+      // Tapped outside any plot — ignore (city is plots-only)
+      return;
+    }
     // Move mode: place the moving building here
     if (movingBuilding) {
-      const { w, h } = buildingFootprint(movingBuilding.level || 1, movingBuilding.type);
+      const { w, h } = buildingFootprint(movingBuilding.level || 1, movingBuilding.type, !!movingBuilding.plotId);
       let fits = true;
       for (let dx = 0; dx < w; dx++) {
         for (let dy = 0; dy < h; dy++) {
@@ -1034,8 +1148,7 @@ export default function HometownScreen() {
       return;
     }
     const road = { id: `r${Date.now()}`, x: selectedTile.x, y: selectedTile.y };
-    const next = { ...town, roads: [...(map.roads || []), road] };
-    saveTown(next);
+    saveMap({ ...map, roads: [...(map.roads || []), road] });
     setSelectedTile(null);
   };
 
@@ -1047,7 +1160,7 @@ export default function HometownScreen() {
       const b = buildingAt(x, y);
       const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
-      const footprint = b ? buildingFootprint(b.level || 1, b.type) : { w: 1, h: 1 };
+      const footprint = b ? buildingFootprint(b.level || 1, b.type, !!b.plotId) : { w: 1, h: 1 };
       cells.push(
         <Pressable
           key={`${x}-${y}`}
@@ -1203,7 +1316,7 @@ export default function HometownScreen() {
           <SeasonalOverlay width={TOWN_GRID_SIZE * cellSize} height={TOWN_GRID_SIZE * cellSize} />
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1, b.type);
+            const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -1231,7 +1344,7 @@ export default function HometownScreen() {
           <TownNPCs mapState={map} cellSize={cellSize} />
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1, b.type);
+            const fp = buildingFootprint(b.level || 1, b.type, !!b.plotId);
             const earnsCoins = incomeFor(b.type, b.level || 1) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (!earnsCoins && !earnsXP) return null;

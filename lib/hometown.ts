@@ -169,6 +169,65 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "diner":        { name: "Pancake Diner", icon: "🥞", cost: 50, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
 };
 
+// ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
+export type CityPlot = {
+  id: string;
+  x: number;
+  y: number;
+  buildingType: BuildingType;
+  cost: number; // coins to purchase the plot
+  name: string;
+};
+
+export const CITY_PLOTS: CityPlot[] = [
+  { id: "plot-city-1", x: 1, y: 1, buildingType: "bank-tower",       cost: 200, name: "Financial District Lot" },
+  { id: "plot-city-2", x: 5, y: 1, buildingType: "department-store", cost: 300, name: "Retail Row Lot" },
+  { id: "plot-city-3", x: 1, y: 5, buildingType: "hotel",            cost: 250, name: "Hospitality Lot" },
+  { id: "plot-city-4", x: 5, y: 5, buildingType: "office",           cost: 250, name: "Business Park Lot" },
+  { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 400, name: "Central Tower Lot" },
+  { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 350, name: "Uptown Lot" },
+];
+
+/** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
+export const CITY_PLOT_INCOME_MULT = { 1: 1, 2: 2, 3: 3.5 };
+
+/** Income multiplier for a plot building (1 for non-plot buildings). */
+export function plotIncomeMult(b: PlacedBuilding): number {
+  if (!b.plotId) return 1;
+  return CITY_PLOT_INCOME_MULT[b.level || 1] ?? 1;
+}
+
+/** Daily coin income for a placed building — plot-aware. */
+export function effectiveIncomeFor(b: PlacedBuilding): number {
+  const level = b.level || 1;
+  const base = BUILDINGS[b.type].incomePerDay;
+  const mult = b.plotId ? CITY_PLOT_INCOME_MULT[level] : UPGRADE_INCOME_MULT[level];
+  return Math.round(base * mult);
+}
+
+export const CITY_PLOTS_STORAGE_KEY = "prayercircle.hometown.city.plots.v1";
+
+export async function loadPurchasedPlots(): Promise<string[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(CITY_PLOTS_STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+  } catch { return []; }
+}
+
+export async function savePurchasedPlots(ids: string[]): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(CITY_PLOTS_STORAGE_KEY, JSON.stringify(ids));
+  } catch {}
+}
+
+export function plotAt(x: number, y: number): CityPlot | undefined {
+  return CITY_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
+}
+
 export type PlacedBuilding = {
   id: string;
   type: BuildingType;
@@ -176,6 +235,7 @@ export type PlacedBuilding = {
   y: number;
   level: 1 | 2 | 3;
   floors?: number; // bank-tower stories (default 1, max 5)
+  plotId?: string; // city plot id — fixed-position plot building (no move/sell)
   accumulated?: number;
   lastTick?: string;
 };
@@ -410,7 +470,9 @@ export function barbershopBoostForBuilding(map: MapState, buildingId: string): n
 // Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3).
 // City buildings are big: minimum 2x2 at L1 (L1=2x2, L2=3x3, L3=4x4).
 const CITY_BIG_TYPES: BuildingType[] = ["bank-tower", "department-store", "hotel", "office"];
-export function buildingFootprint(level: number, type?: BuildingType): { w: number; h: number } {
+export function buildingFootprint(level: number, type?: BuildingType, isPlot?: boolean): { w: number; h: number } {
+  // City plot buildings are fixed 2x2 — upgrades grow taller, not wider
+  if (isPlot) return { w: 2, h: 2 };
   const s = Math.min(Math.max(level || 1, 1), 3);
   if (type && CITY_BIG_TYPES.includes(type)) {
     const big = s + 1; // L1=2, L2=3, L3=4
@@ -443,7 +505,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   const building = buildings.find(b => b.id === buildingId);
   if (!building) return 1;
 
-  const fp = buildingFootprint(building.level || 1, building.type);
+  const fp = buildingFootprint(building.level || 1, building.type, !!building.plotId);
   // Collect all tiles of the target building
   const myTiles = new Set<string>();
   for (let dx = 0; dx < fp.w; dx++)
@@ -457,7 +519,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
   for (const other of buildings) {
     if (other.id === buildingId) continue;
     if (!SHOP_TYPES.includes(other.type)) continue;
-    const ofp = buildingFootprint(other.level || 1, other.type);
+    const ofp = buildingFootprint(other.level || 1, other.type, !!other.plotId);
     let adjacent = false;
     for (let dx = 0; dx < ofp.w && !adjacent; dx++) {
       for (let dy = 0; dy < ofp.h && !adjacent; dy++) {
@@ -488,9 +550,25 @@ export function bankFloorMultiplier(floors: number): number {
   return 1 + (f - 1) * 0.5;
 }
 
-export function dailyIncomeForMap(map: MapState): number {
+/**
+ * Buildings only earn if there are cottages (people) on the map.
+ * No houses = no customers = no income. City counts town's houses via commuters.
+ */
+export function mapHasPopulation(map: MapState, town?: TownState): boolean {
+  const hasHouses = map.buildings.some(b => b.type === "house");
+  if (hasHouses) return true;
+  // City gets commuters from town's houses
+  if (town) {
+    const townMap = town.maps?.town;
+    if (townMap && townMap.buildings.some(b => b.type === "house")) return true;
+  }
+  return false;
+}
+
+export function dailyIncomeForMap(map: MapState, town?: TownState): number {
+  if (!mapHasPopulation(map, town)) return 0;
   return map.buildings.reduce((sum, b) => {
-    const base = incomeFor(b.type, b.level || 1);
+    const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
     const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult;
     return sum + (base * multiplier);
@@ -502,7 +580,7 @@ export function dailyXPForMap(map: MapState): number {
 }
 
 export function dailyIncomeForTown(town: TownState): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id]), 0);
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town), 0);
 }
 
 export function dailyXPForTown(town: TownState): number {

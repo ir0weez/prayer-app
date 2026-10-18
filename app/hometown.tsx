@@ -218,6 +218,16 @@ import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 import { FireworksOverlay } from "@/components/fireworks";
+import {
+  emptyCelebrations, loadCelebrations, saveCelebrations, todayStr,
+  COIN_CACHE_SPOTS, cacheReward, cacheClaimedToday,
+  WISHING_FOUNTAIN_TILE, FOUNTAIN_TOSS_COST, FOUNTAIN_COOLDOWN_MS, fountainBlessing, fountainMsRemaining,
+  STREET_PERFORMER_TILE, PERFORMER_TIP_COST, PERFORMER_XP, PERFORMER_COOLDOWN_MS, performerMsRemaining,
+  formatCooldown as celebrationCooldown,
+  type CelebrationKind, type CelebrationSpec,
+} from "@/lib/celebrations";
+import { CelebrationOverlay } from "@/components/celebration-overlay";
+import { CoinCacheMarker, WishingFountain, StreetPerformer } from "@/components/city-delights";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -1836,6 +1846,15 @@ export default function HometownScreen() {
     const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
+  // City celebrations: load persisted state once (which milestones fired, etc.).
+  useEffect(() => {
+    loadCelebrations()
+      .then((s) => {
+        celebrationsRef.current = s;
+        setCelebrationState(s);
+      })
+      .catch(() => undefined);
+  }, []);
   const pt = PAGE_THEMES[timeOfDay];
   // Tap frenzy: 5+ rapid taps → 2x collects for 10s (5-min cooldown)
   const [frenzyActive, setFrenzyActive] = useState(false);
@@ -1862,6 +1881,8 @@ export default function HometownScreen() {
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [prayedToday, setPrayedToday] = useState(0);
+  const prayedTodayRef = useRef(0);
+  prayedTodayRef.current = prayedToday;
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
   const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
   const [missionsVisible, setMissionsVisible] = useState(false);
@@ -1882,6 +1903,27 @@ export default function HometownScreen() {
   // Fireworks: celebration volley over the map on milestones (level-up, prayer bonuses).
   const [fireworksKey, setFireworksKey] = useState(0);
   const lastLevelRef = useRef<number | null>(null);
+  // City celebrations: achievement moments that make Jonathan feel special.
+  // Queue of banners + particles; one shows at a time, auto-dismisses.
+  const [celebrationQueue, setCelebrationQueue] = useState<CelebrationSpec[]>([]);
+  const [celebrationState, setCelebrationState] = useState(() => emptyCelebrations());
+  const celebrationsRef = useRef(celebrationState);
+  celebrationsRef.current = celebrationState;
+  const celebrationIdRef = useRef(1);
+  const queueCelebration = useCallback((kind: CelebrationKind, title: string, subtitle?: string) => {
+    const id = celebrationIdRef.current++;
+    setCelebrationQueue((q) => [...q, { id, kind, title, subtitle }]);
+  }, []);
+  const persistCelebrations = useCallback((next: ReturnType<typeof emptyCelebrations>) => {
+    celebrationsRef.current = next;
+    setCelebrationState(next);
+    saveCelebrations(next).catch(() => undefined);
+  }, []);
+  const dismissCelebration = useCallback(() => {
+    setCelebrationQueue((q) => q.slice(1));
+  }, []);
+  // Street performer: plays a tune for a while after being tipped.
+  const [performerPlaying, setPerformerPlaying] = useState(false);
   // Gathering places: Community Garden (harvest), Amphitheater (shows),
   // Library (study), Fountain Plaza (rest) — all tappable, all upgradeable.
   const [gardenState, setGardenState] = useState<GardenState>({ plantedAt: null, plantedLevel: 1 });
@@ -2390,6 +2432,12 @@ export default function HometownScreen() {
           AsyncStorage.setItem(MAP_UNLOCKED_KEY, JSON.stringify(next)).catch(() => undefined);
           addCoins(-info.unlockCost);
           switchMap(id);
+          // New map unlocked: fireworks and cheering villagers. Once per map.
+          if (!celebrationsRef.current.mapsCelebrated.includes(id)) {
+            persistCelebrations({ ...celebrationsRef.current, mapsCelebrated: [...celebrationsRef.current.mapsCelebrated, id] });
+            setFireworksKey((k) => k + 1);
+            queueCelebration("map", `Welcome to ${info.name}!`, "Fireworks light the sky — the villagers cheer.");
+          }
         },
       },
     ]);
@@ -2812,9 +2860,37 @@ export default function HometownScreen() {
         const level = getLevelForXP(xp.totalXP);
         if (lastLevelRef.current !== null && level > lastLevelRef.current) {
           setFireworksKey((k) => k + 1);
+          queueCelebration("level-up", `Level ${level}!`, "Golden rain over the city — well done.");
         }
         lastLevelRef.current = level;
       }).catch(() => undefined);
+      // Coin milestones: a street parade when lifetime earnings cross a milestone.
+      // First sync is silent (no retroactive parades for old milestones).
+      try {
+        const celeb = celebrationsRef.current;
+        const { current } = milestoneFor(coinsRef.current.lifetimeEarned);
+        if (current && current.threshold > celeb.lastMilestoneThreshold) {
+          if (celeb.lastMilestoneThreshold > 0) {
+            setFireworksKey((k) => k + 1);
+            queueCelebration("milestone", `${current.name}!`, "The city throws a parade in your honor.");
+          }
+          persistCelebrations({ ...celeb, lastMilestoneThreshold: current.threshold });
+        }
+      } catch {}
+      // All daily prayers complete: the bell rings and white doves rise. Once per day.
+      if (prayedTodayRef.current > 0 && celebrationsRef.current.lastPrayerCompleteDate !== todayStr()) {
+        AsyncStorage.getItem("prayercircle.people.v1").then((raw) => {
+          try {
+            const people = raw ? JSON.parse(raw) : [];
+            const total = Array.isArray(people) ? people.length : 0;
+            const today = todayStr();
+            if (total > 0 && prayedTodayRef.current >= total && celebrationsRef.current.lastPrayerCompleteDate !== today) {
+              persistCelebrations({ ...celebrationsRef.current, lastPrayerCompleteDate: today });
+              queueCelebration("prayers", "All prayers complete", "The bell rings — white doves rise over the city.");
+            }
+          } catch {}
+        }).catch(() => undefined);
+      }
       setTown((prev) => {
         const now = Date.now();
         const newMaps = { ...prev.maps };
@@ -2911,6 +2987,12 @@ export default function HometownScreen() {
             savePurchasedPlots(nextPlots);
             saveMap({ ...map, buildings: [...map.buildings, building] });
             addCoins(-plot.cost);
+            // First building in the city: the mayor ceremony — confetti, cheering villagers.
+            if (map.buildings.length === 0 && !celebrationsRef.current.mayorCeremonyDone) {
+              persistCelebrations({ ...celebrationsRef.current, mayorCeremonyDone: true });
+              setFireworksKey((k) => k + 1);
+              queueCelebration("mayor", "Mayor of the City!", "Your first downtown building rises — the city cheers.");
+            }
           },
         },
       ]
@@ -3065,6 +3147,81 @@ export default function HometownScreen() {
       "The Lighthouse",
       `Its beam sweeps over the water, steady and sure — guiding everyone home. +${reward.toFixed(2)} coins.\n\n"${lighthouseVerseForDate().text}"\n— ${lighthouseVerseForDate().ref}`
     );
+  };
+
+  /** Hidden coin cache: tap a sparkling spot on a city street (once per day each). */
+  const handleCacheTap = (spotId: string) => {
+    const celeb = celebrationsRef.current;
+    if (cacheClaimedToday(celeb, spotId)) {
+      Alert.alert("Coin Cache", "You've already searched this spot today — check back tomorrow.");
+      return;
+    }
+    const reward = cacheReward();
+    persistCelebrations({ ...celeb, cacheClaimed: { ...celeb.cacheClaimed, [spotId]: todayStr() } });
+    addCoins(reward);
+    Alert.alert("Hidden Cache!", `Tucked between the cobblestones — +${reward.toFixed(2)} coins.`);
+  };
+
+  /** Wishing fountain: toss a coin for a random blessing. Hourly. */
+  const handleFountainTap = () => {
+    const celeb = celebrationsRef.current;
+    const remaining = fountainMsRemaining(celeb);
+    if (remaining > 0) {
+      Alert.alert("Wishing Fountain", `The water is still settling — try again in about ${celebrationCooldown(remaining)}.`);
+      return;
+    }
+    if (coinsRef.current.balance < FOUNTAIN_TOSS_COST) {
+      Alert.alert("Not enough coins", `Tossing a coin costs ${FOUNTAIN_TOSS_COST.toFixed(2)} coins.`);
+      return;
+    }
+    Alert.alert("Wishing Fountain", "Toss a coin into the fountain and make a wish?", [
+      { text: "Not now", style: "cancel" },
+      {
+        text: "Toss a coin",
+        onPress: () => {
+          addCoins(-FOUNTAIN_TOSS_COST);
+          persistCelebrations({ ...celebrationsRef.current, fountainLastTossMs: Date.now() });
+          const blessing = fountainBlessing();
+          if (blessing.kind === "coins") {
+            addCoins(blessing.coins);
+            Alert.alert("A Blessing!", `The fountain shimmers — +${blessing.coins.toFixed(2)} coins ripple back to you.`);
+          } else if (blessing.kind === "xp") {
+            awardCustomXP(blessing.xp, `wishing-fountain:${Date.now()}`).catch(() => undefined);
+            Alert.alert("A Blessing!", `The water glows — +${blessing.xp} XP flows into you.`);
+          } else {
+            Alert.alert("A Blessing!", `"${blessing.text}"\n— ${blessing.ref}`);
+          }
+        },
+      },
+    ]);
+  };
+
+  /** Street performer: tip them and they play a tune (+XP). Hourly. */
+  const handlePerformerTap = () => {
+    const celeb = celebrationsRef.current;
+    const remaining = performerMsRemaining(celeb);
+    if (remaining > 0) {
+      Alert.alert("Street Performer", `They're resting their voice — back in about ${celebrationCooldown(remaining)}.`);
+      return;
+    }
+    if (coinsRef.current.balance < PERFORMER_TIP_COST) {
+      Alert.alert("Not enough coins", `A tip costs ${PERFORMER_TIP_COST.toFixed(2)} coins.`);
+      return;
+    }
+    Alert.alert("Street Performer", "A little musician with a guitar on the corner. Tip them and they'll play a tune?", [
+      { text: "Not now", style: "cancel" },
+      {
+        text: `Tip ${PERFORMER_TIP_COST.toFixed(2)} coins`,
+        onPress: () => {
+          addCoins(-PERFORMER_TIP_COST);
+          persistCelebrations({ ...celebrationsRef.current, performerLastTipMs: Date.now() });
+          awardCustomXP(PERFORMER_XP, `street-performer:${Date.now()}`).catch(() => undefined);
+          setPerformerPlaying(true);
+          setTimeout(() => setPerformerPlaying(false), 20000);
+          Alert.alert("Music in the Streets", `A sweet tune drifts down the avenue. +${PERFORMER_XP} XP.`);
+        },
+      },
+    ]);
   };
 
   /** Lighthouse: upgrade to the next level (taller tower, brighter beam). */
@@ -4209,6 +4366,28 @@ export default function HometownScreen() {
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
           {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} />}
+          {/* City delights: hidden coin caches, the wishing fountain, the street
+              performer — little rewards tucked around the city. */}
+          {activeMap === "city" && (
+            <>
+              {COIN_CACHE_SPOTS.filter((s) => !cacheClaimedToday(celebrationState, s.id)).map((s) => (
+                <CoinCacheMarker key={s.id} cellSize={cellSize} x={s.x} y={s.y} onPress={() => handleCacheTap(s.id)} />
+              ))}
+              <WishingFountain
+                cellSize={cellSize}
+                x={WISHING_FOUNTAIN_TILE.x}
+                y={WISHING_FOUNTAIN_TILE.y}
+                onPress={handleFountainTap}
+              />
+              <StreetPerformer
+                cellSize={cellSize}
+                x={STREET_PERFORMER_TILE.x}
+                y={STREET_PERFORMER_TILE.y}
+                playing={performerPlaying}
+                onPress={handlePerformerTap}
+              />
+            </>
+          )}
           </View>
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
@@ -4279,6 +4458,12 @@ export default function HometownScreen() {
           )}
           {/* Celebration fireworks — pure visual joy on milestones. */}
           <FireworksOverlay triggerKey={fireworksKey} />
+          {/* Achievement celebrations: banners + particles (coin rain, confetti,
+              doves, cheering hearts). One at a time, auto-dismisses. */}
+          <CelebrationOverlay
+            spec={celebrationQueue[0] ?? null}
+            onDone={dismissCelebration}
+          />
         </View>
         </SeasonalBorder>
         {activeMap === "town" && (

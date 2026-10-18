@@ -3,6 +3,8 @@ import { Animated, Easing, Pressable, View } from "react-native";
 import Svg, { Circle, Ellipse, Path, Rect } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 /**
  * Hidden coin cache — a sparkling spot on a city street.
  * Twinkles gently; tap to collect (once per day).
@@ -108,7 +110,6 @@ export function WishingFountain({
         {/* basin */}
         <Ellipse cx={30} cy={52} rx={26} ry={10} fill="#9CA3AF" />
         <Ellipse cx={30} cy={49} rx={22} ry={8} fill="#6B7280" />
-        <Animated.View style={{ position: "absolute", opacity: 0 }} />
         <Ellipse cx={30} cy={49} rx={18} ry={6} fill="#7DD3FC" opacity={0.9} />
         {/* pedestal */}
         <Rect x={26} y={30} width={8} height={20} rx={3} fill="#9CA3AF" />
@@ -120,7 +121,7 @@ export function WishingFountain({
         <Path d="M24 30 C20 26 18 24 16 24 C19 27 22 29 24 31 Z" fill="#BAE6FD" opacity={0.85} />
         <Path d="M36 30 C40 26 42 24 44 24 C41 27 38 29 36 31 Z" fill="#BAE6FD" opacity={0.85} />
         {/* shimmering highlight */}
-        <Circle cx={24} cy={47} r={2.4} fill="#FFFFFF" opacity={waterOpacity as any} />
+        <AnimatedCircle cx={24} cy={47} r={2.4} fill="#FFFFFF" opacity={waterOpacity} />
         <Circle cx={36} cy={50} r={1.8} fill="#FFFFFF" opacity={0.8} />
       </Svg>
     </Pressable>

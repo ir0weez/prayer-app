@@ -360,6 +360,11 @@ export function isUnlocked(item: GearItem, fastDay: number): boolean {
   return fastDay >= item.unlockDays;
 }
 
+/** True when the player's XP level meets the item's level requirement. */
+export function isLevelUnlocked(item: GearItem, level: number): boolean {
+  return level >= (item.unlockLevel || 0);
+}
+
 export type TotalBoosts = { xpMult: number; coinMult: number; hearts: number };
 
 /** Sums boosts across equipped items. Multipliers are additive (e.g. 0.05 + 0.15 = +20%). */

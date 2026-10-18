@@ -12,6 +12,7 @@ import {
   GEAR_BY_ID,
   GEAR_CATALOG,
   GEAR_TYPE_META,
+  isLevelUnlocked,
   isUnlocked,
   loadEquipped,
   loadInventory,
@@ -23,6 +24,7 @@ import {
   type GearItem,
   type GearType,
 } from "@/lib/gear";
+import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import { COINS_STORAGE_KEY } from "@/lib/hometown";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -84,23 +86,26 @@ export default function GearShopScreen() {
   const [inventory, setInventory] = useState<string[]>([]);
   const [equipped, setEquipped] = useState<EquippedGear>({ clothes: null, armor: null, weapon: null, tool: null });
   const [fastDay, setFastDay] = useState(1);
+  const [level, setLevel] = useState(1);
   const [shopLevel, setShopLevel] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, c, inv, eq, day, lvl] = await Promise.all([
+    const [p, c, inv, eq, day, lvl, xp] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadInventory(),
       loadEquipped(),
       loadFastDay(),
       shopLevelFor(shopType),
+      loadXPState(),
     ]);
     setPawn(p);
     setCoins(c);
     setInventory(inv);
     setEquipped(eq);
     setFastDay(day);
+    setLevel(getLevelForXP(xp.totalXP));
     setShopLevel(lvl);
     setLoaded(true);
   }, [shopType]);
@@ -125,8 +130,12 @@ export default function GearShopScreen() {
       Alert.alert("Locked", `Requires a ${item.unlockDays}-day fast. You're on day ${fastDay}.`);
       return;
     }
+    if (!isLevelUnlocked(item, level)) {
+      Alert.alert("Locked", `Unlocks at Level ${item.unlockLevel}. You're Level ${level}.`);
+      return;
+    }
     if (coins.balance < item.cost) {
-      Alert.alert("Not enough coins", `${item.name} costs ${item.cost} coins. You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `${item.name} costs ${item.cost} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const nextInv = [...inventory, item.id];
@@ -180,7 +189,7 @@ export default function GearShopScreen() {
           </View>
         </View>
         <Text style={{ color: LABEL, fontSize: 13, marginTop: 4, marginBottom: 16 }}>
-          You're on day {fastDay} of your fast.
+          Level {level} · Day {fastDay} of your fast.
         </Text>
 
         {pawn && shopType === "clothes" && (
@@ -195,7 +204,8 @@ export default function GearShopScreen() {
           const isEquipped = equipped[item.type] === item.id;
           const unlocked = isUnlocked(item, fastDay);
           const levelLocked = item.minShopLevel > shopLevel;
-          const blocked = !unlocked || levelLocked;
+          const xpLocked = !isLevelUnlocked(item, level);
+          const blocked = !unlocked || levelLocked || xpLocked;
           const boost = boostLabel(item);
           return (
             <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
@@ -215,6 +225,11 @@ export default function GearShopScreen() {
                   {!unlocked && (
                     <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
                       🔒 Requires {item.unlockDays}-day fast (day {fastDay})
+                    </Text>
+                  )}
+                  {xpLocked && (
+                    <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
+                      Unlocks at Level {item.unlockLevel} (you're Level {level})
                     </Text>
                   )}
                 </View>

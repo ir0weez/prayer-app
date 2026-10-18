@@ -192,7 +192,7 @@ export default function BarbershopScreen() {
   const handleTrim = async () => {
     if (!pawn) return;
     if (coins.balance < BARBERSHOP_TRIM_COST) {
-      Alert.alert("Not enough coins", `A trim costs ${BARBERSHOP_TRIM_COST} coins. You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `A trim costs ${BARBERSHOP_TRIM_COST} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const trimmed = trimBeard(pawn);
@@ -209,7 +209,7 @@ export default function BarbershopScreen() {
   const handleHaircut = async () => {
     if (!pawn) return;
     if (coins.balance < BARBERSHOP_TRIM_COST) {
-      Alert.alert("Not enough coins", `A haircut costs ${BARBERSHOP_TRIM_COST} coins. You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `A haircut costs ${BARBERSHOP_TRIM_COST} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const cut = cutHair(pawn);
@@ -225,7 +225,7 @@ export default function BarbershopScreen() {
 
   const deductCoins = async (cost: number): Promise<boolean> => {
     if (coins.balance < cost) {
-      Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${coins.balance.toFixed(2)}.`);
       return false;
     }
     const next: Coins = {

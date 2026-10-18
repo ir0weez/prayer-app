@@ -441,7 +441,7 @@ export default function PawnHouseScreen() {
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <MaterialIcons name="monetization-on" size={16} color="#B8860B" />
-          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
         </View>
       </View>
 

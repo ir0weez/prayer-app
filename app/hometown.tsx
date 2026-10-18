@@ -1219,7 +1219,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < info.unlockCost) {
-      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${Math.floor(coinsRef.current.balance)}.`);
+      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
       return;
     }
     Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${info.unlockCost} coins.`, [
@@ -1690,7 +1690,7 @@ export default function HometownScreen() {
       }
     }
     if (coinsRef.current.balance < plot.cost) {
-      Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     Alert.alert(
@@ -1769,7 +1769,7 @@ export default function HometownScreen() {
           text: `Upgrade 🪙${cost}`,
           onPress: () => {
             if (coinsRef.current.balance < cost) {
-              Alert.alert("Not enough coins", `You need ${cost} coins. You have ${Math.floor(coins.balance)}.`);
+              Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance.toFixed(2)}.`);
               return;
             }
             const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: nextLevel } : x));
@@ -1811,7 +1811,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < total) {
-      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${Math.floor(coins.balance)}.`);
+      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const now = new Date().toISOString();
@@ -2014,7 +2014,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < def.cost) {
-      Alert.alert("Not enough coins", `You need ${def.cost} coins. You have ${coins.balance}.`);
+      Alert.alert("Not enough coins", `You need ${def.cost} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
@@ -2242,7 +2242,7 @@ export default function HometownScreen() {
         })()}
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
-          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
         </View>
       </View>
 
@@ -2423,7 +2423,7 @@ export default function HometownScreen() {
           remembrance={remembrance}
           timeOfDay={timeOfDay}
           pt={pt}
-          coins={coins.balance}
+          coins={coins.balance.toFixed(2)}
           onAddPerson={(name, note, flower) => {
             const person: RememberedPerson = {
               id: `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`,
@@ -2961,7 +2961,7 @@ export default function HometownScreen() {
 
               const doUpgrade = () => {
                 if (coinsRef.current.balance < upgradeCost) {
-                  Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${Math.floor(coins.balance)}.`);
+                  Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${coins.balance.toFixed(2)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x => x.id === b.id ? { ...x, level: nextLevel } : x);
@@ -3003,7 +3003,7 @@ export default function HometownScreen() {
                   return;
                 }
                 if (coinsRef.current.balance < WORKER_HIRE_COST) {
-                  Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${Math.floor(coins.balance)}.`);
+                  Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${coins.balance.toFixed(2)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x =>

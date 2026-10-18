@@ -524,7 +524,7 @@ export default function RestaurantInteriorScreen() {
       if (tier >= 3) return;
       const cost = slot.costs[tier];
       if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${Math.floor(coinsRef.current.balance)}.`);
+        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
         return;
       }
       const next = { furniture: { ...interior.furniture, [slot.id]: tier + 1 } };

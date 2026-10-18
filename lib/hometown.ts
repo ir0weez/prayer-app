@@ -756,6 +756,10 @@ export type TownLot = {
   allowedTypes: BuildingType[];
   cost: number; // coins for the lot (building cost is separate)
   name: string;
+  /** Fixed building for this lot — tap to unlock it directly, no choosing. */
+  presetType?: BuildingType;
+  /** Beach district lot — sandy visuals instead of the standard lot look. */
+  beach?: boolean;
 };
 
 /** Commercial building types allowed on flexible Main Street shop lots. */
@@ -768,31 +772,31 @@ const TOWN_SHOP_TYPES: BuildingType[] = [
 export const TOWN_LOTS: TownLot[] = [
   // Chapel Hill shops (2x2 commercial — converted from cottage lots;
   // houses removed, prayer lights are the population now)
-  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Chapel Shops" },
+  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Chapel Shops", presetType: "diner" },
   // Chapel Hill — the church, prominent at the top of the neighborhood
   { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
   // Hearthside — the pawn's home, near the church
   { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 25, name: "Hearthside" },
   // Sunny Acres — farm on the hilltop (moved from west side for the bigger grid)
   { id: "town-lot-farm", x: 8, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 50, name: "Sunny Acres" },
-  // Main Street North — 5 flexible commercial lots
-  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West" },
-  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street" },
-  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street Central" },
-  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East" },
-  { id: "town-lot-s5", x: 8, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Market Corner" },
-  // Old Town South — 5 flexible commercial lots
-  { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town West" },
-  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town" },
-  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central" },
-  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East" },
+  // Main Street North — 5 preset commercial lots (unlock & upgrade)
+  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West", presetType: "shop" },
+  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street", presetType: "bakery" },
+  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street Central", presetType: "market" },
+  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East", presetType: "bank" },
+  { id: "town-lot-s5", x: 8, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Market Corner", presetType: "clothes-shop" },
+  // Old Town South — 4 preset commercial lots + 1 flexible spare
+  { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town West", presetType: "barbershop" },
+  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town", presetType: "armory" },
+  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central", presetType: "weaponsmith" },
+  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East", presetType: "toolshop" },
   { id: "town-lot-s10", x: 8, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Corner" },
-  // Riverside District — 4 flexible commercial lots (a quieter stretch; NPCs reach
-  // via the Main Street path using nearest-road fallback)
-  { id: "town-lot-s11", x: 0, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside West" },
-  { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside" },
-  { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside Central" },
-  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Sunset Corner" },
+  // Beachside District — 4 beach-themed lots with preset beachside dining.
+  // (NPCs reach via the Main Street path using nearest-road fallback)
+  { id: "town-lot-s11", x: 0, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Beachside West", presetType: "pizza-place", beach: true },
+  { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Beachside", presetType: "burger-joint", beach: true },
+  { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Beachside Central", presetType: "taco-stand", beach: true },
+  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Sunset Beach", presetType: "sushi-bar", beach: true },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */

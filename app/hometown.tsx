@@ -1619,6 +1619,12 @@ export default function HometownScreen() {
 
   /** Purchase a town neighborhood lot (creates the L1 building). Lot + building paid together. */
   const handleTownLotPress = (lot: TownLot) => {
+    // Preset lots: the building is fixed — open the modal directly (no tier gate;
+    // the preset IS the design, coins are the only gate).
+    if (lot.presetType) {
+      setPurchaseLot(lot);
+      return;
+    }
     const availableCount = lot.allowedTypes.filter(
       (type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town")
     ).length;
@@ -1942,6 +1948,16 @@ export default function HometownScreen() {
 
   const cellSize = 40;
   const rows = [];
+  // Beach district cells (sandy lots on the south side)
+  const beachCells = new Set<string>();
+  if (activeMap === "town") {
+    for (const lot of TOWN_LOTS) {
+      if (!lot.beach) continue;
+      for (let yy = lot.y; yy < lot.y + lot.h; yy++)
+        for (let xx = lot.x; xx < lot.x + lot.w; xx++)
+          beachCells.add(`${xx}-${yy}`);
+    }
+  }
   for (let y = 0; y < TOWN_GRID_SIZE; y++) {
     const cells = [];
     for (let x = 0; x < TOWN_GRID_SIZE; x++) {
@@ -1960,9 +1976,9 @@ export default function HometownScreen() {
           style={{
             width: cellSize,
             height: cellSize,
-            backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : "#F3F4F6",
+            backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : beachCells.has(`${x}-${y}`) ? "#FDE68A" : "#F3F4F6",
             borderWidth: isOrigin || !b ? 1 : 0,
-            borderColor: isSelected ? "#F59E0B" : "#E5E7EB",
+            borderColor: isSelected ? "#F59E0B" : beachCells.has(`${x}-${y}`) ? "#FCD34D" : "#E5E7EB",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -2318,6 +2334,7 @@ export default function HometownScreen() {
           {/* Town neighborhood lots: soft heavenly glow (unpurchased) */}
           {activeMap === "town" && TOWN_LOTS.filter(lot => !map.buildings.some(b => b.townLotId === lot.id)).map((lot) => {
             const isSmall = lot.w === 1 && lot.h === 1;
+            const isBeach = !!lot.beach;
             return (
             <View
               key={`townlot-${lot.id}`}
@@ -2329,9 +2346,9 @@ export default function HometownScreen() {
                 width: lot.w * cellSize,
                 height: lot.h * cellSize,
                 borderWidth: 2,
-                borderColor: "#FCD34D",
+                borderColor: isBeach ? "#F59E0B" : "#FCD34D",
                 borderRadius: isSmall ? 8 : 12,
-                backgroundColor: "rgba(253, 224, 71, 0.10)",
+                backgroundColor: isBeach ? "rgba(253, 230, 138, 0.35)" : "rgba(253, 224, 71, 0.10)",
                 alignItems: "center",
                 justifyContent: "center",
                 shadowColor: "#F59E0B",
@@ -2346,9 +2363,12 @@ export default function HometownScreen() {
                 <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost}</Text>
               ) : (
                 <>
-                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>FOR SALE</Text>
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{isBeach ? "🏖️ FOR SALE" : "FOR SALE"}</Text>
                   <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
+                  {lot.presetType && (
+                    <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
+                  )}
                 </>
               )}
             </View>
@@ -2403,6 +2423,25 @@ export default function HometownScreen() {
               </View>
             );
           })}
+          {/* Beachside wave strip — along the south edge below the beach district */}
+          {activeMap === "town" && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                top: TOWN_GRID_SIZE * cellSize - 6,
+                left: 0,
+                width: TOWN_GRID_SIZE * cellSize,
+                flexDirection: "row",
+                justifyContent: "space-around",
+                opacity: 0.85,
+              }}
+            >
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Text key={i} style={{ fontSize: 18 }}>🌊</Text>
+              ))}
+            </View>
+          )}
         </View>
         </SeasonalBorder>
         {activeMap === "town" && (
@@ -2912,6 +2951,48 @@ export default function HometownScreen() {
             {(() => {
               const lot = purchaseLot;
               if (!lot) return null;
+              // Preset lot: one fixed building — show it directly, unlock & upgrade.
+              if (lot.presetType) {
+                const def = BUILDINGS[lot.presetType];
+                const total = lot.cost + def.cost;
+                const affordable = coinsRef.current.balance >= total;
+                return (
+                  <>
+                    <Text style={{ fontSize: 18, fontWeight: "800", color: pt.text, textAlign: "center" }}>
+                      {lot.beach ? "🏖️ " : ""}{lot.name}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
+                      Unlock this plot and open the {def.name}. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12, marginBottom: 12, backgroundColor: pt.bg, borderWidth: 1, borderColor: pt.border }}>
+                      <Text style={{ fontSize: 40, marginRight: 14 }}>{def.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 17, fontWeight: "800", color: pt.text }}>{def.name}</Text>
+                        <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 2 }}>
+                          {def.description}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
+                          Plot 🪙{lot.cost} + building 🪙{def.cost}
+                        </Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => purchaseOnLot(lot, lot.presetType!)}
+                      style={({ pressed }) => [{ borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: affordable ? "#D4AF37" : pt.border, opacity: pressed ? 0.85 : 1 }]}
+                    >
+                      <Text style={{ color: affordable ? "#FFFFFF" : pt.subtext, fontWeight: "800", fontSize: 16 }}>
+                        Unlock for 🪙{total}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setPurchaseLot(null)}
+                      style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: pt.border }}
+                    >
+                      <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>Cancel</Text>
+                    </Pressable>
+                  </>
+                );
+              }
               const available = lot.allowedTypes.filter(
                 (type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town")
               );

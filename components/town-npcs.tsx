@@ -8,6 +8,7 @@ import {
   PRAYER_VILLAGER_CAP,
   isRestaurantType,
   isGatheringTime,
+  TREE_OF_LIFE_TILE,
   type MapState,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";

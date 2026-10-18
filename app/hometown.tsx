@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Circle, Ellipse, Rect, Line } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -956,9 +956,185 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           </View>
         </View>
       );
+    case "banquet-table": {
+      // The Marriage Supper — one long table under open sky, candles lit,
+      // benches waiting for the whole town. Grander with level.
+      const candles = lv >= 3 ? 5 : lv >= 2 ? 4 : 3;
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* warm hearth-glow behind the table */}
+          <View pointerEvents="none" style={{ position: "absolute", bottom: s * 0.02, width: s * 0.98, height: s * 0.6, backgroundColor: "#FBBF24", opacity: 0.16, borderRadius: s * 0.2 }} />
+          <Svg width={s} height={s * 0.72} viewBox="0 0 80 58">
+            {/* back bench */}
+            <Rect x={10} y={12} width={60} height={6} rx={3} fill="#92400E" />
+            {/* table */}
+            <Rect x={6} y={22} width={68} height={17} rx={4} fill="#B45309" />
+            <Rect x={6} y={22} width={68} height={5} rx={2.5} fill="#D97706" />
+            {/* cloth runner */}
+            <Rect x={6} y={29} width={68} height={7} fill="#FEF3C7" opacity={0.9} />
+            {/* plates */}
+            {[17, 31, 45, 59].map((px) => (
+              <Ellipse key={px} cx={px} cy={32.5} rx={5} ry={3.4} fill="#FFFFFF" stroke="#D6A85C" strokeWidth={1} />
+            ))}
+            {/* candles */}
+            {Array.from({ length: candles }).map((_, i) => {
+              const cx = candles === 1 ? 40 : 15 + (i * 50) / (candles - 1);
+              return (
+                <React.Fragment key={i}>
+                  <Rect x={cx - 1.6} y={16} width={3.2} height={9} rx={1.6} fill="#FFF7ED" />
+                  <Ellipse cx={cx} cy={13} rx={2.3} ry={3.4} fill="#FBBF24" />
+                  <Ellipse cx={cx} cy={14} rx={1.1} ry={1.9} fill="#FEF3C7" />
+                </React.Fragment>
+              );
+            })}
+            {/* front bench */}
+            <Rect x={10} y={46} width={60} height={6} rx={3} fill="#92400E" />
+            <Rect x={14} y={52} width={5} height={5} fill="#78350F" />
+            <Rect x={61} y={52} width={5} height={5} fill="#78350F" />
+          </Svg>
+        </View>
+      );
+    }
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
+}
+
+/** Animated SVG primitives (for shimmer/glow loops inside Svg). */
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
+
+/** Small SVG table glyph for the Marriage Supper (no emoji — drawn, not typed). */
+function BanquetGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={3} y={5} width={18} height={2.4} rx={1.2} fill="#92400E" />
+      <Rect x={2} y={9} width={20} height={6} rx={2} fill="#B45309" />
+      <Rect x={2} y={11.5} width={20} height={2.6} fill="#FEF3C7" opacity={0.9} />
+      <Ellipse cx={7.5} cy={12.8} rx={2} ry={1.3} fill="#FFFFFF" />
+      <Ellipse cx={16.5} cy={12.8} rx={2} ry={1.3} fill="#FFFFFF" />
+      <Rect x={3} y={17} width={18} height={2.4} rx={1.2} fill="#92400E" />
+      <Ellipse cx={12} cy={7} rx={1.4} ry={2} fill="#FBBF24" />
+    </Svg>
+  );
+}
+
+/** The River of Life — crystal water along the town's north edge (Rev 22:1).
+ * Purely visual: clear ethereal waves with glinting sparkles. */
+function RiverOfLife({ cellSize }: { cellSize: number }) {
+  const glint = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glint, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glint, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glint]);
+  const sparkleOpacity = glint.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        top: -12,
+        left: 0,
+        width: TOWN_GRID_SIZE * cellSize,
+        flexDirection: "row",
+        justifyContent: "space-around",
+        opacity: 0.9,
+      }}
+    >
+      {Array.from({ length: 10 }).map((_, i) => (
+        <Svg key={i} width={30} height={20} viewBox="0 0 30 20">
+          <Path
+            d="M0 8 Q7.5 1 15 8 T30 8"
+            fill="none"
+            stroke="#BAE6FD"
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+          <Path
+            d="M0 14 Q7.5 7 15 14 T30 14"
+            fill="none"
+            stroke="#E0F2FE"
+            strokeWidth={2}
+            strokeLinecap="round"
+            opacity={0.8}
+          />
+          <AnimatedCircle cx={8 + (i % 3) * 7} cy={5} r={1.6} fill="#FFFFFF" opacity={sparkleOpacity} />
+        </Svg>
+      ))}
+    </View>
+  );
+}
+
+/** The Tree of Life — a fixed landmark on the town map. Leaves shimmer by
+ * day; a soft golden glow surrounds it at night. Tappable. */
+function TreeOfLife({
+  cellSize,
+  timeOfDay,
+  onPress,
+}: {
+  cellSize: number;
+  timeOfDay: string;
+  onPress: () => void;
+}) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+  const highlightOpacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.95] });
+  const nightGlow = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.3] });
+  const night = timeOfDay === "night";
+  // Centered on the plaza gap between church and pawn house (tile x=5, rows 0-1).
+  const W = 92;
+  const H = 148;
+  const left = (TREE_OF_LIFE_TILE.x + 0.5) * cellSize - W / 2;
+  const top = (TREE_OF_LIFE_TILE.y + 1) * cellSize - H + 8;
+  // Twelve fruits — "twelve manner of fruits" (Rev 22:2)
+  const fruits: Array<[number, number]> = [
+    [30, 52], [46, 40], [62, 52], [24, 68], [40, 62], [54, 66],
+    [68, 68], [32, 84], [50, 80], [62, 86], [42, 94], [56, 96],
+  ];
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ position: "absolute", left, top, width: W, height: H }}
+      accessibilityLabel="The Tree of Life"
+    >
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {night && (
+          <AnimatedCircle cx={W / 2} cy={58} r={52} fill="#FBBF24" opacity={nightGlow} />
+        )}
+        {/* trunk */}
+        <Path d={`M${W / 2 - 7} ${H} C ${W / 2 - 9} 118, ${W / 2 - 6} 108, ${W / 2 - 4} 96 L ${W / 2 + 4} 96 C ${W / 2 + 6} 108, ${W / 2 + 9} 118, ${W / 2 + 7} ${H} Z`} fill="#78350F" />
+        <Path d={`M${W / 2 - 4} 104 C ${W / 2 - 14} 96, ${W / 2 - 20} 92, ${W / 2 - 26} 88`} stroke="#78350F" strokeWidth={5} strokeLinecap="round" fill="none" />
+        <Path d={`M${W / 2 + 4} 100 C ${W / 2 + 14} 92, ${W / 2 + 20} 88, ${W / 2 + 26} 84`} stroke="#78350F" strokeWidth={5} strokeLinecap="round" fill="none" />
+        {/* canopy — layered greens */}
+        <Ellipse cx={W / 2} cy={58} rx={40} ry={44} fill="#166534" />
+        <Ellipse cx={W / 2 - 14} cy={48} rx={24} ry={28} fill="#15803D" />
+        <Ellipse cx={W / 2 + 14} cy={50} rx={22} ry={26} fill="#15803D" />
+        {/* shimmering highlights */}
+        <AnimatedEllipse cx={W / 2 - 12} cy={42} rx={14} ry={16} fill="#4ADE80" opacity={highlightOpacity} />
+        <AnimatedEllipse cx={W / 2 + 16} cy={62} rx={10} ry={12} fill="#4ADE80" opacity={highlightOpacity} />
+        <AnimatedEllipse cx={W / 2 - 2} cy={76} rx={11} ry={10} fill="#86EFAC" opacity={highlightOpacity} />
+        {/* twelve fruits */}
+        {fruits.map(([fx, fy], i) => (
+          <Circle key={i} cx={fx} cy={fy} r={3.2} fill={i % 3 === 0 ? "#FBBF24" : "#F87171"} stroke="#FFF7ED" strokeWidth={0.8} />
+        ))}
+      </Svg>
+    </Pressable>
+  );
 }
 
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
@@ -1263,7 +1439,19 @@ export default function HometownScreen() {
   /** Jonathan taps "Help" on a villager request — the light heads to its target. */
   const helpVillagerMission = useCallback(async (mission: VillagerMission) => {
     const st = vmStateRef.current;
-    if (!st) return;
+    const townState = townRef.current;
+    if (!st || !townState) return;
+    // On-town targets need their building to still exist.
+    if (mission.kind !== "garden" && mission.kind !== "well") {
+      const b = findVillagerTargetBuilding(mission.kind, townState.maps.town?.buildings ?? []);
+      if (!b) {
+        Alert.alert(
+          "Not built yet",
+          `The ${mission.targetLabel} isn't in town right now — ${mission.personName} will wait.`
+        );
+        return;
+      }
+    }
     const next = await setVillagerMissionStatus(st, mission.id, "guiding");
     vmStateRef.current = next;
     setVmState(next);
@@ -1671,9 +1859,19 @@ export default function HometownScreen() {
         let fellowshipState: FellowshipState | null = null;
         try { fellowshipState = await loadFellowship(); } catch {}
         if (gathering) {
-          const cityBuildings = t.maps.city?.buildings || [];
-          const capacity = totalGatherCapacity(cityBuildings);
-          const rate = fellowshipRate(cityBuildings);
+          // The Marriage Supper: when the whole town gathers as one table,
+          // the breaking-bread blessing is richer than any restaurant's.
+          const banquet = findBanquetTable(t);
+          let capacity = 0;
+          let rate = 0;
+          if (banquet) {
+            capacity = BANQUET_GATHER_CAPS[banquet.level || 1] ?? 40;
+            rate = BANQUET_FELLOWSHIP_RATES[banquet.level || 1] ?? 0.012;
+          } else {
+            const cityBuildings = t.maps.city?.buildings || [];
+            capacity = totalGatherCapacity(cityBuildings);
+            rate = fellowshipRate(cityBuildings);
+          }
           if (capacity > 0 && rate > 0 && prayedCount > 0) {
             const villagers = Math.min(prayedCount, capacity, PRAYER_VILLAGER_CAP);
             fellowshipState = { villagers, rate, earnedAt: new Date().toISOString() };
@@ -1992,6 +2190,10 @@ export default function HometownScreen() {
       Alert.alert("Already built", "You already have a pawn house!");
       return;
     }
+    if (type === "banquet-table" && map.buildings.some((b) => b.type === "banquet-table")) {
+      Alert.alert("Already built", "The Marriage Supper is already prepared — one table for the whole town.");
+      return;
+    }
     if (coinsRef.current.balance < total) {
       Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lot.cost.toFixed(2)} + building ${def.cost.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
       return;
@@ -2010,6 +2212,21 @@ export default function HometownScreen() {
     saveMap({ ...map, buildings: [...map.buildings, building] });
     addCoins(-total);
     setPurchaseLot(null);
+  };
+
+  /** Taste the Tree of Life's fruit — once per day. A quiet blessing. */
+  const handleTasteFruit = () => {
+    const today = localDateStr();
+    if (treeState.lastFruitDate === today) return;
+    const next = { lastFruitDate: today };
+    setTreeState(next);
+    saveTreeOfLife(next).catch(() => undefined);
+    addCoins(TREE_FRUIT_COINS);
+    setTreeModalVisible(false);
+    Alert.alert(
+      "The Tree of Life",
+      `You taste its fruit — sweet, and full of light. +${TREE_FRUIT_COINS} coins.\n\n"${treeVerseForDate().text}"\n— ${treeVerseForDate().ref}`
+    );
   };
 
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
@@ -2465,7 +2682,7 @@ export default function HometownScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FDE68A" }}>
             <Text style={{ fontSize: 14 }}>🍞</Text>
             <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
-              Fellowship: +{((fm - 1) * 100).toFixed(1)}%{gatheringNow ? " — breaking bread now!" : ""}
+              Fellowship: +{((fm - 1) * 100).toFixed(1)}%{gatheringNow ? (map.buildings.some((b) => b.type === "banquet-table") ? " — the Marriage Supper is served!" : " — breaking bread now!") : ""}
             </Text>
           </View>
         );
@@ -2679,6 +2896,14 @@ export default function HometownScreen() {
         <SeasonalBorder>
         <View style={{ position: "relative" }}>
           {rows}
+          {/* Heavenly landmarks — the River of Life along the north edge,
+              and the Tree of Life in the chapel plaza */}
+          {activeMap === "town" && (
+            <>
+              <RiverOfLife cellSize={cellSize} />
+              <TreeOfLife cellSize={cellSize} timeOfDay={timeOfDay} onPress={() => setTreeModalVisible(true)} />
+            </>
+          )}
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
@@ -2712,8 +2937,9 @@ export default function HometownScreen() {
                     }}
                   />
                 )}
-                {/* The Gathering: warm golden glow around restaurants while breaking bread */}
-                {gatheringNow && isRestaurantType(b.type) && !!b.plotId && (
+                {/* The Gathering: warm golden glow around restaurants — and the
+                    Marriage Supper, where the whole town gathers as one — while breaking bread */}
+                {gatheringNow && ((isRestaurantType(b.type) && !!b.plotId) || b.type === "banquet-table") && (
                   <View
                     pointerEvents="none"
                     style={{
@@ -2800,7 +3026,11 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost.toFixed(2)}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
-                    <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
+                    lot.presetType === "banquet-table" ? (
+                      <View style={{ marginTop: 2 }}><BanquetGlyph size={20} /></View>
+                    ) : (
+                      <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
+                    )
                   )}
                 </>
               )}
@@ -3098,6 +3328,46 @@ export default function HometownScreen() {
                   ))}
                 </>
               )}
+              {/* Villager Requests — missions that come from the lights themselves */}
+              {(() => {
+                const requests = activeVillagerMissions(vmState?.missions ?? []);
+                if (requests.length === 0) return null;
+                return (
+                  <>
+                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
+                      Villager Requests
+                    </Text>
+                    {requests.map((m) => (
+                      <View key={m.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#DDD6FE" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <View
+                            style={{
+                              width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
+                              borderWidth: 1.5, borderColor: "#7C3AED",
+                              alignItems: "center", justifyContent: "center", marginRight: 8,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: "800", color: "#7C3AED" }}>?</Text>
+                          </View>
+                          <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{m.personName}</Text>
+                        </View>
+                        <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6, fontStyle: "italic" }}>
+                          &ldquo;{m.message}&rdquo;
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                          <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {m.rewardCoins}</Text>
+                            <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
+                          </View>
+                          <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
+                            {m.status === "waiting" ? "Waiting in Hometown — tap them" : "On the way…"}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                );
+              })()}
             </ScrollView>
           </View>
         </View>
@@ -3437,6 +3707,124 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
 
+      {/* Villager mission — a light with a "?" asks Jonathan for help */}
+      <Modal
+        visible={villagerMissionModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVillagerMissionModal(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setVillagerMissionModal(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* little golden light with a "?" */}
+            <View style={{ alignItems: "center" }}>
+              <View
+                style={{
+                  width: 18, height: 18, borderRadius: 9, backgroundColor: "#FFFFFF",
+                  borderWidth: 1.5, borderColor: "#7C3AED",
+                  alignItems: "center", justifyContent: "center",
+                  position: "absolute", top: -14, zIndex: 1,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#7C3AED" }}>?</Text>
+              </View>
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+                <View style={{ flexDirection: "row", gap: 3 }}>
+                  <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
+                  <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
+                </View>
+              </View>
+              <View
+                style={{
+                  width: 22, height: 16,
+                  borderTopLeftRadius: 8, borderTopRightRadius: 8,
+                  borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
+                  backgroundColor: "#FBBF24", marginTop: 1,
+                }}
+              />
+            </View>
+            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginTop: 12, textAlign: "center" }}>
+              {villagerMissionModal?.personName} needs a hand
+            </Text>
+            <Text style={{ color: pt.subtext, fontSize: 15, marginTop: 8, textAlign: "center", fontStyle: "italic" }}>
+              &ldquo;{villagerMissionModal?.message}&rdquo;
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12 }}>
+              <Text style={{ fontSize: 14, color: pt.subtext }}>Walk together to the </Text>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: "#7C3AED" }}>{villagerMissionModal?.targetLabel}</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {villagerMissionModal?.rewardCoins}</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {villagerMissionModal?.rewardXP} XP</Text>
+            </View>
+            {villagerMissionModal?.status === "waiting" ? (
+              <>
+                <Pressable
+                  onPress={() => { if (villagerMissionModal) helpVillagerMission(villagerMissionModal); }}
+                  style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#7C3AED" }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Help</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setVillagerMissionModal(null)}
+                  style={{ marginTop: 8, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 32 }}
+                >
+                  <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 14 }}>Not now</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Text style={{ color: pt.subtext, fontSize: 13, marginTop: 16, fontStyle: "italic", textAlign: "center" }}>
+                {villagerMissionModal?.kind === "garden" || villagerMissionModal?.kind === "well"
+                  ? `Visit the ${villagerMissionModal?.targetLabel} to complete this.`
+                  : "On the way — watch for the sparkle when you arrive."}
+              </Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Villager mission complete — sparkle + reward */}
+      <Modal
+        visible={vmCelebration !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVmCelebration(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setVmCelebration(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ fontSize: 40 }}>✦</Text>
+            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginTop: 8, textAlign: "center" }}>
+              {vmCelebration?.mission.personName} is grateful!
+            </Text>
+            <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
+              &ldquo;Thank you for walking with me.&rdquo;
+            </Text>
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#B45309" }}>🪙 +{vmCelebration?.mission.rewardCoins}</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#7C3AED" }}>⚡ +{vmCelebration?.mission.rewardXP} XP</Text>
+            </View>
+            <Pressable
+              onPress={() => setVmCelebration(null)}
+              style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Amen</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Work shift mini-game — tap fast for 10 seconds to earn coins */}
       <Modal
         visible={workShiftBuilding !== null}
@@ -3523,14 +3911,73 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
 
+      {/* Tree of Life modal — taste its fruit once a day */}
+      <Modal
+        visible={treeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTreeModalVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}
+          onPress={() => setTreeModalVisible(false)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 20, padding: 24, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const verse = treeVerseForDate();
+              const tasted = treeState.lastFruitDate === localDateStr();
+              return (
+                <>
+                  <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, textAlign: "center" }}>
+                    The Tree of Life
+                  </Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 16, fontStyle: "italic" }}>
+                    "In the midst of the street of it, and on either side of the river, was there the tree of life."
+                  </Text>
+                  <View style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: pt.border }}>
+                    <Text style={{ fontSize: 14, color: pt.text, textAlign: "center", fontStyle: "italic" }}>
+                      "{verse.text}"
+                    </Text>
+                    <Text style={{ fontSize: 12, color: pt.subtext, textAlign: "center", marginTop: 6, fontWeight: "700" }}>
+                      — {verse.ref}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={handleTasteFruit}
+                    disabled={tasted}
+                    style={({ pressed }) => [{
+                      borderRadius: 12,
+                      paddingVertical: 14,
+                      paddingHorizontal: 24,
+                      alignItems: "center",
+                      backgroundColor: tasted ? pt.border : "#166534",
+                      opacity: pressed && !tasted ? 0.85 : 1,
+                    }]}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
+                      {tasted ? "Tasted today — come back tomorrow" : `Taste its fruit (+${TREE_FRUIT_COINS} coins)`}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={() => setTreeModalVisible(false)} style={{ marginTop: 12, padding: 8 }}>
+                    <Text style={{ color: pt.subtext, fontWeight: "700" }}>Close</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Lot purchase modal — shows ALL allowed building types (Alert hid restaurants on Android) */}
       <Modal
         visible={purchaseLot !== null}
         transparent
         animationType="fade"
         onRequestClose={() => setPurchaseLot(null)}
-      >
-        <Pressable
+      >        <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
           onPress={() => setPurchaseLot(null)}
         >
@@ -3557,7 +4004,11 @@ export default function HometownScreen() {
                       Unlock this plot and open the {def.name}. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
                     </Text>
                     <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12, marginBottom: 12, backgroundColor: pt.bg, borderWidth: 1, borderColor: pt.border }}>
-                      <Text style={{ fontSize: 40, marginRight: 14 }}>{def.icon}</Text>
+                      {lot.presetType === "banquet-table" ? (
+                        <View style={{ marginRight: 14 }}><BanquetGlyph size={44} /></View>
+                      ) : (
+                        <Text style={{ fontSize: 40, marginRight: 14 }}>{def.icon}</Text>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 17, fontWeight: "800", color: pt.text }}>{def.name}</Text>
                         <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 2 }}>

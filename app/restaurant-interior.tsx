@@ -338,7 +338,7 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
         {bottomRow.map((p, i) => (
           <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
             <View style={{ transform: [{ scaleY: -1 }] }}>
-              <BanquetSeated person={p} chairTier={0} delay={(i + topRow.length) * 150} />
+              <BanquetSeated person={p} delay={(i + topRow.length) * 150} />
             </View>
           </View>
         ))}
@@ -688,7 +688,9 @@ export default function RestaurantInteriorScreen() {
   const name = def?.name ?? "Restaurant";
 
   const gathering = isGatheringTime();
-  const cap = gathering ? 12 : 6;
+  const isBanquet = building?.type === "feast-hall";
+  // The Banquet Table seats everyone during the Gathering; a few linger otherwise.
+  const cap = isBanquet ? (gathering ? 24 : 6) : gathering ? 12 : 6;
   const diners = pickDiners(people, buildingId ?? "restaurant", cap);
   // 3 tables: diners split round-robin so tables fill evenly
   const tableDiners: PrayedPerson[][] = [[], [], []];
@@ -809,10 +811,14 @@ export default function RestaurantInteriorScreen() {
             {/* kitchen at the back */}
             <KitchenCounter tier={kitchenTier} />
 
-            {/* the three tables */}
-            {tableDiners.map((group, i) => (
-              <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} />
-            ))}
+            {/* the three tables — or the one long banquet table */}
+            {isBanquet ? (
+              <BanquetTable diners={diners} tablesTier={tablesTier} />
+            ) : (
+              tableDiners.map((group, i) => (
+                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} />
+              ))
+            )}
 
             {gathering && diners.length > 0 && <BreakingBreadFloat />}
 
@@ -827,7 +833,9 @@ export default function RestaurantInteriorScreen() {
                   paddingHorizontal: 24,
                 }}
               >
-                The tables are set, but the chairs are empty. Pray for someone today and they'll pull up a chair.
+                {isBanquet
+                  ? "The long table is set, but every seat is empty. Pray for someone today and they'll take their place."
+                  : "The tables are set, but the chairs are empty. Pray for someone today and they'll pull up a chair."}
               </Text>
             )}
           </View>

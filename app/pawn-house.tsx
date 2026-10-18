@@ -31,6 +31,90 @@ import {
   type Trophy,
 } from "@/lib/pawn-house";
 import { RoomFurnitureArt, type RoomPieceId } from "@/components/room-furniture-art";
+import { PawnPreview } from "@/components/pawn-preview";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { getTimeOfDay } from "@/lib/daynight";
+
+/**
+ * The player's pawn, shown using the room's furniture.
+ * - Bedroom: in bed (sleeping at night, with "Z" indicator)
+ * - Living: sitting on the sofa
+ * - Kitchen: at the table
+ * - Bathroom: at the sink
+ * - Study: at the desk
+ * - Prayer: kneeling in the center
+ * Only shows if the relevant furniture piece is unlocked (tier > 0).
+ */
+function PawnInRoom({
+  roomId,
+  room,
+  roomViewWidth,
+  roomViewHeight,
+}: {
+  roomId: HouseRoomId;
+  room: { furniture: Record<string, number> };
+  roomViewWidth: number;
+  roomViewHeight: number;
+}) {
+  const [pawn, setPawn] = useState<CustomPawn | null>(null);
+  useEffect(() => {
+    loadCustomPawn().then((p) => p && setPawn(p));
+  }, []);
+  if (!pawn) return null;
+
+  const isNight = getTimeOfDay() === "night";
+  const size = 56;
+
+  let pos = { x: 0.5, y: 0.65 };
+  let show = false;
+  let sleeping = false;
+
+  if (roomId === "bedroom" && (room.furniture["bed"] || 0) > 0) {
+    pos = { x: 0.30, y: 0.52 };
+    show = true;
+    sleeping = isNight;
+  } else if (roomId === "living" && (room.furniture["sofa"] || 0) > 0) {
+    pos = { x: 0.30, y: 0.52 };
+    show = true;
+  } else if (roomId === "kitchen" && (room.furniture["ktable"] || 0) > 0) {
+    pos = { x: 0.38, y: 0.54 };
+    show = true;
+  } else if (roomId === "bathroom" && (room.furniture["sink"] || 0) > 0) {
+    pos = { x: 0.60, y: 0.52 };
+    show = true;
+  } else if (roomId === "study" && (room.furniture["desk"] || 0) > 0) {
+    pos = { x: 0.32, y: 0.52 };
+    show = true;
+  } else if (roomId === "prayer") {
+    pos = { x: 0.5, y: 0.60 };
+    show = true;
+  }
+
+  if (!show) return null;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: pos.x * roomViewWidth - size / 2,
+        top: pos.y * roomViewHeight - size / 2,
+        alignItems: "center",
+        zIndex: 5,
+      }}
+    >
+      {sleeping && (
+        <View style={{ flexDirection: "row", marginBottom: -6, marginLeft: 18, zIndex: 6 }}>
+          <Text style={{ fontSize: 14, fontWeight: "800", color: "#93C5FD" }}>Z</Text>
+          <Text style={{ fontSize: 11, fontWeight: "800", color: "#93C5FD", marginLeft: 1, marginTop: -3 }}>Z</Text>
+        </View>
+      )}
+      <View style={{ opacity: sleeping ? 0.92 : 1, transform: sleeping ? [{ rotate: "-8deg" }] : [] }}>
+        <PawnPreview pawn={pawn} size={size} />
+      </View>
+    </View>
+  );
+}
 
 function FlickerFlame({ size = 14 }: { size?: number }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -315,6 +399,8 @@ export default function PawnHouseScreen() {
           </Pressable>
         );
       })}
+      {/* the player's pawn, using the furniture */}
+      <PawnInRoom roomId={roomId} room={room} roomViewWidth={roomViewWidth} roomViewHeight={roomViewHeight} />
     </View>
   );
 

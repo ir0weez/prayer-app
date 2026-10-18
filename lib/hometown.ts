@@ -1137,22 +1137,24 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street", presetType: "bakery" },
   { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street Central", presetType: "market" },
   { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East", presetType: "bank" },
-  { id: "town-lot-s5", x: 8, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Market Corner", presetType: "clothes-shop" },
-  // Old Town South — 4 preset commercial lots + 1 flexible spare
+  // Old Town South — 4 preset commercial lots (the 5th moved south to make
+  // room for Chapel Avenue, the vertical spine connecting every street)
   { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town West", presetType: "barbershop" },
   { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town", presetType: "armory" },
   { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central", presetType: "weaponsmith" },
   { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East", presetType: "toolshop" },
-  { id: "town-lot-s10", x: 8, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Corner" },
-  // Mercy's Shore — 4 beach-themed lots with preset beachside dining.
-  // (NPCs reach via the Main Street path using nearest-road fallback)
-  { id: "town-lot-s11", x: 0, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
-  { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
-  { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
-  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
-  // The Marriage Supper green — a quiet 2x2 south of Old Town for the town's
-  // one long table. NPCs reach via the Main Street path nearest-road fallback.
-  { id: "town-lot-banquet", x: 8, y: 8, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  // South End — Market Corner, Garden Corner, and the Marriage Supper green,
+  // served by Old Town Lane (north) and Harbor Lane (south)
+  { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End West", presetType: "clothes-shop" },
+  { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End Garden" },
+  { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  // Mercy's Shore — 4 beach-themed lots with preset beachside dining, now the
+  // southernmost district with the waves right below.
+  // (NPCs reach via Harbor Lane — no more floating over buildings)
+  { id: "town-lot-s11", x: 0, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
+  { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
+  { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
+  { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
@@ -1167,6 +1169,18 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Main Street — the bustling thoroughfare between the two market rows
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
+  // Old Town Lane — between Old Town and the South End
+  { x: 0, y: 8 }, { x: 1, y: 8 }, { x: 2, y: 8 }, { x: 3, y: 8 }, { x: 4, y: 8 },
+  { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 8 },
+  // Harbor Lane — between the South End and Mercy's Shore
+  { x: 0, y: 11 }, { x: 1, y: 11 }, { x: 2, y: 11 }, { x: 3, y: 11 }, { x: 4, y: 11 },
+  { x: 5, y: 11 }, { x: 6, y: 11 }, { x: 7, y: 11 }, { x: 8, y: 11 }, { x: 9, y: 11 },
+  // Chapel Avenue — the vertical spine linking every street, so villagers
+  // walk the roads instead of floating over buildings
+  { x: 8, y: 3 }, { x: 8, y: 4 },
+  { x: 8, y: 6 }, { x: 8, y: 7 },
+  { x: 8, y: 9 }, { x: 8, y: 10 },
+  { x: 8, y: 12 }, { x: 8, y: 13 },
 ];
 
 /** Town path roads with stable ids (idempotent seeding). */
@@ -1235,11 +1249,20 @@ export function ensureTownNeighborhood(map: MapState): MapState {
 
   const roadsChanged = freshPath.length > 0 || nonPathRoads.length > 0;
   const buildingsChanged = moved.some((b, i) => b !== buildings[i]);
-  if (!roadsChanged && !buildingsChanged) return map;
+  // Lot buildings render at their lot's position — if a lot moved (taller map,
+  // new streets), snap its building along so nothing is left behind.
+  const synced = moved.map((b) => {
+    if (!b.townLotId) return b;
+    const lot = TOWN_LOTS.find((l) => l.id === b.townLotId);
+    if (!lot || (b.x === lot.x && b.y === lot.y)) return b;
+    return { ...b, x: lot.x, y: lot.y };
+  });
+  const syncedChanged = synced.some((b, i) => b !== moved[i]);
+  if (!roadsChanged && !buildingsChanged && !syncedChanged) return map;
   return {
     ...map,
     roads: [...(map.roads || []).filter(isTownPath), ...freshPath],
-    buildings: moved,
+    buildings: synced,
   };
 }
 
@@ -1286,6 +1309,15 @@ export type TownState = {
 };
 
 export const TOWN_GRID_SIZE = 10;
+/** Town map dimensions — the town grid is taller than it is wide so every
+ *  district gets its own street. Other maps (city, school, etc.) stay 10x10. */
+export const TOWN_GRID_W = 10;
+export const TOWN_GRID_H = 14;
+
+/** Grid dimensions for a map — town is taller (10x14); others are 10x10. */
+export function mapGridSize(mapId: TownMapId): { w: number; h: number } {
+  return mapId === "town" ? { w: TOWN_GRID_W, h: TOWN_GRID_H } : { w: TOWN_GRID_SIZE, h: TOWN_GRID_SIZE };
+}
 
 export function emptyMapState(): MapState {
   return { buildings: [], decorations: [], roads: [] };

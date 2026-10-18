@@ -1,17 +1,66 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Animated, Easing, Text, View } from "react-native";
+import { Animated, Easing, View } from "react-native";
+import Svg, { Path, Polygon, Rect } from "react-native-svg";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
 
 /**
- * Living sky border: the town sits under a sky that breathes with the
- * day. Sky color shifts morning → afternoon → evening → night, with
- * drifting clouds by day, twinkling stars by night, and gentle snowfall
- * in December. Mature and calm — no cartoon decorations.
+ * Living border around the Hometown map: the town sits inside a world
+ * that breathes with the day.
+ *
+ * - Top + upper half of the sides: sky (existing sun/moon, drifting
+ *   clouds, twinkling stars, golden prayer stars).
+ * - Left side, lower half: a distant city skyline. Windows glow warm
+ *   at dusk and night, dark by day.
+ * - Right side, lower half: a pine forest, gently swaying. Darker
+ *   at night, green by day.
+ * - Bottom: a beach — sand plus animated SVG waves, shifting color
+ *   with the time of day.
+ *
  * Purely decorative — pointerEvents disabled, native-driver animations.
+ * No emojis anywhere; all art is drawn (Views / SVG).
  */
 
-const BORDER_PAD = 26;
+const TOP_H = 26;
+const SIDE_W = 26;
+const BEACH_H = 44;
+
+/** Per-time-of-day colors for the city / forest / beach scenes. */
+type SceneTheme = {
+  building: string;
+  windowDark: string;
+  windowLit: string;
+  tree: string;
+  treeDark: string;
+  trunk: string;
+  ground: string;
+  sand: string;
+  water: string;
+  waterDeep: string;
+};
+
+const SCENE_THEMES: Record<TimeOfDay, SceneTheme> = {
+  morning: {
+    building: "#9AA8BC", windowDark: "#6B7A90", windowLit: "#FFE9A8",
+    tree: "#55A465", treeDark: "#3E8A52", trunk: "#8A6A45", ground: "#6B8E5A",
+    sand: "#F2DFAE", water: "#7DD3FC", waterDeep: "#38BDF8",
+  },
+  afternoon: {
+    building: "#8FA3B8", windowDark: "#5B6B7F", windowLit: "#FFE9A8",
+    tree: "#4D9E5F", treeDark: "#3A7D4C", trunk: "#7C5A3A", ground: "#5F8A52",
+    sand: "#F5DEB3", water: "#5ECBF5", waterDeep: "#2EA8E0",
+  },
+  evening: {
+    building: "#6B5570", windowDark: "#4A3F55", windowLit: "#FCD34D",
+    tree: "#3F7D4E", treeDark: "#2E5D3A", trunk: "#6B4A30", ground: "#4A6B42",
+    sand: "#E8B88A", water: "#F0A06A", waterDeep: "#D97F4E",
+  },
+  night: {
+    building: "#23233D", windowDark: "#141428", windowLit: "#FDE68A",
+    tree: "#1F4030", treeDark: "#142A20", trunk: "#3A2E22", ground: "#16241A",
+    sand: "#4A4A6A", water: "#2A4A6E", waterDeep: "#1E3A5F",
+  },
+};
 
 /** A soft cloud drifting across the top of the frame. */
 function DriftingCloud({ top, size, duration, delay, color }: { top: number; size: number; duration: number; delay: number; color: string }) {
@@ -65,7 +114,7 @@ function TwinkleStar({ left, top, size, delay, duration }: { left: number; top: 
   );
 }
 
-/** A golden prayer star — brighter and larger than regular stars. */
+/** A golden prayer star — one per person prayed for today. Drawn SVG, no emoji. */
 function PrayerStar({ left, top, delay }: { left: number; top: number; delay: number }) {
   const opacity = useRef(new Animated.Value(0.5)).current;
 
@@ -88,7 +137,12 @@ function PrayerStar({ left, top, delay }: { left: number; top: number; delay: nu
       pointerEvents="none"
       style={{ position: "absolute", left, top, opacity }}
     >
-      <Text style={{ fontSize: 12, color: "#FDE68A", textShadowColor: "#FBBF24", textShadowRadius: 6 }}>⭐</Text>
+      <Svg width={13} height={13} viewBox="0 0 24 24">
+        <Path
+          d="M12 2l2.9 6.26 6.6 1.04-4.75 4.87L17.8 21 12 17.77 6.2 21l1.05-6.83L2.5 9.3l6.6-1.04L12 2z"
+          fill="#FDE68A"
+        />
+      </Svg>
     </Animated.View>
   );
 }
@@ -161,16 +215,190 @@ function CelestialOrb({ color, glowColor, isMoon }: { color: string; glowColor: 
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* City skyline (left gutter, lower half)                              */
+/* ------------------------------------------------------------------ */
+
+function CityBuilding({
+  left, width, height, scene, glow, lit, seed,
+}: {
+  left: number; width: number; height: number; scene: SceneTheme;
+  glow: Animated.Value; lit: boolean; seed: number;
+}) {
+  const cols = Math.max(1, Math.floor((width - 2) / 3.5));
+  const rows = Math.max(1, Math.floor((height - 6) / 6));
+  const windows: ReactNode[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const isLit = lit && ((r * 5 + c * 11 + seed) % 3 !== 0);
+      const pos = { position: "absolute" as const, left: 2 + c * 3.5, top: 4 + r * 6, width: 2, height: 3, borderRadius: 0.5 };
+      windows.push(
+        isLit ? (
+          <Animated.View key={`${r}-${c}`} style={[pos, { backgroundColor: scene.windowLit, opacity: glow }]} />
+        ) : (
+          <View key={`${r}-${c}`} style={[pos, { backgroundColor: scene.windowDark }]} />
+        )
+      );
+    }
+  }
+  return (
+    <View style={{ position: "absolute", left, bottom: 0, width, height, backgroundColor: scene.building, borderTopLeftRadius: 1, borderTopRightRadius: 1 }}>
+      {windows}
+    </View>
+  );
+}
+
+function CitySkyline({ scene, lit }: { scene: SceneTheme; lit: boolean }) {
+  const glow = useRef(new Animated.Value(0.65)).current;
+
+  useEffect(() => {
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.65, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    breathe.start();
+    return () => breathe.stop();
+  }, [glow]);
+
+  return (
+    <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+      <CityBuilding left={1} width={8} height={54} scene={scene} glow={glow} lit={lit} seed={3} />
+      <CityBuilding left={10} width={9} height={78} scene={scene} glow={glow} lit={lit} seed={7} />
+      <CityBuilding left={20} width={6} height={42} scene={scene} glow={glow} lit={lit} seed={11} />
+      {/* Antenna on the tallest tower, with a soft red beacon */}
+      <View style={{ position: "absolute", left: 14, bottom: 78, width: 1.5, height: 8, backgroundColor: scene.building }} />
+      <Animated.View style={{ position: "absolute", left: 13.2, bottom: 86, width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#F87171", opacity: glow }} />
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pine forest (right gutter, lower half)                              */
+/* ------------------------------------------------------------------ */
+
+function PineTree({ size, scene }: { size: number; scene: SceneTheme }) {
+  const w = size * 0.55;
+  return (
+    <Svg width={w} height={size} viewBox="0 0 22 40">
+      <Polygon points="11,1 19,15 3,15" fill={scene.tree} />
+      <Polygon points="11,10 21,26 1,26" fill={scene.treeDark} />
+      <Polygon points="11,20 20,33 2,33" fill={scene.tree} />
+      <Rect x="9" y="33" width="4" height="7" fill={scene.trunk} />
+    </Svg>
+  );
+}
+
+function SwayingTree({
+  size, scene, left, bottom, duration, delay, sway,
+}: {
+  size: number; scene: SceneTheme; left: number; bottom: number;
+  duration: number; delay: number; sway: number;
+}) {
+  const x = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, { toValue: sway, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(x, { toValue: -sway, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => anim.start(), delay);
+    return () => {
+      clearTimeout(t);
+      anim.stop();
+    };
+  }, [delay, duration, sway, x]);
+
+  return (
+    <Animated.View style={{ position: "absolute", left, bottom, transform: [{ translateX: x }] }}>
+      <PineTree size={size} scene={scene} />
+    </Animated.View>
+  );
+}
+
+function ForestStrip({ scene }: { scene: SceneTheme }) {
+  return (
+    <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+      <SwayingTree size={62} scene={scene} left={-4} bottom={6} duration={2800} delay={0} sway={1.6} />
+      <SwayingTree size={44} scene={scene} left={8} bottom={6} duration={3400} delay={700} sway={1.2} />
+      <SwayingTree size={54} scene={scene} left={13} bottom={6} duration={3100} delay={1400} sway={1.4} />
+      {/* Ground */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 10, backgroundColor: scene.ground }} />
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Beach (bottom strip): sand + animated SVG waves                     */
+/* ------------------------------------------------------------------ */
+
+// Repeating wave: one full swell every 100px, so a -200px slide loops seamlessly.
+const WAVE_PATH =
+  "M0,8 Q25,2 50,8 " +
+  "T100,8 T150,8 T200,8 T250,8 T300,8 T350,8 T400,8 T450,8 T500,8 T550,8 " +
+  "T600,8 T650,8 T700,8 T750,8 T800,8 T850,8 T900,8 T950,8 T1000,8 " +
+  "L1000,34 L0,34 Z";
+
+function BeachStrip({ scene }: { scene: SceneTheme }) {
+  const frontX = useRef(new Animated.Value(0)).current;
+  const backX = useRef(new Animated.Value(-50)).current;
+
+  useEffect(() => {
+    const front = Animated.loop(
+      Animated.sequence([
+        Animated.timing(frontX, { toValue: -200, duration: 6500, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(frontX, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    const back = Animated.loop(
+      Animated.sequence([
+        Animated.timing(backX, { toValue: -250, duration: 11000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(backX, { toValue: -50, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    front.start();
+    back.start();
+    return () => {
+      front.stop();
+      back.stop();
+    };
+  }, [frontX, backX]);
+
+  return (
+    <View style={{ height: BEACH_H, backgroundColor: scene.sand, overflow: "hidden", position: "relative" }}>
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 34, backgroundColor: scene.waterDeep, overflow: "hidden" }}>
+        <Animated.View style={{ position: "absolute", left: 0, top: 0, transform: [{ translateX: backX }] }}>
+          <Svg width={1000} height={34} viewBox="0 0 1000 34">
+            <Path d={WAVE_PATH} fill={scene.water} opacity={0.55} />
+          </Svg>
+        </Animated.View>
+        <Animated.View style={{ position: "absolute", left: 0, top: 5, transform: [{ translateX: frontX }] }}>
+          <Svg width={1000} height={34} viewBox="0 0 1000 34">
+            <Path d={WAVE_PATH} fill={scene.water} />
+          </Svg>
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The border                                                          */
+/* ------------------------------------------------------------------ */
+
 export function SeasonalBorder({ children }: { children: ReactNode }) {
-  // Re-evaluate time of day every 5 minutes so the sky shifts
+  // Re-evaluate time of day every 5 minutes so the border shifts
   // if the hour boundary passes while the app is open.
-  const [timeOfDay, setTimeOfDay] = React.useState<TimeOfDay>(() => getTimeOfDay());
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => getTimeOfDay());
   useEffect(() => {
     const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
   // Prayer stars: one golden star per person prayed for today.
-  const [prayerStarCount, setPrayerStarCount] = React.useState(0);
+  const [prayerStarCount, setPrayerStarCount] = useState(0);
   useEffect(() => {
     (async () => {
       try {
@@ -186,13 +414,17 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
     })();
   }, []);
   const sky = SKY_THEMES[timeOfDay];
+  const scene = SCENE_THEMES[timeOfDay];
+  // City windows light up at dusk and night.
+  const windowsLit = timeOfDay === "evening" || timeOfDay === "night";
 
   // Gentle snowfall in December — calm white dots, no cartoon glyphs.
   const showSnow = new Date().getMonth() === 11;
 
   return (
-    <View style={{ padding: BORDER_PAD, position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden" }}>
-      {/* Animated sky life */}
+    <View style={{ position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden" }}>
+      {/* Animated sky life — behind everything; shows through the
+          top strip and the upper halves of the side gutters */}
       <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
         {sky.showSun && (
           <>
@@ -240,7 +472,31 @@ export function SeasonalBorder({ children }: { children: ReactNode }) {
 
       {/* Sun / moon */}
       <CelestialOrb color={sky.orb} glowColor={sky.glow} isMoon={sky.isNight} />
-      {children}
+
+      {/* Top sky strip */}
+      <View style={{ height: TOP_H }} />
+
+      {/* Middle: city gutter | map | forest gutter */}
+      <View style={{ flexDirection: "row" }}>
+        <View style={{ width: SIDE_W, overflow: "hidden" }}>
+          <View style={{ flex: 0.45 }} />
+          <View style={{ flex: 0.55, overflow: "hidden" }}>
+            <CitySkyline scene={scene} lit={windowsLit} />
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          {children}
+        </View>
+        <View style={{ width: SIDE_W, overflow: "hidden" }}>
+          <View style={{ flex: 0.45 }} />
+          <View style={{ flex: 0.55, overflow: "hidden" }}>
+            <ForestStrip scene={scene} />
+          </View>
+        </View>
+      </View>
+
+      {/* Beach: sand + animated waves */}
+      <BeachStrip scene={scene} />
     </View>
   );
 }

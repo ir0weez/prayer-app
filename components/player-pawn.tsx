@@ -3,7 +3,7 @@ import { Animated, Easing, Text, View } from "react-native";
 import { PawnPreview } from "@/components/pawn-preview";
 import { CUSTOM_PAWN_STORAGE_KEY, loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
-import { TOWN_GRID_SIZE } from "@/lib/hometown";
+import { TOWN_GRID_W, TOWN_GRID_H } from "@/lib/hometown";
 
 const PAWN_SIZE = 30;
 // Slightly larger than the 16px villager lights, with a gold ring so
@@ -54,8 +54,8 @@ export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
       if (night) return;
       // Pick a new random nearby tile every few seconds
       const cur = targetRef.current;
-      const nx = Math.max(0, Math.min(TOWN_GRID_SIZE - 1, cur.x + Math.floor(Math.random() * 5) - 2));
-      const ny = Math.max(0, Math.min(TOWN_GRID_SIZE - 1, cur.y + Math.floor(Math.random() * 5) - 2));
+      const nx = Math.max(0, Math.min(TOWN_GRID_W - 1, cur.x + Math.floor(Math.random() * 5) - 2));
+      const ny = Math.max(0, Math.min(TOWN_GRID_H - 1, cur.y + Math.floor(Math.random() * 5) - 2));
       targetRef.current = { x: nx, y: ny };
       Animated.timing(pos, {
         toValue: { x: (nx + 0.5) * cellSize, y: (ny + 0.5) * cellSize - 4 },

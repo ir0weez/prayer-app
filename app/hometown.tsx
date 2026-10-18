@@ -7,6 +7,7 @@ import {
   BUILDINGS,
   DECORATIONS,
   COINS_STORAGE_KEY,  TOWN_GRID_SIZE,
+  TOWN_GRID_W, TOWN_GRID_H, mapGridSize,
   TOWN_STORAGE_KEY,
   SHOP_OWNED_KEY,
   MAP_INFO,
@@ -2332,7 +2333,7 @@ export default function HometownScreen() {
       for (let dx = 0; dx < w; dx++) {
         for (let dy = 0; dy < h; dy++) {
           const nx = x + dx, ny = y + dy;
-          if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+          if (nx >= mapGridSize(activeMap).w || ny >= mapGridSize(activeMap).h) { fits = false; break; }
           const other = buildingAt(nx, ny);
           if (other && other.id !== movingBuilding.id) { fits = false; break; }
           if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }
@@ -2401,7 +2402,7 @@ export default function HometownScreen() {
           for (let dx = 0; dx < w; dx++) {
             for (let dy = 0; dy < h; dy++) {
               const nx = existing.x + dx, ny = existing.y + dy;
-              if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+              if (nx >= mapGridSize(activeMap).w || ny >= mapGridSize(activeMap).h) { fits = false; break; }
               const other = buildingAt(nx, ny);
               if (other && other.id !== existing.id) { fits = false; break; }
               if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }
@@ -2580,6 +2581,10 @@ export default function HometownScreen() {
 
   const cellSize = 40;
   const rows = [];
+  // The town grid is taller (10x14) so every district gets its own street;
+  // other maps stay 10x10.
+  const gridW = activeMap === "town" ? TOWN_GRID_W : TOWN_GRID_SIZE;
+  const gridH = activeMap === "town" ? TOWN_GRID_H : TOWN_GRID_SIZE;
   // Beach district cells (sandy lots on the south side)
   const beachCells = new Set<string>();
   if (activeMap === "town") {
@@ -2590,9 +2595,9 @@ export default function HometownScreen() {
           beachCells.add(`${xx}-${yy}`);
     }
   }
-  for (let y = 0; y < TOWN_GRID_SIZE; y++) {
+  for (let y = 0; y < gridH; y++) {
     const cells = [];
-    for (let x = 0; x < TOWN_GRID_SIZE; x++) {
+    for (let x = 0; x < gridW; x++) {
       const b = buildingAt(x, y);
       const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
@@ -3112,7 +3117,7 @@ export default function HometownScreen() {
               pointerEvents="none"
               style={{
                 position: "absolute",
-                top: TOWN_GRID_SIZE * cellSize - 6,
+                top: TOWN_GRID_H * cellSize - 6,
                 left: 0,
                 width: TOWN_GRID_SIZE * cellSize,
                 flexDirection: "row",
@@ -3418,7 +3423,7 @@ export default function HometownScreen() {
                 for (let dx = 0; dx < w && fits; dx++) {
                   for (let dy = 0; dy < h && fits; dy++) {
                     const nx = b.x + dx, ny = b.y + dy;
-                    if (nx >= TOWN_GRID_SIZE || ny >= TOWN_GRID_SIZE) { fits = false; break; }
+                    if (nx >= mapGridSize(activeMap).w || ny >= mapGridSize(activeMap).h) { fits = false; break; }
                     const other = buildingAt(nx, ny);
                     if (other && other.id !== b.id) { fits = false; break; }
                     if (decorationAt(nx, ny) || roadAt(nx, ny)) { fits = false; break; }

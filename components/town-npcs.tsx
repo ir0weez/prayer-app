@@ -209,8 +209,10 @@ export function TownNPCs({
       : { x: 3.5, y: 3.5 };
     for (let i = 0; i < list.length; i++) {
       const r = list[i];
-      // 6 residents per cottage, round-robin across built cottages.
-      const cottage = cottages.length > 0 ? cottages[Math.floor(i / 6) % cottages.length] : null;
+      // 6 residents per BUILT cottage. If fewer cottages are built than needed,
+      // extra residents wait at the church until their home is ready.
+      const cottageIndex = Math.floor(i / 6);
+      const cottage = cottageIndex < cottages.length ? cottages[cottageIndex] : null;
       let homeId: string;
       let homeTile: Tile;
       if (cottage) {
@@ -396,18 +398,13 @@ export function TownNPCs({
         sleepingRef.current = next;
         setSleepingIds(next);
       }
-      // Sync name labels: residents always show their name (they're his people).
-      // Temporary visitors show theirs at the church or a restaurant (the
-      // fellowship moment). Capped at 15 non-residents, closest first, so busy
-      // days don't turn into label chaos.
+      // Sync name labels: names show at the church or a restaurant (the
+      // fellowship moment). Capped at 15, closest first, so busy days don't
+      // turn into label chaos. Tapping any villager shows their name anytime.
       const candidates: { id: string; d: number; resident: boolean }[] = [];
       if (!night) {
         for (const npc of Object.values(logic)) {
           if (!npc.name) continue;
-          if (npc.resident) {
-            candidates.push({ id: npc.id, d: -1, resident: true });
-            continue;
-          }
           if (!npc.blessed || npc.state !== "visiting") continue;
           const dt = npc.destType;
           if (dt !== "church" && !isRestaurantType(dt as any)) continue;
@@ -422,14 +419,8 @@ export function TownNPCs({
           candidates.push({ id: npc.id, d, resident: false });
         }
       }
-      candidates.sort((a, b) => {
-        if (a.resident && !b.resident) return -1;
-        if (!a.resident && b.resident) return 1;
-        return a.d - b.d;
-      });
-      const residentIds = candidates.filter((c) => c.resident).map((c) => c.id);
-      const visitorIds = candidates.filter((c) => !c.resident).slice(0, 15).map((c) => c.id);
-      const nextNamed = new Set([...residentIds, ...visitorIds]);
+      candidates.sort((a, b) => a.d - b.d);
+      const nextNamed = new Set(candidates.slice(0, 15).map((c) => c.id));
       const prevNamed = namedRef.current;
       let namedChanged = nextNamed.size !== prevNamed.size;
       if (!namedChanged) {

@@ -1495,6 +1495,32 @@ export default function HometownScreen() {
 
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
   const handleTownLotBuildingPress = (b: PlacedBuilding) => {
+    // Enterable buildings route to their interiors first
+    if (b.type === "pawn-house") {
+      router.push("/pawn-house");
+      return;
+    } else if (b.type === "bank" || b.type === "bank-tower") {
+      router.push(`/bank-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "church") {
+      router.push(`/church-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "barbershop") {
+      router.push("/barbershop");
+      return;
+    } else if (b.type === "clothes-shop") {
+      router.push("/gear-shop?type=clothes");
+      return;
+    } else if (b.type === "armory") {
+      router.push("/gear-shop?type=armor");
+      return;
+    } else if (b.type === "weaponsmith") {
+      router.push("/gear-shop?type=weapon");
+      return;
+    } else if (b.type === "toolshop") {
+      router.push("/gear-shop?type=tool");
+      return;
+    }
     setPopupBuilding(b);
   };
 

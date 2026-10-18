@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
-import { REMEMBRANCE_FLOWERS, REMEMBRANCE_UPGRADE_COSTS, type RememberedPerson, type RemembranceState } from "@/lib/hometown";
+import { REMEMBRANCE_FLOWERS, REMEMBRANCE_UPGRADE_COSTS, MEMORY_CANDLE_COST, candleLit, type RememberedPerson, type RemembranceState } from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 
 export type GardenOfRemembranceProps = {
@@ -23,6 +23,10 @@ export type GardenOfRemembranceProps = {
   onUpdateNote: (id: string, note: string) => void;
   onRemovePerson: (id: string) => void;
   onUpgrade: () => void;
+  /** Blessed residents currently visiting the garden (1-2, daytime). */
+  visitors?: { personId: string; name: string }[];
+  /** Light a memory candle for a remembered loved one (5 coins, burns 24h). */
+  onLightCandle?: (id: string) => void;
 };
 
 const SCENE_W = 360;
@@ -200,21 +204,25 @@ function FlowerBloom({ kind }: { kind: number }) {
   }
 }
 
-function Flower({ person, glowing }: { person: RememberedPerson; glowing: boolean }) {
+function Flower({ person, glowing, isNight }: { person: RememberedPerson; glowing: boolean; isNight: boolean }) {
   const k = ((person.flower % REMEMBRANCE_FLOWERS.length) + REMEMBRANCE_FLOWERS.length) % REMEMBRANCE_FLOWERS.length;
   const style = REMEMBRANCE_FLOWERS[k];
   const headY = FLOWER_HEAD_Y[k];
+  const lit = candleLit(person);
   return (
-    <Svg width={44} height={64} viewBox="0 0 44 64">
-      {glowing && <Circle cx={22} cy={headY} r={20} fill={style.petal} opacity={0.28} />}
-      {/* stem + leaves */}
-      <Line x1={22} y1={60} x2={22} y2={headY + 8} stroke="#4D7C4D" strokeWidth={3} strokeLinecap="round" />
-      <Ellipse cx={14} cy={46} rx={8} ry={4} fill="#5B8C5B" transform="rotate(-25 14 46)" />
-      <Ellipse cx={30} cy={52} rx={8} ry={4} fill="#5B8C5B" transform="rotate(25 30 52)" />
-      <G transform={`translate(0 ${headY - 22})`}>
-        <FlowerBloom kind={k} />
-      </G>
-    </Svg>
+    <View style={{ width: 44, height: 64 }}>
+      <Svg width={44} height={64} viewBox="0 0 44 64">
+        {glowing && <Circle cx={22} cy={headY} r={20} fill={style.petal} opacity={0.28} />}
+        {/* stem + leaves */}
+        <Line x1={22} y1={60} x2={22} y2={headY + 8} stroke="#4D7C4D" strokeWidth={3} strokeLinecap="round" />
+        <Ellipse cx={14} cy={46} rx={8} ry={4} fill="#5B8C5B" transform="rotate(-25 14 46)" />
+        <Ellipse cx={30} cy={52} rx={8} ry={4} fill="#5B8C5B" transform="rotate(25 30 52)" />
+        <G transform={`translate(0 ${headY - 22})`}>
+          <FlowerBloom kind={k} />
+        </G>
+      </Svg>
+      {lit && <MemoryCandle isNight={isNight} />}
+    </View>
   );
 }
 
@@ -307,6 +315,64 @@ const SCENE_BG: Record<TimeOfDay, string> = {
   night: "#252135",
 };
 
+/** A resident paying their respects — small golden figure with a candle above. */
+function GardenVisitor({ x, y }: { x: number; y: number }) {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", left: x - 8, top: y - 34, width: 16, height: 34, alignItems: "center" }}
+    >
+      <Text style={{ fontSize: 11, marginBottom: -3 }}>🕯️</Text>
+      {/* head */}
+      <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ flexDirection: "row", gap: 2 }}>
+          <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
+          <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
+        </View>
+      </View>
+      {/* body */}
+      <View
+        style={{
+          width: 11, height: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4,
+          borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
+          backgroundColor: "#FBBF24", marginTop: 0.5, opacity: 0.92,
+        }}
+      />
+    </View>
+  );
+}
+
+/** A lit memory candle beside a flower — flickering flame, brighter at night. */
+function MemoryCandle({ isNight }: { isNight: boolean }) {
+  const flicker = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flicker, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [flicker]);
+  const scale = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.1] });
+  const opacity = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
+  return (
+    <View style={{ position: "absolute", right: -6, bottom: 4, width: 16, height: 30, alignItems: "center" }}>
+      {isNight && (
+        <View style={{ position: "absolute", top: -10, width: 34, height: 34, borderRadius: 17, backgroundColor: "#FBBF24", opacity: 0.28 }} />
+      )}
+      <Animated.View style={{ transform: [{ scale }], opacity }}>
+        <Svg width={10} height={13} viewBox="0 0 10 13">
+          <Path d="M5 0 C 7.5 4, 8 6, 5 8.5 C 2 6, 2.5 4, 5 0 Z" fill="#FBBF24" />
+          <Path d="M5 2.6 C 6.2 4.4, 6.4 5.6, 5 7 C 3.6 5.6, 3.8 4.4, 5 2.6 Z" fill="#FDE68A" />
+        </Svg>
+      </Animated.View>
+      <View style={{ width: 8, height: 13, borderRadius: 2, backgroundColor: "#FFF7ED", borderWidth: 0.5, borderColor: "#E7D8B7", marginTop: -1 }} />
+    </View>
+  );
+}
+
 function MemorialWall({ level, count, onPress }: { level: 1 | 2 | 3; count: number; onPress: () => void }) {
   // L1: wooden planks; L2: stone; L3: marble with gold trim
   const wallFill = level === 1 ? "#A0764A" : level === 2 ? "#B8B2A7" : "#F5EFE2";
@@ -359,11 +425,14 @@ function GardenScene({
   timeOfDay,
   onTapPerson,
   onOpenWall,
+  visitors,
 }: {
   remembrance: RemembranceState;
   timeOfDay: TimeOfDay;
   onTapPerson: (p: RememberedPerson) => void;
   onOpenWall: () => void;
+  /** Blessed residents currently paying their respects (daytime only). */
+  visitors?: { personId: string; name: string }[];
 }) {
   const isNight = timeOfDay === "night";
   const level = remembrance.level;
@@ -371,6 +440,11 @@ function GardenScene({
   const shown = remembrance.people.slice(0, MAX_FLOWERS_SHOWN);
   const hidden = remembrance.people.length - shown.length;
   const glowing = isNight || level === 3;
+  // Visitors stand quietly before the memorial wall (wall: x 105-255, y 14-90).
+  const visitorSpots = [
+    { x: 148, y: 122 },
+    { x: 214, y: 126 },
+  ];
 
   const stone = isNight ? "#4A4458" : "#D9CFBC";
   const stoneEdge = isNight ? "#37324A" : "#C2B69E";
@@ -471,8 +545,13 @@ function GardenScene({
           style={{ position: "absolute", left: spots[i]?.left ?? 40, top: spots[i]?.top ?? 360, width: 44, height: 64 }}
           hitSlop={8}
         >
-          <Flower person={p} glowing={glowing} />
+          <Flower person={p} glowing={glowing} isNight={isNight} />
         </Pressable>
+      ))}
+
+      {/* visiting residents — blessed souls paying their respects */}
+      {!isNight && (visitors || []).slice(0, 2).map((v, i) => (
+        <GardenVisitor key={v.personId} x={visitorSpots[i]?.x ?? 180} y={visitorSpots[i]?.y ?? 122} />
       ))}
       {hidden > 0 && (
         <Pressable
@@ -581,12 +660,14 @@ function PersonModal({
   onClose,
   onUpdateNote,
   onRemove,
+  onLightCandle,
 }: {
   person: RememberedPerson | null;
   pt: PageTheme;
   onClose: () => void;
   onUpdateNote: (id: string, note: string) => void;
   onRemove: (id: string) => void;
+  onLightCandle?: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState("");
@@ -595,6 +676,7 @@ function PersonModal({
   }, [person]);
   if (!person) return null;
   const style = REMEMBRANCE_FLOWERS[person.flower % REMEMBRANCE_FLOWERS.length];
+  const lit = candleLit(person);
   return (
     <Modal visible={!!person} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}>
@@ -640,6 +722,25 @@ function PersonModal({
                 <Text style={{ color: "#7C5C3E", fontWeight: "700" }}>{person.note ? "Edit memory" : "Write a memory"}</Text>
               </Pressable>
             </>
+          )}
+          {/* Memory candle — light one for 5 coins, burns 24 hours */}
+          {lit ? (
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginTop: 10, borderWidth: 1, borderColor: "#FDE68A" }}>
+              <Text style={{ fontSize: 14 }}>🕯️</Text>
+              <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+                Candle lit — glowing in the garden
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => onLightCandle?.(person.id)}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(212,175,55,0.1)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, borderWidth: 1, borderColor: "#D4AF37" }}
+            >
+              <Text style={{ fontSize: 14 }}>🕯️</Text>
+              <Text style={{ marginLeft: 6, fontWeight: "800", fontSize: 13, color: "#8A6D1B" }}>
+                Light a candle · 🪙{MEMORY_CANDLE_COST}
+              </Text>
+            </Pressable>
           )}
           <Pressable
             onPress={() => {
@@ -714,7 +815,7 @@ function WallModal({
 }
 
 export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
-  const { remembrance, timeOfDay, pt, coins, onAddPerson, onUpdateNote, onRemovePerson, onUpgrade } = props;
+  const { remembrance, timeOfDay, pt, coins, onAddPerson, onUpdateNote, onRemovePerson, onUpgrade, visitors, onLightCandle } = props;
   const [addVisible, setAddVisible] = useState(false);
   const [wallVisible, setWallVisible] = useState(false);
   const [selected, setSelected] = useState<RememberedPerson | null>(null);
@@ -731,6 +832,7 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
         timeOfDay={timeOfDay}
         onTapPerson={setSelected}
         onOpenWall={() => setWallVisible(true)}
+        visitors={visitors}
       />
 
       {/* Garden status card */}
@@ -796,7 +898,7 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
 
       <AddPersonModal visible={addVisible} pt={pt} onClose={() => setAddVisible(false)} onSave={onAddPerson} />
       <WallModal visible={wallVisible} people={remembrance.people} pt={pt} onClose={() => setWallVisible(false)} onSelect={setSelected} />
-      <PersonModal person={selected} pt={pt} onClose={() => setSelected(null)} onUpdateNote={onUpdateNote} onRemove={onRemovePerson} />
+      <PersonModal person={selected} pt={pt} onClose={() => setSelected(null)} onUpdateNote={onUpdateNote} onRemove={onRemovePerson} onLightCandle={onLightCandle} />
     </View>
   );
 }

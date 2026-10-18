@@ -8438,14 +8438,26 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+        {/* Animated sky background by time of day */}
+        {mood === "night" && REST_STARS.map((s, i) => (
+          <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
+        ))}
+        {mood === "midday" && (
+          <>
+            <DriftingCloud top={18} size={36} duration={9000} delay={0} />
+            <DriftingCloud top={44} size={28} duration={12000} delay={3000} />
+          </>
+        )}
+        {mood === "sunrise" && <DawnGlow />}
+        {mood === "sunset" && <SettingSun />}
         {/* Icon with no tinted background, gentle breathing animation */}
         <Animated.View style={{ transform: [{ scale: iconScale }], opacity: iconOpacity, marginBottom: 8 }}>
           <MaterialIcons name={mc.icon as any} size={40} color={mc.iconColor} />
         </Animated.View>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>Rest</Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}>Rest</Text>
         {event.startTime && (
-          <Text style={{ fontSize: 12, color: colors.muted }}>
+          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
             {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
           </Text>
         )}

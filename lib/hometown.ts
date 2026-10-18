@@ -228,127 +228,17 @@ export async function prayedTodayPeople(): Promise<PrayedPerson[]> {
   }
 }
 
-/** Townsfolk housed: L1=2, each level +1, L5 (Mansion)=6. */
+/** Townsfolk housed: L1=2, each level +1, L5 (Mansion)=6. (Legacy — houses removed.) */
 export function townsfolkForHouse(level: number): number {
   return 1 + Math.min(Math.max(level || 1, 1), 5);
 }
 
-/** Max permanent town residents — 4 cottage lots × 6 each. */
-export const MAX_RESIDENTS = 24;
-
-/** A permanent town resident: one of Jonathan's chosen people who lives in town. */
-export type Resident = {
-  personId: string;
-  name: string;
-  accentColor?: string;
-};
-
-export const RESIDENTS_STORAGE_KEY = "prayercircle.hometown.residents.v1";
-
-/** Load saved residents. */
-export async function loadResidents(): Promise<Resident[]> {
-  try {
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-    const raw = await AsyncStorage.getItem(RESIDENTS_STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((r: any) => r && typeof r.personId === "string" && typeof r.name === "string")
-      .slice(0, MAX_RESIDENTS)
-      .map((r: any) => ({
-        personId: String(r.personId),
-        name: String(r.name),
-        accentColor: typeof r.accentColor === "string" ? r.accentColor : undefined,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-/** Save residents. */
-export async function saveResidents(residents: Resident[]): Promise<void> {
-  try {
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-    await AsyncStorage.setItem(
-      RESIDENTS_STORAGE_KEY,
-      JSON.stringify(residents.slice(0, MAX_RESIDENTS))
-    );
-  } catch {}
-}
-
-/** Everyone in the prayer list (for the resident picker). Sorted by name. */
-export async function getAllPrayerPeople(): Promise<
-  { id: string; name: string; accentColor?: string; lastPrayedDate: string | null; lastPrayerCompletedDate?: string | null }[]
-> {
-  try {
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-    const raw = await AsyncStorage.getItem("prayercircle.people.v1");
-    if (!raw) return [];
-    const people = JSON.parse(raw);
-    if (!Array.isArray(people)) return [];
-    return people
-      .filter((p: any) => p && p.name && !p.isPersonal)
-      .map((p: any) => ({
-        id: String(p.id ?? p.name),
-        name: String(p.name),
-        accentColor: typeof p.accentColor === "string" ? p.accentColor : undefined,
-        lastPrayedDate: typeof p.lastPrayedDate === "string" ? p.lastPrayedDate : null,
-        lastPrayerCompletedDate:
-          typeof p.lastPrayerCompletedDate === "string" ? p.lastPrayerCompletedDate : null,
-      }))
-      .sort((a: any, b: any) => a.name.localeCompare(b.name));
-  } catch {
-    return [];
-  }
-}
-
 /**
- * Auto-pick initial residents: the most-prayed-for people first
- * (by most recent prayer date), up to MAX_RESIDENTS.
+ * Population economy: each prayer light (person prayed for today) = +2% income.
+ * The town feels alive when Jonathan prays. Caps at 2x (50 lights).
  */
-export async function autoAssignResidents(): Promise<Resident[]> {
-  const all = await getAllPrayerPeople();
-  const ranked = [...all].sort((a, b) => {
-    const da = a.lastPrayerCompletedDate || a.lastPrayedDate || "";
-    const db = b.lastPrayerCompletedDate || b.lastPrayedDate || "";
-    return db.localeCompare(da);
-  });
-  const picked = ranked.slice(0, MAX_RESIDENTS).map((p) => ({
-    personId: p.id,
-    name: p.name,
-    accentColor: p.accentColor,
-  }));
-  await saveResidents(picked);
-  return picked;
-}
-
-/** Total townsfolk across all houses on the town map. */
-export function totalTownsfolk(town: TownState): number {
-  const townMap = town.maps?.town;
-  if (!townMap) return 0;
-  return townMap.buildings
-    .filter((b) => b.type === "house")
-    .reduce((sum, b) => sum + townsfolkForHouse(b.level || 1), 0);
-}
-
-/** Average cottage level across town (happier homes → happier residents). */
-export function avgCottageLevel(town: TownState): number {
-  const townMap = town.maps?.town;
-  if (!townMap) return 1;
-  const houses = townMap.buildings.filter((b) => b.type === "house");
-  if (houses.length === 0) return 1;
-  return houses.reduce((sum, b) => sum + (b.level || 1), 0) / houses.length;
-}
-
-/**
- * Population economy: each resident = +2% income. Higher cottage levels make
- * residents happier: each level adds +5% to their contribution.
- * 24 residents in L1 cottages = 1.48x; in L5 cottages = ~1.58x.
- */
-export function populationMult(residentCount: number, avgLevel: number = 1): number {
-  const levelMult = 1 + (Math.min(Math.max(avgLevel, 1), 5) - 1) * 0.05;
-  return Math.min(2, 1 + Math.max(residentCount || 0, 0) * 0.02 * levelMult);
+export function populationMult(prayedCount: number): number {
+  return Math.min(2, 1 + Math.max(prayedCount || 0, 0) * 0.02);
 }
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
@@ -581,6 +471,8 @@ export type RememberedPerson = {
   note: string;
   addedAt: string; // ISO timestamp
   flower: number; // flower style index 0-5
+  /** ISO timestamp when a memory candle was lit (burns 24h). */
+  candleLitAt?: string;
 };
 
 export type RemembranceState = {
@@ -590,6 +482,7 @@ export type RemembranceState = {
 
 export const REMEMBRANCE_STORAGE_KEY = "prayercircle.hometown.remembrance.v1";
 export const REMEMBRANCE_MALL_REFUND_KEY = "prayercircle.hometown.mall-refund.v1";
+export const HOUSE_REMOVAL_REFUND_KEY = "prayercircle.hometown.house-refund.v1";
 
 /** Garden upgrade costs: L1 is the map unlock itself; L2/L3 upgrade the garden. */
 export const REMEMBRANCE_UPGRADE_COSTS: Record<2 | 3, number> = { 2: 800, 3: 1200 };
@@ -621,6 +514,7 @@ export function parseRemembrance(value: unknown): RemembranceState {
           note: typeof p.note === "string" ? p.note : "",
           addedAt: typeof p.addedAt === "string" ? p.addedAt : new Date().toISOString(),
           flower: typeof p.flower === "number" ? Math.abs(Math.floor(p.flower)) % REMEMBRANCE_FLOWERS.length : 0,
+          candleLitAt: typeof p.candleLitAt === "string" ? p.candleLitAt : undefined,
         }))
     : [];
   const level = s.level === 2 || s.level === 3 ? s.level : 1;
@@ -663,6 +557,135 @@ export function remembranceRefundFor(b: PlacedBuilding): number {
     try { total += upgradeCostFor(b.type, l as 2 | 3 | 4 | 5); } catch {}
   }
   return total;
+}
+
+// ---- Memory candles ----
+// Jonathan can light a candle for a remembered loved one (5 coins, burns 24h).
+// Lit candles glow in the garden — warmly by day, brightly at night.
+
+export const MEMORY_CANDLE_COST = 5;
+export const MEMORY_CANDLE_DURATION_MS = 24 * 3600000;
+
+/** True when the person's memory candle is lit (burns 24 hours). */
+export function candleLit(p: RememberedPerson, now: Date = new Date()): boolean {
+  if (!p.candleLitAt) return false;
+  const t = new Date(p.candleLitAt).getTime();
+  if (isNaN(t)) return false;
+  const age = now.getTime() - t;
+  return age >= 0 && age < MEMORY_CANDLE_DURATION_MS;
+}
+
+// ---- Garden visits ----
+// From time to time, blessed residents (prayed for today) visit the Garden of
+// Remembrance to pay their respects — 1-2 per hour, daytime only. Each visit
+// blesses the town: +0.1% income for 24h. Small, meaningful, reverent.
+
+export const GARDEN_VISIT_STORAGE_KEY = "prayercircle.hometown.garden-visits.v1";
+/** +0.1% income per garden visit. */
+export const GARDEN_VISIT_INCOME_PER_VISIT = 0.001;
+
+export type GardenVisitState = {
+  /** Hour slot ("YYYY-MM-DDTHH" local) → resident personIds who visited. */
+  slots: Record<string, string[]>;
+};
+
+/** Local hour-slot key, e.g. "2026-10-17T14". */
+export function gardenVisitHourKey(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}`;
+}
+
+/** Deterministic string hash → uint32 (FNV-1a). */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Pick 1-2 blessed residents to visit the garden this hour. Deterministic per
+ * hour slot so the same visitors linger all hour; empty at night (the town
+ * sleeps) or when nobody is blessed.
+ */
+export function pickGardenVisitors(
+  blessed: { personId: string; name: string }[],
+  hourKey: string,
+  night: boolean
+): { personId: string; name: string }[] {
+  if (night || blessed.length === 0) return [];
+  const h = hashStr("garden-visit:" + hourKey);
+  const count = 1 + (h % 2); // 1-2 visitors
+  const pool = [...blessed];
+  const out: { personId: string; name: string }[] = [];
+  let seed = h;
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+    const idx = seed % pool.length;
+    const picked = pool.splice(idx, 1)[0];
+    if (picked) out.push(picked);
+  }
+  return out;
+}
+
+export function emptyGardenVisits(): GardenVisitState {
+  return { slots: {} };
+}
+
+export function parseGardenVisits(value: unknown): GardenVisitState {
+  const fallback = emptyGardenVisits();
+  if (!value || typeof value !== "object") return fallback;
+  const s = value as Partial<GardenVisitState>;
+  const slots: Record<string, string[]> = {};
+  if (s.slots && typeof s.slots === "object") {
+    for (const [k, v] of Object.entries(s.slots)) {
+      if (typeof k === "string" && Array.isArray(v)) {
+        slots[k] = v.filter((x) => typeof x === "string").slice(0, 4);
+      }
+    }
+  }
+  return { slots };
+}
+
+export async function loadGardenVisits(): Promise<GardenVisitState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(GARDEN_VISIT_STORAGE_KEY);
+    if (!raw) return emptyGardenVisits();
+    return parseGardenVisits(JSON.parse(raw));
+  } catch { return emptyGardenVisits(); }
+}
+
+export async function saveGardenVisits(s: GardenVisitState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(GARDEN_VISIT_STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/** Drop visit slots older than 24h. Returns a new state. */
+export function pruneGardenVisits(s: GardenVisitState, now: Date = new Date()): GardenVisitState {
+  const cutoff = now.getTime() - 24 * 3600000;
+  const slots: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(s.slots)) {
+    const t = new Date(k.length === 13 ? `${k}:00:00` : k).getTime();
+    if (!isNaN(t) && t >= cutoff) slots[k] = v;
+  }
+  return { slots };
+}
+
+/**
+ * Garden-visit income multiplier. Each resident visit to the Garden of
+ * Remembrance in the last 24h blesses the town: +0.1% income per visit.
+ */
+export function gardenVisitMult(state: GardenVisitState | null, now: Date = new Date()): number {
+  if (!state) return 1;
+  const pruned = pruneGardenVisits(state, now);
+  let visits = 0;
+  for (const v of Object.values(pruned.slots)) visits += v.length;
+  return 1 + visits * GARDEN_VISIT_INCOME_PER_VISIT;
 }
 
 // ---- City streets: proper downtown grid (permanent infrastructure) ----
@@ -742,11 +765,9 @@ const TOWN_SHOP_TYPES: BuildingType[] = [
 ];
 
 export const TOWN_LOTS: TownLot[] = [
-  // Chapel Hill cottages (1x1 — houses stay cozy; 4 lots = 24 villagers maxed)
-  { id: "town-lot-h1", x: 0, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
-  { id: "town-lot-h2", x: 1, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
-  { id: "town-lot-h4", x: 0, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
-  { id: "town-lot-h5", x: 1, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
+  // Chapel Hill shops (2x2 commercial — converted from cottage lots;
+  // houses removed, prayer lights are the population now)
+  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Chapel Shops" },
   // Chapel Hill — the church, prominent at the top of the neighborhood
   { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
   // Hearthside — the pawn's home, near the church
@@ -1198,14 +1219,10 @@ export function bankFloorMultiplier(floors: number): number {
  * No houses = no customers = no income. City counts town's houses via commuters.
  */
 export function mapHasPopulation(map: MapState, town?: TownState): boolean {
-  const hasHouses = map.buildings.some(b => b.type === "house");
-  if (hasHouses) return true;
-  // City gets commuters from town's houses
-  if (town) {
-    const townMap = town.maps?.town;
-    if (townMap && townMap.buildings.some(b => b.type === "house")) return true;
-  }
-  return false;
+  // Population is now the prayer lights (people prayed for today).
+  // The prayer and population multipliers scale income by prayed count,
+  // so no hard gate is needed — the town is alive when Jonathan prays.
+  return true;
 }
 
 // ---- Idle mechanics: workers, coin milestones, tap frenzy ----
@@ -1260,13 +1277,13 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1, remembranceBonus: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
-  const popMult = populationMult(residentCount, avgLevel);
+  const popMult = populationMult(prayedCount);
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -1275,8 +1292,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, residentCount: number = 0, avgLevel: number = 1, remembranceBonus: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, residentCount, avgLevel, remembranceBonus), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

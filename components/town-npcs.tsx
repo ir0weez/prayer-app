@@ -3,38 +3,32 @@ import { Animated, Easing, Pressable, Text, View } from "react-native";
 import {
   BUILDINGS,
   buildingFootprint,
-  MAX_RESIDENTS,
   PRAYER_VILLAGER_CAP,
   isRestaurantType,
   isGatheringTime,
   type MapState,
-  type PrayedPerson,
-  type Resident,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
 
 const NPC_SIZE = 16;
 const SPEED_PX_PER_SEC = 42;
-/** Non-resident prayed-for visitors: 40 max candles − 24 residents. */
-const MAX_VISITORS = PRAYER_VILLAGER_CAP - MAX_RESIDENTS;
+/** Prayer lights: golden villagers for everyone prayed for today. Max 40. */
+const MAX_LIGHTS = PRAYER_VILLAGER_CAP;
 
 // Animated Pressable so villagers can be tapped without losing their
 // native-driver movement transform.
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Fallback body color for residents without an accent color
-const RESIDENT_FALLBACK_COLOR = "#CBD5E1";
+// Fallback body color (unused — lights are always golden)
+const LIGHT_COLOR = "#FBBF24";
 
 type Tile = { x: number; y: number };
 type Px = { x: number; y: number };
 
-/** One of Jonathan's chosen people, living in town permanently. */
-export type ResidentInfo = {
+/** A prayer light — someone Jonathan prayed for today, glowing golden. */
+export type LightInfo = {
   personId: string;
   name: string;
-  accentColor?: string;
-  /** Prayed for today → golden "lit candle". */
-  blessed: boolean;
 };
 
 type NpcDef = {
@@ -42,11 +36,7 @@ type NpcDef = {
   homeId: string;
   homeTile: Tile;
   color: string;
-  /** Permanent town resident (vs. temporary visitor). */
-  resident: boolean;
-  /** Prayed for today → golden glow (the "lit candle"). */
-  blessed?: boolean;
-  /** Person's name — residents always show it; visitors show it at church/restaurants. */
+  /** Person's name — shown at church/restaurants (the fellowship moment). */
   name?: string;
   /** Prayer contact id. */
   prayerId?: string;
@@ -57,8 +47,6 @@ type NpcLogic = {
   homeId: string;
   homeTile: Tile;
   color: string;
-  resident: boolean;
-  blessed?: boolean;
   name?: string;
   prayerId?: string;
   pos: Animated.ValueXY;
@@ -151,29 +139,26 @@ function buildPath(mapState: MapState, fromTile: Tile, toTile: Tile, cellSize: n
   return out.length > 0 ? out : [dest];
 }
 
-/** Number of hometown NPCs — the resident count, capped. The single source of population. */
-export function countHometownNpcs(residentCount: number): number {
-  return Math.min(Math.max(residentCount || 0, 0), MAX_RESIDENTS);
+/** Number of prayer lights — the prayed-for count, capped. The single source of population. */
+export function countHometownNpcs(prayedCount: number): number {
+  return Math.min(Math.max(prayedCount || 0, 0), PRAYER_VILLAGER_CAP);
 }
 
 export function TownNPCs({
   mapState,
   cellSize,
   onBankVisit,
-  residents,
-  visitors,
+  lights,
   onVillagerTap,
 }: {
   mapState: MapState;
   cellSize: number;
   /** Called when an NPC arrives at a bank/bank-tower: (buildingId). */
   onBankVisit?: (buildingId: string) => void;
-  /** Jonathan's chosen people — permanent town residents (max 24). */
-  residents?: ResidentInfo[];
-  /** Non-resident contacts prayed for today — temporary golden visitors (max 16). */
-  visitors?: PrayedPerson[];
-  /** Called when a villager is tapped: ({ id, name, blessed }). */
-  onVillagerTap?: (person: { id: string; name: string; blessed: boolean }) => void;
+  /** People prayed for today — golden lights (max 40). */
+  lights?: LightInfo[];
+  /** Called when a villager is tapped: ({ id, name }). */
+  onVillagerTap?: (person: { id: string; name: string }) => void;
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -186,78 +171,39 @@ export function TownNPCs({
   // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
   const sleepingRef = useRef<Set<string>>(new Set());
-  // Visitors at the church or a restaurant show their name (the fellowship
-  // moment). Residents always show their name — they're his people.
-  // Capped at 15, closest first, so busy days don't turn into label chaos.
+  // Lights at the church or a restaurant show their name (the fellowship
+  // moment). Capped at 15, closest first, so busy days don't turn into label chaos.
   const [namedIds, setNamedIds] = useState<Set<string>>(new Set());
   const namedRef = useRef<Set<string>>(new Set());
   const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
-  // One unified population: Jonathan's chosen residents live here permanently.
-  // Each resident gets a home cottage (4 lots × 6). Cottages not yet built →
-  // they stay at the church until their home is ready.
+  // Prayer lights: everyone Jonathan prayed for today appears as a golden
+  // light. They gather at the church and wander town. Gone by midnight —
+  // each day brings a new set of lights.
   const npcDefs = useMemo<NpcDef[]>(() => {
     const defs: NpcDef[] = [];
-    const list = (residents || []).slice(0, MAX_RESIDENTS);
-    const cottages = mapState.buildings
-      .filter((b) => b.type === "house")
-      .sort((a, b) => (a.townLotId || a.id).localeCompare(b.townLotId || b.id));
     const church = mapState.buildings.find((b) => b.type === "church");
     const cfp = church ? buildingFootprint(church.level || 1, church.type) : null;
     const churchHome: Tile = church && cfp
       ? { x: church.x + cfp.w / 2 - 0.5, y: church.y + cfp.h / 2 - 0.5 }
       : { x: 3.5, y: 3.5 };
-    for (let i = 0; i < list.length; i++) {
-      const r = list[i];
-      // 6 residents per BUILT cottage. If fewer cottages are built than needed,
-      // extra residents wait at the church until their home is ready.
-      const cottageIndex = Math.floor(i / 6);
-      const cottage = cottageIndex < cottages.length ? cottages[cottageIndex] : null;
-      let homeId: string;
-      let homeTile: Tile;
-      if (cottage) {
-        const fp = buildingFootprint(cottage.level || 1, cottage.type);
-        const cx = cottage.x + fp.w / 2;
-        const cy = cottage.y + fp.h / 2;
-        const slot = i % 6;
-        homeId = cottage.id;
-        homeTile = { x: cx - 0.5 + (slot % 3) * 0.35, y: cy - 0.5 + Math.floor(slot / 3) * 0.3 };
-      } else {
-        homeId = church ? church.id : "prayer-gate";
-        homeTile = { x: churchHome.x + (i % 4) * 0.3, y: churchHome.y + Math.floor(i / 4) * 0.3 };
-      }
+    const lightList = (lights || []).slice(0, MAX_LIGHTS);
+    for (let pi = 0; pi < lightList.length; pi++) {
+      const p = lightList[pi];
       defs.push({
-        id: `resident-${r.personId}`,
-        homeId,
-        homeTile,
-        color: r.accentColor || RESIDENT_FALLBACK_COLOR,
-        resident: true,
-        blessed: r.blessed,
-        name: r.name,
-        prayerId: r.personId,
-      });
-    }
-    // Temporary visitors: prayed-for contacts who aren't residents.
-    // They gather at the church and wander like everyone else.
-    const visitorList = (visitors || []).slice(0, MAX_VISITORS);
-    for (let pi = 0; pi < visitorList.length; pi++) {
-      const p = visitorList[pi];
-      defs.push({
-        id: `visitor-${p.id}`,
+        id: `light-${p.personId}`,
         homeId: church ? church.id : "prayer-gate",
         homeTile: {
           x: churchHome.x + (pi % 4) * 0.3,
           y: churchHome.y + Math.floor(pi / 4) * 0.3,
         },
-        color: "#FBBF24",
-        resident: false,
-        blessed: true,
+        color: LIGHT_COLOR,
         name: p.name,
-        prayerId: String(p.id),
+        prayerId: String(p.personId),
       });
     }
     return defs;
-  }, [mapState.buildings, residents, visitors]);
+  }, [mapState.buildings, lights]);
 
   useEffect(() => {
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 });
@@ -271,17 +217,25 @@ export function TownNPCs({
         return !!def && (def.incomePerDay > 0 || def.xpPerDay > 0);
       });
       let pool = businesses;
-      // The Gathering: blessed prayer villagers head to Restaurant Row to break
+      // The Gathering: prayer lights head to Restaurant Row to break
       // bread together (Mon/Wed/Fri 6-8pm). A shared meal, not just a visit.
-      if (npc.blessed && isGatheringTime()) {
+      if (isGatheringTime()) {
         const restaurants = businesses.filter((b) => isRestaurantType(b.type));
         if (restaurants.length > 0) pool = restaurants;
       }
       if (pool.length === 0) {
-        // no shops yet — visit a neighbor's cottage instead
-        pool = ms.buildings.filter((b) => b.type === "house" && b.id !== npc.homeId);
+        // no shops yet — gather at the church instead
+        const church = ms.buildings.find((b) => b.type === "church");
+        if (church) {
+          const fp = buildingFootprint(church.level || 1, church.type);
+          return {
+            tile: { x: church.x + fp.w / 2 - 0.5, y: church.y + fp.h / 2 - 0.5 },
+            buildingId: church.id,
+            type: church.type,
+          };
+        }
+        return null;
       }
-      if (pool.length === 0) return null;
       const b = pool[Math.floor(Math.random() * pool.length)];
       const fp = buildingFootprint(b.level || 1, b.type);
       return {
@@ -298,8 +252,8 @@ export function TownNPCs({
         npc.state = "visiting";
         // At night the town is asleep — just a quick peek before heading home.
         // Businesses are closed, so no bank-visit bonus either.
-        // During the gathering, blessed villagers linger for a real shared meal.
-        const gatheringMeal = npc.blessed && isGatheringTime() && npc.destType && isRestaurantType(npc.destType as any);
+        // During the gathering, lights linger for a real shared meal.
+        const gatheringMeal = isGatheringTime() && npc.destType && isRestaurantType(npc.destType as any);
         npc.waitUntil = now + (nightNow ? 1200 : gatheringMeal ? 12000 + Math.random() * 8000 : 3000 + Math.random() * 5000);
         // Visiting a bank? Customers doing business — bonus coins for the bank.
         if (!nightNow && (npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
@@ -400,12 +354,12 @@ export function TownNPCs({
       }
       // Sync name labels: names show at the church or a restaurant (the
       // fellowship moment). Capped at 15, closest first, so busy days don't
-      // turn into label chaos. Tapping any villager shows their name anytime.
-      const candidates: { id: string; d: number; resident: boolean }[] = [];
+      // turn into label chaos. Tapping any light shows their name anytime.
+      const candidates: { id: string; d: number }[] = [];
       if (!night) {
         for (const npc of Object.values(logic)) {
           if (!npc.name) continue;
-          if (!npc.blessed || npc.state !== "visiting") continue;
+          if (npc.state !== "visiting") continue;
           const dt = npc.destType;
           if (dt !== "church" && !isRestaurantType(dt as any)) continue;
           let d = 0;
@@ -416,7 +370,7 @@ export function TownNPCs({
             const cy = (b.y + fp.h / 2) * cellSize;
             d = Math.hypot(npc.px - cx, npc.py - cy);
           }
-          candidates.push({ id: npc.id, d, resident: false });
+          candidates.push({ id: npc.id, d });
         }
       }
       candidates.sort((a, b) => a.d - b.d);
@@ -444,8 +398,6 @@ export function TownNPCs({
         existing.homeId = def.homeId;
         existing.homeTile = def.homeTile;
         existing.color = def.color;
-        existing.resident = def.resident;
-        existing.blessed = def.blessed;
         existing.name = def.name;
         existing.prayerId = def.prayerId;
         if (existing.state === "idle") {
@@ -497,8 +449,6 @@ export function TownNPCs({
           homeId: def.homeId,
           homeTile: def.homeTile,
           color: def.color,
-          resident: def.resident,
-          blessed: def.blessed,
           name: def.name,
           prayerId: def.prayerId,
           pos: new Animated.ValueXY(homePx),
@@ -550,26 +500,23 @@ export function TownNPCs({
         if (!npc) return null;
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
         const asleep = sleepingIds.has(id);
-        const blessed = !!npc.blessed;
         const showName = namedIds.has(id) && !!npc.name;
-        // Lit candles glow golden; everyone else wears their own color.
-        const bodyColor = blessed ? "#FBBF24" : npc.color;
+        // All lights glow golden — they're the people Jonathan prayed for today.
+        const bodyColor = "#FBBF24";
         const body = (
           <>
-            {/* golden halo for lit candles (prayed for today) */}
-            {blessed ? (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -6,
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: "#FBBF24",
-                  opacity: 0.3,
-                }}
-              />
-            ) : null}
+            {/* golden halo */}
+            <View
+              style={{
+                position: "absolute",
+                top: -6,
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: "#FBBF24",
+                opacity: 0.3,
+              }}
+            />
             {/* 💤 while asleep at home */}
             {asleep ? (
               <Animated.Text
@@ -586,7 +533,7 @@ export function TownNPCs({
                 💤
               </Animated.Text>
             ) : null}
-            {/* name label — residents always; visitors at church/restaurants */}
+            {/* name label — at church/restaurants (the fellowship moment) */}
             {showName ? (
               <Text
                 numberOfLines={1}
@@ -599,7 +546,7 @@ export function TownNPCs({
                   textAlign: "center",
                   fontSize: 10,
                   fontWeight: "700",
-                  color: blessed ? "#FDE68A" : "#FFFFFF",
+                  color: "#FDE68A",
                   textShadowColor: "rgba(0,0,0,0.65)",
                   textShadowOffset: { width: 0, height: 1 },
                   textShadowRadius: 2,
@@ -649,21 +596,15 @@ export function TownNPCs({
           alignItems: "center" as const,
           transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
         };
-        // Residents and lit candles are tappable — tap to see who they are.
-        // (No ambient anonymous villagers anymore — everyone is somebody.)
-        const tappable = npc.resident || blessed;
-        return tappable ? (
+        // All lights are tappable — tap to see who they are.
+        return (
           <AnimatedPressable
             key={id}
-            onPress={() => tapRef.current?.({ id: npc.prayerId || npc.id, name: npc.name || "Friend", blessed })}
+            onPress={() => tapRef.current?.({ id: npc.prayerId || npc.id, name: npc.name || "Friend" })}
             style={frameStyle}
           >
             {body}
           </AnimatedPressable>
-        ) : (
-          <Animated.View key={id} pointerEvents="none" style={frameStyle}>
-            {body}
-          </Animated.View>
         );
       })}
     </View>

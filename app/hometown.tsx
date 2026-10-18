@@ -78,9 +78,20 @@ import {
   remembranceRefundFor,
   emptyRemembrance,
   REMEMBRANCE_MALL_REFUND_KEY,
+  HOUSE_REMOVAL_REFUND_KEY,
   REMEMBRANCE_UPGRADE_COSTS,
   type RememberedPerson,
   type RemembranceState,
+  MEMORY_CANDLE_COST,
+  candleLit,
+  emptyGardenVisits,
+  loadGardenVisits,
+  saveGardenVisits,
+  pruneGardenVisits,
+  gardenVisitMult,
+  gardenVisitHourKey,
+  pickGardenVisitors,
+  type GardenVisitState,
   type CityPlot,
   type TownLot,
   type BuildingType,
@@ -92,13 +103,6 @@ import {
   type MapState,
   type TownState,
   type PrayedPerson,
-  type Resident,
-  loadResidents,
-  saveResidents,
-  getAllPrayerPeople,
-  autoAssignResidents,
-  avgCottageLevel,
-  MAX_RESIDENTS,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { getTodayISOString } from "@/lib/prayercircle-data";
@@ -110,7 +114,7 @@ import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stat
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
-import { TownNPCs, CityNPCs, countHometownNpcs, type ResidentInfo } from "@/components/town-npcs";
+import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 
@@ -956,35 +960,36 @@ export default function HometownScreen() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [prayedToday, setPrayedToday] = useState(0);
   const [prayedPeople, setPrayedPeople] = useState<PrayedPerson[]>([]);
-  const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string; blessed: boolean } | null>(null);
-  const [residents, setResidents] = useState<Resident[]>([]);
-  const [residentPickerVisible, setResidentPickerVisible] = useState(false);
-  const [allPrayerPeople, setAllPrayerPeople] = useState<{ id: string; name: string; accentColor?: string }[]>([]);
+  const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
   const [gatheringNow, setGatheringNow] = useState(false);
   // Garden of Remembrance: loved ones remembered here, with garden upgrades.
   const [remembrance, setRemembrance] = useState<RemembranceState>(() => emptyRemembrance());
+  // Garden visits: blessed residents paying their respects (+0.1% income/visit, 24h)
+  const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
   const map: MapState = town.maps[activeMap];
 
-  // Unified villagers: residents (permanent, blessed when prayed for today)
-  // + visitors (non-resident prayed-for contacts, temporary golden guests).
-  const { residentInfos, visitorInfos } = useMemo(() => {
-    const prayedIds = new Set(prayedPeople.map((p) => String(p.id)));
-    const residentIds = new Set(residents.map((r) => r.personId));
-    const infos: ResidentInfo[] = residents.map((r) => ({
-      personId: r.personId,
-      name: r.name,
-      accentColor: r.accentColor,
-      blessed: prayedIds.has(r.personId),
+  // Prayer lights: everyone prayed for today appears as a golden light.
+  // Gone by midnight — each day brings a new set.
+  const lightInfos = useMemo<LightInfo[]>(() => {
+    return prayedPeople.map((p) => ({
+      personId: String(p.id),
+      name: p.name,
     }));
-    const visitorList = prayedPeople.filter((p) => !residentIds.has(String(p.id)));
-    return { residentInfos: infos, visitorInfos: visitorList };
-  }, [residents, prayedPeople]);
+  }, [prayedPeople]);
+
+  // Garden visitors: 1-2 prayer lights paying their respects this hour
+  // (daytime only). Deterministic per hour so they linger while you visit.
+  const gardenVisitors = useMemo(() => {
+    if (timeOfDay === "night") return [];
+    const blessed = lightInfos.map((r) => ({ personId: r.personId, name: r.name }));
+    return pickGardenVisitors(blessed, gardenVisitHourKey(), false);
+  }, [lightInfos, timeOfDay]);
 
   const saveTown = useCallback((next: TownState) => {
     setTown(next);
@@ -1172,6 +1177,31 @@ export default function HometownScreen() {
             await AsyncStorage.setItem(REMEMBRANCE_MALL_REFUND_KEY, "1");
           }
         } catch {}
+        // One-time house removal: houses are gone (prayer lights are the
+        // population now). Refund at FULL price, clear them from the town map.
+        try {
+          const houseRefundDone = await AsyncStorage.getItem(HOUSE_REMOVAL_REFUND_KEY);
+          const townBuildings = t.maps.town?.buildings || [];
+          const houses = townBuildings.filter((b) => b.type === "house");
+          if (!houseRefundDone && houses.length > 0) {
+            const refund = houses.reduce((sum, b) => sum + remembranceRefundFor(b), 0);
+            if (refund > 0) {
+              c = { balance: Math.round((c.balance + refund) * 100) / 100, lifetimeEarned: Math.round((c.lifetimeEarned + refund) * 100) / 100 };
+              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(c));
+            }
+            t = {
+              ...t,
+              maps: {
+                ...t.maps,
+                town: { ...t.maps.town, buildings: townBuildings.filter((b) => b.type !== "house") },
+              },
+            };
+            await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
+            await AsyncStorage.setItem(HOUSE_REMOVAL_REFUND_KEY, "1");
+          } else if (!houseRefundDone) {
+            await AsyncStorage.setItem(HOUSE_REMOVAL_REFUND_KEY, "1");
+          }
+        } catch {}
         // Garden of Remembrance state (loved ones + garden level)
         let remembranceState = emptyRemembrance();
         try { remembranceState = await loadRemembrance(); setRemembrance(remembranceState); } catch {}
@@ -1211,23 +1241,17 @@ export default function HometownScreen() {
         // Prayer contacts prayed for today boost church income (+2/hr each)
         // and send blessed villagers into town (+3% income each).
         let prayedCount = 0;
+        let prayedIdSet = new Set<string>();
+        let prayedList: { id: string | number; name: string }[] = [];
         try {
           const people = await prayedTodayPeople();
           setPrayedPeople(people.slice(0, PRAYER_VILLAGER_CAP));
           prayedCount = people.length;
+          prayedIdSet = new Set(people.map((p) => String(p.id)));
+          prayedList = people.map((p) => ({ id: p.id, name: p.name }));
         } catch {}
         setPrayedToday(prayedCount);
         const prMult = prayerMult(prayedCount);
-        // Permanent town residents — Jonathan's chosen people (max 24).
-        // Auto-assign the most-prayed-for people on first run.
-        let residentList: Resident[] = [];
-        try {
-          residentList = await loadResidents();
-          if (residentList.length === 0) {
-            residentList = await autoAssignResidents();
-          }
-          setResidents(residentList);
-        } catch {}
         // Pawn house rooms + desirables boost coin income
         let houseCoinMult = 0;
         try { houseCoinMult = (await refreshHouseBonusCache()).coinMult; } catch {}
@@ -1251,6 +1275,27 @@ export default function HometownScreen() {
         const fellowshipBonus = fellowshipMult(fellowshipState);
         // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
         const remembranceBonus = remembranceMult(remembranceState.people.length);
+        // Garden visits: from time to time, blessed residents visit the Garden
+        // of Remembrance to pay their respects (1-2 per hour, daytime only).
+        // Each visit blesses the town: +0.1% income for 24h.
+        let gardenVisitState = emptyGardenVisits();
+        try { gardenVisitState = await loadGardenVisits(); } catch {}
+        if (getTimeOfDay() !== "night") {
+          const hourKey = gardenVisitHourKey();
+          if (!gardenVisitState.slots[hourKey]) {
+            const blessedNow = prayedPeople.map((p) => ({ personId: String(p.id), name: p.name }));
+            const picked = pickGardenVisitors(blessedNow, hourKey, false);
+            if (picked.length > 0) {
+              const next = pruneGardenVisits({
+                slots: { ...gardenVisitState.slots, [hourKey]: picked.map((p) => p.personId) },
+              });
+              gardenVisitState = next;
+              try { await saveGardenVisits(next); } catch {}
+            }
+          }
+        }
+        setGardenVisits(gardenVisitState);
+        const gardenVisitBonus = gardenVisitMult(gardenVisitState);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
@@ -1268,8 +1313,8 @@ export default function HometownScreen() {
               const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
-              const popMult = populationMult(residentList.length, avgCottageLevel(t));
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * (1 + houseCoinMult);
+              const popMult = populationMult(prayedCount);
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult);
               // Church: +2 coins/hour for each prayer contact prayed for today
               const churchPrayerBonus = b.type === "church" && earnsCoins
                 ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
@@ -1305,7 +1350,7 @@ export default function HometownScreen() {
         const lastDate = t.lastIncomeDate;
         if (lastDate && lastDate !== today) {
           const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, residentList.length, avgCottageLevel(t), remembranceBonus);
+          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus);
           const perDayXP = dailyXPForTown(t);
           if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
             const earnedCoins = Math.floor(days * perDayCoins);
@@ -1861,6 +1906,20 @@ export default function HometownScreen() {
         </View>
       ) : null}
 
+      {/* Garden visits chip — residents paying their respects (+0.1%/visit, 24h) */}
+      {(() => {
+        const gv = gardenVisitMult(gardenVisits);
+        if (gv <= 1) return null;
+        return (
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0FDF4", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#BBF7D0" }}>
+            <Text style={{ fontSize: 14 }}>🌸</Text>
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#166534" }}>
+              Garden visits: +{((gv - 1) * 100).toFixed(1)}%
+            </Text>
+          </View>
+        );
+      })()}
+
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -1943,27 +2002,6 @@ export default function HometownScreen() {
         </View>
       </View>
 
-      {/* Residents — Jonathan's chosen people who live in town */}
-      <Pressable
-        onPress={async () => {
-          try {
-            const all = await getAllPrayerPeople();
-            setAllPrayerPeople(all.map((p) => ({ id: p.id, name: p.name, accentColor: p.accentColor })));
-          } catch {}
-          setResidentPickerVisible(true);
-        }}
-        style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}
-      >
-        <Text style={{ fontSize: 28 }}>🏘️</Text>
-        <View style={{ marginLeft: 10, flex: 1 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text }}>Residents</Text>
-          <Text style={{ fontSize: 12, color: pt.subtext }}>
-            {residents.length}/{MAX_RESIDENTS} chosen people live here — tap to choose
-          </Text>
-        </View>
-        <Text style={{ fontSize: 18, color: pt.subtext }}>›</Text>
-      </Pressable>
-
       {activeMap === "mall" ? (
         <GardenOfRemembrance
           remembrance={remembrance}
@@ -1998,6 +2036,24 @@ export default function HometownScreen() {
             if (coinsRef.current.balance < cost) return;
             addCoins(-cost);
             const next = { ...remembrance, level: nextLevel };
+            setRemembrance(next);
+            saveRemembrance(next);
+          }}
+          visitors={gardenVisitors}
+          onLightCandle={(id) => {
+            const person = remembrance.people.find((p) => p.id === id);
+            if (!person || candleLit(person)) return;
+            if (coinsRef.current.balance < MEMORY_CANDLE_COST) {
+              Alert.alert("Not enough coins", `Lighting a candle costs ${MEMORY_CANDLE_COST} coins.`);
+              return;
+            }
+            addCoins(-MEMORY_CANDLE_COST);
+            const next = {
+              ...remembrance,
+              people: remembrance.people.map((p) =>
+                p.id === id ? { ...p, candleLitAt: new Date().toISOString() } : p
+              ),
+            };
             setRemembrance(next);
             saveRemembrance(next);
           }}
@@ -2140,7 +2196,7 @@ export default function HometownScreen() {
             );
           })}
           {/* Townsfolk — Jonathan's chosen residents + prayed-for visitors; all tappable */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} residents={residentInfos} visitors={visitorInfos} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -2151,7 +2207,7 @@ export default function HometownScreen() {
               <CityNPCs
                 mapState={map}
                 cellSize={cellSize}
-                hometownNpcCount={countHometownNpcs(residents.length)}
+                hometownNpcCount={countHometownNpcs(prayedToday)}
                 onBankVisit={handleBankVisit}
               />
             </>
@@ -2476,9 +2532,9 @@ export default function HometownScreen() {
                   Alert.alert("Full crew", "This building already has the maximum workers.");
                   return;
                 }
-                const available = countHometownNpcs(residents.length) - totalHiredWorkers(town);
+                const available = countHometownNpcs(prayedToday) - totalHiredWorkers(town);
                 if (available <= 0) {
-                  Alert.alert("No townsfolk available", "Build more houses to grow your workforce (2 workers per house).");
+                  Alert.alert("No workers available", "Pray for more people today to grow your workforce.");
                   return;
                 }
                 if (coinsRef.current.balance < WORKER_HIRE_COST) {
@@ -2544,21 +2600,9 @@ export default function HometownScreen() {
                       🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
                     </Text>
                   ) : b.type === "house" ? (
-                    (() => {
-                      const cottages = town.maps.town.buildings
-                        .filter((x) => x.type === "house")
-                        .sort((a, b2) => (a.townLotId || a.id).localeCompare(b2.townLotId || b2.id));
-                      const cIdx = cottages.findIndex((x) => x.id === b.id);
-                      const homed = cIdx >= 0
-                        ? residents.filter((_, i) => cottages.length > 0 && Math.floor(i / 6) % cottages.length === cIdx).length
-                        : 0;
-                      const happy = Math.round((level - 1) * 5);
-                      return (
-                        <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                          🏠 Home to {homed} resident{homed === 1 ? "" : "s"}{happy > 0 ? ` (+${happy}% happiness)` : ""}{!isMax ? ` — upgrade to ${houseNameFor(nextLevel)}` : " — a grand Mansion!"}
-                        </Text>
-                      );
-                    })()
+                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
+                      🏠 A cozy home (legacy — houses have been retired)
+                    </Text>
                   ) : (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       Workers: {workerCount}/{MAX_WORKERS_PER_BUILDING} (+{Math.round(workerCount * 10)}% output)
@@ -2625,7 +2669,7 @@ export default function HometownScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-      {/* Villager identity — tap a resident or lit candle to see who walks with you */}
+      {/* Villager identity — tap a light to see who walks with you */}
       <Modal
         visible={prayerVillagerInfo !== null}
         transparent
@@ -2640,7 +2684,7 @@ export default function HometownScreen() {
             style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
             onPress={(e) => e.stopPropagation()}
           >
-            {/* little villager — golden when lit */}
+            {/* little golden light */}
             <View style={{ alignItems: "center" }}>
               <View
                 style={{
@@ -2648,12 +2692,12 @@ export default function HometownScreen() {
                   height: 40,
                   borderRadius: 20,
                   backgroundColor: "#FBBF24",
-                  opacity: prayerVillagerInfo?.blessed ? 0.25 : 0,
+                  opacity: 0.25,
                   position: "absolute",
                   top: -8,
                 }}
               />
-              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: prayerVillagerInfo?.blessed ? "#FBBF24" : "#CBD5E1", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
                 <View style={{ flexDirection: "row", gap: 3 }}>
                   <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
                   <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#1F2937" }} />
@@ -2667,7 +2711,7 @@ export default function HometownScreen() {
                   borderTopRightRadius: 8,
                   borderBottomLeftRadius: 4,
                   borderBottomRightRadius: 4,
-                  backgroundColor: prayerVillagerInfo?.blessed ? "#FBBF24" : "#CBD5E1",
+                  backgroundColor: "#FBBF24",
                   marginTop: 1,
                 }}
               />
@@ -2675,112 +2719,17 @@ export default function HometownScreen() {
             <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginTop: 12, textAlign: "center" }}>
               {prayerVillagerInfo?.name}
             </Text>
-            {prayerVillagerInfo?.blessed ? (
-              <Text style={{ color: "#B45309", fontSize: 14, fontWeight: "600", marginTop: 6 }}>
-                🕯️ Lit candle — prayed for today
-              </Text>
-            ) : (
-              <Text style={{ color: pt.subtext, fontSize: 14, fontWeight: "600", marginTop: 6 }}>
-                Home in Hometown
-              </Text>
-            )}
+            <Text style={{ color: "#B45309", fontSize: 14, fontWeight: "600", marginTop: 6 }}>
+              🕯️ Lit candle — prayed for today
+            </Text>
             <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
-              {prayerVillagerInfo?.blessed
-                ? "Glowing with your prayers"
-                : "Pray for them today to light their candle"}
+              Walking with you in Hometown
             </Text>
             <Pressable
               onPress={() => setPrayerVillagerInfo(null)}
               style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-      {/* Resident picker — choose up to 24 people to live in town permanently */}
-      <Modal
-        visible={residentPickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setResidentPickerVisible(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
-          onPress={() => setResidentPickerVisible(false)}
-        >
-          <Pressable
-            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "80%" }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", textAlign: "center" }}>
-              🏘️ Choose Residents
-            </Text>
-            <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 6, textAlign: "center", marginBottom: 12 }}>
-              {residents.length}/{MAX_RESIDENTS} — these people live in your town.{"\n"}Pray for them and they'll glow.
-            </Text>
-            <ScrollView style={{ maxHeight: 400 }}>
-              {allPrayerPeople.map((p) => {
-                const isResident = residents.some((r) => r.personId === p.id);
-                const canAdd = residents.length < MAX_RESIDENTS;
-                return (
-                  <Pressable
-                    key={p.id}
-                    onPress={async () => {
-                      let next: Resident[];
-                      if (isResident) {
-                        next = residents.filter((r) => r.personId !== p.id);
-                      } else {
-                        if (!canAdd) return;
-                        next = [...residents, { personId: p.id, name: p.name, accentColor: p.accentColor }];
-                      }
-                      setResidents(next);
-                      try { await saveResidents(next); } catch {}
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 10,
-                      marginBottom: 4,
-                      backgroundColor: isResident ? "#FEF3C7" : "transparent",
-                      opacity: !isResident && !canAdd ? 0.4 : 1,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        backgroundColor: p.accentColor || "#CBD5E1",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 12,
-                      }}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>
-                        {p.name.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={{ color: pt.text, fontSize: 16, fontWeight: isResident ? "700" : "400", flex: 1 }}>
-                      {p.name}
-                    </Text>
-                    <Text style={{ fontSize: 20 }}>{isResident ? "✅" : "⭕"}</Text>
-                  </Pressable>
-                );
-              })}
-              {allPrayerPeople.length === 0 && (
-                <Text style={{ color: pt.subtext, textAlign: "center", padding: 20 }}>
-                  No prayer contacts yet. Add people on the People tab first.
-                </Text>
-              )}
-            </ScrollView>
-            <Pressable
-              onPress={() => setResidentPickerVisible(false)}
-              style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, backgroundColor: "#F59E0B", alignItems: "center" }}
-            >
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Done</Text>
             </Pressable>
           </Pressable>
         </Pressable>

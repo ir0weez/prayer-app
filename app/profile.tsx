@@ -10,7 +10,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
-import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -255,6 +255,9 @@ export default function ProfileScreen() {
   );
 
   const selectedFast = useMemo(() => fasts.find((fast) => fast.id === selectedFastId) ?? getActiveFast(fasts, today), [fasts, selectedFastId, today]);
+
+  // Hometown (and the pawn) only appear on fasts longer than 40 days.
+  const hometownUnlocked = selectedFast ? hometownUnlockedForFastLength(selectedFast.durationDays) : false;
 
   // Auto-select the quarter containing today for long fasts
   useEffect(() => {
@@ -943,6 +946,7 @@ export default function ProfileScreen() {
               }
               return (
             <>
+            {hometownUnlocked ? (
             <Pressable
               onPress={() => router.push("/hometown")}
               style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 12 }}
@@ -954,6 +958,18 @@ export default function ProfileScreen() {
               </View>
               <Text style={{ fontSize: 20 }}>→</Text>
             </Pressable>
+            ) : (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, padding: 12, marginBottom: 12, opacity: 0.75 }}
+            >
+              <Text style={{ fontSize: 24 }}>🏘️</Text>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: "#78716C" }}>Hometown</Text>
+                <Text style={{ fontSize: 12, color: "#A8A29E" }}>Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days</Text>
+              </View>
+              <MaterialIcons name="lock" size={20} color="#A8A29E" />
+            </View>
+            )}
             <FastBoard
               fast={boardFast}
               today={today}

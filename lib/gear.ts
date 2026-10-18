@@ -13,6 +13,10 @@ export type GearBoost = {
   coinMult?: number;
   /** bonus max hearts */
   hearts?: number;
+  /** Dark Forest combat: attack power (weapons) */
+  attack?: number;
+  /** Dark Forest combat: damage reduction (armor) */
+  defense?: number;
 };
 
 export type GearVisual = {
@@ -197,7 +201,7 @@ export const GEAR_CATALOG: GearItem[] = [
     boost: { hearts: 2, xpMult: 0.2, coinMult: 0.15 },
     visual: { bodyColor: "#FDE68A", pattern: "stripes" },
   },
-  // ---- Armor (+hearts) ----
+  // ---- Armor (+hearts, +defense for the Dark Forest) ----
   {
     id: "cloth-guard",
     name: "Cloth Guard",
@@ -207,7 +211,7 @@ export const GEAR_CATALOG: GearItem[] = [
     unlockDays: 0,
     minShopLevel: 1,
     description: "Padded cloth. +1 max heart.",
-    boost: { hearts: 1 },
+    boost: { hearts: 1, defense: 2 },
     visual: {},
   },
   {
@@ -219,10 +223,46 @@ export const GEAR_CATALOG: GearItem[] = [
     unlockDays: 40,
     minShopLevel: 2,
     description: "Forged resolve. +2 max hearts.",
-    boost: { hearts: 2 },
+    boost: { hearts: 2, defense: 5 },
     visual: {},
   },
-  // ---- Weapons (+XP) ----
+  {
+    id: "chainmail-vest",
+    name: "Chainmail Vest",
+    type: "armor",
+    icon: "shield",
+    cost: 300,
+    unlockDays: 100,
+    minShopLevel: 2,
+    description: "Rings of interlocked steel. +3 max hearts.",
+    boost: { hearts: 3, defense: 9 },
+    visual: {},
+  },
+  {
+    id: "mithril-plate",
+    name: "Mithril Plate",
+    type: "armor",
+    icon: "security",
+    cost: 700,
+    unlockDays: 200,
+    minShopLevel: 3,
+    description: "Light as faith, hard as truth. +4 max hearts.",
+    boost: { hearts: 4, defense: 14 },
+    visual: {},
+  },
+  {
+    id: "celestial-bulwark",
+    name: "Celestial Bulwark",
+    type: "armor",
+    icon: "workspace-premium",
+    cost: 1400,
+    unlockDays: 300,
+    minShopLevel: 3,
+    description: "A shield of heaven itself. +5 max hearts.",
+    boost: { hearts: 5, defense: 20 },
+    visual: {},
+  },
+  // ---- Weapons (+XP, +attack for the Dark Forest) ----
   {
     id: "wooden-staff",
     name: "Wooden Staff",
@@ -232,7 +272,7 @@ export const GEAR_CATALOG: GearItem[] = [
     unlockDays: 0,
     minShopLevel: 1,
     description: "A pilgrim's staff. +5% XP.",
-    boost: { xpMult: 0.05 },
+    boost: { xpMult: 0.05, attack: 8 },
     visual: {},
   },
   {
@@ -244,7 +284,19 @@ export const GEAR_CATALOG: GearItem[] = [
     unlockDays: 40,
     minShopLevel: 2,
     description: "Sharpened by 40 days. +15% XP.",
-    boost: { xpMult: 0.15 },
+    boost: { xpMult: 0.15, attack: 18 },
+    visual: {},
+  },
+  {
+    id: "iron-sword",
+    name: "Iron Sword",
+    type: "weapon",
+    icon: "swords",
+    cost: 250,
+    unlockDays: 100,
+    minShopLevel: 2,
+    description: "A soldier's blade. +20% XP.",
+    boost: { xpMult: 0.2, attack: 26 },
     visual: {},
   },
   {
@@ -256,7 +308,31 @@ export const GEAR_CATALOG: GearItem[] = [
     unlockDays: 100,
     minShopLevel: 3,
     description: "A blade of first light. +30% XP.",
-    boost: { xpMult: 0.3 },
+    boost: { xpMult: 0.3, attack: 34 },
+    visual: {},
+  },
+  {
+    id: "runeblade",
+    name: "Runeblade",
+    type: "weapon",
+    icon: "bolt",
+    cost: 600,
+    unlockDays: 200,
+    minShopLevel: 3,
+    description: "Etched with words of power. +40% XP.",
+    boost: { xpMult: 0.4, attack: 46 },
+    visual: {},
+  },
+  {
+    id: "seraphim-edge",
+    name: "Seraphim Edge",
+    type: "weapon",
+    icon: "flare",
+    cost: 1400,
+    unlockDays: 300,
+    minShopLevel: 3,
+    description: "It burns with holy fire. +50% XP.",
+    boost: { xpMult: 0.5, attack: 62 },
     visual: {},
   },
   // ---- Tools (+coins) ----
@@ -398,4 +474,30 @@ export async function refreshGearBoostCache(): Promise<TotalBoosts> {
   const equipped = await loadEquipped();
   cachedBoosts = totalBoosts(equipped);
   return cachedBoosts;
+}
+
+// ---- Dark Forest combat ----
+
+export type CombatStats = {
+  /** damage per strike */
+  attack: number;
+  /** flat damage reduction per enemy hit */
+  defense: number;
+  /** max hit points */
+  maxHp: number;
+};
+
+/**
+ * Combat power derived from equipped gear. Bare-handed faith still counts
+ * for something — but a real blade and real armor change everything.
+ */
+export function combatStats(equipped: EquippedGear): CombatStats {
+  const weapon = equipped.weapon ? GEAR_BY_ID[equipped.weapon] : undefined;
+  const armor = equipped.armor ? GEAR_BY_ID[equipped.armor] : undefined;
+  const clothes = equipped.clothes ? GEAR_BY_ID[equipped.clothes] : undefined;
+  const attack = 5 + (weapon?.boost.attack || 0);
+  const defense = (armor?.boost.defense || 0) + (clothes?.boost.defense || 0);
+  const hearts =
+    (armor?.boost.hearts || 0) + (clothes?.boost.hearts || 0) + (weapon?.boost.hearts || 0);
+  return { attack, defense, maxHp: 100 + hearts * 20 };
 }

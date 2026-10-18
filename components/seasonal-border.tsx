@@ -71,7 +71,7 @@ const SCENE_THEMES: Record<TimeOfDay, SceneTheme> = {
 };
 
 /** Which map the border frames — each map gets its own side scenery. */
-export type BorderVariant = "town" | "city" | "school" | "garden" | "well" | "field";
+export type BorderVariant = "town" | "city" | "school" | "garden" | "well" | "field" | "forest";
 
 /** A soft cloud drifting across the top of the frame. */
 function DriftingCloud({ top, size, duration, delay, color }: { top: number; size: number; duration: number; delay: number; color: string }) {

@@ -30,9 +30,9 @@ export function tierForFastDay(dayNum: number): HometownTier {
 
 // ---- Multi-map ----
 
-export type TownMapId = "town" | "city" | "mall" | "school" | "well" | "reserve";
+export type TownMapId = "town" | "city" | "mall" | "school" | "well" | "reserve" | "forest";
 
-export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "well", "reserve"];
+export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "well", "reserve", "forest"];
 
 export type MapInfo = {
   name: string;
@@ -54,9 +54,15 @@ export const MAP_INFO: Record<TownMapId, MapInfo> = {
   // The "reserve" map id now renders the Mission Field — send prayer lights
   // out on missions. The id is kept so existing unlock state carries over.
   reserve: { name: "Mission Field", icon: "🌾", description: "Send prayer lights out on missions", unlockCost: 500, comingSoon: false },
+  forest:  { name: "Dark Forest", icon: "◆", description: "Battle demons in the dark wood", unlockCost: 1500, comingSoon: false },
 };
 
 export const MAP_UNLOCKED_KEY = "prayercircle.hometown.maps.unlocked.v1";
+
+/** Map unlock cost, scaled by the session economy scale. */
+export function mapUnlockCost(id: TownMapId): number {
+  return scaledCoins(MAP_INFO[id].unlockCost);
+}
 
 export function parseUnlockedMaps(value: unknown): TownMapId[] {
   if (!Array.isArray(value)) return ["town"];
@@ -142,6 +148,69 @@ export const DECORATIONS: Record<DecorationType, {
 // Expensive on purpose — earned money, not easy money.
 export const UPGRADE_COST_MULT = { 2: 3, 3: 5 };
 export const UPGRADE_INCOME_MULT = { 1: 1, 2: 2.5, 3: 5 };
+
+/**
+ * Fast-length gating + economy scaling.
+ *
+ * Hometown (and the pawn) unlock only on fasts longer than 40 days — a
+ * town is a long-haul companion, not a weekend project.
+ *
+ * The economy scales with the selected fast's length so the math feels
+ * fair: a 365-day fast uses the base numbers (scale 1.0); shorter fasts
+ * scale costs AND income down together, so the relative pace is the
+ * same with fewer earning days. Floor of 0.45 keeps short fasts
+ * meaningful instead of trivial.
+ */
+export const HOMETOWN_MIN_FAST_DAYS = 40;
+
+/** True when the given fast length unlocks Hometown. */
+export function hometownUnlockedForFastLength(durationDays: number): boolean {
+  return (durationDays || 0) > HOMETOWN_MIN_FAST_DAYS;
+}
+
+/** Economy scale for a fast length in days. 365+ days -> 1.0. */
+export function economyScaleForFastLength(durationDays: number): number {
+  const d = Math.max(0, durationDays || 0);
+  const t = Math.min(d, 365) / 365;
+  return 0.45 + 0.55 * t;
+}
+
+/** Session-cached economy scale, set once when Hometown loads. Defaults to 1. */
+let cachedEconomyScale = 1;
+export function setEconomyScale(scale: number): void {
+  cachedEconomyScale = scale > 0 && Number.isFinite(scale) ? scale : 1;
+}
+export function getEconomyScale(): number {
+  return cachedEconomyScale;
+}
+
+/** Scale a coin amount by the session economy scale, rounded to cents. */
+export function scaledCoins(amount: number): number {
+  return Math.round((amount || 0) * cachedEconomyScale * 100) / 100;
+}
+
+/** Scale an XP amount by the session economy scale, rounded to whole XP. */
+export function scaledXP(amount: number): number {
+  return Math.round((amount || 0) * cachedEconomyScale);
+}
+
+/** Active fast's durationDays from fasting storage (0 when none found). */
+export async function loadActiveFastLength(): Promise<number> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const { getActiveFast } = await import("./prayercircle-fasting");
+    const { getTodayISOString } = await import("./prayercircle-data");
+    const raw = await AsyncStorage.getItem("prayercircle.fasts.v1");
+    if (!raw) return 0;
+    const fasts = JSON.parse(raw);
+    if (!Array.isArray(fasts) || fasts.length === 0) return 0;
+    const active = getActiveFast(fasts, getTodayISOString());
+    const days = active?.durationDays ?? 0;
+    return typeof days === "number" && days > 0 ? days : 0;
+  } catch {
+    return 0;
+  }
+}
 
 // Houses upgrade through 5 tiers (Cottage -> Mansion), each level +1 townsman.
 export const HOUSE_LEVEL_NAMES: Record<number, string> = {
@@ -263,11 +332,11 @@ export function populationMult(prayedCount: number): number {
 }
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
-  if (type === "house") return HOUSE_UPGRADE_COSTS[toLevel] ?? 0;
+  if (type === "house") return scaledCoins(HOUSE_UPGRADE_COSTS[toLevel] ?? 0);
   // Restaurant Row has fixed upgrade costs (the banquet gets grander).
-  if (isRestaurantType(type)) return RESTAURANT_UPGRADE_COSTS[toLevel] ?? 0;
+  if (isRestaurantType(type)) return scaledCoins(RESTAURANT_UPGRADE_COSTS[toLevel] ?? 0);
   const base = BUILDINGS[type].cost;
-  return Math.round(base * (UPGRADE_COST_MULT as Record<number, number>)[toLevel]);
+  return scaledCoins(base * (UPGRADE_COST_MULT as Record<number, number>)[toLevel]);
 }
 
 export function incomeFor(type: BuildingType, level: number): number {
@@ -384,14 +453,14 @@ export function plotIncomeMult(b: PlacedBuilding): number {
   return CITY_PLOT_INCOME_MULT[Math.min(b.level || 1, 3) as 1 | 2 | 3] ?? 1;
 }
 
-/** Daily coin income for a placed building — plot-aware. */
+/** Daily coin income for a placed building — plot-aware, economy-scaled. */
 export function effectiveIncomeFor(b: PlacedBuilding): number {
   const level = b.level || 1;
   const base = BUILDINGS[b.type].incomePerDay;
   if (base === 0) return 0;
   const clamped = Math.min(Math.max(level, 1), 3) as 1 | 2 | 3;
   const mult = b.plotId ? CITY_PLOT_INCOME_MULT[clamped] : UPGRADE_INCOME_MULT[clamped];
-  return Math.round(base * mult);
+  return scaledCoins(base * mult);
 }
 
 export const CITY_PLOTS_STORAGE_KEY = "prayercircle.hometown.city.plots.v1";
@@ -1430,6 +1499,7 @@ export function emptyTownState(): TownState {
       school: emptyMapState(),
       well: emptyMapState(),
       reserve: emptyMapState(),
+      forest: emptyMapState(),
     },
     lastIncomeDate: null,
   };
@@ -1460,6 +1530,7 @@ export function parseTown(value: unknown): TownState {
         school: parseMapState(raw.school),
         well: parseMapState(raw.well),
         reserve: parseMapState(raw.reserve),
+        forest: parseMapState(raw.forest),
       },
       lastIncomeDate,
     };
@@ -1473,6 +1544,7 @@ export function parseTown(value: unknown): TownState {
       school: emptyMapState(),
       well: emptyMapState(),
       reserve: emptyMapState(),
+      forest: emptyMapState(),
     },
     lastIncomeDate,
   };
@@ -1639,12 +1711,12 @@ export function buildingFootprint(level: number, type?: BuildingType, isPlot?: b
   return { w: s, h: s };
 }
 
-/** XP per day for a building type/level (0 for coin buildings). */
+/** XP per day for a building type/level (0 for coin buildings) — economy-scaled. */
 export function xpIncomeFor(type: BuildingType, level: number): number {
   const base = BUILDINGS[type].xpPerDay;
   if (base === 0) return 0;
   const mult = UPGRADE_INCOME_MULT[Math.min(Math.max(level || 1, 1), 3) as 1 | 2 | 3];
-  return Math.round(base * mult);
+  return scaledXP(base * mult);
 }
 
 /** Shop types that give adjacency bonuses to neighboring income buildings. */
@@ -1702,7 +1774,7 @@ export const BANK_MAX_FLOORS = 5;
 /** Cost to add the next floor when the tower currently has `currentFloors` (1-4). */
 export function bankFloorCost(currentFloors: number): number {
   const costs: Record<number, number> = { 1: 100, 2: 250, 3: 500, 4: 1000 };
-  return costs[currentFloors] ?? 0;
+  return scaledCoins(costs[currentFloors] ?? 0);
 }
 /** Income multiplier for a bank-tower with `floors` stories: +50% per extra floor. */
 export function bankFloorMultiplier(floors: number): number {
@@ -1946,15 +2018,15 @@ export function bankFloorPriceMult(floor: number): number {
   return 1 + (f - 1) * 0.5;
 }
 
-/** Desk cost scales by floor (20 / 30 / 40 / 50 / 60). */
+/** Desk cost scales by floor (20 / 30 / 40 / 50 / 60) — economy-scaled. */
 export function bankDeskCost(floor: number): number {
-  return Math.round(BANK_DESK_COST * bankFloorPriceMult(floor));
+  return scaledCoins(BANK_DESK_COST * bankFloorPriceMult(floor));
 }
 
 /** Carpet cost scales by floor. Floor 1 carpets are 1 coin. */
 export function bankCarpetCost(floor: number): number {
   if (floor <= 1) return 1;
-  return Math.max(1, Math.round(bankFloorPriceMult(floor)));
+  return Math.max(1, scaledCoins(bankFloorPriceMult(floor)));
 }
 
 const DESK_TIER_NAMES = ["Desk", "Executive Desk", "Mahogany Desk", "Marble Desk", "Gold Desk"];
@@ -2101,7 +2173,7 @@ export function storageCapFor(type: "atm" | "vault", storageLevel?: number): num
 export function storageUpgradeCostFor(type: "atm" | "vault", storageLevel?: number): number | null {
   const lvl = Math.min(Math.max(storageLevel ?? 0, 0), MAX_STORAGE_LEVEL);
   if (lvl >= MAX_STORAGE_LEVEL) return null;
-  return type === "atm" ? ATM_STORAGE_UPGRADE_COSTS[lvl] : VAULT_STORAGE_UPGRADE_COSTS[lvl];
+  return scaledCoins(type === "atm" ? ATM_STORAGE_UPGRADE_COSTS[lvl] : VAULT_STORAGE_UPGRADE_COSTS[lvl]);
 }
 
 export function parseBankInterior(value: unknown): BankInteriorState {

@@ -108,6 +108,17 @@ import {
   REMEMBRANCE_MALL_REFUND_KEY,
   HOUSE_REMOVAL_REFUND_KEY,
   REMEMBRANCE_UPGRADE_COSTS,
+  // Fast-length gating + economy scaling: Hometown unlocks on 40+ day
+  // fasts; costs and income scale with the selected fast's length.
+  HOMETOWN_MIN_FAST_DAYS,
+  hometownUnlockedForFastLength,
+  economyScaleForFastLength,
+  setEconomyScale,
+  getEconomyScale,
+  scaledCoins,
+  scaledXP,
+  loadActiveFastLength,
+  mapUnlockCost,
   type RememberedPerson,
   type RemembranceState,
   MEMORY_CANDLE_COST,
@@ -158,7 +169,7 @@ import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
-import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
+import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import {
@@ -203,6 +214,13 @@ import {
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
+import { DarkForest } from "@/components/dark-forest";
+import {
+  demonForWave,
+  loadDarkForestState,
+  saveDarkForestState,
+  type DarkForestState,
+} from "@/lib/dark-forest";
 import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
@@ -1627,6 +1645,9 @@ export default function HometownScreen() {
   const [town, setTown] = useState<TownState>(() => emptyTownState());
   const [activeMap, setActiveMap] = useState<TownMapId>("town");
   const [unlockedMaps, setUnlockedMaps] = useState<TownMapId[]>(["town"]);
+  // Fast-length gate: Hometown (and the pawn) only appear on fasts longer
+  // than 40 days. Set during init from the active fast's durationDays.
+  const [hometownLocked, setHometownLocked] = useState(false);
   // Day/night page theme: re-evaluate every 5 minutes so the whole
   // screen shifts with the sky.
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => getTimeOfDay());
@@ -1724,6 +1745,10 @@ export default function HometownScreen() {
   const [lastRestAt, setLastRestAt] = useState(0);
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
+  // Dark Forest: pixel-art demon battles; gear is your power
+  const [forest, setForest] = useState<DarkForestState>({ highestWave: 0 });
+  const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
+  const [forestTunic, setForestTunic] = useState("#D6C9A8");
   // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
   const [vmState, setVmState] = useState<VillagerMissionState | null>(null);
   const vmStateRef = useRef<VillagerMissionState | null>(null);
@@ -2193,8 +2218,8 @@ export default function HometownScreen() {
       workStateRef.current = state;
       setWorkState(state);
       await saveVillagerWorkState(state);
-      addCoins(def.rewardCoins);
-      awardCustomXP(def.rewardXP, `villager-work:${done.id}`).catch(() => undefined);
+      addCoins(scaledCoins(def.rewardCoins));
+      awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
     },
     [addCoins]
   );
@@ -2211,15 +2236,16 @@ export default function HometownScreen() {
 
   const handleUnlockMap = useCallback((id: TownMapId) => {
     const info = MAP_INFO[id];
+    const price = mapUnlockCost(id);
     if (info.comingSoon) {
       Alert.alert(info.name, "This map is coming soon!");
       return;
     }
-    if (coinsRef.current.balance < info.unlockCost) {
-      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${info.unlockCost} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+    if (coinsRef.current.balance < price) {
+      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${price.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
       return;
     }
-    Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${info.unlockCost} coins.`, [
+    Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${price.toFixed(2)} coins.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Unlock",
@@ -2227,7 +2253,7 @@ export default function HometownScreen() {
           const next = [...unlockedMaps, id];
           setUnlockedMaps(next);
           AsyncStorage.setItem(MAP_UNLOCKED_KEY, JSON.stringify(next)).catch(() => undefined);
-          addCoins(-info.unlockCost);
+          addCoins(-price);
           switchMap(id);
           // New map unlocked: fireworks and cheering villagers. Once per map.
           // Wrapped in try/catch so a celebration hiccup can never break the unlock.
@@ -2299,6 +2325,16 @@ export default function HometownScreen() {
           } catch {}
           await AsyncStorage.setItem("prayercircle.hometown.coin-backfill.v1", "1");
         }
+        // Fast-length gating + economy scaling: Hometown unlocks on 40+ day
+        // fasts; the economy scales with the active fast's length so the
+        // math feels fair (fewer earning days -> smaller numbers, same pace).
+        try {
+          const fastLen = await loadActiveFastLength();
+          if (fastLen > 0) {
+            setEconomyScale(economyScaleForFastLength(fastLen));
+            setHometownLocked(!hometownUnlockedForFastLength(fastLen));
+          }
+        } catch {}
         let c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
         // One-time Mall → Garden of Remembrance migration: refund retired mall
@@ -2356,6 +2392,8 @@ export default function HometownScreen() {
           setFieldMissions(pruned);
           if (pruned.length !== fm.length) saveFieldMissions(pruned).catch(() => undefined);
         } catch {}
+        // Dark Forest progress (highest wave cleared)
+        try { setForest(await loadDarkForestState()); } catch {}
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
@@ -2577,7 +2615,7 @@ export default function HometownScreen() {
                 ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
                 : 0;
               perMinuteRateRef.current[b.id] = {
-                coins: earnsCoins ? basePerHour / 60 + churchPerMinute : 0,
+                coins: earnsCoins ? (basePerHour / 60 + churchPerMinute) * getEconomyScale() : 0,
                 xp: !earnsCoins && earnsXP ? (xpIncomeFor(b.type, b.level || 1) * wMult) / 24 / 60 : 0,
               };
             }
@@ -2748,6 +2786,7 @@ export default function HometownScreen() {
   /** Purchase a city plot (creates the L1 building). */
   const handlePurchasePlot = (plot: CityPlot) => {
     const def = BUILDINGS[plot.buildingType];
+    const price = scaledCoins(plot.cost);
     // Don't build over legacy free-placed buildings
     for (let dx = 0; dx < 2; dx++) {
       for (let dy = 0; dy < 2; dy++) {
@@ -2757,17 +2796,17 @@ export default function HometownScreen() {
         }
       }
     }
-    if (coinsRef.current.balance < plot.cost) {
-      Alert.alert("Not enough coins", `${plot.name} costs ${plot.cost} coins. You have ${coins.balance.toFixed(2)}.`);
+    if (coinsRef.current.balance < price) {
+      Alert.alert("Not enough coins", `${plot.name} costs ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${plot.cost.toFixed(2)} coins?`,
+      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${price.toFixed(2)} coins?`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: `Buy for ${plot.cost}🪙`,
+          text: `Buy for ${price.toFixed(2)}🪙`,
           onPress: () => {
             const now = new Date().toISOString();
             const building: PlacedBuilding = {
@@ -2784,7 +2823,7 @@ export default function HometownScreen() {
             setPurchasedPlots(nextPlots);
             savePurchasedPlots(nextPlots);
             saveMap({ ...map, buildings: [...map.buildings, building] });
-            addCoins(-plot.cost);
+            addCoins(-price);
             // First building in the city: the mayor ceremony — confetti, cheering villagers.
             if (map.buildings.length === 0 && !celebrationsRef.current.mayorCeremonyDone) {
               persistCelebrations({ ...celebrationsRef.current, mayorCeremonyDone: true });
@@ -2887,7 +2926,9 @@ export default function HometownScreen() {
   /** Actually build on a purchased town lot. Lot + building paid together. */
   const purchaseOnLot = (lot: TownLot, type: BuildingType) => {
     const def = BUILDINGS[type];
-    const total = lot.cost + def.cost;
+    const lotPrice = scaledCoins(lot.cost);
+    const buildingPrice = scaledCoins(def.cost);
+    const total = lotPrice + buildingPrice;
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
       Alert.alert("Already built", "You already have a pawn house!");
       return;
@@ -2897,7 +2938,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < total) {
-      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lot.cost.toFixed(2)} + building ${def.cost.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lotPrice.toFixed(2)} + building ${buildingPrice.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const now = new Date().toISOString();
@@ -3083,7 +3124,8 @@ export default function HometownScreen() {
       return;
     }
     // Harvest!
-    const reward = gardenHarvestReward(gardenState.plantedLevel);
+    const _rw = gardenHarvestReward(gardenState.plantedLevel);
+    const reward = { coins: scaledCoins(_rw.coins), xp: scaledXP(_rw.xp) };
     Alert.alert(
       "Community Garden",
       `Baskets full and everyone smiling — harvest time!\n\n+${reward.coins.toFixed(2)} coins, +${reward.xp} XP.`,
@@ -3128,8 +3170,8 @@ export default function HometownScreen() {
       );
       return;
     }
-    const coins = SHOW_COINS[level] ?? 10;
-    const xp = SHOW_XP[level] ?? 15;
+    const coins = scaledCoins(SHOW_COINS[level] ?? 10);
+    const xp = scaledXP(SHOW_XP[level] ?? 15);
     const levelBlurb = level >= 3
       ? "The grand stage glows — music, stories, and light fill the night air."
       : level >= 2
@@ -3179,7 +3221,7 @@ export default function HometownScreen() {
       );
       return;
     }
-    const xp = STUDY_XP[level] ?? 25;
+    const xp = scaledXP(STUDY_XP[level] ?? 25);
     const levelBlurb = level >= 3
       ? "Shelf upon shelf of wisdom. You lose track of time among the pages."
       : level >= 2
@@ -3228,8 +3270,8 @@ export default function HometownScreen() {
       );
       return;
     }
-    const coins = REST_COINS[level] ?? 5;
-    const xp = REST_XP[level] ?? 8;
+    const coins = scaledCoins(REST_COINS[level] ?? 5);
+    const xp = scaledXP(REST_XP[level] ?? 8);
     const levelBlurb = level >= 3
       ? "The grand plaza hums with quiet life. You sit by the fountain and breathe."
       : level >= 2
@@ -3456,12 +3498,13 @@ export default function HometownScreen() {
   const handleBuild = (type: BuildingType) => {
     if (!selectedTile) return;
     const def = BUILDINGS[type];
+    const price = scaledCoins(def.cost);
     if (tier < def.tier) {
       Alert.alert("Locked", `Unlocks at tier ${def.tier} (day ${def.tier === 2 ? 40 : def.tier === 3 ? 100 : 250} of your fast).`);
       return;
     }
-    if (coinsRef.current.balance < def.cost) {
-      Alert.alert("Not enough coins", `You need ${def.cost} coins. You have ${coins.balance.toFixed(2)}.`);
+    if (coinsRef.current.balance < price) {
+      Alert.alert("Not enough coins", `You need ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
@@ -3470,7 +3513,7 @@ export default function HometownScreen() {
     }
     const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
     saveMap({ ...map, buildings: [...map.buildings, building] });
-    addCoins(-def.cost);
+    addCoins(-price);
     setSelectedTile(null);
   };
 
@@ -3568,6 +3611,35 @@ export default function HometownScreen() {
       return next;
     });
   }, [addCoins]);
+
+  /** Dark Forest victory: coins + XP for the cleared wave, progress saved. */
+  const handleForestVictory = useCallback((wave: number) => {
+    const demon = demonForWave(wave);
+    if (demon.coins > 0) addCoins(demon.coins);
+    if (demon.xp > 0) {
+      awardCustomXP(demon.xp, `dark-forest:${wave}:${Date.now()}`).catch(() => undefined);
+    }
+    setForest(prev => {
+      if (wave <= prev.highestWave) return prev;
+      const next = { highestWave: wave };
+      saveDarkForestState(next).catch(() => undefined);
+      return next;
+    });
+  }, [addCoins]);
+
+  /** Refresh combat stats (and pawn tunic) whenever the Dark Forest opens. */
+  useEffect(() => {
+    if (activeMap !== "forest") return;
+    (async () => {
+      try {
+        const equipped = await loadEquipped();
+        setForestStats(combatStats(equipped));
+        const clothesId = equipped.clothes;
+        const item = clothesId ? GEAR_BY_ID[clothesId] : undefined;
+        if (item?.visual.bodyColor) setForestTunic(item.visual.bodyColor);
+      } catch {}
+    })();
+  }, [activeMap]);
 
   const handleCollectBuilding = (buildingId: string) => {
     const now = Date.now();
@@ -3669,6 +3741,28 @@ export default function HometownScreen() {
       <View key={y} style={{ flexDirection: "row" }}>
         {cells}
       </View>
+    );
+  }
+
+  // Fast-length gate: Hometown only appears on fasts longer than 40 days.
+  // (The entry buttons in profile are hidden too; this covers direct opens.)
+  if (hometownLocked) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: 48, flexGrow: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginBottom: 24 }}>
+          <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+            <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
+          </Pressable>
+          <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>Hometown</Text>
+        </View>
+        <Text style={{ fontSize: 48 }}>🏘️</Text>
+        <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, marginTop: 16, textAlign: "center" }}>
+          Hometown unlocks on longer fasts
+        </Text>
+        <Text style={{ fontSize: 14, color: pt.subtext, marginTop: 8, textAlign: "center", lineHeight: 20 }}>
+          Your town — and your pawn — appear when your fast is longer than {HOMETOWN_MIN_FAST_DAYS} days. Start a longer fast to build together.
+        </Text>
+      </ScrollView>
     );
   }
 
@@ -3798,7 +3892,7 @@ export default function HometownScreen() {
             ? `${info.icon} ${info.name}`
             : unlocked
               ? `${info.icon} ${info.name}`
-              : `${info.icon} ${info.name} 🔒 ${info.unlockCost}🪙`;
+              : `${info.icon} ${info.name} 🔒 ${mapUnlockCost(activeMap as TownMapId).toFixed(2)}🪙`;
           return (
             <Pressable
               key={id}
@@ -3857,7 +3951,7 @@ export default function HometownScreen() {
       )}
 
       <Text style={{ color: pt.subtext, marginBottom: 12 }}>
-        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : activeMap === "well" ? "A quiet place. Draw from the well once a day, and be still." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
+        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : activeMap === "well" ? "A quiet place. Draw from the well once a day, and be still." : activeMap === "forest" ? "Face the darkness. Tap STRIKE — your gear is your strength." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}>
@@ -3953,6 +4047,27 @@ export default function HometownScreen() {
         />
         </SafeBoundary>
         {/* Celebration overlays render on every map, including the field. */}
+        <FireworksOverlay triggerKey={fireworksKey} />
+        <CelebrationOverlay
+          spec={celebrationQueue[0] ?? null}
+          onDone={dismissCelebration}
+        />
+        </View>
+        </SeasonalBorder>
+      ) : activeMap === "forest" ? (
+        <SeasonalBorder variant="forest">
+        <View>
+        <SafeBoundary fallbackTitle="The forest is resting">
+        <DarkForest
+          stats={forestStats}
+          forest={forest}
+          tunicColor={forestTunic}
+          timeOfDay={timeOfDay}
+          pt={pt}
+          onVictory={handleForestVictory}
+        />
+        </SafeBoundary>
+        {/* Celebration overlays render on every map, including the forest. */}
         <FireworksOverlay triggerKey={fireworksKey} />
         <CelebrationOverlay
           spec={celebrationQueue[0] ?? null}
@@ -4072,7 +4187,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{plot.cost.toFixed(2)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{scaledCoins(plot.cost).toFixed(2)}</Text>
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -4110,12 +4225,12 @@ export default function HometownScreen() {
                   {lot.allowedTypes.includes("villager-cottage") ? (
                     <CottageGlyph size={16} />
                   ) : null}
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost.toFixed(2)}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{scaledCoins(lot.cost).toFixed(2)}</Text>
                 </View>
               ) : (
                 <>
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost.toFixed(2)}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{scaledCoins(lot.cost).toFixed(2)}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     lot.presetType === "banquet-table" ? (
@@ -4274,7 +4389,7 @@ export default function HometownScreen() {
       </View>
       )}
 
-      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "forest" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && (
         <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
@@ -4284,7 +4399,7 @@ export default function HometownScreen() {
               {(() => {
                 const b = buildingAt(selectedTile.x, selectedTile.y);
                 if (b) {
-                  const sellPrice = Math.floor(BUILDINGS[b.type].cost * 0.5);
+                  const sellPrice = Math.floor(scaledCoins(BUILDINGS[b.type].cost * 0.5));
                   return (
                     <>
                       <Pressable
@@ -4362,7 +4477,7 @@ export default function HometownScreen() {
           </Pressable>
           {availableBuildings.map((type) => {
             const def = BUILDINGS[type];
-            const affordable = coins.balance >= def.cost;
+            const affordable = coins.balance >= scaledCoins(def.cost);
             return (
               <Pressable
                 key={type}
@@ -4429,7 +4544,7 @@ export default function HometownScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                     <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
                       {m.rewardCoins > 0 && (
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {m.rewardCoins}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {scaledCoins(m.rewardCoins).toFixed(2)}</Text>
                       )}
                       {m.rewardXP > 0 && (
                         <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
@@ -4650,15 +4765,15 @@ export default function HometownScreen() {
                   Alert.alert("No workers available", "Pray for more people today to grow your workforce.");
                   return;
                 }
-                if (coinsRef.current.balance < WORKER_HIRE_COST) {
-                  Alert.alert("Not enough coins", `Hiring costs ${WORKER_HIRE_COST} coins. You have ${coins.balance.toFixed(2)}.`);
+                if (coinsRef.current.balance < scaledCoins(WORKER_HIRE_COST)) {
+                  Alert.alert("Not enough coins", `Hiring costs ${scaledCoins(WORKER_HIRE_COST).toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x =>
                   x.id === b.id ? { ...x, workers: (x.workers || 0) + 1 } : x
                 );
                 saveMap({ ...map, buildings: updated });
-                addCoins(-WORKER_HIRE_COST);
+                addCoins(-scaledCoins(WORKER_HIRE_COST));
                 setPopupBuilding({ ...b, workers: workerCount + 1 });
               };
 
@@ -4750,7 +4865,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>
-                        👷 Hire Worker 🪙{WORKER_HIRE_COST.toFixed(2)} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                        👷 Hire Worker 🪙{scaledCoins(WORKER_HIRE_COST).toFixed(2)} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
                       </Text>
                     </Pressable>
                   )}
@@ -5355,7 +5470,7 @@ export default function HometownScreen() {
               const presetOwned = lot.presetType && map.buildings.some((b) => b.type === lot.presetType);
               if (lot.presetType && !presetOwned) {
                 const def = BUILDINGS[lot.presetType];
-                const total = lot.cost + def.cost;
+                const total = scaledCoins(lot.cost + def.cost);
                 const affordable = coinsRef.current.balance >= total;
                 return (
                   <>
@@ -5381,7 +5496,7 @@ export default function HometownScreen() {
                           {def.description}
                         </Text>
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
-                          Plot 🪙{lot.cost.toFixed(2)} + building 🪙{def.cost.toFixed(2)}
+                          Plot 🪙{scaledCoins(lot.cost).toFixed(2)} + building 🪙{scaledCoins(def.cost).toFixed(2)}
                         </Text>
                       </View>
                     </View>
@@ -5418,7 +5533,7 @@ export default function HometownScreen() {
                     {lot.name} — FOR SALE
                   </Text>
                   <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
-                    Purchase this lot for {lot.cost} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
+                    Purchase this lot for {scaledCoins(lot.cost).toFixed(2)} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
                   </Text>
                   <ScrollView style={{ maxHeight: 420 }}>
                     {groups.map((g) => {
@@ -5431,7 +5546,7 @@ export default function HometownScreen() {
                           </Text>
                           {items.map((type) => {
                             const def = BUILDINGS[type];
-                            const total = lot.cost + def.cost;
+                            const total = scaledCoins(lot.cost + def.cost);
                             const affordable = coinsRef.current.balance >= total;
                             return (
                               <Pressable
@@ -5452,7 +5567,7 @@ export default function HometownScreen() {
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 15, fontWeight: "700", color: pt.text }}>{def.name}</Text>
                                   <Text style={{ fontSize: 12, color: pt.subtext }}>
-                                    {def.incomePerDay > 0 ? `+${def.incomePerDay}/day` : def.xpPerDay > 0 ? `+${def.xpPerDay} XP/day` : def.description}
+                                    {effectiveIncomeFor({ type, level: 1 } as PlacedBuilding) > 0 ? `+${effectiveIncomeFor({ type, level: 1 } as PlacedBuilding)}/day` : xpIncomeFor(type, 1) > 0 ? `+${xpIncomeFor(type, 1)} XP/day` : def.description}
                                   </Text>
                                 </View>
                                 <Text style={{ fontSize: 15, fontWeight: "800", color: affordable ? "#B8860B" : "#EF4444" }}>

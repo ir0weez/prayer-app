@@ -129,7 +129,10 @@ export type BuildingType =
   // Amphitheater (city): villagers perform music and stories; attend a show.
   | "amphitheater"
   // Fountain Plaza (town): villagers gather, chat, and rest; a quiet refresh.
-  | "fountain-plaza";
+  | "fountain-plaza"
+  // Hospital (town): care for the town. The pawn goes here for doctor
+  // appointments; a checkup grants a healing blessing for Dark Forest battles.
+  | "hospital";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -407,9 +410,68 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "banquet-table": { name: "The Marriage Supper", icon: "", cost: 150, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "One long table under open sky. During The Gathering, all gather here for a greater blessing." },
   // Interactive gathering places — tappable, upgradeable, never just decoration.
   "community-garden": { name: "Community Garden", icon: "", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "Villagers grow crops together. Tap to harvest when ripe — coins and XP, richer at higher levels." },
-  "amphitheater": { name: "Amphitheater", icon: "", cost: 400, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["city"], description: "Music and stories under open sky. Tap to attend a show — a blessing of XP and coins." },
+  "amphitheater": { name: "Amphitheater", icon: "", cost: 400, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["city", "town"], description: "Music and stories under open sky. Tap to attend a show — a blessing of XP and coins." },
   "fountain-plaza": { name: "Fountain Plaza", icon: "", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A quiet plaza where villagers gather and rest. Tap to rest a while — a small refresh of coins and XP." },
+  // Hospital — care for the town. Unlockable and upgradeable; the pawn comes
+  // here for doctor appointments, and a checkup grants a healing blessing
+  // for the next Dark Forest battle (bigger blessing at higher levels).
+  "hospital": { name: "Hospital", icon: "", cost: 250, tier: 2, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +3 coins/day." },
 };
+
+// ---- Hospital: the Doctor's Blessing (healing buff for Dark Forest) ----
+// A checkup at the hospital grants a one-battle blessing: bonus max HP
+// (and at L3, bonus attack). Consumed when the next battle starts.
+
+export const HOSPITAL_BUFF_KEY = "prayercircle.hometown.hospital-buff.v1";
+export const HOSPITAL_CHECKUP_COOLDOWN_MS = 20 * 60 * 60 * 1000; // one checkup per 20h
+
+export type HospitalBuff = {
+  hpMult: number; // e.g. 1.5 = +50% max HP
+  attackMult: number; // e.g. 1.1 = +10% attack
+  grantedAt: string; // ISO
+  level: number; // hospital level that granted it
+};
+
+export async function loadHospitalBuff(): Promise<HospitalBuff | null> {
+  try {
+    const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+    const raw = await AsyncStorage.getItem(HOSPITAL_BUFF_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<HospitalBuff>;
+    if (typeof parsed.hpMult !== "number" || typeof parsed.attackMult !== "number") return null;
+    return {
+      hpMult: parsed.hpMult,
+      attackMult: parsed.attackMult,
+      grantedAt: typeof parsed.grantedAt === "string" ? parsed.grantedAt : new Date().toISOString(),
+      level: typeof parsed.level === "number" ? parsed.level : 1,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveHospitalBuff(buff: HospitalBuff | null): Promise<void> {
+  try {
+    const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+    if (!buff) await AsyncStorage.removeItem(HOSPITAL_BUFF_KEY);
+    else await AsyncStorage.setItem(HOSPITAL_BUFF_KEY, JSON.stringify(buff));
+  } catch {}
+}
+
+/** Load the buff and clear it — called when a Dark Forest battle starts. */
+export async function consumeHospitalBuff(): Promise<HospitalBuff | null> {
+  const buff = await loadHospitalBuff();
+  if (buff) await saveHospitalBuff(null);
+  return buff;
+}
+
+/** Blessing granted by a checkup at the given hospital level. */
+export function hospitalBlessingForLevel(level: number): { hpMult: number; attackMult: number; label: string } {
+  const lv = Math.min(Math.max(level || 1, 1), 3);
+  if (lv >= 3) return { hpMult: 1.5, attackMult: 1.1, label: "+50% max HP and +10% attack for your next battle" };
+  if (lv >= 2) return { hpMult: 1.5, attackMult: 1, label: "+50% max HP for your next battle" };
+  return { hpMult: 1.25, attackMult: 1, label: "+25% max HP for your next battle" };
+}
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
 export type CityPlot = {
@@ -1281,6 +1343,11 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
   { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
   { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
+  // Eastside — two new lots east of Chapel Avenue, served by the extended
+  // street rows. The hospital (care for the town) and a town amphitheater
+  // (for movie nights and shows with the villagers).
+  { id: "town-lot-hospital", x: 10, y: 3, w: 2, h: 2, allowedTypes: ["hospital"], cost: 120, name: "Healing Hills", presetType: "hospital" },
+  { id: "town-lot-amphi", x: 10, y: 6, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 150, name: "Starlight Green", presetType: "amphitheater" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
@@ -1288,6 +1355,7 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Chapel Way — winds across the top of the hill, serving cottages, church, pawn house, farm
   { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
   { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 }, { x: 8, y: 2 }, { x: 9, y: 2 },
+  { x: 10, y: 2 }, { x: 11, y: 2 },
   // Cul-de-sac spur — tucks into the cottage cluster
   { x: 2, y: 0 }, { x: 2, y: 1 },
   // Chapel plaza spur — between church and pawn house
@@ -1295,12 +1363,15 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Main Street — the bustling thoroughfare between the two market rows
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
+  { x: 10, y: 5 }, { x: 11, y: 5 },
   // Old Town Lane — between Old Town and the South End
   { x: 0, y: 8 }, { x: 1, y: 8 }, { x: 2, y: 8 }, { x: 3, y: 8 }, { x: 4, y: 8 },
   { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 8 },
+  { x: 10, y: 8 }, { x: 11, y: 8 },
   // Harbor Lane — between the South End and Mercy's Shore
   { x: 0, y: 11 }, { x: 1, y: 11 }, { x: 2, y: 11 }, { x: 3, y: 11 }, { x: 4, y: 11 },
   { x: 5, y: 11 }, { x: 6, y: 11 }, { x: 7, y: 11 }, { x: 8, y: 11 }, { x: 9, y: 11 },
+  { x: 10, y: 11 }, { x: 11, y: 11 },
   // Chapel Avenue — the vertical spine linking every street, so villagers
   // walk the roads instead of floating over buildings
   { x: 8, y: 3 }, { x: 8, y: 4 },
@@ -1473,8 +1544,10 @@ export type TownState = {
 
 export const TOWN_GRID_SIZE = 10;
 /** Town/city map dimensions — both grids are taller than wide so every
- *  district gets its own street. Other maps (school, etc.) stay 10x10. */
-export const TOWN_GRID_W = 10;
+ *  district gets its own street. The town is also two columns wider (12x14)
+ *  for the Eastside district (hospital + amphitheater). Other maps (school,
+ *  etc.) stay 10x10. */
+export const TOWN_GRID_W = 12;
 export const TOWN_GRID_H = 14;
 export const CITY_GRID_W = 10;
 export const CITY_GRID_H = 14;

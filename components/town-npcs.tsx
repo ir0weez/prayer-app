@@ -58,6 +58,11 @@ const ACTIVITY_ICONS: Record<string, string> = {
   /** Gathering places — villagers tending, gathering, resting together. */
   "community-garden": "spa",
   "fountain-plaza": "people",
+  /** Schedule sync — the pawn mimics Jonathan's day; villagers join people events. */
+  "amphitheater": "theater-comedy",
+  "hospital": "local-hospital",
+  "pawn-house": "home",
+  __barbecue__: "outdoor-grill",
   /** Villager home life (pseudo-types, keyed the same way as building types). */
   __resting__: "bedtime",
   __visiting__: "people",
@@ -223,6 +228,9 @@ export function TownNPCs({
   workGuides,
   workMap,
   onWorkArrival,
+  scheduleGuides,
+  scheduleMap,
+  scheduleKind,
   bare,
 }: {
   mapState: MapState;
@@ -245,6 +253,13 @@ export function TownNPCs({
   workMap?: Record<string, { untilMs: number; kind: string }>;
   /** Called when a work-guided light arrives at its work site. */
   onWorkArrival?: (personId: string) => void;
+  /** personId -> forced destination for a schedule event (Jonathan's pawn
+      mimics his day; villagers join people events — meals, movies, ministry). */
+  scheduleGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
+  /** personId -> schedule-event info while the light is at the event. */
+  scheduleMap?: Record<string, { untilMs: number; kind: string }>;
+  /** The kind of the active schedule event (drives the badge icon). */
+  scheduleKind?: string;
   /** Render entities directly (no container) so the parent can depth-sort
       them with buildings via zIndex — villagers walk BEHIND tall buildings. */
   bare?: boolean;
@@ -271,6 +286,11 @@ export function TownNPCs({
   workMapRef.current = workMap;
   const workArrivalRef = useRef(onWorkArrival);
   workArrivalRef.current = onWorkArrival;
+  // Schedule sync: the pawn mimics Jonathan's day; villagers join people events.
+  const scheduleGuidesRef = useRef(scheduleGuides);
+  scheduleGuidesRef.current = scheduleGuides;
+  const scheduleMapRef = useRef(scheduleMap);
+  scheduleMapRef.current = scheduleMap;
   const [renderIds, setRenderIds] = useState<string[]>([]);
   // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
@@ -452,6 +472,12 @@ export function TownNPCs({
             workArrivalRef.current?.(String(npc.prayerId || npc.id));
           } catch {}
         }
+        // At a schedule event? Stay for the whole thing — the pawn mimics
+        // Jonathan's day, and the villagers share people events with him.
+        const sinfo = scheduleMapRef.current?.[String(npc.prayerId || npc.id)];
+        if (sinfo) {
+          npc.waitUntil = Math.max(npc.waitUntil, sinfo.untilMs);
+        }
       } else if (npc.state === "returning") {
         npc.state = "idle";
         npc.waitUntil = now + 2000 + Math.random() * 4000;
@@ -562,6 +588,17 @@ export function TownNPCs({
           if (!dest) {
             const guide = missionGuidesRef.current?.[pid];
             if (guide) {
+              const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
+              if (stillThere) dest = guide;
+            }
+          }
+          // Schedule sync: the pawn mimics Jonathan's day — if a schedule
+          // event is happening, villagers join people events (meals, movies,
+          // ministry, BBQs) instead of wandering. They stay until it ends.
+          if (!dest) {
+            const sched = scheduleMapRef.current?.[pid];
+            const guide = scheduleGuidesRef.current?.[pid];
+            if (sched && guide && now < sched.untilMs) {
               const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
               if (stillThere) dest = guide;
             }

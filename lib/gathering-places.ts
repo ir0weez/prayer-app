@@ -162,6 +162,33 @@ export function restMsRemaining(lastRest: number, now: number = Date.now()): num
   return Math.max(0, lastRest + REST_COOLDOWN_MS - now);
 }
 
+// ---- Hospital ----
+// Care for the town. A checkup (20h cooldown) grants the Doctor's Blessing:
+// bonus max HP (and at L3, bonus attack) for the next Dark Forest battle.
+// The pawn also comes here for doctor appointments on his schedule.
+
+export const HOSPITAL_CHECKUP_KEY = "prayercircle.hometown.hospital-checkup.v1";
+export const HOSPITAL_CHECKUP_COOLDOWN_MS = 20 * 60 * 60 * 1000; // ~daily
+
+export async function loadLastCheckup(): Promise<number> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(HOSPITAL_CHECKUP_KEY);
+    return raw ? parseInt(raw, 10) || 0 : 0;
+  } catch { return 0; }
+}
+
+export async function saveLastCheckup(ts: number): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(HOSPITAL_CHECKUP_KEY, String(ts));
+  } catch {}
+}
+
+export function checkupMsRemaining(lastCheckup: number, now: number = Date.now()): number {
+  return Math.max(0, lastCheckup + HOSPITAL_CHECKUP_COOLDOWN_MS - now);
+}
+
 /** Format ms as "Xm" or "Xh Ym" for cooldown displays. */
 export function formatCooldown(ms: number): string {
   const mins = Math.ceil(ms / 60000);

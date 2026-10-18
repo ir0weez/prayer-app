@@ -89,6 +89,18 @@ function PawnInRoom({
   } else if (roomId === "prayer") {
     pos = { x: 0.5, y: 0.60 };
     show = true;
+  } else if (roomId === "backyard") {
+    // Out back: at the BBQ if there's a grill, otherwise by the pool.
+    if ((room.furniture["bbq"] || 0) > 0) {
+      pos = { x: 0.68, y: 0.48 };
+      show = true;
+    } else if ((room.furniture["pool"] || 0) > 0) {
+      pos = { x: 0.28, y: 0.50 };
+      show = true;
+    } else if ((room.furniture["patio"] || 0) > 0) {
+      pos = { x: 0.50, y: 0.68 };
+      show = true;
+    }
   }
 
   if (!show) return null;
@@ -363,11 +375,24 @@ export default function PawnHouseScreen() {
       {/* floor */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: roomViewHeight * 0.34, backgroundColor: theme.floor }} />
       <View style={{ position: "absolute", left: 0, right: 0, bottom: roomViewHeight * 0.34, height: 4, backgroundColor: "rgba(0,0,0,0.12)" }} />
-      {/* window */}
-      <View style={{ position: "absolute", left: roomViewWidth * 0.42, top: 18, width: 64, height: 52, borderRadius: 8, backgroundColor: "#CFE8EF", borderWidth: 5, borderColor: theme.trim }}>
-        <View style={{ position: "absolute", left: "48%", top: 0, bottom: 0, width: 3, backgroundColor: theme.trim }} />
-        <View style={{ position: "absolute", top: "48%", left: 0, right: 0, height: 3, backgroundColor: theme.trim }} />
-      </View>
+      {roomId === "backyard" ? (
+        /* fence along the back of the yard */
+        <View style={{ position: "absolute", left: 0, right: 0, top: roomViewHeight * 0.30, height: 44 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-around", height: 44 }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <View key={i} style={{ width: 14, height: 44, backgroundColor: theme.trim, borderRadius: 3 }} />
+            ))}
+          </View>
+          <View style={{ position: "absolute", left: 0, right: 0, top: 8, height: 6, backgroundColor: theme.trim, opacity: 0.85 }} />
+          <View style={{ position: "absolute", left: 0, right: 0, top: 28, height: 6, backgroundColor: theme.trim, opacity: 0.85 }} />
+        </View>
+      ) : (
+        /* window */
+        <View style={{ position: "absolute", left: roomViewWidth * 0.42, top: 18, width: 64, height: 52, borderRadius: 8, backgroundColor: "#CFE8EF", borderWidth: 5, borderColor: theme.trim }}>
+          <View style={{ position: "absolute", left: "48%", top: 0, bottom: 0, width: 3, backgroundColor: theme.trim }} />
+          <View style={{ position: "absolute", top: "48%", left: 0, right: 0, height: 3, backgroundColor: theme.trim }} />
+        </View>
+      )}
       {def.slots.map((slot) => {
         const tier = room.furniture[slot.id] || 0;
         const left = slot.pos.x * roomViewWidth - slot.size / 2;

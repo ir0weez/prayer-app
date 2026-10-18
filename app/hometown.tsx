@@ -141,6 +141,11 @@ import {
   loadLighthouse,
   saveLighthouse,
   lighthouseVerseForDate,
+  hospitalBlessingForLevel,
+  loadHospitalBuff,
+  saveHospitalBuff,
+  consumeHospitalBuff,
+  type HospitalBuff,
   type LighthouseState,
   type GardenVisitState,
   type CityPlot,
@@ -178,6 +183,7 @@ import {
   loadLastShow, saveLastShow, showMsRemaining, SHOW_COINS, SHOW_XP,
   loadLastStudy, saveLastStudy, studyMsRemaining, STUDY_XP,
   loadLastRest, saveLastRest, restMsRemaining, REST_COINS, REST_XP,
+  loadLastCheckup, saveLastCheckup, checkupMsRemaining,
   formatCooldown, type GardenState,
 } from "@/lib/gathering-places";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
@@ -225,6 +231,12 @@ import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
+import {
+  getActiveScheduleActivity,
+  resolveScheduleTarget,
+  type ScheduleActivity,
+  type ScheduleTarget,
+} from "@/lib/schedule-sync";
 import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
@@ -284,6 +296,7 @@ function tallArtExtraCells(type: string, level: number, floors: number): number 
     case "theater": return 0.5;
     case "city-market": return 0.4;
     case "market": return 0.3;
+    case "hospital": return 0.8;
     default: return 0;
   }
 }
@@ -1418,6 +1431,44 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
         </View>
       );
     }
+    case "hospital": {
+      // Hospital — white healing hall with a red cross, tall windows,
+      // entrance canopy. Grander with level: more floors of windows.
+      const H = artH ?? s;
+      const w = s * 0.92;
+      const sideW = Math.max(5, w * 0.1);
+      const rows = lv >= 3 ? 4 : lv >= 2 ? 3 : 2;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          <View style={{ width: w, height: H * 0.92, flexDirection: "row" }}>
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-end" }}>
+              {/* cross sign */}
+              <View style={{ width: s * 0.22, height: s * 0.22, backgroundColor: "#FFFFFF", borderRadius: 6, borderWidth: 2, borderColor: "#DC2626", alignItems: "center", justifyContent: "center", marginBottom: 4, zIndex: 2 }}>
+                <View style={{ width: s * 0.12, height: s * 0.045, backgroundColor: "#DC2626", borderRadius: 2 }} />
+                <View style={{ width: s * 0.045, height: s * 0.12, backgroundColor: "#DC2626", borderRadius: 2, marginTop: -s * 0.0825 }} />
+              </View>
+              {/* facade */}
+              <View style={{ width: w * 0.94, height: H * 0.62, backgroundColor: "#F8FAFC", borderWidth: 2, borderColor: "#CBD5E1", borderBottomLeftRadius: 5, alignItems: "center", paddingTop: s * 0.04 }}>
+                {Array.from({ length: rows }).map((_, r) => (
+                  <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
+                    {[0, 1, 2].map((c) => (
+                      <View key={c} style={{ width: s * 0.13, height: s * 0.1, backgroundColor: isLit(r, c) ? LIT : "#BFDBFE", marginHorizontal: s * 0.03, borderRadius: 3, borderWidth: 1, borderColor: "#93C5FD" }} />
+                    ))}
+                  </View>
+                ))}
+                {/* entrance canopy */}
+                <View style={{ width: s * 0.4, height: s * 0.05, backgroundColor: "#DC2626", borderRadius: 3, marginTop: s * 0.03 }} />
+                <View style={{ width: s * 0.22, height: s * 0.12, backgroundColor: "#1F2937", borderTopLeftRadius: 6, borderTopRightRadius: 6, marginTop: 1 }} />
+              </View>
+            </View>
+            <View style={{ width: sideW, backgroundColor: "#D7DEE8", borderBottomRightRadius: 5, marginBottom: 2 }}>
+              <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 2, backgroundColor: "#FFFFFF", opacity: 0.3 }} />
+            </View>
+          </View>
+        </View>
+      );
+    }
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -1743,6 +1794,12 @@ export default function HometownScreen() {
   const [lastShowAt, setLastShowAt] = useState(0);
   const [lastStudyAt, setLastStudyAt] = useState(0);
   const [lastRestAt, setLastRestAt] = useState(0);
+  const [lastCheckupAt, setLastCheckupAt] = useState(0);
+  // Schedule sync: Jonathan's pawn mimics his schedule — meals at restaurants,
+  // doctor's at the hospital, movies at the amphitheater, rest at home, ministry
+  // at the church. During an event the pawn/villagers gather instead of wandering.
+  const [scheduleActivity, setScheduleActivity] = useState<ScheduleActivity | null>(null);
+  const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
   // Dark Forest: pixel-art demon battles; gear is your power
@@ -1917,6 +1974,35 @@ export default function HometownScreen() {
     return out;
   }, [workState]);
 
+  /**
+   * Schedule sync guides: when Jonathan's schedule has an in-progress people
+   * event (meals, movies, ministry, BBQs), every villager heads to the event
+   * instead of wandering. They stay until the event ends.
+   */
+  const scheduleGuides = useMemo(() => {
+    const out: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }> = {};
+    if (!scheduleActivity || !scheduleTarget || !scheduleActivity.withVillagers) return out;
+    if (activeMap !== "town") return out;
+    // BBQ at the pawn house gets its own badge.
+    const type = scheduleActivity.kind === "backyard" ? "__barbecue__" : scheduleTarget.type;
+    for (const l of lightInfos) {
+      const pid = String(l.personId);
+      out[pid] = { tile: scheduleTarget.tile, buildingId: scheduleTarget.buildingId, type };
+    }
+    return out;
+  }, [scheduleActivity, scheduleTarget, activeMap, lightInfos]);
+
+  /** personId -> schedule-event info while a light is at the event. */
+  const scheduleMap = useMemo(() => {
+    const out: Record<string, { untilMs: number; kind: string }> = {};
+    if (!scheduleActivity || !scheduleTarget || !scheduleActivity.withVillagers) return out;
+    if (activeMap !== "town") return out;
+    for (const l of lightInfos) {
+      out[String(l.personId)] = { untilMs: scheduleActivity.endsAtMs, kind: scheduleActivity.kind };
+    }
+    return out;
+  }, [scheduleActivity, scheduleTarget, activeMap, lightInfos]);
+
   /** A work-guided light arrived at its site — the shift is underway. */
   const handleWorkArrival = useCallback(async (personId: string) => {
     const st = workStateRef.current;
@@ -1997,6 +2083,30 @@ export default function HometownScreen() {
     },
     [findWorkTarget]
   );
+
+  /**
+   * Schedule sync: check Jonathan's schedule for an in-progress event and
+   * pin the pawn (and the villagers, for people events) to the matching
+   * place. Runs on load and every 30s; clears when the event ends so
+   * everyone resumes normal behavior.
+   */
+  const refreshScheduleVisit = useCallback(async () => {
+    try {
+      const activity = await getActiveScheduleActivity();
+      if (!activity) {
+        setScheduleActivity(null);
+        setScheduleTarget(null);
+        return;
+      }
+      const target = resolveScheduleTarget(town.maps[activeMap].buildings, activity.kind);
+      setScheduleActivity(activity);
+      setScheduleTarget(target);
+    } catch {
+      // Schedule is a nice-to-have — never let it break the town.
+      setScheduleActivity(null);
+      setScheduleTarget(null);
+    }
+  }, [town, activeMap]);
 
   // Garden visitors: 1-2 prayer lights paying their respects this hour
   // (daytime only). Deterministic per hour so they linger while you visit.
@@ -2569,6 +2679,9 @@ export default function HometownScreen() {
         try { setLastShowAt(await loadLastShow()); } catch {}
         try { setLastStudyAt(await loadLastStudy()); } catch {}
         try { setLastRestAt(await loadLastRest()); } catch {}
+        try { setLastCheckupAt(await loadLastCheckup()); } catch {}
+        // Schedule sync: check for an in-progress event on open.
+        refreshScheduleVisit().catch(() => undefined);
         // Garden visits: from time to time, prayer lights visit the Garden
         // of Remembrance to pay their respects (1-2 per hour, daytime only).
         // Each visit blesses the town: +0.1% income for 24h.
@@ -2691,6 +2804,10 @@ export default function HometownScreen() {
       // Work shifts finish on their timers — mark done, celebrate, refresh countdowns.
       runWorkTick().catch(() => undefined);
       setNowMs(Date.now());
+      // Schedule sync: the pawn mimics Jonathan's day — if a schedule event
+      // is happening now, the pawn (and the villagers, for people events)
+      // gather at the matching place instead of wandering.
+      refreshScheduleVisit().catch(() => undefined);
       // Level-up detection: fireworks when Jonathan levels up while watching town.
       loadXPState().then((xp) => {
         const level = getLevelForXP(xp.totalXP);
@@ -2760,7 +2877,7 @@ export default function HometownScreen() {
       });
     }, 30000);
     return () => clearInterval(id);
-  }, [runVillagerMissionSpawn, runWorkTick]);
+  }, [runVillagerMissionSpawn, runWorkTick, refreshScheduleVisit]);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
@@ -3296,6 +3413,62 @@ export default function HometownScreen() {
     );
   };
 
+  /** Tap the hospital: checkup for a healing blessing (Dark Forest buff). */
+  const handleHospitalPress = (b: PlacedBuilding) => {
+    const level = b.level || 1;
+    const now = Date.now();
+    const remaining = checkupMsRemaining(lastCheckupAt, now);
+    const blessing = hospitalBlessingForLevel(level);
+    const doUpgrade = () => {
+      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
+      if (coinsRef.current.balance < cost) {
+        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        return;
+      }
+      addCoins(-cost);
+      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      saveMap({ ...map, buildings: updated });
+      Alert.alert("Hospital", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A full healing center — the blessing grows stronger." : "More beds, brighter halls."}`);
+    };
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)} coins)`, onPress: doUpgrade }] : [];
+    const levelBlurb = level >= 3
+      ? "A full healing center — bright halls, gentle hands."
+      : level >= 2
+        ? "A growing clinic — clean beds, kind nurses."
+        : "A small clinic — simple, clean, welcoming.";
+    if (remaining > 0) {
+      Alert.alert(
+        "Hospital",
+        `${levelBlurb}\n\nThe doctor says you're doing well. Come back for a checkup in about ${formatCooldown(remaining)}.`,
+        [{ text: "OK" }, ...upgradeBtn]
+      );
+      return;
+    }
+    Alert.alert(
+      "Hospital",
+      `${levelBlurb}\n\nGet a checkup? The Doctor's Blessing grants ${blessing.label}.`,
+      [
+        ...upgradeBtn,
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Get checkup",
+          onPress: async () => {
+            const t = Date.now();
+            setLastCheckupAt(t);
+            await saveLastCheckup(t).catch(() => undefined);
+            await saveHospitalBuff({
+              hpMult: blessing.hpMult,
+              attackMult: blessing.attackMult,
+              grantedAt: new Date(t).toISOString(),
+              level,
+            });
+            Alert.alert("Doctor's Blessing", `The doctor smiles. "You're in fine shape."\n\n${blessing.label}.`);
+          },
+        },
+      ]
+    );
+  };
+
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
   const handleTownLotBuildingPress = (b: PlacedBuilding) => {
     // Enterable buildings route to their interiors first
@@ -3314,6 +3487,9 @@ export default function HometownScreen() {
           `${residents.length} ${residents.length === 1 ? "villager calls" : "villagers call"} this home:\n\n${shown}${residents.length > 10 ? "\n…" : ""}`
         );
       }
+      return;
+    } else if (b.type === "hospital") {
+      handleHospitalPress(b);
       return;
     } else if (b.type === "bank" || b.type === "bank-tower") {
       router.push(`/bank-interior?buildingId=${b.id}`);
@@ -3633,7 +3809,21 @@ export default function HometownScreen() {
     (async () => {
       try {
         const equipped = await loadEquipped();
-        setForestStats(combatStats(equipped));
+        const base = combatStats(equipped);
+        // Hospital: the Doctor's Blessing — a checkup's healing buff,
+        // consumed when the next battle starts.
+        let buff: HospitalBuff | null = null;
+        try { buff = await consumeHospitalBuff(); } catch {}
+        if (buff) {
+          setForestStats({
+            attack: Math.round(base.attack * buff.attackMult),
+            defense: base.defense,
+            maxHp: Math.round(base.maxHp * buff.hpMult),
+          });
+          queueCelebration("prayers", "Doctor's Blessing", `The hospital's care steadies you: +${Math.round((buff.hpMult - 1) * 100)}% max HP${buff.attackMult > 1 ? `, +${Math.round((buff.attackMult - 1) * 100)}% attack` : ""} for this battle.`);
+        } else {
+          setForestStats(base);
+        }
         const clothesId = equipped.clothes;
         const item = clothesId ? GEAR_BY_ID[clothesId] : undefined;
         if (item?.visual.bodyColor) setForestTunic(item.visual.bodyColor);
@@ -4259,7 +4449,7 @@ export default function HometownScreen() {
             const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
             if (vm) setVillagerMissionModal(vm);
             else setPrayerVillagerInfo(p);
-          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} />
+          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
           {/* City life: plot workers + commuters from town (depth-sorted, bare) */}
           {activeMap === "city" && (
             <>
@@ -4278,7 +4468,7 @@ export default function HometownScreen() {
             </>
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
-          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} />}
+          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} />}
           {/* City delights: hidden coin caches, the wishing fountain, the street
               performer — little rewards tucked around the city. */}
           {activeMap === "city" && (

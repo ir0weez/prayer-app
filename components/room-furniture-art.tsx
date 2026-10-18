@@ -5,7 +5,8 @@ export type RoomPieceId =
   | "bed" | "nightstand" | "lamp" | "rug"
   | "sofa" | "coffeeTable" | "bookshelf" | "fireplace"
   | "ktable" | "chairs" | "stove" | "shelf"
-  | "tub" | "sink" | "mirror" | "plant" | "desk";
+  | "tub" | "sink" | "mirror" | "plant" | "desk"
+  | "pool" | "bbq" | "patio" | "stringlights";
 
 export interface RoomFurnitureArtProps {
   piece: RoomPieceId;
@@ -767,6 +768,146 @@ function renderDesk(tier: 1 | 2 | 3, p: Palette): JSX.Element {
 
 /* --------------------------------- switch -------------------------------- */
 
+/* --------------------------------- switch -------------------------------- */
+
+/* ------------------------------ backyard pieces --------------------------- */
+
+function renderPool(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  // Backyard pool — bigger and bluer with tier. Deck ring, water, ladder at L2+.
+  const w = tier >= 3 ? 96 : tier >= 2 ? 84 : 70;
+  const x0 = 60 - w / 2;
+  return (
+    <G>
+      {groundShadow(w / 2 + 6)}
+      {/* deck */}
+      <Ellipse cx={60} cy={66} rx={w / 2 + 8} ry={20} fill="#D6B48A" />
+      <Ellipse cx={60} cy={64} rx={w / 2 + 8} ry={20} fill="#E3C49A" />
+      {/* water */}
+      <Ellipse cx={60} cy={62} rx={w / 2} ry={16} fill="#38BDF8" />
+      <Ellipse cx={60} cy={60} rx={w / 2 - 6} ry={12} fill="#7DD3FC" />
+      <Ellipse cx={52} cy={58} rx={w / 4} ry={5} fill="#BAE6FD" opacity={0.8} />
+      {/* ladder at L2+ */}
+      {tier >= 2 && (
+        <G>
+          <Rect x={x0 + w - 10} y={52} width={3} height={22} fill="#94A3B8" />
+          <Rect x={x0 + w - 4} y={52} width={3} height={22} fill="#94A3B8" />
+          <Rect x={x0 + w - 10} y={58} width={9} height={2.5} fill="#64748B" />
+          <Rect x={x0 + w - 10} y={66} width={9} height={2.5} fill="#64748B" />
+        </G>
+      )}
+      {/* diving board at L3 */}
+      {tier >= 3 && (
+        <G>
+          <Rect x={x0 - 14} y={56} width={20} height={5} rx={2} fill="#F8FAFC" stroke="#94A3B8" strokeWidth={1} />
+          <Rect x={x0 - 2} y={60} width={5} height={12} fill="#64748B" />
+        </G>
+      )}
+    </G>
+  );
+}
+
+function renderBbq(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  // BBQ grill — kettle at L1, gas grill at L2, smokehouse at L3. Smoke wisps.
+  const bodyW = tier >= 3 ? 64 : tier >= 2 ? 56 : 44;
+  const x0 = 60 - bodyW / 2;
+  return (
+    <G>
+      {groundShadow(bodyW / 2)}
+      {/* legs */}
+      <Rect x={x0 + 8} y={78} width={5} height={22} fill="#475569" />
+      <Rect x={x0 + bodyW - 13} y={78} width={5} height={22} fill="#475569" />
+      {/* body */}
+      <Ellipse cx={60} cy={66} rx={bodyW / 2} ry={16} fill={tier >= 2 ? "#1F2937" : "#374151"} />
+      <Ellipse cx={60} cy={61} rx={bodyW / 2 - 4} ry={11} fill={tier >= 2 ? "#111827" : "#4B5563"} />
+      {/* grate lines */}
+      <Line x1={x0 + 8} y1={61} x2={x0 + bodyW - 8} y2={61} stroke="#9CA3AF" strokeWidth={1.4} />
+      <Line x1={x0 + 10} y1={65} x2={x0 + bodyW - 10} y2={65} stroke="#9CA3AF" strokeWidth={1.4} />
+      {/* lid open at L2+ */}
+      {tier >= 2 && (
+        <G>
+          <Ellipse cx={60} cy={44} rx={bodyW / 2 - 2} ry={10} fill={tier >= 3 ? "#7C2D12" : "#374151"} />
+          <Rect x={58} y={48} width={4} height={10} fill="#6B7280" />
+        </G>
+      )}
+      {/* chimney at L3 (smokehouse) */}
+      {tier >= 3 && <Rect x={78} y={30} width={10} height={22} rx={2} fill="#57534E" />}
+      {/* smoke wisps */}
+      <Path d="M52 40 q4 -8 0 -14 q-4 -6 2 -12" stroke="#E5E7EB" strokeWidth={3} fill="none" opacity={0.7} strokeLinecap="round" />
+      <Path d="M66 42 q-4 -8 0 -13 q4 -6 -2 -11" stroke="#F3F4F6" strokeWidth={2.4} fill="none" opacity={0.55} strokeLinecap="round" />
+      {/* side shelf */}
+      <Rect x={x0 + bodyW - 2} y={70} width={16} height={4} rx={2} fill="#92400E" />
+    </G>
+  );
+}
+
+function renderPatio(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  // Patio set — picnic table at L1, umbrella set at L2, lounge at L3.
+  return (
+    <G>
+      {groundShadow(34)}
+      {/* table */}
+      <Ellipse cx={60} cy={70} rx={30} ry={10} fill={p.wood} />
+      <Ellipse cx={60} cy={66} rx={30} ry={10} fill={p.woodLight} />
+      <Rect x={56} y={72} width={8} height={22} fill={p.woodDark} />
+      {/* benches / chairs */}
+      <Rect x={22} y={78} width={24} height={7} rx={3} fill={p.wood} />
+      <Rect x={74} y={78} width={24} height={7} rx={3} fill={p.wood} />
+      {tier >= 2 && (
+        <G>
+          {/* umbrella */}
+          <Rect x={58.5} y={18} width={3} height={50} fill="#78716C" />
+          <Polygon points="60,8 30,34 90,34" fill={p.fabric} />
+          <Polygon points="60,8 45,34 75,34" fill={p.fabricLight} opacity={0.7} />
+          <Circle cx={60} cy={8} r={3} fill={p.fabricDark} />
+        </G>
+      )}
+      {tier >= 3 && (
+        <G>
+          {/* lounge chairs */}
+          <Rect x={16} y={88} width={26} height={8} rx={4} fill={p.fabric} transform="rotate(-8 29 92)" />
+          <Rect x={78} y={88} width={26} height={8} rx={4} fill={p.fabric} transform="rotate(8 91 92)" />
+        </G>
+      )}
+    </G>
+  );
+}
+
+function renderStringlights(tier: 1 | 2 | 3, p: Palette): JSX.Element {
+  // String lights — a swooping wire with glowing bulbs. More strands at L2/L3.
+  const strands = tier >= 3 ? 3 : tier >= 2 ? 2 : 1;
+  const colors = [p.fabricLight, GLOW, "#FDE68A"];
+  return (
+    <G>
+      {Array.from({ length: strands }).map((_, s) => {
+        const yBase = 30 + s * 22;
+        const sag = 14 + s * 3;
+        return (
+          <G key={s}>
+            <Path
+              d={`M8 ${yBase} Q 60 ${yBase + sag * 2} 112 ${yBase}`}
+              stroke="#57534E"
+              strokeWidth={1.6}
+              fill="none"
+            />
+            {[0.18, 0.36, 0.54, 0.72, 0.88].map((t, i) => {
+              const bx = 8 + t * 104;
+              const by = yBase + 2 * sag * 2 * t * (1 - t) * 2 - 4;
+              const c = colors[(i + s) % colors.length];
+              return (
+                <G key={i}>
+                  <Line x1={bx} y1={by - 2} x2={bx} y2={by + 3} stroke="#57534E" strokeWidth={1.2} />
+                  <Circle cx={bx} cy={by + 6} r={3.4} fill={c} opacity={0.95} />
+                  <Circle cx={bx} cy={by + 6} r={5.4} fill={c} opacity={0.25} />
+                </G>
+              );
+            })}
+          </G>
+        );
+      })}
+    </G>
+  );
+}
+
 function renderPiece(piece: RoomPieceId, tier: 1 | 2 | 3, p: Palette): JSX.Element {
   switch (piece) {
     case "bed":
@@ -803,6 +944,14 @@ function renderPiece(piece: RoomPieceId, tier: 1 | 2 | 3, p: Palette): JSX.Eleme
       return renderPlant(tier, p);
     case "desk":
       return renderDesk(tier, p);
+    case "pool":
+      return renderPool(tier, p);
+    case "bbq":
+      return renderBbq(tier, p);
+    case "patio":
+      return renderPatio(tier, p);
+    case "stringlights":
+      return renderStringlights(tier, p);
   }
 }
 

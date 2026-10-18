@@ -15,7 +15,7 @@ const RING = "#FBBF24";
  * Uses their actual pawn-creator appearance. At night they're in bed
  * in the pawn house (rendered there), so this hides after dark.
  */
-export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
+export function PlayerPawnWanderer({ cellSize, destTile }: { cellSize: number; destTile?: { x: number; y: number } | null }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [isNight, setIsNight] = useState(getTimeOfDay() === "night");
   // Tile Y for depth sorting — villagers and buildings interleave by Y.
@@ -24,6 +24,10 @@ export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
   const bob = useRef(new Animated.Value(0)).current;
   const targetRef = useRef({ x: 5, y: 5 });
   const mountedRef = useRef(true);
+  // When the pawn has a schedule destination (mimicking Jonathan's day),
+  // walk there and stay — no wandering until the event ends.
+  const destTileRef = useRef(destTile);
+  destTileRef.current = destTile;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -47,13 +51,29 @@ export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
     return () => loop.stop();
   }, [bob]);
 
-  // Day/night check + random wandering
+  // Day/night check + wandering (or heading to a schedule event)
   useEffect(() => {
     const tick = () => {
       if (!mountedRef.current) return;
       const night = getTimeOfDay() === "night";
       setIsNight((prev) => (prev === night ? prev : night));
       if (night) return;
+      // Schedule event: walk to the event and stay there.
+      const sched = destTileRef.current;
+      if (sched) {
+        const cur = targetRef.current;
+        if (cur.x !== sched.x || cur.y !== sched.y) {
+          targetRef.current = { x: sched.x, y: sched.y };
+          setTileY(sched.y);
+          Animated.timing(pos, {
+            toValue: { x: (sched.x + 0.5) * cellSize, y: (sched.y + 0.5) * cellSize - 4 },
+            duration: 2800,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }).start();
+        }
+        return;
+      }
       // Pick a new random nearby tile every few seconds
       const cur = targetRef.current;
       const nx = Math.max(0, Math.min(TOWN_GRID_W - 1, cur.x + Math.floor(Math.random() * 5) - 2));

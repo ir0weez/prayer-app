@@ -22,7 +22,8 @@ export type HouseRoomId =
   | "study"
   | "prayer"
   | "trophy"
-  | "garden";
+  | "garden"
+  | "backyard";
 
 export type RoomTheme = {
   id: string;
@@ -188,6 +189,25 @@ export const HOUSE_ROOMS: RoomDef[] = [
       { id: "twilight", name: "Twilight", cost: 80, wall: "#C9C9E8", floor: "#7E7EA8", accent: "#9C6FB5", trim: "#4E4E6B" },
     ],
   },
+  {
+    id: "backyard",
+    name: "Backyard",
+    unlockCost: 150,
+    bonusText: "+1% coin income per furniture tier (good times with good people)",
+    kind: "living",
+    slots: [
+      { id: "pool", name: "Pool", tierNames: ["Paddling Pool", "Family Pool", "Resort Pool"], costs: [40, 120, 300], pos: { x: 0.28, y: 0.62 }, size: 130 },
+      { id: "bbq", name: "BBQ Grill", tierNames: ["Kettle Grill", "Gas Grill", "Smokehouse"], costs: [30, 90, 220], pos: { x: 0.68, y: 0.60 }, size: 100 },
+      { id: "patio", name: "Patio Set", tierNames: ["Picnic Table", "Patio Set", "Outdoor Lounge"], costs: [25, 80, 200], pos: { x: 0.50, y: 0.82 }, size: 110 },
+      { id: "stringlights", name: "String Lights", tierNames: ["Fairy Lights", "Globe Lights", "Festival Lights"], costs: [20, 60, 160], pos: { x: 0.50, y: 0.22 }, size: 120 },
+    ],
+    themes: [
+      { id: "sunny", name: "Sunny Day", cost: 0, wall: "#BAE6FD", floor: "#86EFAC", accent: "#F59E0B", trim: "#92400E" },
+      { id: "sunset", name: "Golden Hour", cost: 40, wall: "#FDBA74", floor: "#6EE7B7", accent: "#EF4444", trim: "#7C2D12" },
+      { id: "meadow", name: "Meadow", cost: 80, wall: "#BBF7D0", floor: "#4ADE80", accent: "#EC4899", trim: "#3F6212" },
+      { id: "starlight", name: "Starlight", cost: 120, wall: "#1E3A5F", floor: "#3F6212", accent: "#FBBF24", trim: "#3F3F46" },
+    ],
+  },
 ];
 
 export function roomDef(id: HouseRoomId): RoomDef {
@@ -323,7 +343,7 @@ export const ZERO_HOUSE_BONUSES: HouseBonuses = {
 /** Bonuses from room furniture only (desirables added by refreshHouseBonusCache). */
 export function furnitureBonuses(state: HouseState): HouseBonuses {
   return {
-    coinMult: roomTierPoints(state, "living") * 0.01,
+    coinMult: roomTierPoints(state, "living") * 0.01 + roomTierPoints(state, "backyard") * 0.01,
     allXpMult: roomTierPoints(state, "bedroom") * 0.02,
     prayerXpMult: roomTierPoints(state, "bathroom") * 0.01,
     bibleXpMult: roomTierPoints(state, "study") * 0.02,

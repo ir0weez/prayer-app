@@ -118,7 +118,7 @@ function CarBody({ color, dir }: { color: string; dir: Dir }) {
   );
 }
 
-export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carCount?: number }) {
+export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number; carCount?: number; /** Render entities directly (no container) so the parent can depth-sort them with buildings via zIndex. */ bare?: boolean }) {
   const logicRef = useRef<Record<string, CarLogic>>({});
   const [renderIds, setRenderIds] = useState<string[]>([]);
   const [orients, setOrients] = useState<Record<string, Dir>>({});
@@ -201,9 +201,9 @@ export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carC
     };
   }, [cellSize, carCount, isNight]);
 
-  return (
-    <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">
-      {renderIds.map((id) => {
+  // Entities as a fragment when bare — the parent depth-sorts them with
+  // buildings via zIndex (cars drive BEHIND tall buildings).
+  const carEntities = renderIds.map((id) => {
         const car = logicRef.current[id];
         if (!car) return null;
         const dir = orients[id] || "E";
@@ -217,13 +217,19 @@ export function CityTraffic({ cellSize, carCount = 6 }: { cellSize: number; carC
               position: "absolute",
               left: -cw / 2, top: -ch / 2,
               transform: [{ translateX: car.pos.x }, { translateY: car.pos.y }],
+              // Depth sort by Y so cars pass behind tall buildings.
+              zIndex: Math.round(car.py),
             }}
             pointerEvents="none"
           >
             <CarBody color={car.color} dir={dir} />
           </Animated.View>
         );
-      })}
+      });
+  if (bare) return <>{carEntities}</>;
+  return (
+    <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }} pointerEvents="none">
+      {carEntities}
     </View>
   );
 }

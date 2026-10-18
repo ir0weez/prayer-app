@@ -18,6 +18,8 @@ const RING = "#FBBF24";
 export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [isNight, setIsNight] = useState(getTimeOfDay() === "night");
+  // Tile Y for depth sorting — villagers and buildings interleave by Y.
+  const [tileY, setTileY] = useState(5);
   const pos = useRef(new Animated.ValueXY({ x: 5 * cellSize, y: 5 * cellSize })).current;
   const bob = useRef(new Animated.Value(0)).current;
   const targetRef = useRef({ x: 5, y: 5 });
@@ -57,6 +59,7 @@ export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
       const nx = Math.max(0, Math.min(TOWN_GRID_W - 1, cur.x + Math.floor(Math.random() * 5) - 2));
       const ny = Math.max(0, Math.min(TOWN_GRID_H - 1, cur.y + Math.floor(Math.random() * 5) - 2));
       targetRef.current = { x: nx, y: ny };
+      setTileY(ny);
       Animated.timing(pos, {
         toValue: { x: (nx + 0.5) * cellSize, y: (ny + 0.5) * cellSize - 4 },
         duration: 2800,
@@ -84,6 +87,8 @@ export function PlayerPawnWanderer({ cellSize }: { cellSize: number }) {
         height: PAWN_SIZE + 14,
         alignItems: "center",
         transform: [...pos.getTranslateTransform(), { translateY: bobY }],
+        // Depth sort by feet Y — the pawn walks BEHIND tall buildings too.
+        zIndex: Math.round((tileY + 0.5) * cellSize),
       }}
     >
       {/* name label */}

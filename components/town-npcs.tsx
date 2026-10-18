@@ -208,6 +208,7 @@ export function TownNPCs({
   missionWaitingIds,
   missionGuides,
   onMissionArrival,
+  bare,
 }: {
   mapState: MapState;
   cellSize: number;
@@ -223,6 +224,9 @@ export function TownNPCs({
   missionGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
   /** Called when a guided light arrives at its mission target. */
   onMissionArrival?: (personId: string) => void;
+  /** Render entities directly (no container) so the parent can depth-sort
+      them with buildings via zIndex — villagers walk BEHIND tall buildings. */
+  bare?: boolean;
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -716,12 +720,9 @@ export function TownNPCs({
     return () => clearInterval(timer);
   }, [npcDefs, cellSize]);
 
-  return (
-    <View
-      pointerEvents="box-none"
-      style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}
-    >
-      {renderIds.map((id) => {
+  // Entities as a fragment when bare — the parent depth-sorts them with
+  // buildings via zIndex (villagers walk BEHIND tall buildings).
+  const townEntities = renderIds.map((id) => {
         const npc = logicRef.current[id];
         if (!npc) return null;
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
@@ -927,6 +928,12 @@ export function TownNPCs({
           height: NPC_SIZE + 6,
           alignItems: "center" as const,
           transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
+          // Depth sort by feet Y: villagers behind a tall building (north of its
+          // base) draw first so the building overlaps them. Visiting lights and
+          // lights waiting with a "?" stay in front so badges stay visible.
+          zIndex: npc.state === "visiting" || !!missionWaitingIds?.has(String(npc.prayerId || npc.id))
+            ? 1000000
+            : Math.round(npc.py),
         };
         // All lights are tappable — tap to see who they are.
         return (
@@ -938,7 +945,14 @@ export function TownNPCs({
             {body}
           </AnimatedPressable>
         );
-      })}
+      });
+  if (bare) return <>{townEntities}</>;
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}
+    >
+      {townEntities}
     </View>
   );
 }
@@ -1026,12 +1040,16 @@ export function CityNPCs({
   cellSize,
   hometownNpcCount,
   onBankVisit,
+  bare,
 }: {
   mapState: MapState;
   cellSize: number;
   hometownNpcCount: number;
   /** Called when a commuter arrives at a bank/bank-tower: (buildingId). */
   onBankVisit?: (buildingId: string) => void;
+  /** Render entities directly (no container) so the parent can depth-sort
+      them with buildings via zIndex. */
+  bare?: boolean;
 }) {
   const logicRef = useRef<Record<string, CityNpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -1263,35 +1281,41 @@ export function CityNPCs({
     return () => clearInterval(timer);
   }, [workerDefs, cellSize]);
 
+  // Entities as a fragment when bare — the parent depth-sorts them with
+  // buildings via zIndex (workers/commuters walk BEHIND tall buildings).
+  const cityEntities = renderIds.map((id) => {
+    const npc = logicRef.current[id];
+    if (!npc || npc.offShift) return null;
+    const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
+    return (
+      <Animated.View
+        key={id}
+        style={{
+          position: "absolute",
+          left: -NPC_SIZE / 2,
+          top: -(NPC_SIZE + 6) / 2,
+          width: NPC_SIZE,
+          height: NPC_SIZE + 6,
+          alignItems: "center",
+          transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
+          // Depth sort by feet Y; visiting workers stay in front.
+          zIndex: npc.state === "visiting" ? 1000000 : Math.round(npc.py),
+        }}
+      >
+        <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: npc.color, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ flexDirection: "row", gap: 2 }}>
+            <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
+            <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
+          </View>
+        </View>
+        <View style={{ width: 11, height: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: npc.color, marginTop: 0.5, opacity: 0.92 }} />
+      </Animated.View>
+    );
+  });
+  if (bare) return <>{cityEntities}</>;
   return (
     <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
-      {renderIds.map((id) => {
-        const npc = logicRef.current[id];
-        if (!npc || npc.offShift) return null;
-        const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
-        return (
-          <Animated.View
-            key={id}
-            style={{
-              position: "absolute",
-              left: -NPC_SIZE / 2,
-              top: -(NPC_SIZE + 6) / 2,
-              width: NPC_SIZE,
-              height: NPC_SIZE + 6,
-              alignItems: "center",
-              transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
-            }}
-          >
-            <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: npc.color, alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row", gap: 2 }}>
-                <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-                <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: "#1F2937" }} />
-              </View>
-            </View>
-            <View style={{ width: 11, height: 8, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: npc.color, marginTop: 0.5, opacity: 0.92 }} />
-          </Animated.View>
-        );
-      })}
+      {cityEntities}
     </View>
   );
 }

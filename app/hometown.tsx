@@ -179,6 +179,7 @@ import { MissionField } from "@/components/mission-field";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
+import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
 
@@ -210,10 +211,89 @@ function nextId() {
   return `b${Date.now()}${idCounter}`;
 }
 
-// Building art using colored shapes (no emojis) - shape evolves with level
-function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number }) {
+// Pseudo-3D: taller buildings render art that extends ABOVE their grid square,
+// overlapping neighboring squares (grid positions and tap targets are unchanged).
+// Returns extra height in grid cells for the building's art.
+function tallArtExtraCells(type: string, level: number, floors: number): number {
+  switch (type) {
+    case "church": return 1.0;
+    case "chapel": return 0.7;
+    case "bank": return 0.7;
+    case "bank-tower": return 0.5 + 0.4 * Math.min(Math.max(floors || 1, 1), 5);
+    case "office": return 0.9;
+    case "hotel": return 0.8;
+    case "apartments": return 0.8;
+    case "department-store": return 0.7;
+    case "theater": return 0.5;
+    case "city-market": return 0.4;
+    case "market": return 0.3;
+    default: return 0;
+  }
+}
+
+// Generic pseudo-3D tower block: front face with content, darker side face for
+// depth, roof cap with highlight, and a soft ground shadow. w = px width,
+// H = total px height. Children render inside the front face.
+function tallBlock(opts: {
+  s: number; H: number; w: number;
+  front: string; side: string; roof: string;
+  lit: (i: number, j: number) => boolean; LIT: string;
+  rows: number; cols: number;
+  winW?: number; winH?: number; gap?: number; topPad?: number; winOff?: string;
+  extraTop?: React.ReactNode; extraBottom?: React.ReactNode;
+}) {
+  const { s, H, w, front, side, roof, lit, LIT, rows, cols } = opts;
+  const sideW = Math.max(5, w * 0.11);
+  const roofH = Math.max(6, H * 0.045);
+  const winW = opts.winW ?? s * 0.13;
+  const winH = opts.winH ?? Math.max(8, (H * 0.8) / Math.max(rows, 1) * 0.42);
+  const gap = opts.gap ?? s * 0.035;
+  return (
+    <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+      {/* ground shadow */}
+      <View style={{ position: "absolute", bottom: 0, width: w * 1.12, height: Math.max(5, s * 0.05), backgroundColor: "#000000", opacity: 0.13, borderRadius: 999 }} />
+      {opts.extraBottom}
+      <View style={{ width: w, height: H * 0.94 }}>
+        {/* roof cap */}
+        <View style={{ position: "absolute", top: 0, left: -3, width: w + 6, height: roofH, backgroundColor: roof, borderRadius: 3, zIndex: 2 }}>
+          <View style={{ height: 2, backgroundColor: "#FFFFFF", opacity: 0.35, borderRadius: 1 }} />
+        </View>
+        {opts.extraTop}
+        <View style={{ flex: 1, flexDirection: "row", paddingTop: roofH + 2 }}>
+          {/* front face */}
+          <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 5, overflow: "hidden", alignItems: "center", paddingTop: opts.topPad ?? H * 0.04 }}>
+            {Array.from({ length: rows }).map((_, r) => (
+              <View key={r} style={{ flexDirection: "row", marginVertical: gap / 2 }}>
+                {Array.from({ length: cols }).map((_, c) => (
+                  <View key={c} style={{ width: winW, height: winH, backgroundColor: lit(r, c) ? LIT : (opts.winOff ?? front), marginHorizontal: gap / 2, borderRadius: 2, opacity: lit(r, c) ? 1 : 0.55 }} />
+                ))}
+              </View>
+            ))}
+          </View>
+          {/* side face — darker, suggests volume */}
+          <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 5 }}>
+            <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 2, backgroundColor: "#FFFFFF", opacity: 0.22 }} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Building art using colored shapes (no emojis) - shape evolves with level.
+// artH: optional taller canvas height (px) for pseudo-3D tall buildings; art
+// stays bottom-anchored so it extends upward over neighboring squares.
+function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number }) {
   const s = size;
   const lv = level || 1;
+  // Shared pseudo-3D bits for tall buildings.
+  const groundShadow = (w: number) => (
+    <View style={{ position: "absolute", bottom: 0, width: w, height: Math.max(5, s * 0.05), backgroundColor: "#000000", opacity: 0.13, borderRadius: 999 }} />
+  );
+  // Darker side strip on a building face — suggests volume/depth.
+  const sideShade = (faceW: number, faceH: number, radius: number) => (
+    <View style={{ position: "absolute", right: 0, top: 0, width: Math.max(4, faceW * 0.12), height: faceH, backgroundColor: "#000000", opacity: 0.12, borderTopRightRadius: radius, borderBottomRightRadius: radius }} />
+  );
   // City towers feel more alive as they level up: more lit windows.
   // L1 ~30% lit (quiet), L2 ~60% (busy), L3 ~90% (buzzing).
   const litRatio = lv >= 3 ? 0.9 : lv === 2 ? 0.6 : 0.3;
@@ -341,30 +421,101 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           <View style={{ position: "absolute", top: s * 0.15, width: s * 0.3, height: s * 0.2, backgroundColor: "#FEF3C7", borderRadius: s * 0.1 }} />
         </View>
       );
-    case "market":
+    case "market": {
+      // Taller market hall — pseudo-3D with side face and ground shadow.
+      const H = artH ?? s;
+      const w = s * 0.95;
+      const sideW = Math.max(5, w * 0.1);
+      const bodyH = H * 0.8;
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.95, height: s * 0.7, backgroundColor: "#0EA5E9", borderRadius: 6 }} />
-          <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
-            {[0, 1, 2].map(i => (
-              <View key={i} style={{ width: s * 0.18, height: s * 0.3, backgroundColor: "#E0F2FE", marginHorizontal: 3, borderRadius: 2 }} />
-            ))}
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.05)}
+          <View style={{ width: w, height: Math.max(8, H * 0.07), backgroundColor: "#0369A1", borderRadius: 4, zIndex: 2 }} />
+          <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
+            <View style={{ flex: 1, backgroundColor: "#0EA5E9", borderBottomLeftRadius: 6, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row" }}>
+                {[0, 1, 2].map(i => (
+                  <View key={i} style={{ width: s * 0.17, height: bodyH * 0.42, backgroundColor: "#E0F2FE", marginHorizontal: 3, borderRadius: 2 }} />
+                ))}
+              </View>
+            </View>
+            <View style={{ width: sideW, backgroundColor: "#0B7AB5", borderBottomRightRadius: 6 }} />
           </View>
-          <View style={{ width: s * 0.95, height: s * 0.12, backgroundColor: "#0369A1", borderRadius: 4, marginTop: s * 0.05 }} />
+          <View style={{ width: w, height: Math.max(6, H * 0.06), backgroundColor: "#0369A1", borderRadius: 4, marginTop: 2 }} />
         </View>
       );
-    case "bank":
+    }
+    case "bank": {
+      // Classical bank: pediment, tall columns, steps — pseudo-3D with side face and shadow.
+      const H = artH ?? s;
+      const w = s * 0.9;
+      const sideW = Math.max(5, w * 0.1);
+      const colH = H * 0.52;
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4 }} />
-          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} style={{ width: s * 0.12, height: s * 0.45, backgroundColor: "#9CA3AF", marginHorizontal: 4, borderRadius: 2 }} />
-            ))}
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          {/* steps */}
+          <View style={{ width: w * 1.06, height: Math.max(5, H * 0.04), backgroundColor: "#9CA3AF", borderRadius: 2 }} />
+          <View style={{ width: w, height: H * 0.9, flexDirection: "row" }}>
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-end" }}>
+              {/* pediment */}
+              <View style={{
+                width: 0, height: 0,
+                borderLeftWidth: w * 0.42, borderRightWidth: w * 0.42,
+                borderBottomWidth: Math.max(10, H * 0.12),
+                borderLeftColor: "transparent", borderRightColor: "transparent",
+                borderBottomColor: "#6B7280",
+              }} />
+              <View style={{ width: w * 0.84, height: Math.max(5, H * 0.04), backgroundColor: "#6B7280", borderRadius: 2 }} />
+              {/* columns */}
+              <View style={{ flexDirection: "row", marginTop: 2 }}>
+                {[0, 1, 2, 3].map(i => (
+                  <View key={i} style={{ width: s * 0.11, height: colH, backgroundColor: "#D1D5DB", marginHorizontal: 4, borderRadius: 2, borderLeftWidth: 2, borderLeftColor: "#F3F4F6" }} />
+                ))}
+              </View>
+              <View style={{ width: w * 0.84, height: Math.max(5, H * 0.04), backgroundColor: "#6B7280", borderRadius: 2, marginTop: 2 }} />
+            </View>
+            <View style={{ width: sideW, backgroundColor: "#000000", opacity: 0.14, borderBottomRightRadius: 4, marginBottom: Math.max(5, H * 0.04) }} />
           </View>
-          <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#6B7280", borderRadius: 4, marginTop: s * 0.05 }} />
         </View>
       );
+    }
+    case "chapel": {
+      // Taller chapel with steeple — pseudo-3D with side face and shadow.
+      const H = artH ?? s;
+      const w = s * 0.7;
+      const sideW = Math.max(4, w * 0.11);
+      const bodyH = H * 0.6;
+      const steepleH = H * 0.22;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.15)}
+          <View style={{ width: w, height: bodyH + steepleH, alignItems: "center" }}>
+            {/* cross */}
+            <View style={{ width: s * 0.035, height: steepleH * 0.32, backgroundColor: "#B45309", borderRadius: 2 }} />
+            <View style={{ width: s * 0.11, height: s * 0.035, backgroundColor: "#B45309", borderRadius: 2, marginTop: -steepleH * 0.22 }} />
+            {/* steeple */}
+            <View style={{ width: s * 0.1, height: steepleH * 0.5, backgroundColor: "#F8FAFC", borderWidth: 2, borderColor: "#CBD5E1", borderRadius: 2, marginTop: steepleH * 0.06 }} />
+            <View style={{
+              width: 0, height: 0,
+              borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09,
+              borderBottomWidth: Math.max(8, H * 0.08),
+              borderLeftColor: "transparent", borderRightColor: "transparent",
+              borderBottomColor: "#94A3B8", marginTop: -2,
+            }} />
+            {/* body with side face */}
+            <View style={{ width: w, height: bodyH, flexDirection: "row", marginTop: 2 }}>
+              <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderWidth: 2, borderColor: "#CBD5E1", borderBottomLeftRadius: 5, alignItems: "center", paddingTop: s * 0.05 }}>
+                <View style={{ width: s * 0.26, height: bodyH * 0.3, backgroundColor: "#BFDBFE", borderRadius: 8 }} />
+                <View style={{ width: s * 0.2, height: bodyH * 0.32, backgroundColor: "#78350F", borderRadius: 3, marginTop: s * 0.04 }} />
+              </View>
+              <View style={{ width: sideW, backgroundColor: "#D7DEE8", borderBottomRightRadius: 5, borderWidth: 2, borderLeftWidth: 0, borderColor: "#CBD5E1" }} />
+            </View>
+          </View>
+          <View style={{ width: s * 0.8, height: Math.max(5, H * 0.045), backgroundColor: "#94A3B8", borderRadius: 3, marginTop: 1 }} />
+        </View>
+      );
+    }
     case "church": {
       // L1 Chapel — small white chapel with steeple and cross.
       // L2 Church — warm community church: glowing amber windows, front porch, welcome sign.
@@ -374,28 +525,33 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
       const isChurch = lv >= 2;
       const bodyW = isCommunity ? 0.62 : isChurch ? 0.85 : 0.75;
       const bodyH = isCommunity ? 0.58 : isChurch ? 0.55 : 0.48;
+      const H = artH ?? s; // taller canvas — art extends above its square
+      const V = H * 0.97 / 1.23; // vertical unit — the classic design spans 1.23, fit it to the tall box
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * (isCommunity ? 1.02 : 0.9))}
           {/* Warm halo — the light of a gathering place (L2/L3) */}
           {isChurch && (
             <View style={{
-              position: "absolute", bottom: s * 0.02,
-              width: s * (isCommunity ? 1.02 : 0.9), height: s * 0.68,
+              position: "absolute", bottom: V * 0.02,
+              width: s * (isCommunity ? 1.02 : 0.9), height: V * 0.68,
               backgroundColor: "#FDE68A", opacity: 0.22, borderRadius: s * 0.5,
             }} />
           )}
           {/* Main body */}
           <View style={{
-            width: s * bodyW, height: s * bodyH,
+            width: s * bodyW, height: V * bodyH,
             backgroundColor: "#FFFBEB", borderRadius: 4,
             borderWidth: 2, borderColor: "#D6C79A",
             alignItems: "center", justifyContent: "center",
           }}>
+            {/* pseudo-3D: shaded right edge suggests the building's side */}
+            {sideShade(s * bodyW, H * bodyH, 4)}
             {/* Windows — warm amber glow at L2/L3, like light from inside */}
             <View style={{ flexDirection: "row" }}>
               {(isCommunity ? [0, 1, 2] : isChurch ? [0, 1] : [0]).map(i => (
                 <View key={i} style={{
-                  width: s * 0.13, height: s * 0.22, marginHorizontal: 3,
+                  width: s * 0.13, height: V * 0.22, marginHorizontal: 3,
                   backgroundColor: isChurch ? "#FCD34D" : (i % 2 === 0 ? "#93C5FD" : "#C4B5FD"),
                   borderTopLeftRadius: s * 0.065, borderTopRightRadius: s * 0.065,
                   borderWidth: 1, borderColor: "#92400E",
@@ -404,8 +560,8 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
                   {/* People silhouettes gathered inside (L3) */}
                   {isCommunity && (
                     <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 2 }}>
-                      <View style={{ width: s * 0.035, height: s * 0.07, backgroundColor: "#78350F", borderRadius: s * 0.018, marginRight: 1 }} />
-                      <View style={{ width: s * 0.035, height: s * 0.09, backgroundColor: "#92400E", borderRadius: s * 0.018 }} />
+                      <View style={{ width: s * 0.035, height: V * 0.07, backgroundColor: "#78350F", borderRadius: s * 0.018, marginRight: 1 }} />
+                      <View style={{ width: s * 0.035, height: V * 0.09, backgroundColor: "#92400E", borderRadius: s * 0.018 }} />
                     </View>
                   )}
                 </View>
@@ -415,7 +571,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
             {isChurch ? (
               <View style={{
                 position: "absolute", bottom: 0,
-                width: s * 0.24, height: s * 0.3,
+                width: s * 0.24, height: V * 0.3,
                 flexDirection: "row",
                 borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06,
                 overflow: "hidden",
@@ -428,7 +584,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
             ) : (
               <View style={{
                 position: "absolute", bottom: 0,
-                width: s * 0.16, height: s * 0.24,
+                width: s * 0.16, height: V * 0.24,
                 backgroundColor: "#78350F",
                 borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08,
               }} />
@@ -436,29 +592,29 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           </View>
           {/* Roof */}
           <View style={{
-            position: "absolute", bottom: s * bodyH,
+            position: "absolute", bottom: V * bodyH,
             width: 0, height: 0,
             borderLeftWidth: s * bodyW / 2, borderRightWidth: s * bodyW / 2,
-            borderBottomWidth: s * 0.22,
+            borderBottomWidth: V * 0.22,
             borderLeftColor: "transparent", borderRightColor: "transparent",
             borderBottomColor: "#92400E",
           }} />
           {/* L2: front porch — columns + little roof over the doors, welcome sign out front */}
           {isChurch && !isCommunity && (
             <>
-              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: -s * 0.19, width: s * 0.05, height: s * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
-              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: s * 0.14, width: s * 0.05, height: s * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
+              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: -s * 0.19, width: s * 0.05, height: V * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
+              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: s * 0.14, width: s * 0.05, height: V * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
               <View style={{
-                position: "absolute", bottom: s * 0.34, left: "50%", marginLeft: -s * 0.22,
+                position: "absolute", bottom: V * 0.34, left: "50%", marginLeft: -s * 0.22,
                 width: 0, height: 0,
                 borderLeftWidth: s * 0.22, borderRightWidth: s * 0.22,
-                borderBottomWidth: s * 0.12,
+                borderBottomWidth: V * 0.12,
                 borderLeftColor: "transparent", borderRightColor: "transparent",
                 borderBottomColor: "#92400E",
               }} />
               {/* Welcome sign */}
-              <View style={{ position: "absolute", bottom: 0, left: s * 0.045, width: s * 0.03, height: s * 0.22, backgroundColor: "#78350F" }} />
-              <View style={{ position: "absolute", bottom: s * 0.2, left: -s * 0.015, width: s * 0.15, height: s * 0.12, backgroundColor: "#FFFBEB", borderWidth: 1.5, borderColor: "#78350F", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ position: "absolute", bottom: 0, left: s * 0.045, width: s * 0.03, height: V * 0.22, backgroundColor: "#78350F" }} />
+              <View style={{ position: "absolute", bottom: V * 0.2, left: -s * 0.015, width: s * 0.15, height: V * 0.12, backgroundColor: "#FFFBEB", borderWidth: 1.5, borderColor: "#78350F", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
                 <View style={{ width: s * 0.1, height: 3, backgroundColor: "#F59E0B", borderRadius: 2, marginBottom: 2 }} />
                 <View style={{ width: s * 0.07, height: 3, backgroundColor: "#FCD34D", borderRadius: 2 }} />
               </View>
@@ -467,20 +623,20 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           {/* L3: fellowship hall wing + entrance canopy with string lights */}
           {isCommunity && (
             <>
-              <View style={{ position: "absolute", bottom: 0, right: s * 0.02, width: s * 0.3, height: s * 0.4, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ width: s * 0.1, height: s * 0.14, backgroundColor: "#FCD34D", borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, borderWidth: 1, borderColor: "#92400E" }} />
+              <View style={{ position: "absolute", bottom: 0, right: s * 0.02, width: s * 0.3, height: V * 0.4, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: s * 0.1, height: V * 0.14, backgroundColor: "#FCD34D", borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, borderWidth: 1, borderColor: "#92400E" }} />
               </View>
               <View style={{
-                position: "absolute", bottom: s * 0.4, right: s * 0.02,
+                position: "absolute", bottom: V * 0.4, right: s * 0.02,
                 width: 0, height: 0,
                 borderLeftWidth: s * 0.15, borderRightWidth: s * 0.15,
-                borderBottomWidth: s * 0.1,
+                borderBottomWidth: V * 0.1,
                 borderLeftColor: "transparent", borderRightColor: "transparent",
                 borderBottomColor: "#92400E",
               }} />
               {/* Entrance canopy with string lights */}
-              <View style={{ position: "absolute", bottom: s * 0.28, alignItems: "center" }}>
-                <View style={{ width: s * 0.34, height: s * 0.05, backgroundColor: "#92400E", borderRadius: 3 }} />
+              <View style={{ position: "absolute", bottom: V * 0.28, alignItems: "center" }}>
+                <View style={{ width: s * 0.34, height: V * 0.05, backgroundColor: "#92400E", borderRadius: 3 }} />
                 <View style={{ flexDirection: "row", marginTop: 1 }}>
                   {[0, 1, 2, 3, 4].map(i => (
                     <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FDE68A", marginHorizontal: s * 0.025, borderWidth: 1, borderColor: "#F59E0B" }} />
@@ -491,11 +647,11 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
           )}
           {/* Single steeple with cross — a humble spire, not twin cathedral towers */}
           <>
-            <View style={{ position: "absolute", bottom: s * (bodyH + 0.17), width: s * 0.18, height: s * 0.28, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
-            <View style={{ position: "absolute", bottom: s * (bodyH + 0.43), width: 0, height: 0, borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09, borderBottomWidth: s * 0.15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
+            <View style={{ position: "absolute", bottom: V * (bodyH + 0.17), width: s * 0.18, height: V * 0.28, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
+            <View style={{ position: "absolute", bottom: V * (bodyH + 0.43), width: 0, height: 0, borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09, borderBottomWidth: V * 0.15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
             {/* Cross */}
-            <View style={{ position: "absolute", bottom: s * (bodyH + 0.55), left: s * 0.485, width: s * 0.03, height: s * 0.1, backgroundColor: "#FBBF24" }} />
-            <View style={{ position: "absolute", bottom: s * (bodyH + 0.59), left: s * 0.45, width: s * 0.1, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+            <View style={{ position: "absolute", bottom: V * (bodyH + 0.55), left: s * 0.485, width: s * 0.03, height: V * 0.1, backgroundColor: "#FBBF24" }} />
+            <View style={{ position: "absolute", bottom: V * (bodyH + 0.59), left: s * 0.45, width: s * 0.1, height: V * 0.03, backgroundColor: "#FBBF24" }} />
           </>
           {/* Prayer lights: glowing figures gathered around the church */}
           {prayedCount > 0 && (
@@ -504,7 +660,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
                 <View
                   key={i}
                   style={{
-                    width: s * 0.1, height: s * 0.14, marginHorizontal: 1,
+                    width: s * 0.1, height: V * 0.14, marginHorizontal: 1,
                     backgroundColor: "#FDE68A", borderRadius: s * 0.05,
                     borderWidth: 1, borderColor: "#F59E0B",
                   }}
@@ -577,133 +733,137 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
         </View>
       );
     case "bank-tower": {
-      // Stacked stories — one segment per floor, grows taller with floors
+      // Stacked stories — one segment per floor, grows taller with floors.
+      // Pseudo-3D: side face, roof cap, ground shadow; art extends above its square.
+      const H = artH ?? s;
       const stories = Math.min(Math.max(floors || 1, 1), 5);
-      const segH = (s * 0.82) / stories;
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.62, alignItems: "center" }}>
-            {Array.from({ length: stories }).map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  width: s * 0.62,
-                  height: segH,
-                  backgroundColor: i === 0 ? "#1E3A8A" : "#2748A8",
-                  borderTopWidth: i > 0 ? 1 : 0,
-                  borderTopColor: "#172554",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderTopLeftRadius: i === stories - 1 ? 4 : 0,
-                  borderTopRightRadius: i === stories - 1 ? 4 : 0,
-                }}
-              >
-                <View style={{ flexDirection: "row" }}>
-                  {[0, 1, 2].map(j => (
-                    <View key={j} style={{ width: s * 0.1, height: segH * 0.4, backgroundColor: isLit(i, j) ? LIT : "#1E3A8A", marginHorizontal: s * 0.02, borderRadius: 1 }} />
-                  ))}
-                </View>
+      return tallBlock({
+        s, H, w: s * 0.62,
+        front: "#2748A8", side: "#1B3170", roof: "#172554",
+        lit: isLit, LIT,
+        rows: stories, cols: 3,
+        winW: s * 0.1, winH: Math.max(7, (H * 0.8) / stories * 0.4), gap: s * 0.04,
+        winOff: "#1E3A8A", topPad: H * 0.05,
+      });
+    }
+    case "department-store":
+      // Pseudo-3D: side face, striped awning roof, window grid, ground shadow.
+      return tallBlock({
+        s, H: artH ?? s, w: s * 0.95,
+        front: "#7C3AED", side: "#5B21B6", roof: "#4C1D95",
+        lit: isLit, LIT, rows: 2 + (lv >= 2 ? 1 : 0), cols: 3,
+        winW: s * 0.2, winH: s * 0.14, gap: s * 0.05, winOff: "#4C1D95",
+        extraTop: (
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "center", zIndex: 3 }}>
+            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.07, backgroundColor: i % 2 ? "#FFFFFF" : "#EF4444" }} />)}
+          </View>
+        ),
+      });
+    case "hotel":
+      // Pseudo-3D grand hotel: warm facade, sign, window grid, ground shadow.
+      return tallBlock({
+        s, H: artH ?? s, w: s * 0.7,
+        front: "#B45309", side: "#8A3F06", roof: "#78350F",
+        lit: isLit, LIT, rows: 3, cols: 2,
+        winW: s * 0.16, winH: s * 0.11, gap: s * 0.05, winOff: "#78350F",
+        extraTop: (
+          <View style={{ position: "absolute", top: s * 0.02, alignSelf: "center", width: s * 0.34, height: s * 0.15, backgroundColor: "#FEF3C7", borderRadius: 4, alignItems: "center", justifyContent: "center", zIndex: 3 }}>
+            <Text style={{ fontSize: s * 0.11, fontWeight: "800", color: "#92400E" }}>H</Text>
+          </View>
+        ),
+      });
+    case "office":
+      // Pseudo-3D glass office tower: blue facade, window grid, ground shadow.
+      return tallBlock({
+        s, H: artH ?? s, w: s * 0.65,
+        front: "#93C5FD", side: "#5B8BD0", roof: "#1E40AF",
+        lit: isLit, LIT, rows: 4, cols: 2,
+        winW: s * 0.2, winH: s * 0.08, gap: s * 0.04, winOff: "#1E40AF",
+      });
+    case "apartments": {
+      // Two residential blocks, side by side, pseudo-3D.
+      const H = artH ?? s;
+      const mk = (bh: number, front: string, side: string, seed: number) => {
+        const w = s * 0.4;
+        const sideW = Math.max(4, w * 0.12);
+        return (
+          <View style={{ width: w, height: bh, marginHorizontal: s * 0.02 }}>
+            <View style={{ position: "absolute", top: 0, left: -2, width: w + 4, height: Math.max(5, H * 0.04), backgroundColor: "#713F12", borderRadius: 3, zIndex: 2 }} />
+            <View style={{ flex: 1, flexDirection: "row", paddingTop: Math.max(5, H * 0.04) + 2 }}>
+              <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 4, overflow: "hidden", alignItems: "center", paddingTop: H * 0.03 }}>
+                {[0, 1, 2].map(r => (
+                  <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.018 }}>
+                    {[0, 1].map(j => <View key={j} style={{ width: s * 0.1, height: s * 0.08, backgroundColor: isLit(r + seed, j) ? LIT : "#713F12", marginHorizontal: 2, borderRadius: 1, opacity: isLit(r + seed, j) ? 1 : 0.6 }} />)}
+                  </View>
+                ))}
               </View>
-            ))}
-            <View style={{ width: s * 0.7, height: s * 0.07, backgroundColor: "#172554", borderRadius: 3, marginTop: 1 }} />
+              <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 4 }} />
+            </View>
+          </View>
+        );
+      };
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.92)}
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {mk(H * 0.9, "#A16207", "#7A4E05", 0)}
+            {mk(H * 0.74, "#CA8A04", "#9A6A03", 3)}
           </View>
         </View>
       );
     }
-    case "department-store":
+    case "city-market": {
+      // Striped awning, stall windows, door — pseudo-3D with side face and shadow.
+      const H = artH ?? s;
+      const w = s * 0.95;
+      const sideW = Math.max(5, w * 0.1);
+      const bodyH = H * 0.82;
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.08, backgroundColor: i % 2 ? "#FFFFFF" : "#EF4444" }} />)}
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.05)}
+          {/* awning */}
+          <View style={{ flexDirection: "row", zIndex: 2 }}>
+            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.09, backgroundColor: i % 2 ? "#FFFFFF" : "#16A34A" }} />)}
           </View>
-          <View style={{ width: s * 0.95, height: s * 0.72, backgroundColor: "#7C3AED", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
-            {[0, 1].map(r => (
-              <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.03 }}>
-                {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: isLit(r, i) ? LIT : "#4C1D95", marginHorizontal: 4, borderRadius: 2 }} />)}
+          <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
+            <View style={{ flex: 1, backgroundColor: "#15803D", borderBottomLeftRadius: 5, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row" }}>
+                {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: isLit(0, i) ? LIT : "#14532D", marginHorizontal: 4, borderRadius: 2, opacity: isLit(0, i) ? 1 : 0.7 }} />)}
               </View>
-            ))}
-          </View>
-        </View>
-      );
-    case "hotel":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.7, height: s * 0.82, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center", paddingTop: s * 0.06 }}>
-            <View style={{ width: s * 0.34, height: s * 0.16, backgroundColor: "#FEF3C7", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: s * 0.12, fontWeight: "800", color: "#92400E" }}>H</Text>
+              <View style={{ width: s * 0.18, height: s * 0.22, backgroundColor: "#052E16", borderRadius: 3, marginTop: s * 0.04 }} />
             </View>
-            {[0, 1, 2].map(r => (
-              <View key={r} style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-                {[0, 1].map(i => <View key={i} style={{ width: s * 0.16, height: s * 0.12, backgroundColor: isLit(r, i) ? LIT : "#78350F", marginHorizontal: 4, borderRadius: 2 }} />)}
-              </View>
-            ))}
+            <View style={{ width: sideW, backgroundColor: "#0E6B32", borderBottomRightRadius: 5 }} />
           </View>
         </View>
       );
-    case "office":
+    }
+    case "theater": {
+      // Marquee with lights, curtain doors — pseudo-3D with side face and shadow.
+      const H = artH ?? s;
+      const w = s * 0.85;
+      const sideW = Math.max(5, w * 0.1);
+      const bodyH = H * 0.78;
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.65, height: s * 0.88, backgroundColor: "#93C5FD", borderRadius: 4, alignItems: "center", paddingTop: s * 0.05 }}>
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
-                {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: isLit(i, j) ? LIT : "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
-              </View>
-            ))}
-          </View>
-        </View>
-      );
-    case "apartments":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-            {/* Two residential blocks */}
-            {[0, 1].map(b => (
-              <View key={b} style={{ width: s * 0.4, height: s * (b === 0 ? 0.78 : 0.62), backgroundColor: b === 0 ? "#A16207" : "#CA8A04", borderRadius: 4, alignItems: "center", paddingTop: s * 0.05, marginHorizontal: s * 0.02 }}>
-                {[0, 1, 2].map(r => (
-                  <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
-                    {[0, 1].map(j => <View key={j} style={{ width: s * 0.11, height: s * 0.09, backgroundColor: isLit(r + b * 3, j) ? LIT : "#713F12", marginHorizontal: 2, borderRadius: 1 }} />)}
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
-        </View>
-      );
-    case "city-market":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {/* Striped awning */}
-          <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#16A34A" }} />)}
-          </View>
-          <View style={{ width: s * 0.95, height: s * 0.62, backgroundColor: "#15803D", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
-            {/* Stall windows */}
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.08)}
+          {/* marquee */}
+          <View style={{ width: s * 0.8, height: Math.max(14, H * 0.12), backgroundColor: "#FDE68A", borderRadius: 4, borderWidth: 2, borderColor: "#B45309", alignItems: "center", justifyContent: "center", marginBottom: 2, zIndex: 2 }}>
             <View style={{ flexDirection: "row" }}>
-              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.2, backgroundColor: isLit(0, i) ? LIT : "#14532D", marginHorizontal: 4, borderRadius: 2 }} />)}
+              {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: isLit(0, i) ? LIT : "#92400E", marginHorizontal: 2 }} />)}
             </View>
-            {/* Door */}
-            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#052E16", borderRadius: 3, marginTop: s * 0.04 }} />
+          </View>
+          <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
+            <View style={{ flex: 1, backgroundColor: "#7C2D12", borderBottomLeftRadius: 5, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.05 }}>
+              <View style={{ flexDirection: "row" }}>
+                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginLeft: 3 }} />
+              </View>
+            </View>
+            <View style={{ width: sideW, backgroundColor: "#5F220D", borderBottomRightRadius: 5 }} />
           </View>
         </View>
       );
-    case "theater":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {/* Marquee */}
-          <View style={{ width: s * 0.8, height: s * 0.14, backgroundColor: "#FDE68A", borderRadius: 4, borderWidth: 2, borderColor: "#B45309", alignItems: "center", justifyContent: "center", marginBottom: 2 }}>
-            <View style={{ flexDirection: "row" }}>
-              {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.06, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: isLit(0, i) ? LIT : "#92400E", marginHorizontal: 2 }} />)}
-            </View>
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#7C2D12", borderRadius: 5, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
-            {/* Curtain doors */}
-            <View style={{ flexDirection: "row" }}>
-              <View style={{ width: s * 0.3, height: s * 0.4, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
-              <View style={{ width: s * 0.3, height: s * 0.4, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginLeft: 3 }} />
-            </View>
-          </View>
-        </View>
-      );
+    }
     case "food-court":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
@@ -761,17 +921,6 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
               <Text style={{ fontSize: s * 0.16, color: "#FFFFFF", fontWeight: "700" }}>A+</Text>
             </View>
           </View>
-        </View>
-      );
-    case "chapel":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.7, height: s * 0.55, backgroundColor: "#F8FAFC", borderRadius: 5, borderWidth: 2, borderColor: "#CBD5E1", alignItems: "center", paddingTop: s * 0.06 }}>
-            <View style={{ width: s * 0.08, height: s * 0.22, backgroundColor: "#B45309", borderRadius: 2 }} />
-            <View style={{ position: "absolute", top: s * 0.1, width: s * 0.2, height: s * 0.07, backgroundColor: "#B45309", borderRadius: 2 }} />
-            <View style={{ width: s * 0.3, height: s * 0.18, backgroundColor: "#BFDBFE", borderRadius: 8, marginTop: s * 0.04 }} />
-          </View>
-          <View style={{ width: s * 0.8, height: s * 0.08, backgroundColor: "#94A3B8", borderRadius: 3, marginTop: 1 }} />
         </View>
       );
     case "pizza-place":
@@ -2983,9 +3132,17 @@ export default function HometownScreen() {
               <TreeOfLife cellSize={cellSize} timeOfDay={timeOfDay} onPress={() => setTreeModalVisible(true)} />
             </>
           )}
+          {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
+              all interleave by Y. A tall building's art extends above its square;
+              villagers walking behind it (north, lower Y) draw first so the
+              building overlaps them — true 2.5D. Tap targets stay on the grid. */}
+          <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+            const baseSize = Math.min(fp.w, fp.h) * cellSize * 0.85;
+            // Pseudo-3D: tall buildings extend their art above their square.
+            const extraPx = tallArtExtraCells(b.type, b.level || 1, b.floors || 1) * cellSize;
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -2993,14 +3150,16 @@ export default function HometownScreen() {
                 style={{
                   position: "absolute",
                   left: b.x * cellSize,
-                  top: b.y * cellSize,
+                  top: b.y * cellSize - extraPx,
                   width: fp.w * cellSize,
-                  height: fp.h * cellSize,
+                  height: fp.h * cellSize + extraPx,
                   alignItems: "center",
                   justifyContent: "center",
+                  // Depth anchor: the building's feet (base of footprint).
+                  zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <BuildingArt type={b.type} size={Math.min(fp.w, fp.h) * cellSize * 0.85} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
+                <BuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
                 {/* L3 city towers glow with activity */}
                 {(b.level || 1) >= 3 && !!b.plotId && (
                   <View
@@ -3062,6 +3221,7 @@ export default function HometownScreen() {
                 backgroundColor: "rgba(156, 163, 175, 0.08)",
                 alignItems: "center",
                 justifyContent: "center",
+                zIndex: Math.round((plot.y + 2) * cellSize),
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
@@ -3094,6 +3254,7 @@ export default function HometownScreen() {
                 shadowRadius: 10,
                 shadowOffset: { width: 0, height: 0 },
                 padding: 2,
+                zIndex: Math.round((lot.y + lot.h) * cellSize),
               }}
             >
               {isSmall ? (
@@ -3116,21 +3277,25 @@ export default function HometownScreen() {
             </View>
             );
           })}
-          {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
+          {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
+              bare: entities render directly in the depth layer so villagers walk
+              BEHIND tall buildings (zIndex by Y). */}
+          <TownNPCs mapState={map} cellSize={cellSize} bare onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
             const pid = String(p.id);
             const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
             if (vm) setVillagerMissionModal(vm);
             else setPrayerVillagerInfo(p);
           }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} />
-          {/* City life: plot workers + commuters from town */}
+          {/* City life: plot workers + commuters from town (depth-sorted, bare) */}
           {activeMap === "city" && (
             <>
               <CityTraffic
+                bare
                 cellSize={cellSize}
                 carCount={Math.min(6, Math.max(0, town.maps.town.buildings.filter((b) => b.type === "house").length))}
               />
               <CityNPCs
+                bare
                 mapState={map}
                 cellSize={cellSize}
                 hometownNpcCount={countHometownNpcs(prayedToday)}
@@ -3138,6 +3303,9 @@ export default function HometownScreen() {
               />
             </>
           )}
+          {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
+          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} />}
+          </View>
           {/* Coins/XP overlay - only collectibles capture touches */}
           {map.buildings.map((b) => {
             const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));

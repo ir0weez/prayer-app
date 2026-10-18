@@ -955,6 +955,8 @@ export default function HometownScreen() {
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [popupBuilding, setPopupBuilding] = useState<PlacedBuilding | null>(null);
+  // Lot purchase modal — replaces Alert (Android Alert caps at ~3 buttons, hiding restaurants)
+  const [purchaseLot, setPurchaseLot] = useState<TownLot | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -1495,47 +1497,43 @@ export default function HometownScreen() {
 
   /** Purchase a town neighborhood lot (creates the L1 building). Lot + building paid together. */
   const handleTownLotPress = (lot: TownLot) => {
-    const options = lot.allowedTypes
-      .filter((type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town"))
-      .map((type) => {
-        const def = BUILDINGS[type];
-        const total = lot.cost + def.cost;
-        return {
-          text: `${def.name} — 🪙${total}`,
-          onPress: () => {
-            if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
-              Alert.alert("Already built", "You already have a pawn house!");
-              return;
-            }
-            if (coinsRef.current.balance < total) {
-              Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${Math.floor(coins.balance)}.`);
-              return;
-            }
-            const now = new Date().toISOString();
-            const building: PlacedBuilding = {
-              id: `townlot-${lot.id}-${Date.now()}`,
-              type,
-              x: lot.x,
-              y: lot.y,
-              level: 1,
-              townLotId: lot.id,
-              lastTick: now,
-              accumulated: 0,
-            };
-            saveMap({ ...map, buildings: [...map.buildings, building] });
-            addCoins(-total);
-          },
-        };
-      });
-    if (options.length === 0) {
+    const availableCount = lot.allowedTypes.filter(
+      (type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town")
+    ).length;
+    if (availableCount === 0) {
       Alert.alert("Locked", "No buildings available for this lot yet. Keep growing your fast streak!");
       return;
     }
-    Alert.alert(
-      `${lot.name} — FOR SALE`,
-      `Purchase this lot for ${lot.cost} coins and choose what to build.\n\nLot buildings have a fixed home here — they can't be moved or sold, only upgraded.`,
-      [{ text: "Cancel", style: "cancel" }, ...options]
-    );
+    // Open the purchase modal (Alert truncates buttons on Android, hiding restaurants)
+    setPurchaseLot(lot);
+  };
+
+  /** Actually build on a purchased town lot. Lot + building paid together. */
+  const purchaseOnLot = (lot: TownLot, type: BuildingType) => {
+    const def = BUILDINGS[type];
+    const total = lot.cost + def.cost;
+    if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
+      Alert.alert("Already built", "You already have a pawn house!");
+      return;
+    }
+    if (coinsRef.current.balance < total) {
+      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${Math.floor(coins.balance)}.`);
+      return;
+    }
+    const now = new Date().toISOString();
+    const building: PlacedBuilding = {
+      id: `townlot-${lot.id}-${Date.now()}`,
+      type,
+      x: lot.x,
+      y: lot.y,
+      level: 1,
+      townLotId: lot.id,
+      lastTick: now,
+      accumulated: 0,
+    };
+    saveMap({ ...map, buildings: [...map.buildings, building] });
+    addCoins(-total);
+    setPurchaseLot(null);
   };
 
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
@@ -2731,6 +2729,95 @@ export default function HometownScreen() {
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Close</Text>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Lot purchase modal — shows ALL allowed building types (Alert hid restaurants on Android) */}
+      <Modal
+        visible={purchaseLot !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPurchaseLot(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setPurchaseLot(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "85%" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const lot = purchaseLot;
+              if (!lot) return null;
+              const available = lot.allowedTypes.filter(
+                (type) => tier >= BUILDINGS[type].tier && BUILDINGS[type].maps.includes("town")
+              );
+              const groups: { title: string; types: BuildingType[] }[] = [
+                { title: "Food & Drink", types: ["pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner", "bakery"] },
+                { title: "Shops", types: ["shop", "market", "clothes-shop", "armory", "weaponsmith", "toolshop"] },
+                { title: "Services", types: ["bank", "barbershop"] },
+                { title: "Special", types: ["church", "pawn-house", "farm", "house"] },
+              ];
+              return (
+                <>
+                  <Text style={{ fontSize: 18, fontWeight: "800", color: pt.text, textAlign: "center" }}>
+                    {lot.name} — FOR SALE
+                  </Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
+                    Purchase this lot for {lot.cost} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
+                  </Text>
+                  <ScrollView style={{ maxHeight: 420 }}>
+                    {groups.map((g) => {
+                      const items = g.types.filter((t) => available.includes(t));
+                      if (items.length === 0) return null;
+                      return (
+                        <View key={g.title} style={{ marginBottom: 12 }}>
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: pt.subtext, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+                            {g.title}
+                          </Text>
+                          {items.map((type) => {
+                            const def = BUILDINGS[type];
+                            const total = lot.cost + def.cost;
+                            const affordable = coinsRef.current.balance >= total;
+                            return (
+                              <Pressable
+                                key={type}
+                                onPress={() => purchaseOnLot(lot, type)}
+                                style={({ pressed }) => [{
+                                  flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 12,
+                                  borderRadius: 12, marginBottom: 6,
+                                  backgroundColor: pressed ? pt.border + "40" : pt.bg,
+                                  borderWidth: 1, borderColor: pt.border, opacity: affordable ? 1 : 0.55,
+                                }]}
+                              >
+                                <Text style={{ fontSize: 28, marginRight: 12 }}>{def.icon}</Text>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 15, fontWeight: "700", color: pt.text }}>{def.name}</Text>
+                                  <Text style={{ fontSize: 12, color: pt.subtext }}>
+                                    {def.incomePerDay > 0 ? `+${def.incomePerDay}/day` : def.xpPerDay > 0 ? `+${def.xpPerDay} XP/day` : def.description}
+                                  </Text>
+                                </View>
+                                <Text style={{ fontSize: 15, fontWeight: "800", color: affordable ? "#B8860B" : "#EF4444" }}>
+                                  🪙{total}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                  <Pressable
+                    onPress={() => setPurchaseLot(null)}
+                    style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, alignItems: "center", backgroundColor: pt.border }}
+                  >
+                    <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>Cancel</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
           </Pressable>
         </Pressable>
       </Modal>

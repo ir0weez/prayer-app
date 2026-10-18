@@ -14,6 +14,7 @@ export const RESTAURANT_INTERIOR_TYPES: BuildingType[] = [
   "sushi-bar",
   "diner",
   "upper-room",
+  "banquet-table",
   "manna-house",
   "feast-hall",
 ];

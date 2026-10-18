@@ -39,6 +39,9 @@ export type ScheduleActivity = {
   withVillagers: boolean;
   /** The schedule item's title (for labels). */
   title: string;
+  /** The schedule item's notes (Jonathan's convention: title is the TYPE,
+   *  notes hold the specifics — e.g. title "Movie", notes "scary horror flick"). */
+  notes?: string;
   /** When the event ends (ms epoch) — visits are pinned until then. */
   endsAtMs: number;
 };
@@ -106,6 +109,7 @@ function matchKind(title: string): { kind: ScheduleActivityKind; withVillagers: 
 
 type TimedItem = {
   title: string;
+  notes: string;
   startMin: number;
   endMin: number;
   ministry: boolean;
@@ -134,7 +138,7 @@ export async function getActiveScheduleActivity(
             const start = minutesOf(e.startTime);
             if (start === null) continue; // no time = can't place on the timeline
             const end = minutesOf(e.endTime) ?? start + 60;
-            items.push({ title: e.title || "", startMin: start, endMin: end, ministry: false });
+            items.push({ title: e.title || "", notes: (e as any).notes || "", startMin: start, endMin: end, ministry: false });
           }
         }
       } catch {}
@@ -149,7 +153,7 @@ export async function getActiveScheduleActivity(
             const start = minutesOf(m.startTime);
             if (start === null) continue;
             const end = minutesOf(m.endTime) ?? start + 60;
-            items.push({ title: m.title || "", startMin: start, endMin: end, ministry: true });
+            items.push({ title: m.title || "", notes: (m as any).notes || "", startMin: start, endMin: end, ministry: true });
           }
         }
       } catch {}
@@ -166,13 +170,13 @@ export async function getActiveScheduleActivity(
       if (item.ministry) {
         const end = new Date(now);
         end.setHours(Math.floor(item.endMin / 60), item.endMin % 60, 0, 0);
-        return { kind: "church", withVillagers: true, title: item.title, endsAtMs: end.getTime() };
+        return { kind: "church", withVillagers: true, title: item.title, notes: item.notes, endsAtMs: end.getTime() };
       }
       const matched = matchKind(item.title);
       if (matched) {
         const end = new Date(now);
         end.setHours(Math.floor(item.endMin / 60), item.endMin % 60, 0, 0);
-        return { ...matched, title: item.title, endsAtMs: end.getTime() };
+        return { ...matched, title: item.title, notes: item.notes, endsAtMs: end.getTime() };
       }
     }
     return null;
@@ -216,4 +220,55 @@ export function resolveScheduleTarget(
   // Sanity: the type must exist in the building catalog.
   if (!BUILDINGS[b.type as BuildingType]) return null;
   return { tile: centerTile(b), buildingId: b.id, type: b.type };
+}
+
+/** What kind of ministry is happening, from the event title. Drives the church interior scene. */
+export type MinistryActivityKind =
+  | "bible-study"
+  | "prayer"
+  | "worship"
+  | "small-group"
+  | "serve"
+  | "general";
+
+export function ministryActivityForTitle(title: string): MinistryActivityKind {
+  const t = (title || "").toLowerCase();
+  if (/\b(bible study|bible|scripture study|study group)\b/.test(t)) return "bible-study";
+  if (/\b(prayer meeting|prayer|intercession|prayer walk)\b/.test(t)) return "prayer";
+  if (/\b(worship|praise|singing|choir|music night)\b/.test(t)) return "worship";
+  if (/\b(small group|youth group|life group|cell group|home group)\b/.test(t)) return "small-group";
+  if (/\b(serve|serving|volunteer|outreach|service project|mission trip|food drive|cleanup)\b/.test(t)) return "serve";
+  return "general";
+}
+
+/** Movie-night theme, from the event title AND notes. Jonathan's convention:
+ *  the title is the TYPE ("Movie", "TV Show") and the notes hold the specifics
+ *  ("scary horror flick"). Either can carry the theme keyword. Drives the
+ *  theater screen animation. */
+export type MovieThemeKind =
+  | "horror"
+  | "comedy"
+  | "action"
+  | "romance"
+  | "christmas"
+  | "western"
+  | "scifi"
+  | "musical"
+  | "kids"
+  | "drama"
+  | "generic";
+
+export function movieThemeForTitle(title: string, notes?: string): MovieThemeKind {
+  const t = `${title || ""} ${notes || ""}`.toLowerCase();
+  if (/\b(scary|horror|haunted|spooky|halloween|ghost|monster|vampire|zombie|creepy|fright)\b/.test(t)) return "horror";
+  if (/\b(comedy|funny|laugh|stand.?up|sitcom)\b/.test(t)) return "comedy";
+  if (/\b(action|adventure|superhero|marvel|spy|chase|battle|war movie|thriller)\b/.test(t)) return "action";
+  if (/\b(romance|romantic|romcom|rom-com|love story|date night|valentine)\b/.test(t)) return "romance";
+  if (/\b(christmas|xmas|holiday movie|elf movie|grinch|home alone)\b/.test(t)) return "christmas";
+  if (/\b(western|cowboy)\b/.test(t)) return "western";
+  if (/\b(sci.?fi|space|alien|star wars|star trek|robot|future)\b/.test(t)) return "scifi";
+  if (/\b(musical|concert|opera|band)\b/.test(t)) return "musical";
+  if (/\b(kids|family movie|cartoon|animated|disney|pixar)\b/.test(t)) return "kids";
+  if (/\b(drama|documentary|biopic|true story|oscar)\b/.test(t)) return "drama";
+  return "generic";
 }

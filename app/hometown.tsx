@@ -2971,12 +2971,11 @@ export default function HometownScreen() {
         onPress: () => router.push(`/restaurant-interior?buildingId=${b.id}`),
       });
     }
-    // Amphitheater: attend a show (30 min cooldown) — interactive, not just income.
+    // Amphitheater: enter the theater — the show plays inside, with the villagers watching.
     if (b.type === "amphitheater") {
-      const remaining = showMsRemaining(lastShowAt);
       enterActions.push({
-        text: remaining > 0 ? `Next show in ${formatCooldown(remaining)}` : "Attend a Show",
-        onPress: () => handleShowPress(b),
+        text: "Enter Theater",
+        onPress: () => router.push(`/theater-interior?buildingId=${b.id}`),
       });
     }
     if (level >= 3) {
@@ -3263,56 +3262,6 @@ export default function HometownScreen() {
   };
 
   /** Amphitheater: attend a show (30 min cooldown). */
-  const handleShowPress = (b: PlacedBuilding) => {
-    const level = Math.min(Math.max(b.level || 1, 1), 3);
-    const now = Date.now();
-    const remaining = showMsRemaining(lastShowAt, now);
-    const doUpgrade = () => {
-      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
-      if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
-        return;
-      }
-      addCoins(-cost);
-      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
-      saveMap({ ...map, buildings: updated });
-      Alert.alert("Amphitheater", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "The grand stage glows — braziers lit, banners flying." : "A bigger stage, more voices."}`);
-    };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
-    if (remaining > 0) {
-      Alert.alert(
-        "Amphitheater",
-        `The villagers are rehearsing — music drifts across the city.\n\nNext show in about ${formatCooldown(remaining)}.`,
-        [{ text: "OK" }, ...upgradeBtn]
-      );
-      return;
-    }
-    const coins = scaledCoins(SHOW_COINS[level] ?? 10);
-    const xp = scaledXP(SHOW_XP[level] ?? 15);
-    const levelBlurb = level >= 3
-      ? "The grand stage glows — music, stories, and light fill the night air."
-      : level >= 2
-        ? "A bigger stage, more voices — the whole city seems to lean in."
-        : "A simple stage, honest music. The villagers gather close.";
-    Alert.alert(
-      "Amphitheater",
-      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP.`,
-      [
-        ...upgradeBtn,
-        {
-          text: "Attend the show",
-          onPress: () => {
-            const t = Date.now();
-            setLastShowAt(t);
-            saveLastShow(t).catch(() => undefined);
-            addCoins(coins);
-            awardCustomXP(xp, `amphitheater-show-${t}`).catch(() => undefined);
-          },
-        },
-      ]
-    );
-  };
-
   /** Library: study session (1 hour cooldown). */
   const handleStudyPress = (b: PlacedBuilding) => {
     const level = Math.min(Math.max(b.level || 1, 1), 3);
@@ -3413,62 +3362,6 @@ export default function HometownScreen() {
     );
   };
 
-  /** Tap the hospital: checkup for a healing blessing (Dark Forest buff). */
-  const handleHospitalPress = (b: PlacedBuilding) => {
-    const level = b.level || 1;
-    const now = Date.now();
-    const remaining = checkupMsRemaining(lastCheckupAt, now);
-    const blessing = hospitalBlessingForLevel(level);
-    const doUpgrade = () => {
-      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
-      if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
-        return;
-      }
-      addCoins(-cost);
-      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
-      saveMap({ ...map, buildings: updated });
-      Alert.alert("Hospital", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A full healing center — the blessing grows stronger." : "More beds, brighter halls."}`);
-    };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)} coins)`, onPress: doUpgrade }] : [];
-    const levelBlurb = level >= 3
-      ? "A full healing center — bright halls, gentle hands."
-      : level >= 2
-        ? "A growing clinic — clean beds, kind nurses."
-        : "A small clinic — simple, clean, welcoming.";
-    if (remaining > 0) {
-      Alert.alert(
-        "Hospital",
-        `${levelBlurb}\n\nThe doctor says you're doing well. Come back for a checkup in about ${formatCooldown(remaining)}.`,
-        [{ text: "OK" }, ...upgradeBtn]
-      );
-      return;
-    }
-    Alert.alert(
-      "Hospital",
-      `${levelBlurb}\n\nGet a checkup? The Doctor's Blessing grants ${blessing.label}.`,
-      [
-        ...upgradeBtn,
-        { text: "Not now", style: "cancel" },
-        {
-          text: "Get checkup",
-          onPress: async () => {
-            const t = Date.now();
-            setLastCheckupAt(t);
-            await saveLastCheckup(t).catch(() => undefined);
-            await saveHospitalBuff({
-              hpMult: blessing.hpMult,
-              attackMult: blessing.attackMult,
-              grantedAt: new Date(t).toISOString(),
-              level,
-            });
-            Alert.alert("Doctor's Blessing", `The doctor smiles. "You're in fine shape."\n\n${blessing.label}.`);
-          },
-        },
-      ]
-    );
-  };
-
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
   const handleTownLotBuildingPress = (b: PlacedBuilding) => {
     // Enterable buildings route to their interiors first
@@ -3489,7 +3382,7 @@ export default function HometownScreen() {
       }
       return;
     } else if (b.type === "hospital") {
-      handleHospitalPress(b);
+      router.push(`/hospital-interior?buildingId=${b.id}`);
       return;
     } else if (b.type === "bank" || b.type === "bank-tower") {
       router.push(`/bank-interior?buildingId=${b.id}`);

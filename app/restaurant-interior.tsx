@@ -7,6 +7,8 @@ import {
   BUILDINGS,
   COINS_STORAGE_KEY,
   TOWN_STORAGE_KEY,
+  BANQUET_FELLOWSHIP_RATES,
+  BANQUET_GATHER_CAPS,
   isGatheringTime,
   parseCoins,
   parseTown,
@@ -22,6 +24,9 @@ import {
   type RestaurantInteriorState,
   type RestaurantSlot,
 } from "@/lib/restaurant-interior";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { PawnPreview } from "@/components/pawn-preview";
+import { FigureName, GentleBob } from "@/components/activity-figures";
 
 // ---------- palette: warm candlelit dining room ----------
 // Dark warm wood, amber candlelight, golden accents — an evening meal together.
@@ -66,6 +71,54 @@ function Bobbing({ children, delay = 0 }: { children: React.ReactNode; delay?: n
     >
       {children}
     </Animated.View>
+  );
+}
+
+// ---------- the player's pawn, seated and eating ----------
+// Sits at the head of the table — this is Jonathan's seat.
+function PawnDiner({ delay = 0 }: { delay?: number }) {
+  const [pawn, setPawn] = useState<CustomPawn | null>(null);
+  useEffect(() => {
+    loadCustomPawn().then((p) => p && setPawn(p)).catch(() => undefined);
+  }, []);
+  if (!pawn) return null;
+  return (
+    <GentleBob delay={delay} amount={2}>
+      <View style={{ alignItems: "center", marginHorizontal: 7 }}>
+        <FigureName name={pawn.name} />
+        {/* warm glow behind */}
+        <View
+          style={{
+            position: "absolute",
+            top: 8,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: FLAME,
+            opacity: 0.32,
+          }}
+        />
+        <View style={{ borderWidth: 2, borderColor: GOLD, borderRadius: 24, padding: 1, backgroundColor: "rgba(224,166,63,0.12)" }}>
+          <PawnPreview pawn={pawn} size={38} />
+        </View>
+        {/* plate in front */}
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 11,
+            backgroundColor: "#FFF9F0",
+            borderWidth: 1,
+            borderColor: "#D9C9A8",
+            marginTop: 2,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <MaterialIcons name="restaurant" size={11} color="#8B5E34" />
+        </View>
+      </View>
+    </GentleBob>
   );
 }
 
@@ -136,19 +189,22 @@ function DiningTable({
   diners,
   tablesTier,
   chairsTier,
+  pawnFirst = false,
 }: {
   diners: PrayedPerson[];
   tablesTier: number;
   chairsTier: number;
+  pawnFirst?: boolean;
 }) {
   const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
   const topColor = cloth || WOOD;
   return (
     <View style={{ alignItems: "center", marginVertical: 10 }}>
-      {/* seated diners (up to 4: two above, two below the table) */}
+      {/* seated diners (up to 4: two above, two below the table) — the pawn takes the head seat */}
       <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", minHeight: 52 }}>
-        {diners.slice(0, 2).map((p, i) => (
-          <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={i * 180} />
+        {pawnFirst && <PawnDiner delay={0} />}
+        {diners.slice(0, pawnFirst ? 1 : 2).map((p, i) => (
+          <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={(i + 1) * 180} />
         ))}
       </View>
       {/* round table top */}
@@ -286,6 +342,10 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
   const plateCount = Math.max(topRow.length, bottomRow.length, 2);
   return (
     <View style={{ alignItems: "center", marginVertical: 12, paddingHorizontal: 8 }}>
+      {/* the pawn at the head of the table */}
+      <View style={{ marginBottom: 2 }}>
+        <PawnDiner delay={0} />
+      </View>
       {/* top side diners */}
       <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", flexWrap: "wrap", minHeight: 64 }}>
         {topRow.map((p, i) => (
@@ -688,9 +748,13 @@ export default function RestaurantInteriorScreen() {
   const name = def?.name ?? "Restaurant";
 
   const gathering = isGatheringTime();
-  const isBanquet = building?.type === "feast-hall";
+  const isBanquet = building?.type === "feast-hall" || building?.type === "banquet-table";
+  const isMarriageSupper = building?.type === "banquet-table";
   // The Banquet Table seats everyone during the Gathering; a few linger otherwise.
-  const cap = isBanquet ? (gathering ? 24 : 6) : gathering ? 12 : 6;
+  // The Marriage Supper seats the whole town by level.
+  const cap = isMarriageSupper
+    ? BANQUET_GATHER_CAPS[Math.min(Math.max(building?.level || 1, 1), 3)] ?? 40
+    : isBanquet ? (gathering ? 24 : 6) : gathering ? 12 : 6;
   const diners = pickDiners(people, buildingId ?? "restaurant", cap);
   // 3 tables: diners split round-robin so tables fill evenly
   const tableDiners: PrayedPerson[][] = [[], [], []];
@@ -816,7 +880,7 @@ export default function RestaurantInteriorScreen() {
               <BanquetTable diners={diners} tablesTier={tablesTier} />
             ) : (
               tableDiners.map((group, i) => (
-                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} />
+                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} />
               ))
             )}
 
@@ -841,46 +905,75 @@ export default function RestaurantInteriorScreen() {
           </View>
         </View>
 
-        {/* interior bonus banner */}
-        <View
-          style={{
-            marginHorizontal: 16,
-            marginTop: 16,
-            borderRadius: 16,
-            backgroundColor: CARD,
-            borderWidth: 1,
-            borderColor: GOLD,
-            padding: 14,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          <MaterialIcons name="trending-up" size={26} color={GOLD} />
-          <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
-              Interior bonus: +{totalBonusPct}% income
-            </Text>
-            <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
-              Furnishing your restaurant draws more villagers — and more coins.
-            </Text>
+        {/* interior bonus banner — the Marriage Supper is a sacred green, not a business:
+            no furniture, but a richer fellowship blessing */}
+        {isMarriageSupper ? (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 16,
+              borderRadius: 16,
+              backgroundColor: CARD,
+              borderWidth: 1,
+              borderColor: GOLD,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <MaterialIcons name="favorite" size={26} color={GOLD} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
+                Fellowship blessing: +{(100 * (BANQUET_FELLOWSHIP_RATES[Math.min(Math.max(building?.level || 1, 1), 3)] ?? 0.012) * Math.min(diners.length, cap)).toFixed(1)}% income
+              </Text>
+              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+                {diners.length} {diners.length === 1 ? "villager" : "villagers"} gathered at the long table — the whole town breaks bread as one.
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 16,
+              borderRadius: 16,
+              backgroundColor: CARD,
+              borderWidth: 1,
+              borderColor: GOLD,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <MaterialIcons name="trending-up" size={26} color={GOLD} />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
+                Interior bonus: +{totalBonusPct}% income
+              </Text>
+              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+                Furnishing your restaurant draws more villagers — and more coins.
+              </Text>
+            </View>
+          </View>
+        )}
 
-        {/* furniture panel */}
-        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
-          <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 8 }}>
-            FURNISH THE DINING ROOM
-          </Text>
-          {RESTAURANT_SLOTS.map((slot) => (
-            <FurnitureRow
-              key={slot.id}
-              slot={slot}
-              tier={interior.furniture[slot.id] || 0}
-              affordable={(cost) => coinsRef.current.balance >= cost}
-              onBuy={handleBuy}
-            />
-          ))}
-        </View>
+        {/* furniture panel — not for the Marriage Supper */}
+        {!isMarriageSupper && (
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 8 }}>
+              FURNISH THE DINING ROOM
+            </Text>
+            {RESTAURANT_SLOTS.map((slot) => (
+              <FurnitureRow
+                key={slot.id}
+                slot={slot}
+                tier={interior.furniture[slot.id] || 0}
+                affordable={(cost) => coinsRef.current.balance >= cost}
+                onBuy={handleBuy}
+              />
+            ))}
+          </View>
+        )}
 
         {!loaded && (
           <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Setting the tables…</Text>

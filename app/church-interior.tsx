@@ -15,6 +15,17 @@ import {
   type PlacedBuilding,
   type PrayedPerson,
 } from "@/lib/hometown";
+import { getActiveScheduleActivity, ministryActivityForTitle, type MinistryActivityKind } from "@/lib/schedule-sync";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { PawnPreview } from "@/components/pawn-preview";
+import {
+  GentleBob,
+  KneelingFigure,
+  SingingFigure,
+  StudyCircles,
+  WorkingFigure,
+  pickPeople,
+} from "@/components/activity-figures";
 
 // ---------- palette: warm community church ----------
 // Bright morning light, honey wood, cream walls — a welcoming gathering place.
@@ -270,6 +281,167 @@ function ChairRow({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxS
   );
 }
 
+// ---------- pawn kneeling at the altar ----------
+function PawnKneeling({ pawn, size = 52 }: { pawn: CustomPawn | null; size?: number }) {
+  if (!pawn) return null;
+  return (
+    <GentleBob delay={100} amount={1.8}>
+      <View style={{ alignItems: "center", marginHorizontal: 8 }}>
+        <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFE9C4", marginBottom: 2 }}>{pawn.name.split(" ")[0]}</Text>
+        <View style={{ transform: [{ scaleY: 0.88 }] }}>
+          <PawnPreview pawn={pawn} size={size} />
+        </View>
+        {/* kneeling hint: low shadow */}
+        <View style={{ width: 40, height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.15)", marginTop: -4 }} />
+      </View>
+    </GentleBob>
+  );
+}
+
+// ---------- AT THE ALTAR: pawn + villagers praying ----------
+function AltarScene({ pawn, people }: { pawn: CustomPawn | null; people: PrayedPerson[] }) {
+  const kneelers = pickPeople(people, "church-altar", 3);
+  if (!pawn && kneelers.length === 0) return null;
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 4 }}>
+      <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
+        AT THE ALTAR
+      </Text>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", flexWrap: "wrap" }}>
+        {kneelers.slice(0, 1).map((p) => <KneelingFigure key={p.id} person={p} delay={150} showLabel />)}
+        <PawnKneeling pawn={pawn} />
+        {kneelers.slice(1).map((p, i) => <KneelingFigure key={p.id} person={p} delay={300 + i * 150} showLabel />)}
+      </View>
+      <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic", textAlign: "center", marginTop: 4 }}>
+        Bowed in prayer before the cross.
+      </Text>
+    </View>
+  );
+}
+
+// ---------- PRAYER MEETING: the whole congregation kneeling ----------
+function PrayerScene({ pawn, people }: { pawn: CustomPawn | null; people: PrayedPerson[] }) {
+  const shown = people.slice(0, 18);
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+      <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
+        PRAYER MEETING
+      </Text>
+      <View style={{ alignItems: "center", marginBottom: 6 }}>
+        <PawnKneeling pawn={pawn} size={56} />
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", flexWrap: "wrap" }}>
+        {shown.map((p, i) => <KneelingFigure key={p.id} person={p} delay={i * 110} />)}
+      </View>
+      <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic", textAlign: "center", marginTop: 6 }}>
+        Every head bowed, every heart lifted.
+      </Text>
+    </View>
+  );
+}
+
+// ---------- WORSHIP: singing together ----------
+function WorshipScene({ pawn, people }: { pawn: CustomPawn | null; people: PrayedPerson[] }) {
+  const shown = people.slice(0, 15);
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+      <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
+        WORSHIP
+      </Text>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", flexWrap: "wrap" }}>
+        {shown.slice(0, 4).map((p, i) => <SingingFigure key={p.id} person={p} delay={i * 130} />)}
+        {pawn && (
+          <GentleBob delay={200} amount={3}>
+            <View style={{ alignItems: "center", marginHorizontal: 8 }}>
+              <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFE9C4", marginBottom: 2 }}>{pawn.name.split(" ")[0]}</Text>
+              <MaterialIcons name="music-note" size={16} color="#E0A63F" style={{ marginBottom: 0 }} />
+              <PawnPreview pawn={pawn} size={52} />
+            </View>
+          </GentleBob>
+        )}
+        {shown.slice(4).map((p, i) => <SingingFigure key={p.id} person={p} delay={(i + 4) * 130} />)}
+      </View>
+      <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic", textAlign: "center", marginTop: 6 }}>
+        Voices raised as one.
+      </Text>
+    </View>
+  );
+}
+
+// ---------- BIBLE STUDY / SMALL GROUP: discussion circles ----------
+function BibleStudyScene({
+  pawn,
+  people,
+  maxPerCircle,
+  title,
+  blurb,
+}: {
+  pawn: CustomPawn | null;
+  people: PrayedPerson[];
+  maxPerCircle: number;
+  title: string;
+  blurb: string;
+}) {
+  const shown = people.slice(0, 24);
+  return (
+    <View style={{ paddingHorizontal: 8, marginBottom: 8 }}>
+      <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4, paddingHorizontal: 8 }}>
+        {title}
+      </Text>
+      {/* the pawn studies in the first circle */}
+      {pawn && (
+        <View style={{ alignItems: "center", marginBottom: -4 }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            <GentleBob delay={100}>
+              <View style={{ alignItems: "center", marginHorizontal: 6 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFE9C4", marginBottom: 2 }}>{pawn.name.split(" ")[0]}</Text>
+                <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: GOLD, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(224,166,63,0.10)" }}>
+                  <PawnPreview pawn={pawn} size={40} />
+                </View>
+                <MaterialIcons name="menu-book" size={14} color={GOLD} style={{ marginTop: 1 }} />
+              </View>
+            </GentleBob>
+          </View>
+        </View>
+      )}
+      <StudyCircles people={shown} maxPerCircle={maxPerCircle} />
+      <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic", textAlign: "center", marginTop: 2 }}>
+        {blurb}
+      </Text>
+    </View>
+  );
+}
+
+// ---------- SERVE: working together ----------
+function ServeScene({ people }: { people: PrayedPerson[] }) {
+  const shown = people.slice(0, 12);
+  const icons = ["handyman", "cleaning-services", "volunteer-activism", "inventory", "construction", "local-shipping"];
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+      <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
+        SERVE PROJECT
+      </Text>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", flexWrap: "wrap" }}>
+        {shown.map((p, i) => (
+          <WorkingFigure key={p.id} person={p} delay={i * 120} icon={icons[i % icons.length]} showLabel={i < 4} />
+        ))}
+      </View>
+      <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic", textAlign: "center", marginTop: 6 }}>
+        Hands and feet, working side by side.
+      </Text>
+    </View>
+  );
+}
+
+const MINISTRY_TITLES: Record<MinistryActivityKind, string> = {
+  "bible-study": "BIBLE STUDY",
+  prayer: "PRAYER MEETING",
+  worship: "WORSHIP",
+  "small-group": "SMALL GROUP",
+  serve: "SERVE PROJECT",
+  general: "GATHERED TOGETHER",
+};
+
 // ---------- main screen ----------
 export default function ChurchInteriorScreen() {
   const router = useRouter();
@@ -277,6 +449,8 @@ export default function ChurchInteriorScreen() {
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [building, setBuilding] = useState<PlacedBuilding | null>(null);
   const [people, setPeople] = useState<FullPerson[]>([]);
+  const [pawn, setPawn] = useState<CustomPawn | null>(null);
+  const [ministry, setMinistry] = useState<{ kind: MinistryActivityKind; title: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -321,6 +495,16 @@ export default function ChurchInteriorScreen() {
         // prayed first, then the rest
         all.sort((a, b) => (a.prayed === b.prayed ? 0 : a.prayed ? -1 : 1));
         setPeople(all);
+        // the player's pawn, for the altar / ministry scenes
+        loadCustomPawn().then((p) => p && setPawn(p)).catch(() => undefined);
+        // is a ministry event happening right now? The scene adapts to it.
+        getActiveScheduleActivity()
+          .then((act) => {
+            if (act && act.kind === "church") {
+              setMinistry({ kind: ministryActivityForTitle(act.title), title: act.title });
+            }
+          })
+          .catch(() => undefined);
       } catch {}
       setLoaded(true);
     })();
@@ -484,19 +668,71 @@ export default function ChurchInteriorScreen() {
           </Text>
         </View>
 
-        {/* gathering */}
-        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
-          <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
-            GATHERED TOGETHER
-          </Text>
-          {prayed.length === 0 ? (
-            <Text style={{ color: TEXT_DIM, fontSize: 13, fontStyle: "italic", marginVertical: 12 }}>
-              The chairs are empty. Pray for someone today and they'll take a seat.
-            </Text>
-          ) : (
-            rows.map((occ, i) => <ChairRow key={i} occupants={occ} />)
-          )}
-        </View>
+        {/* ministry happening now? the room adapts to it */}
+        {ministry && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderRadius: 16,
+              backgroundColor: "#FFF3DC",
+              borderWidth: 1,
+              borderColor: GOLD,
+              padding: 12,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <MaterialIcons name="event" size={22} color={GOLD} />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 14 }}>{MINISTRY_TITLES[ministry.kind]} in session</Text>
+              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 1 }}>"{ministry.title}" — the room is set for it.</Text>
+            </View>
+          </View>
+        )}
+
+        {ministry?.kind === "bible-study" ? (
+          <BibleStudyScene
+            pawn={pawn}
+            people={prayed}
+            maxPerCircle={6}
+            title="BIBLE STUDY"
+            blurb="Circles of open Bibles — everyone has a seat at the Word."
+          />
+        ) : ministry?.kind === "small-group" ? (
+          <BibleStudyScene
+            pawn={pawn}
+            people={prayed}
+            maxPerCircle={4}
+            title="SMALL GROUP"
+            blurb="Small circles, close friends, honest conversation."
+          />
+        ) : ministry?.kind === "prayer" ? (
+          <PrayerScene pawn={pawn} people={prayed} />
+        ) : ministry?.kind === "worship" ? (
+          <WorshipScene pawn={pawn} people={prayed} />
+        ) : ministry?.kind === "serve" ? (
+          <ServeScene people={prayed} />
+        ) : (
+          <>
+            {/* the pawn and villagers at prayer before the service */}
+            <AltarScene pawn={pawn} people={prayed} />
+
+            {/* gathering */}
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+              <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
+                GATHERED TOGETHER
+              </Text>
+              {prayed.length === 0 ? (
+                <Text style={{ color: TEXT_DIM, fontSize: 13, fontStyle: "italic", marginVertical: 12 }}>
+                  The chairs are empty. Pray for someone today and they'll take a seat.
+                </Text>
+              ) : (
+                rows.map((occ, i) => <ChairRow key={i} occupants={occ} />)
+              )}
+            </View>
+          </>
+        )}
 
         {/* candle wall */}
         <View style={{ paddingHorizontal: 16, marginTop: 12 }}>

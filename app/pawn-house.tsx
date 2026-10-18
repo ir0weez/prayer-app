@@ -35,6 +35,8 @@ import { RoomFurnitureArt, type RoomPieceId } from "@/components/room-furniture-
 import { PawnPreview } from "@/components/pawn-preview";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
+import { prayedTodayPeople, type PrayedPerson } from "@/lib/hometown";
+import { SeatedFigure, StandingFigure, SwimmingFigure, WorkingFigure, pickPeople } from "@/components/activity-figures";
 
 /**
  * The player's pawn, shown using the room's furniture.
@@ -129,6 +131,63 @@ function PawnInRoom({
   );
 }
 
+/**
+ * Villagers enjoying the backyard: swimming in the pool, tending the BBQ,
+ * lounging on the patio. Only shows where the furniture is actually built.
+ */
+function VillagersInBackyard({
+  visitors,
+  furniture,
+  roomViewWidth,
+  roomViewHeight,
+}: {
+  visitors: PrayedPerson[];
+  furniture: Record<string, number>;
+  roomViewWidth: number;
+  roomViewHeight: number;
+}) {
+  if (visitors.length === 0) return null;
+  const at = (fx: number, fy: number) => ({
+    position: "absolute" as const,
+    left: fx * roomViewWidth - 24,
+    top: fy * roomViewHeight - 24,
+    zIndex: 4,
+  });
+  const swimmers = (furniture["pool"] || 0) > 0 ? pickPeople(visitors, "backyard-pool", 2) : [];
+  const grillers = (furniture["bbq"] || 0) > 0 ? pickPeople(visitors, "backyard-bbq", 2) : [];
+  const loungers = (furniture["patio"] || 0) > 0 ? pickPeople(visitors, "backyard-patio", 3) : [];
+  if (swimmers.length === 0 && grillers.length === 0 && loungers.length === 0) return null;
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+      {swimmers.map((p, i) => (
+        <View key={p.id} style={at(0.20 + i * 0.15, 0.56)}>
+          <SwimmingFigure person={p} delay={i * 400} />
+        </View>
+      ))}
+      {grillers.slice(0, 1).map((p) => (
+        <View key={p.id} style={at(0.80, 0.56)}>
+          <WorkingFigure person={p} delay={200} icon="outdoor-grill" iconColor="#F59E0B" />
+        </View>
+      ))}
+      {grillers.slice(1).map((p) => (
+        <View key={p.id} style={at(0.58, 0.70)}>
+          <StandingFigure person={p} delay={600} icon="restaurant" iconColor="#F59E0B" />
+        </View>
+      ))}
+      {loungers.slice(0, 2).map((p, i) => (
+        <View key={p.id} style={at(0.40 + i * 0.20, 0.82)}>
+          <SeatedFigure person={p} delay={i * 300} chairColor="#92400E" chairBorder="#7C2D12" />
+        </View>
+      ))}
+      {loungers.slice(2).map((p) => (
+        <View key={p.id} style={at(0.50, 0.92)}>
+          <StandingFigure person={p} delay={900} icon="local-drink" iconColor="#38BDF8" />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function FlickerFlame({ size = 14 }: { size?: number }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -216,6 +275,7 @@ export default function PawnHouseScreen() {
   const [candles, setCandles] = useState<CandlePerson[]>([]);
   const [trophies, setTrophies] = useState<Trophy[]>([]);
   const [garden, setGarden] = useState<GardenData>({ completed: 0, total: 0, fastName: "" });
+  const [visitors, setVisitors] = useState<PrayedPerson[]>([]);
   const [bonuses, setBonuses] = useState<HouseBonuses>(getCachedHouseBonuses());
 
   useEffect(() => {
@@ -257,6 +317,8 @@ export default function PawnHouseScreen() {
       setCandles(cd);
       setTrophies(tr);
       setGarden(gd);
+      // villagers who may be enjoying the backyard
+      prayedTodayPeople().then((pp) => setVisitors(pp)).catch(() => undefined);
     } catch {}
   }, []);
 
@@ -427,6 +489,15 @@ export default function PawnHouseScreen() {
       })}
       {/* the player's pawn, using the furniture */}
       <PawnInRoom roomId={roomId} room={room} roomViewWidth={roomViewWidth} roomViewHeight={roomViewHeight} />
+      {/* villagers enjoying the backyard */}
+      {roomId === "backyard" && (
+        <VillagersInBackyard
+          visitors={visitors}
+          furniture={room.furniture}
+          roomViewWidth={roomViewWidth}
+          roomViewHeight={roomViewHeight}
+        />
+      )}
     </View>
   );
 

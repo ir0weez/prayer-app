@@ -16,17 +16,19 @@ import {
   type PrayedPerson,
 } from "@/lib/hometown";
 
-// ---------- palette ----------
-const WOOD = "#6B4226";
-const WOOD_DARK = "#4A2E1A";
-const GOLD = "#D4A54C";
-const FLAME = "#FFB84D";
-const BG = "#17100C";
-const BG_SOFT = "#241812";
-const TEXT_DIM = "#B9A08A";
-
-// Stained-glass pane colors (jewel tones)
-const GLASS = ["#7C3AED", "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#EC4899"];
+// ---------- palette: warm community church ----------
+// Bright morning light, honey wood, cream walls — a welcoming gathering place.
+const BG = "#FFF9F0"; // warm cream walls
+const BG_SOFT = "#FDEFD8"; // warm peach cream (cards)
+const WOOD = "#C68B4E"; // honey wood
+const WOOD_DARK = "#8B5E34"; // darker warm wood
+const WOOD_PALE = "#E3C193"; // pale warm wood (chair seats)
+const GOLD = "#C9963C";
+const FLAME = "#FF9A3D";
+const TEXT = "#4A3826"; // warm dark brown
+const TEXT_DIM = "#8A7358"; // warm muted brown
+const SKY_TOP = "#FFE9B8"; // morning light at top of window
+const SKY_BOT = "#FFD18A"; // warm glow at bottom of window
 
 type FullPerson = PrayedPerson & { prayed: boolean };
 
@@ -55,7 +57,7 @@ function CandleFlame({ size = 14 }: { size?: number }) {
           height: size * 2.2,
           borderRadius: size * 1.1,
           backgroundColor: FLAME,
-          opacity: flick.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.32] }),
+          opacity: flick.interpolate({ inputRange: [0, 1], outputRange: [0.22, 0.38] }),
         }}
       />
       {/* flame */}
@@ -90,7 +92,7 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
               width: 5,
               height: 12,
               borderRadius: 2.5,
-              backgroundColor: "#5A4A3A",
+              backgroundColor: "#B09A7A",
             }}
           />
         )}
@@ -101,9 +103,9 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
           width: 16,
           height: 30,
           borderRadius: 4,
-          backgroundColor: person.prayed ? "#F5E6C8" : "#6E5B45",
+          backgroundColor: person.prayed ? "#FFF6E3" : "#C9B18C",
           borderWidth: 1,
-          borderColor: person.prayed ? GOLD : "#4A3D2E",
+          borderColor: person.prayed ? GOLD : "#A98F68",
           shadowColor: person.prayed ? FLAME : "transparent",
           shadowOpacity: person.prayed ? 0.7 : 0,
           shadowRadius: 8,
@@ -112,7 +114,7 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
       />
       <Text
         numberOfLines={1}
-        style={{ marginTop: 4, fontSize: 9, color: person.prayed ? "#F5E6C8" : TEXT_DIM, maxWidth: 52 }}
+        style={{ marginTop: 4, fontSize: 9, color: person.prayed ? TEXT : TEXT_DIM, maxWidth: 52 }}
       >
         {person.name.split(" ")[0]}
       </Text>
@@ -120,13 +122,12 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
   );
 }
 
-// ---------- stained-glass window ----------
-function StainedGlass({ index, wide = false }: { index: number; wide?: boolean }) {
+// ---------- simple warm window ----------
+// A plain arched window with morning light streaming in and a simple cross
+// mullion — warm and unadorned, not ornate stained glass.
+function WarmWindow({ wide = false }: { wide?: boolean }) {
   const w = wide ? 96 : 72;
   const h = wide ? 128 : 104;
-  // 3x4 diamond pane grid with jewel colors
-  const panes: string[] = [];
-  for (let i = 0; i < 12; i++) panes.push(GLASS[(index * 3 + i) % GLASS.length]);
   return (
     <View style={{ alignItems: "center" }}>
       <View
@@ -137,108 +138,134 @@ function StainedGlass({ index, wide = false }: { index: number; wide?: boolean }
           borderTopRightRadius: w / 2,
           borderBottomLeftRadius: 6,
           borderBottomRightRadius: 6,
-          backgroundColor: "#0D0A08",
+          backgroundColor: SKY_TOP,
           borderWidth: 4,
           borderColor: WOOD_DARK,
           overflow: "hidden",
-          padding: 3,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap" }}>
-          {panes.map((c, i) => (
-            <View
-              key={i}
-              style={{
-                width: "33.33%",
-                height: "25%",
-                backgroundColor: c,
-                opacity: 0.85,
-                borderWidth: 0.5,
-                borderColor: "#0D0A08",
-              }}
-            />
-          ))}
-        </View>
-        {/* center medallion */}
+        {/* warm glow at the bottom, like sunlight pooling */}
         <View
           style={{
             position: "absolute",
-            top: h * 0.32,
-            left: w / 2 - 13,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: h * 0.45,
+            backgroundColor: SKY_BOT,
+            opacity: 0.75,
+          }}
+        />
+        {/* simple cross mullion */}
+        <View style={{ position: "absolute", top: 8, bottom: 8, width: 4, backgroundColor: WOOD_DARK, borderRadius: 2 }} />
+        <View style={{ position: "absolute", left: 8, right: 8, top: h * 0.45, height: 4, backgroundColor: WOOD_DARK, borderRadius: 2 }} />
+        {/* sun disc */}
+        <View
+          style={{
             width: 26,
             height: 26,
             borderRadius: 13,
-            backgroundColor: GOLD,
+            backgroundColor: "#FFF3D0",
             borderWidth: 2,
-            borderColor: "#0D0A08",
+            borderColor: GOLD,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <MaterialIcons name="wb-sunny" size={14} color="#0D0A08" />
+          <MaterialIcons name="wb-sunny" size={14} color={GOLD} />
         </View>
       </View>
       {/* sill */}
-      <View style={{ width: w + 16, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK, marginTop: -2 }} />
+      <View style={{ width: w + 16, height: 8, borderRadius: 4, backgroundColor: WOOD, marginTop: -2 }} />
     </View>
   );
 }
 
-// ---------- pew with seated figures ----------
-function Pew({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxSeats?: number }) {
+// ---------- simple chair with seated figure ----------
+// Individual wooden chairs instead of formal pews — casual gathering.
+function ChairRow({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxSeats?: number }) {
   const shown = occupants.slice(0, maxSeats);
   return (
-    <View style={{ marginVertical: 8, alignItems: "center" }}>
-      {/* seat row */}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", minHeight: 44 }}>
-        {shown.map((p) => (
-          <View key={p.id} style={{ alignItems: "center", marginHorizontal: 5 }}>
-            {/* glow */}
+    <View style={{ marginVertical: 10, alignItems: "center" }}>
+      {shown.length === 0 ? (
+        <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic" }}>empty chairs</Text>
+      ) : (
+        <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
+          {shown.map((p) => (
+            <View key={p.id} style={{ alignItems: "center", marginHorizontal: 6 }}>
+              {/* warm glow */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: -8,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: FLAME,
+                  opacity: 0.22,
+                }}
+              />
+              {/* head */}
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: p.accentColor || "#C9A87A",
+                  borderWidth: 1.5,
+                  borderColor: GOLD,
+                }}
+              />
+              {/* shoulders */}
+              <View
+                style={{
+                  width: 30,
+                  height: 16,
+                  borderTopLeftRadius: 10,
+                  borderTopRightRadius: 10,
+                  backgroundColor: "#A9713F",
+                  marginTop: -4,
+                }}
+              />
+              {/* chair back */}
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: -2,
+                  width: 36,
+                  height: 26,
+                  borderRadius: 6,
+                  backgroundColor: WOOD_PALE,
+                  borderWidth: 2,
+                  borderColor: WOOD_DARK,
+                  zIndex: -1,
+                }}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+      {/* chair seats */}
+      {shown.length > 0 && (
+        <View style={{ flexDirection: "row", marginTop: 2 }}>
+          {shown.map((p) => (
             <View
+              key={p.id}
               style={{
-                position: "absolute",
-                top: -6,
                 width: 34,
-                height: 34,
-                borderRadius: 17,
-                backgroundColor: FLAME,
-                opacity: 0.25,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: WOOD,
+                marginHorizontal: 6,
+                borderWidth: 1,
+                borderColor: WOOD_DARK,
               }}
             />
-            {/* head */}
-            <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 10,
-                backgroundColor: p.accentColor || "#C9A87A",
-                borderWidth: 1.5,
-                borderColor: GOLD,
-              }}
-            />
-            {/* shoulders */}
-            <View
-              style={{
-                width: 30,
-                height: 16,
-                borderTopLeftRadius: 10,
-                borderTopRightRadius: 10,
-                backgroundColor: "#3E2C1E",
-                marginTop: -4,
-              }}
-            />
-          </View>
-        ))}
-        {shown.length === 0 && (
-          <Text style={{ color: TEXT_DIM, fontSize: 11, fontStyle: "italic" }}>empty pew</Text>
-        )}
-      </View>
-      {/* bench */}
-      <View style={{ width: "92%", height: 14, borderRadius: 7, backgroundColor: WOOD, marginTop: 2 }} />
-      <View style={{ flexDirection: "row", justifyContent: "space-between", width: "86%" }}>
-        <View style={{ width: 10, height: 12, backgroundColor: WOOD_DARK, borderRadius: 2 }} />
-        <View style={{ width: 10, height: 12, backgroundColor: WOOD_DARK, borderRadius: 2 }} />
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -304,9 +331,9 @@ export default function ChurchInteriorScreen() {
   const prayed = people.filter((p) => p.prayed);
   const candleBonusPerHour = prayed.length * CHURCH_PRAYER_COINS_PER_HOUR;
 
-  // distribute prayed-for contacts across 3 pews
-  const pews: PrayedPerson[][] = [[], [], []];
-  prayed.forEach((p, i) => pews[i % 3].push(p));
+  // distribute prayed-for contacts across 3 chair rows
+  const rows: PrayedPerson[][] = [[], [], []];
+  prayed.forEach((p, i) => rows[i % 3].push(p));
 
   const handleCandlePress = (person: FullPerson) => {
     if (person.prayed) {
@@ -337,10 +364,10 @@ export default function ChurchInteriorScreen() {
         }}
       >
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-          <MaterialIcons name="arrow-back" size={24} color="#F5E6C8" />
+          <MaterialIcons name="arrow-back" size={24} color={TEXT} />
         </Pressable>
         <MaterialIcons name="church" size={26} color={GOLD} style={{ marginLeft: 4 }} />
-        <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: "#F5E6C8" }}>{churchName}</Text>
+        <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: TEXT }}>{churchName}</Text>
         <View style={{ flex: 1 }} />
         <View
           style={{
@@ -350,10 +377,12 @@ export default function ChurchInteriorScreen() {
             borderRadius: 16,
             paddingHorizontal: 10,
             paddingVertical: 5,
+            borderWidth: 1,
+            borderColor: "#EAD9B8",
           }}
         >
           <Text style={{ fontSize: 15 }}>🪙</Text>
-          <Text style={{ marginLeft: 5, fontWeight: "700", color: "#F5E6C8" }}>
+          <Text style={{ marginLeft: 5, fontWeight: "700", color: TEXT }}>
             {Math.floor(coins.balance)}
           </Text>
         </View>
@@ -366,7 +395,7 @@ export default function ChurchInteriorScreen() {
             marginHorizontal: 16,
             marginBottom: 16,
             borderRadius: 16,
-            backgroundColor: "#2A1E12",
+            backgroundColor: "#FFF3DC",
             borderWidth: 1,
             borderColor: GOLD,
             padding: 14,
@@ -376,7 +405,7 @@ export default function ChurchInteriorScreen() {
         >
           <Text style={{ fontSize: 26 }}>🕯️</Text>
           <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={{ color: "#F5E6C8", fontWeight: "800", fontSize: 15 }}>
+            <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
               {prayed.length} {prayed.length === 1 ? "candle" : "candles"} lit
             </Text>
             <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
@@ -385,73 +414,87 @@ export default function ChurchInteriorScreen() {
           </View>
         </View>
 
-        {/* stained glass */}
+        {/* warm windows — morning light streaming in */}
         <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginBottom: 8, paddingHorizontal: 12 }}>
           {Array.from({ length: numWindows }).map((_, i) => (
-            <StainedGlass key={i} index={i} wide={level >= 3} />
+            <WarmWindow key={i} wide={level >= 3} />
           ))}
         </View>
 
-        {/* altar */}
+        {/* front: simple wooden stage with podium + cross */}
         <View style={{ alignItems: "center", marginVertical: 16 }}>
           <View style={{ alignItems: "center" }}>
-            {/* cross */}
-            <View style={{ alignItems: "center", marginBottom: -6, zIndex: 1 }}>
-              <View style={{ width: 8, height: 44, backgroundColor: GOLD, borderRadius: 3 }} />
+            {/* wooden cross — simple, not gold */}
+            <View style={{ alignItems: "center", marginBottom: -4, zIndex: 1 }}>
+              <View style={{ width: 10, height: 48, backgroundColor: WOOD_DARK, borderRadius: 4 }} />
               <View
                 style={{
                   position: "absolute",
-                  top: 10,
-                  width: 26,
-                  height: 8,
-                  backgroundColor: GOLD,
-                  borderRadius: 3,
+                  top: 12,
+                  width: 30,
+                  height: 10,
+                  backgroundColor: WOOD_DARK,
+                  borderRadius: 4,
                 }}
               />
             </View>
-            {/* altar table */}
+            {/* stage platform */}
             <View
               style={{
-                width: 150,
-                height: 54,
+                width: 190,
+                height: 22,
                 borderRadius: 8,
                 backgroundColor: WOOD,
                 borderWidth: 2,
                 borderColor: WOOD_DARK,
-                alignItems: "center",
-                justifyContent: "center",
               }}
-            >
-              <View style={{ width: 130, height: 34, borderRadius: 6, backgroundColor: "#F5EFE0", opacity: 0.92 }} />
-            </View>
-            {/* altar candles */}
-            <View style={{ flexDirection: "row", marginTop: 6 }}>
-              <View style={{ alignItems: "center", marginHorizontal: 18 }}>
-                <CandleFlame size={10} />
-                <View style={{ width: 10, height: 22, borderRadius: 3, backgroundColor: "#F5E6C8", marginTop: -4 }} />
+            />
+            {/* podium */}
+            <View style={{ alignItems: "center", marginTop: -2 }}>
+              <View
+                style={{
+                  width: 56,
+                  height: 40,
+                  borderTopLeftRadius: 6,
+                  borderTopRightRadius: 6,
+                  backgroundColor: WOOD_DARK,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MaterialIcons name="menu-book" size={20} color="#FFF3DC" />
               </View>
-              <View style={{ alignItems: "center", marginHorizontal: 18 }}>
-                <CandleFlame size={10} />
-                <View style={{ width: 10, height: 22, borderRadius: 3, backgroundColor: "#F5E6C8", marginTop: -4 }} />
+              <View style={{ width: 14, height: 26, backgroundColor: WOOD_DARK }} />
+              <View style={{ width: 44, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
+            </View>
+            {/* small plants for warmth */}
+            <View style={{ flexDirection: "row", marginTop: 6 }}>
+              <View style={{ alignItems: "center", marginHorizontal: 34 }}>
+                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#7BA05B" }} />
+                <View style={{ width: 14, height: 12, borderRadius: 3, backgroundColor: "#B0724A", marginTop: -3 }} />
+              </View>
+              <View style={{ alignItems: "center", marginHorizontal: 34 }}>
+                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#7BA05B" }} />
+                <View style={{ width: 14, height: 12, borderRadius: 3, backgroundColor: "#B0724A", marginTop: -3 }} />
               </View>
             </View>
           </View>
-          <Text style={{ color: TEXT_DIM, fontSize: 11, marginTop: 8, fontStyle: "italic" }}>
+          <Text style={{ color: TEXT_DIM, fontSize: 11, marginTop: 10, fontStyle: "italic" }}>
             "The prayer of a righteous person is powerful and effective."
           </Text>
         </View>
 
-        {/* pews */}
+        {/* gathering */}
         <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
           <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
-            CONGREGATION
+            GATHERED TOGETHER
           </Text>
           {prayed.length === 0 ? (
             <Text style={{ color: TEXT_DIM, fontSize: 13, fontStyle: "italic", marginVertical: 12 }}>
-              The pews are empty. Pray for someone today and they'll take a seat.
+              The chairs are empty. Pray for someone today and they'll take a seat.
             </Text>
           ) : (
-            pews.map((occ, i) => <Pew key={i} occupants={occ} />)
+            rows.map((occ, i) => <ChairRow key={i} occupants={occ} />)
           )}
         </View>
 
@@ -472,11 +515,11 @@ export default function ChurchInteriorScreen() {
               style={{
                 flexDirection: "row",
                 flexWrap: "wrap",
-                backgroundColor: BG_SOFT,
+                backgroundColor: "#FFF3DC",
                 borderRadius: 16,
                 padding: 10,
                 borderWidth: 1,
-                borderColor: "#3A2A1A",
+                borderColor: "#EAD9B8",
               }}
             >
               {people.map((p) => (

@@ -313,11 +313,12 @@ export function TownNPCs({
         y: churchHome.y + Math.floor(pi / 4) * 0.3,
       };
       if (cottage) {
-        const fp = buildingFootprint(cottage.level || 1, cottage.type);
+        // Sleep on the front lawn — visible under the stars. (Depth sorting
+        // would tuck them behind the 1x1 cottage if they slept at its center.)
         homeId = cottage.id;
         homeTile = {
-          x: cottage.x + fp.w / 2 - 0.5 + (pi % 3) * 0.25,
-          y: cottage.y + fp.h / 2 - 0.5,
+          x: cottage.x + (((pi * 37) % 5) - 2) * 0.18,
+          y: cottage.y + 0.85,
         };
       }
       defs.push({

@@ -73,6 +73,7 @@ export function parseUnlockedMaps(value: unknown): TownMapId[] {
 
 export type BuildingType =
   | "house"      // home for townsfolk
+  | "villager-cottage" // home for the prayer lights — they sleep here at night
   | "pawn-house" // your pawn's house (one per town)
   | "farm"       // business: +2 coins/day
   | "shop"       // business: +3 coins/day
@@ -281,6 +282,7 @@ export type BuildingDef = {
 
 export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
+  "villager-cottage": { name: "Villager Cottage", icon: "", cost: 25, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A cozy home for the people you've prayed for. Villagers sleep here at night, rest here by day, and visit one another." },
   "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
   "farm":       { name: "Farm",       icon: "🌾", cost: 20,  tier: 1, incomePerDay: 2,  xpPerDay: 0, maps: ["town"], description: "+2 coins per day while your streak is alive." },
   "shop":       { name: "Shop",       icon: "🏪", cost: 40,  tier: 1, incomePerDay: 3,  xpPerDay: 0, maps: ["town"], description: "+3 coins per day while your streak is alive." },
@@ -1172,6 +1174,17 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End West", presetType: "clothes-shop" },
   { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End Garden" },
   { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  // Cottage Row — cozy 1x1 homes for the prayer lights along the east edge.
+  // Each cottage gives villagers a place to belong: they sleep here at
+  // night, rest here by day, and visit one another.
+  { id: "town-lot-c1", x: 9, y: 3, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row North" },
+  { id: "town-lot-c2", x: 9, y: 4, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row North East" },
+  { id: "town-lot-c3", x: 9, y: 6, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row" },
+  { id: "town-lot-c4", x: 9, y: 7, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row East" },
+  { id: "town-lot-c5", x: 9, y: 9, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row South" },
+  { id: "town-lot-c6", x: 9, y: 10, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row South East" },
+  { id: "town-lot-c7", x: 9, y: 12, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row Shore" },
+  { id: "town-lot-c8", x: 9, y: 13, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row Far Shore" },
   // Mercy's Shore — 4 beach-themed lots with preset beachside dining, now the
   // southernmost district with the waves right below.
   // (NPCs reach via Harbor Lane — no more floating over buildings)
@@ -1239,6 +1252,43 @@ export function hasFixedFootprint(b: PlacedBuilding): boolean {
  * - Buildings that don't fit in lots stay as legacy free-placed buildings.
  * NPCs, prayer villagers, church mechanics, and income are untouched.
  */
+/** Cottages in stable display order (top-to-bottom, left-to-right). */
+export function townCottages(buildings: PlacedBuilding[]): PlacedBuilding[] {
+  return buildings
+    .filter((b) => b.type === "villager-cottage")
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+function hashPersonId(personId: string): number {
+  let h = 0;
+  for (let i = 0; i < personId.length; i++) h = (h * 31 + personId.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/** Which cottage a prayer light calls home — stable hash of their id across
+ *  the built cottages, so every light has a home no matter how the day's
+ *  list is ordered or filtered. Null when no cottage is built (lights keep
+ *  the church as home, as before). */
+export function cottageHomeFor(buildings: PlacedBuilding[], personId: string): PlacedBuilding | null {
+  const cottages = townCottages(buildings);
+  if (cottages.length === 0) return null;
+  return cottages[hashPersonId(String(personId)) % cottages.length];
+}
+
+/** The lights who live in one cottage. */
+export function cottageResidents(
+  buildings: PlacedBuilding[],
+  cottageId: string,
+  lights: { personId: string; name: string }[]
+): { personId: string; name: string }[] {
+  const cottages = townCottages(buildings);
+  const idx = cottages.findIndex((c) => c.id === cottageId);
+  if (idx < 0 || cottages.length === 0) return [];
+  return lights.filter(
+    (l) => hashPersonId(String(l.personId)) % cottages.length === idx
+  );
+}
+
 export function ensureTownNeighborhood(map: MapState): MapState {
   // 1. Roads: drop non-path roads, seed the winding path.
   const existingPathIds = new Set(
@@ -1555,6 +1605,8 @@ export function barbershopBoostForBuilding(map: MapState, buildingId: string): n
 // City buildings are big: minimum 2x2 at L1 (L1=2x2, L2=3x3, L3=4x4).
 const CITY_BIG_TYPES: BuildingType[] = ["bank-tower", "department-store", "hotel", "office"];
 export function buildingFootprint(level: number, type?: BuildingType, isPlot?: boolean): { w: number; h: number } {
+  // Villager cottages are cozy 1x1 homes at every level, even on lots.
+  if (type === "villager-cottage") return { w: 1, h: 1 };
   // City plot buildings are fixed 2x2 — upgrades grow taller, not wider
   if (isPlot) return { w: 2, h: 2 };
   // Houses stay 1x1 at every level — they get fancier, not bigger

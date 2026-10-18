@@ -3511,8 +3511,13 @@ export default function HometownScreen() {
               }}
             >
               {isSmall ? (
-                // 1x1 lots (40px): just the price, no overflowing labels
-                <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost.toFixed(2)}</Text>
+                // 1x1 lots (40px): a glyph for cottage lots, then the price
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
+                  {lot.allowedTypes.includes("villager-cottage") ? (
+                    <CottageGlyph size={16} />
+                  ) : null}
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost.toFixed(2)}</Text>
+                </View>
               ) : (
                 <>
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>

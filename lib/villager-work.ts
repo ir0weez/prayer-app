@@ -44,7 +44,7 @@ export const WORK_KINDS: Record<
 > = {
   "clean-garden": {
     label: "Tidy the Garden",
-    blurb: "Sweep the paths and tend the beds by the Tree of Life.",
+    blurb: "Sweep the paths and tend the beds in the Community Garden.",
     durationMs: 30 * 60 * 1000,
     durationLabel: "30 min",
     rewardCoins: 15,

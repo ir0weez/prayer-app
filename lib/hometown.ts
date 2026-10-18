@@ -518,64 +518,7 @@ export function findBanquetTable(town: TownState): PlacedBuilding | undefined {
   return town.maps.town?.buildings.find((b) => b.type === "banquet-table");
 }
 
-// ---- The Tree of Life ----
-
-/** Tile the Tree of Life stands on (town map, plaza gap between church and pawn house). */
-export const TREE_OF_LIFE_TILE = { x: 5, y: 1 };
-
-/** Coins granted for tasting the tree's fruit (once per day). */
-export const TREE_FRUIT_COINS = 25;
-
-export const TREE_OF_LIFE_KEY = "prayercircle.hometown.tree-of-life.v1";
-
-export type TreeOfLifeState = {
-  /** Local date (YYYY-MM-DD) the fruit was last tasted. */
-  lastFruitDate: string | null;
-};
-
-export function emptyTreeOfLife(): TreeOfLifeState {
-  return { lastFruitDate: null };
-}
-
-export async function loadTreeOfLife(): Promise<TreeOfLifeState> {
-  try {
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-    const raw = await AsyncStorage.getItem(TREE_OF_LIFE_KEY);
-    if (!raw) return emptyTreeOfLife();
-    const s = JSON.parse(raw);
-    return { lastFruitDate: typeof s.lastFruitDate === "string" ? s.lastFruitDate : null };
-  } catch { return emptyTreeOfLife(); }
-}
-
-export async function saveTreeOfLife(s: TreeOfLifeState): Promise<void> {
-  try {
-    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
-    await AsyncStorage.setItem(TREE_OF_LIFE_KEY, JSON.stringify(s));
-  } catch {}
-}
-
-/** Verses of life — one is shown each day at the tree. */
-export const TREE_OF_LIFE_VERSES: Array<{ text: string; ref: string }> = [
-  { text: "The leaves of the tree were for the healing of the nations.", ref: "Revelation 22:2" },
-  { text: "To him that overcometh will I give to eat of the tree of life, which is in the midst of the paradise of God.", ref: "Revelation 2:7" },
-  { text: "Blessed are they that do his commandments, that they may have right to the tree of life.", ref: "Revelation 22:14" },
-  { text: "She is a tree of life to them that lay hold upon her: and happy is every one that retaineth her.", ref: "Proverbs 3:18" },
-  { text: "The fruit of the righteous is a tree of life; and he that winneth souls is wise.", ref: "Proverbs 11:30" },
-  { text: "Hope deferred maketh the heart sick: but when the desire cometh, it is a tree of life.", ref: "Proverbs 13:12" },
-  { text: "I am the bread of life: he that cometh to me shall never hunger; and he that believeth on me shall never thirst.", ref: "John 6:35" },
-  { text: "Whosoever drinketh of the water that I shall give him shall never thirst.", ref: "John 4:14" },
-];
-
-/** Deterministic verse for a date — the same verse all day, rotates daily. */
-export function treeVerseForDate(date: Date = new Date()): { text: string; ref: string } {
-  const seed = date.getFullYear() * 1000 + monthDayOrdinal(date);
-  return TREE_OF_LIFE_VERSES[seed % TREE_OF_LIFE_VERSES.length];
-}
-
 // ---- The Lighthouse ----
-
-/** Tile the lighthouse stands on (town map, east end of Mercy's Shore beach). */
-export const LIGHTHOUSE_TILE = { x: 8, y: 12 };
 
 /** Coins granted for receiving the lighthouse blessing (once per day, × level). */
 export const LIGHTHOUSE_BLESSING_COINS = 10;

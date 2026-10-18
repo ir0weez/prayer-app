@@ -123,14 +123,6 @@ import {
   BANQUET_FELLOWSHIP_RATES,
   findBanquetTable,
   cottageResidents,
-  TREE_OF_LIFE_TILE,
-  TREE_FRUIT_COINS,
-  emptyTreeOfLife,
-  loadTreeOfLife,
-  saveTreeOfLife,
-  treeVerseForDate,
-  type TreeOfLifeState,
-  LIGHTHOUSE_TILE,
   LIGHTHOUSE_BLESSING_COINS,
   LIGHTHOUSE_MAX_LEVEL,
   LIGHTHOUSE_UPGRADE_COSTS,
@@ -1536,211 +1528,6 @@ function RiverOfLife({ cellSize }: { cellSize: number }) {
   );
 }
 
-/** The Tree of Life — a fixed landmark on the town map. Leaves shimmer by
- * day; a soft golden glow surrounds it at night. Tappable. */
-function TreeOfLife({
-  cellSize,
-  timeOfDay,
-  onPress,
-}: {
-  cellSize: number;
-  timeOfDay: string;
-  onPress: () => void;
-}) {
-  const shimmer = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 2800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [shimmer]);
-  const highlightOpacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.95] });
-  const nightGlow = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.3] });
-  const night = timeOfDay === "night";
-  // Centered on the plaza gap between church and pawn house (tile x=5, rows 0-1).
-  const W = 92;
-  const H = 148;
-  const left = (TREE_OF_LIFE_TILE.x + 0.5) * cellSize - W / 2;
-  const top = (TREE_OF_LIFE_TILE.y + 1) * cellSize - H + 8;
-  // Twelve fruits — "twelve manner of fruits" (Rev 22:2)
-  const fruits: Array<[number, number]> = [
-    [30, 52], [46, 40], [62, 52], [24, 68], [40, 62], [54, 66],
-    [68, 68], [32, 84], [50, 80], [62, 86], [42, 94], [56, 96],
-  ];
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ position: "absolute", left, top, width: W, height: H }}
-      accessibilityLabel="The Tree of Life"
-    >
-      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {night && (
-          <AnimatedCircle cx={W / 2} cy={58} r={52} fill="#FBBF24" opacity={nightGlow} />
-        )}
-        {/* trunk */}
-        <Path d={`M${W / 2 - 7} ${H} C ${W / 2 - 9} 118, ${W / 2 - 6} 108, ${W / 2 - 4} 96 L ${W / 2 + 4} 96 C ${W / 2 + 6} 108, ${W / 2 + 9} 118, ${W / 2 + 7} ${H} Z`} fill="#78350F" />
-        <Path d={`M${W / 2 - 4} 104 C ${W / 2 - 14} 96, ${W / 2 - 20} 92, ${W / 2 - 26} 88`} stroke="#78350F" strokeWidth={5} strokeLinecap="round" fill="none" />
-        <Path d={`M${W / 2 + 4} 100 C ${W / 2 + 14} 92, ${W / 2 + 20} 88, ${W / 2 + 26} 84`} stroke="#78350F" strokeWidth={5} strokeLinecap="round" fill="none" />
-        {/* canopy — layered greens */}
-        <Ellipse cx={W / 2} cy={58} rx={40} ry={44} fill="#166534" />
-        <Ellipse cx={W / 2 - 14} cy={48} rx={24} ry={28} fill="#15803D" />
-        <Ellipse cx={W / 2 + 14} cy={50} rx={22} ry={26} fill="#15803D" />
-        {/* shimmering highlights */}
-        <AnimatedEllipse cx={W / 2 - 12} cy={42} rx={14} ry={16} fill="#4ADE80" opacity={highlightOpacity} />
-        <AnimatedEllipse cx={W / 2 + 16} cy={62} rx={10} ry={12} fill="#4ADE80" opacity={highlightOpacity} />
-        <AnimatedEllipse cx={W / 2 - 2} cy={76} rx={11} ry={10} fill="#86EFAC" opacity={highlightOpacity} />
-        {/* twelve fruits */}
-        {fruits.map(([fx, fy], i) => (
-          <Circle key={i} cx={fx} cy={fy} r={3.2} fill={i % 3 === 0 ? "#FBBF24" : "#F87171"} stroke="#FFF7ED" strokeWidth={0.8} />
-        ))}
-      </Svg>
-    </Pressable>
-  );
-}
-
-/**
- * The Lighthouse — stands at the east end of Mercy's Shore beach.
- * The beam rotates at night (and dusk/dawn), guiding villagers home.
- * Taller tower + brighter beam as it levels up (1-3).
- */
-function Lighthouse({
-  cellSize,
-  timeOfDay,
-  level,
-  onPress,
-}: {
-  cellSize: number;
-  timeOfDay: string;
-  level: number;
-  onPress: () => void;
-}) {
-  const beamSpin = useRef(new Animated.Value(0)).current;
-  const lampPulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const spin = Animated.loop(
-      Animated.timing(beamSpin, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: true })
-    );
-    spin.start();
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(lampPulse, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(lampPulse, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-    return () => { spin.stop(); pulse.stop(); };
-  }, [beamSpin, lampPulse]);
-  const rotate = beamSpin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-  const lampOpacity = lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
-  const beamOpacity = lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.22, 0.42] });
-
-  const night = timeOfDay === "night";
-  const beamOn = night || timeOfDay === "evening";
-  // Tower grows with level: 1 = 120px, 2 = 140px, 3 = 160px.
-  const H = 104 + level * 16 + 8;
-  const W = 84;
-  const left = (LIGHTHOUSE_TILE.x + 0.5) * cellSize - W / 2;
-  const top = (LIGHTHOUSE_TILE.y + 1) * cellSize - H + 6;
-  const towerTop = 34;
-  const towerBottom = H - 8;
-  const towerH = towerBottom - towerTop;
-  const cx = W / 2;
-  const lampY = towerTop - 16;
-  // Tapered tower: wider at base.
-  const topW = 13;
-  const botW = 20;
-  const stripeH = towerH / 5;
-  // Beam overlay: centered on the lamp, rotating.
-  const beamSize = 120;
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ position: "absolute", left, top, width: W, height: H }}
-      accessibilityLabel="The Lighthouse"
-    >
-      {/* rotating beam — swept wedges of light, rendered above the tower art */}
-      {beamOn && (
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: cx - beamSize / 2,
-            top: lampY - beamSize / 2,
-            width: beamSize,
-            height: beamSize,
-            transform: [{ rotate }],
-          }}
-        >
-          <Svg width={beamSize} height={beamSize} viewBox={`0 0 ${beamSize} ${beamSize}`}>
-            <AnimatedPolygon
-              points={`${beamSize / 2},${beamSize / 2} ${beamSize},${beamSize / 2 - 14} ${beamSize},${beamSize / 2 + 14}`}
-              fill="#FDE68A"
-              opacity={beamOpacity}
-            />
-            <AnimatedPolygon
-              points={`${beamSize / 2},${beamSize / 2} 0,${beamSize / 2 - 14} 0,${beamSize / 2 + 14}`}
-              fill="#FDE68A"
-              opacity={beamOpacity}
-            />
-          </Svg>
-        </Animated.View>
-      )}
-      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* ground shadow */}
-        <Ellipse cx={cx} cy={H - 4} rx={24} ry={6} fill="#000000" opacity={0.18} />
-        {/* tower — red/white bands */}
-        {[0, 1, 2, 3, 4].map((i) => {
-          const y0 = towerTop + i * stripeH;
-          const t0 = i / 5;
-          const t1 = (i + 1) / 5;
-          const w0 = topW + (botW - topW) * t0;
-          const w1 = topW + (botW - topW) * t1;
-          const fill = i % 2 === 0 ? "#F8FAFC" : "#DC2626";
-          return (
-            <Polygon
-              key={i}
-              points={`${cx - w0 / 2},${y0} ${cx + w0 / 2},${y0} ${cx + w1 / 2},${y0 + stripeH} ${cx - w1 / 2},${y0 + stripeH}`}
-              fill={fill}
-              stroke="#000000"
-              strokeOpacity={0.12}
-              strokeWidth={1}
-            />
-          );
-        })}
-        {/* gallery deck */}
-        <Rect x={cx - topW / 2 - 6} y={towerTop - 8} width={topW + 12} height={9} rx={3} fill="#1F2937" />
-        {/* lamp room */}
-        <Rect x={cx - topW / 2 - 2} y={towerTop - 26} width={topW + 4} height={19} rx={2} fill="#1F2937" />
-        <AnimatedRect
-          x={cx - topW / 2 + 2}
-          y={towerTop - 23}
-          width={topW - 4}
-          height={13}
-          rx={2}
-          fill="#FDE68A"
-          opacity={lampOpacity}
-        />
-        {/* roof cap */}
-        <Polygon points={`${cx - topW / 2 - 4},${towerTop - 26} ${cx + topW / 2 + 4},${towerTop - 26} ${cx},${towerTop - 38}`} fill="#B91C1C" />
-        {/* night halo around the lamp */}
-        {beamOn && (
-          <AnimatedCircle cx={cx} cy={lampY} r={20 + level * 5} fill="#FDE68A" opacity={lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.28] })} />
-        )}
-        {/* rocks at the base */}
-        <Ellipse cx={cx - 16} cy={H - 6} rx={10} ry={5} fill="#6B7280" />
-        <Ellipse cx={cx + 15} cy={H - 5} rx={12} ry={6} fill="#4B5563" />
-      </Svg>
-    </Pressable>
-  );
-}
-
-const AnimatedPolygon = Animated.createAnimatedComponent(Polygon);
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
 function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -1894,10 +1681,8 @@ export default function HometownScreen() {
   const [well, setWell] = useState<WellState>(() => emptyWell());
   // Garden visits: prayer lights paying their respects (+0.1% income/visit, 24h)
   const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
-  // Tree of Life: tap once a day to taste its fruit (+coins, verse of the day)
-  const [treeState, setTreeState] = useState<TreeOfLifeState>(() => emptyTreeOfLife());
-  const [treeModalVisible, setTreeModalVisible] = useState(false);
   // Lighthouse: tap once a day for a blessing (+coins × level, verse); upgradeable 1-3.
+  // It lives in the right border now (not on the map) — tap it there.
   const [lighthouseState, setLighthouseState] = useState<LighthouseState>(() => emptyLighthouse());
   const [lighthouseModalVisible, setLighthouseModalVisible] = useState(false);
   // Fireworks: celebration volley over the map on milestones (level-up, prayer bonuses).
@@ -1913,6 +1698,8 @@ export default function HometownScreen() {
   const queueCelebration = useCallback((kind: CelebrationKind, title: string, subtitle?: string) => {
     const id = celebrationIdRef.current++;
     setCelebrationQueue((q) => [...q, { id, kind, title, subtitle }]);
+    // The border lighthouse sweeps its beam on milestones.
+    setMilestonePulse((p) => p + 1);
   }, []);
   const persistCelebrations = useCallback((next: ReturnType<typeof emptyCelebrations>) => {
     celebrationsRef.current = next;
@@ -1922,6 +1709,10 @@ export default function HometownScreen() {
   const dismissCelebration = useCallback(() => {
     setCelebrationQueue((q) => q.slice(1));
   }, []);
+  // Border lighthouse reward animation: bumps whenever Jonathan earns coins
+  // (lamp flares brighter) and on milestones (beam sweeps + rings).
+  const [rewardPulse, setRewardPulse] = useState(0);
+  const [milestonePulse, setMilestonePulse] = useState(0);
   // Street performer: plays a tune for a while after being tipped.
   const [performerPlaying, setPerformerPlaying] = useState(false);
   // Gathering places: Community Garden (harvest), Amphitheater (shows),
@@ -2048,9 +1839,10 @@ export default function HometownScreen() {
         };
       };
       switch (kind) {
-        case "clean-garden":
-          // By the Tree of Life — always available.
-          return { tile: { x: TREE_OF_LIFE_TILE.x, y: TREE_OF_LIFE_TILE.y + 1 }, buildingId: "tree-of-life", type: "tree-of-life" };
+        case "clean-garden": {
+          const g = buildings.find((b) => b.type === "community-garden");
+          return g ? centerOf(g) : null;
+        }
         case "prune-flowers": {
           const farm = buildings.find((b) => b.type === "farm");
           return farm ? centerOf(farm) : null;
@@ -2369,6 +2161,10 @@ export default function HometownScreen() {
   // Transactional coin delta: functional setState so concurrent transactions
   // (sell, upgrade, collect, hire, purchases) never clobber each other.
   const addCoins = useCallback((delta: number) => {
+    if (delta > 0) {
+      // The border lighthouse glows brighter whenever Jonathan earns.
+      setRewardPulse((p) => p + 1);
+    }
     setCoins(prev => {
       const next = {
         balance: Math.round((prev.balance + delta) * 10) / 10,
@@ -2721,8 +2517,6 @@ export default function HometownScreen() {
         const fellowshipBonus = fellowshipMult(fellowshipState);
         // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
         const remembranceBonus = remembranceMult(remembranceState.people.length);
-        // Tree of Life: once-a-day fruit tasting (coins + verse).
-        try { setTreeState(await loadTreeOfLife()); } catch {}
         try { setLighthouseState(await loadLighthouse()); } catch {}
         try {
           const xp = await loadXPState();
@@ -3116,21 +2910,6 @@ export default function HometownScreen() {
     saveMap({ ...map, buildings: [...map.buildings, building] });
     addCoins(-total);
     setPurchaseLot(null);
-  };
-
-  /** Taste the Tree of Life's fruit — once per day. A quiet blessing. */
-  const handleTasteFruit = () => {
-    const today = localDateStr();
-    if (treeState.lastFruitDate === today) return;
-    const next = { lastFruitDate: today };
-    setTreeState(next);
-    saveTreeOfLife(next).catch(() => undefined);
-    addCoins(TREE_FRUIT_COINS);
-    setTreeModalVisible(false);
-    Alert.alert(
-      "The Tree of Life",
-      `You taste its fruit — sweet, and full of light. +${TREE_FRUIT_COINS} coins.\n\n"${treeVerseForDate().text}"\n— ${treeVerseForDate().ref}`
-    );
   };
 
   /** Lighthouse: receive the daily blessing (+coins × level, verse of light). */
@@ -4169,18 +3948,23 @@ export default function HometownScreen() {
         </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
-        <SeasonalBorder variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}>
+        <SeasonalBorder
+          variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}
+          lighthouse={
+            activeMap === "town"
+              ? {
+                  level: lighthouseState.level,
+                  rewardPulse,
+                  milestonePulse,
+                  onPress: () => setLighthouseModalVisible(true),
+                }
+              : undefined
+          }
+        >
         <View style={{ position: "relative" }}>
           {rows}
-          {/* Heavenly landmarks — the River of Life along the north edge,
-              and the Tree of Life in the chapel plaza */}
-          {activeMap === "town" && (
-            <>
-              <RiverOfLife cellSize={cellSize} />
-              <TreeOfLife cellSize={cellSize} timeOfDay={timeOfDay} onPress={() => setTreeModalVisible(true)} />
-              <Lighthouse cellSize={cellSize} timeOfDay={timeOfDay} level={lighthouseState.level} onPress={() => setLighthouseModalVisible(true)} />
-            </>
-          )}
+          {/* The River of Life runs along the town's north edge. */}
+          {activeMap === "town" && <RiverOfLife cellSize={cellSize} />}
           {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
               all interleave by Y. A tall building's art extends above its square;
               villagers walking behind it (north, lower Y) draw first so the
@@ -5442,66 +5226,6 @@ export default function HometownScreen() {
               <Text style={{ fontSize: 48 }}>👆</Text>
             </Pressable>
             <Text style={{ color: pt.subtext, fontSize: 12 }}>Tap the button!</Text>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Tree of Life modal — taste its fruit once a day */}
-      <Modal
-        visible={treeModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTreeModalVisible(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}
-          onPress={() => setTreeModalVisible(false)}
-        >
-          <Pressable
-            style={{ backgroundColor: pt.card, borderRadius: 20, padding: 24, alignItems: "center" }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            {(() => {
-              const verse = treeVerseForDate();
-              const tasted = treeState.lastFruitDate === localDateStr();
-              return (
-                <>
-                  <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, textAlign: "center" }}>
-                    The Tree of Life
-                  </Text>
-                  <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 16, fontStyle: "italic" }}>
-                    "In the midst of the street of it, and on either side of the river, was there the tree of life."
-                  </Text>
-                  <View style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: pt.border }}>
-                    <Text style={{ fontSize: 14, color: pt.text, textAlign: "center", fontStyle: "italic" }}>
-                      "{verse.text}"
-                    </Text>
-                    <Text style={{ fontSize: 12, color: pt.subtext, textAlign: "center", marginTop: 6, fontWeight: "700" }}>
-                      — {verse.ref}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={handleTasteFruit}
-                    disabled={tasted}
-                    style={({ pressed }) => [{
-                      borderRadius: 12,
-                      paddingVertical: 14,
-                      paddingHorizontal: 24,
-                      alignItems: "center",
-                      backgroundColor: tasted ? pt.border : "#166534",
-                      opacity: pressed && !tasted ? 0.85 : 1,
-                    }]}
-                  >
-                    <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
-                      {tasted ? "Tasted today — come back tomorrow" : `Taste its fruit (+${TREE_FRUIT_COINS} coins)`}
-                    </Text>
-                  </Pressable>
-                  <Pressable onPress={() => setTreeModalVisible(false)} style={{ marginTop: 12, padding: 8 }}>
-                    <Text style={{ color: pt.subtext, fontWeight: "700" }}>Close</Text>
-                  </Pressable>
-                </>
-              );
-            })()}
           </Pressable>
         </Pressable>
       </Modal>

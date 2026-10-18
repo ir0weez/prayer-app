@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Animated, Easing, View } from "react-native";
-import Svg, { Path, Polygon, Rect } from "react-native-svg";
+import { Animated, Easing, View, Pressable } from "react-native";
+import Svg, { Path, Polygon, Rect, Circle } from "react-native-svg";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
 
 /**
@@ -13,7 +13,7 @@ import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
  * - Bottom: a beach — sand plus animated SVG waves, shifting color
  *   with the time of day.
  * - Sides vary per map (variant prop):
- *     town   → city skyline left, pine forest right
+ *     town   → city skyline left, lighthouse right (tappable, daily blessing)
  *     city   → ocean left (water halfway up, then sky), hometown cottages right
  *     school / garden / well / field → quiet woods on both sides
  *
@@ -452,6 +452,174 @@ function TownStrip({ scene, lit }: { scene: SceneTheme; lit: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Lighthouse (town right gutter): stands on the rocks where the       */
+/* border meets the beach. Tappable — opens the daily blessing.       */
+/* The lamp breathes; its beam sweeps at dusk/night. It flares        */
+/* brighter whenever Jonathan earns coins (rewardPulse) and sweeps    */
+/* wide with celebration rings on milestones (milestonePulse).        */
+/* ------------------------------------------------------------------ */
+
+export type BorderLighthouse = {
+  /** 1-3: taller tower, brighter beam. */
+  level: number;
+  /** Increments on coin earnings — the lamp flares brighter. */
+  rewardPulse: number;
+  /** Increments on milestones — the beam sweeps + celebration rings. */
+  milestonePulse: number;
+  /** Opens the daily blessing. */
+  onPress: () => void;
+};
+
+function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPress }: {
+  scene: SceneTheme; lit: boolean; level: number;
+  rewardPulse: number; milestonePulse: number; onPress: () => void;
+}) {
+  const beamSpin = useRef(new Animated.Value(0)).current;
+  const breathe = useRef(new Animated.Value(0.5)).current;
+  const earnFlash = useRef(new Animated.Value(0)).current;
+  const rings = useRef(new Animated.Value(0)).current;
+  const firstEarn = useRef(true);
+  const firstMilestone = useRef(true);
+
+  useEffect(() => {
+    const spin = Animated.loop(
+      Animated.timing(beamSpin, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: true })
+    );
+    spin.start();
+    const br = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0.5, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    br.start();
+    return () => { spin.stop(); br.stop(); };
+  }, [beamSpin, breathe]);
+
+  // Lamp flares brighter whenever Jonathan earns coins.
+  useEffect(() => {
+    if (firstEarn.current) { firstEarn.current = false; return; }
+    Animated.sequence([
+      Animated.timing(earnFlash, { toValue: 1, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(earnFlash, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]).start();
+  }, [rewardPulse, earnFlash]);
+
+  // Milestones: the beam sweeps wide with expanding celebration rings.
+  useEffect(() => {
+    if (firstMilestone.current) { firstMilestone.current = false; return; }
+    rings.setValue(0);
+    Animated.timing(rings, { toValue: 1, duration: 2600, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [milestonePulse, rings]);
+
+  const beamRotate = beamSpin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const lampGlow = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.8] });
+  const flashGlow = earnFlash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.9] });
+  const ringScale = rings.interpolate({ inputRange: [0, 1], outputRange: [0.4, 2.6] });
+  const ringOpacity = rings.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] });
+
+  const towerH = 54 + level * 8;
+  const boxH = towerH + 26;
+  // Lamp center in box coords: the tower SVG spans the full box height with
+  // viewBox y from -26 (roof) to towerH (base); lamp room center sits at
+  // viewBox y ≈ -13, i.e. 13px from the box top.
+  const lampCX = 13;
+  const lampCY = 13;
+  const beamOn = lit;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel="The Lighthouse — daily blessing"
+      style={{ flex: 1, justifyContent: "flex-end", alignItems: "center" }}
+    >
+      <View style={{ width: 26, height: boxH, position: "relative" }}>
+        {/* Rocks at the base, meeting the beach below */}
+        <Svg width={26} height={14} viewBox="0 0 26 14" style={{ position: "absolute", bottom: 0, left: 0 }}>
+          <Circle cx={6} cy={11} r={5} fill="#4B5563" />
+          <Circle cx={15} cy={12} r={6} fill="#6B7280" />
+          <Circle cx={22} cy={11} r={4} fill="#4B5563" />
+        </Svg>
+        {/* Tower — red/white bands, tapered. viewBox starts at y=-26 so the
+            gallery, lamp room, and roof cap above the bands stay visible. */}
+        <Svg width={14} height={towerH + 26} viewBox={`0 -26 14 ${towerH + 26}`} style={{ position: "absolute", bottom: 8, left: 6 }}>
+          {[0, 1, 2, 3, 4].map((i) => {
+            const bandH = towerH / 5;
+            return (
+              <Rect
+                key={i}
+                x={1 + i * 0.4}
+                y={i * bandH}
+                width={14 - 2 * (1 + i * 0.4)}
+                height={bandH}
+                fill={i % 2 === 0 ? "#F8FAFC" : "#DC2626"}
+              />
+            );
+          })}
+          {/* gallery deck */}
+          <Rect x={1} y={-7} width={12} height={7} rx={2} fill="#1F2937" />
+          {/* lamp room */}
+          <Rect x={3} y={-19} width={8} height={12} rx={1.5} fill="#1F2937" />
+          {/* roof cap */}
+          <Polygon points="1,-19 13,-19 7,-26" fill="#B91C1C" />
+        </Svg>
+        {/* Lamp glass — breathing glow */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: lampCX - 2, top: lampCY - 4,
+            width: 4, height: 8, borderRadius: 2, backgroundColor: "#FDE68A", opacity: lampGlow,
+          }}
+        />
+        {/* Soft halo around the lamp */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: lampCX - 11, top: lampCY - 11,
+            width: 22, height: 22, borderRadius: 11, backgroundColor: "#FDE68A", opacity: lampGlow,
+          }}
+        />
+        {/* Earn flash — the lamp flares when Jonathan earns coins */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: lampCX - 12, top: lampCY - 12,
+            width: 24, height: 24, borderRadius: 12, backgroundColor: "#FEF3C7", opacity: flashGlow,
+          }}
+        />
+        {/* Rotating beam at dusk/night */}
+        {beamOn && (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute", left: lampCX - 13, top: lampCY - 13,
+              width: 26, height: 26, transform: [{ rotate: beamRotate }],
+            }}
+          >
+            <Svg width={26} height={26} viewBox="0 0 26 26">
+              <Polygon points="13,13 26,9 26,17" fill="#FDE68A" opacity={0.4} />
+              <Polygon points="13,13 0,9 0,17" fill="#FDE68A" opacity={0.4} />
+            </Svg>
+          </Animated.View>
+        )}
+        {/* Milestone celebration rings */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: lampCX - 11, top: lampCY - 11,
+            width: 22, height: 22, opacity: ringOpacity, transform: [{ scale: ringScale }],
+          }}
+        >
+          <Svg width={22} height={22} viewBox="0 0 22 22">
+            <Circle cx={11} cy={11} r={9} fill="none" stroke="#FDE68A" strokeWidth={2} />
+          </Svg>
+        </Animated.View>
+      </View>
+    </Pressable>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Beach (bottom strip): sand + animated SVG waves                     */
 /* ------------------------------------------------------------------ */
 
@@ -509,7 +677,12 @@ function BeachStrip({ scene }: { scene: SceneTheme }) {
 /* The border                                                          */
 /* ------------------------------------------------------------------ */
 
-export function SeasonalBorder({ children, variant = "town" }: { children: ReactNode; variant?: BorderVariant }) {
+export function SeasonalBorder({ children, variant = "town", lighthouse }: {
+  children: ReactNode;
+  variant?: BorderVariant;
+  /** When set (town map), the right gutter shows the lighthouse instead of the forest. */
+  lighthouse?: BorderLighthouse;
+}) {
   // Re-evaluate time of day every 5 minutes so the border shifts
   // if the hour boundary passes while the app is open.
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(() => getTimeOfDay());
@@ -539,7 +712,7 @@ export function SeasonalBorder({ children, variant = "town" }: { children: React
   const windowsLit = timeOfDay === "evening" || timeOfDay === "night";
 
   // Side scenery per map:
-  // - town: city skyline left, pine forest right
+  // - town: city skyline left, lighthouse right (tappable, daily blessing)
   // - city: ocean left (water halfway up, then sky), hometown cottages right
   // - school / garden / well / field: quiet woods on both sides
   const leftScene =
@@ -548,6 +721,16 @@ export function SeasonalBorder({ children, variant = "town" }: { children: React
     <ForestStrip scene={scene} />;
   const rightScene =
     variant === "city" ? <TownStrip scene={scene} lit={windowsLit} /> :
+    variant === "town" && lighthouse ? (
+      <LighthouseStrip
+        scene={scene}
+        lit={windowsLit}
+        level={lighthouse.level}
+        rewardPulse={lighthouse.rewardPulse}
+        milestonePulse={lighthouse.milestonePulse}
+        onPress={lighthouse.onPress}
+      />
+    ) :
     <ForestStrip scene={scene} />;
 
   // Gentle snowfall in December — calm white dots, no cartoon glyphs.

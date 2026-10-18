@@ -9,7 +9,6 @@ import {
   PRAYER_VILLAGER_CAP,
   isRestaurantType,
   isGatheringTime,
-  TREE_OF_LIFE_TILE,
   type MapState,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -380,14 +379,6 @@ export function TownNPCs({
           type: target.type,
         };
       }
-      // The Tree of Life: from time to time, a light lingers beneath its branches.
-      if (!isGatheringTime() && Math.random() < 0.08) {
-        return {
-          tile: { x: TREE_OF_LIFE_TILE.x, y: TREE_OF_LIFE_TILE.y + 1 },
-          buildingId: "",
-          type: "tree-of-life",
-        };
-      }
       // Gathering places: villagers visit the Community Garden to tend crops,
       // and the Fountain Plaza to gather and rest. These are the heart of
       // community life — not businesses, but places to be together.
@@ -564,7 +555,6 @@ export function TownNPCs({
           const workGuide = workGuidesRef.current?.[pid];
           if (workGuide) {
             const stillThere =
-              workGuide.buildingId === "tree-of-life" ||
               mapStateRef.current.buildings.some((b) => b.id === workGuide.buildingId);
             if (stillThere) dest = workGuide;
           }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -2363,7 +2364,7 @@ export default function HometownScreen() {
                 <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost}</Text>
               ) : (
                 <>
-                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{isBeach ? "🏖️ FOR SALE" : "FOR SALE"}</Text>
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
                   <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && (
@@ -2438,7 +2439,23 @@ export default function HometownScreen() {
               }}
             >
               {Array.from({ length: 10 }).map((_, i) => (
-                <Text key={i} style={{ fontSize: 18 }}>🌊</Text>
+                <Svg key={i} width={28} height={18} viewBox="0 0 28 18">
+                  <Path
+                    d="M0 9 Q7 2 14 9 T28 9"
+                    fill="none"
+                    stroke="#38BDF8"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  />
+                  <Path
+                    d="M0 14 Q7 7 14 14 T28 14"
+                    fill="none"
+                    stroke="#7DD3FC"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    opacity={0.7}
+                  />
+                </Svg>
               ))}
             </View>
           )}
@@ -2959,7 +2976,7 @@ export default function HometownScreen() {
                 return (
                   <>
                     <Text style={{ fontSize: 18, fontWeight: "800", color: pt.text, textAlign: "center" }}>
-                      {lot.beach ? "🏖️ " : ""}{lot.name}
+                      {lot.name}
                     </Text>
                     <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
                       Unlock this plot and open the {def.name}. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.

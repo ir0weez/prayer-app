@@ -1,0 +1,734 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  BUILDINGS,
+  COINS_STORAGE_KEY,
+  TOWN_STORAGE_KEY,
+  isGatheringTime,
+  parseCoins,
+  parseTown,
+  prayedTodayPeople,
+  type HometownCoins,
+  type PlacedBuilding,
+  type PrayedPerson,
+} from "@/lib/hometown";
+import {
+  RESTAURANT_SLOTS,
+  loadRestaurantInterior,
+  saveRestaurantInterior,
+  type RestaurantInteriorState,
+  type RestaurantSlot,
+} from "@/lib/restaurant-interior";
+
+// ---------- palette: warm candlelit dining room ----------
+// Dark warm wood, amber candlelight, golden accents — an evening meal together.
+const BG = "#241811"; // dark warm brown walls
+const CARD = "#3A2A1C"; // warm card
+const CARD_BORDER = "#5C4227";
+const WOOD = "#8B5E34"; // wood
+const WOOD_DARK = "#5E3D22";
+const WOOD_PALE = "#C68B4E";
+const GOLD = "#E0A63F";
+const FLAME = "#FF9A3D";
+const TEXT = "#F5E6D0"; // warm cream
+const TEXT_DIM = "#B89A72"; // warm muted
+const FLOOR = "#6B4A2B"; // wooden floor
+const FLOOR_LINE = "#54371F";
+
+// Tablecloth color per tables tier (0 = bare wood, no cloth)
+const TABLECLOTH = ["", "#F7EBD4", "#C9754A", "#7A3B2E"];
+
+// ---------- gentle bob for seated villagers (sin easing, no bounce) ----------
+function Bobbing({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    const t = setTimeout(() => {
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bob, { toValue: 1, duration: 1100 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(bob, { toValue: 0, duration: 1100 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+    }, delay);
+    return () => {
+      clearTimeout(t);
+      loop?.stop();
+    };
+  }, [bob, delay]);
+  return (
+    <Animated.View
+      style={{ transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] }) }] }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+// ---------- seated villager: golden figure in a chair ----------
+function SeatedVillager({ person, chairTier, delay }: { person: PrayedPerson; chairTier: number; delay: number }) {
+  // Chair style by tier: 0-1 simple stool, 2 cushioned, 3 banquet (taller back)
+  const backH = chairTier >= 3 ? 30 : 22;
+  const backW = chairTier >= 3 ? 40 : 34;
+  const seatColor = chairTier === 0 ? WOOD : chairTier === 1 ? WOOD : chairTier === 2 ? "#7A3B2E" : "#4E2A1E";
+  return (
+    <Bobbing delay={delay}>
+      <View style={{ alignItems: "center", marginHorizontal: 7 }}>
+        {/* warm glow behind the head */}
+        <View
+          style={{
+            position: "absolute",
+            top: -9,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: FLAME,
+            opacity: 0.28,
+          }}
+        />
+        {/* head */}
+        <View
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            backgroundColor: person.accentColor || "#E8C088",
+            borderWidth: 1.5,
+            borderColor: GOLD,
+          }}
+        />
+        {/* shoulders */}
+        <View
+          style={{
+            width: 30,
+            height: 15,
+            borderTopLeftRadius: 10,
+            borderTopRightRadius: 10,
+            backgroundColor: "#C98B4A",
+            marginTop: -4,
+          }}
+        />
+        {/* chair back */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: -2,
+            width: backW,
+            height: backH,
+            borderRadius: 6,
+            backgroundColor: seatColor,
+            borderWidth: 2,
+            borderColor: WOOD_DARK,
+            zIndex: -1,
+          }}
+        />
+      </View>
+    </Bobbing>
+  );
+}
+
+// ---------- one dining table with chairs around it ----------
+function DiningTable({
+  diners,
+  tablesTier,
+  chairsTier,
+}: {
+  diners: PrayedPerson[];
+  tablesTier: number;
+  chairsTier: number;
+}) {
+  const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
+  const topColor = cloth || WOOD;
+  return (
+    <View style={{ alignItems: "center", marginVertical: 10 }}>
+      {/* seated diners (up to 4: two above, two below the table) */}
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", minHeight: 52 }}>
+        {diners.slice(0, 2).map((p, i) => (
+          <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={i * 180} />
+        ))}
+      </View>
+      {/* round table top */}
+      <View style={{ alignItems: "center" }}>
+        <View
+          style={{
+            width: 128,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: topColor,
+            borderWidth: 2,
+            borderColor: tablesTier > 0 ? GOLD : WOOD_DARK,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {/* plates */}
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1].map((i) => (
+              <View
+                key={i}
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  backgroundColor: "#FFF9F0",
+                  marginHorizontal: 10,
+                  borderWidth: 1,
+                  borderColor: "#D9C9A8",
+                }}
+              />
+            ))}
+          </View>
+        </View>
+        {/* table leg + base */}
+        <View style={{ width: 12, height: 26, backgroundColor: WOOD_DARK }} />
+        <View style={{ width: 70, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", minHeight: 52, marginTop: -38 }}>
+        {diners.slice(2, 4).map((p, i) => (
+          <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
+            <SeatedVillager person={p} chairTier={chairsTier} delay={(i + 2) * 180} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ---------- kitchen counter at the back (style by kitchen tier) ----------
+function KitchenCounter({ tier }: { tier: number }) {
+  if (tier >= 2) {
+    // Brick oven (t2) / Chef's Kitchen (t3): arched oven with a warm fire
+    return (
+      <View style={{ alignItems: "center", marginTop: 6 }}>
+        <View
+          style={{
+            width: 110,
+            height: 78,
+            borderTopLeftRadius: 55,
+            borderTopRightRadius: 55,
+            backgroundColor: "#7A4A2B",
+            borderWidth: 3,
+            borderColor: WOOD_DARK,
+            alignItems: "center",
+            justifyContent: "flex-end",
+            paddingBottom: 10,
+            overflow: "hidden",
+          }}
+        >
+          <View style={{ width: 30, height: 22, borderRadius: 8, backgroundColor: FLAME, opacity: 0.85 }} />
+        </View>
+        <View style={{ width: 130, height: 10, borderRadius: 5, backgroundColor: WOOD, marginTop: 2 }} />
+        {tier >= 3 && (
+          <View style={{ flexDirection: "row", marginTop: 4 }}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#3E3E46",
+                  marginHorizontal: 6,
+                  borderWidth: 1,
+                  borderColor: GOLD,
+                }}
+              />
+            ))}
+          </View>
+        )}
+        <Text style={{ color: TEXT_DIM, fontSize: 10, marginTop: 4, fontStyle: "italic" }}>
+          {tier >= 3 ? "Chef's Kitchen" : "Brick Oven"}
+        </Text>
+      </View>
+    );
+  }
+  // Home Kitchen (t1) or bare counter (t0): counter with pots
+  return (
+    <View style={{ alignItems: "center", marginTop: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        <View style={{ width: 24, height: 20, borderRadius: 4, backgroundColor: "#4A4A52", marginHorizontal: 4 }} />
+        <View style={{ width: 30, height: 26, borderRadius: 4, backgroundColor: "#5A5A64", marginHorizontal: 4 }} />
+        <View style={{ width: 20, height: 16, borderRadius: 4, backgroundColor: "#4A4A52", marginHorizontal: 4 }} />
+      </View>
+      <View
+        style={{
+          width: 150,
+          height: 44,
+          borderRadius: 8,
+          backgroundColor: tier > 0 ? WOOD : "#6B5A44",
+          borderWidth: 2,
+          borderColor: WOOD_DARK,
+          marginTop: -2,
+        }}
+      />
+      <Text style={{ color: TEXT_DIM, fontSize: 10, marginTop: 4, fontStyle: "italic" }}>
+        {tier > 0 ? "Home Kitchen" : "Kitchen"}
+      </Text>
+    </View>
+  );
+}
+
+// ---------- string lights across the top (glowing dots, fade only) ----------
+function StringLights({ tier }: { tier: number }) {
+  const glow = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glow]);
+  const dotSize = tier >= 3 ? 10 : tier >= 2 ? 8 : 6;
+  const dotColor = tier >= 3 ? "#FFD97A" : tier >= 2 ? "#FFB84D" : "#FFE9B8";
+  const count = tier >= 3 ? 12 : tier >= 2 ? 10 : 8;
+  return (
+    <View style={{ alignItems: "center", marginTop: 8, marginBottom: -4 }}>
+      {/* the wire */}
+      <View style={{ position: "absolute", top: 8, left: 30, right: 30, height: 2, backgroundColor: "#3E2C1A" }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", width: "88%" }}>
+        {Array.from({ length: count }).map((_, i) => (
+          <Animated.View
+            key={i}
+            style={{
+              marginTop: 6 + (i % 2) * 4,
+              width: dotSize * 2.2,
+              height: dotSize * 2.2,
+              borderRadius: dotSize * 1.1,
+              backgroundColor: dotColor,
+              opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] }),
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View style={{ width: dotSize, height: dotSize, borderRadius: dotSize / 2, backgroundColor: dotColor }} />
+          </Animated.View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ---------- wall art frames ----------
+function WallArt({ tier }: { tier: number }) {
+  const frameColor = tier >= 3 ? GOLD : tier >= 2 ? "#8B5E34" : "#5E3D22";
+  const art = (key: number) => (
+    <View
+      key={key}
+      style={{
+        width: 64,
+        height: 52,
+        borderRadius: 6,
+        backgroundColor: tier >= 3 ? "#3B2E5E" : tier >= 2 ? "#C98B4A" : "#8B6A4A",
+        borderWidth: 4,
+        borderColor: frameColor,
+        marginHorizontal: 14,
+        overflow: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {tier >= 3 ? (
+        // stained-glass: colored panes
+        <View style={{ flexDirection: "row", flexWrap: "wrap", width: 56, height: 44, justifyContent: "center" }}>
+          {["#C0392B", "#E0A63F", "#2E86AB", "#7D3C98"].map((c, i) => (
+            <View key={i} style={{ width: 24, height: 20, backgroundColor: c, margin: 1, borderRadius: 2 }} />
+          ))}
+        </View>
+      ) : tier >= 2 ? (
+        // fresco: sun + hills
+        <View>
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#FFE9B8", alignSelf: "center" }} />
+          <View style={{ width: 56, height: 16, backgroundColor: "#5B7A4E", borderRadius: 4, marginTop: -4 }} />
+        </View>
+      ) : (
+        // simple mural: one warm shape
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#E0A63F", opacity: 0.8 }} />
+      )}
+    </View>
+  );
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "center", marginVertical: 10 }}>
+      {art(0)}
+      {art(1)}
+    </View>
+  );
+}
+
+// ---------- gentle floating bread indicator (fade only, no bounce) ----------
+function BreakingBreadFloat() {
+  const drift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [drift]);
+  return (
+    <Animated.View
+      style={{
+        alignItems: "center",
+        marginTop: 4,
+        opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
+        transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }],
+      }}
+    >
+      <Text style={{ fontSize: 26 }}>🍞</Text>
+      <Text style={{ color: GOLD, fontSize: 12, fontWeight: "700", marginTop: 2 }}>Breaking bread together</Text>
+    </Animated.View>
+  );
+}
+
+// ---------- furniture row ----------
+function FurnitureRow({
+  slot,
+  tier,
+  affordable,
+  onBuy,
+}: {
+  slot: RestaurantSlot;
+  tier: number;
+  affordable: (cost: number) => boolean;
+  onBuy: (slot: RestaurantSlot) => void;
+}) {
+  const maxed = tier >= 3;
+  const nextName = maxed ? null : slot.tierNames[tier]; // tier 0 -> tierNames[0]
+  const nextCost = maxed ? 0 : slot.costs[tier];
+  const bonus = maxed ? slot.bonusPct[2] : tier > 0 ? slot.bonusPct[tier - 1] : 0;
+  const canAfford = !maxed && affordable(nextCost);
+  return (
+    <View
+      style={{
+        backgroundColor: CARD,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: CARD_BORDER,
+        padding: 12,
+        marginBottom: 10,
+        flexDirection: "row",
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ fontSize: 26 }}>{slot.icon}</Text>
+      <View style={{ marginLeft: 12, flex: 1 }}>
+        <Text style={{ color: TEXT, fontWeight: "800", fontSize: 14 }}>{slot.name}</Text>
+        <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 1 }}>
+          {tier > 0 ? slot.tierNames[tier - 1] : "Not furnished"}
+          {bonus > 0 ? `  ·  +${bonus}% income` : ""}
+        </Text>
+        {!maxed && <Text style={{ color: TEXT_DIM, fontSize: 11, marginTop: 1 }}>{slot.blurb}</Text>}
+        {maxed && <Text style={{ color: GOLD, fontSize: 11, marginTop: 1, fontWeight: "700" }}>Fully furnished</Text>}
+      </View>
+      {!maxed && (
+        <Pressable
+          onPress={() => onBuy(slot)}
+          disabled={!canAfford}
+          style={{
+            backgroundColor: canAfford ? GOLD : "#4A3826",
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            opacity: canAfford ? 1 : 0.5,
+          }}
+        >
+          <Text style={{ color: canAfford ? "#241811" : TEXT_DIM, fontWeight: "800", fontSize: 12 }}>
+            {tier === 0 ? "Buy" : "Upgrade"} 🪙{nextCost}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ---------- deterministic daily diner pick (stable per building + day) ----------
+function pickDiners(people: PrayedPerson[], buildingId: string, cap: number): PrayedPerson[] {
+  if (people.length === 0 || cap <= 0) return [];
+  const now = new Date();
+  const dayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  const seed = `${buildingId}|${dayKey}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const start = hash % people.length;
+  const picked: PrayedPerson[] = [];
+  for (let i = 0; i < Math.min(cap, people.length); i++) picked.push(people[(start + i) % people.length]);
+  return picked;
+}
+
+// ---------- main screen ----------
+export default function RestaurantInteriorScreen() {
+  const router = useRouter();
+  const { buildingId } = useLocalSearchParams<{ buildingId?: string }>();
+  const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
+  const [building, setBuilding] = useState<PlacedBuilding | null>(null);
+  const [people, setPeople] = useState<PrayedPerson[]>([]);
+  const [interior, setInterior] = useState<RestaurantInteriorState>({ furniture: {} });
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [coinsRaw, townRaw] = await Promise.all([
+          AsyncStorage.getItem(COINS_STORAGE_KEY),
+          AsyncStorage.getItem(TOWN_STORAGE_KEY),
+        ]);
+        setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+        if (townRaw && buildingId) {
+          const town = parseTown(JSON.parse(townRaw));
+          outer: for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+            const found = town.maps[mapId].buildings.find((b) => b.id === buildingId);
+            if (found) {
+              setBuilding(found);
+              break outer;
+            }
+          }
+        }
+        setPeople(await prayedTodayPeople());
+        if (buildingId) setInterior(await loadRestaurantInterior(buildingId));
+      } catch {}
+      setLoaded(true);
+    })();
+  }, [buildingId]);
+
+  // Ref mirror of coins for fresh reads inside event handlers (avoids stale closures).
+  const coinsRef = useRef(coins);
+  useEffect(() => {
+    coinsRef.current = coins;
+  }, [coins]);
+
+  // Transactional coin delta: functional setState so concurrent transactions never clobber each other.
+  const addCoins = useCallback((delta: number) => {
+    setCoins((prev) => {
+      const next = {
+        balance: Math.round((prev.balance + delta) * 10) / 10,
+        lifetimeEarned: delta > 0 ? Math.round((prev.lifetimeEarned + delta) * 10) / 10 : prev.lifetimeEarned,
+      };
+      AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
+  const handleBuy = useCallback(
+    (slot: RestaurantSlot) => {
+      if (!buildingId) return;
+      const tier = interior.furniture[slot.id] || 0;
+      if (tier >= 3) return;
+      const cost = slot.costs[tier];
+      if (coinsRef.current.balance < cost) {
+        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${Math.floor(coinsRef.current.balance)}.`);
+        return;
+      }
+      const next = { furniture: { ...interior.furniture, [slot.id]: tier + 1 } };
+      setInterior(next);
+      saveRestaurantInterior(buildingId, next);
+      addCoins(-cost);
+    },
+    [buildingId, interior, addCoins]
+  );
+
+  const def = building ? BUILDINGS[building.type] : null;
+  const name = def?.name ?? "Restaurant";
+
+  const gathering = isGatheringTime();
+  const cap = gathering ? 12 : 6;
+  const diners = pickDiners(people, buildingId ?? "restaurant", cap);
+  // 3 tables: diners split round-robin so tables fill evenly
+  const tableDiners: PrayedPerson[][] = [[], [], []];
+  diners.forEach((p, i) => tableDiners[i % 3].push(p));
+
+  const tablesTier = interior.furniture["tables"] || 0;
+  const chairsTier = interior.furniture["chairs"] || 0;
+  const kitchenTier = interior.furniture["kitchen"] || 0;
+  const lightsTier = interior.furniture["stringlights"] || 0;
+  const artTier = interior.furniture["wallart"] || 0;
+
+  let totalBonusPct = 0;
+  for (const slot of RESTAURANT_SLOTS) {
+    const t = interior.furniture[slot.id] || 0;
+    if (t > 0) totalBonusPct += slot.bonusPct[t - 1] ?? 0;
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      {/* header */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingTop: 48,
+          paddingHorizontal: 16,
+          paddingBottom: 12,
+        }}
+      >
+        <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
+          <MaterialIcons name="arrow-back" size={24} color={TEXT} />
+        </Pressable>
+        <MaterialIcons name="restaurant" size={26} color={GOLD} style={{ marginLeft: 4 }} />
+        <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: TEXT }}>{name}</Text>
+        <View style={{ flex: 1 }} />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: CARD,
+            borderRadius: 16,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            borderWidth: 1,
+            borderColor: CARD_BORDER,
+          }}
+        >
+          <Text style={{ fontSize: 15 }}>🪙</Text>
+          <Text style={{ marginLeft: 5, fontWeight: "700", color: TEXT }}>
+            {Math.floor(coins.balance)}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {gathering && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 12,
+              borderRadius: 16,
+              backgroundColor: "#4A3319",
+              borderWidth: 1,
+              borderColor: GOLD,
+              padding: 14,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 26 }}>🍞</Text>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>The Gathering is on</Text>
+              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+                Extra chairs are out — up to 12 villagers can break bread together tonight.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* dining room scene */}
+        <View
+          style={{
+            marginHorizontal: 16,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: CARD_BORDER,
+            overflow: "hidden",
+            backgroundColor: "#2E2013",
+          }}
+        >
+          {/* back wall */}
+          <View style={{ backgroundColor: "#3A2817", paddingBottom: 4 }}>
+            {lightsTier > 0 && <StringLights tier={lightsTier} />}
+            {artTier > 0 && <WallArt tier={artTier} />}
+          </View>
+          {/* wooden floor */}
+          <View style={{ backgroundColor: FLOOR, paddingTop: 6, paddingBottom: 10 }}>
+            {/* floorboards */}
+            <View style={{ position: "absolute", top: 24, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
+            <View style={{ position: "absolute", top: 60, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
+            <View style={{ position: "absolute", top: 100, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
+
+            {gathering && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  bottom: 10,
+                  left: 12,
+                  right: 12,
+                  borderRadius: 16,
+                  backgroundColor: GOLD,
+                  opacity: 0.10,
+                }}
+              />
+            )}
+
+            {/* kitchen at the back */}
+            <KitchenCounter tier={kitchenTier} />
+
+            {/* the three tables */}
+            {tableDiners.map((group, i) => (
+              <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} />
+            ))}
+
+            {gathering && diners.length > 0 && <BreakingBreadFloat />}
+
+            {diners.length === 0 && (
+              <Text
+                style={{
+                  color: TEXT_DIM,
+                  fontSize: 13,
+                  fontStyle: "italic",
+                  textAlign: "center",
+                  marginVertical: 18,
+                  paddingHorizontal: 24,
+                }}
+              >
+                The tables are set, but the chairs are empty. Pray for someone today and they'll pull up a chair.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* interior bonus banner */}
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginTop: 16,
+            borderRadius: 16,
+            backgroundColor: CARD,
+            borderWidth: 1,
+            borderColor: GOLD,
+            padding: 14,
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          <MaterialIcons name="trending-up" size={26} color={GOLD} />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
+              Interior bonus: +{totalBonusPct}% income
+            </Text>
+            <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+              Furnishing your restaurant draws more villagers — and more coins.
+            </Text>
+          </View>
+        </View>
+
+        {/* furniture panel */}
+        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+          <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 8 }}>
+            FURNISH THE DINING ROOM
+          </Text>
+          {RESTAURANT_SLOTS.map((slot) => (
+            <FurnitureRow
+              key={slot.id}
+              slot={slot}
+              tier={interior.furniture[slot.id] || 0}
+              affordable={(cost) => coinsRef.current.balance >= cost}
+              onBuy={handleBuy}
+            />
+          ))}
+        </View>
+
+        {!loaded && (
+          <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Setting the tables…</Text>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

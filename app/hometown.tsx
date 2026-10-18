@@ -106,6 +106,7 @@ import {
   type PrayedPerson,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
+import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
@@ -1302,6 +1303,19 @@ export default function HometownScreen() {
           const bonuses = await Promise.all(bankIds.map((bid) => bankInteriorBonus(bid)));
           bankIds.forEach((bid, i) => { interiorBonuses[bid] = bonuses[i]; });
         } catch {}
+        // Preload restaurant interior furniture bonuses (async) for enterable
+        // restaurants across all maps. Furniture tiers add % income multipliers.
+        const restInteriorMult: Record<string, number> = {};
+        try {
+          const restIds: string[] = [];
+          for (const id of TOWN_MAP_IDS) {
+            for (const b of t.maps[id].buildings) {
+              if (isEnterableRestaurant(b.type)) restIds.push(b.id);
+            }
+          }
+          const restBonuses = await Promise.all(restIds.map((bid) => restaurantInteriorBonus(bid)));
+          restIds.forEach((bid, i) => { restInteriorMult[bid] = restBonuses[i].mult; });
+        } catch {}
         // Generate today's missions
         let missions: Mission[] = [];
         try { missions = await generateDailyMissions(); } catch {}
@@ -1388,7 +1402,7 @@ export default function HometownScreen() {
               const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
               const wMult = workerMult(b);
               const popMult = populationMult(prayedCount);
-              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult);
+              const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1);
               const churchPerMinute = b.type === "church" && earnsCoins
                 ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
                 : 0;
@@ -1578,6 +1592,12 @@ export default function HometownScreen() {
         onPress: () => router.push(`/bank-interior?buildingId=${b.id}`),
       });
     }
+    if (isRestaurantType(b.type)) {
+      enterActions.push({
+        text: "🍞 Enter Restaurant",
+        onPress: () => router.push(`/restaurant-interior?buildingId=${b.id}`),
+      });
+    }
     if (level >= 3) {
       Alert.alert(
         `${def.name} (Lv 3) — ${plot.name}`,
@@ -1691,6 +1711,9 @@ export default function HometownScreen() {
       return;
     } else if (b.type === "toolshop") {
       router.push("/gear-shop?type=tool");
+      return;
+    } else if (isEnterableRestaurant(b.type)) {
+      router.push(`/restaurant-interior?buildingId=${b.id}`);
       return;
     }
     setPopupBuilding(b);

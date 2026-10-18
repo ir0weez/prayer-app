@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Modal,
@@ -72,7 +72,7 @@ function MissionScene({
   timeOfDay: TimeOfDay;
 }) {
   const sky = skyColors(timeOfDay);
-  const now = useMemo(() => new Date(), []);
+  const now = new Date();
   const out = missions.filter((m) => !m.collected && missionStatus(m, now) === "out");
   const returned = missions.filter((m) => !m.collected && missionStatus(m, now) === "returned");
 

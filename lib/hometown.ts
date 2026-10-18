@@ -62,6 +62,10 @@ export function parseUnlockedMaps(value: unknown): TownMapId[] {
   if (!Array.isArray(value)) return ["town"];
   const valid = value.filter((v): v is TownMapId => typeof v === "string" && (TOWN_MAP_IDS as string[]).includes(v));
   if (!valid.includes("town")) valid.unshift("town");
+  // Free maps are always available — no unlock tap needed.
+  for (const id of TOWN_MAP_IDS) {
+    if (!MAP_INFO[id].comingSoon && MAP_INFO[id].unlockCost === 0 && !valid.includes(id)) valid.push(id);
+  }
   return valid;
 }
 

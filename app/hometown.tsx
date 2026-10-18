@@ -1107,11 +1107,15 @@ export default function HometownScreen() {
 
   // Garden visitors: 1-2 prayer lights paying their respects this hour
   // (daytime only). Deterministic per hour so they linger while you visit.
+  // Lights away on field missions don't visit.
   const gardenVisitors = useMemo(() => {
     if (timeOfDay === "night") return [];
-    const blessed = lightInfos.map((r) => ({ personId: r.personId, name: r.name }));
+    const away = new Set(fieldMissions.filter((m) => !m.collected).map((m) => m.personId));
+    const blessed = lightInfos
+      .filter((r) => !away.has(r.personId))
+      .map((r) => ({ personId: r.personId, name: r.name }));
     return pickGardenVisitors(blessed, gardenVisitHourKey(), false);
-  }, [lightInfos, timeOfDay]);
+  }, [lightInfos, timeOfDay, fieldMissions]);
 
   const saveTown = useCallback((next: TownState) => {
     setTown(next);
@@ -1781,7 +1785,9 @@ export default function HometownScreen() {
   const handleTownLotPress = (lot: TownLot) => {
     // Preset lots: the building is fixed — open the modal directly (no tier gate;
     // the preset IS the design, coins are the only gate).
-    if (lot.presetType) {
+    // If the preset building is already owned, treat the lot as flexible (no duplicate)
+    const presetOwned = lot.presetType && map.buildings.some((b) => b.type === lot.presetType);
+    if (lot.presetType && !presetOwned) {
       setPurchaseLot(lot);
       return;
     }
@@ -2307,6 +2313,29 @@ export default function HometownScreen() {
         );
       })()}
 
+      {/* Mission Field: lights back from missions, waiting to be welcomed home */}
+      {(() => {
+        const home = fieldMissions.filter((m) => !m.collected && missionStatus(m) === "returned");
+        if (home.length === 0) return null;
+        return (
+          <Pressable
+            onPress={() => {
+              if (!unlockedMaps.includes("reserve")) {
+                handleUnlockMap("reserve");
+                return;
+              }
+              switchMap("reserve");
+            }}
+            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FCD34D" }}
+          >
+            <Text style={{ fontSize: 14 }}>✦</Text>
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+              {home.length === 1 ? `${home[0].name} is home from the field!` : `${home.length} lights home from the field!`} Tap to welcome them.
+            </Text>
+          </Pressable>
+        );
+      })()}
+
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
@@ -2692,7 +2721,7 @@ export default function HometownScreen() {
       </View>
       )}
 
-      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && (
         <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})
@@ -3326,7 +3355,9 @@ export default function HometownScreen() {
               const lot = purchaseLot;
               if (!lot) return null;
               // Preset lot: one fixed building — show it directly, unlock & upgrade.
-              if (lot.presetType) {
+              // But if already owned, fall through to flexible options (no duplicates).
+              const presetOwned = lot.presetType && map.buildings.some((b) => b.type === lot.presetType);
+              if (lot.presetType && !presetOwned) {
                 const def = BUILDINGS[lot.presetType];
                 const total = lot.cost + def.cost;
                 const affordable = coinsRef.current.balance >= total;

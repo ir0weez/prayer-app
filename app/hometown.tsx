@@ -3268,19 +3268,28 @@ export default function HometownScreen() {
     const level = Math.min(Math.max(b.level || 1, 1), 3);
     const now = Date.now();
     const remaining = restMsRemaining(lastRestAt, now);
+    const doUpgrade = () => {
+      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
+      if (coinsRef.current.balance < cost) {
+        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        return;
+      }
+      addCoins(-cost);
+      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      saveMap({ ...map, buildings: updated });
+      Alert.alert("Fountain Plaza", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A grand plaza — flowers ring the fountain." : "Benches in the shade, room to breathe."}`);
+    };
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
     if (remaining > 0) {
       Alert.alert(
         "Fountain Plaza",
-        `The water keeps its steady song.\n\nRest again in about ${formatCooldown(remaining)}.`
+        `The water keeps its steady song.\n\nRest again in about ${formatCooldown(remaining)}.`,
+        [{ text: "OK" }, ...upgradeBtn]
       );
       return;
     }
-    setLastRestAt(now);
-    saveLastRest(now).catch(() => undefined);
     const coins = REST_COINS[level] ?? 5;
     const xp = REST_XP[level] ?? 8;
-    addCoins(coins);
-    awardCustomXP(xp, `plaza-rest-${Date.now()}`).catch(() => undefined);
     const levelBlurb = level >= 3
       ? "The grand plaza hums with quiet life. You sit by the fountain and breathe."
       : level >= 2
@@ -3288,7 +3297,20 @@ export default function HometownScreen() {
         : "A simple fountain, cool water. You rest a while.";
     Alert.alert(
       "Fountain Plaza",
-      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP — refreshed.`
+      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP — refreshed.`,
+      [
+        ...upgradeBtn,
+        {
+          text: "Rest a while",
+          onPress: () => {
+            const t = Date.now();
+            setLastRestAt(t);
+            saveLastRest(t).catch(() => undefined);
+            addCoins(coins);
+            awardCustomXP(xp, `plaza-rest-${t}`).catch(() => undefined);
+          },
+        },
+      ]
     );
   };
 

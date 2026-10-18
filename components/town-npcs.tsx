@@ -56,6 +56,9 @@ const ACTIVITY_ICONS: Record<string, string> = {
   toolshop: "handyman",
   shop: "store",
   weaponsmith: "__swords__",
+  /** Gathering places — villagers tending, gathering, resting together. */
+  "community-garden": "spa",
+  "fountain-plaza": "people",
   /** Villager home life (pseudo-types, keyed the same way as building types). */
   __resting__: "bedtime",
   __visiting__: "people",
@@ -384,6 +387,23 @@ export function TownNPCs({
           buildingId: "",
           type: "tree-of-life",
         };
+      }
+      // Gathering places: villagers visit the Community Garden to tend crops,
+      // and the Fountain Plaza to gather and rest. These are the heart of
+      // community life — not businesses, but places to be together.
+      if (!isGatheringTime() && Math.random() < 0.15) {
+        const gathering = ms.buildings.filter(
+          (b) => b.type === "community-garden" || b.type === "fountain-plaza"
+        );
+        if (gathering.length > 0) {
+          const target = gathering[Math.floor(Math.random() * gathering.length)];
+          const fp = buildingFootprint(target.level || 1, target.type);
+          return {
+            tile: { x: target.x + fp.w / 2 - 0.5, y: target.y + fp.h / 2 - 0.5 },
+            buildingId: target.id,
+            type: target.type,
+          };
+        }
       }
       if (pool.length === 0) {
         // no shops yet — gather at the church instead

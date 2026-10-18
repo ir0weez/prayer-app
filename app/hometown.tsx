@@ -302,71 +302,138 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
         </View>
       );
     case "church": {
-      // L1 Chapel — small white chapel with steeple; L2 Church — stained glass;
-      // L3 Cathedral — grand twin spires.
-      const isCath = lv >= 3;
+      // L1 Chapel — small white chapel with steeple and cross.
+      // L2 Church — warm community church: glowing amber windows, front porch, welcome sign.
+      // L3 Community Church — fellowship hall wing, glowing windows with people silhouettes
+      // inside, open double doors spilling warm light, string lights at the entrance.
+      const isCommunity = lv >= 3;
       const isChurch = lv >= 2;
+      const bodyW = isCommunity ? 0.62 : isChurch ? 0.85 : 0.75;
+      const bodyH = isCommunity ? 0.58 : isChurch ? 0.55 : 0.48;
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* Warm halo — the light of a gathering place (L2/L3) */}
+          {isChurch && (
+            <View style={{
+              position: "absolute", bottom: s * 0.02,
+              width: s * (isCommunity ? 1.02 : 0.9), height: s * 0.68,
+              backgroundColor: "#FDE68A", opacity: 0.22, borderRadius: s * 0.5,
+            }} />
+          )}
           {/* Main body */}
           <View style={{
-            width: s * (isCath ? 0.95 : isChurch ? 0.85 : 0.75),
-            height: s * (isCath ? 0.62 : isChurch ? 0.55 : 0.48),
+            width: s * bodyW, height: s * bodyH,
             backgroundColor: "#FFFBEB", borderRadius: 4,
             borderWidth: 2, borderColor: "#D6C79A",
             alignItems: "center", justifyContent: "center",
           }}>
-            {/* Stained glass windows */}
+            {/* Windows — warm amber glow at L2/L3, like light from inside */}
             <View style={{ flexDirection: "row" }}>
-              {(isCath ? [0, 1, 2] : isChurch ? [0, 1] : [0]).map(i => (
+              {(isCommunity ? [0, 1, 2] : isChurch ? [0, 1] : [0]).map(i => (
                 <View key={i} style={{
                   width: s * 0.13, height: s * 0.22, marginHorizontal: 3,
-                  backgroundColor: i % 2 === 0 ? "#93C5FD" : "#C4B5FD",
+                  backgroundColor: isChurch ? "#FCD34D" : (i % 2 === 0 ? "#93C5FD" : "#C4B5FD"),
                   borderTopLeftRadius: s * 0.065, borderTopRightRadius: s * 0.065,
                   borderWidth: 1, borderColor: "#92400E",
-                }} />
+                  alignItems: "center", justifyContent: "flex-end", overflow: "hidden",
+                }}>
+                  {/* People silhouettes gathered inside (L3) */}
+                  {isCommunity && (
+                    <View style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 2 }}>
+                      <View style={{ width: s * 0.035, height: s * 0.07, backgroundColor: "#78350F", borderRadius: s * 0.018, marginRight: 1 }} />
+                      <View style={{ width: s * 0.035, height: s * 0.09, backgroundColor: "#92400E", borderRadius: s * 0.018 }} />
+                    </View>
+                  )}
+                </View>
               ))}
             </View>
-            {/* Door */}
-            <View style={{
-              position: "absolute", bottom: 0,
-              width: s * 0.16, height: s * 0.24,
-              backgroundColor: "#78350F",
-              borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08,
-            }} />
+            {/* Doors — L2/L3: double doors, slightly open with warm light spilling out */}
+            {isChurch ? (
+              <View style={{
+                position: "absolute", bottom: 0,
+                width: s * 0.24, height: s * 0.3,
+                flexDirection: "row",
+                borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06,
+                overflow: "hidden",
+                borderWidth: 2, borderBottomWidth: 0, borderColor: "#78350F",
+              }}>
+                <View style={{ flex: 1, backgroundColor: "#78350F" }} />
+                <View style={{ width: s * 0.05, backgroundColor: "#FDE68A" }} />
+                <View style={{ flex: 1, backgroundColor: "#92400E" }} />
+              </View>
+            ) : (
+              <View style={{
+                position: "absolute", bottom: 0,
+                width: s * 0.16, height: s * 0.24,
+                backgroundColor: "#78350F",
+                borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08,
+              }} />
+            )}
           </View>
           {/* Roof */}
           <View style={{
-            position: "absolute", bottom: s * (isCath ? 0.62 : isChurch ? 0.55 : 0.48),
+            position: "absolute", bottom: s * bodyH,
             width: 0, height: 0,
-            borderLeftWidth: s * (isCath ? 0.475 : isChurch ? 0.425 : 0.375),
-            borderRightWidth: s * (isCath ? 0.475 : isChurch ? 0.425 : 0.375),
+            borderLeftWidth: s * bodyW / 2, borderRightWidth: s * bodyW / 2,
             borderBottomWidth: s * 0.22,
             borderLeftColor: "transparent", borderRightColor: "transparent",
             borderBottomColor: "#92400E",
           }} />
-          {/* Steeple(s) */}
-          {isCath ? (
+          {/* L2: front porch — columns + little roof over the doors, welcome sign out front */}
+          {isChurch && !isCommunity && (
             <>
-              <View style={{ position: "absolute", left: s * 0.06, bottom: s * 0.62, width: s * 0.16, height: s * 0.3, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
-              <View style={{ position: "absolute", left: s * 0.06, bottom: s * 0.9, width: 0, height: 0, borderLeftWidth: s * 0.08, borderRightWidth: s * 0.08, borderBottomWidth: s * 0.14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
-              <View style={{ position: "absolute", left: s * 0.125, bottom: s * 1.0, width: s * 0.03, height: s * 0.08, backgroundColor: "#FBBF24" }} />
-              <View style={{ position: "absolute", left: s * 0.095, bottom: s * 1.05, width: s * 0.09, height: s * 0.03, backgroundColor: "#FBBF24" }} />
-              <View style={{ position: "absolute", right: s * 0.06, bottom: s * 0.62, width: s * 0.16, height: s * 0.3, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
-              <View style={{ position: "absolute", right: s * 0.06, bottom: s * 0.9, width: 0, height: 0, borderLeftWidth: s * 0.08, borderRightWidth: s * 0.08, borderBottomWidth: s * 0.14, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
-              <View style={{ position: "absolute", right: s * 0.125, bottom: s * 1.0, width: s * 0.03, height: s * 0.08, backgroundColor: "#FBBF24" }} />
-              <View style={{ position: "absolute", right: s * 0.095, bottom: s * 1.05, width: s * 0.09, height: s * 0.03, backgroundColor: "#FBBF24" }} />
-            </>
-          ) : (
-            <>
-              <View style={{ position: "absolute", bottom: s * (isChurch ? 0.72 : 0.65), width: s * 0.18, height: s * 0.28, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
-              <View style={{ position: "absolute", bottom: s * (isChurch ? 0.98 : 0.91), width: 0, height: 0, borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09, borderBottomWidth: s * 0.15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
-              {/* Cross */}
-              <View style={{ position: "absolute", bottom: s * (isChurch ? 1.1 : 1.03), left: s * 0.485, width: s * 0.03, height: s * 0.1, backgroundColor: "#FBBF24" }} />
-              <View style={{ position: "absolute", bottom: s * (isChurch ? 1.14 : 1.07), left: s * 0.45, width: s * 0.1, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: -s * 0.19, width: s * 0.05, height: s * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
+              <View style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: s * 0.14, width: s * 0.05, height: s * 0.34, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#D6C79A" }} />
+              <View style={{
+                position: "absolute", bottom: s * 0.34, left: "50%", marginLeft: -s * 0.22,
+                width: 0, height: 0,
+                borderLeftWidth: s * 0.22, borderRightWidth: s * 0.22,
+                borderBottomWidth: s * 0.12,
+                borderLeftColor: "transparent", borderRightColor: "transparent",
+                borderBottomColor: "#92400E",
+              }} />
+              {/* Welcome sign */}
+              <View style={{ position: "absolute", bottom: 0, left: s * 0.045, width: s * 0.03, height: s * 0.22, backgroundColor: "#78350F" }} />
+              <View style={{ position: "absolute", bottom: s * 0.2, left: -s * 0.015, width: s * 0.15, height: s * 0.12, backgroundColor: "#FFFBEB", borderWidth: 1.5, borderColor: "#78350F", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: s * 0.1, height: 3, backgroundColor: "#F59E0B", borderRadius: 2, marginBottom: 2 }} />
+                <View style={{ width: s * 0.07, height: 3, backgroundColor: "#FCD34D", borderRadius: 2 }} />
+              </View>
             </>
           )}
-          {/* Prayer residents: glowing figures gathered around the church */}
+          {/* L3: fellowship hall wing + entrance canopy with string lights */}
+          {isCommunity && (
+            <>
+              <View style={{ position: "absolute", bottom: 0, right: s * 0.02, width: s * 0.3, height: s * 0.4, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: s * 0.1, height: s * 0.14, backgroundColor: "#FCD34D", borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, borderWidth: 1, borderColor: "#92400E" }} />
+              </View>
+              <View style={{
+                position: "absolute", bottom: s * 0.4, right: s * 0.02,
+                width: 0, height: 0,
+                borderLeftWidth: s * 0.15, borderRightWidth: s * 0.15,
+                borderBottomWidth: s * 0.1,
+                borderLeftColor: "transparent", borderRightColor: "transparent",
+                borderBottomColor: "#92400E",
+              }} />
+              {/* Entrance canopy with string lights */}
+              <View style={{ position: "absolute", bottom: s * 0.28, alignItems: "center" }}>
+                <View style={{ width: s * 0.34, height: s * 0.05, backgroundColor: "#92400E", borderRadius: 3 }} />
+                <View style={{ flexDirection: "row", marginTop: 1 }}>
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FDE68A", marginHorizontal: s * 0.025, borderWidth: 1, borderColor: "#F59E0B" }} />
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
+          {/* Single steeple with cross — a humble spire, not twin cathedral towers */}
+          <>
+            <View style={{ position: "absolute", bottom: s * (bodyH + 0.17), width: s * 0.18, height: s * 0.28, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#D6C79A", borderRadius: 2 }} />
+            <View style={{ position: "absolute", bottom: s * (bodyH + 0.43), width: 0, height: 0, borderLeftWidth: s * 0.09, borderRightWidth: s * 0.09, borderBottomWidth: s * 0.15, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#92400E" }} />
+            {/* Cross */}
+            <View style={{ position: "absolute", bottom: s * (bodyH + 0.55), left: s * 0.485, width: s * 0.03, height: s * 0.1, backgroundColor: "#FBBF24" }} />
+            <View style={{ position: "absolute", bottom: s * (bodyH + 0.59), left: s * 0.45, width: s * 0.1, height: s * 0.03, backgroundColor: "#FBBF24" }} />
+          </>
+          {/* Prayer lights: glowing figures gathered around the church */}
           {prayedCount > 0 && (
             <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: -s * 0.06, flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
               {Array.from({ length: Math.min(prayedCount, 6) }).map((_, i) => (
@@ -2595,7 +2662,7 @@ export default function HometownScreen() {
                   })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                      🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a glorious Cathedral!"}
+                      🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
                     </Text>
                   ) : b.type === "house" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>

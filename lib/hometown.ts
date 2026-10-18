@@ -138,9 +138,9 @@ export function houseNameFor(level: number): string {
   return HOUSE_LEVEL_NAMES[Math.min(Math.max(level || 1, 1), 5)] ?? "Cottage";
 }
 
-// Church upgrades: Chapel -> Church -> Cathedral, grander at each tier.
+// Church upgrades: Chapel -> Church -> Community Church, warmer at each tier.
 export const CHURCH_LEVEL_NAMES: Record<number, string> = {
-  1: "Chapel", 2: "Church", 3: "Cathedral",
+  1: "Chapel", 2: "Church", 3: "Community Church",
 };
 
 /** Display name for a church at a given level. */

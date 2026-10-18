@@ -203,6 +203,7 @@ import {
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
+import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
@@ -3939,6 +3940,7 @@ export default function HometownScreen() {
       ) : activeMap === "reserve" ? (
         <SeasonalBorder variant="field">
         <View>
+        <SafeBoundary fallbackTitle="The field is resting">
         <MissionField
           missions={fieldMissions}
           availableLights={lightInfos.filter(
@@ -3949,6 +3951,7 @@ export default function HometownScreen() {
           onSend={handleSendMission}
           onCollect={handleCollectMission}
         />
+        </SafeBoundary>
         {/* Celebration overlays render on every map, including the field. */}
         <FireworksOverlay triggerKey={fireworksKey} />
         <CelebrationOverlay

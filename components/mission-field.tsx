@@ -38,6 +38,7 @@ function skyColors(timeOfDay: TimeOfDay): { top: string; bottom: string; sun: st
     case "afternoon": return { top: "#7DD3FC", bottom: "#E0F2FE", sun: "#FBBF24" };
     case "evening": return { top: "#FDBA74", bottom: "#FFEDD5", sun: "#EA580C" };
     case "night": return { top: "#1E1B4B", bottom: "#312E81", sun: "#E0E7FF" };
+    default: return { top: "#7DD3FC", bottom: "#E0F2FE", sun: "#FBBF24" };
   }
 }
 
@@ -127,8 +128,24 @@ function MissionScene({
 }
 
 function formatDurationLabel(d: MissionDurationId): string {
-  const def = MISSION_DURATIONS[d];
-  return `${def.label} · ${def.hours}h`;
+  try {
+    const def = MISSION_DURATIONS[d];
+    if (!def) return "Mission";
+    return `${def.label} · ${def.hours}h`;
+  } catch {
+    return "Mission";
+  }
+}
+
+/** Safe duration label lookup — never throws, falls back to "mission". */
+function safeDurationLabel(duration: unknown): string {
+  try {
+    const def = (MISSION_DURATIONS as Record<string, { label?: string } | undefined>)[String(duration)];
+    const label = def?.label;
+    return typeof label === "string" && label.length > 0 ? label.toLowerCase() : "mission";
+  } catch {
+    return "mission";
+  }
 }
 
 export function MissionField(props: MissionFieldProps) {
@@ -139,8 +156,30 @@ export function MissionField(props: MissionFieldProps) {
   const [pickedDuration, setPickedDuration] = useState<MissionDurationId>("day");
 
   // Defensive: never crash on bad state — render the empty field instead.
-  const safeMissions = Array.isArray(missions) ? missions : [];
-  const safeLights = Array.isArray(availableLights) ? availableLights : [];
+  // Strict validation: every mission must have a string id, name, personId,
+  // a valid duration key, and valid ISO date strings. Anything else is dropped.
+  const safeMissions = Array.isArray(missions) ? missions.filter((m) => {
+    try {
+      if (!m || typeof m !== "object") return false;
+      if (typeof m.id !== "string" || m.id.length === 0) return false;
+      if (typeof m.name !== "string" || m.name.length === 0) return false;
+      if (typeof m.personId !== "string" || m.personId.length === 0) return false;
+      if (!MISSION_DURATIONS[m.duration as MissionDurationId]) return false;
+      if (typeof m.sentAt !== "string" || isNaN(new Date(m.sentAt).getTime())) return false;
+      if (typeof m.returnAt !== "string" || isNaN(new Date(m.returnAt).getTime())) return false;
+      if (typeof m.coins !== "number" || typeof m.xp !== "number") return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }) : [];
+  const safeLights = Array.isArray(availableLights) ? availableLights.filter((l) => {
+    try {
+      return l && typeof l.personId === "string" && typeof l.name === "string";
+    } catch {
+      return false;
+    }
+  }) : [];
   const safePt = pt ?? { bg: "#FFF7ED", card: "#FFFFFF", text: "#1C1917", subtext: "#78716C", border: "#E5E7EB" };
 
   const now = new Date();
@@ -240,7 +279,7 @@ export function MissionField(props: MissionFieldProps) {
               <View style={{ marginLeft: 10, flex: 1 }}>
                 <Text style={{ fontWeight: "700", fontSize: 14, color: "#92400E" }}>{m.name}</Text>
                 <Text style={{ fontSize: 12, color: "#B45309" }}>
-                  Back from {MISSION_DURATIONS[m.duration].label.toLowerCase()} — tap to receive their blessing
+                  Back from {safeDurationLabel(m.duration)} — tap to receive their blessing
                 </Text>
               </View>
             </Pressable>
@@ -363,6 +402,7 @@ export function MissionField(props: MissionFieldProps) {
             <Text style={{ fontWeight: "700", fontSize: 13, color: safePt.text, marginBottom: 6 }}>How long</Text>
             {MISSION_DURATION_ORDER.map((id) => {
               const d = MISSION_DURATIONS[id];
+              if (!d) return null;
               const selected = pickedDuration === id;
               return (
                 <Pressable
@@ -446,11 +486,11 @@ export function MissionField(props: MissionFieldProps) {
               }}
             >
               <Text style={{ fontWeight: "800", fontSize: 16, color: "#92400E" }}>
-                +{collectMission?.coins.toFixed(2)} coins{collectMission && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
+                +{typeof collectMission?.coins === "number" ? collectMission.coins.toFixed(2) : "0.00"} coins{collectMission && typeof collectMission.xp === "number" && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
               </Text>
-              {collectMission?.verse && (
+              {collectMission?.verse && typeof collectMission.verse.text === "string" && (
                 <Text style={{ fontSize: 12, color: "#B45309", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                  "{collectMission.verse.text}"{"\n"}— {collectMission.verse.ref}
+                  "{collectMission.verse.text}"{"\n"}— {typeof collectMission.verse.ref === "string" ? collectMission.verse.ref : ""}
                 </Text>
               )}
             </View>

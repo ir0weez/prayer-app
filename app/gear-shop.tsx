@@ -185,7 +185,7 @@ export default function GearShopScreen() {
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ fontSize: 16 }}>🪙</Text>
-            <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{Math.floor(coins.balance)}</Text>
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{coins.balance.toFixed(2)}</Text>
           </View>
         </View>
         <Text style={{ color: LABEL, fontSize: 13, marginTop: 4, marginBottom: 16 }}>

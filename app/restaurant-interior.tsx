@@ -198,6 +198,155 @@ function DiningTable({
   );
 }
 
+// ---------- banquet seating: named villager at the long table ----------
+// Each diner gets their name above them so Jonathan knows who sits where.
+function BanquetSeated({ person, delay }: { person: PrayedPerson; delay: number }) {
+  const firstName = (person.name || "Guest").split(" ")[0];
+  return (
+    <Bobbing delay={delay}>
+      <View style={{ alignItems: "center", marginHorizontal: 5, minWidth: 44 }}>
+        {/* name above */}
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: 10,
+            fontWeight: "700",
+            color: "#FFE9C4",
+            marginBottom: 3,
+            maxWidth: 56,
+            textAlign: "center",
+            textShadowColor: "rgba(0,0,0,0.6)",
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+          }}
+        >
+          {firstName}
+        </Text>
+        {/* warm glow behind the head */}
+        <View
+          style={{
+            position: "absolute",
+            top: 8,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: FLAME,
+            opacity: 0.28,
+          }}
+        />
+        {/* head */}
+        <View
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            backgroundColor: person.accentColor || "#E8C088",
+            borderWidth: 1.5,
+            borderColor: GOLD,
+          }}
+        />
+        {/* shoulders */}
+        <View
+          style={{
+            width: 30,
+            height: 15,
+            borderTopLeftRadius: 10,
+            borderTopRightRadius: 10,
+            backgroundColor: "#C98B4A",
+            marginTop: -4,
+          }}
+        />
+        {/* banquet chair back */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: -2,
+            width: 40,
+            height: 30,
+            borderRadius: 6,
+            backgroundColor: "#4E2A1E",
+            borderWidth: 2,
+            borderColor: WOOD_DARK,
+            zIndex: -1,
+          }}
+        />
+      </View>
+    </Bobbing>
+  );
+}
+
+// ---------- the one long banquet table ----------
+// Diners sit along both sides; names above every seat.
+function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTier: number }) {
+  const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
+  const topColor = cloth || WOOD;
+  // Split diners along the two long sides
+  const topRow = diners.filter((_, i) => i % 2 === 0);
+  const bottomRow = diners.filter((_, i) => i % 2 === 1);
+  const plateCount = Math.max(topRow.length, bottomRow.length, 2);
+  return (
+    <View style={{ alignItems: "center", marginVertical: 12, paddingHorizontal: 8 }}>
+      {/* top side diners */}
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", flexWrap: "wrap", minHeight: 64 }}>
+        {topRow.map((p, i) => (
+          <BanquetSeated key={p.id} person={p} delay={i * 150} />
+        ))}
+      </View>
+      {/* the long table */}
+      <View style={{ alignItems: "center", marginVertical: 2 }}>
+        <View
+          style={{
+            minWidth: 220,
+            maxWidth: "100%",
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: topColor,
+            borderWidth: 2,
+            borderColor: tablesTier > 0 ? GOLD : WOOD_DARK,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 12,
+          }}
+        >
+          {/* plates down the length */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center" }}>
+            {Array.from({ length: Math.min(plateCount, 10) }).map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#FFF9F0",
+                  marginHorizontal: 5,
+                  marginVertical: 2,
+                  borderWidth: 1,
+                  borderColor: "#D9C9A8",
+                }}
+              />
+            ))}
+          </View>
+        </View>
+        {/* table legs */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", width: 180 }}>
+          <View style={{ width: 12, height: 22, backgroundColor: WOOD_DARK }} />
+          <View style={{ width: 12, height: 22, backgroundColor: WOOD_DARK }} />
+        </View>
+      </View>
+      {/* bottom side diners (mirrored) */}
+      <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap", minHeight: 64, marginTop: -30 }}>
+        {bottomRow.map((p, i) => (
+          <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
+            <View style={{ transform: [{ scaleY: -1 }] }}>
+              <BanquetSeated person={p} chairTier={0} delay={(i + topRow.length) * 150} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ---------- kitchen counter at the back (style by kitchen tier) ----------
 function KitchenCounter({ tier }: { tier: number }) {
   if (tier >= 2) {
@@ -442,7 +591,7 @@ function FurnitureRow({
           }}
         >
           <Text style={{ color: canAfford ? "#241811" : TEXT_DIM, fontWeight: "800", fontSize: 12 }}>
-            {tier === 0 ? "Buy" : "Upgrade"} 🪙{nextCost}
+            {tier === 0 ? "Buy" : "Upgrade"} 🪙{nextCost.toFixed(2)}
           </Text>
         </Pressable>
       )}
@@ -589,7 +738,7 @@ export default function RestaurantInteriorScreen() {
         >
           <Text style={{ fontSize: 15 }}>🪙</Text>
           <Text style={{ marginLeft: 5, fontWeight: "700", color: TEXT }}>
-            {Math.floor(coins.balance)}
+            {coins.balance.toFixed(2)}
           </Text>
         </View>
       </View>

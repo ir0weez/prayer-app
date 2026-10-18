@@ -48,7 +48,7 @@ export default function HometownShopScreen() {
       return;
     }
     if (coins.balance < item.cost) {
-      Alert.alert("Not enough coins", `You need ${item.cost} coins.`);
+      Alert.alert("Not enough coins", `You need ${item.cost.toFixed(2)} coins.`);
       return;
     }
     Alert.alert(
@@ -120,7 +120,7 @@ export default function HometownShopScreen() {
                   </View>
                   {!isOwned && !locked && (
                     <Text style={{ fontWeight: "700", color: affordable ? "#000" : "#999" }}>
-                      🪙{item.cost}
+                      🪙{item.cost.toFixed(2)}
                     </Text>
                   )}
                 </Pressable>

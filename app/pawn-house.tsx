@@ -191,7 +191,7 @@ export default function PawnHouseScreen() {
 
   const spend = (cost: number, label: string): boolean => {
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `${label} costs ${cost} coins.`);
+      Alert.alert("Not enough coins", `${label} costs ${cost.toFixed(2)} coins.`);
       return false;
     }
     addCoins(-cost);
@@ -217,7 +217,7 @@ export default function PawnHouseScreen() {
       save({ ...house, rooms: { ...house.rooms, [roomId]: { ...room, theme: t.id } } });
       return;
     }
-    Alert.alert(t.name, `Unlock this color theme for ${t.cost} coins?`, [
+    Alert.alert(t.name, `Unlock this color theme for ${t.cost.toFixed(2)} coins?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Unlock",
@@ -243,7 +243,7 @@ export default function PawnHouseScreen() {
     if (tier >= 3) return;
     const cost = slot.costs[tier];
     const label = tier === 0 ? slot.tierNames[0] : `Upgrade to ${slot.tierNames[tier]}`;
-    Alert.alert(slot.name, `${label} — ${cost} coins?`, [
+    Alert.alert(slot.name, `${label} — ${cost.toFixed(2)} coins?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: tier === 0 ? "Buy" : "Upgrade",

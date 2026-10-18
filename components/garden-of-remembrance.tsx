@@ -896,7 +896,7 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
           <Pressable
             onPress={() => {
               if (coins < upgradeCost) {
-                Alert.alert("Not enough coins", `Upgrading to the ${levelNames[nextLevel]} costs ${upgradeCost} coins.`);
+                Alert.alert("Not enough coins", `Upgrading to the ${levelNames[nextLevel]} costs ${upgradeCost.toFixed(2)} coins.`);
                 return;
               }
               Alert.alert(
@@ -906,14 +906,14 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
                   : "Glowing flowers, a marble wall with gold names, and a fountain centerpiece. Fireflies dance at night.",
                 [
                   { text: "Not yet", style: "cancel" },
-                  { text: `Upgrade · 🪙${upgradeCost}`, onPress: onUpgrade },
+                  { text: `Upgrade · 🪙${upgradeCost.toFixed(2)}`, onPress: onUpgrade },
                 ]
               );
             }}
             style={{ borderRadius: 12, padding: 13, alignItems: "center", marginTop: 8, borderWidth: 1.5, borderColor: "#D4AF37", backgroundColor: "rgba(212,175,55,0.08)" }}
           >
             <Text style={{ color: "#8A6D1B", fontWeight: "800", fontSize: 14 }}>
-              ✨ Upgrade to {levelNames[nextLevel]} · 🪙{upgradeCost}
+              ✨ Upgrade to {levelNames[nextLevel]} · 🪙{upgradeCost.toFixed(2)}
             </Text>
           </Pressable>
         ) : (

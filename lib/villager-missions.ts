@@ -6,10 +6,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   COINS_STORAGE_KEY,
   parseCoins,
-  getTimeOfDay,
   isRestaurantType,
   type PlacedBuilding,
 } from "./hometown";
+import { getTimeOfDay } from "./daynight";
 
 export const VILLAGER_MISSIONS_KEY = "prayercircle.hometown.villager-missions.v1";
 

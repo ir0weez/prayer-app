@@ -376,7 +376,7 @@ export function MissionField(props: MissionFieldProps) {
                   </Text>
                   <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 2 }}>{d.blurb}</Text>
                   <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 2 }}>
-                    Blessing: {d.coinsMin}–{d.coinsMax} coins{d.xp > 0 ? ` + ${d.xp} XP` : ""}
+                    Blessing: {d.coinsMin.toFixed(2)}–{d.coinsMax.toFixed(2)} coins{d.xp > 0 ? ` + ${d.xp} XP` : ""}
                     {d.verseChance > 0 ? " · may carry a verse" : ""}
                   </Text>
                 </Pressable>
@@ -440,7 +440,7 @@ export function MissionField(props: MissionFieldProps) {
               }}
             >
               <Text style={{ fontWeight: "800", fontSize: 16, color: "#92400E" }}>
-                +{collectMission?.coins} coins{collectMission && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
+                +{collectMission?.coins.toFixed(2)} coins{collectMission && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
               </Text>
               {collectMission?.verse && (
                 <Text style={{ fontSize: 12, color: "#B45309", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>

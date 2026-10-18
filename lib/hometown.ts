@@ -312,7 +312,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // Restaurant Row — city gathering spots where prayer villagers break bread
   "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +22 coins/day." },
   "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +20 coins/day." },
-  "feast-hall":  { name: "Feast Hall",     icon: "🍷", cost: 300, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "A grand banquet hall. +24 coins/day." },
+  "feast-hall":  { name: "The Banquet Table", icon: "🍷", cost: 300, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "One long table where all gather. +24 coins/day." },
 };
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
@@ -335,7 +335,7 @@ export const CITY_PLOTS: CityPlot[] = [
   // Restaurant Row — where the prayer villagers gather to break bread
   { id: "plot-rest-1", x: 0, y: 3, buildingType: "upper-room",  cost: 300, name: "Restaurant Row West" },
   { id: "plot-rest-2", x: 6, y: 3, buildingType: "manna-house", cost: 300, name: "Restaurant Row East" },
-  { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 300, name: "Feast Hall Lot" },
+  { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 300, name: "Banquet Table Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */

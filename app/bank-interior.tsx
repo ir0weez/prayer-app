@@ -402,7 +402,7 @@ export default function BankInteriorScreen() {
     if (current >= BANK_MAX_FLOORS) return;
     const cost = bankFloorCost(current);
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost} coins.`);
+      Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost.toFixed(2)} coins.`);
       return;
     }
     try {
@@ -543,7 +543,7 @@ export default function BankInteriorScreen() {
         const pendingAmt = Math.round((existing.pending || 0) * 10) / 10;
         const upgradeCost = storageType ? storageUpgradeCostFor(storageType, storageLvl) : null;
         const storageLine = storageType
-          ? `\n🪙 Storage: ${pendingAmt}/${cap}${pendingAmt >= cap ? " FULL" : ""}`
+          ? `\n🪙 Storage: ${pendingAmt.toFixed(2)}/${cap.toFixed(2)}${pendingAmt >= cap ? " FULL" : ""}`
           : "";
         const upgradeLine = storageType && upgradeCost != null
           ? `\nUpgrade storage → ${storageCapFor(storageType, storageLvl + 1)} cap (🪙${upgradeCost})`
@@ -674,7 +674,7 @@ export default function BankInteriorScreen() {
       return;
     }
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `You need ${cost} coins.`);
+      Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins.`);
       return;
     }
     const item: BankInteriorItem = { id: nextId(), kind, x: selectedTile.x, y: selectedTile.y, cost };
@@ -697,7 +697,7 @@ export default function BankInteriorScreen() {
       return;
     }
     if (coinsRef.current.balance < def.cost) {
-      Alert.alert("Not enough coins", `You need ${def.cost} coins.`);
+      Alert.alert("Not enough coins", `You need ${def.cost.toFixed(2)} coins.`);
       return;
     }
     const item: BankFurnitureItem = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, cost: def.cost };
@@ -884,7 +884,7 @@ export default function BankInteriorScreen() {
                 style={{ backgroundColor: canAfford ? "#FDE68A" : "#4B5563", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: canAfford ? 1 : 0.6 }}
               >
                 <Text style={{ fontWeight: "800", color: canAfford ? "#1E3A8A" : "#D1D5DB", fontSize: 13 }}>
-                  +Floor 🪙{cost}
+                  +Floor 🪙{cost.toFixed(2)}
                 </Text>
               </Pressable>
             )}
@@ -1001,7 +1001,7 @@ export default function BankInteriorScreen() {
               </Text>
               <Text style={{ color: "#78716C", fontSize: 12 }}>+{deskBonusPct}% each when connected</Text>
             </View>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{deskCost}</Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{deskCost.toFixed(2)}</Text>
           </Pressable>
           <Pressable
             onPress={() => handlePlace("carpet")}
@@ -1018,7 +1018,7 @@ export default function BankInteriorScreen() {
               <Text style={{ fontWeight: "600", color: "#1C1917" }}>{carpetName}</Text>
               <Text style={{ color: "#78716C", fontSize: 12 }}>Connects desks · sells back full price</Text>
             </View>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{carpetCost}</Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{carpetCost.toFixed(2)}</Text>
           </Pressable>
 
           <Text style={{ fontWeight: "700", marginTop: 8, marginBottom: 4, color: "#1C1917" }}>Furniture</Text>
@@ -1055,7 +1055,7 @@ export default function BankInteriorScreen() {
                       {count}/{def.max}
                     </Text>
                     <Text style={{ fontWeight: "700", fontSize: 12, color: "#1C1917", marginTop: 2 }}>
-                      🪙{def.cost}
+                      🪙{def.cost.toFixed(2)}
                     </Text>
                   </Pressable>
                 );

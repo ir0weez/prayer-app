@@ -147,6 +147,20 @@ import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/mo
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
+import {
+  loadVillagerMissionState,
+  saveVillagerMissionState,
+  spawnDueVillagerMissions,
+  completeVillagerMission,
+  setVillagerMissionStatus,
+  activeVillagerMissions,
+  findVillagerTargetBuilding,
+  villagerMissionDateKey,
+  type VillagerMission,
+  type VillagerMissionKind,
+  type VillagerMissionState,
+  type VillagerMissionAvailability,
+} from "@/lib/villager-missions";
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
@@ -1091,6 +1105,11 @@ export default function HometownScreen() {
   const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
+  // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
+  const [vmState, setVmState] = useState<VillagerMissionState | null>(null);
+  const vmStateRef = useRef<VillagerMissionState | null>(null);
+  const [villagerMissionModal, setVillagerMissionModal] = useState<VillagerMission | null>(null);
+  const [vmCelebration, setVmCelebration] = useState<{ mission: VillagerMission } | null>(null);
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -1105,17 +1124,114 @@ export default function HometownScreen() {
     }));
   }, [prayedPeople]);
 
+  // Refs for the villager-mission spawn checks (init + live tick).
+  const townRef = useRef(town);
+  townRef.current = town;
+  const lightInfosRef = useRef(lightInfos);
+  lightInfosRef.current = lightInfos;
+  const unlockedMapsRef = useRef(unlockedMaps);
+  unlockedMapsRef.current = unlockedMaps;
+  const fieldMissionsRef = useRef(fieldMissions);
+  fieldMissionsRef.current = fieldMissions;
+
+  /** Lights eligible for a villager request (not away on a field mission). */
+  const eligibleVmLights = useCallback(() => {
+    const away = new Set(
+      fieldMissionsRef.current.filter((m) => !m.collected).map((m) => m.personId)
+    );
+    return lightInfosRef.current.filter((l) => !away.has(l.personId));
+  }, []);
+
+  /** Spawn any villager-mission slots that have passed. Idempotent. */
+  const runVillagerMissionSpawn = useCallback(async () => {
+    const st = vmStateRef.current;
+    const townState = townRef.current;
+    if (!st || !townState) return;
+    const nowMs = Date.now();
+    const dateKey = villagerMissionDateKey();
+    const townMap = townState.maps.town;
+    const buildings = townMap?.buildings ?? [];
+    const unlocked = unlockedMapsRef.current;
+    const availability: VillagerMissionAvailability = {
+      church: buildings.some((b) => b.type === "church"),
+      barbershop: buildings.some((b) => b.type === "barbershop"),
+      restaurant: buildings.some((b) => isRestaurantType(b.type)),
+      garden: unlocked.includes("mall"),
+      bank: buildings.some((b) => b.type === "bank" || b.type === "bank-tower"),
+      well: true,
+    };
+    const res = spawnDueVillagerMissions({
+      state: st,
+      nowMs,
+      dateKey,
+      lights: eligibleVmLights(),
+      availability,
+    });
+    if (
+      res.spawned.length > 0 ||
+      res.state.spawnedSlots.length !== st.spawnedSlots.length ||
+      res.state.dateKey !== st.dateKey
+    ) {
+      vmStateRef.current = res.state;
+      setVmState(res.state);
+      await saveVillagerMissionState(res.state);
+    }
+  }, [eligibleVmLights]);
+
+  // Load villager-mission state once lights are ready, then check for due spawns.
+  useEffect(() => {
+    if (vmStateRef.current || lightInfos.length === 0) return;
+    (async () => {
+      const st = await loadVillagerMissionState();
+      vmStateRef.current = st;
+      setVmState(st);
+      await runVillagerMissionSpawn();
+    })().catch(() => undefined);
+  }, [lightInfos, runVillagerMissionSpawn]);
+
   // Garden visitors: 1-2 prayer lights paying their respects this hour
   // (daytime only). Deterministic per hour so they linger while you visit.
-  // Lights away on field missions don't visit.
+  // Lights away on field missions — or busy with a villager request — don't visit.
   const gardenVisitors = useMemo(() => {
     if (timeOfDay === "night") return [];
     const away = new Set(fieldMissions.filter((m) => !m.collected).map((m) => m.personId));
+    const vmBusy = new Set(
+      (vmState?.missions ?? []).filter((m) => m.status !== "done").map((m) => m.personId)
+    );
     const blessed = lightInfos
-      .filter((r) => !away.has(r.personId))
+      .filter((r) => !away.has(r.personId) && !vmBusy.has(r.personId))
       .map((r) => ({ personId: r.personId, name: r.name }));
     return pickGardenVisitors(blessed, gardenVisitHourKey(), false);
-  }, [lightInfos, timeOfDay, fieldMissions]);
+  }, [lightInfos, timeOfDay, fieldMissions, vmState]);
+
+  // Villager missions: personIds with a waiting "?" (stand still) and
+  // guiding targets (walk straight to the mission building).
+  const vmWaitingIds = useMemo(
+    () =>
+      new Set(
+        (vmState?.missions ?? [])
+          .filter((m) => m.status === "waiting")
+          .map((m) => m.personId)
+      ),
+    [vmState]
+  );
+  const vmGuides = useMemo(() => {
+    const out: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }> = {};
+    if (!vmState || !town) return out;
+    const buildings = town.maps.town?.buildings ?? [];
+    for (const m of vmState.missions) {
+      if (m.status !== "guiding") continue;
+      const b = findVillagerTargetBuilding(m.kind, buildings);
+      if (!b) continue;
+      const fp = buildingFootprint(b.level || 1, b.type);
+      out[m.personId] = {
+        tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+        buildingId: b.id,
+        type: b.type,
+      };
+    }
+    return out;
+  }, [vmState, town]);
 
   const saveTown = useCallback((next: TownState) => {
     setTown(next);
@@ -1136,6 +1252,70 @@ export default function HometownScreen() {
    * bank-tower adds +1 coin × building level to that building's
    * tap-to-collect total. Capped at 5 visit bonuses per bank per hour.
    */
+  /** Refresh the coin chip from storage (after mission rewards land). */
+  const refreshCoins = useCallback(async () => {
+    try {
+      const coinsRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+      setCoins(parseCoins(coinsRaw ? JSON.parse(coinsRaw) : {}));
+    } catch {}
+  }, []);
+
+  /** Jonathan taps "Help" on a villager request — the light heads to its target. */
+  const helpVillagerMission = useCallback(async (mission: VillagerMission) => {
+    const st = vmStateRef.current;
+    if (!st) return;
+    const next = await setVillagerMissionStatus(st, mission.id, "guiding");
+    vmStateRef.current = next;
+    setVmState(next);
+    setVillagerMissionModal(null);
+  }, []);
+
+  /** A guided light arrived at its on-town mission target — complete with reward. */
+  const handleVmArrival = useCallback(async (personId: string) => {
+    const st = vmStateRef.current;
+    if (!st) return;
+    const m = st.missions.find((x) => x.personId === personId && x.status === "guiding");
+    if (!m) return;
+    // Only on-town targets complete on arrival; garden/well complete on map visit.
+    if (m.kind === "garden" || m.kind === "well") return;
+    const res = await completeVillagerMission(st, m.id);
+    vmStateRef.current = res.state;
+    setVmState(res.state);
+    if (res.mission) {
+      setVmCelebration({ mission: res.mission });
+      await refreshCoins();
+    }
+  }, [refreshCoins]);
+
+  // Off-map requests (garden / well): complete when Jonathan visits that map
+  // with the mission guiding — the light walks with him there.
+  useEffect(() => {
+    const st = vmStateRef.current;
+    if (!st) return;
+    const guiding = st.missions.filter((m) => m.status === "guiding");
+    if (guiding.length === 0) return;
+    const doneKinds: VillagerMissionKind[] = [];
+    if (activeMap === "mall") doneKinds.push("garden");
+    if (activeMap === "well") doneKinds.push("well");
+    if (doneKinds.length === 0) return;
+    (async () => {
+      for (const m of guiding) {
+        if (!doneKinds.includes(m.kind)) continue;
+        const cur = vmStateRef.current;
+        if (!cur) continue;
+        const target = cur.missions.find((x) => x.id === m.id && x.status === "guiding");
+        if (!target) continue;
+        const res = await completeVillagerMission(cur, m.id);
+        vmStateRef.current = res.state;
+        setVmState(res.state);
+        if (res.mission) {
+          setVmCelebration({ mission: res.mission });
+          await refreshCoins();
+        }
+      }
+    })().catch(() => undefined);
+  }, [activeMap, refreshCoins]);
+
   const handleBankVisit = useCallback((buildingId: string) => {
     const hourBucket = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
     setTown(prev => {
@@ -1441,7 +1621,7 @@ export default function HometownScreen() {
               setCoins(next);
               Alert.alert(
                 "🙏 Prayer Bonus!",
-                `You prayed for ${prayedCount} people today! +${bonusCoins} coins.`
+                `You prayed for ${prayedCount} people today! +${bonusCoins.toFixed(2)} coins.`
               );
             }
           }
@@ -1621,6 +1801,8 @@ export default function HometownScreen() {
   // mount; the next full open re-syncs everything exactly via lastTick.
   useEffect(() => {
     const id = setInterval(() => {
+      // Villager missions arrive through the day — check for newly due slots.
+      runVillagerMissionSpawn().catch(() => undefined);
       setTown((prev) => {
         const now = Date.now();
         const newMaps = { ...prev.maps };
@@ -1654,7 +1836,7 @@ export default function HometownScreen() {
       });
     }, 30000);
     return () => clearInterval(id);
-  }, []);
+  }, [runVillagerMissionSpawn]);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
@@ -1695,7 +1877,7 @@ export default function HometownScreen() {
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${plot.cost} coins?`,
+      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${plot.cost.toFixed(2)} coins?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -1811,7 +1993,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < total) {
-      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total} coins (lot ${lot.cost} + building ${def.cost}). You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lot.cost.toFixed(2)} + building ${def.cost.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
       return;
     }
     const now = new Date().toISOString();
@@ -2423,7 +2605,7 @@ export default function HometownScreen() {
           remembrance={remembrance}
           timeOfDay={timeOfDay}
           pt={pt}
-          coins={coins.balance.toFixed(2)}
+          coins={coins.balance}
           onAddPerson={(name, note, flower) => {
             const person: RememberedPerson = {
               id: `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`,
@@ -2460,7 +2642,7 @@ export default function HometownScreen() {
             const person = remembrance.people.find((p) => p.id === id);
             if (!person || candleLit(person)) return;
             if (coinsRef.current.balance < MEMORY_CANDLE_COST) {
-              Alert.alert("Not enough coins", `Lighting a candle costs ${MEMORY_CANDLE_COST} coins.`);
+              Alert.alert("Not enough coins", `Lighting a candle costs ${MEMORY_CANDLE_COST.toFixed(2)} coins.`);
               return;
             }
             addCoins(-MEMORY_CANDLE_COST);
@@ -2578,7 +2760,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{plot.cost}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{plot.cost.toFixed(2)}</Text>
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -2611,11 +2793,11 @@ export default function HometownScreen() {
             >
               {isSmall ? (
                 // 1x1 lots (40px): just the price, no overflowing labels
-                <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost}</Text>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost.toFixed(2)}</Text>
               ) : (
                 <>
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost.toFixed(2)}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
@@ -2626,7 +2808,12 @@ export default function HometownScreen() {
             );
           })}
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
+            const pid = String(p.id);
+            const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
+            if (vm) setVillagerMissionModal(vm);
+            else setPrayerVillagerInfo(p);
+          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -2821,7 +3008,7 @@ export default function HometownScreen() {
                   <Text style={{ fontWeight: "600", color: pt.text }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>
                 </View>
-                <Text style={{ fontWeight: "700", color: pt.text }}>🪙{def.cost}</Text>
+                <Text style={{ fontWeight: "700", color: pt.text }}>🪙{def.cost.toFixed(2)}</Text>
               </Pressable>
             );
           })}
@@ -3034,7 +3221,7 @@ export default function HometownScreen() {
                       <View style={{ marginBottom: 12 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
                           <Text style={{ fontSize: 13, color: pt.subtext, fontWeight: "600" }}>
-                            Storage: {stored.toFixed(2)}/{cap}
+                            Storage: {stored.toFixed(2)}/{cap.toFixed(2)}
                           </Text>
                           {isFull && (
                             <View style={{ marginLeft: 8, backgroundColor: "#DC2626", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -3062,7 +3249,7 @@ export default function HometownScreen() {
                   })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                      🙏 {prayedToday} prayed for today (+{prayedToday * CHURCH_PRAYER_COINS_PER_HOUR} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
+                      🙏 {prayedToday} prayed for today (+{(prayedToday * CHURCH_PRAYER_COINS_PER_HOUR).toFixed(2)} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
                     </Text>
                   ) : b.type === "house" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
@@ -3089,7 +3276,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
-                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost}
+                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost.toFixed(2)}
                       </Text>
                       <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
                         {incomeLabelFor(preview)}
@@ -3102,7 +3289,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>
-                        👷 Hire Worker 🪙{WORKER_HIRE_COST} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                        👷 Hire Worker 🪙{WORKER_HIRE_COST.toFixed(2)} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
                       </Text>
                     </Pressable>
                   )}
@@ -3232,7 +3419,7 @@ export default function HometownScreen() {
                   onPress={doThank}
                   style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#10B981" }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>💛 Say Thanks (+{LIGHT_TAP_COINS} coins)</Text>
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>💛 Say Thanks (+{LIGHT_TAP_COINS.toFixed(2)} coins)</Text>
                 </Pressable>
               ) : (
                 <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 12, fontStyle: "italic", textAlign: "center" }}>
@@ -3377,7 +3564,7 @@ export default function HometownScreen() {
                           {def.description}
                         </Text>
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
-                          Plot 🪙{lot.cost} + building 🪙{def.cost}
+                          Plot 🪙{lot.cost.toFixed(2)} + building 🪙{def.cost.toFixed(2)}
                         </Text>
                       </View>
                     </View>
@@ -3386,7 +3573,7 @@ export default function HometownScreen() {
                       style={({ pressed }) => [{ borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: affordable ? "#D4AF37" : pt.border, opacity: pressed ? 0.85 : 1 }]}
                     >
                       <Text style={{ color: affordable ? "#FFFFFF" : pt.subtext, fontWeight: "800", fontSize: 16 }}>
-                        Unlock for 🪙{total}
+                        Unlock for 🪙{total.toFixed(2)}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -3447,7 +3634,7 @@ export default function HometownScreen() {
                                   </Text>
                                 </View>
                                 <Text style={{ fontSize: 15, fontWeight: "800", color: affordable ? "#B8860B" : "#EF4444" }}>
-                                  🪙{total}
+                                  🪙{total.toFixed(2)}
                                 </Text>
                               </Pressable>
                             );

@@ -383,7 +383,7 @@ export default function ChurchInteriorScreen() {
         >
           <Text style={{ fontSize: 15 }}>🪙</Text>
           <Text style={{ marginLeft: 5, fontWeight: "700", color: TEXT }}>
-            {Math.floor(coins.balance)}
+            {coins.balance.toFixed(2)}
           </Text>
         </View>
       </View>

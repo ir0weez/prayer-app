@@ -204,6 +204,9 @@ export function TownNPCs({
   onBankVisit,
   lights,
   onVillagerTap,
+  missionWaitingIds,
+  missionGuides,
+  onMissionArrival,
 }: {
   mapState: MapState;
   cellSize: number;
@@ -213,6 +216,12 @@ export function TownNPCs({
   lights?: LightInfo[];
   /** Called when a villager is tapped: ({ id, name }). */
   onVillagerTap?: (person: { id: string; name: string }) => void;
+  /** personIds of lights with a waiting villager mission — they stand still with a "?". */
+  missionWaitingIds?: Set<string>;
+  /** personId -> forced destination while guiding a villager mission. */
+  missionGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
+  /** Called when a guided light arrives at its mission target. */
+  onMissionArrival?: (personId: string) => void;
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -221,6 +230,14 @@ export function TownNPCs({
   visitRef.current = onBankVisit;
   const tapRef = useRef(onVillagerTap);
   tapRef.current = onVillagerTap;
+  // Villager missions: a light with a waiting request stands still with a "?";
+  // a guided light walks straight to its mission target.
+  const missionWaitingRef = useRef<Set<string> | undefined>(missionWaitingIds);
+  missionWaitingRef.current = missionWaitingIds;
+  const missionGuidesRef = useRef(missionGuides);
+  missionGuidesRef.current = missionGuides;
+  const missionArrivalRef = useRef(onMissionArrival);
+  missionArrivalRef.current = onMissionArrival;
   const [renderIds, setRenderIds] = useState<string[]>([]);
   // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
@@ -322,6 +339,14 @@ export function TownNPCs({
             visitRef.current?.(npc.destBuildingId);
           } catch {}
         }
+        // Guiding a villager mission? Jonathan's help brought them here —
+        // let the parent complete the mission with its reward.
+        const guide = missionGuidesRef.current?.[String(npc.prayerId || npc.id)];
+        if (guide && npc.destBuildingId === guide.buildingId) {
+          try {
+            missionArrivalRef.current?.(String(npc.prayerId || npc.id));
+          } catch {}
+        }
       } else if (npc.state === "returning") {
         npc.state = "idle";
         npc.waitUntil = now + 2000 + Math.random() * 4000;
@@ -413,10 +438,27 @@ export function TownNPCs({
           continue;
         }
         if (npc.state === "idle" && now >= npc.waitUntil) {
-          const dest = pickDestination(npc);
-          if (!dest) {
-            npc.waitUntil = now + 4000;
+          const pid = String(npc.prayerId || npc.id);
+          // Villager missions: a light with a waiting request stands still
+          // until Jonathan helps them — no wandering off.
+          if (missionWaitingRef.current?.has(pid)) {
+            npc.waitUntil = now + 15000;
             continue;
+          }
+          // Guiding a mission: walk straight to the mission target.
+          let dest: { tile: Tile; buildingId: string; type: string } | null = null;
+          const guide = missionGuidesRef.current?.[pid];
+          if (guide) {
+            const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
+            if (stillThere) dest = guide;
+          }
+          if (!dest) {
+            const picked = pickDestination(npc);
+            if (!picked) {
+              npc.waitUntil = now + 4000;
+              continue;
+            }
+            dest = picked;
           }
           const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
           npc.waypoints = buildPath(mapStateRef.current, fromTile, dest.tile, cellSize);
@@ -439,7 +481,8 @@ export function TownNPCs({
         const candidates = Object.values(logic).filter(
           (n) =>
             (n.state === "walking" || n.state === "idle" || n.state === "visiting") &&
-            now - n.lastChatAt > CHAT_COOLDOWN_MS
+            now - n.lastChatAt > CHAT_COOLDOWN_MS &&
+            !missionWaitingRef.current?.has(String(n.prayerId || n.id))
         );
         let activePairs = 0;
         for (const n of Object.values(logic)) if (n.state === "chatting") activePairs++;
@@ -723,6 +766,35 @@ export function TownNPCs({
                   }}
                 >
                   <ActivityGlyph type={activityType} />
+                </View>
+              </Animated.View>
+            ) : null}
+            {/* villager mission — a "?" request; this light waits for Jonathan's help */}
+            {missionWaitingIds?.has(String(npc.prayerId || npc.id)) && !asleep ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -23,
+                  left: 9,
+                  transform: [
+                    { translateY: floatY },
+                    { scale: npc.bob.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
+                  ],
+                }}
+              >
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1.5,
+                    borderColor: "#7C3AED",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name="help-outline" size={12} color="#7C3AED" />
                 </View>
               </Animated.View>
             ) : null}

@@ -483,7 +483,7 @@ export default function ProfileScreen() {
           const xpGain = Math.floor((coins.balance || 0) * 10);
           Alert.alert(
             "Prestige Your Town?",
-            `Start fresh with a new town!\n\nYour ${coins.balance || 0} leftover 🪙 will become ${xpGain} XP.\nYour buildings and roads will reset, but shop purchases stay unlocked.`,
+            `Start fresh with a new town!\n\nYour ${(coins.balance || 0).toFixed(2)} leftover 🪙 will become ${xpGain} XP.\nYour buildings and roads will reset, but shop purchases stay unlocked.`,
             [
               { text: "Keep Town", style: "cancel", onPress: () => {} },
               {

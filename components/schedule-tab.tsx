@@ -8412,7 +8412,7 @@ function RestSquare({
   onLongPress,
 }: {
   event: any;
-  onPress?: () => void;
+  onPress?: (position?: any) => void;
   onLongPress?: (e: any) => void;
 }) {
   const colors = useColors();
@@ -8434,11 +8434,17 @@ function RestSquare({
   const iconOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => onPress?.({ x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", opacity: event.isCompleted ? 0.6 : 1 }}>
+        {/* Completed checkmark */}
+        {event.isCompleted && (
+          <View style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: "#4CAF50", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
+            <MaterialIcons name="check" size={16} color="#FFFFFF" />
+          </View>
+        )}
         {/* Animated sky background by time of day */}
         {mood === "night" && REST_STARS.map((s, i) => (
           <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
@@ -11531,8 +11537,12 @@ export function ScheduleTab({
                 <RestSquare
                   key={restEvent.id}
                   event={restEvent}
-                  onPress={() => {}}
-                  onLongPress={() => {}}
+                  onPress={(position) => {
+                    if (!restEvent.isCompleted) onAwardXP?.(xpActionForDate(restEvent.date), restEvent.id, position);
+                    else revokeTodoXP(restEvent.id, position);
+                    setEvents((prev) => toggleEventCompleted(prev, restEvent.id));
+                  }}
+                  onLongPress={() => openEventEditor(restEvent)}
                 />
               )}
               {groupMinistries.map((m) => (

@@ -115,7 +115,15 @@ export type BuildingType =
   | "manna-house"
   | "feast-hall"
   // The Marriage Supper — town banquet green where all lights gather
-  | "banquet-table";
+  | "banquet-table"
+  // Interactive gathering places — everything is tappable and upgradeable.
+  // Community Garden grows alongside the Garden of Remembrance: villagers
+  // tend crops, Jonathan harvests for coins + XP.
+  | "community-garden"
+  // Amphitheater (city): villagers perform music and stories; attend a show.
+  | "amphitheater"
+  // Fountain Plaza (town): villagers gather, chat, and rest; a quiet refresh.
+  | "fountain-plaza";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -328,6 +336,10 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // the restaurants, for a bigger breaking-bread blessing. Upgrades grow the
   // table: more villagers, richer blessing. (icon is drawn as SVG, not emoji.)
   "banquet-table": { name: "The Marriage Supper", icon: "", cost: 150, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "One long table under open sky. During The Gathering, all gather here for a greater blessing." },
+  // Interactive gathering places — tappable, upgradeable, never just decoration.
+  "community-garden": { name: "Community Garden", icon: "", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "Villagers grow crops together. Tap to harvest when ripe — coins and XP, richer at higher levels." },
+  "amphitheater": { name: "Amphitheater", icon: "", cost: 400, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["city"], description: "Music and stories under open sky. Tap to attend a show — a blessing of XP and coins." },
+  "fountain-plaza": { name: "Fountain Plaza", icon: "", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A quiet plaza where villagers gather and rest. Tap to rest a while — a small refresh of coins and XP." },
 };
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
@@ -359,6 +371,8 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-city-10", x: 0, y: 11, buildingType: "office",          cost: 500, name: "South Office Lot" },
   { id: "plot-city-11", x: 3, y: 11, buildingType: "hotel",           cost: 575, name: "South Hotel Lot" },
   { id: "plot-city-12", x: 6, y: 11, buildingType: "department-store", cost: 625, name: "South Retail Lot" },
+  // Eastside — the Amphitheater, where the city gathers for music and stories
+  { id: "plot-city-13", x: 8, y: 3, buildingType: "amphitheater", cost: 450, name: "Amphitheater Green" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -556,6 +570,67 @@ export const TREE_OF_LIFE_VERSES: Array<{ text: string; ref: string }> = [
 export function treeVerseForDate(date: Date = new Date()): { text: string; ref: string } {
   const seed = date.getFullYear() * 1000 + monthDayOrdinal(date);
   return TREE_OF_LIFE_VERSES[seed % TREE_OF_LIFE_VERSES.length];
+}
+
+// ---- The Lighthouse ----
+
+/** Tile the lighthouse stands on (town map, east end of Mercy's Shore beach). */
+export const LIGHTHOUSE_TILE = { x: 8, y: 12 };
+
+/** Coins granted for receiving the lighthouse blessing (once per day, × level). */
+export const LIGHTHOUSE_BLESSING_COINS = 10;
+
+/** Max lighthouse level. */
+export const LIGHTHOUSE_MAX_LEVEL = 3;
+
+/** Coins to upgrade FROM the given level to the next. */
+export const LIGHTHOUSE_UPGRADE_COSTS: Record<number, number> = { 1: 150, 2: 400 };
+
+export const LIGHTHOUSE_KEY = "prayercircle.hometown.lighthouse.v1";
+
+export type LighthouseState = {
+  /** 1-3. Taller tower, brighter beam. */
+  level: number;
+  /** Local date (YYYY-MM-DD) the blessing was last received. */
+  lastBlessingDate: string | null;
+};
+
+export function emptyLighthouse(): LighthouseState {
+  return { level: 1, lastBlessingDate: null };
+}
+
+export async function loadLighthouse(): Promise<LighthouseState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(LIGHTHOUSE_KEY);
+    if (!raw) return emptyLighthouse();
+    const s = JSON.parse(raw);
+    const level = typeof s.level === "number" ? Math.min(Math.max(s.level, 1), LIGHTHOUSE_MAX_LEVEL) : 1;
+    return { level, lastBlessingDate: typeof s.lastBlessingDate === "string" ? s.lastBlessingDate : null };
+  } catch { return emptyLighthouse(); }
+}
+
+export async function saveLighthouse(s: LighthouseState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(LIGHTHOUSE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/** Verses of light and guidance — one is shown each day at the lighthouse. */
+export const LIGHTHOUSE_VERSES: Array<{ text: string; ref: string }> = [
+  { text: "I am the light of the world: he that followeth me shall not walk in darkness, but shall have the light of life.", ref: "John 8:12" },
+  { text: "Thy word is a lamp unto my feet, and a light unto my path.", ref: "Psalm 119:105" },
+  { text: "The LORD is my light and my salvation; whom shall I fear?", ref: "Psalm 27:1" },
+  { text: "Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.", ref: "Matthew 5:16" },
+  { text: "The light shineth in darkness; and the darkness comprehended it not.", ref: "John 1:5" },
+  { text: "For thou wilt light my candle: the LORD my God will enlighten my darkness.", ref: "Psalm 18:28" },
+];
+
+/** Deterministic verse for a date — the same verse all day, rotates daily. */
+export function lighthouseVerseForDate(date: Date = new Date()): { text: string; ref: string } {
+  const seed = date.getFullYear() * 1000 + monthDayOrdinal(date);
+  return LIGHTHOUSE_VERSES[seed % LIGHTHOUSE_VERSES.length];
 }
 
 function monthDayOrdinal(date: Date): number {
@@ -1172,8 +1247,10 @@ export const TOWN_LOTS: TownLot[] = [
   // South End — Market Corner, Garden Corner, and the Marriage Supper green,
   // served by Old Town Lane (north) and Harbor Lane (south)
   { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End West", presetType: "clothes-shop" },
-  { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End Garden" },
+  { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 75, name: "South End Garden", presetType: "community-garden" },
   { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  // Fountain Plaza — a quiet gathering place in the South End, east of the garden
+  { id: "town-lot-plaza", x: 6, y: 9, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 90, name: "Plaza Green", presetType: "fountain-plaza" },
   // Cottage Row — cozy 1x1 homes for the prayer lights along the east edge.
   // Each cottage gives villagers a place to belong: they sleep here at
   // night, rest here by day, and visit one another.

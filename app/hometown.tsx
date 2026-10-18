@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Path, Circle, Ellipse, Rect, Line } from "react-native-svg";
+import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -130,6 +130,15 @@ import {
   saveTreeOfLife,
   treeVerseForDate,
   type TreeOfLifeState,
+  LIGHTHOUSE_TILE,
+  LIGHTHOUSE_BLESSING_COINS,
+  LIGHTHOUSE_MAX_LEVEL,
+  LIGHTHOUSE_UPGRADE_COSTS,
+  emptyLighthouse,
+  loadLighthouse,
+  saveLighthouse,
+  lighthouseVerseForDate,
+  type LighthouseState,
   type GardenVisitState,
   type CityPlot,
   type TownLot,
@@ -159,6 +168,15 @@ import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
+import {
+  loadGarden, saveGarden, gardenIsRipe, gardenMsUntilRipe, gardenHarvestReward,
+  GARDEN_PLOTS, GARDEN_RIPEN_MINUTES,
+  loadLastShow, saveLastShow, showMsRemaining, SHOW_COINS, SHOW_XP,
+  loadLastStudy, saveLastStudy, studyMsRemaining, STUDY_XP,
+  loadLastRest, saveLastRest, restMsRemaining, REST_COINS, REST_XP,
+  formatCooldown, type GardenState,
+} from "@/lib/gathering-places";
 import { generateDailyMissions, loadMissions, completeMission, pendingMissions, type Mission } from "@/lib/missions";
 import {
   loadVillagerMissionState,
@@ -199,6 +217,7 @@ import { CityTraffic } from "@/components/city-traffic";
 import { PlayerPawnWanderer } from "@/components/player-pawn";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
 import { TheWell } from "@/components/the-well";
+import { FireworksOverlay } from "@/components/fireworks";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -1250,6 +1269,134 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
         </View>
       );
     }
+    case "community-garden": {
+      // Community Garden — rows of growing crops, richer with level.
+      // L1: 4 plots, L2: 8 plots, L3: 12 plots + greenhouse.
+      const rows: number = lv >= 3 ? 3 : lv >= 2 ? 2 : 2;
+      const cols: number = lv >= 3 ? 4 : lv >= 2 ? 4 : 2;
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.95)}
+          <Svg width={s} height={s * 0.7} viewBox="0 0 80 56">
+            {/* soil bed */}
+            <Rect x={6} y={8} width={68} height={42} rx={6} fill="#92400E" />
+            <Rect x={6} y={8} width={68} height={42} rx={6} fill="#000000" opacity={0.12} />
+            {/* crop rows */}
+            {Array.from({ length: rows }).map((_, r) =>
+              Array.from({ length: cols }).map((_, c) => {
+                const cx = 16 + c * ((68 - 20) / Math.max(cols - 1, 1));
+                const cy = 18 + r * ((42 - 20) / Math.max(rows - 1, 1));
+                return (
+                  <React.Fragment key={`${r}-${c}`}>
+                    {/* sprout */}
+                    <Rect x={cx - 1.2} y={cy - 7} width={2.4} height={9} rx={1.2} fill="#16A34A" />
+                    <Ellipse cx={cx - 3.4} cy={cy - 4} rx={3.4} ry={2.2} fill="#22C55E" />
+                    <Ellipse cx={cx + 3.4} cy={cy - 5.4} rx={3.4} ry={2.2} fill="#4ADE80" />
+                    {/* ripe fruit dot */}
+                    <Circle cx={cx} cy={cy - 8} r={2.2} fill={lv >= 2 ? "#FBBF24" : "#86EFAC"} />
+                  </React.Fragment>
+                );
+              })
+            )}
+            {/* greenhouse at L3 */}
+            {lv >= 3 && (
+              <React.Fragment>
+                <Rect x={58} y={2} width={16} height={12} rx={2} fill="#BAE6FD" opacity={0.75} stroke="#0284C7" strokeWidth={1.2} />
+                <Rect x={58} y={2} width={16} height={3} rx={1.5} fill="#0284C7" opacity={0.5} />
+              </React.Fragment>
+            )}
+          </Svg>
+        </View>
+      );
+    }
+    case "amphitheater": {
+      // Amphitheater — tiered stone seating around a central stage.
+      // Grander with level: more tiers, banners at L2, glowing braziers at L3.
+      const tiers: number = lv >= 3 ? 4 : lv >= 2 ? 3 : 2;
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.98)}
+          <Svg width={s} height={s * 0.72} viewBox="0 0 80 58">
+            {/* tiered seating (concentric arcs) */}
+            {Array.from({ length: tiers }).map((_, i) => {
+              const inset = i * 9;
+              const y = 6 + i * 9;
+              return (
+                <React.Fragment key={i}>
+                  <Rect x={6 + inset} y={y} width={68 - inset * 2} height={8} rx={4}
+                    fill={i % 2 === 0 ? "#D6D3D1" : "#C7BFAE"} stroke="#A8A29E" strokeWidth={0.8} />
+                </React.Fragment>
+              );
+            })}
+            {/* central stage */}
+            <Ellipse cx={40} cy={44} rx={17} ry={7} fill="#B45309" />
+            <Ellipse cx={40} cy={42} rx={17} ry={7} fill="#D97706" />
+            {/* banners at L2+ */}
+            {lv >= 2 && (
+              <React.Fragment>
+                <Rect x={10} y={2} width={4} height={12} fill="#7C3AED" />
+                <Rect x={66} y={2} width={4} height={12} fill="#7C3AED" />
+              </React.Fragment>
+            )}
+            {/* glowing braziers at L3 */}
+            {lv >= 3 && (
+              <React.Fragment>
+                <Ellipse cx={24} cy={42} rx={2.6} ry={3.6} fill="#FBBF24" />
+                <Ellipse cx={24} cy={43} rx={1.2} ry={2} fill="#FEF3C7" />
+                <Ellipse cx={56} cy={42} rx={2.6} ry={3.6} fill="#FBBF24" />
+                <Ellipse cx={56} cy={43} rx={1.2} ry={2} fill="#FEF3C7" />
+              </React.Fragment>
+            )}
+          </Svg>
+        </View>
+      );
+    }
+    case "fountain-plaza": {
+      // Fountain Plaza — a stone fountain with arcing water, benches at L2+,
+      // flower rings at L3. A quiet gathering place.
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.92)}
+          <Svg width={s} height={s * 0.72} viewBox="0 0 80 58">
+            {/* plaza stone */}
+            <Ellipse cx={40} cy={48} rx={32} ry={8} fill="#D6D3D1" />
+            <Ellipse cx={40} cy={47} rx={32} ry={8} fill="#E7E5E4" />
+            {/* fountain basin */}
+            <Ellipse cx={40} cy={40} rx={16} ry={7} fill="#A8A29E" />
+            <Ellipse cx={40} cy={38.5} rx={13} ry={5.4} fill="#7DD3FC" />
+            <Ellipse cx={40} cy={38.5} rx={13} ry={5.4} fill="#FFFFFF" opacity={0.25} />
+            {/* central column */}
+            <Rect x={37.5} y={20} width={5} height={18} rx={2} fill="#C7BFAE" />
+            <Ellipse cx={40} cy={20} rx={6} ry={2.6} fill="#D6D3D1" />
+            {/* arcing water */}
+            <Path d="M40 18 C 30 26, 28 32, 28 36" stroke="#7DD3FC" strokeWidth={2.2} fill="none" strokeLinecap="round" opacity={0.85} />
+            <Path d="M40 18 C 50 26, 52 32, 52 36" stroke="#7DD3FC" strokeWidth={2.2} fill="none" strokeLinecap="round" opacity={0.85} />
+            <Path d="M40 18 L40 34" stroke="#BAE6FD" strokeWidth={2.6} strokeLinecap="round" opacity={0.9} />
+            {/* sparkles */}
+            <Circle cx={30} cy={30} r={1.4} fill="#FFFFFF" opacity={0.9} />
+            <Circle cx={50} cy={30} r={1.4} fill="#FFFFFF" opacity={0.9} />
+            {/* benches at L2+ */}
+            {lv >= 2 && (
+              <React.Fragment>
+                <Rect x={8} y={42} width={12} height={3.4} rx={1.7} fill="#92400E" />
+                <Rect x={60} y={42} width={12} height={3.4} rx={1.7} fill="#92400E" />
+              </React.Fragment>
+            )}
+            {/* flower ring at L3 */}
+            {lv >= 3 && (
+              <React.Fragment>
+                {[18, 30, 42, 54, 64].map((fx) => (
+                  <React.Fragment key={fx}>
+                    <Circle cx={fx} cy={50} r={2.4} fill="#F472B6" />
+                    <Circle cx={fx} cy={50} r={1.1} fill="#FDE68A" />
+                  </React.Fragment>
+                ))}
+              </React.Fragment>
+            )}
+          </Svg>
+        </View>
+      );
+    }
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -1283,6 +1430,46 @@ function CottageGlyph({ size = 24 }: { size?: number }) {
       <Rect x={5.5} y={12.5} width={13} height={8.5} rx={1.5} fill="#FDE68A" />
       <Rect x={8} y={14.2} width={3.6} height={3.6} rx={1} fill="#FBBF24" stroke="#92400E" strokeWidth={1} />
       <Rect x={14.6} y={15} width={4} height={6} rx={1.5} fill="#92400E" />
+    </Svg>
+  );
+}
+
+/** Small SVG glyph for the Community Garden (no emoji). */
+function GardenGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={3} y={14} width={18} height={7} rx={2} fill="#92400E" />
+      <Rect x={3} y={14} width={18} height={2.4} rx={1.2} fill="#78350F" />
+      <Rect x={10.8} y={7} width={2.4} height={8} rx={1.2} fill="#16A34A" />
+      <Ellipse cx={8} cy={8.5} rx={3.2} ry={2} fill="#22C55E" />
+      <Ellipse cx={16} cy={7.5} rx={3.2} ry={2} fill="#4ADE80" />
+      <Circle cx={12} cy={5} r={2.2} fill="#FBBF24" />
+    </Svg>
+  );
+}
+
+/** Small SVG glyph for the Fountain Plaza (no emoji). */
+function PlazaGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Ellipse cx={12} cy={19} rx={9} ry={3} fill="#D6D3D1" />
+      <Ellipse cx={12} cy={18} rx={7} ry={2.4} fill="#7DD3FC" />
+      <Rect x={10.8} y={8} width={2.4} height={10} rx={1.2} fill="#A8A29E" />
+      <Path d="M12 7 C 8 11, 7 14, 7 16" stroke="#7DD3FC" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+      <Path d="M12 7 C 16 11, 17 14, 17 16" stroke="#7DD3FC" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+      <Circle cx={12} cy={6} r={1.6} fill="#BAE6FD" />
+    </Svg>
+  );
+}
+
+/** Small SVG glyph for the Amphitheater (no emoji). */
+function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={3} y={14} width={18} height={3.4} rx={1.7} fill="#D6D3D1" />
+      <Rect x={5} y={10} width={14} height={3.4} rx={1.7} fill="#C7BFAE" />
+      <Rect x={7} y={6} width={10} height={3.4} rx={1.7} fill="#A8A29E" />
+      <Ellipse cx={12} cy={19} rx={5} ry={2} fill="#D97706" />
     </Svg>
   );
 }
@@ -1404,6 +1591,145 @@ function TreeOfLife({
     </Pressable>
   );
 }
+
+/**
+ * The Lighthouse — stands at the east end of Mercy's Shore beach.
+ * The beam rotates at night (and dusk/dawn), guiding villagers home.
+ * Taller tower + brighter beam as it levels up (1-3).
+ */
+function Lighthouse({
+  cellSize,
+  timeOfDay,
+  level,
+  onPress,
+}: {
+  cellSize: number;
+  timeOfDay: string;
+  level: number;
+  onPress: () => void;
+}) {
+  const beamSpin = useRef(new Animated.Value(0)).current;
+  const lampPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const spin = Animated.loop(
+      Animated.timing(beamSpin, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: true })
+    );
+    spin.start();
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(lampPulse, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(lampPulse, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => { spin.stop(); pulse.stop(); };
+  }, [beamSpin, lampPulse]);
+  const rotate = beamSpin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const lampOpacity = lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
+  const beamOpacity = lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.22, 0.42] });
+
+  const night = timeOfDay === "night";
+  const beamOn = night || timeOfDay === "evening";
+  // Tower grows with level: 1 = 120px, 2 = 140px, 3 = 160px.
+  const H = 104 + level * 16 + 8;
+  const W = 84;
+  const left = (LIGHTHOUSE_TILE.x + 0.5) * cellSize - W / 2;
+  const top = (LIGHTHOUSE_TILE.y + 1) * cellSize - H + 6;
+  const towerTop = 34;
+  const towerBottom = H - 8;
+  const towerH = towerBottom - towerTop;
+  const cx = W / 2;
+  const lampY = towerTop - 16;
+  // Tapered tower: wider at base.
+  const topW = 13;
+  const botW = 20;
+  const stripeH = towerH / 5;
+  // Beam overlay: centered on the lamp, rotating.
+  const beamSize = 120;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ position: "absolute", left, top, width: W, height: H }}
+      accessibilityLabel="The Lighthouse"
+    >
+      {/* rotating beam — swept wedges of light, rendered above the tower art */}
+      {beamOn && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: cx - beamSize / 2,
+            top: lampY - beamSize / 2,
+            width: beamSize,
+            height: beamSize,
+            transform: [{ rotate }],
+          }}
+        >
+          <Svg width={beamSize} height={beamSize} viewBox={`0 0 ${beamSize} ${beamSize}`}>
+            <AnimatedPolygon
+              points={`${beamSize / 2},${beamSize / 2} ${beamSize},${beamSize / 2 - 14} ${beamSize},${beamSize / 2 + 14}`}
+              fill="#FDE68A"
+              opacity={beamOpacity}
+            />
+            <AnimatedPolygon
+              points={`${beamSize / 2},${beamSize / 2} 0,${beamSize / 2 - 14} 0,${beamSize / 2 + 14}`}
+              fill="#FDE68A"
+              opacity={beamOpacity}
+            />
+          </Svg>
+        </Animated.View>
+      )}
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {/* ground shadow */}
+        <Ellipse cx={cx} cy={H - 4} rx={24} ry={6} fill="#000000" opacity={0.18} />
+        {/* tower — red/white bands */}
+        {[0, 1, 2, 3, 4].map((i) => {
+          const y0 = towerTop + i * stripeH;
+          const t0 = i / 5;
+          const t1 = (i + 1) / 5;
+          const w0 = topW + (botW - topW) * t0;
+          const w1 = topW + (botW - topW) * t1;
+          const fill = i % 2 === 0 ? "#F8FAFC" : "#DC2626";
+          return (
+            <Polygon
+              key={i}
+              points={`${cx - w0 / 2},${y0} ${cx + w0 / 2},${y0} ${cx + w1 / 2},${y0 + stripeH} ${cx - w1 / 2},${y0 + stripeH}`}
+              fill={fill}
+              stroke="#000000"
+              strokeOpacity={0.12}
+              strokeWidth={1}
+            />
+          );
+        })}
+        {/* gallery deck */}
+        <Rect x={cx - topW / 2 - 6} y={towerTop - 8} width={topW + 12} height={9} rx={3} fill="#1F2937" />
+        {/* lamp room */}
+        <Rect x={cx - topW / 2 - 2} y={towerTop - 26} width={topW + 4} height={19} rx={2} fill="#1F2937" />
+        <AnimatedRect
+          x={cx - topW / 2 + 2}
+          y={towerTop - 23}
+          width={topW - 4}
+          height={13}
+          rx={2}
+          fill="#FDE68A"
+          opacity={lampOpacity}
+        />
+        {/* roof cap */}
+        <Polygon points={`${cx - topW / 2 - 4},${towerTop - 26} ${cx + topW / 2 + 4},${towerTop - 26} ${cx},${towerTop - 38}`} fill="#B91C1C" />
+        {/* night halo around the lamp */}
+        {beamOn && (
+          <AnimatedCircle cx={cx} cy={lampY} r={20 + level * 5} fill="#FDE68A" opacity={lampPulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.28] })} />
+        )}
+        {/* rocks at the base */}
+        <Ellipse cx={cx - 16} cy={H - 6} rx={10} ry={5} fill="#6B7280" />
+        <Ellipse cx={cx + 15} cy={H - 5} rx={12} ry={6} fill="#4B5563" />
+      </Svg>
+    </Pressable>
+  );
+}
+
+const AnimatedPolygon = Animated.createAnimatedComponent(Polygon);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
 function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
@@ -1550,6 +1876,18 @@ export default function HometownScreen() {
   // Tree of Life: tap once a day to taste its fruit (+coins, verse of the day)
   const [treeState, setTreeState] = useState<TreeOfLifeState>(() => emptyTreeOfLife());
   const [treeModalVisible, setTreeModalVisible] = useState(false);
+  // Lighthouse: tap once a day for a blessing (+coins × level, verse); upgradeable 1-3.
+  const [lighthouseState, setLighthouseState] = useState<LighthouseState>(() => emptyLighthouse());
+  const [lighthouseModalVisible, setLighthouseModalVisible] = useState(false);
+  // Fireworks: celebration volley over the map on milestones (level-up, prayer bonuses).
+  const [fireworksKey, setFireworksKey] = useState(0);
+  const lastLevelRef = useRef<number | null>(null);
+  // Gathering places: Community Garden (harvest), Amphitheater (shows),
+  // Library (study), Fountain Plaza (rest) — all tappable, all upgradeable.
+  const [gardenState, setGardenState] = useState<GardenState>({ plantedAt: null, plantedLevel: 1 });
+  const [lastShowAt, setLastShowAt] = useState(0);
+  const [lastStudyAt, setLastStudyAt] = useState(0);
+  const [lastRestAt, setLastRestAt] = useState(0);
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
   // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
@@ -2259,6 +2597,7 @@ export default function HometownScreen() {
               };
               await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
               setCoins(next);
+              setFireworksKey((k) => k + 1);
               Alert.alert(
                 "🙏 Prayer Bonus!",
                 `You prayed for ${prayedCount} people today! +${bonusCoins.toFixed(2)} coins.`
@@ -2336,6 +2675,16 @@ export default function HometownScreen() {
         const remembranceBonus = remembranceMult(remembranceState.people.length);
         // Tree of Life: once-a-day fruit tasting (coins + verse).
         try { setTreeState(await loadTreeOfLife()); } catch {}
+        try { setLighthouseState(await loadLighthouse()); } catch {}
+        try {
+          const xp = await loadXPState();
+          lastLevelRef.current = getLevelForXP(xp.totalXP);
+        } catch {}
+        // Gathering places: load cooldown/harvest state.
+        try { setGardenState(await loadGarden()); } catch {}
+        try { setLastShowAt(await loadLastShow()); } catch {}
+        try { setLastStudyAt(await loadLastStudy()); } catch {}
+        try { setLastRestAt(await loadLastRest()); } catch {}
         // Garden visits: from time to time, prayer lights visit the Garden
         // of Remembrance to pay their respects (1-2 per hour, daytime only).
         // Each visit blesses the town: +0.1% income for 24h.
@@ -2458,6 +2807,14 @@ export default function HometownScreen() {
       // Work shifts finish on their timers — mark done, celebrate, refresh countdowns.
       runWorkTick().catch(() => undefined);
       setNowMs(Date.now());
+      // Level-up detection: fireworks when Jonathan levels up while watching town.
+      loadXPState().then((xp) => {
+        const level = getLevelForXP(xp.totalXP);
+        if (lastLevelRef.current !== null && level > lastLevelRef.current) {
+          setFireworksKey((k) => k + 1);
+        }
+        lastLevelRef.current = level;
+      }).catch(() => undefined);
       setTown((prev) => {
         const now = Date.now();
         const newMaps = { ...prev.maps };
@@ -2578,6 +2935,14 @@ export default function HometownScreen() {
         onPress: () => router.push(`/restaurant-interior?buildingId=${b.id}`),
       });
     }
+    // Amphitheater: attend a show (30 min cooldown) — interactive, not just income.
+    if (b.type === "amphitheater") {
+      const remaining = showMsRemaining(lastShowAt);
+      enterActions.push({
+        text: remaining > 0 ? `Next show in ${formatCooldown(remaining)}` : "Attend a Show",
+        onPress: () => handleShowPress(b),
+      });
+    }
     if (level >= 3) {
       Alert.alert(
         `${def.name} (Lv 3) — ${plot.name}`,
@@ -2686,6 +3051,247 @@ export default function HometownScreen() {
     );
   };
 
+  /** Lighthouse: receive the daily blessing (+coins × level, verse of light). */
+  const handleLighthouseBlessing = () => {
+    const today = localDateStr();
+    if (lighthouseState.lastBlessingDate === today) return;
+    const next = { ...lighthouseState, lastBlessingDate: today };
+    setLighthouseState(next);
+    saveLighthouse(next).catch(() => undefined);
+    const reward = LIGHTHOUSE_BLESSING_COINS * next.level;
+    addCoins(reward);
+    setLighthouseModalVisible(false);
+    Alert.alert(
+      "The Lighthouse",
+      `Its beam sweeps over the water, steady and sure — guiding everyone home. +${reward.toFixed(2)} coins.\n\n"${lighthouseVerseForDate().text}"\n— ${lighthouseVerseForDate().ref}`
+    );
+  };
+
+  /** Lighthouse: upgrade to the next level (taller tower, brighter beam). */
+  const handleLighthouseUpgrade = () => {
+    const level = lighthouseState.level;
+    if (level >= LIGHTHOUSE_MAX_LEVEL) return;
+    const cost = LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0;
+    if (coins.balance < cost) {
+      Alert.alert("Not enough coins", `Upgrading the lighthouse costs ${cost.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      return;
+    }
+    addCoins(-cost);
+    const next = { ...lighthouseState, level: level + 1 };
+    setLighthouseState(next);
+    saveLighthouse(next).catch(() => undefined);
+    setLighthouseModalVisible(false);
+    setFireworksKey((k) => k + 1);
+    Alert.alert(
+      "Lighthouse upgraded!",
+      `The tower rises higher, and its beam shines brighter over Mercy's Shore. Now level ${next.level}.`
+    );
+  };
+
+  // ---- Gathering places: harvest, shows, study, rest ----
+
+  /** Community Garden: plant crops (if empty) or harvest when ripe. */
+  const handleGardenPress = (b: PlacedBuilding) => {
+    const level = Math.min(Math.max(b.level || 1, 1), 3);
+    const now = Date.now();
+    const upgradeBtn = level < 3 ? [{
+      text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`,
+      onPress: () => {
+        const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
+        if (coinsRef.current.balance < cost) {
+          Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+          return;
+        }
+        addCoins(-cost);
+        const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+        saveMap({ ...map, buildings: updated });
+        Alert.alert("Community Garden", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "The greenhouse is ready — faster growth, richer harvests." : "More plots, better yields."}`);
+      },
+    }] : [];
+    if (!gardenState.plantedAt) {
+      // Plant crops — villagers will tend them.
+      Alert.alert(
+        "Community Garden",
+        `The villagers tend ${GARDEN_PLOTS[level] ?? 4} plots together here, alongside the Garden of Remembrance — life growing beside remembrance.\n\nTap "Plant" to sow this season's crops.`,
+        [
+          { text: "Not yet", style: "cancel" },
+          ...upgradeBtn,
+          {
+            text: "Plant crops",
+            onPress: () => {
+              const next = { plantedAt: new Date().toISOString(), plantedLevel: level };
+              setGardenState(next);
+              saveGarden(next).catch(() => undefined);
+              const mins = GARDEN_RIPEN_MINUTES[level] ?? 120;
+              Alert.alert(
+                "Community Garden",
+                `Planted! The villagers water and weed with care.\n\nHarvest in about ${mins >= 60 ? `${Math.round(mins / 60)} hour${mins >= 120 ? "s" : ""}` : `${mins} minutes`}.`
+              );
+            },
+          },
+        ]
+      );
+      return;
+    }
+    if (!gardenIsRipe(gardenState, level, now)) {
+      const msLeft = gardenMsUntilRipe(gardenState, now);
+      Alert.alert(
+        "Community Garden",
+        `The crops are still growing — the villagers are tending them with care.\n\nReady in about ${formatCooldown(msLeft)}.`,
+        [{ text: "OK" }, ...upgradeBtn]
+      );
+      return;
+    }
+    // Harvest!
+    const reward = gardenHarvestReward(gardenState.plantedLevel);
+    Alert.alert(
+      "Community Garden",
+      `Baskets full and everyone smiling — harvest time!\n\n+${reward.coins.toFixed(2)} coins, +${reward.xp} XP.`,
+      [
+        ...upgradeBtn,
+        {
+          text: "Harvest",
+          onPress: () => {
+            const next = { plantedAt: null, plantedLevel: level };
+            setGardenState(next);
+            saveGarden(next).catch(() => undefined);
+            addCoins(reward.coins);
+            awardCustomXP(reward.xp, `garden-harvest-${Date.now()}`).catch(() => undefined);
+          },
+        },
+      ]
+    );
+  };
+
+  /** Amphitheater: attend a show (30 min cooldown). */
+  const handleShowPress = (b: PlacedBuilding) => {
+    const level = Math.min(Math.max(b.level || 1, 1), 3);
+    const now = Date.now();
+    const remaining = showMsRemaining(lastShowAt, now);
+    const doUpgrade = () => {
+      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
+      if (coinsRef.current.balance < cost) {
+        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        return;
+      }
+      addCoins(-cost);
+      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      saveMap({ ...map, buildings: updated });
+      Alert.alert("Amphitheater", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "The grand stage glows — braziers lit, banners flying." : "A bigger stage, more voices."}`);
+    };
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
+    if (remaining > 0) {
+      Alert.alert(
+        "Amphitheater",
+        `The villagers are rehearsing — music drifts across the city.\n\nNext show in about ${formatCooldown(remaining)}.`,
+        [{ text: "OK" }, ...upgradeBtn]
+      );
+      return;
+    }
+    const coins = SHOW_COINS[level] ?? 10;
+    const xp = SHOW_XP[level] ?? 15;
+    const levelBlurb = level >= 3
+      ? "The grand stage glows — music, stories, and light fill the night air."
+      : level >= 2
+        ? "A bigger stage, more voices — the whole city seems to lean in."
+        : "A simple stage, honest music. The villagers gather close.";
+    Alert.alert(
+      "Amphitheater",
+      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP.`,
+      [
+        ...upgradeBtn,
+        {
+          text: "Attend the show",
+          onPress: () => {
+            const t = Date.now();
+            setLastShowAt(t);
+            saveLastShow(t).catch(() => undefined);
+            addCoins(coins);
+            awardCustomXP(xp, `amphitheater-show-${t}`).catch(() => undefined);
+          },
+        },
+      ]
+    );
+  };
+
+  /** Library: study session (1 hour cooldown). */
+  const handleStudyPress = (b: PlacedBuilding) => {
+    const level = Math.min(Math.max(b.level || 1, 1), 3);
+    const now = Date.now();
+    const remaining = studyMsRemaining(lastStudyAt, now);
+    const doUpgrade = () => {
+      const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
+      if (coinsRef.current.balance < cost) {
+        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        return;
+      }
+      addCoins(-cost);
+      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      saveMap({ ...map, buildings: updated });
+      Alert.alert("Library", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A grand library — shelf upon shelf of wisdom." : "A quiet reading room grows."}`);
+    };
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
+    if (remaining > 0) {
+      Alert.alert(
+        "Library",
+        `Take your time — wisdom isn't hurried.\n\nYou can study again in about ${formatCooldown(remaining)}.`,
+        [{ text: "OK" }, ...upgradeBtn]
+      );
+      return;
+    }
+    const xp = STUDY_XP[level] ?? 25;
+    const levelBlurb = level >= 3
+      ? "Shelf upon shelf of wisdom. You lose track of time among the pages."
+      : level >= 2
+        ? "A quiet reading room. The villagers study beside you."
+        : "A simple shelf, well-loved books. You read until the light shifts.";
+    Alert.alert(
+      "Library",
+      `${levelBlurb}\n\n+${xp} XP.`,
+      [
+        ...upgradeBtn,
+        {
+          text: "Study",
+          onPress: () => {
+            const t = Date.now();
+            setLastStudyAt(t);
+            saveLastStudy(t).catch(() => undefined);
+            awardCustomXP(xp, `library-study-${t}`).catch(() => undefined);
+          },
+        },
+      ]
+    );
+  };
+
+  /** Fountain Plaza: rest a while (2 hour cooldown). */
+  const handleRestPress = (b: PlacedBuilding) => {
+    const level = Math.min(Math.max(b.level || 1, 1), 3);
+    const now = Date.now();
+    const remaining = restMsRemaining(lastRestAt, now);
+    if (remaining > 0) {
+      Alert.alert(
+        "Fountain Plaza",
+        `The water keeps its steady song.\n\nRest again in about ${formatCooldown(remaining)}.`
+      );
+      return;
+    }
+    setLastRestAt(now);
+    saveLastRest(now).catch(() => undefined);
+    const coins = REST_COINS[level] ?? 5;
+    const xp = REST_XP[level] ?? 8;
+    addCoins(coins);
+    awardCustomXP(xp, `plaza-rest-${Date.now()}`).catch(() => undefined);
+    const levelBlurb = level >= 3
+      ? "The grand plaza hums with quiet life. You sit by the fountain and breathe."
+      : level >= 2
+        ? "Benches in the shade, water sparkling. Villagers chat softly nearby."
+        : "A simple fountain, cool water. You rest a while.";
+    Alert.alert(
+      "Fountain Plaza",
+      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP — refreshed.`
+    );
+  };
+
   /** Tap a town lot building: open the popup (upgrade only, no move/sell). */
   const handleTownLotBuildingPress = (b: PlacedBuilding) => {
     // Enterable buildings route to their interiors first
@@ -2728,6 +3334,12 @@ export default function HometownScreen() {
       return;
     } else if (isEnterableRestaurant(b.type)) {
       router.push(`/restaurant-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "community-garden") {
+      handleGardenPress(b);
+      return;
+    } else if (b.type === "fountain-plaza") {
+      handleRestPress(b);
       return;
     }
     setPopupBuilding(b);
@@ -2841,6 +3453,10 @@ export default function HometownScreen() {
         return;
       } else if (existing.type === "toolshop") {
         router.push("/gear-shop?type=tool");
+        return;
+      } else if (existing.type === "library") {
+        // Library: tap to study (1 hour cooldown) — interactive, not just XP/day.
+        handleStudyPress(existing);
         return;
       } else {
         const def = BUILDINGS[existing.type];
@@ -3383,6 +3999,7 @@ export default function HometownScreen() {
             <>
               <RiverOfLife cellSize={cellSize} />
               <TreeOfLife cellSize={cellSize} timeOfDay={timeOfDay} onPress={() => setTreeModalVisible(true)} />
+              <Lighthouse cellSize={cellSize} timeOfDay={timeOfDay} level={lighthouseState.level} onPress={() => setLighthouseModalVisible(true)} />
             </>
           )}
           {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
@@ -3526,6 +4143,10 @@ export default function HometownScreen() {
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     lot.presetType === "banquet-table" ? (
                       <View style={{ marginTop: 2 }}><BanquetGlyph size={20} /></View>
+                    ) : lot.presetType === "community-garden" ? (
+                      <View style={{ marginTop: 2 }}><GardenGlyph size={20} /></View>
+                    ) : lot.presetType === "fountain-plaza" ? (
+                      <View style={{ marginTop: 2 }}><PlazaGlyph size={20} /></View>
                     ) : (
                       <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
                     )
@@ -3634,6 +4255,8 @@ export default function HometownScreen() {
               ))}
             </View>
           )}
+          {/* Celebration fireworks — pure visual joy on milestones. */}
+          <FireworksOverlay triggerKey={fireworksKey} />
         </View>
         </SeasonalBorder>
         {activeMap === "town" && (
@@ -4676,6 +5299,95 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
 
+      {/* Lighthouse modal — daily blessing + upgrades */}
+      <Modal
+        visible={lighthouseModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLighthouseModalVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}
+          onPress={() => setLighthouseModalVisible(false)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 20, padding: 24, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const verse = lighthouseVerseForDate();
+              const blessed = lighthouseState.lastBlessingDate === localDateStr();
+              const level = lighthouseState.level;
+              const reward = LIGHTHOUSE_BLESSING_COINS * level;
+              const maxed = level >= LIGHTHOUSE_MAX_LEVEL;
+              const upgradeCost = LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0;
+              return (
+                <>
+                  <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, textAlign: "center" }}>
+                    The Lighthouse
+                  </Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 4 }}>
+                    Level {level}{maxed ? " — shining at full strength" : ""}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginBottom: 16, fontStyle: "italic" }}>
+                    Its beam guides every villager safely home.
+                  </Text>
+                  <View style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: pt.border }}>
+                    <Text style={{ fontSize: 14, color: pt.text, textAlign: "center", fontStyle: "italic" }}>
+                      "{verse.text}"
+                    </Text>
+                    <Text style={{ fontSize: 12, color: pt.subtext, textAlign: "center", marginTop: 6, fontWeight: "700" }}>
+                      — {verse.ref}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={handleLighthouseBlessing}
+                    disabled={blessed}
+                    style={({ pressed }) => [{
+                      borderRadius: 12,
+                      paddingVertical: 14,
+                      paddingHorizontal: 24,
+                      alignItems: "center",
+                      backgroundColor: blessed ? pt.border : "#1E40AF",
+                      opacity: pressed && !blessed ? 0.85 : 1,
+                      width: "100%",
+                    }]}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
+                      {blessed ? "Blessed today — come back tomorrow" : `Receive its blessing (+${reward.toFixed(2)} coins)`}
+                    </Text>
+                  </Pressable>
+                  {!maxed && (
+                    <Pressable
+                      onPress={handleLighthouseUpgrade}
+                      style={({ pressed }) => [{
+                        borderRadius: 12,
+                        paddingVertical: 12,
+                        paddingHorizontal: 24,
+                        alignItems: "center",
+                        backgroundColor: "transparent",
+                        borderWidth: 1.5,
+                        borderColor: "#1E40AF",
+                        opacity: pressed ? 0.7 : 1,
+                        width: "100%",
+                        marginTop: 10,
+                      }]}
+                    >
+                      <Text style={{ color: "#1E40AF", fontWeight: "800", fontSize: 15 }}>
+                        Upgrade to level {level + 1} ({upgradeCost.toFixed(2)} coins)
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => setLighthouseModalVisible(false)} style={{ marginTop: 12, padding: 8 }}>
+                    <Text style={{ color: pt.subtext, fontWeight: "700" }}>Close</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Lot purchase modal — shows ALL allowed building types (Alert hid restaurants on Android) */}
       <Modal
         visible={purchaseLot !== null}
@@ -4711,6 +5423,10 @@ export default function HometownScreen() {
                     <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12, marginBottom: 12, backgroundColor: pt.bg, borderWidth: 1, borderColor: pt.border }}>
                       {lot.presetType === "banquet-table" ? (
                         <View style={{ marginRight: 14 }}><BanquetGlyph size={44} /></View>
+                      ) : lot.presetType === "community-garden" ? (
+                        <View style={{ marginRight: 14 }}><GardenGlyph size={44} /></View>
+                      ) : lot.presetType === "fountain-plaza" ? (
+                        <View style={{ marginRight: 14 }}><PlazaGlyph size={44} /></View>
                       ) : (
                         <Text style={{ fontSize: 40, marginRight: 14 }}>{def.icon}</Text>
                       )}

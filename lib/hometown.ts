@@ -765,12 +765,12 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central" },
   { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East" },
   { id: "town-lot-s10", x: 8, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Corner" },
-  // Riverside District — 5 flexible commercial lots (a quieter stretch by the water)
+  // Riverside District — 4 flexible commercial lots (a quieter stretch; NPCs reach
+  // via the Main Street path using nearest-road fallback)
   { id: "town-lot-s11", x: 0, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside West" },
   { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside" },
   { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside Central" },
-  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside East" },
-  { id: "town-lot-s15", x: 8, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Sunset Corner" },
+  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Sunset Corner" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
@@ -785,9 +785,6 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Main Street — the bustling thoroughfare between the two market rows
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
-  // Riverside Walk — a quiet footpath along the west edge down to the Riverside
-  // District. The west column (x=0) is kept clear of lots from y=5 to y=9 so the
-  // walk stays street-connected for NPCs and the barbershop road bonus.
 ];
 
 /** Town path roads with stable ids (idempotent seeding). */
@@ -906,7 +903,7 @@ export type TownState = {
   lastIncomeDate: string | null;
 };
 
-export const TOWN_GRID_SIZE = 8;
+export const TOWN_GRID_SIZE = 10;
 
 export function emptyMapState(): MapState {
   return { buildings: [], decorations: [], roads: [] };

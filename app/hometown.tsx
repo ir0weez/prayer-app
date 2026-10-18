@@ -2101,7 +2101,9 @@ export default function HometownScreen() {
             </View>
           ))}
           {/* Town neighborhood lots: soft heavenly glow (unpurchased) */}
-          {activeMap === "town" && TOWN_LOTS.filter(lot => !map.buildings.some(b => b.townLotId === lot.id)).map((lot) => (
+          {activeMap === "town" && TOWN_LOTS.filter(lot => !map.buildings.some(b => b.townLotId === lot.id)).map((lot) => {
+            const isSmall = lot.w === 1 && lot.h === 1;
+            return (
             <View
               key={`townlot-${lot.id}`}
               pointerEvents="none"
@@ -2113,7 +2115,7 @@ export default function HometownScreen() {
                 height: lot.h * cellSize,
                 borderWidth: 2,
                 borderColor: "#FCD34D",
-                borderRadius: 12,
+                borderRadius: isSmall ? 8 : 12,
                 backgroundColor: "rgba(253, 224, 71, 0.10)",
                 alignItems: "center",
                 justifyContent: "center",
@@ -2121,13 +2123,22 @@ export default function HometownScreen() {
                 shadowOpacity: 0.35,
                 shadowRadius: 10,
                 shadowOffset: { width: 0, height: 0 },
+                padding: 2,
               }}
             >
-              <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
-              <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2 }}>{lot.name}</Text>
+              {isSmall ? (
+                // 1x1 lots (40px): just the price, no overflowing labels
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#92400E" }}>🪙{lot.cost}</Text>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>FOR SALE</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
+                  <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
+                </>
+              )}
             </View>
-          ))}
+            );
+          })}
           {/* Townsfolk — Jonathan's chosen residents + prayed-for visitors; all tappable */}
           <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} residents={residentInfos} visitors={visitorInfos} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
           {/* City life: plot workers + commuters from town */}

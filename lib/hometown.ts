@@ -30,9 +30,9 @@ export function tierForFastDay(dayNum: number): HometownTier {
 
 // ---- Multi-map ----
 
-export type TownMapId = "town" | "city" | "mall" | "school" | "reserve";
+export type TownMapId = "town" | "city" | "mall" | "school" | "well" | "reserve";
 
-export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "reserve"];
+export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "well", "reserve"];
 
 export type MapInfo = {
   name: string;
@@ -50,7 +50,10 @@ export const MAP_INFO: Record<TownMapId, MapInfo> = {
   // state carries over.
   mall:    { name: "Garden of Remembrance", icon: "🌸", description: "A sacred place to remember loved ones", unlockCost: 1000, comingSoon: false },
   school:  { name: "School",   icon: "🏫", description: "Buildings that earn XP", unlockCost: 1000, comingSoon: false },
-  reserve: { name: "???",      icon: "❓", description: "Coming soon", unlockCost: 0, comingSoon: true },
+  well:    { name: "The Well", icon: "💧", description: "Draw living water, once a day", unlockCost: 0, comingSoon: false },
+  // The "reserve" map id now renders the Mission Field — send prayer lights
+  // out on missions. The id is kept so existing unlock state carries over.
+  reserve: { name: "Mission Field", icon: "🌾", description: "Send prayer lights out on missions", unlockCost: 500, comingSoon: false },
 };
 
 export const MAP_UNLOCKED_KEY = "prayercircle.hometown.maps.unlocked.v1";
@@ -545,6 +548,109 @@ export function remembranceMult(count: number): number {
   return 1 + Math.max(0, Math.floor(count || 0)) * 0.005;
 }
 
+// ---------------------------------------------------------------------------
+// The Well — a quiet map for drawing living water, once a day.
+// Intentionally NOT an idle-game mechanic: no coins, no upgrades, no income.
+// Just a daily moment of stillness and a verse.
+// ---------------------------------------------------------------------------
+
+export const WELL_STORAGE_KEY = "prayercircle.hometown.well.v1";
+
+export type WellState = {
+  /** Local "YYYY-MM-DD" of the last draw, or null if never. */
+  lastDrawDate: string | null;
+  /** Consecutive days drawn (resets when a day is missed). */
+  streak: number;
+  /** Lifetime draws. */
+  totalDraws: number;
+};
+
+export function emptyWell(): WellState {
+  return { lastDrawDate: null, streak: 0, totalDraws: 0 };
+}
+
+export function parseWell(value: unknown): WellState {
+  const fallback = emptyWell();
+  if (!value || typeof value !== "object") return fallback;
+  const s = value as Partial<WellState>;
+  return {
+    lastDrawDate: typeof s.lastDrawDate === "string" ? s.lastDrawDate : null,
+    streak: typeof s.streak === "number" && s.streak >= 0 ? Math.floor(s.streak) : 0,
+    totalDraws: typeof s.totalDraws === "number" && s.totalDraws >= 0 ? Math.floor(s.totalDraws) : 0,
+  };
+}
+
+export async function loadWell(): Promise<WellState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(WELL_STORAGE_KEY);
+    if (!raw) return emptyWell();
+    return parseWell(JSON.parse(raw));
+  } catch { return emptyWell(); }
+}
+
+export async function saveWell(s: WellState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(WELL_STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/** Local date as "YYYY-MM-DD". */
+export function localDateStr(d: Date = new Date()): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Shift a "YYYY-MM-DD" date by n days. */
+export function shiftDateStr(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + n);
+  return localDateStr(dt);
+}
+
+/** True if the well was already drawn on the given local date. */
+export function wellDrawnOn(state: WellState, dateStr: string): boolean {
+  return state.lastDrawDate === dateStr;
+}
+
+/**
+ * Record a draw for the given local date. Streak continues only when the
+ * previous draw was exactly yesterday; a missed day resets it to 1.
+ */
+export function recordWellDraw(prev: WellState, dateStr: string): WellState {
+  if (prev.lastDrawDate === dateStr) return prev;
+  const streak = prev.lastDrawDate === shiftDateStr(dateStr, -1) ? prev.streak + 1 : 1;
+  return { lastDrawDate: dateStr, streak, totalDraws: prev.totalDraws + 1 };
+}
+
+/** Curated KJV verses about water, rest, and refreshment. Rotates daily. */
+export const WELL_VERSES: { text: string; ref: string }[] = [
+  { text: "But whosoever drinketh of the water that I shall give him shall never thirst; but the water that I shall give him shall be in him a well of water springing up into everlasting life.", ref: "John 4:14" },
+  { text: "Ho, every one that thirsteth, come ye to the waters, and he that hath no money; come ye, buy, and eat.", ref: "Isaiah 55:1" },
+  { text: "He maketh me to lie down in green pastures: he leadeth me beside the still waters.", ref: "Psalm 23:2" },
+  { text: "And the Spirit and the bride say, Come. And let him that heareth say, Come. And let him that is athirst come. And whosoever will, let him take the water of life freely.", ref: "Revelation 22:17" },
+  { text: "He that believeth on me, as the scripture hath said, out of his belly shall flow rivers of living water.", ref: "John 7:38" },
+  { text: "When the poor and needy seek water, and there is none, and their tongue faileth for thirst, I the LORD will hear them, I the God of Israel will not forsake them.", ref: "Isaiah 41:17" },
+  { text: "Come unto me, all ye that labour and are heavy laden, and I will give you rest.", ref: "Matthew 11:28" },
+  { text: "As the hart panteth after the water brooks, so panteth my soul after thee, O God.", ref: "Psalm 42:1" },
+  { text: "Therefore with joy shall ye draw water out of the wells of salvation.", ref: "Isaiah 12:3" },
+  { text: "And he shall be like a tree planted by the rivers of water, that bringeth forth his fruit in his season.", ref: "Psalm 1:3" },
+  { text: "I will give unto him that is athirst of the fountain of the water of life freely.", ref: "Revelation 21:6" },
+  { text: "O God, thou art my God; early will I seek thee: my soul thirsteth for thee, my flesh longeth for thee in a dry and thirsty land, where no water is.", ref: "Psalm 63:1" },
+  { text: "They shall be abundantly satisfied with the fatness of thy house; and thou shalt make them drink of the river of thy pleasures. For with thee is the fountain of life.", ref: "Psalm 36:8-9" },
+  { text: "And he shewed me a pure river of water of life, clear as crystal, proceeding out of the throne of God and of the Lamb.", ref: "Revelation 22:1" },
+];
+
+/** Deterministic verse for a local date — same verse all day, rotates daily. */
+export function wellVerseForDate(dateStr: string): { text: string; ref: string } {
+  let h = 0;
+  for (let i = 0; i < dateStr.length; i++) h = (Math.imul(h, 31) + dateStr.charCodeAt(i)) | 0;
+  return WELL_VERSES[Math.abs(h) % WELL_VERSES.length];
+}
+
 /**
  * Full refund value for a retired mall building: base cost + all upgrade
  * costs paid. Used once during the Mall → Garden migration.
@@ -687,6 +793,169 @@ export function gardenVisitMult(state: GardenVisitState | null, now: Date = new 
   let visits = 0;
   for (const v of Object.values(pruned.slots)) visits += v.length;
   return 1 + visits * GARDEN_VISIT_INCOME_PER_VISIT;
+}
+
+// ---- Mission Field: send prayer lights out on missions ----
+// A prayer light (someone prayed for today) can be sent on a mission —
+// a short visit, a day trip, or a long journey. They leave town, and when
+// the time is up they return with a blessing: coins, XP, sometimes a verse.
+
+export const MISSION_STORAGE_KEY = "prayercircle.hometown.missions.v1";
+/** Max concurrent uncollected missions. */
+export const MAX_ACTIVE_MISSIONS = 10;
+
+export type MissionDurationId = "short" | "day" | "long";
+
+export type MissionDuration = {
+  id: MissionDurationId;
+  label: string;
+  hours: number;
+  coinsMin: number;
+  coinsMax: number;
+  xp: number;
+  /** Chance (0-1) the blessing carries a verse. */
+  verseChance: number;
+  blurb: string;
+};
+
+export const MISSION_DURATIONS: Record<MissionDurationId, MissionDuration> = {
+  short: { id: "short", label: "Short visit", hours: 1, coinsMin: 5, coinsMax: 10, xp: 0, verseChance: 0, blurb: "A quick visit to someone nearby who needs prayer." },
+  day:   { id: "day",   label: "Day trip",    hours: 4, coinsMin: 15, coinsMax: 25, xp: 10, verseChance: 0.15, blurb: "A few hours out in the field, breaking bread." },
+  long:  { id: "long",  label: "Long journey", hours: 8, coinsMin: 30, coinsMax: 50, xp: 25, verseChance: 0.5, blurb: "A full journey to the far edge — and back changed." },
+};
+
+export const MISSION_DURATION_ORDER: MissionDurationId[] = ["short", "day", "long"];
+
+export type MissionVerse = { text: string; ref: string };
+
+/** Verses a returning light may carry home. */
+export const MISSION_VERSES: MissionVerse[] = [
+  { text: "Go into all the world and preach the gospel to all creation.", ref: "Mark 16:15" },
+  { text: "How beautiful are the feet of those who bring good news!", ref: "Romans 10:15" },
+  { text: "The harvest is plentiful but the workers are few.", ref: "Matthew 9:37" },
+  { text: "Do not forget to show hospitality to strangers.", ref: "Hebrews 13:2" },
+  { text: "Let your light shine before others.", ref: "Matthew 5:16" },
+  { text: "And they went out and preached everywhere.", ref: "Mark 16:20" },
+];
+
+export type FieldMission = {
+  id: string;
+  personId: string;
+  name: string;
+  accentColor?: string;
+  duration: MissionDurationId;
+  sentAt: string;   // ISO
+  returnAt: string; // ISO
+  coins: number;    // blessing, decided at send time (seeded)
+  xp: number;
+  verse?: MissionVerse;
+  collected: boolean;
+  collectedAt?: string;
+};
+
+/** "out" = still away, "returned" = back and waiting for Jonathan to collect. */
+export function missionStatus(m: FieldMission, now: Date = new Date()): "out" | "returned" {
+  if (m.collected) return "returned";
+  return now.getTime() >= new Date(m.returnAt).getTime() ? "returned" : "out";
+}
+
+/** Minutes until return (0 when back). */
+export function missionMinutesLeft(m: FieldMission, now: Date = new Date()): number {
+  const ms = new Date(m.returnAt).getTime() - now.getTime();
+  return Math.max(0, Math.ceil(ms / 60000));
+}
+
+/** Friendly countdown, e.g. "3h 12m" or "45m". */
+export function missionCountdown(m: FieldMission, now: Date = new Date()): string {
+  const mins = missionMinutesLeft(m, now);
+  if (mins <= 0) return "back now";
+  const h = Math.floor(mins / 60);
+  const mm = mins % 60;
+  if (h <= 0) return `${mm}m`;
+  return mm === 0 ? `${h}h` : `${h}h ${mm}m`;
+}
+
+export function emptyMissions(): FieldMission[] {
+  return [];
+}
+
+export function parseMissions(value: unknown): FieldMission[] {
+  if (!Array.isArray(value)) return [];
+  const out: FieldMission[] = [];
+  for (const m of value) {
+    if (!m || typeof m !== "object") continue;
+    const r = m as Partial<FieldMission>;
+    if (typeof r.id !== "string" || typeof r.personId !== "string" || typeof r.name !== "string") continue;
+    if (typeof r.sentAt !== "string" || typeof r.returnAt !== "string") continue;
+    const duration: MissionDurationId =
+      r.duration === "day" || r.duration === "long" ? r.duration : "short";
+    out.push({
+      id: r.id,
+      personId: r.personId,
+      name: r.name,
+      accentColor: typeof r.accentColor === "string" ? r.accentColor : undefined,
+      duration,
+      sentAt: r.sentAt,
+      returnAt: r.returnAt,
+      coins: typeof r.coins === "number" && r.coins >= 0 ? Math.round(r.coins) : 0,
+      xp: typeof r.xp === "number" && r.xp >= 0 ? Math.round(r.xp) : 0,
+      verse: r.verse && typeof r.verse.text === "string" && typeof r.verse.ref === "string"
+        ? { text: r.verse.text, ref: r.verse.ref }
+        : undefined,
+      collected: r.collected === true,
+      collectedAt: typeof r.collectedAt === "string" ? r.collectedAt : undefined,
+    });
+  }
+  return out;
+}
+
+export async function loadMissions(): Promise<FieldMission[]> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(MISSION_STORAGE_KEY);
+    if (!raw) return [];
+    return parseMissions(JSON.parse(raw));
+  } catch { return []; }
+}
+
+export async function saveMissions(missions: FieldMission[]): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(missions));
+  } catch {}
+}
+
+/** Drop collected missions older than 24h (keeps the board tidy). */
+export function pruneMissions(missions: FieldMission[], now: Date = new Date()): FieldMission[] {
+  const cutoff = now.getTime() - 24 * 3600000;
+  return missions.filter((m) => {
+    if (!m.collected) return true;
+    const t = m.collectedAt ? new Date(m.collectedAt).getTime() : 0;
+    return isNaN(t) || t >= cutoff;
+  });
+}
+
+/**
+ * Build a new mission blessing. Coins roll within the duration's range;
+ * a verse may come along on longer journeys. Seeded by id so it's stable.
+ */
+export function rollMissionBlessing(id: string, durationId: MissionDurationId): { coins: number; xp: number; verse?: MissionVerse } {
+  const d = MISSION_DURATIONS[durationId];
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h >>>= 0;
+  const rand = () => {
+    h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+    return h / 4294967296;
+  };
+  const coins = d.coinsMin + Math.floor(rand() * (d.coinsMax - d.coinsMin + 1));
+  const verse = rand() < d.verseChance
+    ? MISSION_VERSES[Math.floor(rand() * MISSION_VERSES.length)]
+    : undefined;
+  return { coins, xp: d.xp, verse };
 }
 
 // ---- City streets: proper downtown grid (permanent infrastructure) ----
@@ -942,6 +1211,7 @@ export function emptyTownState(): TownState {
       city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
       school: emptyMapState(),
+      well: emptyMapState(),
       reserve: emptyMapState(),
     },
     lastIncomeDate: null,
@@ -971,6 +1241,7 @@ export function parseTown(value: unknown): TownState {
         city: ensureCityStreets(parseMapState(raw.city)),
         mall: parseMapState(raw.mall),
         school: parseMapState(raw.school),
+        well: parseMapState(raw.well),
         reserve: parseMapState(raw.reserve),
       },
       lastIncomeDate,
@@ -983,6 +1254,7 @@ export function parseTown(value: unknown): TownState {
       city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
       school: emptyMapState(),
+      well: emptyMapState(),
       reserve: emptyMapState(),
     },
     lastIncomeDate,
@@ -1835,4 +2107,94 @@ export async function accrueBankDrips(
 /** Interior multiplier only (desk network + furniture %, vaults excluded — they drip). Loads interior from storage by building ID. */
 export async function bankDeskMultiplier(buildingId: string): Promise<number> {
   return (await bankInteriorBonus(buildingId)).mult;
+}
+
+// ---------------------------------------------------------------------------
+// Gratitude coins — tap a prayer light once per hour for coins
+// ---------------------------------------------------------------------------
+
+/** Last-tap timestamps per light id. */
+export const LIGHT_TAP_KEY = "prayercircle.hometown.light-taps.v1";
+export const LIGHT_TAP_COOLDOWN_MS = 3600000; // 1 hour
+export const LIGHT_TAP_COINS = 2;
+
+export function parseLightTaps(value: unknown): Record<string, number> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof v === "number") out[k] = v;
+    }
+    return out;
+  }
+  return {};
+}
+
+/** True if this light can be thanked right now (no tap in the last hour). */
+export function canThankLight(taps: Record<string, number>, lightId: string, now = Date.now()): boolean {
+  const last = taps[lightId] || 0;
+  return now - last >= LIGHT_TAP_COOLDOWN_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Daily prayer bonus — thresholds for praying for people
+// ---------------------------------------------------------------------------
+
+export const PRAYER_BONUS_KEY = "prayercircle.hometown.prayer-bonus.v1";
+export const PRAYER_COIN_BONUSES = [
+  { threshold: 5, coins: 25 },
+  { threshold: 10, coins: 50 },
+  { threshold: 20, coins: 100 },
+] as const;
+
+export type PrayerBonusState = { date: string; awarded: number[] };
+
+export function parsePrayerBonus(value: unknown): PrayerBonusState {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const v = value as Record<string, unknown>;
+    return {
+      date: typeof v.date === "string" ? v.date : "",
+      awarded: Array.isArray(v.awarded) ? v.awarded.filter(x => typeof x === "number") : [],
+    };
+  }
+  return { date: "", awarded: [] };
+}
+
+// ---------------------------------------------------------------------------
+// Work shifts — tap rapidly on a shop for 10 seconds to earn coins
+// ---------------------------------------------------------------------------
+
+export const WORK_SHIFT_KEY = "prayercircle.hometown.work-shifts.v1";
+export const WORK_SHIFT_COOLDOWN_MS = 300000; // 5 minutes
+export const WORK_SHIFT_TAPS_PER_COIN = 5;
+export const WORK_SHIFT_MAX_COINS = 20;
+export const WORK_SHIFT_DURATION_MS = 10000; // 10 seconds
+
+export function parseWorkShifts(value: unknown): Record<string, number> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof v === "number") out[k] = v;
+    }
+    return out;
+  }
+  return {};
+}
+
+/** True if this building is off work-shift cooldown. */
+export function canWorkShift(shifts: Record<string, number>, buildingId: string, now = Date.now()): boolean {
+  const last = shifts[buildingId] || 0;
+  return now - last >= WORK_SHIFT_COOLDOWN_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Fast day green bonus — 5 coins per completed fast day
+// ---------------------------------------------------------------------------
+
+export const FAST_DAY_COIN_KEY = "prayercircle.hometown.fast-day-coins.v1";
+export const FAST_DAY_COINS = 5;
+
+/** Set of "fastId:date" keys already counted for coins. */
+export function parseFastDayCoins(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter(x => typeof x === "string");
+  return [];
 }

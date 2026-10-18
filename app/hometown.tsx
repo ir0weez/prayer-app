@@ -33,6 +33,24 @@ import {
   FRENZY_DURATION_MS,
   FRENZY_COOLDOWN_MS,
   FRENZY_MULT,
+  LIGHT_TAP_KEY,
+  LIGHT_TAP_COOLDOWN_MS,
+  LIGHT_TAP_COINS,
+  parseLightTaps,
+  canThankLight,
+  PRAYER_BONUS_KEY,
+  PRAYER_COIN_BONUSES,
+  parsePrayerBonus,
+  WORK_SHIFT_KEY,
+  WORK_SHIFT_COOLDOWN_MS,
+  WORK_SHIFT_TAPS_PER_COIN,
+  WORK_SHIFT_MAX_COINS,
+  WORK_SHIFT_DURATION_MS,
+  parseWorkShifts,
+  canWorkShift,
+  FAST_DAY_COIN_KEY,
+  FAST_DAY_COINS,
+  parseFastDayCoins,
   bankInteriorBonus,
   accrueBankDrips,
   bankFloorMultiplier,
@@ -78,6 +96,13 @@ import {
   remembranceMult,
   remembranceRefundFor,
   emptyRemembrance,
+  loadWell,
+  saveWell,
+  emptyWell,
+  recordWellDraw,
+  localDateStr,
+  wellDrawnOn,
+  type WellState,
   REMEMBRANCE_MALL_REFUND_KEY,
   HOUSE_REMOVAL_REFUND_KEY,
   REMEMBRANCE_UPGRADE_COSTS,
@@ -104,6 +129,16 @@ import {
   type MapState,
   type TownState,
   type PrayedPerson,
+  emptyMissions,
+  loadMissions as loadFieldMissions,
+  saveMissions as saveFieldMissions,
+  pruneMissions,
+  rollMissionBlessing,
+  MISSION_DURATIONS,
+  MAX_ACTIVE_MISSIONS,
+  missionStatus,
+  type FieldMission,
+  type MissionDurationId,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
@@ -115,10 +150,12 @@ import { generateDailyMissions, loadMissions, completeMission, pendingMissions, 
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
+import { MissionField } from "@/components/mission-field";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
 import { GardenOfRemembrance } from "@/components/garden-of-remembrance";
+import { TheWell } from "@/components/the-well";
 
 function daysBetween(a: string, b: string): number {
   const da = new Date(a + "T00:00:00Z").getTime();
@@ -1026,6 +1063,15 @@ export default function HometownScreen() {
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [popupBuilding, setPopupBuilding] = useState<PlacedBuilding | null>(null);
+  // Gratitude coins — tap a prayer light once per hour
+  const [lightTaps, setLightTaps] = useState<Record<string, number>>({});
+  const [thankedLight, setThankedLight] = useState(false);
+  // Work shifts — rapid-tap mini-game on shops
+  const [workShiftBuilding, setWorkShiftBuilding] = useState<PlacedBuilding | null>(null);
+  const [workShifts, setWorkShifts] = useState<Record<string, number>>({});
+  const [shiftTaps, setShiftTaps] = useState(0);
+  const [shiftTimeLeft, setShiftTimeLeft] = useState(0);
+  const shiftTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Lot purchase modal — replaces Alert (Android Alert caps at ~3 buttons, hiding restaurants)
   const [purchaseLot, setPurchaseLot] = useState<TownLot | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
@@ -1040,8 +1086,11 @@ export default function HometownScreen() {
   const [gatheringNow, setGatheringNow] = useState(false);
   // Garden of Remembrance: loved ones remembered here, with garden upgrades.
   const [remembrance, setRemembrance] = useState<RemembranceState>(() => emptyRemembrance());
+  const [well, setWell] = useState<WellState>(() => emptyWell());
   // Garden visits: prayer lights paying their respects (+0.1% income/visit, 24h)
   const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
+  // Mission Field: prayer lights sent out on missions (blessings on return)
+  const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
   const [tier] = useState(1); // TODO: derive from active fast day
 
   // The active map's state (all grid logic operates on this)
@@ -1147,6 +1196,16 @@ export default function HometownScreen() {
     setActiveMap(id);
     setSelectedTile(null);
     setMovingBuilding(null);
+  }, []);
+
+  /** Draw from the well for today — persists the streak, no coins involved. */
+  const handleWellDraw = useCallback(() => {
+    const today = localDateStr();
+    setWell((prev) => {
+      const next = recordWellDraw(prev, today);
+      if (next !== prev) saveWell(next);
+      return next;
+    });
   }, []);
 
   const handleUnlockMap = useCallback((id: TownMapId) => {
@@ -1278,6 +1337,15 @@ export default function HometownScreen() {
         // Garden of Remembrance state (loved ones + garden level)
         let remembranceState = emptyRemembrance();
         try { remembranceState = await loadRemembrance(); setRemembrance(remembranceState); } catch {}
+        // The Well state (daily draw date + streak)
+        try { setWell(await loadWell()); } catch {}
+        // Mission Field state (field missions, pruned of old collected ones)
+        try {
+          const fm = await loadFieldMissions();
+          const pruned = pruneMissions(fm);
+          setFieldMissions(pruned);
+          if (pruned.length !== fm.length) saveFieldMissions(pruned).catch(() => undefined);
+        } catch {}
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
@@ -1287,6 +1355,15 @@ export default function HometownScreen() {
         } catch {}
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
+        // Gratitude coins + work shifts
+        try {
+          const tapsRaw = await AsyncStorage.getItem(LIGHT_TAP_KEY);
+          setLightTaps(parseLightTaps(tapsRaw ? JSON.parse(tapsRaw) : {}));
+        } catch {}
+        try {
+          const shiftsRaw = await AsyncStorage.getItem(WORK_SHIFT_KEY);
+          setWorkShifts(parseWorkShifts(shiftsRaw ? JSON.parse(shiftsRaw) : {}));
+        } catch {}
 
         // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
         // Preload bank interior bonuses (async) for bank/bank-tower buildings.
@@ -1337,6 +1414,68 @@ export default function HometownScreen() {
           prayedList = people.map((p) => ({ id: p.id, name: p.name }));
         } catch {}
         setPrayedToday(prayedCount);
+        // Daily prayer bonus — thresholds for praying for people
+        try {
+          const bonusRaw = await AsyncStorage.getItem(PRAYER_BONUS_KEY);
+          const bonusState = parsePrayerBonus(bonusRaw ? JSON.parse(bonusRaw) : {});
+          if (bonusState.date !== today) {
+            bonusState.date = today;
+            bonusState.awarded = [];
+          }
+          for (const { threshold, coins: bonusCoins } of PRAYER_COIN_BONUSES) {
+            if (prayedCount >= threshold && !bonusState.awarded.includes(threshold)) {
+              bonusState.awarded.push(threshold);
+              await AsyncStorage.setItem(PRAYER_BONUS_KEY, JSON.stringify(bonusState));
+              // Award via addCoins — but we're in load, use direct storage
+              const cRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+              const c0 = parseCoins(cRaw ? JSON.parse(cRaw) : {});
+              const next = {
+                balance: Math.round((c0.balance + bonusCoins) * 10) / 10,
+                lifetimeEarned: Math.round((c0.lifetimeEarned + bonusCoins) * 10) / 10,
+              };
+              await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+              setCoins(next);
+              Alert.alert(
+                "🙏 Prayer Bonus!",
+                `You prayed for ${prayedCount} people today! +${bonusCoins} coins.`
+              );
+            }
+          }
+          // Save even if no new awards (date rollover)
+          await AsyncStorage.setItem(PRAYER_BONUS_KEY, JSON.stringify(bonusState));
+        } catch {}
+        // Fast day green bonus — 5 coins per newly completed fast day
+        try {
+          const countedRaw = await AsyncStorage.getItem(FAST_DAY_COIN_KEY);
+          const counted = new Set(parseFastDayCoins(countedRaw ? JSON.parse(countedRaw) : []));
+          const fasts = fastsRaw ? JSON.parse(fastsRaw) : [];
+          let newGreens = 0;
+          for (const f of fasts) {
+            const fid = String(f.id || f.name || "fast");
+            const statuses = f.dayStatuses || {};
+            for (const [date, status] of Object.entries(statuses)) {
+              if (status === "completed") {
+                const key = `${fid}:${date}`;
+                if (!counted.has(key)) {
+                  counted.add(key);
+                  newGreens++;
+                }
+              }
+            }
+          }
+          if (newGreens > 0) {
+            await AsyncStorage.setItem(FAST_DAY_COIN_KEY, JSON.stringify([...counted]));
+            const reward = newGreens * FAST_DAY_COINS;
+            const cRaw = await AsyncStorage.getItem(COINS_STORAGE_KEY);
+            const c0 = parseCoins(cRaw ? JSON.parse(cRaw) : {});
+            const next = {
+              balance: Math.round((c0.balance + reward) * 10) / 10,
+              lifetimeEarned: Math.round((c0.lifetimeEarned + reward) * 10) / 10,
+            };
+            await AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next));
+            setCoins(next);
+          }
+        } catch {}
         const prMult = prayerMult(prayedCount);
         // Pawn house rooms + desirables boost coin income
         let houseCoinMult = 0;
@@ -1928,6 +2067,55 @@ export default function HometownScreen() {
     }
   };
 
+  /** Send a prayer light out on a mission. */
+  const handleSendMission = useCallback((personId: string, duration: MissionDurationId) => {
+    const def = MISSION_DURATIONS[duration];
+    setFieldMissions(prev => {
+      const active = prev.filter(m => !m.collected);
+      if (active.length >= MAX_ACTIVE_MISSIONS) {
+        Alert.alert("Field is full", `You can have up to ${MAX_ACTIVE_MISSIONS} lights out at once. Welcome some home first.`);
+        return prev;
+      }
+      if (active.some(m => m.personId === personId)) return prev; // already out
+      const light = lightInfos.find(l => l.personId === personId);
+      if (!light) return prev;
+      const now = new Date();
+      const id = `m${now.getTime().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
+      const blessing = rollMissionBlessing(id, duration);
+      const mission: FieldMission = {
+        id,
+        personId: light.personId,
+        name: light.name,
+        duration,
+        sentAt: now.toISOString(),
+        returnAt: new Date(now.getTime() + def.hours * 3600000).toISOString(),
+        coins: blessing.coins,
+        xp: blessing.xp,
+        verse: blessing.verse,
+        collected: false,
+      };
+      const next = [...prev, mission];
+      saveFieldMissions(next).catch(() => undefined);
+      return next;
+    });
+  }, [lightInfos]);
+
+  /** Welcome a returned light home: award their blessing. */
+  const handleCollectMission = useCallback((mission: FieldMission) => {
+    if (mission.collected || missionStatus(mission) !== "returned") return;
+    if (mission.coins > 0) addCoins(mission.coins);
+    if (mission.xp > 0) {
+      awardCustomXP(mission.xp, `mission-${mission.id}`).catch(() => undefined);
+    }
+    setFieldMissions(prev => {
+      const next = prev.map(m =>
+        m.id === mission.id ? { ...m, collected: true, collectedAt: new Date().toISOString() } : m
+      );
+      saveFieldMissions(next).catch(() => undefined);
+      return next;
+    });
+  }, [addCoins]);
+
   const handleCollectBuilding = (buildingId: string) => {
     const now = Date.now();
     // Frenzy tap tracking (every press counts, even on empty coins)
@@ -2188,7 +2376,7 @@ export default function HometownScreen() {
       )}
 
       <Text style={{ color: pt.subtext, marginBottom: 12 }}>
-        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
+        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : activeMap === "well" ? "A quiet place. Draw from the well once a day, and be still." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}>
@@ -2257,14 +2445,24 @@ export default function HometownScreen() {
             saveRemembrance(next);
           }}
         />
+      ) : activeMap === "well" ? (
+        <TheWell
+          well={well}
+          timeOfDay={timeOfDay}
+          pt={pt}
+          onDraw={handleWellDraw}
+        />
       ) : activeMap === "reserve" ? (
-        <View style={{ alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 48, marginBottom: 16 }}>
-          <Text style={{ fontSize: 56 }}>❓</Text>
-          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 12, color: pt.text }}>Coming Soon</Text>
-          <Text style={{ color: pt.subtext, textAlign: "center", marginTop: 8 }}>
-            A new frontier awaits beyond the {MAP_INFO.school.name}...
-          </Text>
-        </View>
+        <MissionField
+          missions={fieldMissions}
+          availableLights={lightInfos.filter(
+            (l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId)
+          )}
+          timeOfDay={timeOfDay}
+          pt={pt}
+          onSend={handleSendMission}
+          onCollect={handleCollectMission}
+        />
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <SeasonalBorder>
@@ -2398,8 +2596,8 @@ export default function HometownScreen() {
             </View>
             );
           })}
-          {/* Townsfolk — Jonathan's chosen residents + prayed-for visitors; all tappable */}
-          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
+          {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away */}
+          <TownNPCs mapState={map} cellSize={cellSize} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => setPrayerVillagerInfo(p)} />
           {/* City life: plot workers + commuters from town */}
           {activeMap === "city" && (
             <>
@@ -2879,6 +3077,31 @@ export default function HometownScreen() {
                       </Text>
                     </Pressable>
                   )}
+                  {effectiveIncomeFor(b) > 0 && (() => {
+                    const ready = canWorkShift(workShifts, b.id);
+                    return (
+                      <Pressable
+                        onPress={() => {
+                          if (!ready) {
+                            Alert.alert("Resting", "This shop needs a break. Come back soon!");
+                            return;
+                          }
+                          setPopupBuilding(null);
+                          setWorkShiftBuilding(b);
+                          setShiftTaps(0);
+                          setShiftTimeLeft(WORK_SHIFT_DURATION_MS / 1000);
+                        }}
+                        style={{ backgroundColor: ready ? "#10B981" : pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10, opacity: ready ? 1 : 0.6 }}
+                      >
+                        <Text style={{ color: ready ? "#FFFFFF" : pt.text, fontWeight: "700", fontSize: 16 }}>
+                          🔨 Work Shift {ready ? "" : "(resting)"}
+                        </Text>
+                        <Text style={{ color: ready ? "#D1FAE5" : pt.subtext, fontSize: 12, marginTop: 2 }}>
+                          Tap fast for 10 seconds to earn coins!
+                        </Text>
+                      </Pressable>
+                    );
+                  })()}
                   {activeMap !== "town" && (
                   <Pressable
                     onPress={doMove}
@@ -2963,12 +3186,123 @@ export default function HometownScreen() {
             <Text style={{ color: pt.subtext, fontSize: 14, marginTop: 8, textAlign: "center" }}>
               Walking with you in Hometown
             </Text>
+            {(() => {
+              const lightId = prayerVillagerInfo ? String(prayerVillagerInfo.id) : "";
+              const canThank = lightId && canThankLight(lightTaps, lightId);
+              const doThank = async () => {
+                if (!lightId || !canThank) return;
+                const now = Date.now();
+                const updated = { ...lightTaps, [lightId]: now };
+                setLightTaps(updated);
+                setThankedLight(true);
+                try { await AsyncStorage.setItem(LIGHT_TAP_KEY, JSON.stringify(updated)); } catch {}
+                addCoins(LIGHT_TAP_COINS);
+              };
+              return canThank && !thankedLight ? (
+                <Pressable
+                  onPress={doThank}
+                  style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#10B981" }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>💛 Say Thanks (+{LIGHT_TAP_COINS} coins)</Text>
+                </Pressable>
+              ) : (
+                <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 12, fontStyle: "italic", textAlign: "center" }}>
+                  {thankedLight ? "\"Thank you for praying for me!\"" : "Thanks given — come back in an hour"}
+                </Text>
+              );
+            })()}
             <Pressable
-              onPress={() => setPrayerVillagerInfo(null)}
+              onPress={() => { setPrayerVillagerInfo(null); setThankedLight(false); }}
               style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Close</Text>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Work shift mini-game — tap fast for 10 seconds to earn coins */}
+      <Modal
+        visible={workShiftBuilding !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
+          setWorkShiftBuilding(null);
+        }}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => {
+            if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
+            setWorkShiftBuilding(null);
+          }}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginBottom: 4 }}>
+              🔨 Work Shift
+            </Text>
+            <Text style={{ color: pt.subtext, fontSize: 14, marginBottom: 12, textAlign: "center" }}>
+              Tap as fast as you can! {WORK_SHIFT_TAPS_PER_COIN} taps = 1 coin (max {WORK_SHIFT_MAX_COINS})
+            </Text>
+            {/* Timer bar */}
+            <View style={{ width: "100%", height: 8, backgroundColor: pt.bg, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
+              <View
+                style={{
+                  height: 8,
+                  width: `${Math.max(0, (shiftTimeLeft / (WORK_SHIFT_DURATION_MS / 1000)) * 100)}%`,
+                  backgroundColor: shiftTimeLeft > 3 ? "#10B981" : "#DC2626",
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+            <Text style={{ color: pt.text, fontSize: 32, fontWeight: "800", marginBottom: 4 }}>
+              {Math.ceil(shiftTimeLeft)}s
+            </Text>
+            <Text style={{ color: "#B45309", fontSize: 18, fontWeight: "700", marginBottom: 16 }}>
+              {shiftTaps} taps → {Math.min(WORK_SHIFT_MAX_COINS, Math.floor(shiftTaps / WORK_SHIFT_TAPS_PER_COIN))} coins
+            </Text>
+            <Pressable
+              onPress={() => {
+                // Start timer on first tap
+                if (shiftTaps === 0 && !shiftTimerRef.current) {
+                  shiftTimerRef.current = setInterval(() => {
+                    setShiftTimeLeft((prev) => {
+                      const next = prev - 0.1;
+                      if (next <= 0) {
+                        if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
+                        shiftTimerRef.current = null;
+                        // Shift over — award coins
+                        setShiftTaps((taps) => {
+                          const earned = Math.min(WORK_SHIFT_MAX_COINS, Math.floor(taps / WORK_SHIFT_TAPS_PER_COIN));
+                          if (earned > 0 && workShiftBuilding) {
+                            addCoins(earned);
+                            const updated = { ...workShifts, [workShiftBuilding.id]: Date.now() };
+                            setWorkShifts(updated);
+                            AsyncStorage.setItem(WORK_SHIFT_KEY, JSON.stringify(updated)).catch(() => undefined);
+                            Alert.alert("Shift Complete!", `You earned ${earned} coins!`);
+                          } else {
+                            Alert.alert("Shift Complete", "Tap faster next time!");
+                          }
+                          setWorkShiftBuilding(null);
+                          return 0;
+                        });
+                        return 0;
+                      }
+                      return next;
+                    });
+                  }, 100);
+                }
+                if (shiftTimeLeft > 0) setShiftTaps((t) => t + 1);
+              }}
+              style={{ backgroundColor: "#10B981", borderRadius: 60, width: 120, height: 120, alignItems: "center", justifyContent: "center", marginBottom: 12 }}
+            >
+              <Text style={{ fontSize: 48 }}>👆</Text>
+            </Pressable>
+            <Text style={{ color: pt.subtext, fontSize: 12 }}>Tap the button!</Text>
           </Pressable>
         </Pressable>
       </Modal>

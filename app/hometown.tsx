@@ -967,7 +967,7 @@ export default function HometownScreen() {
   const [gatheringNow, setGatheringNow] = useState(false);
   // Garden of Remembrance: loved ones remembered here, with garden upgrades.
   const [remembrance, setRemembrance] = useState<RemembranceState>(() => emptyRemembrance());
-  // Garden visits: blessed residents paying their respects (+0.1% income/visit, 24h)
+  // Garden visits: prayer lights paying their respects (+0.1% income/visit, 24h)
   const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
   const [tier] = useState(1); // TODO: derive from active fast day
 
@@ -1275,7 +1275,7 @@ export default function HometownScreen() {
         const fellowshipBonus = fellowshipMult(fellowshipState);
         // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
         const remembranceBonus = remembranceMult(remembranceState.people.length);
-        // Garden visits: from time to time, blessed residents visit the Garden
+        // Garden visits: from time to time, prayer lights visit the Garden
         // of Remembrance to pay their respects (1-2 per hour, daytime only).
         // Each visit blesses the town: +0.1% income for 24h.
         let gardenVisitState = emptyGardenVisits();
@@ -1283,7 +1283,7 @@ export default function HometownScreen() {
         if (getTimeOfDay() !== "night") {
           const hourKey = gardenVisitHourKey();
           if (!gardenVisitState.slots[hourKey]) {
-            const blessedNow = prayedPeople.map((p) => ({ personId: String(p.id), name: p.name }));
+            const blessedNow = prayedList.map((p) => ({ personId: String(p.id), name: p.name }));
             const picked = pickGardenVisitors(blessedNow, hourKey, false);
             if (picked.length > 0) {
               const next = pruneGardenVisits({
@@ -1906,7 +1906,7 @@ export default function HometownScreen() {
         </View>
       ) : null}
 
-      {/* Garden visits chip — residents paying their respects (+0.1%/visit, 24h) */}
+      {/* Garden visits chip — prayer lights paying respects (+0.1%/visit, 24h) */}
       {(() => {
         const gv = gardenVisitMult(gardenVisits);
         if (gv <= 1) return null;

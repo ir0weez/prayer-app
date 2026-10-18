@@ -576,9 +576,10 @@ export function candleLit(p: RememberedPerson, now: Date = new Date()): boolean 
 }
 
 // ---- Garden visits ----
-// From time to time, blessed residents (prayed for today) visit the Garden of
-// Remembrance to pay their respects — 1-2 per hour, daytime only. Each visit
-// blesses the town: +0.1% income for 24h. Small, meaningful, reverent.
+// From time to time, prayer lights (golden villagers for everyone prayed for
+// today) visit the Garden of Remembrance to pay their respects — 1-2 per
+// hour, daytime only. Each visit blesses the town: +0.1% income for 24h.
+// Small, meaningful, reverent.
 
 export const GARDEN_VISIT_STORAGE_KEY = "prayercircle.hometown.garden-visits.v1";
 /** +0.1% income per garden visit. */
@@ -606,9 +607,9 @@ function hashStr(s: string): number {
 }
 
 /**
- * Pick 1-2 blessed residents to visit the garden this hour. Deterministic per
+ * Pick 1-2 prayer lights to visit the garden this hour. Deterministic per
  * hour slot so the same visitors linger all hour; empty at night (the town
- * sleeps) or when nobody is blessed.
+ * sleeps) or when nobody was prayed for today.
  */
 export function pickGardenVisitors(
   blessed: { personId: string; name: string }[],

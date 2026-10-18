@@ -23,7 +23,7 @@ export type GardenOfRemembranceProps = {
   onUpdateNote: (id: string, note: string) => void;
   onRemovePerson: (id: string) => void;
   onUpgrade: () => void;
-  /** Blessed residents currently visiting the garden (1-2, daytime). */
+  /** Prayer lights currently visiting the garden (1-2, daytime). */
   visitors?: { personId: string; name: string }[];
   /** Light a memory candle for a remembered loved one (5 coins, burns 24h). */
   onLightCandle?: (id: string) => void;
@@ -431,7 +431,7 @@ function GardenScene({
   timeOfDay: TimeOfDay;
   onTapPerson: (p: RememberedPerson) => void;
   onOpenWall: () => void;
-  /** Blessed residents currently paying their respects (daytime only). */
+  /** Prayer lights currently paying their respects (daytime only). */
   visitors?: { personId: string; name: string }[];
 }) {
   const isNight = timeOfDay === "night";
@@ -445,6 +445,33 @@ function GardenScene({
     { x: 148, y: 122 },
     { x: 214, y: 126 },
   ];
+  // Visitors come and go: they linger 30-60s paying their respects, then
+  // return to town for 20-40s — the garden feels alive, not staged.
+  const [showVisitors, setShowVisitors] = useState(true);
+  useEffect(() => {
+    if (isNight || !visitors || visitors.length === 0) {
+      setShowVisitors(false);
+      return;
+    }
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const linger = () => {
+      if (!alive) return;
+      setShowVisitors(true);
+      timer = setTimeout(() => {
+        if (!alive) return;
+        setShowVisitors(false);
+        timer = setTimeout(() => {
+          if (alive) linger();
+        }, 20000 + Math.random() * 20000);
+      }, 30000 + Math.random() * 30000);
+    };
+    linger();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [visitors, isNight]);
 
   const stone = isNight ? "#4A4458" : "#D9CFBC";
   const stoneEdge = isNight ? "#37324A" : "#C2B69E";
@@ -549,8 +576,8 @@ function GardenScene({
         </Pressable>
       ))}
 
-      {/* visiting residents — blessed souls paying their respects */}
-      {!isNight && (visitors || []).slice(0, 2).map((v, i) => (
+      {/* visiting prayer lights — they linger, pay respects, return to town */}
+      {!isNight && showVisitors && (visitors || []).slice(0, 2).map((v, i) => (
         <GardenVisitor key={v.personId} x={visitorSpots[i]?.x ?? 180} y={visitorSpots[i]?.y ?? 122} />
       ))}
       {hidden > 0 && (

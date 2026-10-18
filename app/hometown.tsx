@@ -117,6 +117,16 @@ import {
   gardenVisitMult,
   gardenVisitHourKey,
   pickGardenVisitors,
+  BANQUET_GATHER_CAPS,
+  BANQUET_FELLOWSHIP_RATES,
+  findBanquetTable,
+  TREE_OF_LIFE_TILE,
+  TREE_FRUIT_COINS,
+  emptyTreeOfLife,
+  loadTreeOfLife,
+  saveTreeOfLife,
+  treeVerseForDate,
+  type TreeOfLifeState,
   type GardenVisitState,
   type CityPlot,
   type TownLot,
@@ -959,7 +969,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
     case "banquet-table": {
       // The Marriage Supper — one long table under open sky, candles lit,
       // benches waiting for the whole town. Grander with level.
-      const candles = lv >= 3 ? 5 : lv >= 2 ? 4 : 3;
+      const candles: number = lv >= 3 ? 5 : lv >= 2 ? 4 : 3;
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
           {/* warm hearth-glow behind the table */}
@@ -1279,6 +1289,9 @@ export default function HometownScreen() {
   const [well, setWell] = useState<WellState>(() => emptyWell());
   // Garden visits: prayer lights paying their respects (+0.1% income/visit, 24h)
   const [gardenVisits, setGardenVisits] = useState<GardenVisitState>(() => emptyGardenVisits());
+  // Tree of Life: tap once a day to taste its fruit (+coins, verse of the day)
+  const [treeState, setTreeState] = useState<TreeOfLifeState>(() => emptyTreeOfLife());
+  const [treeModalVisible, setTreeModalVisible] = useState(false);
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
   // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
@@ -1882,6 +1895,8 @@ export default function HometownScreen() {
         const fellowshipBonus = fellowshipMult(fellowshipState);
         // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
         const remembranceBonus = remembranceMult(remembranceState.people.length);
+        // Tree of Life: once-a-day fruit tasting (coins + verse).
+        try { setTreeState(await loadTreeOfLife()); } catch {}
         // Garden visits: from time to time, prayer lights visit the Garden
         // of Remembrance to pay their respects (1-2 per hour, daytime only).
         // Each visit blesses the town: +0.1% income for 24h.

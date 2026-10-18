@@ -109,7 +109,9 @@ export type BuildingType =
   // Restaurant Row (city gathering spots for breaking bread)
   | "upper-room"
   | "manna-house"
-  | "feast-hall";
+  | "feast-hall"
+  // The Marriage Supper — town banquet green where all lights gather
+  | "banquet-table";
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -313,6 +315,11 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +22 coins/day." },
   "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +20 coins/day." },
   "feast-hall":  { name: "The Banquet Table", icon: "🍷", cost: 300, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "One long table where all gather. +24 coins/day." },
+  // The Marriage Supper — a sacred town green, not a business. During The
+  // Gathering (Mon/Wed/Fri 6–8pm) every prayer light gathers here instead of
+  // the restaurants, for a bigger breaking-bread blessing. Upgrades grow the
+  // table: more villagers, richer blessing. (icon is drawn as SVG, not emoji.)
+  "banquet-table": { name: "The Marriage Supper", icon: "", cost: 150, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "One long table under open sky. During The Gathering, all gather here for a greater blessing." },
 };
 
 // ---- City plots: pre-placed downtown lots (no free placement on the city map) ----
@@ -465,6 +472,79 @@ export function fellowshipMult(state: FellowshipState | null, now: Date = new Da
   const hoursSince = (now.getTime() - earnedAt) / 3600000;
   if (hoursSince < 0 || hoursSince >= 24) return 1;
   return 1 + state.villagers * state.rate;
+}
+
+// ---- The Marriage Supper (town banquet green) ----
+
+/** How many villagers can gather at the Marriage Supper, by level. */
+export const BANQUET_GATHER_CAPS: Record<number, number> = { 1: 40, 2: 60, 3: 80 };
+
+/** Fellowship bonus per gathered villager at the Marriage Supper — richer
+ * than the restaurants, because the whole town breaks bread as one. */
+export const BANQUET_FELLOWSHIP_RATES: Record<number, number> = { 1: 0.012, 2: 0.016, 3: 0.02 };
+
+/** Find the built Marriage Supper on the town map, if any. */
+export function findBanquetTable(town: TownState): PlacedBuilding | undefined {
+  return town.maps.town?.buildings.find((b) => b.type === "banquet-table");
+}
+
+// ---- The Tree of Life ----
+
+/** Tile the Tree of Life stands on (town map, plaza gap between church and pawn house). */
+export const TREE_OF_LIFE_TILE = { x: 5, y: 1 };
+
+/** Coins granted for tasting the tree's fruit (once per day). */
+export const TREE_FRUIT_COINS = 25;
+
+export const TREE_OF_LIFE_KEY = "prayercircle.hometown.tree-of-life.v1";
+
+export type TreeOfLifeState = {
+  /** Local date (YYYY-MM-DD) the fruit was last tasted. */
+  lastFruitDate: string | null;
+};
+
+export function emptyTreeOfLife(): TreeOfLifeState {
+  return { lastFruitDate: null };
+}
+
+export async function loadTreeOfLife(): Promise<TreeOfLifeState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(TREE_OF_LIFE_KEY);
+    if (!raw) return emptyTreeOfLife();
+    const s = JSON.parse(raw);
+    return { lastFruitDate: typeof s.lastFruitDate === "string" ? s.lastFruitDate : null };
+  } catch { return emptyTreeOfLife(); }
+}
+
+export async function saveTreeOfLife(s: TreeOfLifeState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(TREE_OF_LIFE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+/** Verses of life — one is shown each day at the tree. */
+export const TREE_OF_LIFE_VERSES: Array<{ text: string; ref: string }> = [
+  { text: "The leaves of the tree were for the healing of the nations.", ref: "Revelation 22:2" },
+  { text: "To him that overcometh will I give to eat of the tree of life, which is in the midst of the paradise of God.", ref: "Revelation 2:7" },
+  { text: "Blessed are they that do his commandments, that they may have right to the tree of life.", ref: "Revelation 22:14" },
+  { text: "She is a tree of life to them that lay hold upon her: and happy is every one that retaineth her.", ref: "Proverbs 3:18" },
+  { text: "The fruit of the righteous is a tree of life; and he that winneth souls is wise.", ref: "Proverbs 11:30" },
+  { text: "Hope deferred maketh the heart sick: but when the desire cometh, it is a tree of life.", ref: "Proverbs 13:12" },
+  { text: "I am the bread of life: he that cometh to me shall never hunger; and he that believeth on me shall never thirst.", ref: "John 6:35" },
+  { text: "Whosoever drinketh of the water that I shall give him shall never thirst.", ref: "John 4:14" },
+];
+
+/** Deterministic verse for a date — the same verse all day, rotates daily. */
+export function treeVerseForDate(date: Date = new Date()): { text: string; ref: string } {
+  const seed = date.getFullYear() * 1000 + monthDayOrdinal(date);
+  return TREE_OF_LIFE_VERSES[seed % TREE_OF_LIFE_VERSES.length];
+}
+
+function monthDayOrdinal(date: Date): number {
+  const start = new Date(date.getFullYear(), 0, 0);
+  return Math.floor((date.getTime() - start.getTime()) / 86400000);
 }
 
 // ---- Garden of Remembrance ----
@@ -1070,6 +1150,9 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
   { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
   { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
+  // The Marriage Supper green — a quiet 2x2 south of Old Town for the town's
+  // one long table. NPCs reach via the Main Street path nearest-road fallback.
+  { id: "town-lot-banquet", x: 8, y: 8, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */

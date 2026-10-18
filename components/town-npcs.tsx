@@ -298,9 +298,28 @@ export function TownNPCs({
       let pool = businesses;
       // The Gathering: prayer lights head to Restaurant Row to break
       // bread together (Mon/Wed/Fri 6-8pm). A shared meal, not just a visit.
+      // But when the Marriage Supper is prepared, EVERY light gathers at the
+      // one table instead — the whole town as one.
       if (isGatheringTime()) {
+        const banquet = ms.buildings.find((b) => b.type === "banquet-table");
+        if (banquet) {
+          const fp = buildingFootprint(banquet.level || 1, banquet.type);
+          return {
+            tile: { x: banquet.x + fp.w / 2 - 0.5, y: banquet.y + fp.h / 2 - 0.5 },
+            buildingId: banquet.id,
+            type: banquet.type,
+          };
+        }
         const restaurants = businesses.filter((b) => isRestaurantType(b.type));
         if (restaurants.length > 0) pool = restaurants;
+      }
+      // The Tree of Life: from time to time, a light lingers beneath its branches.
+      if (!isGatheringTime() && Math.random() < 0.08) {
+        return {
+          tile: { x: TREE_OF_LIFE_TILE.x, y: TREE_OF_LIFE_TILE.y + 1 },
+          buildingId: "",
+          type: "tree-of-life",
+        };
       }
       if (pool.length === 0) {
         // no shops yet — gather at the church instead
@@ -331,8 +350,9 @@ export function TownNPCs({
         npc.state = "visiting";
         // At night the town is asleep — just a quick peek before heading home.
         // Businesses are closed, so no bank-visit bonus either.
-        // During the gathering, lights linger for a real shared meal.
-        const gatheringMeal = isGatheringTime() && npc.destType && isRestaurantType(npc.destType as any);
+        // During the gathering, lights linger for a real shared meal —
+        // at the restaurants, or all as one at the Marriage Supper.
+        const gatheringMeal = isGatheringTime() && npc.destType && (isRestaurantType(npc.destType as any) || npc.destType === "banquet-table");
         npc.waitUntil = now + (nightNow ? 1200 : gatheringMeal ? 12000 + Math.random() * 8000 : 3000 + Math.random() * 5000);
         // Visiting a bank? Customers doing business — bonus coins for the bank.
         if (!nightNow && (npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {

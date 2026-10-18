@@ -89,6 +89,9 @@ export type BuildingType =
   | "department-store"
   | "hotel"
   | "office"
+  | "apartments"
+  | "city-market"
+  | "theater"
   // Mall units (income properties)
   | "food-court"
   | "bookstore"
@@ -295,6 +298,9 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
   "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 460, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
   "office":           { name: "Office Tower",     icon: "🏢", cost: 400, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
+  "apartments":       { name: "Apartment Complex", icon: "🏘️", cost: 700, tier: 1, incomePerDay: 28, xpPerDay: 0, maps: ["city"], description: "Homes for city workers. +28 coins/day." },
+  "city-market":      { name: "City Market Hall", icon: "🏪", cost: 600, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "The city's grand market. +24 coins/day." },
+  "theater":          { name: "Grand Theater",    icon: "🎭", cost: 550, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "Music and stories nightly. +22 coins/day." },
   // Mall (retired) — the map is now the Garden of Remembrance. Defs are kept
   // so old saves can be refunded at full price; maps: [] means unbuildable.
   "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +8 coins/day." },
@@ -343,6 +349,14 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-rest-1", x: 0, y: 3, buildingType: "upper-room",  cost: 300, name: "Restaurant Row West" },
   { id: "plot-rest-2", x: 6, y: 3, buildingType: "manna-house", cost: 300, name: "Restaurant Row East" },
   { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 300, name: "Banquet Table Lot" },
+  // Southern expansion — Midtown (y8-9) and Harbor (y11-12) districts.
+  // More buildings, more income.
+  { id: "plot-city-7",  x: 0, y: 8,  buildingType: "apartments",      cost: 650, name: "Uptown Apartments" },
+  { id: "plot-city-8",  x: 3, y: 8,  buildingType: "theater",         cost: 550, name: "Theater District Lot" },
+  { id: "plot-city-9",  x: 6, y: 8,  buildingType: "city-market",      cost: 600, name: "City Market Lot" },
+  { id: "plot-city-10", x: 0, y: 11, buildingType: "office",          cost: 500, name: "South Office Lot" },
+  { id: "plot-city-11", x: 3, y: 11, buildingType: "hotel",           cost: 575, name: "South Hotel Lot" },
+  { id: "plot-city-12", x: 6, y: 11, buildingType: "department-store", cost: 625, name: "South Retail Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -1051,15 +1065,25 @@ export const CITY_STREETS: Array<{ x: number; y: number }> = [
   // West Ave (x=2, full height)
   { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 },
   { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 2, y: 6 }, { x: 2, y: 7 },
+  { x: 2, y: 8 }, { x: 2, y: 9 }, { x: 2, y: 10 }, { x: 2, y: 11 },
+  { x: 2, y: 12 }, { x: 2, y: 13 },
   // East Ave (x=5, full height)
   { x: 5, y: 0 }, { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 },
   { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 5, y: 6 }, { x: 5, y: 7 },
+  { x: 5, y: 8 }, { x: 5, y: 9 }, { x: 5, y: 10 }, { x: 5, y: 11 },
+  { x: 5, y: 12 }, { x: 5, y: 13 },
   // North Blvd (y=2, skipping avenue intersections)
   { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 3, y: 2 },
   { x: 4, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 },
   // South Blvd (y=5, skipping avenue intersections)
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 3, y: 5 },
   { x: 4, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 },
+  // Midtown Blvd (y=10) — serves the southern expansion
+  { x: 0, y: 10 }, { x: 1, y: 10 }, { x: 3, y: 10 },
+  { x: 4, y: 10 }, { x: 6, y: 10 }, { x: 7, y: 10 },
+  // Harbor Blvd (y=13) — southern edge of the expanded city
+  { x: 0, y: 13 }, { x: 1, y: 13 }, { x: 3, y: 13 },
+  { x: 4, y: 13 }, { x: 6, y: 13 }, { x: 7, y: 13 },
 ];
 
 /** City streets as PlacedRoads with stable ids (idempotent seeding). */
@@ -1309,14 +1333,18 @@ export type TownState = {
 };
 
 export const TOWN_GRID_SIZE = 10;
-/** Town map dimensions — the town grid is taller than it is wide so every
- *  district gets its own street. Other maps (city, school, etc.) stay 10x10. */
+/** Town/city map dimensions — both grids are taller than wide so every
+ *  district gets its own street. Other maps (school, etc.) stay 10x10. */
 export const TOWN_GRID_W = 10;
 export const TOWN_GRID_H = 14;
+export const CITY_GRID_W = 10;
+export const CITY_GRID_H = 14;
 
-/** Grid dimensions for a map — town is taller (10x14); others are 10x10. */
+/** Grid dimensions for a map — town and city are taller (10x14); others are 10x10. */
 export function mapGridSize(mapId: TownMapId): { w: number; h: number } {
-  return mapId === "town" ? { w: TOWN_GRID_W, h: TOWN_GRID_H } : { w: TOWN_GRID_SIZE, h: TOWN_GRID_SIZE };
+  if (mapId === "town") return { w: TOWN_GRID_W, h: TOWN_GRID_H };
+  if (mapId === "city") return { w: CITY_GRID_W, h: CITY_GRID_H };
+  return { w: TOWN_GRID_SIZE, h: TOWN_GRID_SIZE };
 }
 
 export function emptyMapState(): MapState {

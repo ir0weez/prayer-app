@@ -7,7 +7,7 @@ import {
   BUILDINGS,
   DECORATIONS,
   COINS_STORAGE_KEY,  TOWN_GRID_SIZE,
-  TOWN_GRID_W, TOWN_GRID_H, mapGridSize,
+  TOWN_GRID_H, mapGridSize,
   TOWN_STORAGE_KEY,
   SHOP_OWNED_KEY,
   MAP_INFO,
@@ -649,6 +649,58 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0 }: { t
                 {[0, 1].map(j => <View key={j} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: isLit(i, j) ? LIT : "#1E40AF", marginHorizontal: 3, borderRadius: 1 }} />)}
               </View>
             ))}
+          </View>
+        </View>
+      );
+    case "apartments":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {/* Two residential blocks */}
+            {[0, 1].map(b => (
+              <View key={b} style={{ width: s * 0.4, height: s * (b === 0 ? 0.78 : 0.62), backgroundColor: b === 0 ? "#A16207" : "#CA8A04", borderRadius: 4, alignItems: "center", paddingTop: s * 0.05, marginHorizontal: s * 0.02 }}>
+                {[0, 1, 2].map(r => (
+                  <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.02 }}>
+                    {[0, 1].map(j => <View key={j} style={{ width: s * 0.11, height: s * 0.09, backgroundColor: isLit(r + b * 3, j) ? LIT : "#713F12", marginHorizontal: 2, borderRadius: 1 }} />)}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    case "city-market":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* Striped awning */}
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#16A34A" }} />)}
+          </View>
+          <View style={{ width: s * 0.95, height: s * 0.62, backgroundColor: "#15803D", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
+            {/* Stall windows */}
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.2, backgroundColor: isLit(0, i) ? LIT : "#14532D", marginHorizontal: 4, borderRadius: 2 }} />)}
+            </View>
+            {/* Door */}
+            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#052E16", borderRadius: 3, marginTop: s * 0.04 }} />
+          </View>
+        </View>
+      );
+    case "theater":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {/* Marquee */}
+          <View style={{ width: s * 0.8, height: s * 0.14, backgroundColor: "#FDE68A", borderRadius: 4, borderWidth: 2, borderColor: "#B45309", alignItems: "center", justifyContent: "center", marginBottom: 2 }}>
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.06, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: isLit(0, i) ? LIT : "#92400E", marginHorizontal: 2 }} />)}
+            </View>
+          </View>
+          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#7C2D12", borderRadius: 5, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
+            {/* Curtain doors */}
+            <View style={{ flexDirection: "row" }}>
+              <View style={{ width: s * 0.3, height: s * 0.4, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+              <View style={{ width: s * 0.3, height: s * 0.4, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginLeft: 3 }} />
+            </View>
           </View>
         </View>
       );
@@ -2581,10 +2633,11 @@ export default function HometownScreen() {
 
   const cellSize = 40;
   const rows = [];
-  // The town grid is taller (10x14) so every district gets its own street;
-  // other maps stay 10x10.
-  const gridW = activeMap === "town" ? TOWN_GRID_W : TOWN_GRID_SIZE;
-  const gridH = activeMap === "town" ? TOWN_GRID_H : TOWN_GRID_SIZE;
+  // The town and city grids are taller (10x14) so every district gets its
+  // own street; other maps stay 10x10.
+  const gridSize = mapGridSize(activeMap);
+  const gridW = gridSize.w;
+  const gridH = gridSize.h;
   // Beach district cells (sandy lots on the south side)
   const beachCells = new Set<string>();
   if (activeMap === "town") {
@@ -2838,6 +2891,7 @@ export default function HometownScreen() {
       </View>
 
       {activeMap === "mall" ? (
+        <SeasonalBorder variant="garden">
         <GardenOfRemembrance
           remembrance={remembrance}
           timeOfDay={timeOfDay}
@@ -2893,14 +2947,18 @@ export default function HometownScreen() {
             saveRemembrance(next);
           }}
         />
+        </SeasonalBorder>
       ) : activeMap === "well" ? (
+        <SeasonalBorder variant="well">
         <TheWell
           well={well}
           timeOfDay={timeOfDay}
           pt={pt}
           onDraw={handleWellDraw}
         />
+        </SeasonalBorder>
       ) : activeMap === "reserve" ? (
+        <SeasonalBorder variant="field">
         <MissionField
           missions={fieldMissions}
           availableLights={lightInfos.filter(
@@ -2911,9 +2969,10 @@ export default function HometownScreen() {
           onSend={handleSendMission}
           onCollect={handleCollectMission}
         />
+        </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
-        <SeasonalBorder>
+        <SeasonalBorder variant={activeMap === "city" ? "city" : activeMap === "school" ? "school" : "town"}>
         <View style={{ position: "relative" }}>
           {rows}
           {/* Heavenly landmarks — the River of Life along the north edge,

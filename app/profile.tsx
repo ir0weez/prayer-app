@@ -812,8 +812,8 @@ export default function ProfileScreen() {
                   if (s === "completed") streak++;
                   else break;
                 }
-                // Unlock pet when a 40+ day fast is created
-                if (selectedFast.durationDays >= 40 && !petUnlocked) unlockPet();
+                // Unlock pet when a 40+ day fast is created (matches Hometown gate: > 40 days)
+                if (hometownUnlockedForFastLength(selectedFast.durationDays) && !petUnlocked) unlockPet();
                 const yesterdayIdx = todayIdx - 1;
                 const yesterdayStatus = yesterdayIdx >= 0 ? selectedFast.dayStatuses[days[yesterdayIdx]] : undefined;
                 if (monuments[today]) mood = "building";
@@ -828,7 +828,7 @@ export default function ProfileScreen() {
                   <View style={{ alignItems: "center", paddingVertical: 12, opacity: 0.6 }}>
                     <Text style={{ fontSize: 32 }}>🔒</Text>
                     <Text style={{ color: boardColors.muted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-                      Create a 40+ day fast to unlock your pawn pet!
+                      Create a fast longer than {HOMETOWN_MIN_FAST_DAYS} days to unlock your pawn pet!
                     </Text>
                     <Text style={{ color: boardColors.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
                       This fast: {selectedFast?.durationDays ?? 0} days
@@ -988,6 +988,7 @@ export default function ProfileScreen() {
               );
             })()}
             </View>
+            {hometownUnlocked ? (
             <Pressable
               onPress={() => router.push("/pawn-creator")}
               style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}
@@ -1009,6 +1010,23 @@ export default function ProfileScreen() {
               </View>
               <Text style={{ fontSize: 20, color: "#A78BFA" }}>→</Text>
             </Pressable>
+            ) : (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12, opacity: 0.6 }}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="lock" size={22} color="#6D6A8A" />
+              </View>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: "#8E8BA3" }}>
+                  Your Pawn
+                </Text>
+                <Text style={{ fontSize: 12, color: "#6D6A8A" }}>
+                  Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days
+                </Text>
+              </View>
+            </View>
+            )}
             <Pressable
               onPress={() => router.push("/character")}
               style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1E1B4B", borderRadius: 12, padding: 12, marginBottom: 12 }}

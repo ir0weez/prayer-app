@@ -8,6 +8,7 @@ import {
   COINS_STORAGE_KEY,
   parseCoins,
   type HometownCoins,
+  scaledCoins,
 } from "@/lib/hometown";
 import {
   HOUSE_ROOMS,
@@ -301,12 +302,12 @@ export default function PawnHouseScreen() {
       save({ ...house, rooms: { ...house.rooms, [roomId]: { ...room, theme: t.id } } });
       return;
     }
-    Alert.alert(t.name, `Unlock this color theme for ${t.cost.toFixed(2)} coins?`, [
+    Alert.alert(t.name, `Unlock this color theme for ${scaledCoins(t.cost).toFixed(2)} coins?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Unlock",
         onPress: () => {
-          if (!spend(t.cost, t.name)) return;
+          if (!spend(scaledCoins(t.cost), t.name)) return;
           save({
             ...house,
             rooms: { ...house.rooms, [roomId]: { ...room, theme: t.id, ownedThemes: [...room.ownedThemes, t.id] } },
@@ -325,7 +326,7 @@ export default function PawnHouseScreen() {
     if (!slot) return;
     const tier = room.furniture[slotId] || 0;
     if (tier >= 3) return;
-    const cost = slot.costs[tier];
+    const cost = scaledCoins(slot.costs[tier]);
     const label = tier === 0 ? slot.tierNames[0] : `Upgrade to ${slot.tierNames[tier]}`;
     Alert.alert(slot.name, `${label} — ${cost.toFixed(2)} coins?`, [
       { text: "Cancel", style: "cancel" },
@@ -601,7 +602,7 @@ export default function PawnHouseScreen() {
                     {!owned && <MaterialIcons name="lock" size={16} color="#78716C" />}
                   </View>
                   <Text numberOfLines={1} style={{ fontSize: 10, color: "#78716C", marginTop: 4 }}>
-                    {owned ? t.name : `${t.cost}c`}
+                    {owned ? t.name : `${scaledCoins(t.cost).toFixed(2)}c`}
                   </Text>
                 </Pressable>
               );

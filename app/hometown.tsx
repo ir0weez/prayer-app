@@ -3052,7 +3052,7 @@ export default function HometownScreen() {
   const handleLighthouseUpgrade = () => {
     const level = lighthouseState.level;
     if (level >= LIGHTHOUSE_MAX_LEVEL) return;
-    const cost = LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0;
+    const cost = scaledCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
     if (coins.balance < cost) {
       Alert.alert("Not enough coins", `Upgrading the lighthouse costs ${cost.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
       return;
@@ -3995,7 +3995,7 @@ export default function HometownScreen() {
           }}
           onUpgrade={() => {
             const nextLevel = (remembrance.level + 1) as 2 | 3;
-            const cost = REMEMBRANCE_UPGRADE_COSTS[nextLevel];
+            const cost = scaledCoins(REMEMBRANCE_UPGRADE_COSTS[nextLevel]);
             if (coinsRef.current.balance < cost) return;
             addCoins(-cost);
             const next = { ...remembrance, level: nextLevel };
@@ -4718,7 +4718,7 @@ export default function HometownScreen() {
               }
               const canUpgrade = !isMax && fits;
               const upgradeCost = !isMax ? upgradeCostFor(b.type, nextLevel) : 0;
-              const sellPrice = Math.floor(def.cost * 0.5);
+              const sellPrice = Math.floor(scaledCoins(def.cost * 0.5));
               const workerCount = b.workers || 0;
               const preview = { ...b, level: nextLevel };
 
@@ -5380,7 +5380,7 @@ export default function HometownScreen() {
               const level = lighthouseState.level;
               const reward = LIGHTHOUSE_BLESSING_COINS * level;
               const maxed = level >= LIGHTHOUSE_MAX_LEVEL;
-              const upgradeCost = LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0;
+              const upgradeCost = scaledCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
               return (
                 <>
                   <Text style={{ fontSize: 20, fontWeight: "800", color: pt.text, textAlign: "center" }}>

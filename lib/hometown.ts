@@ -742,33 +742,52 @@ const TOWN_SHOP_TYPES: BuildingType[] = [
 ];
 
 export const TOWN_LOTS: TownLot[] = [
-  // Cul-de-sac cottages (top-left, 1x1 — houses stay cozy; 4 lots = 24 villagers maxed)
+  // Chapel Hill cottages (1x1 — houses stay cozy; 4 lots = 24 villagers maxed)
   { id: "town-lot-h1", x: 0, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h2", x: 1, y: 0, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h4", x: 0, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   { id: "town-lot-h5", x: 1, y: 1, w: 1, h: 1, allowedTypes: ["house"], cost: 25, name: "Cottage Lot" },
   // Chapel Hill — the church, prominent at the top of the neighborhood
-  { id: "town-lot-church", x: 4, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
+  { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
   // Hearthside — the pawn's home, near the church
   { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 25, name: "Hearthside" },
-  // Sunny Acres — farm on the west side
-  { id: "town-lot-farm", x: 0, y: 5, w: 2, h: 2, allowedTypes: ["farm"], cost: 50, name: "Sunny Acres" },
-  // Main Street shops (flexible commercial)
-  { id: "town-lot-s1", x: 2, y: 5, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West" },
-  { id: "town-lot-s2", x: 5, y: 5, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East" },
-  { id: "town-lot-s3", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Shops" },
+  // Sunny Acres — farm on the hilltop (moved from west side for the bigger grid)
+  { id: "town-lot-farm", x: 8, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 50, name: "Sunny Acres" },
+  // Main Street North — 5 flexible commercial lots
+  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West" },
+  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street" },
+  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street Central" },
+  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East" },
+  { id: "town-lot-s5", x: 8, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Market Corner" },
+  // Old Town South — 5 flexible commercial lots
+  { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town West" },
+  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town" },
+  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central" },
+  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East" },
+  { id: "town-lot-s10", x: 8, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Garden Corner" },
+  // Riverside District — 5 flexible commercial lots (a quieter stretch by the water)
+  { id: "town-lot-s11", x: 0, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside West" },
+  { id: "town-lot-s12", x: 2, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside" },
+  { id: "town-lot-s13", x: 4, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside Central" },
+  { id: "town-lot-s14", x: 6, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Riverside East" },
+  { id: "town-lot-s15", x: 8, y: 8, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Sunset Corner" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
 export const TOWN_PATH: Array<{ x: number; y: number }> = [
-  // Main street S-curve: enters west, winds through, exits east
-  { x: 0, y: 3 }, { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 },
-  { x: 3, y: 4 }, { x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 },
-  { x: 6, y: 3 }, { x: 7, y: 3 },
-  // Cul-de-sac connector (cottages)
-  { x: 1, y: 2 },
-  // Farm spur (driveway to Sunny Acres)
-  { x: 0, y: 4 },
+  // Chapel Way — winds across the top of the hill, serving cottages, church, pawn house, farm
+  { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
+  { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 }, { x: 8, y: 2 }, { x: 9, y: 2 },
+  // Cul-de-sac spur — tucks into the cottage cluster
+  { x: 2, y: 0 }, { x: 2, y: 1 },
+  // Chapel plaza spur — between church and pawn house
+  { x: 5, y: 0 }, { x: 5, y: 1 },
+  // Main Street — the bustling thoroughfare between the two market rows
+  { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
+  { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
+  // Riverside Walk — a quiet footpath along the west edge down to the Riverside
+  // District. The west column (x=0) is kept clear of lots from y=5 to y=9 so the
+  // walk stays street-connected for NPCs and the barbershop road bonus.
 ];
 
 /** Town path roads with stable ids (idempotent seeding). */

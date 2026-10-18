@@ -67,31 +67,152 @@ function flowerSpots(count: number): FlowerSpot[] {
   return spots;
 }
 
+/** Bloom center height per flower kind within the 44x64 tile (sunflower stands taller). */
+const FLOWER_HEAD_Y = [24, 24, 16, 24, 24, 26];
+
+/** Distinct bloom per flower kind, drawn in a 44x44 box centered at (22,22). */
+function FlowerBloom({ kind }: { kind: number }) {
+  const k = ((kind % REMEMBRANCE_FLOWERS.length) + REMEMBRANCE_FLOWERS.length) % REMEMBRANCE_FLOWERS.length;
+  const style = REMEMBRANCE_FLOWERS[k];
+  const petal = style.petal;
+  const center = style.center;
+  switch (k) {
+    case 0: // Rose — layered rosebud
+      return (
+        <G>
+          {[0, 72, 144, 216, 288].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return <Circle key={`o${deg}`} cx={22 + 9 * Math.cos(rad)} cy={22 + 9 * Math.sin(rad)} r={7.5} fill={petal} opacity={0.95} />;
+          })}
+          {[36, 126, 216, 306].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return <Circle key={`m${deg}`} cx={22 + 4.5 * Math.cos(rad)} cy={22 + 4.5 * Math.sin(rad)} r={5} fill={petal} />;
+          })}
+          <Circle cx={22} cy={22} r={4.6} fill="#881337" />
+          <Path d="M19.5 22 a2.5 2.5 0 1 1 2.5 2.5" stroke="#FECDD3" strokeWidth={1.5} fill="none" strokeLinecap="round" />
+        </G>
+      );
+    case 1: // Lily — 6 pointed trumpet petals
+      return (
+        <G>
+          {[0, 60, 120, 180, 240, 300].map((deg) => (
+            <Path
+              key={deg}
+              d="M22 25 C 18.5 19, 18 10, 22 2 C 26 10, 25.5 19, 22 25 Z"
+              fill={petal}
+              opacity={0.97}
+              transform={`rotate(${deg} 22 22)`}
+            />
+          ))}
+          {[30, 150, 270].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return (
+              <Line
+                key={`s${deg}`}
+                x1={22} y1={22}
+                x2={22 + 7 * Math.cos(rad)} y2={22 + 7 * Math.sin(rad)}
+                stroke={center} strokeWidth={1.6} strokeLinecap="round"
+              />
+            );
+          })}
+          <Circle cx={22} cy={22} r={3} fill={center} />
+        </G>
+      );
+    case 2: // Sunflower — many thin rays, big seed head
+      return (
+        <G>
+          {Array.from({ length: 14 }, (_, i) => {
+            const deg = (i * 360) / 14;
+            return <Ellipse key={deg} cx={22} cy={11} rx={2.7} ry={10} fill={petal} transform={`rotate(${deg} 22 22)`} />;
+          })}
+          <Circle cx={22} cy={22} r={8.5} fill={center} />
+          {[[18.5, 19], [25.5, 19], [22, 23.5], [18.5, 26.5], [25.5, 26.5], [22, 18]].map(([x, y]) => (
+            <Circle key={`${x},${y}`} cx={x} cy={y} r={1.1} fill="#451A03" opacity={0.65} />
+          ))}
+        </G>
+      );
+    case 3: // Violet — 5 rounded petals, veined lower pair
+      return (
+        <G>
+          {[0, 72, 144, 216, 288].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            const isLower = deg === 144 || deg === 216;
+            return (
+              <Circle
+                key={deg}
+                cx={22 + 8 * Math.sin(rad)}
+                cy={22 - 8 * Math.cos(rad)}
+                r={isLower ? 7.4 : 6.6}
+                fill={petal}
+                opacity={0.95}
+              />
+            );
+          })}
+          {[160, 180, 200].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return (
+              <Line
+                key={`v${deg}`}
+                x1={22 + 2 * Math.sin(rad)} y1={22 - 2 * Math.cos(rad)}
+                x2={22 + 12 * Math.sin(rad)} y2={22 - 12 * Math.cos(rad)}
+                stroke="#4C1D95" strokeWidth={1.2} opacity={0.55} strokeLinecap="round"
+              />
+            );
+          })}
+          <Circle cx={22} cy={22} r={3.2} fill={center} />
+        </G>
+      );
+    case 4: // Pink carnation — ruffled pom-pom
+      return (
+        <G>
+          {Array.from({ length: 9 }, (_, i) => {
+            const rad = ((i * 360) / 9 * Math.PI) / 180;
+            return <Circle key={`o${i}`} cx={22 + 7 * Math.cos(rad)} cy={22 + 7 * Math.sin(rad)} r={4.8} fill={petal} opacity={0.92} />;
+          })}
+          {Array.from({ length: 6 }, (_, i) => {
+            const rad = (((i * 360) / 6 + 30) * Math.PI) / 180;
+            return <Circle key={`i${i}`} cx={22 + 3.5 * Math.cos(rad)} cy={22 + 3.5 * Math.sin(rad)} r={4} fill={petal} />;
+          })}
+          <Circle cx={22} cy={22} r={3.4} fill="#9D174D" />
+          {[[17, 16], [27, 15], [16, 26], [28, 25]].map(([x, y]) => (
+            <Circle key={`${x},${y}`} cx={x} cy={y} r={1} fill="#FBCFE8" opacity={0.9} />
+          ))}
+        </G>
+      );
+    default: { // Forget-me-not — cluster of 3 tiny 5-petal blooms
+      const mini = (cx: number, cy: number) => (
+        <G key={`${cx}-${cy}`}>
+          {[0, 72, 144, 216, 288].map((deg) => {
+            const rad = (deg * Math.PI) / 180;
+            return <Circle key={deg} cx={cx + 3.1 * Math.cos(rad)} cy={cy + 3.1 * Math.sin(rad)} r={2.8} fill={petal} />;
+          })}
+          <Circle cx={cx} cy={cy} r={1.9} fill={center} />
+        </G>
+      );
+      return (
+        <G>
+          {mini(15.5, 16.5)}
+          {mini(28.5, 18.5)}
+          {mini(22, 29)}
+        </G>
+      );
+    }
+  }
+}
+
 function Flower({ person, glowing }: { person: RememberedPerson; glowing: boolean }) {
-  const style = REMEMBRANCE_FLOWERS[person.flower % REMEMBRANCE_FLOWERS.length];
+  const k = ((person.flower % REMEMBRANCE_FLOWERS.length) + REMEMBRANCE_FLOWERS.length) % REMEMBRANCE_FLOWERS.length;
+  const style = REMEMBRANCE_FLOWERS[k];
+  const headY = FLOWER_HEAD_Y[k];
   return (
     <Svg width={44} height={64} viewBox="0 0 44 64">
-      {glowing && <Circle cx={22} cy={24} r={20} fill={style.petal} opacity={0.28} />}
+      {glowing && <Circle cx={22} cy={headY} r={20} fill={style.petal} opacity={0.28} />}
       {/* stem + leaves */}
-      <Line x1={22} y1={60} x2={22} y2={30} stroke="#4D7C4D" strokeWidth={3} strokeLinecap="round" />
+      <Line x1={22} y1={60} x2={22} y2={headY + 8} stroke="#4D7C4D" strokeWidth={3} strokeLinecap="round" />
       <Ellipse cx={14} cy={46} rx={8} ry={4} fill="#5B8C5B" transform="rotate(-25 14 46)" />
       <Ellipse cx={30} cy={52} rx={8} ry={4} fill="#5B8C5B" transform="rotate(25 30 52)" />
-      {/* petals */}
-      <G>
-        {[0, 60, 120, 180, 240, 300].map((deg) => {
-          const rad = (deg * Math.PI) / 180;
-          return (
-            <Circle
-              key={deg}
-              cx={22 + 9 * Math.cos(rad)}
-              cy={22 + 9 * Math.sin(rad)}
-              r={7}
-              fill={style.petal}
-              opacity={glowing ? 1 : 0.92}
-            />
-          );
-        })}
-        <Circle cx={22} cy={22} r={5.5} fill={style.center} />
+      <G transform={`translate(0 ${headY - 22})`}>
+        <FlowerBloom kind={k} />
       </G>
     </Svg>
   );
@@ -427,12 +548,14 @@ function AddPersonModal({
                 key={f.name}
                 onPress={() => setFlower(i)}
                 style={{
-                  width: 40, height: 40, borderRadius: 20, backgroundColor: f.petal,
+                  width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF",
                   borderWidth: flower === i ? 3 : 1, borderColor: flower === i ? "#D4AF37" : pt.border,
-                  alignItems: "center", justifyContent: "center",
+                  alignItems: "center", justifyContent: "center", overflow: "hidden",
                 }}
               >
-                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: f.center }} />
+                <Svg width={40} height={40} viewBox="0 2 44 40">
+                  <FlowerBloom kind={i} />
+                </Svg>
               </Pressable>
             ))}
           </View>
@@ -476,8 +599,10 @@ function PersonModal({
     <Modal visible={!!person} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}>
         <View style={{ backgroundColor: pt.card, borderRadius: 20, padding: 20, alignItems: "center" }}>
-          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: style.petal, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: style.center }} />
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", marginBottom: 8, borderWidth: 1, borderColor: pt.border, overflow: "hidden" }}>
+            <Svg width={52} height={52} viewBox="0 2 44 40">
+              <FlowerBloom kind={person.flower} />
+            </Svg>
           </View>
           <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>{person.name}</Text>
           <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 2 }}>Remembered in the garden · {style.name}</Text>
@@ -566,8 +691,10 @@ function WallModal({
                   onPress={() => { onClose(); onSelect(p); }}
                   style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: pt.border }}
                 >
-                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: style.petal, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: style.center }} />
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", marginRight: 12, borderWidth: 1, borderColor: pt.border, overflow: "hidden" }}>
+                    <Svg width={30} height={30} viewBox="0 4 44 36">
+                      <FlowerBloom kind={p.flower} />
+                    </Svg>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 16, fontWeight: "700", color: pt.text }}>{p.name}</Text>

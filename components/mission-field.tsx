@@ -73,8 +73,9 @@ function MissionScene({
 }) {
   const sky = skyColors(timeOfDay);
   const now = new Date();
-  const out = missions.filter((m) => !m.collected && missionStatus(m, now) === "out");
-  const returned = missions.filter((m) => !m.collected && missionStatus(m, now) === "returned");
+  const safe = Array.isArray(missions) ? missions : [];
+  const out = safe.filter((m) => { try { return m && !m.collected && missionStatus(m, now) === "out"; } catch { return false; } });
+  const returned = safe.filter((m) => { try { return m && !m.collected && missionStatus(m, now) === "returned"; } catch { return false; } });
 
   // Path winds from bottom-center to the horizon.
   const pathD = "M150 300 C 160 240, 200 220, 180 170 C 165 135, 175 110, 180 90";
@@ -137,20 +138,25 @@ export function MissionField(props: MissionFieldProps) {
   const [pickedPersonId, setPickedPersonId] = useState<string | null>(null);
   const [pickedDuration, setPickedDuration] = useState<MissionDurationId>("day");
 
+  // Defensive: never crash on bad state — render the empty field instead.
+  const safeMissions = Array.isArray(missions) ? missions : [];
+  const safeLights = Array.isArray(availableLights) ? availableLights : [];
+  const safePt = pt ?? { bg: "#FFF7ED", card: "#FFFFFF", text: "#1C1917", subtext: "#78716C", border: "#E5E7EB" };
+
   const now = new Date();
-  const active = missions.filter((m) => !m.collected);
-  const out = active.filter((m) => missionStatus(m, now) === "out");
-  const returned = active.filter((m) => missionStatus(m, now) === "returned");
+  const active = safeMissions.filter((m) => m && !m.collected);
+  const out = active.filter((m) => { try { return missionStatus(m, now) === "out"; } catch { return false; } });
+  const returned = active.filter((m) => { try { return missionStatus(m, now) === "returned"; } catch { return false; } });
 
   const openSend = () => {
-    if (availableLights.length === 0) {
+    if (safeLights.length === 0) {
       Alert.alert(
         "No lights to send",
         "Pray for someone today and they'll appear here as a light you can send out."
       );
       return;
     }
-    setPickedPersonId(availableLights[0]?.personId ?? null);
+    setPickedPersonId(safeLights[0]?.personId ?? null);
     setPickedDuration("day");
     setSendVisible(true);
   };
@@ -176,7 +182,7 @@ export function MissionField(props: MissionFieldProps) {
     <View>
       <MissionScene missions={missions} timeOfDay={timeOfDay} />
 
-      <Text style={{ color: pt.subtext, marginBottom: 12, fontSize: 13 }}>
+      <Text style={{ color: safePt.subtext, marginBottom: 12, fontSize: 13 }}>
         Send your prayer lights out into the field. They'll return with a blessing — coins, XP, sometimes a verse.
       </Text>
 
@@ -199,7 +205,7 @@ export function MissionField(props: MissionFieldProps) {
       {/* Returned — waiting to be welcomed home */}
       {returned.length > 0 && (
         <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontWeight: "800", fontSize: 14, color: pt.text, marginBottom: 8, letterSpacing: 1 }}>
+          <Text style={{ fontWeight: "800", fontSize: 14, color: safePt.text, marginBottom: 8, letterSpacing: 1 }}>
             WELCOME HOME
           </Text>
           {returned.map((m) => (
@@ -245,7 +251,7 @@ export function MissionField(props: MissionFieldProps) {
       {/* Out in the field */}
       {out.length > 0 && (
         <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontWeight: "800", fontSize: 14, color: pt.text, marginBottom: 8, letterSpacing: 1 }}>
+          <Text style={{ fontWeight: "800", fontSize: 14, color: safePt.text, marginBottom: 8, letterSpacing: 1 }}>
             OUT IN THE FIELD
           </Text>
           {out.map((m) => (
@@ -254,12 +260,12 @@ export function MissionField(props: MissionFieldProps) {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                backgroundColor: pt.card,
+                backgroundColor: safePt.card,
                 borderRadius: 12,
                 padding: 12,
                 marginBottom: 8,
                 borderWidth: 1,
-                borderColor: pt.border,
+                borderColor: safePt.border,
               }}
             >
               <View
@@ -278,8 +284,8 @@ export function MissionField(props: MissionFieldProps) {
                 </Text>
               </View>
               <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 14, color: pt.text }}>{m.name}</Text>
-                <Text style={{ fontSize: 12, color: pt.subtext }}>
+                <Text style={{ fontWeight: "700", fontSize: 14, color: safePt.text }}>{m.name}</Text>
+                <Text style={{ fontSize: 12, color: safePt.subtext }}>
                   {formatDurationLabel(m.duration)} · back in {missionCountdown(m, now)}
                 </Text>
               </View>
@@ -291,15 +297,15 @@ export function MissionField(props: MissionFieldProps) {
       {active.length === 0 && (
         <View
           style={{
-            backgroundColor: pt.card,
+            backgroundColor: safePt.card,
             borderRadius: 12,
             padding: 20,
             alignItems: "center",
             borderWidth: 1,
-            borderColor: pt.border,
+            borderColor: safePt.border,
           }}
         >
-          <Text style={{ color: pt.subtext, textAlign: "center", fontSize: 13 }}>
+          <Text style={{ color: safePt.subtext, textAlign: "center", fontSize: 13 }}>
             The field is quiet. Send a light out and watch the path — they'll walk toward the horizon and return with a blessing.
           </Text>
         </View>
@@ -308,17 +314,17 @@ export function MissionField(props: MissionFieldProps) {
       {/* Send modal */}
       <Modal visible={sendVisible} transparent animationType="fade" onRequestClose={() => setSendVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}>
-          <View style={{ backgroundColor: pt.card, borderRadius: 20, padding: 20, maxHeight: "85%" }}>
-            <Text style={{ fontWeight: "800", fontSize: 18, color: pt.text, marginBottom: 4 }}>
+          <View style={{ backgroundColor: safePt.card, borderRadius: 20, padding: 20, maxHeight: "85%" }}>
+            <Text style={{ fontWeight: "800", fontSize: 18, color: safePt.text, marginBottom: 4 }}>
               Send on mission
             </Text>
-            <Text style={{ fontSize: 12, color: pt.subtext, marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, color: safePt.subtext, marginBottom: 12 }}>
               Who goes, and for how long?
             </Text>
 
-            <Text style={{ fontWeight: "700", fontSize: 13, color: pt.text, marginBottom: 6 }}>Who</Text>
+            <Text style={{ fontWeight: "700", fontSize: 13, color: safePt.text, marginBottom: 6 }}>Who</Text>
             <ScrollView style={{ maxHeight: 150, marginBottom: 12 }} nestedScrollEnabled>
-              {availableLights.map((p) => (
+              {safeLights.map((p) => (
                 <Pressable
                   key={p.personId}
                   onPress={() => setPickedPersonId(p.personId)}
@@ -330,7 +336,7 @@ export function MissionField(props: MissionFieldProps) {
                     marginBottom: 6,
                     backgroundColor: pickedPersonId === p.personId ? "#FEF3C7" : "transparent",
                     borderWidth: pickedPersonId === p.personId ? 1.5 : 1,
-                    borderColor: pickedPersonId === p.personId ? "#F59E0B" : pt.border,
+                    borderColor: pickedPersonId === p.personId ? "#F59E0B" : safePt.border,
                   }}
                 >
                   <View
@@ -347,14 +353,14 @@ export function MissionField(props: MissionFieldProps) {
                   >
                     <Text style={{ fontSize: 12 }}>✦</Text>
                   </View>
-                  <Text style={{ marginLeft: 10, fontWeight: "600", fontSize: 14, color: pt.text }}>
+                  <Text style={{ marginLeft: 10, fontWeight: "600", fontSize: 14, color: safePt.text }}>
                     {p.name}
                   </Text>
                 </Pressable>
               ))}
             </ScrollView>
 
-            <Text style={{ fontWeight: "700", fontSize: 13, color: pt.text, marginBottom: 6 }}>How long</Text>
+            <Text style={{ fontWeight: "700", fontSize: 13, color: safePt.text, marginBottom: 6 }}>How long</Text>
             {MISSION_DURATION_ORDER.map((id) => {
               const d = MISSION_DURATIONS[id];
               const selected = pickedDuration === id;
@@ -368,14 +374,14 @@ export function MissionField(props: MissionFieldProps) {
                     marginBottom: 8,
                     backgroundColor: selected ? "#EFF6FF" : "transparent",
                     borderWidth: selected ? 1.5 : 1,
-                    borderColor: selected ? "#1D4ED8" : pt.border,
+                    borderColor: selected ? "#1D4ED8" : safePt.border,
                   }}
                 >
-                  <Text style={{ fontWeight: "700", fontSize: 14, color: pt.text }}>
+                  <Text style={{ fontWeight: "700", fontSize: 14, color: safePt.text }}>
                     {d.label} · {d.hours}h
                   </Text>
-                  <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 2 }}>{d.blurb}</Text>
-                  <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 2 }}>
+                  <Text style={{ fontSize: 12, color: safePt.subtext, marginTop: 2 }}>{d.blurb}</Text>
+                  <Text style={{ fontSize: 12, color: safePt.subtext, marginTop: 2 }}>
                     Blessing: {d.coinsMin.toFixed(2)}–{d.coinsMax.toFixed(2)} coins{d.xp > 0 ? ` + ${d.xp} XP` : ""}
                     {d.verseChance > 0 ? " · may carry a verse" : ""}
                   </Text>
@@ -385,7 +391,7 @@ export function MissionField(props: MissionFieldProps) {
 
             <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 8 }}>
               <Pressable onPress={() => setSendVisible(false)} style={{ padding: 12 }}>
-                <Text style={{ color: pt.subtext, fontWeight: "700" }}>Cancel</Text>
+                <Text style={{ color: safePt.subtext, fontWeight: "700" }}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={confirmSend}
@@ -405,7 +411,7 @@ export function MissionField(props: MissionFieldProps) {
       {/* Collect modal — the blessing */}
       <Modal visible={!!collectMission} transparent animationType="fade" onRequestClose={() => setCollectMission(null)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}>
-          <View style={{ backgroundColor: pt.card, borderRadius: 20, padding: 24, alignItems: "center" }}>
+          <View style={{ backgroundColor: safePt.card, borderRadius: 20, padding: 24, alignItems: "center" }}>
             <View
               style={{
                 width: 64,
@@ -421,10 +427,10 @@ export function MissionField(props: MissionFieldProps) {
             >
               <Text style={{ fontSize: 30 }}>✦</Text>
             </View>
-            <Text style={{ fontWeight: "800", fontSize: 18, color: pt.text, textAlign: "center" }}>
+            <Text style={{ fontWeight: "800", fontSize: 18, color: safePt.text, textAlign: "center" }}>
               {collectMission?.name} is home
             </Text>
-            <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, fontStyle: "italic" }}>
+            <Text style={{ fontSize: 13, color: safePt.subtext, textAlign: "center", marginTop: 6, fontStyle: "italic" }}>
               Visited someone who needed prayer.
             </Text>
             <View

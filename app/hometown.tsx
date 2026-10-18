@@ -2229,11 +2229,14 @@ export default function HometownScreen() {
           addCoins(-info.unlockCost);
           switchMap(id);
           // New map unlocked: fireworks and cheering villagers. Once per map.
-          if (!celebrationsRef.current.mapsCelebrated.includes(id)) {
-            persistCelebrations({ ...celebrationsRef.current, mapsCelebrated: [...celebrationsRef.current.mapsCelebrated, id] });
-            setFireworksKey((k) => k + 1);
-            queueCelebration("map", `Welcome to ${info.name}!`, "Fireworks light the sky — the villagers cheer.");
-          }
+          // Wrapped in try/catch so a celebration hiccup can never break the unlock.
+          try {
+            if (!celebrationsRef.current.mapsCelebrated.includes(id)) {
+              persistCelebrations({ ...celebrationsRef.current, mapsCelebrated: [...celebrationsRef.current.mapsCelebrated, id] });
+              setFireworksKey((k) => k + 1);
+              queueCelebration("map", `Welcome to ${info.name}!`, "Fireworks light the sky — the villagers cheer.");
+            }
+          } catch {}
         },
       },
     ]);
@@ -3935,6 +3938,7 @@ export default function HometownScreen() {
         </SeasonalBorder>
       ) : activeMap === "reserve" ? (
         <SeasonalBorder variant="field">
+        <View>
         <MissionField
           missions={fieldMissions}
           availableLights={lightInfos.filter(
@@ -3945,6 +3949,13 @@ export default function HometownScreen() {
           onSend={handleSendMission}
           onCollect={handleCollectMission}
         />
+        {/* Celebration overlays render on every map, including the field. */}
+        <FireworksOverlay triggerKey={fireworksKey} />
+        <CelebrationOverlay
+          spec={celebrationQueue[0] ?? null}
+          onDone={dismissCelebration}
+        />
+        </View>
         </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>

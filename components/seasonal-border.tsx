@@ -608,7 +608,10 @@ export function SeasonalBorder({ children, variant = "town" }: { children: React
       {/* Top sky strip */}
       <View style={{ height: TOP_H }} />
 
-      {/* Middle: side scenery | map | side scenery */}
+      {/* Middle: side scenery | map | side scenery.
+          The map must size to its content (flexShrink: 0) — a plain
+          flex: 1 collapses to ~0 in this shrink-wrapped row (regression
+          that squished every map into a thin strip). */}
       <View style={{ flexDirection: "row" }}>
         <View style={{ width: SIDE_W, overflow: "hidden" }}>
           <View style={{ flex: 0.45 }} />
@@ -616,7 +619,7 @@ export function SeasonalBorder({ children, variant = "town" }: { children: React
             {leftScene}
           </View>
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={{ flexGrow: 1, flexShrink: 0 }}>
           {children}
         </View>
         <View style={{ width: SIDE_W, overflow: "hidden" }}>

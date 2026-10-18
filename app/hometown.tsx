@@ -1019,6 +1019,8 @@ export default function HometownScreen() {
   const tapTimesRef = useRef<number[]>([]);
   const frenzyUntilRef = useRef(0);
   const lastFrenzyRef = useRef(0);
+  // Per-minute income rates cached at mount tick, for the live interval tick.
+  const perMinuteRateRef = useRef<Record<string, { coins: number; xp: number }>>({});
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [popupBuilding, setPopupBuilding] = useState<PlacedBuilding | null>(null);
@@ -1367,15 +1369,17 @@ export default function HometownScreen() {
         const gardenVisitBonus = gardenVisitMult(gardenVisitState);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
-        const dripOps: { buildingId: string; hours: number; basePerHour: number }[] = [];
+        const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
-            const hoursElapsed = Math.floor((Date.now() - lastTick) / 3600000);
+            const minutesElapsed = Math.floor((Date.now() - lastTick) / 60000);
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-            if (hoursElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
+            // Cache per-minute rates for every earning building (even with 0 elapsed,
+            // e.g. just placed) so the live interval tick can accrue while watching.
+            if ((earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
               const multiplier = roadMultiplierForBuilding(m, b.id);
               const shopBoost = barbershopBoostForBuilding(m, b.id);
               const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
@@ -1384,18 +1388,29 @@ export default function HometownScreen() {
               const wMult = workerMult(b);
               const popMult = populationMult(prayedCount);
               const basePerHour = 2.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * popMult * prMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult);
-              // Church: +2 coins/hour for each prayer contact prayed for today
-              const churchPrayerBonus = b.type === "church" && earnsCoins
-                ? hoursElapsed * CHURCH_PRAYER_COINS_PER_HOUR * prayedCount
+              const churchPerMinute = b.type === "church" && earnsCoins
+                ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
                 : 0;
+              perMinuteRateRef.current[b.id] = {
+                coins: earnsCoins ? basePerHour / 60 + churchPerMinute : 0,
+                xp: !earnsCoins && earnsXP ? (xpIncomeFor(b.type, b.level || 1) * wMult) / 24 / 60 : 0,
+              };
+            }
+            if (minutesElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
+              const rate = perMinuteRateRef.current[b.id];
+              const perMinuteCoins = rate ? rate.coins : 0;
+              const perMinuteXP = rate ? rate.xp : 0;
               const add = earnsCoins
-                ? hoursElapsed * basePerHour + churchPrayerBonus
-                : (hoursElapsed * xpIncomeFor(b.type, b.level || 1) * wMult) / 24;
+                ? minutesElapsed * perMinuteCoins
+                : minutesElapsed * perMinuteXP;
               // ATM & vault bonuses drip as collectible coins inside the bank
               // interior instead of auto-adding to the building total.
-              if (earnsCoins && (b.type === "bank" || b.type === "bank-tower") &&
-                  (ib.vaultDrips.length > 0 || ib.atmDrips.length > 0)) {
-                dripOps.push({ buildingId: b.id, hours: hoursElapsed, basePerHour });
+              if (earnsCoins && (b.type === "bank" || b.type === "bank-tower")) {
+                const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
+                if (ib.vaultDrips.length > 0 || ib.atmDrips.length > 0) {
+                  // basePerHour needed for vault % — recompute cheaply from cached rate
+                  dripOps.push({ buildingId: b.id, minutes: minutesElapsed, basePerHour: perMinuteCoins * 60 });
+                }
               }
               return {
                 ...b,
@@ -1412,7 +1427,7 @@ export default function HometownScreen() {
         t = { ...t, maps: newMaps };
         // Accrue ATM/vault drips onto interior furniture (collectible inside)
         try {
-          await Promise.all(dripOps.map((op) => accrueBankDrips(op.buildingId, op.hours, op.basePerHour)));
+          await Promise.all(dripOps.map((op) => accrueBankDrips(op.buildingId, op.minutes, op.basePerHour)));
         } catch {}
 
         // Collect business income for missed days (all maps)
@@ -1441,6 +1456,46 @@ export default function HometownScreen() {
         saveTown(t);
       } catch {}
     })();
+  }, []);
+
+  // Live tick: every 30s, accrue another slice of minute-by-minute income so the
+  // coin badges visibly grow while watching. Uses the per-minute rates cached at
+  // mount; the next full open re-syncs everything exactly via lastTick.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTown((prev) => {
+        const now = Date.now();
+        const newMaps = { ...prev.maps };
+        let changed = false;
+        for (const mapId of TOWN_MAP_IDS) {
+          const m = newMaps[mapId];
+          if (!m) continue;
+          const updatedBuildings = m.buildings.map((b) => {
+            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
+            const minutesElapsed = Math.floor((now - lastTick) / 60000);
+            if (minutesElapsed <= 0) return b;
+            const rate = perMinuteRateRef.current[b.id];
+            const perMin = rate ? rate.coins + rate.xp : 0;
+            if (!rate || perMin <= 0) {
+              return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
+            }
+            changed = true;
+            const add = minutesElapsed * perMin;
+            return {
+              ...b,
+              accumulated: Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100,
+              lastTick: new Date(now).toISOString(),
+            };
+          });
+          newMaps[mapId] = { ...m, buildings: updatedBuildings };
+        }
+        if (!changed) return prev;
+        const next = { ...prev, maps: newMaps };
+        saveTown(next);
+        return next;
+      });
+    }, 30000);
+    return () => clearInterval(id);
   }, []);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
@@ -1816,6 +1871,33 @@ export default function HometownScreen() {
     setSelectedTile(null);
   };
 
+  /** Collect all accumulated coins/XP from every building on the active map at once. */
+  const handleCollectAll = () => {
+    const now = Date.now();
+    let totalCoins = 0;
+    let totalXP = 0;
+    const updatedBuildings = map.buildings.map((b) => {
+      const acc = b.accumulated || 0;
+      if (acc <= 0) return b;
+      if (xpIncomeFor(b.type, b.level || 1) > 0) {
+        totalXP += Math.max(1, Math.floor(acc));
+      } else {
+        let amount = acc;
+        if (now < frenzyUntilRef.current) amount = Math.round(amount * FRENZY_MULT * 10) / 10;
+        totalCoins += amount;
+      }
+      return { ...b, accumulated: 0, lastTick: new Date().toISOString() };
+    });
+    if (totalCoins <= 0 && totalXP <= 0) return;
+    saveMap({ ...map, buildings: updatedBuildings });
+    if (totalXP > 0) {
+      awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
+    }
+    if (totalCoins > 0) {
+      addCoins(Math.round(totalCoins * 100) / 100);
+    }
+  };
+
   const handleCollectBuilding = (buildingId: string) => {
     const now = Date.now();
     // Frenzy tap tracking (every press counts, even on empty coins)
@@ -1912,6 +1994,18 @@ export default function HometownScreen() {
         </Pressable>
         <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
+        {(() => {
+          const collectible = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
+          if (collectible <= 0) return null;
+          return (
+            <Pressable
+              onPress={handleCollectAll}
+              style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 }}
+            >
+              <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF" }}>Collect All</Text>
+            </Pressable>
+          );
+        })()}
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance}</Text>

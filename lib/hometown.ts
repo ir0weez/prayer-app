@@ -1778,10 +1778,10 @@ export async function bankInteriorBonus(buildingId: string): Promise<{
  */
 export async function accrueBankDrips(
   buildingId: string,
-  hoursElapsed: number,
+  minutesElapsed: number,
   basePerHour: number
 ): Promise<void> {
-  if (hoursElapsed <= 0 || basePerHour <= 0) return;
+  if (minutesElapsed <= 0 || basePerHour <= 0) return;
   try {
     const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     const key = bankInteriorKey(buildingId);
@@ -1802,10 +1802,10 @@ export async function accrueBankDrips(
         if (currentPending >= cap) return item; // storage full — must collect first
         let drip = 0;
         if (item.type === "atm") {
-          drip = def.flatPerHour * hoursElapsed;
+          drip = (def.flatPerHour * minutesElapsed) / 60;
         } else {
           // vault: its % expressed as coins against the bank's hourly base
-          drip = basePerHour * (def.effectPct / 100) * hoursElapsed;
+          drip = (basePerHour * (def.effectPct / 100) * minutesElapsed) / 60;
         }
         if (drip <= 0) return item;
         floorTouched = true;

@@ -307,6 +307,10 @@ export function TownNPCs({
   // shift (hammer, broom...). Takes precedence over the activity badge.
   const [workBadgeMap, setWorkBadgeMap] = useState<Record<string, string>>({});
   const workBadgeRef = useRef<Record<string, string>>({});
+  // Lights clocked in at their work site — they rock side-to-side (busy)
+  // instead of the idle bob, so a shift looks like work, not loitering.
+  const [workingIds, setWorkingIds] = useState<Set<string>>(new Set());
+  const workingRef = useRef<Set<string>>(new Set());
   // Lights currently paused for a chat meetup. Synced in tick; drives bubbles.
   const [chattingIds, setChattingIds] = useState<Set<string>>(new Set());
   const chattingRef = useRef<Set<string>>(new Set());
@@ -536,6 +540,52 @@ export function TownNPCs({
       });
     };
 
+    /** Jonathan assigned a shift: drop whatever the light is doing and head
+     *  to the work site RIGHT NOW — no finishing the current visit or chat
+     *  first. Returns true when an interrupt happened (caller should continue).
+     *  Mission-guided walks are left alone so an in-progress "help" errand
+     *  isn't stranded; night never interrupts (the town sleeps). */
+    const interruptForWork = (npc: NpcLogic, now: number): boolean => {
+      const pid = String(npc.prayerId || npc.id);
+      const guide = workGuidesRef.current?.[pid];
+      if (!guide) return false;
+      const winfo = workMapRef.current?.[pid];
+      if (!winfo) return false;
+      // Already heading there — let the walk finish.
+      if (npc.state === "walking" && npc.destBuildingId === guide.buildingId) return false;
+      // Already on site (was visiting for fun) — clock in immediately.
+      if (npc.state === "visiting" && npc.destBuildingId === guide.buildingId) {
+        npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+        try {
+          workArrivalRef.current?.(pid);
+        } catch {}
+        return true;
+      }
+      // On a villager-mission errand? Let the quick mission walk finish first.
+      const mguide = missionGuidesRef.current?.[pid];
+      if (mguide && npc.state === "walking" && npc.destBuildingId === mguide.buildingId) return false;
+      // Work site gone (sold/demolished mid-shift)? Don't chase a ghost.
+      const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
+      if (!stillThere) return false;
+      // Drop the chat gracefully — the partner goes back to what they were doing.
+      if (npc.state === "chatting") {
+        const partner = Object.values(logic).find((n) => n.id === npc.chatPartnerId);
+        npc.prevState = undefined;
+        npc.chatPartnerId = undefined;
+        if (partner && partner.state === "chatting") endChat(partner, now);
+      }
+      npc.anim?.stop();
+      npc.anim = null;
+      const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
+      npc.waypoints = buildPath(mapStateRef.current, fromTile, guide.tile, cellSize);
+      npc.wpIndex = 0;
+      npc.destBuildingId = guide.buildingId;
+      npc.destType = guide.type;
+      npc.state = "walking";
+      stepNpc(npc);
+      return true;
+    };
+
     const tick = () => {
       const now = Date.now();
       const night = getTimeOfDay() === "night";
@@ -564,6 +614,9 @@ export function TownNPCs({
             continue; // walking / returning: let them finish the current leg, no teleports
           }
         }
+        // Work interrupt: a fresh assignment sends the light to the site NOW —
+        // no finishing the current visit or chat first. (Night wins: asleep.)
+        if (!night && interruptForWork(npc, now)) continue;
         if (npc.state === "chatting") {
           if (now >= npc.chatUntil) endChat(npc, now);
           continue;
@@ -633,7 +686,9 @@ export function TownNPCs({
           (n) =>
             (n.state === "walking" || n.state === "idle" || n.state === "visiting") &&
             now - n.lastChatAt > CHAT_COOLDOWN_MS &&
-            !missionWaitingRef.current?.has(String(n.prayerId || n.id))
+            !missionWaitingRef.current?.has(String(n.prayerId || n.id)) &&
+            // On a Jonathan-assigned shift? Let them work — no street chats.
+            !workingRef.current.has(n.id)
         );
         let activePairs = 0;
         for (const n of Object.values(logic)) if (n.state === "chatting") activePairs++;
@@ -722,6 +777,32 @@ export function TownNPCs({
       if (workChanged) {
         workBadgeRef.current = nextWorkBadge;
         setWorkBadgeMap(nextWorkBadge);
+      }
+      // Sync the working set: lights clocked in at their site (in workMap but
+      // no longer en-route) get the working rock — busy, not loitering.
+      const nextWorking = new Set<string>();
+      if (!night) {
+        const wm = workMapRef.current;
+        const wg = workGuidesRef.current;
+        if (wm) {
+          for (const npc of Object.values(logic)) {
+            const pid = String(npc.prayerId || npc.id);
+            if (wm[pid] && !(wg && wg[pid]) && npc.state === "visiting") {
+              nextWorking.add(npc.id);
+            }
+          }
+        }
+      }
+      const prevWorking = workingRef.current;
+      let workingChanged = nextWorking.size !== prevWorking.size;
+      if (!workingChanged) {
+        for (const id of nextWorking) {
+          if (!prevWorking.has(id)) { workingChanged = true; break; }
+        }
+      }
+      if (workingChanged) {
+        workingRef.current = nextWorking;
+        setWorkingIds(nextWorking);
       }
       const prevChatting = chattingRef.current;
       let chattingChanged = nextChatting.size !== prevChatting.size;
@@ -888,6 +969,13 @@ export function TownNPCs({
         const workIcon = workKind ? WORK_BADGE_ICONS[workKind] : undefined;
         const shownActivityType = workIcon ? undefined : activityType;
         const isChatting = chattingIds.has(id);
+        const isWorking = workingIds.has(id);
+        // Clocked in: rock side-to-side on the same bob loop — a scrubbing,
+        // busy motion instead of the idle bob. The tool badge rides along.
+        const workRock = npc.bob.interpolate({
+          inputRange: [0, 1],
+          outputRange: ["-10deg", "10deg"],
+        });
         const floatY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
         // Alternate bubble content so meetups feel alive: heart or "...".
         const chatHeart = id.charCodeAt(id.length - 1) % 2 === 0;
@@ -1111,7 +1199,12 @@ export function TownNPCs({
           width: NPC_SIZE,
           height: NPC_SIZE + 6,
           alignItems: "center" as const,
-          transform: [...npc.pos.getTranslateTransform(), { translateY: bobY }],
+          transform: [
+            ...npc.pos.getTranslateTransform(),
+            { translateY: bobY },
+            // Working: rock side-to-side — busy, not loitering.
+            { rotate: isWorking ? workRock : "0deg" },
+          ],
           // Depth sort by feet Y: villagers behind a tall building (north of its
           // base) draw first so the building overlaps them. Visiting lights and
           // lights waiting with a "?" stay in front so badges stay visible.

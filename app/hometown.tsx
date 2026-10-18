@@ -2617,7 +2617,7 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
                   <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{lot.cost}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
-                  {lot.presetType && (
+                  {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
                   )}
                 </>

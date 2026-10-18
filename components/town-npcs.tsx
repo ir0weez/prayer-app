@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import Svg, { Line } from "react-native-svg";
 import {
   BUILDINGS,
   buildingFootprint,
@@ -21,6 +23,53 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // Fallback body color (unused — lights are always golden)
 const LIGHT_COLOR = "#FBBF24";
+
+/** Activity icon per building type — shown above a light while visiting.
+ *  MaterialIcons only (no emojis); weaponsmith gets a tiny drawn glyph
+ *  since the icon font has no swords. */
+const ACTIVITY_ICONS: Record<string, string> = {
+  barbershop: "content-cut",
+  "pizza-place": "restaurant",
+  "burger-joint": "restaurant",
+  "taco-stand": "restaurant",
+  "sushi-bar": "restaurant",
+  diner: "restaurant",
+  "upper-room": "restaurant",
+  "manna-house": "restaurant",
+  "feast-hall": "restaurant",
+  bank: "account-balance",
+  "bank-tower": "account-balance",
+  church: "church",
+  farm: "agriculture",
+  armory: "shield",
+  bakery: "bakery-dining",
+  market: "shopping-basket",
+  "clothes-shop": "checkroom",
+  toolshop: "handyman",
+  shop: "store",
+  weaponsmith: "__swords__",
+};
+
+function ActivityGlyph({ type }: { type: string }) {
+  if (type === "weaponsmith") {
+    return (
+      <Svg width={11} height={11} viewBox="0 0 12 12">
+        <Line x1="2.5" y1="9.5" x2="9.5" y2="2.5" stroke="#92400E" strokeWidth={1.7} strokeLinecap="round" />
+        <Line x1="9.5" y1="9.5" x2="2.5" y2="2.5" stroke="#92400E" strokeWidth={1.7} strokeLinecap="round" />
+        <Line x1="1.6" y1="8.6" x2="3.4" y2="10.4" stroke="#92400E" strokeWidth={1.3} strokeLinecap="round" />
+        <Line x1="10.4" y1="8.6" x2="8.6" y2="10.4" stroke="#92400E" strokeWidth={1.3} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+  const name = ACTIVITY_ICONS[type];
+  if (!name) return null;
+  return <MaterialIcons name={name as any} size={11} color="#92400E" />;
+}
+
+/** Villager meetups — two lights crossing paths pause for a quick chat. */
+const CHAT_RANGE_PX = 34;
+const CHAT_COOLDOWN_MS = 25000;
+const MAX_CHAT_PAIRS = 6;
 
 type Tile = { x: number; y: number };
 type Px = { x: number; y: number };
@@ -52,7 +101,7 @@ type NpcLogic = {
   pos: Animated.ValueXY;
   bob: Animated.Value;
   snore: Animated.Value;
-  state: "idle" | "walking" | "visiting" | "returning";
+  state: "idle" | "walking" | "visiting" | "returning" | "chatting";
   waitUntil: number;
   waypoints: Px[];
   wpIndex: number;
@@ -61,6 +110,11 @@ type NpcLogic = {
   anim: Animated.CompositeAnimation | null;
   destBuildingId?: string;
   destType?: string;
+  /** Meetup bookkeeping. */
+  chatUntil: number;
+  chatPartnerId?: string;
+  lastChatAt: number;
+  prevState?: "idle" | "walking" | "visiting" | "returning";
 };
 
 const tileKey = (x: number, y: number) => `${x},${y}`;
@@ -175,6 +229,13 @@ export function TownNPCs({
   // moment). Capped at 15, closest first, so busy days don't turn into label chaos.
   const [namedIds, setNamedIds] = useState<Set<string>>(new Set());
   const namedRef = useRef<Set<string>>(new Set());
+  // Activity badges: id -> building type while a light is visiting (haircut,
+  // meal, errand...). Synced in tick; drives the badge render.
+  const [activityMap, setActivityMap] = useState<Record<string, string>>({});
+  const activityRef = useRef<Record<string, string>>({});
+  // Lights currently paused for a chat meetup. Synced in tick; drives bubbles.
+  const [chattingIds, setChattingIds] = useState<Set<string>>(new Set());
+  const chattingRef = useRef<Set<string>>(new Set());
   const nightRef = useRef<boolean>(getTimeOfDay() === "night");
 
   // Prayer lights: everyone Jonathan prayed for today appears as a golden
@@ -267,6 +328,34 @@ export function TownNPCs({
       }
     };
 
+    /** End a chat meetup and resume whatever the villager was doing.
+     *  Returns the restored state. */
+    const endChat = (npc: NpcLogic, now: number): NpcLogic["state"] => {
+      const prev = npc.prevState || "idle";
+      npc.prevState = undefined;
+      npc.chatPartnerId = undefined;
+      npc.state = prev;
+      if (prev === "walking" || prev === "returning") {
+        stepNpc(npc);
+      } else {
+        npc.waitUntil = Math.max(npc.waitUntil, now + 1200);
+      }
+      return prev;
+    };
+
+    /** Two lights meet on the street — pause for a quick, sweet chat. */
+    const startChat = (a: NpcLogic, b: NpcLogic, now: number) => {
+      const until = now + 2500 + Math.random() * 2000;
+      for (const [npc, partner] of [[a, b], [b, a]] as [NpcLogic, NpcLogic][]) {
+        if (npc.state === "walking") npc.anim?.stop();
+        npc.prevState = npc.state as NpcLogic["prevState"];
+        npc.state = "chatting";
+        npc.chatUntil = until;
+        npc.chatPartnerId = partner.id;
+        npc.lastChatAt = now;
+      }
+    };
+
     const stepNpc = (npc: NpcLogic) => {
       const wp = npc.waypoints[npc.wpIndex];
       if (!wp) {
@@ -305,6 +394,12 @@ export function TownNPCs({
       }
       for (const npc of Object.values(logic)) {
         if (night) {
+          if (npc.state === "chatting") {
+            // Cut the chat short — everyone heads home for the night.
+            const restored = endChat(npc, now);
+            if (restored === "visiting" && now < npc.waitUntil) npc.waitUntil = now;
+            continue;
+          }
           if (npc.state === "idle") continue; // home asleep — stay put
           if (npc.state === "visiting") {
             // Cut the visit short so they head home; the branch below sends them.
@@ -312,6 +407,10 @@ export function TownNPCs({
           } else {
             continue; // walking / returning: let them finish the current leg, no teleports
           }
+        }
+        if (npc.state === "chatting") {
+          if (now >= npc.chatUntil) endChat(npc, now);
+          continue;
         }
         if (npc.state === "idle" && now >= npc.waitUntil) {
           const dest = pickDestination(npc);
@@ -334,6 +433,31 @@ export function TownNPCs({
           stepNpc(npc);
         }
       }
+      // Villager meetups: lights crossing paths pause for a quick chat.
+      // Small, sweet, no dialogue — just neighbors acknowledging each other.
+      if (!night) {
+        const candidates = Object.values(logic).filter(
+          (n) =>
+            (n.state === "walking" || n.state === "idle" || n.state === "visiting") &&
+            now - n.lastChatAt > CHAT_COOLDOWN_MS
+        );
+        let activePairs = 0;
+        for (const n of Object.values(logic)) if (n.state === "chatting") activePairs++;
+        activePairs = Math.floor(activePairs / 2);
+        for (let i = 0; i < candidates.length && activePairs < MAX_CHAT_PAIRS; i++) {
+          const a = candidates[i];
+          if (a.state === "chatting") continue;
+          for (let j = i + 1; j < candidates.length && activePairs < MAX_CHAT_PAIRS; j++) {
+            const b = candidates[j];
+            if (b.state === "chatting") continue;
+            if (Math.hypot(a.px - b.px, a.py - b.py) < CHAT_RANGE_PX) {
+              startChat(a, b, now);
+              activePairs++;
+              break;
+            }
+          }
+        }
+      }
       // Sync the sleeping set for the 💤 render (only fires when someone dozes off / wakes).
       const next = new Set<string>();
       if (night) {
@@ -351,6 +475,42 @@ export function TownNPCs({
       if (changed) {
         sleepingRef.current = next;
         setSleepingIds(next);
+      }
+      // Sync activity badges: visiting lights show what they're doing at
+      // each building (haircut, meal, errand...). Chatting lights show the
+      // chat bubble instead of the badge.
+      const nextActivity: Record<string, string> = {};
+      const nextChatting = new Set<string>();
+      if (!night) {
+        for (const npc of Object.values(logic)) {
+          if (npc.state === "visiting" && npc.destType && ACTIVITY_ICONS[npc.destType]) {
+            nextActivity[npc.id] = npc.destType;
+          } else if (npc.state === "chatting") {
+            nextChatting.add(npc.id);
+          }
+        }
+      }
+      const prevAct = activityRef.current;
+      let actChanged = Object.keys(nextActivity).length !== Object.keys(prevAct).length;
+      if (!actChanged) {
+        for (const k of Object.keys(nextActivity)) {
+          if (prevAct[k] !== nextActivity[k]) { actChanged = true; break; }
+        }
+      }
+      if (actChanged) {
+        activityRef.current = nextActivity;
+        setActivityMap(nextActivity);
+      }
+      const prevChatting = chattingRef.current;
+      let chattingChanged = nextChatting.size !== prevChatting.size;
+      if (!chattingChanged) {
+        for (const id of nextChatting) {
+          if (!prevChatting.has(id)) { chattingChanged = true; break; }
+        }
+      }
+      if (chattingChanged) {
+        chattingRef.current = nextChatting;
+        setChattingIds(nextChatting);
       }
       // Sync name labels: names show at the church or a restaurant (the
       // fellowship moment). Capped at 15, closest first, so busy days don't
@@ -461,6 +621,8 @@ export function TownNPCs({
           px: homePx.x,
           py: homePx.y,
           anim: null,
+          chatUntil: 0,
+          lastChatAt: 0,
         };
       }
     }
@@ -501,6 +663,11 @@ export function TownNPCs({
         const bobY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2.5] });
         const asleep = sleepingIds.has(id);
         const showName = namedIds.has(id) && !!npc.name;
+        const activityType = activityMap[id];
+        const isChatting = chattingIds.has(id);
+        const floatY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+        // Alternate bubble content so meetups feel alive: heart or "...".
+        const chatHeart = id.charCodeAt(id.length - 1) % 2 === 0;
         // All lights glow golden — they're the people Jonathan prayed for today.
         const bodyColor = "#FBBF24";
         const body = (
@@ -532,6 +699,78 @@ export function TownNPCs({
               >
                 💤
               </Animated.Text>
+            ) : null}
+            {/* activity badge — what they're doing at this building */}
+            {activityType && !asleep ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -21,
+                  left: 9,
+                  transform: [{ translateY: floatY }],
+                }}
+              >
+                <View
+                  style={{
+                    width: 17,
+                    height: 17,
+                    borderRadius: 8.5,
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1.5,
+                    borderColor: "#D4AF37",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <ActivityGlyph type={activityType} />
+                </View>
+              </Animated.View>
+            ) : null}
+            {/* chat bubble — meeting a fellow light on the street */}
+            {isChatting && !asleep ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -40,
+                  left: -10,
+                  width: 36,
+                  alignItems: "center",
+                  transform: [{ translateY: floatY }],
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 9,
+                    paddingHorizontal: 5,
+                    paddingVertical: 2,
+                    borderWidth: 1,
+                    borderColor: "#F9A8D4",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 22,
+                  }}
+                >
+                  {chatHeart ? (
+                    <MaterialIcons name="favorite" size={10} color="#EC4899" />
+                  ) : (
+                    <Text style={{ fontSize: 10, fontWeight: "800", color: "#EC4899", lineHeight: 12 }}>...</Text>
+                  )}
+                </View>
+                <View
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeftWidth: 3.5,
+                    borderRightWidth: 3.5,
+                    borderTopWidth: 5,
+                    borderLeftColor: "transparent",
+                    borderRightColor: "transparent",
+                    borderTopColor: "#FFFFFF",
+                    marginTop: -1,
+                  }}
+                />
+              </Animated.View>
             ) : null}
             {/* name label — at church/restaurants (the fellowship moment) */}
             {showName ? (

@@ -8438,13 +8438,7 @@ function RestSquare({
       onLongPress={onLongPress}
       style={({ pressed }) => [{ flex: 1, aspectRatio: 1, opacity: pressed ? 0.7 : 1 }]}
     >
-      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center", opacity: event.isCompleted ? 0.6 : 1 }}>
-        {/* Completed checkmark */}
-        {event.isCompleted && (
-          <View style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: "#4CAF50", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
-            <MaterialIcons name="check" size={16} color="#FFFFFF" />
-          </View>
-        )}
+      <View style={{ flex: 1, borderRadius: 16, backgroundColor: mc.bg, borderWidth: 1.5, borderColor: mc.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
         {/* Animated sky background by time of day */}
         {mood === "night" && REST_STARS.map((s, i) => (
           <TwinkleStar key={i} left={s.left} top={s.top} size={s.size} delay={s.delay} />
@@ -11533,7 +11527,7 @@ export function ScheduleTab({
           const totalSquares = groupMinistries.length + (restEvent ? 1 : 0);
           return (
             <View style={{ flexDirection: "row", gap: 8, marginHorizontal: 12, marginBottom: 8 }}>
-              {restEvent && (
+              {restEvent && !restEvent.isCompleted && (
                 <RestSquare
                   key={restEvent.id}
                   event={restEvent}

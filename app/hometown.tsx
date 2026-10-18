@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Path, Circle, Ellipse, Rect, Line } from "react-native-svg";
+import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -121,6 +122,7 @@ import {
   BANQUET_GATHER_CAPS,
   BANQUET_FELLOWSHIP_RATES,
   findBanquetTable,
+  cottageResidents,
   TREE_OF_LIFE_TILE,
   TREE_FRUIT_COINS,
   emptyTreeOfLife,
@@ -173,6 +175,21 @@ import {
   type VillagerMissionAvailability,
 } from "@/lib/villager-missions";
 import { refreshStatBoostCache, getCachedStatBoosts } from "@/lib/character-stats";
+import {
+  loadVillagerWorkState,
+  saveVillagerWorkState,
+  createWorkAssignment,
+  tickWorkAssignments,
+  markWorkArrived,
+  collectWorkAssignment,
+  activeWorkAssignments,
+  personHasActiveWork,
+  workCountdownText,
+  WORK_KINDS,
+  type WorkKind,
+  type VillagerWorkAssignment,
+  type VillagerWorkState,
+} from "@/lib/villager-work";
 import { SeasonalBorder } from "@/components/seasonal-border";
 import { MapSigns } from "@/components/map-signs";
 import { MissionField } from "@/components/mission-field";
@@ -362,6 +379,32 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
           <View style={{ width: s * 0.7, height: s * 0.15, backgroundColor: "#DC2626", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
           <View style={{ width: s * 0.8, height: s * 0.5, backgroundColor: "#F59E0B", borderRadius: 4 }} />
           <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.2, height: s * 0.3, backgroundColor: "#78350F", borderRadius: 2 }} />
+        </View>
+      );
+    case "villager-cottage":
+      // A cozy home for the prayer lights — warm cream walls, terracotta
+      // roof, a glowing amber window, and a little chimney. Homes, not businesses.
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          {/* chimney */}
+          <View style={{ position: "absolute", bottom: s * 0.66, right: s * 0.18, width: s * 0.1, height: s * 0.2, backgroundColor: "#A8A29E", borderRadius: 2 }} />
+          {/* roof */}
+          <View style={{ width: s * 0.94, height: s * 0.2, backgroundColor: "#C2410C", borderTopLeftRadius: 6, borderTopRightRadius: 6, zIndex: 2 }}>
+            <View style={{ height: 2, backgroundColor: "#FFFFFF", opacity: 0.3, borderRadius: 1 }} />
+          </View>
+          {/* body */}
+          <View style={{ width: s * 0.86, height: s * 0.52, backgroundColor: "#FDE68A", borderBottomLeftRadius: 6, borderBottomRightRadius: 6, overflow: "hidden" }}>
+            {/* warm glowing window */}
+            <View style={{ position: "absolute", top: s * 0.1, left: s * 0.1, width: s * 0.2, height: s * 0.2, backgroundColor: "#FBBF24", borderRadius: 3, borderWidth: 2, borderColor: "#92400E" }} />
+            <View style={{ position: "absolute", top: s * 0.1 + s * 0.09, left: s * 0.1, width: s * 0.2, height: 2, backgroundColor: "#92400E", opacity: 0.6 }} />
+            <View style={{ position: "absolute", top: s * 0.1, left: s * 0.1 + s * 0.09, width: 2, height: s * 0.2, backgroundColor: "#92400E", opacity: 0.6 }} />
+            {/* door */}
+            <View style={{ position: "absolute", bottom: 0, right: s * 0.12, width: s * 0.2, height: s * 0.34, backgroundColor: "#92400E", borderTopLeftRadius: 5, borderTopRightRadius: 5 }}>
+              <View style={{ position: "absolute", top: s * 0.12, right: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: "#FBBF24" }} />
+            </View>
+            {sideShade(s * 0.86, s * 0.52, 6)}
+          </View>
         </View>
       );
     case "pawn-house":
@@ -1231,6 +1274,19 @@ function BanquetGlyph({ size = 24 }: { size?: number }) {
   );
 }
 
+/** Small SVG glyph for the Villager Cottage (no emoji). */
+function CottageGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={9.5} y={2.5} width={3.4} height={6} rx={1} fill="#A8A29E" />
+      <Path d="M3 12.5 L12 4.5 L21 12.5 Z" fill="#C2410C" />
+      <Rect x={5.5} y={12.5} width={13} height={8.5} rx={1.5} fill="#FDE68A" />
+      <Rect x={8} y={14.2} width={3.6} height={3.6} rx={1} fill="#FBBF24" stroke="#92400E" strokeWidth={1} />
+      <Rect x={14.6} y={15} width={4} height={6} rx={1.5} fill="#92400E" />
+    </Svg>
+  );
+}
+
 /** The River of Life — crystal water along the town's north edge (Rev 22:1).
  * Purely visual: clear ethereal waves with glinting sparkles. */
 function RiverOfLife({ cellSize }: { cellSize: number }) {
@@ -1500,6 +1556,14 @@ export default function HometownScreen() {
   const [vmState, setVmState] = useState<VillagerMissionState | null>(null);
   const vmStateRef = useRef<VillagerMissionState | null>(null);
   const [villagerMissionModal, setVillagerMissionModal] = useState<VillagerMission | null>(null);
+  // Villager work assignments — Jonathan sends lights on timed shifts.
+  const [workState, setWorkState] = useState<VillagerWorkState | null>(null);
+  const workStateRef = useRef<VillagerWorkState | null>(null);
+  const [workPickerFor, setWorkPickerFor] = useState<{ id: string; name: string } | null>(null);
+  const [workPickerStep, setWorkPickerStep] = useState<"kind" | "recipient">("kind");
+  const [workPickerKind, setWorkPickerKind] = useState<WorkKind | null>(null);
+  // Ticking clock for work countdowns (refreshed by the 30s live tick).
+  const [nowMs, setNowMs] = useState(Date.now());
   const [vmCelebration, setVmCelebration] = useState<{ mission: VillagerMission } | null>(null);
   const [tier] = useState(1); // TODO: derive from active fast day
 
@@ -1579,6 +1643,162 @@ export default function HometownScreen() {
       await runVillagerMissionSpawn();
     })().catch(() => undefined);
   }, [lightInfos, runVillagerMissionSpawn]);
+
+  // Load villager-work state once lights are ready.
+  useEffect(() => {
+    if (workStateRef.current || lightInfos.length === 0) return;
+    (async () => {
+      const st = await loadVillagerWorkState();
+      workStateRef.current = st;
+      setWorkState(st);
+    })().catch(() => undefined);
+  }, [lightInfos]);
+
+  /** Where a work shift happens on the town map (null = not available). */
+  const findWorkTarget = useCallback(
+    (kind: WorkKind): { tile: { x: number; y: number }; buildingId: string; type: string } | null => {
+      const townState = townRef.current;
+      const buildings = townState?.maps.town?.buildings ?? [];
+      const centerOf = (b: { x: number; y: number; level?: number; type: string; id: string }) => {
+        const fp = buildingFootprint(b.level || 1, b.type as BuildingType);
+        return {
+          tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+          buildingId: b.id,
+          type: b.type,
+        };
+      };
+      switch (kind) {
+        case "clean-garden":
+          // By the Tree of Life — always available.
+          return { tile: { x: TREE_OF_LIFE_TILE.x, y: TREE_OF_LIFE_TILE.y + 1 }, buildingId: "tree-of-life", type: "tree-of-life" };
+        case "prune-flowers": {
+          const farm = buildings.find((b) => b.type === "farm");
+          return farm ? centerOf(farm) : null;
+        }
+        case "bank-shift": {
+          const bank =
+            buildings.find((b) => b.type === "bank") ??
+            buildings.find((b) => b.type === "bank-tower");
+          return bank ? centerOf(bank) : null;
+        }
+        case "restaurant-shift": {
+          const r = buildings.find((b) => isRestaurantType(b.type));
+          return r ? centerOf(r) : null;
+        }
+        case "deliver-meal": {
+          const t =
+            buildings.find((b) => b.type === "banquet-table") ??
+            buildings.find((b) => isRestaurantType(b.type));
+          return t ? centerOf(t) : null;
+        }
+      }
+    },
+    []
+  );
+
+  /** personId -> forced destination while a light walks to its work site. */
+  const workGuides = useMemo(() => {
+    const out: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }> = {};
+    if (!workState) return out;
+    for (const a of workState.assignments) {
+      if (a.status !== "en-route") continue;
+      const target = findWorkTarget(a.kind);
+      if (target) out[a.personId] = target;
+    }
+    return out;
+  }, [workState, findWorkTarget]);
+
+  /** personId -> shift info while a light is on the job (drives the badge). */
+  const workMap = useMemo(() => {
+    const out: Record<string, { untilMs: number; kind: string }> = {};
+    if (!workState) return out;
+    for (const a of workState.assignments) {
+      if (a.status === "done") continue;
+      out[a.personId] = { untilMs: a.endsAt, kind: a.kind };
+    }
+    return out;
+  }, [workState]);
+
+  /** A work-guided light arrived at its site — the shift is underway. */
+  const handleWorkArrival = useCallback(async (personId: string) => {
+    const st = workStateRef.current;
+    if (!st) return;
+    const next = markWorkArrived(st, personId);
+    workStateRef.current = next;
+    setWorkState(next);
+    await saveVillagerWorkState(next);
+  }, []);
+
+  /** Advance work timers; celebrate newly finished shifts. Idempotent. */
+  const runWorkTick = useCallback(async () => {
+    const st = workStateRef.current;
+    if (!st) return;
+    const now = Date.now();
+    const { state, newlyDone } = tickWorkAssignments(st, now);
+    if (newlyDone.length > 0) {
+      workStateRef.current = state;
+      setWorkState(state);
+      await saveVillagerWorkState(state);
+      const first = newlyDone[0];
+      const def = WORK_KINDS[first.kind];
+      Alert.alert(
+        "Shift complete",
+        newlyDone.length === 1
+          ? `${first.personName} finished: ${def.label}. Tap to collect the reward!`
+          : `${newlyDone.length} shifts finished. Tap to collect the rewards!`
+      );
+    }
+  }, []);
+
+  /** Jonathan assigns a light a work shift. */
+  const assignVillagerWork = useCallback(
+    async (person: { id: string; name: string }, kind: WorkKind, recipientName?: string) => {
+      const st = workStateRef.current;
+      if (!st) return;
+      if (getTimeOfDay() === "night") {
+        Alert.alert("Everyone's asleep", "Assign work in the morning — the town is sleeping.");
+        return;
+      }
+      if (personHasActiveWork(st.assignments, person.id)) {
+        Alert.alert("Already working", `${person.name} is already on a shift.`);
+        return;
+      }
+      const vmBusy = (vmStateRef.current?.missions ?? []).some(
+        (m) => m.personId === person.id && m.status !== "done"
+      );
+      if (vmBusy) {
+        Alert.alert("They're busy", `${person.name} has a request waiting — help them first.`);
+        return;
+      }
+      const target = findWorkTarget(kind);
+      if (!target) {
+        Alert.alert(
+          "Not built yet",
+          `There's nowhere to do that work right now — build the right spot first.`
+        );
+        return;
+      }
+      const assignment = createWorkAssignment({
+        personId: person.id,
+        personName: person.name,
+        kind,
+        recipientName,
+      });
+      const next: VillagerWorkState = { assignments: [...st.assignments, assignment] };
+      workStateRef.current = next;
+      setWorkState(next);
+      await saveVillagerWorkState(next);
+      setWorkPickerFor(null);
+      setWorkPickerKind(null);
+      setWorkPickerStep("kind");
+      const def = WORK_KINDS[kind];
+      Alert.alert(
+        "Work assigned",
+        `${person.name} is on the way: ${def.label} (${def.durationLabel}).`
+      );
+    },
+    [findWorkTarget]
+  );
 
   // Garden visitors: 1-2 prayer lights paying their respects this hour
   // (daytime only). Deterministic per hour so they linger while you visit.
@@ -1784,6 +2004,23 @@ export default function HometownScreen() {
     setSelectedTile(null);
     setMovingBuilding(null);
   }, []);
+
+  /** Collect a finished work shift's reward by hand. */
+  const collectWorkReward = useCallback(
+    async (assignment: VillagerWorkAssignment) => {
+      const st = workStateRef.current;
+      if (!st) return;
+      const { state, assignment: done } = collectWorkAssignment(st, assignment.id);
+      if (!done) return;
+      const def = WORK_KINDS[done.kind];
+      workStateRef.current = state;
+      setWorkState(state);
+      await saveVillagerWorkState(state);
+      addCoins(def.rewardCoins);
+      awardCustomXP(def.rewardXP, `villager-work:${done.id}`).catch(() => undefined);
+    },
+    [addCoins]
+  );
 
   /** Draw from the well for today — persists the streak, no coins involved. */
   const handleWellDraw = useCallback(() => {
@@ -2218,6 +2455,9 @@ export default function HometownScreen() {
     const id = setInterval(() => {
       // Villager missions arrive through the day — check for newly due slots.
       runVillagerMissionSpawn().catch(() => undefined);
+      // Work shifts finish on their timers — mark done, celebrate, refresh countdowns.
+      runWorkTick().catch(() => undefined);
+      setNowMs(Date.now());
       setTown((prev) => {
         const now = Date.now();
         const newMaps = { ...prev.maps };
@@ -2251,7 +2491,7 @@ export default function HometownScreen() {
       });
     }, 30000);
     return () => clearInterval(id);
-  }, [runVillagerMissionSpawn]);
+  }, [runVillagerMissionSpawn, runWorkTick]);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {
@@ -2451,6 +2691,19 @@ export default function HometownScreen() {
     // Enterable buildings route to their interiors first
     if (b.type === "pawn-house") {
       router.push("/pawn-house");
+      return;
+    } else if (b.type === "villager-cottage") {
+      // Tap a cottage to see who lives there.
+      const residents = cottageResidents(map.buildings, b.id, lightInfos);
+      if (residents.length === 0) {
+        Alert.alert("Villager Cottage", "No one lives here yet — the people you pray for today will move in.");
+      } else {
+        const shown = residents.slice(0, 10).map((r) => r.name).join("\n");
+        Alert.alert(
+          "Villager Cottage",
+          `${residents.length} ${residents.length === 1 ? "villager calls" : "villagers call"} this home:\n\n${shown}${residents.length > 10 ? "\n…" : ""}`
+        );
+      }
       return;
     } else if (b.type === "bank" || b.type === "bank-tower") {
       router.push(`/bank-interior?buildingId=${b.id}`);
@@ -3272,6 +3525,9 @@ export default function HometownScreen() {
                       <Text style={{ fontSize: 16, marginTop: 2 }}>{BUILDINGS[lot.presetType].icon}</Text>
                     )
                   )}
+                  {!lot.presetType && lot.allowedTypes.includes("villager-cottage") && (
+                    <View style={{ marginTop: 2 }}><CottageGlyph size={20} /></View>
+                  )}
                 </>
               )}
             </View>
@@ -3285,7 +3541,7 @@ export default function HometownScreen() {
             const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
             if (vm) setVillagerMissionModal(vm);
             else setPrayerVillagerInfo(p);
-          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} />
+          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} />
           {/* City life: plot workers + commuters from town (depth-sorted, bare) */}
           {activeMap === "city" && (
             <>
@@ -3612,6 +3868,61 @@ export default function HometownScreen() {
                         </View>
                       </View>
                     ))}
+                  </>
+                );
+              })()}
+              {/* Work Assignments — shifts Jonathan sent lights on */}
+              {(() => {
+                const jobs = activeWorkAssignments(workState?.assignments ?? []);
+                if (jobs.length === 0) return null;
+                return (
+                  <>
+                    <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text, marginTop: 12, marginBottom: 8 }}>
+                      Work Assignments
+                    </Text>
+                    {jobs.map((a) => {
+                      const def = WORK_KINDS[a.kind];
+                      const done = a.status === "done";
+                      return (
+                        <View key={a.id} style={{ backgroundColor: pt.bg, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#A7F3D0" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <View
+                              style={{
+                                width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF",
+                                borderWidth: 1.5, borderColor: "#059669",
+                                alignItems: "center", justifyContent: "center", marginRight: 8,
+                              }}
+                            >
+                              <MaterialIcons name={def.badgeIcon as any} size={13} color="#059669" />
+                            </View>
+                            <Text style={{ fontWeight: "700", fontSize: 15, color: pt.text, flex: 1 }}>{a.personName}</Text>
+                          </View>
+                          <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6 }}>
+                            {def.label}
+                            {a.kind === "deliver-meal" && a.recipientName ? ` — for ${a.recipientName}` : ""}
+                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                            <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {def.rewardCoins.toFixed(2)}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {def.rewardXP} XP</Text>
+                            </View>
+                            {done ? (
+                              <Pressable
+                                onPress={() => collectWorkReward(a)}
+                                style={{ backgroundColor: "#059669", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+                              >
+                                <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Collect</Text>
+                              </Pressable>
+                            ) : (
+                              <Text style={{ fontSize: 12, color: pt.subtext, fontStyle: "italic" }}>
+                                {a.status === "en-route" ? "On the way… " : "Working… "}
+                                {workCountdownText(a.endsAt, nowMs)}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
                   </>
                 );
               })()}
@@ -3944,6 +4255,29 @@ export default function HometownScreen() {
                 </Text>
               );
             })()}
+            {(() => {
+              const pid = prayerVillagerInfo ? String(prayerVillagerInfo.id) : "";
+              const busy =
+                !!pid &&
+                (personHasActiveWork(workState?.assignments ?? [], pid) ||
+                  (vmState?.missions ?? []).some((m) => m.personId === pid && m.status !== "done"));
+              if (!pid || busy) return null;
+              return (
+                <Pressable
+                  onPress={() => {
+                    setPrayerVillagerInfo(null);
+                    setThankedLight(false);
+                    setWorkPickerStep("kind");
+                    setWorkPickerKind(null);
+                    setWorkPickerFor({ id: pid, name: prayerVillagerInfo?.name ?? "Friend" });
+                  }}
+                  style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#059669", flexDirection: "row", alignItems: "center" }}
+                >
+                  <MaterialIcons name="work" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Assign Work</Text>
+                </Pressable>
+              );
+            })()}
             <Pressable
               onPress={() => { setPrayerVillagerInfo(null); setThankedLight(false); }}
               style={{ marginTop: 16, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#F59E0B" }}
@@ -4031,6 +4365,125 @@ export default function HometownScreen() {
                   ? `Visit the ${villagerMissionModal?.targetLabel} to complete this.`
                   : "On the way — watch for the sparkle when you arrive."}
               </Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Work picker — Jonathan sends a light on a timed shift */}
+      <Modal
+        visible={workPickerFor !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setWorkPickerFor(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setWorkPickerFor(null)}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 360 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ color: pt.text, fontSize: 18, fontWeight: "800", textAlign: "center" }}>
+              {workPickerStep === "recipient" ? "Who is the meal for?" : `Send ${workPickerFor?.name} to work`}
+            </Text>
+            {workPickerStep === "kind" ? (
+              <View style={{ marginTop: 12 }}>
+                {(Object.keys(WORK_KINDS) as WorkKind[]).map((kind) => {
+                  const def = WORK_KINDS[kind];
+                  const available = !!findWorkTarget(kind);
+                  return (
+                    <Pressable
+                      key={kind}
+                      disabled={!available}
+                      onPress={() => {
+                        if (!workPickerFor) return;
+                        if (kind === "deliver-meal") {
+                          setWorkPickerKind(kind);
+                          setWorkPickerStep("recipient");
+                        } else {
+                          assignVillagerWork(workPickerFor, kind);
+                        }
+                      }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: pt.bg,
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: "#A7F3D0",
+                        opacity: available ? 1 : 0.45,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36, height: 36, borderRadius: 18, backgroundColor: "#ECFDF5",
+                          borderWidth: 1.5, borderColor: "#059669",
+                          alignItems: "center", justifyContent: "center", marginRight: 12,
+                        }}
+                      >
+                        <MaterialIcons name={def.badgeIcon as any} size={20} color="#059669" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: pt.text, fontWeight: "700", fontSize: 15 }}>{def.label}</Text>
+                        <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 2 }}>{def.blurb}</Text>
+                        <Text style={{ color: "#B45309", fontSize: 12, fontWeight: "700", marginTop: 4 }}>
+                          {def.durationLabel}  ·  🪙{def.rewardCoins.toFixed(2)}  ·  ⚡{def.rewardXP} XP
+                          {!available ? "  ·  not built yet" : ""}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  onPress={() => setWorkPickerFor(null)}
+                  style={{ marginTop: 4, borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
+                >
+                  <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 14 }}>Cancel</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ marginTop: 12, maxHeight: 320 }}>
+                <ScrollView>
+                  {lightInfos
+                    .filter((l) => String(l.personId) !== String(workPickerFor?.id))
+                    .slice(0, 40)
+                    .map((l) => (
+                      <Pressable
+                        key={String(l.personId)}
+                        onPress={() => {
+                          if (workPickerFor && workPickerKind) {
+                            assignVillagerWork(workPickerFor, workPickerKind, l.name);
+                          }
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: pt.bg,
+                          borderRadius: 12,
+                          padding: 12,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 14, height: 14, borderRadius: 7, backgroundColor: "#FBBF24", marginRight: 10,
+                          }}
+                        />
+                        <Text style={{ color: pt.text, fontWeight: "600", fontSize: 15 }}>{l.name}</Text>
+                      </Pressable>
+                    ))}
+                </ScrollView>
+                <Pressable
+                  onPress={() => setWorkPickerStep("kind")}
+                  style={{ marginTop: 4, borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
+                >
+                  <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 14 }}>Back</Text>
+                </Pressable>
+              </View>
             )}
           </Pressable>
         </Pressable>
@@ -4290,6 +4743,7 @@ export default function HometownScreen() {
                 { title: "Food & Drink", types: ["pizza-place", "burger-joint", "taco-stand", "sushi-bar", "diner", "bakery"] },
                 { title: "Shops", types: ["shop", "market", "clothes-shop", "armory", "weaponsmith", "toolshop"] },
                 { title: "Services", types: ["bank", "barbershop"] },
+                { title: "Homes", types: ["villager-cottage"] },
                 { title: "Special", types: ["church", "pawn-house", "farm", "house"] },
               ];
               return (
@@ -4324,7 +4778,11 @@ export default function HometownScreen() {
                                   borderWidth: 1, borderColor: pt.border, opacity: affordable ? 1 : 0.55,
                                 }]}
                               >
-                                <Text style={{ fontSize: 28, marginRight: 12 }}>{def.icon}</Text>
+                                {type === "villager-cottage" ? (
+                                  <View style={{ marginRight: 12 }}><CottageGlyph size={28} /></View>
+                                ) : (
+                                  <Text style={{ fontSize: 28, marginRight: 12 }}>{def.icon}</Text>
+                                )}
                                 <View style={{ flex: 1 }}>
                                   <Text style={{ fontSize: 15, fontWeight: "700", color: pt.text }}>{def.name}</Text>
                                   <Text style={{ fontSize: 12, color: pt.subtext }}>

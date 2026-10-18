@@ -5,6 +5,7 @@ import Svg, { Line } from "react-native-svg";
 import {
   BUILDINGS,
   buildingFootprint,
+  cottageHomeFor,
   PRAYER_VILLAGER_CAP,
   isRestaurantType,
   isGatheringTime,
@@ -12,6 +13,12 @@ import {
   type MapState,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
+import { WORK_KINDS } from "@/lib/villager-work";
+
+/** Work badge icon per work kind — shown above a light on a shift. */
+const WORK_BADGE_ICONS: Record<string, string> = Object.fromEntries(
+  Object.entries(WORK_KINDS).map(([kind, def]) => [kind, def.badgeIcon])
+);
 
 const NPC_SIZE = 16;
 const SPEED_PX_PER_SEC = 42;
@@ -49,6 +56,9 @@ const ACTIVITY_ICONS: Record<string, string> = {
   toolshop: "handyman",
   shop: "store",
   weaponsmith: "__swords__",
+  /** Villager home life (pseudo-types, keyed the same way as building types). */
+  __resting__: "bedtime",
+  __visiting__: "people",
 };
 
 function ActivityGlyph({ type }: { type: string }) {
@@ -208,6 +218,9 @@ export function TownNPCs({
   missionWaitingIds,
   missionGuides,
   onMissionArrival,
+  workGuides,
+  workMap,
+  onWorkArrival,
   bare,
 }: {
   mapState: MapState;
@@ -224,6 +237,12 @@ export function TownNPCs({
   missionGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
   /** Called when a guided light arrives at its mission target. */
   onMissionArrival?: (personId: string) => void;
+  /** personId -> forced destination for a Jonathan-assigned work shift. */
+  workGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
+  /** personId -> work-shift info while the light is on the job (en-route or working). */
+  workMap?: Record<string, { untilMs: number; kind: string }>;
+  /** Called when a work-guided light arrives at its work site. */
+  onWorkArrival?: (personId: string) => void;
   /** Render entities directly (no container) so the parent can depth-sort
       them with buildings via zIndex — villagers walk BEHIND tall buildings. */
   bare?: boolean;
@@ -243,6 +262,13 @@ export function TownNPCs({
   missionGuidesRef.current = missionGuides;
   const missionArrivalRef = useRef(onMissionArrival);
   missionArrivalRef.current = onMissionArrival;
+  // Villager work assignments: Jonathan sends a light to do timed work.
+  const workGuidesRef = useRef(workGuides);
+  workGuidesRef.current = workGuides;
+  const workMapRef = useRef(workMap);
+  workMapRef.current = workMap;
+  const workArrivalRef = useRef(onWorkArrival);
+  workArrivalRef.current = onWorkArrival;
   const [renderIds, setRenderIds] = useState<string[]>([]);
   // Villagers asleep at home (night && idle). Synced in tick; drives the 💤 render.
   const [sleepingIds, setSleepingIds] = useState<Set<string>>(new Set());
@@ -255,6 +281,10 @@ export function TownNPCs({
   // meal, errand...). Synced in tick; drives the badge render.
   const [activityMap, setActivityMap] = useState<Record<string, string>>({});
   const activityRef = useRef<Record<string, string>>({});
+  // Work badges: npc id -> work kind while a light is on a Jonathan-assigned
+  // shift (hammer, broom...). Takes precedence over the activity badge.
+  const [workBadgeMap, setWorkBadgeMap] = useState<Record<string, string>>({});
+  const workBadgeRef = useRef<Record<string, string>>({});
   // Lights currently paused for a chat meetup. Synced in tick; drives bubbles.
   const [chattingIds, setChattingIds] = useState<Set<string>>(new Set());
   const chattingRef = useRef<Set<string>>(new Set());
@@ -273,13 +303,27 @@ export function TownNPCs({
     const lightList = (lights || []).slice(0, MAX_LIGHTS);
     for (let pi = 0; pi < lightList.length; pi++) {
       const p = lightList[pi];
+      // Villager homes: each light is assigned a cottage (stable by id). At
+      // night they walk home and sleep there; by day they sometimes rest at
+      // home or visit a friend's cottage. Residents, not wanderers.
+      const cottage = cottageHomeFor(mapState.buildings, p.personId);
+      let homeId = church ? church.id : "prayer-gate";
+      let homeTile: Tile = {
+        x: churchHome.x + (pi % 4) * 0.3,
+        y: churchHome.y + Math.floor(pi / 4) * 0.3,
+      };
+      if (cottage) {
+        const fp = buildingFootprint(cottage.level || 1, cottage.type);
+        homeId = cottage.id;
+        homeTile = {
+          x: cottage.x + fp.w / 2 - 0.5 + (pi % 3) * 0.25,
+          y: cottage.y + fp.h / 2 - 0.5,
+        };
+      }
       defs.push({
         id: `light-${p.personId}`,
-        homeId: church ? church.id : "prayer-gate",
-        homeTile: {
-          x: churchHome.x + (pi % 4) * 0.3,
-          y: churchHome.y + Math.floor(pi / 4) * 0.3,
-        },
+        homeId,
+        homeTile,
         color: LIGHT_COLOR,
         name: p.name,
         prayerId: String(p.personId),
@@ -316,6 +360,21 @@ export function TownNPCs({
         }
         const restaurants = businesses.filter((b) => isRestaurantType(b.type));
         if (restaurants.length > 0) pool = restaurants;
+      }
+      // Home life: villagers with a cottage sometimes stay home to rest, or
+      // visit a friend's cottage. This is what makes them residents, not wanderers.
+      const homeBuilding = ms.buildings.find((b) => b.id === npc.homeId);
+      if (homeBuilding && homeBuilding.type === "villager-cottage" && Math.random() < 0.12) {
+        const cottages = ms.buildings.filter((b) => b.type === "villager-cottage");
+        const target = cottages.length > 1 && Math.random() < 0.5
+          ? cottages[Math.floor(Math.random() * cottages.length)]
+          : homeBuilding;
+        const fp = buildingFootprint(target.level || 1, target.type);
+        return {
+          tile: { x: target.x + fp.w / 2 - 0.5, y: target.y + fp.h / 2 - 0.5 },
+          buildingId: target.id,
+          type: target.type,
+        };
       }
       // The Tree of Life: from time to time, a light lingers beneath its branches.
       if (!isGatheringTime() && Math.random() < 0.08) {
@@ -370,6 +429,15 @@ export function TownNPCs({
         if (guide && npc.destBuildingId === guide.buildingId) {
           try {
             missionArrivalRef.current?.(String(npc.prayerId || npc.id));
+          } catch {}
+        }
+        // On a Jonathan-assigned work shift? Stay put until the shift ends —
+        // the timer lives in the parent, so pin the visit to it.
+        const winfo = workMapRef.current?.[String(npc.prayerId || npc.id)];
+        if (winfo) {
+          npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+          try {
+            workArrivalRef.current?.(String(npc.prayerId || npc.id));
           } catch {}
         }
       } else if (npc.state === "returning") {
@@ -470,12 +538,22 @@ export function TownNPCs({
             npc.waitUntil = now + 15000;
             continue;
           }
-          // Guiding a mission: walk straight to the mission target.
+          // Jonathan-assigned work: walk straight to the work site.
           let dest: { tile: Tile; buildingId: string; type: string } | null = null;
-          const guide = missionGuidesRef.current?.[pid];
-          if (guide) {
-            const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
-            if (stillThere) dest = guide;
+          const workGuide = workGuidesRef.current?.[pid];
+          if (workGuide) {
+            const stillThere =
+              workGuide.buildingId === "tree-of-life" ||
+              mapStateRef.current.buildings.some((b) => b.id === workGuide.buildingId);
+            if (stillThere) dest = workGuide;
+          }
+          // Guiding a mission: walk straight to the mission target.
+          if (!dest) {
+            const guide = missionGuidesRef.current?.[pid];
+            if (guide) {
+              const stillThere = mapStateRef.current.buildings.some((b) => b.id === guide.buildingId);
+              if (stillThere) dest = guide;
+            }
           }
           if (!dest) {
             const picked = pickDestination(npc);
@@ -551,8 +629,13 @@ export function TownNPCs({
       const nextChatting = new Set<string>();
       if (!night) {
         for (const npc of Object.values(logic)) {
-          if (npc.state === "visiting" && npc.destType && ACTIVITY_ICONS[npc.destType]) {
-            nextActivity[npc.id] = npc.destType;
+          if (npc.state === "visiting" && npc.destType) {
+            if (npc.destType === "villager-cottage") {
+              // Resting at their own cottage, or visiting a friend's.
+              nextActivity[npc.id] = npc.destBuildingId === npc.homeId ? "__resting__" : "__visiting__";
+            } else if (ACTIVITY_ICONS[npc.destType]) {
+              nextActivity[npc.id] = npc.destType;
+            }
           } else if (npc.state === "chatting") {
             nextChatting.add(npc.id);
           }
@@ -568,6 +651,29 @@ export function TownNPCs({
       if (actChanged) {
         activityRef.current = nextActivity;
         setActivityMap(nextActivity);
+      }
+      // Sync work badges: lights on a Jonathan-assigned shift show their
+      // work icon (hammer, broom...) instead of the activity badge.
+      const nextWorkBadge: Record<string, string> = {};
+      if (!night) {
+        const wm = workMapRef.current;
+        if (wm) {
+          for (const npc of Object.values(logic)) {
+            const w = wm[String(npc.prayerId || npc.id)];
+            if (w) nextWorkBadge[npc.id] = w.kind;
+          }
+        }
+      }
+      const prevWork = workBadgeRef.current;
+      let workChanged = Object.keys(nextWorkBadge).length !== Object.keys(prevWork).length;
+      if (!workChanged) {
+        for (const k of Object.keys(nextWorkBadge)) {
+          if (prevWork[k] !== nextWorkBadge[k]) { workChanged = true; break; }
+        }
+      }
+      if (workChanged) {
+        workBadgeRef.current = nextWorkBadge;
+        setWorkBadgeMap(nextWorkBadge);
       }
       const prevChatting = chattingRef.current;
       let chattingChanged = nextChatting.size !== prevChatting.size;
@@ -729,6 +835,10 @@ export function TownNPCs({
         const asleep = sleepingIds.has(id);
         const showName = namedIds.has(id) && !!npc.name;
         const activityType = activityMap[id];
+        // Work badge takes precedence over the activity badge.
+        const workKind = workBadgeMap[id];
+        const workIcon = workKind ? WORK_BADGE_ICONS[workKind] : undefined;
+        const shownActivityType = workIcon ? undefined : activityType;
         const isChatting = chattingIds.has(id);
         const floatY = npc.bob.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
         // Alternate bubble content so meetups feel alive: heart or "...".
@@ -765,8 +875,34 @@ export function TownNPCs({
                 💤
               </Animated.Text>
             ) : null}
+            {/* work badge — on a Jonathan-assigned shift (takes precedence) */}
+            {workIcon && !asleep ? (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  top: -21,
+                  left: 9,
+                  transform: [{ translateY: floatY }],
+                }}
+              >
+                <View
+                  style={{
+                    width: 17,
+                    height: 17,
+                    borderRadius: 8.5,
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1.5,
+                    borderColor: "#059669",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name={workIcon as any} size={11} color="#059669" />
+                </View>
+              </Animated.View>
+            ) : null}
             {/* activity badge — what they're doing at this building */}
-            {activityType && !asleep ? (
+            {shownActivityType && !asleep ? (
               <Animated.View
                 style={{
                   position: "absolute",
@@ -787,7 +923,7 @@ export function TownNPCs({
                     justifyContent: "center",
                   }}
                 >
-                  <ActivityGlyph type={activityType} />
+                  <ActivityGlyph type={shownActivityType} />
                 </View>
               </Animated.View>
             ) : null}

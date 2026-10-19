@@ -14,6 +14,7 @@ import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnI
 
 import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
 import { PawnPreview } from "@/components/pawn-preview";
+import { PawnMoodScene } from "@/components/pawn-mood-scene";
 import { GEAR_BY_ID, loadEquipped, type GearItem } from "@/lib/gear";
 import type { CustomPawn } from "@/lib/pawn";
 import { loadCustomPawn } from "@/lib/pawn";
@@ -891,12 +892,14 @@ export function PawnCompanion({
           marginBottom: 6,
         }}
       />
-      {/* Pawn with reaction animations */}
-      {customPawn ? (
-        <PawnPreview pawn={customPawn} size={72} />
-      ) : (
-        <PawnReaction status={status} pawnId={pawnId} color={colors.primary} size={64} />
-      )}
+      {/* Pawn with mood scene — reflects today's outcome */}
+      <PawnMoodScene
+        status={status}
+        pawnId={pawnId}
+        color={colors.primary}
+        size={72}
+        customPawn={customPawn}
+      />
       {/* Name */}
       {editing ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>

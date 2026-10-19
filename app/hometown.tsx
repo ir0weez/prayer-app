@@ -186,6 +186,7 @@ import {
   COLLECTION_SETS, loadCollections, type CollectionState,
 } from "@/lib/collections";
 import { CollectionsBook } from "@/components/collections-book";
+import { getActiveEvents, formatCountdown, isEventActive, type HeavenlyEvent } from "@/lib/heavenly-events";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import {
   loadGarden, saveGarden, gardenIsRipe, gardenMsUntilRipe, gardenHarvestReward,
@@ -1780,6 +1781,8 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectionSummary, setCollectionSummary] = useState<CollectionState | null>(null);
+  /** Active limited-time heavenly events (refreshed on open + every minute). */
+  const [activeEvents, setActiveEvents] = useState<HeavenlyEvent[]>([]);
   /** Tracks which haircut event already trimmed the pawn (once per event). */
   const haircutDoneForRef = useRef<string | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
@@ -2816,8 +2819,13 @@ export default function HometownScreen() {
         }
         const surprises = await getTodayVisitors();
         setVisitors(surprises.visitors.filter((v) => !v.claimed));
+        setActiveEvents(getActiveEvents());
       } catch {}
     })();
+    const evtTimer = setInterval(() => {
+      try { setActiveEvents(getActiveEvents()); } catch {}
+    }, 60000);
+    return () => clearInterval(evtTimer);
   }, []);
 
   // Live tick: every 30s, accrue another slice of minute-by-minute income so the
@@ -3861,12 +3869,16 @@ export default function HometownScreen() {
   const handleRiverSell = useCallback(() => {
     const r = newDayCheck(riverRef.current);
     if (r.creel <= 0) return;
-    const coins = r.creel * RIVER_LEVELS[r.level].coinPerFish;
+    const moonBonus = isEventActive("harvest-moon");
+    const coins = r.creel * RIVER_LEVELS[r.level].coinPerFish * (moonBonus ? 2 : 1);
     addCoins(coins);
     const next = { ...r, creel: 0 };
     setRiver(next);
     saveRiverState(next).catch(() => undefined);
     setFireworksKey((k) => k + 1);
+    if (moonBonus) {
+      queueCelebration("milestone", "Harvest Moon blessing!", `The moon doubles your catch: +${coins.toFixed(2)} coins.`);
+    }
   }, [addCoins]);
 
   /** River of Life: upgrade the camp to the next level. */
@@ -4156,6 +4168,24 @@ export default function HometownScreen() {
           })()}
         </Text>
       </Pressable>
+
+      {/* Limited-time heavenly events */}
+      {activeEvents.map((ev) => (
+        <View
+          key={ev.id}
+          style={{ flexDirection: "row", alignItems: "center", backgroundColor: ev.id === "weekend-festival" ? "#FDF2F8" : "#EFF6FF", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 12, alignSelf: "stretch", borderWidth: 1, borderColor: ev.id === "weekend-festival" ? "#F9A8D4" : "#93C5FD" }}
+        >
+          <MaterialIcons name={ev.icon as any} size={18} color={ev.id === "weekend-festival" ? "#DB2777" : "#1D4ED8"} />
+          <View style={{ marginLeft: 8, flex: 1 }}>
+            <Text style={{ fontWeight: "800", fontSize: 13, color: ev.id === "weekend-festival" ? "#9D174D" : "#1E40AF" }}>
+              {ev.name} — ends in {formatCountdown(ev.endsAt)}
+            </Text>
+            <Text style={{ fontSize: 12, color: ev.id === "weekend-festival" ? "#BE185D" : "#1E40AF" }}>
+              {ev.effects.join(" · ")}
+            </Text>
+          </View>
+        </View>
+      ))}
 
       {/* Garden visits chip — prayer lights paying respects (+0.1%/visit, 24h) */}
       {(() => {

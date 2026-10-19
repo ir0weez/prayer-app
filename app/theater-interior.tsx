@@ -32,6 +32,7 @@ import {
   showMsRemaining,
 } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { isEventActive } from "@/lib/heavenly-events";
 import { getActiveScheduleActivity, movieThemeForTitle, type MovieThemeKind } from "@/lib/schedule-sync";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
@@ -195,6 +196,33 @@ function Bat({ size = 22 }: { size?: number }) {
     <Svg width={size} height={size * 0.6} viewBox="0 0 22 13">
       <Path d="M1 8 Q6 1 11 7 Q16 1 21 8 Q16 5 13 9 Q11 11 9 9 Q6 5 1 8 Z" fill="#0B0B12" />
     </Svg>
+  );
+}
+
+/** Weekend Festival bunting — colorful pennant garlands across the theater. */
+function FestivalBunting() {
+  const colors = ["#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", top: 8, left: 0, right: 0, alignItems: "center", zIndex: 5 }}>
+      <View style={{ flexDirection: "row" }}>
+        {Array.from({ length: 14 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: 0,
+              height: 0,
+              borderLeftWidth: 9,
+              borderRightWidth: 9,
+              borderTopWidth: 14,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+              borderTopColor: colors[i % colors.length],
+              marginHorizontal: 1,
+            }}
+          />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -690,12 +718,15 @@ export default function TheaterInteriorScreen() {
     }
     const c = scaledCoins(SHOW_COINS[level] ?? 10);
     const xp = scaledXP(SHOW_XP[level] ?? 15);
+    const festival = isEventActive("weekend-festival");
+    const fc = festival ? c * 2 : c;
+    const fxp = festival ? xp * 2 : xp;
     const t = Date.now();
     setLastShow(t);
     saveLastShow(t).catch(() => undefined);
-    addCoins(c);
-    awardCustomXP(xp, `amphitheater-show-${t}`).catch(() => undefined);
-    Alert.alert(THEME_LABELS[theme], `The lights dim, the crowd settles in…\n\n+${c.toFixed(2)} coins, +${xp} XP.`);
+    addCoins(fc);
+    awardCustomXP(fxp, `amphitheater-show-${t}`).catch(() => undefined);
+    Alert.alert(THEME_LABELS[theme], `The lights dim, the crowd settles in…\n\n+${fc.toFixed(2)} coins, +${fxp} XP${festival ? " (Festival double!)" : ""}.`);
   };
 
   const handleUpgrade = () => {
@@ -755,6 +786,8 @@ export default function TheaterInteriorScreen() {
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="theater" />
           {/* curtains + stage dressing by level */}
           <TheaterDressing level={level} />
+          {/* Weekend Festival: celebratory bunting */}
+          {isEventActive("weekend-festival") && <FestivalBunting />}
           <View style={{ paddingHorizontal: 12, marginTop: -104 }}>
             <ThemedScreen theme={theme} level={level} />
           </View>

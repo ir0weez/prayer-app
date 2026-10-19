@@ -14,6 +14,7 @@ import {
   type RiverState,
 } from "@/lib/river";
 import { randomFishSpecies } from "@/lib/collections";
+import { isEventActive } from "@/lib/heavenly-events";
 import { SKY_THEMES, type PageTheme, type TimeOfDay } from "@/lib/daynight";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
@@ -445,6 +446,16 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
               {[[40, 40], [90, 90], [150, 34], [210, 70], [260, 110], [120, 140]].map(([sx, sy], i) => (
                 <Circle key={i} cx={sx} cy={sy} r={1.8} fill="#FFFFFF" opacity={0.8} />
               ))}
+            </G>
+          )}
+          {/* Harvest Moon: a big golden full moon with halo */}
+          {isEventActive("harvest-moon") && !sky.showSun && (
+            <G>
+              <Circle cx={80} cy={60} r={34} fill="#FDE68A" opacity={0.25} />
+              <Circle cx={80} cy={60} r={26} fill="#FDE68A" opacity={0.9} />
+              <Circle cx={72} cy={54} r={5} fill="#F59E0B" opacity={0.3} />
+              <Circle cx={88} cy={66} r={4} fill="#F59E0B" opacity={0.3} />
+              <Circle cx={80} cy={60} r={40} fill="none" stroke="#FDE68A" strokeWidth={1.5} opacity={0.4} />
             </G>
           )}
 

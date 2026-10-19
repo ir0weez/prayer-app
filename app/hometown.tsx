@@ -228,6 +228,8 @@ import {
   type DarkForestState,
 } from "@/lib/dark-forest";
 import { RiverCamp } from "@/components/river";
+import { HolidayMapOverlay, HolidayInteriorOverlay } from "@/components/holiday-decor";
+import { getHolidaySeason } from "@/lib/seasons";
 import {
   loadRiverState,
   saveRiverState,
@@ -2995,6 +2997,37 @@ export default function HometownScreen() {
         onPress: () => router.push(`/theater-interior?buildingId=${b.id}`),
       });
     }
+    // City interiors: department store, hotel, office, apartments, city market.
+    if (b.type === "department-store") {
+      enterActions.push({
+        text: "Enter Store",
+        onPress: () => router.push(`/department-store-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "hotel") {
+      enterActions.push({
+        text: "Enter Lobby",
+        onPress: () => router.push(`/hotel-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "office") {
+      enterActions.push({
+        text: "Enter Offices",
+        onPress: () => router.push(`/office-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "apartments") {
+      enterActions.push({
+        text: "Enter Lobby",
+        onPress: () => router.push(`/apartments-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "city-market") {
+      enterActions.push({
+        text: "Enter Market",
+        onPress: () => router.push(`/market-interior?buildingId=${b.id}`),
+      });
+    }
     if (level >= 3) {
       Alert.alert(
         `${def.name} (Lv 3) — ${plot.name}`,
@@ -3431,6 +3464,51 @@ export default function HometownScreen() {
     } else if (b.type === "fountain-plaza") {
       handleRestPress(b);
       return;
+    } else if (b.type === "farm") {
+      router.push(`/farm-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "bakery") {
+      router.push(`/bakery-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "market" || b.type === "city-market") {
+      router.push(`/market-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "shop") {
+      router.push(`/shop-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "department-store") {
+      router.push(`/department-store-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "food-court") {
+      router.push(`/food-court-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "hotel") {
+      router.push(`/hotel-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "office") {
+      router.push(`/office-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "apartments") {
+      router.push(`/apartments-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "bookstore") {
+      router.push(`/bookstore-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "arcade") {
+      router.push(`/arcade-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "cinema") {
+      router.push(`/theater-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "library") {
+      router.push(`/library-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "classroom") {
+      router.push(`/classroom-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "chapel") {
+      router.push(`/chapel-interior?buildingId=${b.id}`);
+      return;
     }
     setPopupBuilding(b);
   };
@@ -3545,8 +3623,37 @@ export default function HometownScreen() {
         router.push("/gear-shop?type=tool");
         return;
       } else if (existing.type === "library") {
-        // Library: tap to study (1 hour cooldown) — interactive, not just XP/day.
-        handleStudyPress(existing);
+        router.push(`/library-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "farm") {
+        router.push(`/farm-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "bakery") {
+        router.push(`/bakery-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "market") {
+        router.push(`/market-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "shop") {
+        router.push(`/shop-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "bookstore") {
+        router.push(`/bookstore-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "arcade") {
+        router.push(`/arcade-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "cinema") {
+        router.push(`/theater-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "classroom") {
+        router.push(`/classroom-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "chapel") {
+        router.push(`/chapel-interior?buildingId=${existing.id}`);
+        return;
+      } else if (existing.type === "food-court") {
+        router.push(`/food-court-interior?buildingId=${existing.id}`);
         return;
       } else {
         const def = BUILDINGS[existing.type];
@@ -4220,6 +4327,7 @@ export default function HometownScreen() {
         <SeasonalBorder variant="river">
         <View>
         <SafeBoundary fallbackTitle="The river is resting">
+        <HolidayInteriorOverlay season={getHolidaySeason()} />
         <RiverCamp
           river={river}
           timeOfDay={timeOfDay}
@@ -4258,6 +4366,10 @@ export default function HometownScreen() {
           {rows}
           {/* The River of Life runs along the town's north edge — tap to visit the riverside camp. */}
           {activeMap === "town" && <RiverOfLife cellSize={cellSize} onPress={() => handleMapSignSelect("river")} />}
+          {/* Holiday decorations over the town/city grid — date-driven. */}
+          {(activeMap === "town" || activeMap === "city") && (
+            <HolidayMapOverlay season={getHolidaySeason()} />
+          )}
           {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
               all interleave by Y. A tall building's art extends above its square;
               villagers walking behind it (north, lower Y) draw first so the

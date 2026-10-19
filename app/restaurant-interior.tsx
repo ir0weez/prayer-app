@@ -931,7 +931,7 @@ export default function RestaurantInteriorScreen() {
             backgroundColor: "#2E2013",
           }}
         >
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="restaurant" />
           {/* back wall */}
           <View style={{ backgroundColor: "#3A2817", paddingBottom: 4 }}>
             {lightsTier > 0 && <StringLights tier={lightsTier} />}

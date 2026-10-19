@@ -700,7 +700,7 @@ export default function ChurchInteriorScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         {/* sanctuary — wrapped for holiday/season atmosphere */}
         <View style={{ position: "relative", overflow: "hidden", borderRadius: 18, marginHorizontal: 8, marginBottom: 8 }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="church" />
         {/* blessing banner */}
         <View
           style={{

@@ -304,7 +304,7 @@ export default function HotelInteriorScreen() {
 
           {/* upper room: staircase (L3) / art (L3) / window */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: 20, marginTop: 6 }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="hotel" />
             <View style={{ alignItems: "center" }}>
               {/* tall lobby window */}
               <View

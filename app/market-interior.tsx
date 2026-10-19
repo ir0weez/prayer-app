@@ -236,7 +236,7 @@ export default function MarketInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="market" />
       <InteriorHeader icon="storefront" iconColor={BRONZE} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="shopping-basket" iconColor={BRONZE} title={buildingName} blurb={levelBlurb} accent="#D9C4A5" />

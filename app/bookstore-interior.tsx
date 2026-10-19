@@ -243,7 +243,7 @@ export default function BookstoreInteriorScreen() {
 
         {/* bookstore scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#EAD9BE", overflow: "hidden", backgroundColor: level >= 3 ? "#F8F1E2" : "#F2EAD8" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="bookstore" />
           {level >= 3 && (
             <View style={{ alignItems: "center", paddingTop: 8 }}>
               <Chandelier />

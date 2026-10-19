@@ -217,7 +217,7 @@ export default function ArcadeInteriorScreen() {
 
         {/* arcade scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#3B2F5E", overflow: "hidden", backgroundColor: CARD }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="arcade" />
           {level >= 3 && (
             <View style={{ alignItems: "center", paddingTop: 8 }}>
               <DiscoBall />

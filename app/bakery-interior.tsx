@@ -266,7 +266,7 @@ export default function BakeryInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="bakery" />
       <InteriorHeader icon="bakery-dining" iconColor={GOLD} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="cake" iconColor={GOLD} title={buildingName} blurb={levelBlurb} accent="#D9C4A5" />

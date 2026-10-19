@@ -233,7 +233,7 @@ export default function ClassroomInteriorScreen() {
 
         {/* classroom scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#BFDBFE", overflow: "hidden", backgroundColor: "#F8FBFF" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="classroom" />
           {/* front of the room */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
             {level >= 2 && <WallMap />}

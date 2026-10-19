@@ -250,7 +250,7 @@ export default function LibraryInteriorScreen() {
 
         {/* library scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#D8E4D4", overflow: "hidden", backgroundColor: level >= 3 ? "#F7F5EE" : "#F3F1EA" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="library" />
           {level >= 3 && (
             <View style={{ alignItems: "center", paddingTop: 6 }}>
               <HallChandelier />

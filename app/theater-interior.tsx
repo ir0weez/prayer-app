@@ -630,7 +630,7 @@ export default function TheaterInteriorScreen() {
 
         {/* the screen + audience */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#3A2E55", overflow: "hidden", backgroundColor: "#0B0817" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="theater" />
           {/* curtains + stage dressing by level */}
           <TheaterDressing level={level} />
           <View style={{ paddingHorizontal: 12, marginTop: -104 }}>

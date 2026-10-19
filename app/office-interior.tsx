@@ -278,7 +278,7 @@ export default function OfficeInteriorScreen() {
           }}
         >
           <WindowBand level={level} />
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="office" />
 
           {/* side row: whiteboard (L2+) with the pawn, art (L3), plant */}
           <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingHorizontal: 12 }}>

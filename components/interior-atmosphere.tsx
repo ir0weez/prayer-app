@@ -14,18 +14,7 @@
 import { useEffect as useEffect2, useRef as useRef2 } from "react";
 import { Animated as Animated2, Easing as Easing2, View as View2 } from "react-native";
 import Svg2, { Circle as Circle2, Ellipse as Ellipse2, Path as Path2, Polygon as Polygon2, Rect as Rect2 } from "react-native-svg";
-import {
-  Bunting,
-  Cobweb,
-  Cornucopia,
-  FlowerGlyph,
-  HeartGlyph,
-  HolidayPine,
-  JackOLantern,
-  LeafShape,
-  Pumpkin,
-  Wreath,
-} from "@/components/holiday-decor";
+import { BuildingHolidayDecor, type InteriorBuilding } from "@/components/building-holiday-decor";
 import type { HolidaySeason, Season as Season2 } from "@/lib/seasons";
 
 /** Grade (lighting wash) colors per holiday and season. */
@@ -194,31 +183,6 @@ function RoomLightString({ colors, bulbCount = 7 }: { colors: string[]; bulbCoun
   );
 }
 
-/** Flickering candle/lamp glow for spooky scenes. */
-function FlickerGlow({ size = 60, color = "#FBBF24" }: { size?: number; color?: string }) {
-  const fl = useRef2(new Animated2.Value(0.6)).current;
-  useEffect2(() => {
-    const loop = Animated2.loop(
-      Animated2.sequence([
-        Animated2.timing(fl, { toValue: 1, duration: 160, easing: Easing2.linear, useNativeDriver: true }),
-        Animated2.timing(fl, { toValue: 0.3, duration: 130, easing: Easing2.linear, useNativeDriver: true }),
-        Animated2.timing(fl, { toValue: 0.85, duration: 200, easing: Easing2.linear, useNativeDriver: true }),
-        Animated2.timing(fl, { toValue: 0.45, duration: 170, easing: Easing2.linear, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [fl]);
-  return (
-    <Animated2.View pointerEvents="none" style={{ opacity: fl }}>
-      <Svg2 width={size} height={size} viewBox="0 0 60 60">
-        <Circle2 cx={30} cy={30} r={26} fill={color} opacity={0.18} />
-        <Circle2 cx={30} cy={30} r={16} fill={color} opacity={0.22} />
-      </Svg2>
-    </Animated2.View>
-  );
-}
-
 /**
  * Full-scene holiday/season atmosphere for interior rooms.
  * Place as a child of the scene container (which must have
@@ -234,9 +198,11 @@ function FlickerGlow({ size = 60, color = "#FBBF24" }: { size?: number; color?: 
 export function InteriorAtmosphere({
   holiday,
   season,
+  building,
 }: {
   holiday: HolidaySeason;
   season: Season2;
+  building: InteriorBuilding;
 }) {
   const active = holiday !== "none" ? holiday : season;
   const grade = ATMOSPHERE_GRADES[active];
@@ -304,90 +270,9 @@ export function InteriorAtmosphere({
         ))
       )}
 
-      {/* 4. Corner decorations + flicker */}
-      {holiday === "halloween" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 8, left: 10 }}>
-            <JackOLantern size={36} />
-          </View2>
-          <View2 style={{ position: "absolute", bottom: 14, left: 6 }}>
-            <FlickerGlow size={70} color="#F97316" />
-          </View2>
-          <View2 style={{ position: "absolute", top: 0, right: 0 }}>
-            <Cobweb size={52} />
-          </View2>
-          <View2 style={{ position: "absolute", top: 40, right: 14 }}>
-            <FlickerGlow size={44} color="#A855F7" />
-          </View2>
-        </>
-      )}
-      {holiday === "christmas" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 6, right: 10 }}>
-            <HolidayPine size={52} />
-          </View2>
-          <View2 style={{ position: "absolute", top: 54, left: 12 }}>
-            <Wreath size={30} />
-          </View2>
-        </>
-      )}
-      {holiday === "thanksgiving" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 8, left: 12 }}>
-            <Pumpkin size={32} />
-          </View2>
-          <View2 style={{ position: "absolute", bottom: 6, right: 12 }}>
-            <Cornucopia size={44} />
-          </View2>
-        </>
-      )}
-      {holiday === "valentines" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 10, left: 14 }}>
-            <HeartGlyph color="#EC4899" size={26} />
-          </View2>
-          <View2 style={{ position: "absolute", bottom: 16, right: 16 }}>
-            <HeartGlyph color="#F9A8D4" size={20} />
-          </View2>
-        </>
-      )}
-      {holiday === "easter" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 10, left: 12 }}>
-            <FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={26} />
-          </View2>
-          <View2 style={{ position: "absolute", bottom: 12, right: 14 }}>
-            <FlowerGlyph petal="#C4B5FD" center="#FDE68A" size={24} />
-          </View2>
-        </>
-      )}
-      {holiday === "independence" && (
-        <View2 style={{ position: "absolute", top: 46, left: 0, right: 0, alignItems: "center" }}>
-          <Bunting width={220} />
-        </View2>
-      )}
-      {holiday === "none" && season === "winter" && (
-        <View2 style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
-          <Svg2 width="100%" height={18} viewBox="0 0 400 18" preserveAspectRatio="none">
-            <Path2 d="M0 18 L0 10 Q40 4 80 10 T160 10 T240 10 T320 10 T400 10 L400 18 Z" fill="#F1F5F9" opacity={0.5} />
-          </Svg2>
-        </View2>
-      )}
-      {holiday === "none" && season === "fall" && (
-        <>
-          <View2 style={{ position: "absolute", bottom: 8, left: 14 }}>
-            <LeafShape color="#D97706" size={20} />
-          </View2>
-          <View2 style={{ position: "absolute", bottom: 12, left: 30 }}>
-            <LeafShape color="#B91C1C" size={16} />
-          </View2>
-        </>
-      )}
-      {holiday === "none" && season === "spring" && (
-        <View2 style={{ position: "absolute", bottom: 10, right: 14 }}>
-          <FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={24} />
-        </View2>
-      )}
+      {/* 4. Unique per-building decorations — each place gets its OWN
+          holiday personality, hand-placed for that building. */}
+      <BuildingHolidayDecor building={building} holiday={holiday} season={season} />
     </View2>
   );
 }

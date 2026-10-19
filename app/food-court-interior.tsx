@@ -244,7 +244,7 @@ export default function FoodCourtInteriorScreen() {
 
           {/* stalls */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", flexWrap: "wrap", marginTop: 6 }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="food-court" />
             {stalls.map((s) => (
               <FoodStall key={s.name} stall={s} />
             ))}

@@ -234,7 +234,7 @@ export default function ChapelInteriorScreen() {
 
         {/* chapel scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#E8DFC8", overflow: "hidden", backgroundColor: level >= 3 ? "#FBF9F3" : "#F6F2E8" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="chapel" />
           {/* back wall: banner + altar + candles + stained glass */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
             {level >= 3 && <StainedGlass />}

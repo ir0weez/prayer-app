@@ -324,7 +324,7 @@ export default function FarmInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="farm" />
       <InteriorHeader icon="agriculture" iconColor={GREEN} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="eco" iconColor={GREEN} title={buildingName} blurb={levelBlurb} accent="#C9A86A" />

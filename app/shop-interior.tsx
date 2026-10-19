@@ -233,7 +233,7 @@ export default function ShopInteriorScreen() {
           }}
         >
           <CeilingLight level={level} />
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="shop" />
           {/* window */}
           <View style={{ alignItems: "flex-end", paddingRight: 18 }}>
             <Svg width={76} height={64} viewBox="0 0 76 64">

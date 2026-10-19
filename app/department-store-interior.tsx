@@ -252,7 +252,7 @@ export default function DepartmentStoreInteriorScreen() {
 
           {/* escalator with riders */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8 }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="department-store" />
             <Escalator level={level} />
             <View style={{ flexDirection: "row", alignItems: "flex-end", marginLeft: 6 }}>
               {onEscalator.map((p, i) => (

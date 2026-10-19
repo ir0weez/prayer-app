@@ -386,7 +386,7 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
   return (
     <View style={{ width: SCENE_W, alignSelf: "center" }}>
       <View style={{ borderRadius: 16, overflow: "hidden", backgroundColor: sky.bg }}>
-        <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+        <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="river" />
         <Svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`}>
           {/* sky */}
           <Rect x={0} y={0} width={SCENE_W} height={RIVER_TOP} fill={sky.bg} />

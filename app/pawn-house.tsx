@@ -436,7 +436,7 @@ export default function PawnHouseScreen() {
 
   const renderLivingRoom = () => (
     <View style={{ width: roomViewWidth, height: roomViewHeight, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall }}>
-      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
       {/* floor */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: roomViewHeight * 0.34, backgroundColor: theme.floor }} />
       <View style={{ position: "absolute", left: 0, right: 0, bottom: roomViewHeight * 0.34, height: 4, backgroundColor: "rgba(0,0,0,0.12)" }} />
@@ -508,7 +508,7 @@ export default function PawnHouseScreen() {
     const litCount = candles.filter((c) => c.lit).length;
     return (
       <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
-        <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+        <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
         <Text style={{ color: "#FFE9C4", fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
           {litCount} of {candles.length} candles lit
         </Text>
@@ -534,7 +534,7 @@ export default function PawnHouseScreen() {
 
   const renderTrophyRoom = () => (
     <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
-      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="pawn-house" />
       <Text style={{ color: theme.trim, fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
         {trophies.length} trophies (+{(trophies.length * TROPHY_COIN_EACH * 100).toFixed(1)}% income)
       </Text>

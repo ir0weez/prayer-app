@@ -348,7 +348,7 @@ export default function HospitalInteriorScreen() {
 
         {/* exam room scene — richer with level: more beds, more equipment */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#D7E6EA", overflow: "hidden", backgroundColor: level >= 3 ? "#F2F9FB" : "#EAF3F6" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="hospital" />
           <RoomBackdrop level={level} />
           <RoomExtras level={level} />
           <ExamTable pawn={pawn} />

@@ -315,7 +315,7 @@ export default function ApartmentsInteriorScreen() {
 
           {/* upper room: mailboxes + board / garden window */}
           <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingHorizontal: 10, marginTop: 8 }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="apartments" />
             <Mailboxes level={level} />
             {level >= 2 ? <BulletinBoard /> : <Fern delay={200} />}
             {level >= 3 && <GardenWindow />}

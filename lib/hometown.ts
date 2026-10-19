@@ -30,9 +30,9 @@ export function tierForFastDay(dayNum: number): HometownTier {
 
 // ---- Multi-map ----
 
-export type TownMapId = "town" | "city" | "mall" | "school" | "well" | "reserve" | "forest";
+export type TownMapId = "town" | "city" | "mall" | "school" | "well" | "reserve" | "forest" | "river";
 
-export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "well", "reserve", "forest"];
+export const TOWN_MAP_IDS: TownMapId[] = ["town", "city", "mall", "school", "well", "reserve", "forest", "river"];
 
 export type MapInfo = {
   name: string;
@@ -55,6 +55,7 @@ export const MAP_INFO: Record<TownMapId, MapInfo> = {
   // out on missions. The id is kept so existing unlock state carries over.
   reserve: { name: "Mission Field", icon: "🌾", description: "Send prayer lights out on missions", unlockCost: 500, comingSoon: false },
   forest:  { name: "Dark Forest", icon: "◆", description: "Battle demons in the dark wood", unlockCost: 1500, comingSoon: false },
+  river:   { name: "River of Life", icon: "≋", description: "A riverside camp. Fish the waters and sell your catch.", unlockCost: 1000, comingSoon: false },
 };
 
 export const MAP_UNLOCKED_KEY = "prayercircle.hometown.maps.unlocked.v1";
@@ -1578,6 +1579,7 @@ export function emptyTownState(): TownState {
       well: emptyMapState(),
       reserve: emptyMapState(),
       forest: emptyMapState(),
+      river: emptyMapState(),
     },
     lastIncomeDate: null,
   };
@@ -1609,6 +1611,7 @@ export function parseTown(value: unknown): TownState {
         well: parseMapState(raw.well),
         reserve: parseMapState(raw.reserve),
         forest: parseMapState(raw.forest),
+        river: parseMapState(raw.river),
       },
       lastIncomeDate,
     };
@@ -1623,6 +1626,7 @@ export function parseTown(value: unknown): TownState {
       well: emptyMapState(),
       reserve: emptyMapState(),
       forest: emptyMapState(),
+      river: emptyMapState(),
     },
     lastIncomeDate,
   };

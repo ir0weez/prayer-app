@@ -227,6 +227,17 @@ import {
   saveDarkForestState,
   type DarkForestState,
 } from "@/lib/dark-forest";
+import { RiverCamp } from "@/components/river";
+import {
+  loadRiverState,
+  saveRiverState,
+  newDayCheck,
+  RIVER_LEVELS,
+  RIVER_LEVEL_NAMES,
+  defaultRiverState,
+  type RiverLevel,
+  type RiverState,
+} from "@/lib/river";
 import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
@@ -1547,8 +1558,8 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
 }
 
 /** The River of Life — crystal water along the town's north edge (Rev 22:1).
- * Purely visual: clear ethereal waves with glinting sparkles. */
-function RiverOfLife({ cellSize }: { cellSize: number }) {
+ * Purely visual, but tappable: opens (or unlocks) the riverside camp map. */
+function RiverOfLife({ cellSize, onPress }: { cellSize: number; onPress: () => void }) {
   const glint = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -1562,8 +1573,8 @@ function RiverOfLife({ cellSize }: { cellSize: number }) {
   }, [glint]);
   const sparkleOpacity = glint.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
   return (
-    <View
-      pointerEvents="none"
+    <Pressable
+      onPress={onPress}
       style={{
         position: "absolute",
         top: -12,
@@ -1594,7 +1605,7 @@ function RiverOfLife({ cellSize }: { cellSize: number }) {
           <AnimatedCircle cx={8 + (i % 3) * 7} cy={5} r={1.6} fill="#FFFFFF" opacity={sparkleOpacity} />
         </Svg>
       ))}
-    </View>
+    </Pressable>
   );
 }
 
@@ -1804,6 +1815,10 @@ export default function HometownScreen() {
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
   // Dark Forest: pixel-art demon battles; gear is your power
   const [forest, setForest] = useState<DarkForestState>({ highestWave: 0 });
+  // River of Life: riverside camp — fish by hand, sell the daily catch, upgrade
+  const [river, setRiver] = useState<RiverState>(() => defaultRiverState());
+  const riverRef = useRef(river);
+  riverRef.current = river;
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
   const [forestTunic, setForestTunic] = useState("#D6C9A8");
   // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
@@ -2504,6 +2519,8 @@ export default function HometownScreen() {
         } catch {}
         // Dark Forest progress (highest wave cleared)
         try { setForest(await loadDarkForestState()); } catch {}
+        // River of Life camp state (level, daily catch, creel)
+        try { setRiver(await loadRiverState()); } catch {}
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
         setCoins(c);
@@ -3696,6 +3713,47 @@ export default function HometownScreen() {
     });
   }, [addCoins]);
 
+  /** River of Life: a fish on the line — creel +1, daily catch +1. */
+  const handleRiverCatch = useCallback((fishName: string) => {
+    void fishName;
+    setRiver(prev => {
+      const checked = newDayCheck(prev);
+      const info = RIVER_LEVELS[checked.level];
+      if (checked.caughtToday >= info.fishPerDay) return checked;
+      const next = { ...checked, caughtToday: checked.caughtToday + 1, creel: checked.creel + 1 };
+      saveRiverState(next).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
+  /** River of Life: sell the creel for coins (manual tap only). */
+  const handleRiverSell = useCallback(() => {
+    const r = newDayCheck(riverRef.current);
+    if (r.creel <= 0) return;
+    const coins = r.creel * RIVER_LEVELS[r.level].coinPerFish;
+    addCoins(coins);
+    const next = { ...r, creel: 0 };
+    setRiver(next);
+    saveRiverState(next).catch(() => undefined);
+    setFireworksKey((k) => k + 1);
+  }, [addCoins]);
+
+  /** River of Life: upgrade the camp to the next level. */
+  const handleRiverUpgrade = useCallback(() => {
+    const r = newDayCheck(riverRef.current);
+    const info = RIVER_LEVELS[r.level];
+    if (info.upgradeCost <= 0) return;
+    if (coinsRef.current.balance < info.upgradeCost) {
+      Alert.alert("Not enough coins", `Upgrading the camp costs ${info.upgradeCost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+      return;
+    }
+    addCoins(-info.upgradeCost);
+    const next: RiverState = { ...r, level: (r.level + 1) as RiverLevel };
+    setRiver(next);
+    saveRiverState(next).catch(() => undefined);
+    queueCelebration("level-up", `${RIVER_LEVEL_NAMES[next.level]}!`, "The riverside camp grows — the villagers cheer.");
+  }, [addCoins, queueCelebration]);
+
   /** Refresh combat stats (and pawn tunic) whenever the Dark Forest opens. */
   useEffect(() => {
     if (activeMap !== "forest") return;
@@ -4034,7 +4092,7 @@ export default function HometownScreen() {
       )}
 
       <Text style={{ color: pt.subtext, marginBottom: 12 }}>
-        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : activeMap === "well" ? "A quiet place. Draw from the well once a day, and be still." : activeMap === "forest" ? "Face the darkness. Tap STRIKE — your gear is your strength." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
+        {activeMap === "city" ? "Tap a FOR SALE lot to purchase it. Upgrade towers for bigger payouts." : activeMap === "mall" ? "A quiet, sacred place. Tap a flower to remember, or the wall to read every name." : activeMap === "well" ? "A quiet place. Draw from the well once a day, and be still." : activeMap === "forest" ? "Face the darkness. Tap STRIKE — your gear is your strength." : activeMap === "river" ? "Cast a line at the riverside camp — the river provides daily." : "Tap an empty plot to build. Businesses earn coins daily while your fast streak is alive."}
       </Text>
 
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: pt.card, borderRadius: 12, padding: 12, marginBottom: 12 }}>
@@ -4158,6 +4216,29 @@ export default function HometownScreen() {
         />
         </View>
         </SeasonalBorder>
+      ) : activeMap === "river" ? (
+        <SeasonalBorder variant="river">
+        <View>
+        <SafeBoundary fallbackTitle="The river is resting">
+        <RiverCamp
+          river={river}
+          timeOfDay={timeOfDay}
+          pt={pt}
+          tunicColor={forestTunic}
+          villagerNames={prayedPeople.map((p) => p.name.split(" ")[0])}
+          onCatch={handleRiverCatch}
+          onSell={handleRiverSell}
+          onUpgrade={handleRiverUpgrade}
+        />
+        </SafeBoundary>
+        {/* Celebration overlays render on every map, including the river. */}
+        <FireworksOverlay triggerKey={fireworksKey} />
+        <CelebrationOverlay
+          spec={celebrationQueue[0] ?? null}
+          onDone={dismissCelebration}
+        />
+        </View>
+        </SeasonalBorder>
       ) : (
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <SeasonalBorder
@@ -4175,8 +4256,8 @@ export default function HometownScreen() {
         >
         <View style={{ position: "relative" }}>
           {rows}
-          {/* The River of Life runs along the town's north edge. */}
-          {activeMap === "town" && <RiverOfLife cellSize={cellSize} />}
+          {/* The River of Life runs along the town's north edge — tap to visit the riverside camp. */}
+          {activeMap === "town" && <RiverOfLife cellSize={cellSize} onPress={() => handleMapSignSelect("river")} />}
           {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
               all interleave by Y. A tall building's art extends above its square;
               villagers walking behind it (north, lower Y) draw first so the

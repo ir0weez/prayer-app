@@ -1,7 +1,9 @@
 // Arcade interior: a fun neon arcade — game cabinets with glowing screens,
 // a prize counter, villagers playing. L1: two cabinets, plain. L2: four
-// cabinets, neon signs, a prize shelf. L3: six cabinets, a prize counter with
-// plush toys, a disco ball, and neon floor trim. "Play a Game" costs 2 coins,
+// cabinets, neon signs, a prize shelf. L3: the ultimate game palace — ten
+// glowing cabinets, a "GAME PALACE" marquee, neon pillars, a claw machine, a
+// trophy case, a plush prize counter, a disco ball, and a pulsing neon floor.
+// "Play a Game" costs 2 coins,
 // grants 10 XP, 30-minute cooldown. No emojis — SVG art and MaterialIcons only.
 
 import { useEffect, useState } from "react";
@@ -161,6 +163,103 @@ function DiscoBall() {
   );
 }
 
+/** A twin neon pillar framing the palace — L3 only. */
+function NeonPillar({ color, delay = 0 }: { color: string; delay?: number }) {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 4 }}>
+      <SoftPulse duration={1400 + delay}>
+        <Svg width={26} height={118} viewBox="0 0 26 118">
+          <Rect x={8} y={0} width={10} height={118} rx={5} fill={color} opacity={0.9} />
+          <Rect x={11} y={0} width={4} height={118} rx={2} fill="#FFFFFF" opacity={0.65} />
+          <Rect x={2} y={110} width={22} height={8} rx={3} fill="#2A2145" stroke={color} strokeWidth={1.5} />
+          <Rect x={2} y={0} width={22} height={8} rx={3} fill="#2A2145" stroke={color} strokeWidth={1.5} />
+        </Svg>
+      </SoftPulse>
+    </View>
+  );
+}
+
+/** The grand "GAME PALACE" marquee with a bulb row — L3 only. */
+function MarqueeBanner() {
+  return (
+    <View style={{ alignItems: "center", paddingTop: 8 }}>
+      <View style={{ width: 4, height: 12, backgroundColor: "#5B5378" }} />
+      <SoftPulse duration={1600}>
+        <View style={{ borderWidth: 3, borderColor: NEON_CYAN, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 7, backgroundColor: "#0B1020" }}>
+          <Text style={{ color: NEON_CYAN, fontWeight: "900", fontSize: 17, letterSpacing: 4 }}>GAME PALACE</Text>
+        </View>
+      </SoftPulse>
+      {/* chasing bulb row */}
+      <View style={{ flexDirection: "row", marginTop: 6 }}>
+        {[NEON_PINK, NEON_CYAN, NEON_GREEN, NEON_PURPLE, NEON_PINK, NEON_CYAN, NEON_GREEN].map((c, i) => (
+          <SoftPulse key={i} duration={900 + i * 130}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c, marginHorizontal: 4 }} />
+          </SoftPulse>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** A claw machine stuffed with prizes — L3 only. */
+function ClawMachine() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={88} height={100} viewBox="0 0 88 100">
+        {/* glass box */}
+        <Rect x={4} y={4} width={80} height={66} rx={8} fill="#1F2A44" stroke={NEON_CYAN} strokeWidth={2} />
+        <Rect x={12} y={12} width={64} height={50} rx={5} fill="#0B1020" opacity={0.92} />
+        {/* prizes */}
+        {[
+          { x: 26, y: 46, c: NEON_PINK }, { x: 44, y: 42, c: NEON_GREEN }, { x: 62, y: 46, c: NEON_PURPLE },
+          { x: 35, y: 55, c: NEON_CYAN }, { x: 53, y: 55, c: "#FACC15" },
+        ].map(({ x, y, c }, i) => (
+          <G key={i}>
+            <Circle cx={x} cy={y} r={7} fill={c} />
+            <Circle cx={x - 2.5} cy={y - 2} r={1.8} fill="#0B1020" />
+            <Circle cx={x + 2.5} cy={y - 2} r={1.8} fill="#0B1020" />
+          </G>
+        ))}
+        {/* claw */}
+        <Rect x={42} y={14} width={4} height={14} fill="#9CA3B8" />
+        <Rect x={36} y={26} width={16} height={4} rx={2} fill="#9CA3B8" />
+        <Rect x={34} y={28} width={4} height={10} rx={2} fill="#9CA3B8" transform="rotate(18 36 30)" />
+        <Rect x={50} y={28} width={4} height={10} rx={2} fill="#9CA3B8" transform="rotate(-18 52 30)" />
+        {/* base */}
+        <Rect x={4} y={70} width={80} height={28} rx={6} fill="#2A2145" stroke={NEON_CYAN} strokeWidth={1.5} />
+        <Rect x={34} y={78} width={20} height={8} rx={4} fill={NEON_CYAN} />
+        <Circle cx={28} cy={82} r={4} fill="#EF4444" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Claw machine</Text>
+    </View>
+  );
+}
+
+/** The winner's trophy case — L3 only. */
+function TrophyCase() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <SoftPulse duration={2000}>
+        <Svg width={100} height={72} viewBox="0 0 100 72">
+          <Rect x={2} y={0} width={96} height={64} rx={6} fill="#1F2A44" stroke={NEON_GREEN} strokeWidth={2} />
+          <Rect x={8} y={5} width={12} height={54} rx={6} fill="#FFFFFF" opacity={0.08} />
+          <Rect x={8} y={36} width={84} height={3} fill="#3B2F5E" />
+          {[
+            { x: 28, s: 1 }, { x: 50, s: 1.25 }, { x: 72, s: 1 },
+          ].map(({ x, s }) => (
+            <G key={x}>
+              <Rect x={x - 6 * s} y={58 - 6 * s} width={12 * s} height={6 * s} rx={2} fill="#B45309" />
+              <Rect x={x - 2 * s} y={44 - 6 * s} width={4 * s} height={14 * s} fill="#B45309" />
+              <Circle cx={x} cy={38 - 6 * s} r={8 * s} fill="#FACC15" stroke="#B45309" strokeWidth={2} />
+            </G>
+          ))}
+        </Svg>
+      </SoftPulse>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Trophy case</Text>
+    </View>
+  );
+}
+
 export default function ArcadeInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastPlay, setLastPlay] = useState(0);
@@ -175,12 +274,12 @@ export default function ArcadeInteriorScreen() {
   }, []);
 
   const remaining = Math.max(0, lastPlay + PLAY_COOLDOWN_MS - Date.now());
-  const players = pickPeople(people, `arcade|${building?.id ?? "arc"}`, level >= 3 ? 4 : level >= 2 ? 3 : 2);
-  const cabinetCount = level >= 3 ? 6 : level >= 2 ? 4 : 2;
+  const players = pickPeople(people, `arcade|${building?.id ?? "arc"}`, level >= 3 ? 6 : level >= 2 ? 3 : 2);
+  const cabinetCount = level >= 3 ? 10 : level >= 2 ? 4 : 2;
 
   const levelBlurb =
     level >= 3
-      ? "The full arcade — six cabinets, a prize counter, and a disco ball."
+      ? "The ultimate game palace — ten glowing cabinets, a claw machine, a trophy case, and neon everywhere."
       : level >= 2
         ? "A growing arcade — neon signs, four cabinets, a prize shelf."
         : "A couple of cabinets humming in the dark.";
@@ -223,19 +322,26 @@ export default function ArcadeInteriorScreen() {
               <DiscoBall />
             </View>
           )}
-          {level >= 2 && (
-            <View style={{ flexDirection: "row", justifyContent: "center", paddingTop: 12 }}>
-              <NeonSign label="ARCADE" color={NEON_PINK} />
-              <NeonSign label="HIGH SCORE" color={NEON_CYAN} />
-              {level >= 3 && <NeonSign label="WINNER" color={NEON_GREEN} />}
-            </View>
+          {level >= 3 ? (
+            <MarqueeBanner />
+          ) : (
+            level >= 2 && (
+              <View style={{ flexDirection: "row", justifyContent: "center", paddingTop: 12 }}>
+                <NeonSign label="ARCADE" color={NEON_PINK} />
+                <NeonSign label="HIGH SCORE" color={NEON_CYAN} />
+              </View>
+            )
           )}
 
-          {/* cabinets */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", paddingTop: 14, paddingHorizontal: 8 }}>
-            {Array.from({ length: cabinetCount }).map((_, i) => (
-              <Cabinet key={i} screenColor={CABINET_SCREENS[i % CABINET_SCREENS.length]} delay={i * 160} />
-            ))}
+          {/* cabinets — flanked by glowing neon pillars at L3 */}
+          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 6 }}>
+            {level >= 3 && <NeonPillar color={NEON_CYAN} />}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", flex: 1 }}>
+              {Array.from({ length: cabinetCount }).map((_, i) => (
+                <Cabinet key={i} screenColor={CABINET_SCREENS[i % CABINET_SCREENS.length]} delay={i * 160} />
+              ))}
+            </View>
+            {level >= 3 && <NeonPillar color={NEON_PINK} delay={350} />}
           </View>
 
           {/* players at the cabinets */}
@@ -250,9 +356,17 @@ export default function ArcadeInteriorScreen() {
             )}
           </View>
 
-          {/* prize shelf / counter */}
+          {/* prize shelf / counter / L3 prize row */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8, paddingBottom: 6 }}>
             {level >= 2 && (level >= 3 ? <PrizeCounter /> : <PrizeShelf />)}
+            {level >= 3 && (
+              <>
+                <View style={{ width: 10 }} />
+                <ClawMachine />
+                <View style={{ width: 10 }} />
+                <TrophyCase />
+              </>
+            )}
             {pawn && (
               <View style={{ alignItems: "center", marginHorizontal: 8 }}>
                 <FigureName name={pawn.name} color={NEON_CYAN} />
@@ -262,17 +376,26 @@ export default function ArcadeInteriorScreen() {
             )}
           </View>
 
-          {/* neon floor trim */}
-          <View style={{ height: 26, backgroundColor: "#171226" }}>
+          {/* neon floor trim — a pulsing dance floor at L3 */}
+          <View style={{ height: level >= 3 ? 50 : 26, backgroundColor: "#171226" }}>
             <View style={{ height: 4, backgroundColor: level >= 3 ? NEON_PINK : level >= 2 ? NEON_CYAN : "#3B2F5E" }} />
             {level >= 3 && (
-              <View style={{ flexDirection: "row", justifyContent: "space-around", marginTop: 6 }}>
-                {[NEON_CYAN, NEON_PINK, NEON_GREEN].map((c) => (
-                  <SoftPulse key={c} duration={1200}>
-                    <View style={{ width: 26, height: 5, borderRadius: 2.5, backgroundColor: c }} />
-                  </SoftPulse>
-                ))}
-              </View>
+              <>
+                <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 8 }}>
+                  {[NEON_CYAN, NEON_PINK, NEON_GREEN, NEON_PURPLE].map((c, i) => (
+                    <SoftPulse key={c} duration={1000 + i * 160}>
+                      <View style={{ width: 34, height: 8, borderRadius: 4, backgroundColor: c, marginHorizontal: 5 }} />
+                    </SoftPulse>
+                  ))}
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 5 }}>
+                  {[NEON_GREEN, NEON_PURPLE, NEON_CYAN, NEON_PINK].map((c, i) => (
+                    <SoftPulse key={`${c}-${i}`} duration={1250 + i * 180}>
+                      <View style={{ width: 24, height: 5, borderRadius: 2.5, backgroundColor: c, marginHorizontal: 6, opacity: 0.75 }} />
+                    </SoftPulse>
+                  ))}
+                </View>
+              </>
             )}
           </View>
         </View>

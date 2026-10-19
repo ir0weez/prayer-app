@@ -1,13 +1,15 @@
 // Classroom interior: a bright classroom — desks, a board, villagers
 // learning. L1: four desks, a plain board. L2: six desks, a wall map, a
-// bookshelf. L3: eight desks, a smart board, a reading corner, and plants.
+// bookshelf. L3: a premier academy — eight desks, a glowing smart board,
+// academy pennant flags, hanging pendant lights, a Wall of Honor, a science
+// corner, a cozy reading corner, and plants everywhere.
 // "Join the Lesson" grants XP on a 1-hour cooldown. No emojis — SVG art and
 // MaterialIcons only.
 
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, G, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
@@ -180,6 +182,91 @@ function Plant() {
   );
 }
 
+/** Academy pennant flags strung across the room — L3 only. */
+function BannerFlags() {
+  return (
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      <Svg width={330} height={34} viewBox="0 0 330 34">
+        <Line x1={0} y1={4} x2={330} y2={4} stroke="#8B5E34" strokeWidth={2.5} />
+        {[30, 70, 110, 150, 190, 230, 270, 300].map((x, i) => (
+          <G key={x}>
+            <Line x1={x} y1={4} x2={x} y2={10} stroke="#8B5E34" strokeWidth={1.5} />
+            <Path d={`M${x - 9} 10 L${x + 9} 10 L${x} 26 Z`} fill={["#2563EB", "#7C3AED", "#059669", "#F59E0B"][i % 4]} />
+          </G>
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
+/** A hanging pendant light — L3 only. */
+function PendantLight({ delay = 0 }: { delay?: number }) {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 12 }}>
+      <View style={{ width: 3, height: 16, backgroundColor: "#8B5E34" }} />
+      <SoftPulse duration={1900 + delay}>
+        <Svg width={44} height={26} viewBox="0 0 44 26">
+          <Path d="M22 2 L38 18 L6 18 Z" fill={ACCENT} />
+          <Ellipse cx={22} cy={20} rx={12} ry={4} fill="#FDE68A" opacity={0.85} />
+        </Svg>
+      </SoftPulse>
+    </View>
+  );
+}
+
+/** A "Wall of Honor" trophy shelf — L3 only. */
+function WallOfHonor() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={112} height={78} viewBox="0 0 112 78">
+        <Rect x={0} y={0} width={112} height={78} rx={6} fill={WOOD} />
+        <Rect x={6} y={6} width={100} height={66} fill={WOOD_DARK} />
+        {/* top row: medals */}
+        {[24, 44, 64, 84].map((x, i) => (
+          <G key={x}>
+            <Rect x={x - 1.5} y={12} width={3} height={12} fill={["#DC2626", "#2563EB", "#059669", "#F59E0B"][i]} />
+            <Circle cx={x} cy={30} r={8} fill="#FACC15" stroke="#B45309" strokeWidth={2} />
+          </G>
+        ))}
+        <Rect x={10} y={44} width={92} height={3} fill={WOOD} />
+        {/* bottom row: trophies */}
+        {[34, 62, 90].map((x) => (
+          <G key={x}>
+            <Rect x={x - 5} y={63} width={10} height={5} rx={2} fill="#B45309" />
+            <Rect x={x - 1.5} y={53} width={3} height={10} fill="#B45309" />
+            <Circle cx={x} cy={50} r={6} fill="#FACC15" stroke="#B45309" strokeWidth={1.5} />
+          </G>
+        ))}
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Wall of Honor</Text>
+    </View>
+  );
+}
+
+/** A little science station with a microscope — L3 only. */
+function ScienceCorner() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={78} height={74} viewBox="0 0 78 74">
+        <Rect x={4} y={50} width={70} height={8} rx={4} fill={WOOD} />
+        <Rect x={12} y={58} width={6} height={14} fill={WOOD_DARK} />
+        <Rect x={60} y={58} width={6} height={14} fill={WOOD_DARK} />
+        {/* microscope */}
+        <Rect x={14} y={40} width={14} height={4} rx={2} fill="#1E3A5F" />
+        <Rect x={20} y={20} width={4} height={22} fill="#1E3A5F" />
+        <Rect x={13} y={13} width={18} height={9} rx={3} fill="#3B82F6" />
+        {/* flask */}
+        <Rect x={44} y={32} width={12} height={18} rx={2} fill="#BFDBFE" stroke="#1E3A5F" strokeWidth={1.5} />
+        <Rect x={44} y={40} width={12} height={10} fill="#60A5FA" />
+        {/* beaker */}
+        <Rect x={60} y={36} width={10} height={14} rx={2} fill="#E0F2FE" stroke="#1E3A5F" strokeWidth={1.2} />
+        <Rect x={60} y={42} width={10} height={8} fill="#F472B6" opacity={0.8} />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Science corner</Text>
+    </View>
+  );
+}
+
 export default function ClassroomInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastLesson, setLastLesson] = useState(0);
@@ -201,7 +288,7 @@ export default function ClassroomInteriorScreen() {
 
   const levelBlurb =
     level >= 3
-      ? "A wonderful classroom — smart board, reading corner, and plants."
+      ? "A premier academy — glowing smart board, pennant flags, a Wall of Honor, a science corner, and plants everywhere."
       : level >= 2
         ? "A growing classroom — a wall map, a bookshelf, more desks."
         : "A simple classroom — a few desks and a chalkboard.";
@@ -243,6 +330,16 @@ export default function ClassroomInteriorScreen() {
             {level >= 2 && <ClassShelf />}
           </View>
 
+          {/* academy pennants + pendant lights at L3 */}
+          {level >= 3 && <BannerFlags />}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", paddingTop: 6 }}>
+              <PendantLight />
+              <PendantLight delay={450} />
+              <PendantLight delay={900} />
+            </View>
+          )}
+
           {/* desks with learners */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 6 }}>
             {Array.from({ length: deskCount }).map((_, i) => {
@@ -277,18 +374,29 @@ export default function ClassroomInteriorScreen() {
             </View>
           )}
 
-          {/* L3 extras: reading corner + plants */}
+          {/* L3 extras: Wall of Honor, science corner, plants */}
           {level >= 3 && (
-            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 20, paddingBottom: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 14, marginTop: 10 }}>
               <Plant />
+              <WallOfHonor />
+              <ScienceCorner />
+              <Plant />
+            </View>
+          )}
+          {level >= 3 && (
+            <View style={{ alignItems: "center", paddingBottom: 6, marginTop: 8 }}>
               <ReadingCorner />
-              <Plant />
             </View>
           )}
 
           {/* floor */}
-          <View style={{ height: 26, backgroundColor: "#DCE9F7" }}>
-            <View style={{ height: 3, backgroundColor: "#C8D9EF" }} />
+          <View style={{ height: level >= 3 ? 32 : 26, backgroundColor: "#DCE9F7" }}>
+            <View style={{ height: 3, backgroundColor: level >= 3 ? ACCENT : "#C8D9EF" }} />
+            {level >= 3 && (
+              <View style={{ alignItems: "center", marginTop: 6 }}>
+                <View style={{ width: "70%", height: 12, borderRadius: 6, backgroundColor: "#BFDBFE", borderWidth: 2, borderColor: ACCENT }} />
+              </View>
+            )}
           </View>
         </View>
 

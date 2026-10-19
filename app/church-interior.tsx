@@ -135,8 +135,143 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
   );
 }
 
+// ---------- tiny animated sparkle (crystal twinkle, sine easing, no bounce) ----------
+function Sparkle({ size = 8, delay = 0 }: { size?: number; delay?: number }) {
+  const tw = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    const t = setTimeout(() => {
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(tw, { toValue: 1, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(tw, { toValue: 0, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+    }, delay);
+    return () => {
+      clearTimeout(t);
+      loop?.stop();
+    };
+  }, [tw, delay]);
+  const scale = tw.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] });
+  const opacity = tw.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#FFF9D6",
+        borderWidth: 1,
+        borderColor: "#F5D97A",
+        transform: [{ scale }],
+        opacity,
+        shadowColor: "#FFD97A",
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+      }}
+    />
+  );
+}
+
+// ---------- grand two-tier chandelier with animated flicker + crystals (L3) ----------
+function GrandChandelier() {
+  const flick = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flick, { toValue: 1, duration: 900 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(flick, { toValue: 0, duration: 900 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [flick]);
+  const glow = flick.interpolate({ inputRange: [0, 1], outputRange: [0.26, 0.48] });
+  const flameScale = flick.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.1] });
+  const candle = (key: number) => (
+    <View key={key} style={{ alignItems: "center" }}>
+      <Animated.View
+        style={{ width: 8, height: 11, borderRadius: 5, backgroundColor: FLAME, transform: [{ scale: flameScale }] }}
+      />
+      <View
+        style={{ width: 9, height: 14, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD, marginTop: -2 }}
+      />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginBottom: 6 }}>
+      {/* gold chains */}
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start" }}>
+        <View style={{ width: 2, height: 34, backgroundColor: "#B8860B", transform: [{ rotate: "18deg" }], marginHorizontal: 8 }} />
+        <View style={{ width: 2, height: 40, backgroundColor: "#B8860B" }} />
+        <View style={{ width: 2, height: 34, backgroundColor: "#B8860B", transform: [{ rotate: "-18deg" }], marginHorizontal: 8 }} />
+      </View>
+      {/* upper tier */}
+      <View
+        style={{
+          width: 92,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: GOLD,
+          borderWidth: 2,
+          borderColor: "#B8860B",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          paddingHorizontal: 10,
+          zIndex: 2,
+        }}
+      >
+        {[0, 1, 2].map(candle)}
+      </View>
+      {/* hanging crystals */}
+      <View style={{ flexDirection: "row", justifyContent: "center", zIndex: 1 }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <View key={i} style={{ marginHorizontal: 8, marginTop: -2 }}>
+            <Sparkle size={7} delay={i * 240} />
+          </View>
+        ))}
+      </View>
+      {/* lower grand tier */}
+      <View
+        style={{
+          width: 172,
+          height: 26,
+          borderRadius: 13,
+          backgroundColor: GOLD,
+          borderWidth: 2,
+          borderColor: "#B8860B",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          paddingHorizontal: 12,
+          marginTop: -4,
+          zIndex: 2,
+        }}
+      >
+        {[0, 1, 2, 3, 4, 5, 6].map(candle)}
+      </View>
+      {/* lower crystal fringe */}
+      <View style={{ flexDirection: "row", justifyContent: "center" }}>
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <View key={i} style={{ marginHorizontal: 7, marginTop: -1 }}>
+            <Sparkle size={6} delay={i * 180 + 120} />
+          </View>
+        ))}
+      </View>
+      {/* warm flickering glow */}
+      <Animated.View
+        style={{ width: 220, height: 64, borderRadius: 32, backgroundColor: FLAME, opacity: glow, marginTop: -78 }}
+      />
+    </View>
+  );
+}
+
 // ---------- wall banners + chandelier, by church level ----------
-// L1: bare walls. L2: simple fabric banners. L3: gold-trimmed banners + chandelier.
+// L1: bare walls. L2: simple fabric banners. L3: crimson gold-trimmed banners +
+// a grand two-tier flickering crystal chandelier.
 function ChurchBanners({ level }: { level: number }) {
   if (level < 2) return null;
   const bannerColor = level >= 3 ? "#7A2E2E" : "#8B5E34";
@@ -178,32 +313,7 @@ function ChurchBanners({ level }: { level: number }) {
   );
   return (
     <View style={{ alignItems: "center", marginBottom: 2 }}>
-      {level >= 3 && (
-        <View style={{ alignItems: "center", marginBottom: 6 }}>
-          {/* hanging chandelier: ring of candles */}
-          <View style={{ width: 3, height: 26, backgroundColor: WOOD_DARK }} />
-          <View
-            style={{
-              width: 130,
-              height: 26,
-              borderRadius: 13,
-              backgroundColor: WOOD_DARK,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-evenly",
-              paddingHorizontal: 10,
-            }}
-          >
-            {[0, 1, 2, 3, 4].map((i) => (
-              <View key={i} style={{ alignItems: "center" }}>
-                <View style={{ width: 8, height: 12, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD }} />
-                <View style={{ width: 6, height: 8, borderRadius: 3, backgroundColor: FLAME, marginTop: -2 }} />
-              </View>
-            ))}
-          </View>
-          <View style={{ width: 150, height: 30, borderRadius: 15, backgroundColor: FLAME, opacity: 0.18, marginTop: -34 }} />
-        </View>
-      )}
+      {level >= 3 && <GrandChandelier />}
       <View style={{ flexDirection: "row", justifyContent: "center" }}>
         {banner(0)}
         {banner(1)}
@@ -213,9 +323,11 @@ function ChurchBanners({ level }: { level: number }) {
 }
 
 // ---------- altar dressing by level ----------
-// L1: plain wooden cross. L2: + white cloth + candles. L3: + gold cloth + flowers.
+// L1: plain wooden cross. L2: + white cloth + candles.
+// L3: ornate gold frontal with fringe medallions + tall golden candlesticks + bouquets.
 function AltarDressing({ level }: { level: number }) {
   if (level < 2) return null;
+  const grand = level >= 3;
   const candle = (key: number) => (
     <View key={key} style={{ alignItems: "center", marginHorizontal: 44 }}>
       <View style={{ width: 8, height: 14, borderRadius: 4, backgroundColor: FLAME }} />
@@ -223,35 +335,100 @@ function AltarDressing({ level }: { level: number }) {
       <View style={{ width: 22, height: 6, borderRadius: 3, backgroundColor: WOOD_DARK, marginTop: 2 }} />
     </View>
   );
+  // tall golden candlestick with an animated flame (L3)
+  const tallCandle = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 18 }}>
+      <CandleFlame size={12} />
+      <View
+        style={{ width: 10, height: 36, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD, marginTop: -4 }}
+      />
+      {/* gold stem + foot */}
+      <View style={{ width: 8, height: 16, backgroundColor: GOLD, borderRadius: 3 }} />
+      <View style={{ width: 26, height: 6, borderRadius: 3, backgroundColor: GOLD, borderWidth: 1, borderColor: "#B8860B", marginTop: 1 }} />
+    </View>
+  );
   const flowers = (key: number) => (
-    <View key={key} style={{ alignItems: "center", marginHorizontal: 30 }}>
+    <View key={key} style={{ alignItems: "center", marginHorizontal: grand ? 14 : 30 }}>
       <View style={{ flexDirection: "row" }}>
-        {["#E86A92", "#F2A541", "#9C6FB5"].map((c, i) => (
-          <View key={i} style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: c, marginHorizontal: 1 }} />
+        {(grand ? ["#E86A92", "#F2A541", "#9C6FB5", "#E4572E", "#D63D5E"] : ["#E86A92", "#F2A541", "#9C6FB5"]).map((c, i) => (
+          <View key={i} style={{ width: grand ? 13 : 14, height: grand ? 13 : 14, borderRadius: grand ? 6.5 : 7, backgroundColor: c, marginHorizontal: 1 }} />
         ))}
       </View>
-      <View style={{ width: 18, height: 22, borderRadius: 4, backgroundColor: "#B0724A", marginTop: -3 }} />
+      {/* gilded vase at L3 */}
+      <View
+        style={{
+          width: grand ? 22 : 18,
+          height: grand ? 26 : 22,
+          borderRadius: 4,
+          backgroundColor: grand ? GOLD : "#B0724A",
+          borderWidth: grand ? 1 : 0,
+          borderColor: "#B8860B",
+          marginTop: -3,
+        }}
+      />
     </View>
   );
   return (
     <View style={{ alignItems: "center", marginTop: 8 }}>
-      {/* altar cloth over the stage */}
+      {/* altar frontal — ornate gold with fringe medallions at L3 */}
       <View
         style={{
-          width: 210,
-          height: 14,
+          width: grand ? 244 : 210,
+          height: grand ? 24 : 14,
           borderRadius: 6,
-          backgroundColor: level >= 3 ? GOLD : "#FFF9F0",
-          borderWidth: 1,
-          borderColor: level >= 3 ? "#8B5E34" : "#EAD9B8",
+          backgroundColor: grand ? GOLD : "#FFF9F0",
+          borderWidth: grand ? 2 : 1,
+          borderColor: grand ? "#B8860B" : "#EAD9B8",
           marginBottom: 6,
+          alignItems: "center",
+          justifyContent: "center",
         }}
-      />
+      >
+        {grand && (
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <View
+                key={i}
+                style={{
+                  width: 11,
+                  height: 11,
+                  borderRadius: 5.5,
+                  borderWidth: 1.5,
+                  borderColor: "#7A2E2E",
+                  backgroundColor: "#F5D97A",
+                  marginHorizontal: 8,
+                }}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+      {grand && (
+        <View style={{ flexDirection: "row", marginBottom: 2 }}>
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <View
+              key={i}
+              style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#B8860B", marginHorizontal: 11 }}
+            />
+          ))}
+        </View>
+      )}
       <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-        {candle(0)}
-        {level >= 3 && flowers(0)}
-        {level >= 3 && flowers(1)}
-        {candle(1)}
+        {grand ? (
+          <>
+            {tallCandle(0)}
+            {flowers(0)}
+            {tallCandle(1)}
+            {tallCandle(2)}
+            {flowers(1)}
+            {tallCandle(3)}
+          </>
+        ) : (
+          <>
+            {candle(0)}
+            {candle(1)}
+          </>
+        )}
       </View>
     </View>
   );
@@ -314,6 +491,136 @@ function WarmWindow({ wide = false }: { wide?: boolean }) {
       </View>
       {/* sill */}
       <View style={{ width: w + 16, height: 8, borderRadius: 4, backgroundColor: WOOD, marginTop: -2 }} />
+    </View>
+  );
+}
+
+// ---------- stained-glass window (L3) ----------
+// A radiant arched window: jewel-tone panes in gold leading, a golden cross
+// mullion, and a glowing sun medallion at the crown.
+function StainedGlassWindow({ wide = false }: { wide?: boolean }) {
+  const w = wide ? 104 : 84;
+  const h = wide ? 146 : 122;
+  const panes = ["#C0392B", "#2E86AB", "#E0A63F", "#7D3C98", "#2E86AB", "#C0392B", "#2E9E5B", "#E0A63F", "#7D3C98"];
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View
+        style={{
+          width: w,
+          height: h,
+          borderTopLeftRadius: w / 2,
+          borderTopRightRadius: w / 2,
+          borderBottomLeftRadius: 6,
+          borderBottomRightRadius: 6,
+          backgroundColor: "#FFF9D6",
+          borderWidth: 5,
+          borderColor: GOLD,
+          overflow: "hidden",
+          alignItems: "center",
+        }}
+      >
+        {/* jewel panes in gold leading */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", width: w - 12, justifyContent: "center", paddingTop: 8 }}>
+          {panes.map((c, i) => (
+            <View
+              key={i}
+              style={{
+                width: (w - 20) / 3,
+                height: 24,
+                backgroundColor: c,
+                margin: 1.5,
+                borderRadius: 3,
+                borderWidth: 1,
+                borderColor: "#8B6A2B",
+                opacity: 0.92,
+              }}
+            />
+          ))}
+        </View>
+        {/* radiant sun medallion at the crown */}
+        <View
+          style={{
+            position: "absolute",
+            top: 6,
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            backgroundColor: "#FFF3D0",
+            borderWidth: 2.5,
+            borderColor: GOLD,
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: FLAME,
+            shadowOpacity: 0.8,
+            shadowRadius: 8,
+          }}
+        >
+          <MaterialIcons name="wb-sunny" size={15} color={GOLD} />
+        </View>
+        {/* golden cross mullion */}
+        <View style={{ position: "absolute", top: 0, bottom: 0, width: 4, backgroundColor: GOLD, borderRadius: 2, opacity: 0.9 }} />
+        <View style={{ position: "absolute", left: 6, right: 6, top: h * 0.52, height: 4, backgroundColor: GOLD, borderRadius: 2, opacity: 0.9 }} />
+      </View>
+      {/* gilded sill */}
+      <View style={{ width: w + 18, height: 9, borderRadius: 4, backgroundColor: GOLD, borderWidth: 1, borderColor: "#B8860B", marginTop: -2 }} />
+    </View>
+  );
+}
+
+// ---------- towering cathedral column (L3) ----------
+// Fluted marble shaft with a gilded capital and base.
+function CathedralColumn() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 8 }}>
+      {/* capital */}
+      <View style={{ width: 48, height: 12, borderRadius: 3, backgroundColor: GOLD, borderWidth: 1, borderColor: "#B8860B" }} />
+      <View style={{ width: 40, height: 8, backgroundColor: "#B8860B" }} />
+      {/* fluted marble shaft */}
+      <View
+        style={{
+          width: 32,
+          height: 148,
+          backgroundColor: "#F5EFE0",
+          borderLeftWidth: 2,
+          borderRightWidth: 2,
+          borderColor: "#D9CDA8",
+          flexDirection: "row",
+          justifyContent: "space-evenly",
+        }}
+      >
+        <View style={{ width: 3, backgroundColor: "#E2D5B4" }} />
+        <View style={{ width: 3, backgroundColor: "#E2D5B4" }} />
+        <View style={{ width: 3, backgroundColor: "#E2D5B4" }} />
+      </View>
+      {/* base */}
+      <View style={{ width: 40, height: 8, backgroundColor: "#B8860B" }} />
+      <View style={{ width: 50, height: 12, borderRadius: 3, backgroundColor: GOLD, borderWidth: 1, borderColor: "#B8860B" }} />
+    </View>
+  );
+}
+
+// ---------- golden floor candelabra (L3) ----------
+// A three-arm standing candelabra with animated flames.
+function CandleStand() {
+  const arm = (key: number, tall: boolean) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 6, marginBottom: tall ? 12 : 0 }}>
+      <CandleFlame size={11} />
+      <View
+        style={{ width: 9, height: tall ? 34 : 24, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD, marginTop: -4 }}
+      />
+      <View style={{ width: 14, height: 5, borderRadius: 2.5, backgroundColor: GOLD, marginTop: 1 }} />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 20 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        {arm(0, false)}
+        {arm(1, true)}
+        {arm(2, false)}
+      </View>
+      {/* gold stem + tripod base */}
+      <View style={{ width: 9, height: 64, backgroundColor: GOLD, borderRadius: 4, borderWidth: 1, borderColor: "#B8860B" }} />
+      <View style={{ width: 38, height: 8, borderRadius: 4, backgroundColor: GOLD, borderWidth: 1, borderColor: "#B8860B" }} />
     </View>
   );
 }
@@ -640,9 +947,9 @@ export default function ChurchInteriorScreen() {
   const prayed = people.filter((p) => p.prayed);
   const candleBonusPerHour = prayed.length * CHURCH_PRAYER_COINS_PER_HOUR;
 
-  // distribute prayed-for contacts across 3 chair rows
-  const rows: PrayedPerson[][] = [[], [], []];
-  prayed.forEach((p, i) => rows[i % 3].push(p));
+  // distribute prayed-for contacts across chair rows — four rows at L3 (a fuller cathedral)
+  const rows: PrayedPerson[][] = Array.from({ length: level >= 3 ? 4 : 3 }, () => []);
+  prayed.forEach((p, i) => rows[i % rows.length].push(p));
 
   const handleCandlePress = (person: FullPerson) => {
     if (person.prayed) {
@@ -726,29 +1033,38 @@ export default function ChurchInteriorScreen() {
           </View>
         </View>
 
-        {/* warm windows — morning light streaming in */}
+        {/* windows — radiant stained glass at L3, warm morning light below */}
         <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginBottom: 8, paddingHorizontal: 12 }}>
-          {Array.from({ length: numWindows }).map((_, i) => (
-            <WarmWindow key={i} wide={level >= 3} />
-          ))}
+          {Array.from({ length: numWindows }).map((_, i) =>
+            level >= 3 ? <StainedGlassWindow key={i} wide /> : <WarmWindow key={i} wide={level >= 3} />
+          )}
         </View>
 
         {/* banners + chandelier by level */}
         <ChurchBanners level={level} />
 
+        {/* towering cathedral columns rising behind the altar (L3) */}
+        {level >= 3 && (
+          <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: -34, marginTop: 4 }}>
+            <CathedralColumn />
+            <View style={{ width: 190 }} />
+            <CathedralColumn />
+          </View>
+        )}
+
         {/* front: simple wooden stage with podium + cross */}
         <View style={{ alignItems: "center", marginVertical: 16 }}>
           <View style={{ alignItems: "center" }}>
-            {/* wooden cross — simple, not gold */}
+            {/* cross — gilded at L3 */}
             <View style={{ alignItems: "center", marginBottom: -4, zIndex: 1 }}>
-              <View style={{ width: 10, height: 48, backgroundColor: WOOD_DARK, borderRadius: 4 }} />
+              <View style={{ width: 10, height: 48, backgroundColor: level >= 3 ? "#B8860B" : WOOD_DARK, borderRadius: 4 }} />
               <View
                 style={{
                   position: "absolute",
                   top: 12,
                   width: 30,
                   height: 10,
-                  backgroundColor: WOOD_DARK,
+                  backgroundColor: level >= 3 ? "#B8860B" : WOOD_DARK,
                   borderRadius: 4,
                 }}
               />
@@ -761,28 +1077,32 @@ export default function ChurchInteriorScreen() {
                 borderRadius: 8,
                 backgroundColor: WOOD,
                 borderWidth: 2,
-                borderColor: WOOD_DARK,
+                borderColor: level >= 3 ? GOLD : WOOD_DARK,
               }}
             />
             {/* altar dressing by level: cloth, candles, flowers */}
             <AltarDressing level={level} />
-            {/* podium */}
-            <View style={{ alignItems: "center", marginTop: -2 }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 40,
-                  borderTopLeftRadius: 6,
-                  borderTopRightRadius: 6,
-                  backgroundColor: WOOD_DARK,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MaterialIcons name="menu-book" size={20} color="#FFF3DC" />
+            {/* podium flanked by golden candelabras at L3 */}
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", marginTop: -2 }}>
+              {level >= 3 && <CandleStand />}
+              <View style={{ alignItems: "center" }}>
+                <View
+                  style={{
+                    width: 56,
+                    height: 40,
+                    borderTopLeftRadius: 6,
+                    borderTopRightRadius: 6,
+                    backgroundColor: WOOD_DARK,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name="menu-book" size={20} color="#FFF3DC" />
+                </View>
+                <View style={{ width: 14, height: 26, backgroundColor: WOOD_DARK }} />
+                <View style={{ width: 44, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
               </View>
-              <View style={{ width: 14, height: 26, backgroundColor: WOOD_DARK }} />
-              <View style={{ width: 44, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
+              {level >= 3 && <CandleStand />}
             </View>
             {/* small plants for warmth */}
             <View style={{ flexDirection: "row", marginTop: 6 }}>
@@ -852,8 +1172,8 @@ export default function ChurchInteriorScreen() {
             {/* the pawn and villagers at prayer before the service */}
             <AltarScene pawn={pawn} people={prayed} />
 
-            {/* gathering */}
-            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+            {/* gathering — red carpet aisle runs down the middle at L3 */}
+            <View style={{ paddingHorizontal: 16, marginBottom: 8, position: "relative" }}>
               <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 4 }}>
                 GATHERED TOGETHER
               </Text>
@@ -862,7 +1182,28 @@ export default function ChurchInteriorScreen() {
                   The chairs are empty. Pray for someone today and they'll take a seat.
                 </Text>
               ) : (
-                rows.map((occ, i) => <ChairRow key={i} occupants={occ} plush={level >= 3} />)
+                <View>
+                  {level >= 3 && (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        bottom: -6,
+                        left: "50%",
+                        marginLeft: -36,
+                        width: 72,
+                        backgroundColor: "#7A2E2E",
+                        borderLeftWidth: 3,
+                        borderRightWidth: 3,
+                        borderColor: GOLD,
+                        borderRadius: 4,
+                        opacity: 0.95,
+                      }}
+                    />
+                  )}
+                  {rows.map((occ, i) => <ChairRow key={i} occupants={occ} plush={level >= 3} />)}
+                </View>
               )}
             </View>
           </>

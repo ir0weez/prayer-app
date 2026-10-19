@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
-import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect, Text as SvgText } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   RIVER_LEVELS,
@@ -157,6 +157,21 @@ export function FishGlyph({ size = 14, color = "#3B82F6" }: { size?: number; col
   );
 }
 
+/** A swan gliding on the river. */
+function Swan({ x, y, s = 1, flip = false }: { x: number; y: number; s?: number; flip?: boolean }) {
+  return (
+    <G transform={`translate(${x} ${y}) scale(${flip ? -s : s} ${s})`}>
+      <Ellipse cx={0} cy={12} rx={12} ry={3} fill="#FFFFFF" opacity={0.3} />
+      <Ellipse cx={0} cy={0} rx={15} ry={8} fill="#F8FAFC" />
+      <Path d="M-10 -2 Q0 -12 10 -2 Q0 -6 -10 -2 Z" fill="#E2E8F0" />
+      <Path d="M12 -2 C20 -8 18 -18 24 -20" stroke="#F8FAFC" strokeWidth={5.5} fill="none" strokeLinecap="round" />
+      <Circle cx={25} cy={-21} r={4.5} fill="#F8FAFC" />
+      <Polygon points="29,-23 34,-21 29,-19" fill="#F59E0B" />
+      <Circle cx={26} cy={-22} r={1} fill="#1F2937" />
+    </G>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* The pawn, fishing                                                    */
 /* ------------------------------------------------------------------ */
@@ -305,11 +320,15 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
-  /* Animated: river wave drift, flame flicker, bobber bob, cast splash. */
+  /* Animated: river wave drift, flame flicker, bobber bob, cast splash,
+     lantern glow pulse, chimney smoke, fire embers. */
   const drift = useRef(new Animated.Value(0)).current;
   const flicker = useRef(new Animated.Value(0)).current;
   const bob = useRef(new Animated.Value(0)).current;
   const splash = useRef(new Animated.Value(0)).current;
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  const smoke = useRef(new Animated.Value(0)).current;
+  const embers = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const driftLoop = Animated.loop(
       Animated.timing(drift, { toValue: 1, duration: 7000, easing: Easing.linear, useNativeDriver: true })
@@ -326,12 +345,26 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
         Animated.timing(bob, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     );
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(glowPulse, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const smokeLoop = Animated.loop(
+      Animated.timing(smoke, { toValue: 3, duration: 9000, easing: Easing.linear, useNativeDriver: true })
+    );
+    const emberLoop = Animated.loop(
+      Animated.timing(embers, { toValue: 4, duration: 3600, easing: Easing.linear, useNativeDriver: true })
+    );
     driftLoop.start(); flickerLoop.start(); bobLoop.start();
-    return () => { driftLoop.stop(); flickerLoop.stop(); bobLoop.stop(); };
-  }, [drift, flicker, bob]);
+    glowLoop.start(); smokeLoop.start(); emberLoop.start();
+    return () => { driftLoop.stop(); flickerLoop.stop(); bobLoop.stop(); glowLoop.stop(); smokeLoop.stop(); emberLoop.stop(); };
+  }, [drift, flicker, bob, glowPulse, smoke, embers]);
   const driftX = drift.interpolate({ inputRange: [0, 1], outputRange: [0, -80] });
   const flameScale = flicker.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.1] });
   const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, 3] });
+  const haloOpacity = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] });
 
   const runSplash = () => {
     splash.setValue(0);
@@ -382,6 +415,19 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
     for (let x = -80; x < w + 80; x += 40) d += ` Q ${x + 10} ${y - amp} ${x + 20} ${y} T ${x + 40} ${y}`;
     return d;
   };
+
+  /* L3 lantern positions — shared by the scene art and the animated halo overlay. */
+  const mainLanterns = [140, 180, 220].map((lx) => ({
+    x: lx,
+    y: 424 + Math.sin(((lx - 114) / 134) * Math.PI) * 22,
+  }));
+  const quadPt = (x0: number, y0: number, cx: number, cy: number, x1: number, y1: number, t: number) => {
+    const mt = 1 - t;
+    return { x: mt * mt * x0 + 2 * mt * t * cx + t * t * x1, y: mt * mt * y0 + 2 * mt * t * cy + t * t * y1 };
+  };
+  const leftLanterns = [0.35, 0.7].map((t) => quadPt(40, 410, 76, 434, 112, 424, t));
+  const rightLanterns = [0.3, 0.65].map((t) => quadPt(248, 424, 296, 438, 344, 410, t));
+  const allLanternPts = [...mainLanterns, ...leftLanterns, ...rightLanterns];
 
   return (
     <View style={{ width: SCENE_W, alignSelf: "center" }}>
@@ -469,25 +515,123 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
 
             {level === 3 && (
               <G>
-                {/* L3: riverside retreat — two cabins, long lantern-lit dock, hanging lanterns, garden */}
-                <Cabin x={18} baseY={494} w={84} h={64} lit={night} />
-                <Cabin x={258} baseY={494} w={84} h={64} lit={night} />
-                <Dock x={150} fromY={RIVER_BOTTOM} toY={238} lanterns night={night} />
-                {/* lantern string between two posts near the cabins */}
-                <Rect x={112} y={420} width={5} height={52} fill="#4A2E16" />
-                <Rect x={246} y={420} width={5} height={52} fill="#4A2E16" />
-                <Path d="M 114 424 Q 180 452 248 424" fill="none" stroke="#4A2E16" strokeWidth={2} />
-                {[140, 180, 220].map((lx, i) => {
-                  const ly = 424 + Math.sin(((lx - 114) / 134) * Math.PI) * 22;
-                  return (
-                    <G key={i}>
-                      <Line x1={lx} y1={ly - 2} x2={lx} y2={ly + 6} stroke="#4A2E16" strokeWidth={1.5} />
-                      <Circle cx={lx} cy={ly + 12} r={6} fill="#FFD66B" stroke="#8B5E34" strokeWidth={1.5} />
-                      {night && <Circle cx={lx} cy={ly + 12} r={17} fill="#FFD66B" opacity={0.3} />}
+                {/* L3: breathtaking riverside retreat — grand lodge, elegant railed dock,
+                    lantern strings, twin gardens, swans, and a grand fire ring. */}
+
+                {/* ======== GRAND LODGE ======== */}
+                <G>
+                  {night && <Polygon points="57,498 79,498 97,520 39,520" fill="#FFD66B" opacity={0.22} />}
+                  {/* stone foundation */}
+                  <Rect x={10} y={482} width={112} height={16} fill="#9AA3AD" />
+                  {[0.25, 0.5, 0.75].map((f) => (
+                    <Line key={f} x1={10 + 112 * f} y1={482} x2={10 + 112 * f} y2={498} stroke="#7C858F" strokeWidth={1.5} />
+                  ))}
+                  {/* log walls */}
+                  <Rect x={10} y={418} width={112} height={64} fill="#8B5E34" />
+                  {[430, 442, 454, 466, 478].map((ly) => (
+                    <Line key={ly} x1={10} y1={ly} x2={122} y2={ly} stroke="#6B4423" strokeWidth={1.4} opacity={0.7} />
+                  ))}
+                  {/* porch */}
+                  <Rect x={2} y={428} width={128} height={8} rx={2} fill="#5B3A1E" />
+                  <Rect x={8} y={436} width={6} height={56} fill="#6B4423" />
+                  <Rect x={116} y={436} width={6} height={56} fill="#6B4423" />
+                  <Rect x={4} y={492} width={124} height={8} rx={2} fill="#9A6B3D" />
+                  <Rect x={8} y={466} width={44} height={4} fill="#6B4423" />
+                  <Rect x={84} y={466} width={38} height={4} fill="#6B4423" />
+                  {[14, 26, 38, 90, 102, 114].map((bx) => (
+                    <Rect key={bx} x={bx} y={470} width={3.5} height={22} fill="#6B4423" />
+                  ))}
+                  {/* door with wreath */}
+                  <Rect x={57} y={452} width={22} height={46} rx={3} fill="#4A2E16" />
+                  <Rect x={57} y={452} width={22} height={46} rx={3} fill={night ? "#FFD66B" : "#BEE3F8"} opacity={night ? 0.35 : 0.25} />
+                  <Circle cx={68} cy={470} r={7} fill="none" stroke="#3E7A4E" strokeWidth={3.5} />
+                  <Circle cx={68} cy={476} r={2.5} fill="#B45309" />
+                  {/* windows with flower boxes */}
+                  {[22, 90].map((wx2) => (
+                    <G key={wx2}>
+                      <Rect x={wx2} y={436} width={20} height={20} fill={night ? "#FFD66B" : "#BEE3F8"} stroke="#4A2E16" strokeWidth={2} />
+                      <Line x1={wx2 + 10} y1={436} x2={wx2 + 10} y2={456} stroke="#4A2E16" strokeWidth={1.5} />
+                      <Line x1={wx2} y1={446} x2={wx2 + 20} y2={446} stroke="#4A2E16" strokeWidth={1.5} />
+                      {night && <Circle cx={wx2 + 10} cy={446} r={17} fill="#FFD66B" opacity={0.25} />}
+                      <Rect x={wx2 - 3} y={458} width={26} height={7} rx={2} fill="#6B4423" />
+                      {[0, 1, 2].map((fi) => (
+                        <Circle key={fi} cx={wx2 + 3 + fi * 8} cy={456} r={3.2} fill={fi % 2 ? "#F9A8D4" : "#FDE68A"} />
+                      ))}
                     </G>
-                  );
-                })}
-                {/* garden patch */}
+                  ))}
+                  {/* roof + stone chimney */}
+                  <Polygon points="2,418 66,366 130,418" fill="#5B3A1E" stroke="#4A2E16" strokeWidth={2} strokeLinejoin="round" />
+                  <Line x1={66} y1={366} x2={66} y2={380} stroke="#4A2E16" strokeWidth={3} />
+                  <Rect x={94} y={370} width={16} height={36} fill="#8D8D99" />
+                  <Line x1={94} y1={380} x2={110} y2={380} stroke="#6B7280" strokeWidth={1.5} />
+                  <Line x1={94} y1={390} x2={110} y2={390} stroke="#6B7280" strokeWidth={1.5} />
+                  <Rect x={91} y={364} width={22} height={8} rx={2} fill="#6B7280" />
+                </G>
+
+                {/* bunkhouse cabin with flower boxes */}
+                <Cabin x={258} baseY={494} w={84} h={64} lit={night} />
+                <G>
+                  <Rect x={263} y={462} width={30} height={7} rx={2} fill="#6B4423" />
+                  {[0, 1, 2, 3].map((fi) => (
+                    <Circle key={fi} cx={267 + fi * 8} cy={460} r={3.2} fill={["#F9A8D4", "#FDE68A", "#FCA5A5", "#C4B5FD"][fi]} />
+                  ))}
+                </G>
+
+                {/* ======== ELEGANT DOCK: railings, rope, lantern posts ======== */}
+                <G>
+                  <Rect x={147} y={240} width={6} height={98} fill="#6B4423" rx={2} />
+                  <Rect x={183} y={240} width={6} height={98} fill="#6B4423" rx={2} />
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Rect key={i} x={150} y={242 + i * 15} width={36} height={13} fill={i % 2 ? "#8B5E34" : "#9A6B3D"} stroke="#6B4423" strokeWidth={1} />
+                  ))}
+                  {[254, 286, 318].map((py) => (
+                    <G key={py}>
+                      <Rect x={146.5} y={py - 16} width={5} height={24} fill="#4A2E16" />
+                      <Rect x={184.5} y={py - 16} width={5} height={24} fill="#4A2E16" />
+                      <Path d={`M149 ${py - 14} Q168 ${py - 6} 187 ${py - 14}`} stroke="#D6C9A8" strokeWidth={2.5} fill="none" />
+                    </G>
+                  ))}
+                  {[149, 187].map((px) => (
+                    <G key={px}>
+                      <Line x1={px} y1={238} x2={px < 168 ? px + 10 : px - 10} y2={238} stroke="#4A2E16" strokeWidth={3} strokeLinecap="round" />
+                      <Line x1={px < 168 ? px + 10 : px - 10} y1={238} x2={px < 168 ? px + 10 : px - 10} y2={244} stroke="#4A2E16" strokeWidth={2} />
+                      <Circle cx={px < 168 ? px + 10 : px - 10} cy={250} r={6.5} fill="#FFD66B" stroke="#8B5E34" strokeWidth={1.5} />
+                    </G>
+                  ))}
+                </G>
+
+                {/* rowboat tied to the dock */}
+                <G>
+                  <Line x1={206} y1={268} x2={190} y2={258} stroke="#D6C9A8" strokeWidth={2} />
+                  <Path d="M206 272 Q230 294 254 272 L247 263 Q230 277 213 263 Z" fill="#7C4A24" stroke="#5B3A1E" strokeWidth={1.5} />
+                  <Rect x={222} y={269} width={16} height={4} rx={2} fill="#9A6B3D" />
+                  <Ellipse cx={230} cy={280} rx={14} ry={3} fill="#5B3A1E" opacity={0.5} />
+                </G>
+
+                {/* ======== LANTERN STRINGS (main + two side strings) ======== */}
+                <G>
+                  <Rect x={112} y={420} width={5} height={52} fill="#4A2E16" />
+                  <Rect x={246} y={420} width={5} height={52} fill="#4A2E16" />
+                  <Path d="M114 424 Q180 452 248 424" fill="none" stroke="#4A2E16" strokeWidth={2} />
+                  {mainLanterns.map((p, i) => (
+                    <G key={i}>
+                      <Line x1={p.x} y1={p.y - 2} x2={p.x} y2={p.y + 6} stroke="#4A2E16" strokeWidth={1.5} />
+                      <Circle cx={p.x} cy={p.y + 12} r={6} fill="#FFD66B" stroke="#8B5E34" strokeWidth={1.5} />
+                    </G>
+                  ))}
+                  <Rect x={38} y={406} width={5} height={72} fill="#4A2E16" />
+                  <Rect x={342} y={406} width={5} height={72} fill="#4A2E16" />
+                  <Path d="M40 410 Q76 434 112 424" fill="none" stroke="#4A2E16" strokeWidth={2} />
+                  <Path d="M248 424 Q296 438 344 410" fill="none" stroke="#4A2E16" strokeWidth={2} />
+                  {[...leftLanterns, ...rightLanterns].map((p, i) => (
+                    <G key={`s${i}`}>
+                      <Line x1={p.x} y1={p.y - 2} x2={p.x} y2={p.y + 6} stroke="#4A2E16" strokeWidth={1.5} />
+                      <Circle cx={p.x} cy={p.y + 12} r={5.5} fill="#FFD66B" stroke="#8B5E34" strokeWidth={1.5} />
+                    </G>
+                  ))}
+                </G>
+
+                {/* ======== TWIN GARDENS ======== */}
                 <G>
                   <Rect x={28} y={404} width={64} height={44} fill="#6B4423" rx={6} />
                   {[0, 1, 2].map((r) =>
@@ -495,12 +639,89 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
                       <Circle key={`${r}:${c}`} cx={38 + c * 16} cy={414 + r * 12} r={4.5} fill={night ? "#3E7A4E" : "#5BA85B"} />
                     ))
                   )}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Circle key={`b${i}`} cx={30 + i * 8.5} cy={404} r={3.4} fill="#B9C4CC" />
+                  ))}
+                  {/* second bed: tulips */}
+                  <Rect x={268} y={408} width={64} height={36} rx={6} fill="#6B4423" />
+                  {Array.from({ length: 8 }).map((_, i) => {
+                    const tx = 278 + (i % 4) * 16;
+                    const ty = 416 + Math.floor(i / 4) * 16;
+                    const petal = ["#EF4444", "#F59E0B", "#EC4899", "#FDE68A"][i % 4];
+                    return (
+                      <G key={`t${i}`}>
+                        <Line x1={tx} y1={ty + 12} x2={tx} y2={ty + 2} stroke="#3F7048" strokeWidth={2.5} />
+                        <Path
+                          d={`M${tx - 5} ${ty + 4} Q${tx - 5} ${ty - 6} ${tx} ${ty - 2} Q${tx + 5} ${ty - 6} ${tx + 5} ${ty + 4} Q${tx} ${ty + 1} ${tx - 5} ${ty + 4} Z`}
+                          fill={petal}
+                        />
+                        <Ellipse cx={tx - 4} cy={ty + 9} rx={4} ry={2} fill="#4E8A5E" transform={`rotate(-24 ${tx - 4} ${ty + 9})`} />
+                      </G>
+                    );
+                  })}
                 </G>
-                {/* richer fire ring: four log seats */}
-                <LogSeat x={136} y={476} rot={-20} />
-                <LogSeat x={236} y={476} rot={20} />
-                <LogSeat x={136} y={502} rot={-8} />
-                <LogSeat x={236} y={502} rot={8} />
+
+                {/* wooden camp sign */}
+                <G>
+                  <Rect x={328} y={486} width={6} height={30} fill="#6B4423" />
+                  <Rect x={300} y={470} width={60} height={22} rx={4} fill="#8B5E34" stroke="#5E3D22" strokeWidth={1.5} />
+                  <SvgText x={330} y={485} textAnchor="middle" fontSize={10.5} fontWeight="700" fill="#F5E6C8">
+                    River of Life
+                  </SvgText>
+                </G>
+
+                {/* ======== GRAND FIRE RING ======== */}
+                <G>
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const a = (i / 10) * Math.PI * 2;
+                    return <Circle key={i} cx={186 + Math.cos(a) * 36} cy={468 + Math.sin(a) * 12} r={6} fill="#9CA3AF" stroke="#6B7280" strokeWidth={1} />;
+                  })}
+                  {/* log pile */}
+                  <Rect x={240} y={488} width={30} height={10} rx={5} fill="#8B5E34" />
+                  <Rect x={246} y={479} width={30} height={10} rx={5} fill="#7C4A24" />
+                  <Rect x={252} y={470} width={26} height={10} rx={5} fill="#8B5E34" />
+                  <Ellipse cx={240} cy={493} rx={4} ry={5} fill="#C9A06A" />
+                  <Ellipse cx={246} cy={484} rx={4} ry={5} fill="#C9A06A" />
+                  <Ellipse cx={252} cy={475} rx={4} ry={5} fill="#C9A06A" />
+                  <LogSeat x={136} y={476} rot={-20} />
+                  <LogSeat x={236} y={476} rot={20} />
+                  <LogSeat x={136} y={502} rot={-8} />
+                  <LogSeat x={236} y={502} rot={8} />
+                </G>
+
+                {/* ======== RIVER LIFE ======== */}
+                <Swan x={88} y={272} s={1} />
+                <Swan x={140} y={296} s={0.66} flip />
+                {/* lotus on the lily pad */}
+                <G>
+                  {[0, 1, 2, 3, 4].map((i) => {
+                    const a = (-90 + i * 36) * Math.PI / 180;
+                    const px2 = 90 + 9 * Math.cos(a);
+                    const py2 = 250 + 9 * Math.sin(a);
+                    return (
+                      <Ellipse
+                        key={i}
+                        cx={px2}
+                        cy={py2}
+                        rx={4}
+                        ry={7}
+                        fill="#F9A8D4"
+                        transform={`rotate(${i * 36} ${px2} ${py2})`}
+                      />
+                    );
+                  })}
+                  <Circle cx={90} cy={250} r={4} fill="#FDE68A" />
+                </G>
+                {/* jumping fish with ripples */}
+                <G>
+                  <Ellipse cx={300} cy={258} rx={14} ry={4} fill="none" stroke="#FFFFFF" strokeWidth={2} opacity={0.5} />
+                  <Ellipse cx={300} cy={263} rx={21} ry={5.5} fill="none" stroke="#FFFFFF" strokeWidth={1.5} opacity={0.3} />
+                  <G transform="rotate(-24 300 242)">
+                    <Ellipse cx={300} cy={242} rx={9} ry={5} fill="#F59E0B" />
+                    <Polygon points="309,242 317,237 317,247" fill="#F59E0B" />
+                    <Circle cx={297} cy={241} r={1.2} fill="#1F2937" />
+                  </G>
+                </G>
               </G>
             )}
 
@@ -552,6 +773,63 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
               <FlameArt x={20} y={54} level={level} />
             </Svg>
           </Animated.View>
+
+          {/* L3: animated lantern halos + night fireflies */}
+          {level === 3 && (
+            <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, opacity: haloOpacity }}>
+              <Svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`}>
+                <Circle cx={159} cy={250} r={21} fill="#FFD66B" opacity={0.4} />
+                <Circle cx={177} cy={250} r={21} fill="#FFD66B" opacity={0.4} />
+                {allLanternPts.map((p, i) => (
+                  <Circle key={i} cx={p.x} cy={p.y + 12} r={17} fill="#FFD66B" opacity={0.38} />
+                ))}
+                {night &&
+                  [[64, 420], [300, 452], [210, 505], [120, 492], [262, 396], [52, 372]].map(([fx, fy], i) => (
+                    <G key={i}>
+                      <Circle cx={fx} cy={fy} r={7} fill="#FEF08A" opacity={0.35} />
+                      <Circle cx={fx} cy={fy} r={2.6} fill="#FEF9C3" />
+                    </G>
+                  ))}
+              </Svg>
+            </Animated.View>
+          )}
+
+          {/* L3: chimney smoke puffs rising from the lodge */}
+          {level === 3 &&
+            [0, 1, 2].map((i) => {
+              const py = smoke.interpolate({ inputRange: [i, i + 1], outputRange: [0, -38] });
+              const po = smoke.interpolate({ inputRange: [i, i + 0.12, i + 0.75, i + 1], outputRange: [0, 0.45, 0.35, 0] });
+              const ps = smoke.interpolate({ inputRange: [i, i + 1], outputRange: [0.5, 1.6] });
+              return (
+                <Animated.View
+                  key={`sm${i}`}
+                  pointerEvents="none"
+                  style={{ position: "absolute", left: 91, top: 351, width: 22, height: 22, opacity: po, transform: [{ translateY: py }, { scale: ps }] }}
+                >
+                  <Svg width={22} height={22} viewBox="0 0 22 22">
+                    <Circle cx={11} cy={11} r={9} fill={night ? "#CBD5E1" : "#E5E7EB"} />
+                  </Svg>
+                </Animated.View>
+              );
+            })}
+
+          {/* L3: embers rising from the grand fire */}
+          {level === 3 &&
+            [0, 1, 2, 3].map((i) => {
+              const ey = embers.interpolate({ inputRange: [i, i + 1], outputRange: [0, -46] });
+              const eo = embers.interpolate({ inputRange: [i, i + 0.1, i + 0.8, i + 1], outputRange: [0, 0.9, 0.7, 0] });
+              return (
+                <Animated.View
+                  key={`em${i}`}
+                  pointerEvents="none"
+                  style={{ position: "absolute", left: 183 + (i - 1.5) * 10, top: 445, width: 6, height: 6, opacity: eo, transform: [{ translateY: ey }] }}
+                >
+                  <Svg width={6} height={6} viewBox="0 0 6 6">
+                    <Circle cx={3} cy={3} r={2.6} fill={i % 2 ? "#FBBF24" : "#F97316"} />
+                  </Svg>
+                </Animated.View>
+              );
+            })}
 
           {/* the pawn, fishing */}
           <Animated.View

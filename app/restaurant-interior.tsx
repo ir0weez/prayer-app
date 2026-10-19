@@ -187,16 +187,19 @@ function SeatedVillager({ person, chairTier, delay }: { person: PrayedPerson; ch
 }
 
 // ---------- one dining table with chairs around it ----------
+// grand (building L3): candlelit floral centerpiece + gold fringe under rich cloths.
 function DiningTable({
   diners,
   tablesTier,
   chairsTier,
   pawnFirst = false,
+  grand = false,
 }: {
   diners: PrayedPerson[];
   tablesTier: number;
   chairsTier: number;
   pawnFirst?: boolean;
+  grand?: boolean;
 }) {
   const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
   const topColor = cloth || WOOD;
@@ -241,6 +244,37 @@ function DiningTable({
             ))}
           </View>
         </View>
+        {/* gold fringe under rich tablecloths */}
+        {tablesTier >= 3 && (
+          <View style={{ flexDirection: "row", marginTop: -3 }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <View key={i} style={{ width: 5, height: 8, borderRadius: 2, backgroundColor: GOLD, marginHorizontal: 2.5, opacity: 0.9 }} />
+            ))}
+          </View>
+        )}
+        {/* candlelit floral centerpiece at the grand level */}
+        {grand && (
+          <View style={{ position: "absolute", top: -4, left: 0, right: 0, alignItems: "center", zIndex: 3 }}>
+            <View
+              style={{
+                position: "absolute",
+                top: -10,
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: FLAME,
+                opacity: 0.25,
+              }}
+            />
+            <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: FLAME }} />
+            <View style={{ width: 8, height: 14, borderRadius: 3, backgroundColor: "#FFF9F0", borderWidth: 1, borderColor: GOLD, marginTop: -2 }} />
+            <View style={{ flexDirection: "row", marginTop: 2 }}>
+              {["#E86A92", "#F2A541", "#9C6FB5"].map((c, i) => (
+                <View key={i} style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: c, marginHorizontal: 1.5 }} />
+              ))}
+            </View>
+          </View>
+        )}
         {/* table leg + base */}
         <View style={{ width: 12, height: 26, backgroundColor: WOOD_DARK }} />
         <View style={{ width: 70, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
@@ -572,27 +606,236 @@ function WallArt({ tier }: { tier: number }) {
   );
 }
 
+// ---------- tiny animated sparkle (crystal twinkle, sine easing, no bounce) ----------
+function Sparkle({ size = 8, delay = 0 }: { size?: number; delay?: number }) {
+  const tw = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    const t = setTimeout(() => {
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(tw, { toValue: 1, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(tw, { toValue: 0, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+    }, delay);
+    return () => {
+      clearTimeout(t);
+      loop?.stop();
+    };
+  }, [tw, delay]);
+  const scale = tw.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] });
+  const opacity = tw.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#FFF9D6",
+        borderWidth: 1,
+        borderColor: "#F5D97A",
+        transform: [{ scale }],
+        opacity,
+        shadowColor: "#FFD97A",
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+      }}
+    />
+  );
+}
+
+// ---------- grand crystal chandelier (L3): two golden tiers, flickering glow, twinkling crystals ----------
+function GrandCrystalChandelier() {
+  const flick = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flick, { toValue: 1, duration: 1000 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(flick, { toValue: 0, duration: 1000 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [flick]);
+  const glow = flick.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.3] });
+  const candle = (key: number) => (
+    <View key={key} style={{ alignItems: "center" }}>
+      <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: FLAME }} />
+      <View style={{ width: 8, height: 12, borderRadius: 3, backgroundColor: "#FFF9F0", marginTop: -2 }} />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginBottom: 2 }}>
+      {/* chains */}
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start" }}>
+        <View style={{ width: 2, height: 32, backgroundColor: "#B8860B", transform: [{ rotate: "16deg" }], marginHorizontal: 8 }} />
+        <View style={{ width: 2, height: 38, backgroundColor: "#B8860B" }} />
+        <View style={{ width: 2, height: 32, backgroundColor: "#B8860B", transform: [{ rotate: "-16deg" }], marginHorizontal: 8 }} />
+      </View>
+      {/* upper tier */}
+      <View
+        style={{
+          width: 100,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: GOLD,
+          borderWidth: 2,
+          borderColor: "#B8860B",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          paddingHorizontal: 10,
+          zIndex: 2,
+        }}
+      >
+        {[0, 1, 2, 3].map(candle)}
+      </View>
+      {/* crystal strands */}
+      <View style={{ flexDirection: "row", justifyContent: "center", zIndex: 1 }}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <View key={i} style={{ marginHorizontal: 8, marginTop: -2 }}>
+            <Sparkle size={7} delay={i * 220} />
+          </View>
+        ))}
+      </View>
+      {/* lower grand tier */}
+      <View
+        style={{
+          width: 190,
+          height: 30,
+          borderRadius: 15,
+          backgroundColor: GOLD,
+          borderWidth: 2,
+          borderColor: "#B8860B",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          paddingHorizontal: 12,
+          marginTop: -4,
+          zIndex: 2,
+        }}
+      >
+        {[0, 1, 2, 3, 4, 5, 6, 7].map(candle)}
+      </View>
+      {/* lower crystal fringe */}
+      <View style={{ flexDirection: "row", justifyContent: "center" }}>
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <View key={i} style={{ marginHorizontal: 6, marginTop: -1 }}>
+            <Sparkle size={6} delay={i * 170 + 100} />
+          </View>
+        ))}
+      </View>
+      <Animated.View
+        style={{ width: 230, height: 56, borderRadius: 28, backgroundColor: FLAME, opacity: glow, marginTop: -70 }}
+      />
+    </View>
+  );
+}
+
+// ---------- elegant velvet drapery (L3): swagged valance with gold trim + medallions ----------
+function ElegantDrapery() {
+  return (
+    <View style={{ alignItems: "center", paddingTop: 4, marginBottom: -6 }}>
+      {/* valance rod */}
+      <View style={{ width: "94%", height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
+      <View style={{ flexDirection: "row", marginTop: -2 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <View key={i} style={{ alignItems: "center", marginHorizontal: -3 }}>
+            <View
+              style={{
+                width: 66,
+                height: 30,
+                backgroundColor: "#7A2E2E",
+                borderBottomLeftRadius: 33,
+                borderBottomRightRadius: 33,
+                borderWidth: 2,
+                borderTopWidth: 0,
+                borderColor: GOLD,
+              }}
+            />
+            {/* gold medallion at each swag point */}
+            <View
+              style={{
+                width: 11,
+                height: 11,
+                borderRadius: 5.5,
+                backgroundColor: GOLD,
+                borderWidth: 1,
+                borderColor: "#B8860B",
+                marginTop: -6,
+              }}
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ---------- wall candle sconces (L3): gilded candlelight along the walls ----------
+function WallSconces() {
+  const sconce = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 24 }}>
+      {/* halo */}
+      <View
+        style={{
+          position: "absolute",
+          top: -8,
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: FLAME,
+          opacity: 0.2,
+        }}
+      />
+      <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: FLAME }} />
+      <View style={{ width: 8, height: 14, borderRadius: 3, backgroundColor: "#FFF9F0", borderWidth: 1, borderColor: GOLD, marginTop: -2 }} />
+      {/* gilded wall plate */}
+      <View
+        style={{
+          width: 26,
+          height: 34,
+          borderRadius: 5,
+          backgroundColor: "#4A3319",
+          borderWidth: 2,
+          borderColor: GOLD,
+          marginTop: 2,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD, opacity: 0.85 }} />
+      </View>
+    </View>
+  );
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 2, marginBottom: 4 }}>
+      {[0, 1, 2].map(sconce)}
+    </View>
+  );
+}
+
 // ---------- chandelier by building level ----------
-// L1: none. L2: simple candle ring. L3: grand golden chandelier.
+// L1: none. L2: simple candle ring. L3: grand crystal chandelier.
 function DiningChandelier({ level }: { level: number }) {
   if (level < 2) return null;
-  const grand = level >= 3;
-  const candleCount = grand ? 8 : 5;
+  if (level >= 3) return <GrandCrystalChandelier />;
+  const candleCount = 5;
   return (
     <View style={{ alignItems: "center", marginBottom: 2 }}>
       <View style={{ width: 3, height: 30, backgroundColor: WOOD_DARK }} />
       <View
         style={{
-          width: grand ? 170 : 120,
-          height: grand ? 30 : 24,
-          borderRadius: grand ? 15 : 12,
-          backgroundColor: grand ? GOLD : WOOD_DARK,
+          width: 120,
+          height: 24,
+          borderRadius: 12,
+          backgroundColor: WOOD_DARK,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-evenly",
           paddingHorizontal: 12,
-          borderWidth: grand ? 2 : 0,
-          borderColor: "#8B5E34",
         }}
       >
         {Array.from({ length: candleCount }).map((_, i) => (
@@ -604,12 +847,12 @@ function DiningChandelier({ level }: { level: number }) {
       </View>
       <View
         style={{
-          width: grand ? 190 : 140,
+          width: 140,
           height: 26,
           borderRadius: 13,
           backgroundColor: FLAME,
           opacity: 0.16,
-          marginTop: grand ? -40 : -34,
+          marginTop: -34,
         }}
       />
     </View>
@@ -936,6 +1179,7 @@ export default function RestaurantInteriorScreen() {
           <View style={{ backgroundColor: "#3A2817", paddingBottom: 4 }}>
             {lightsTier > 0 && <StringLights tier={lightsTier} />}
             {artTier > 0 && <WallArt tier={artTier} />}
+            {bLevel >= 3 && <WallSconces />}
           </View>
           {/* wooden floor — richer with level: L3 gets a grand rug under the tables */}
           <View style={{ backgroundColor: bLevel >= 3 ? "#7A5533" : FLOOR, paddingTop: 6, paddingBottom: 10 }}>
@@ -943,7 +1187,8 @@ export default function RestaurantInteriorScreen() {
             <View style={{ position: "absolute", top: 24, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
             <View style={{ position: "absolute", top: 60, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
             <View style={{ position: "absolute", top: 100, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
-            {/* chandelier by building level */}
+            {/* elegant drapery + chandelier by building level */}
+            {bLevel >= 3 && <ElegantDrapery />}
             <DiningChandelier level={bLevel} />
             {/* grand rug at L3 */}
             {bLevel >= 3 && (
@@ -1002,7 +1247,7 @@ export default function RestaurantInteriorScreen() {
               </>
             ) : (
               tableDiners.map((group, i) => (
-                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} />
+                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} grand={bLevel >= 3} />
               ))
             )}
 

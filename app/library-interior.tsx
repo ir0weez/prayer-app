@@ -1,8 +1,10 @@
 // Library interior: a quiet grand library — tall shelves, study tables,
 // villagers studying. L1: two shelves, one table. L2: four shelves, two
-// tables, a globe. L3: six shelves, three tables, grand windows, a chandelier,
-// and a card catalog. "Study" grants XP on a 1-hour cooldown — bigger than
-// the bookstore (school building). No emojis — SVG art and MaterialIcons only.
+// tables, a globe. L3: a true grand library — towering shelves with rolling
+// ladders, stone columns, grand windows, a chandelier, banker's lamps on every
+// table, a plush reading nook, and a red-carpet runner. "Study" grants XP on
+// a 1-hour cooldown — bigger than the bookstore (school building).
+// No emojis — SVG art and MaterialIcons only.
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
@@ -42,19 +44,24 @@ const STUDY_XP: Record<1 | 2 | 3, number> = { 1: 12, 2: 22, 3: 38 };
 
 const SPINE_COLORS = ["#1B5E20", "#37474F", "#5D4037", "#6A1B9A", "#0D47A1", "#B71C1C", "#827717", "#4E342E"];
 
-/** A tall grand bookshelf. */
-function GrandShelf({ seed }: { seed: number }) {
-  const rows = [0, 1, 2, 3, 4];
+/** A tall grand bookshelf — towering with a brass crown at L3. */
+function GrandShelf({ seed, tall = false }: { seed: number; tall?: boolean }) {
+  const rows = tall ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
   const w = 58;
-  const h = 132;
+  const h = tall ? 164 : 132;
+  const areaTop = tall ? 13 : 8;
+  const areaBottom = tall ? h - 10 : h - 8;
+  const rowH = tall ? (areaBottom - areaTop) / rows.length : (h - 22) / 5;
+  const shelfTopBase = tall ? areaTop + 3 : 11;
   return (
     <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
       <Rect x={0} y={0} width={w} height={h} rx={4} fill={WOOD} />
       <Rect x={0} y={0} width={w} height={8} rx={4} fill={WOOD_DARK} />
-      <Rect x={5} y={8} width={w - 10} height={h - 16} fill="#2E2317" />
+      {tall && <Rect x={0} y={8} width={w} height={5} fill="#C9963C" />}
+      <Rect x={5} y={areaTop} width={w - 10} height={areaBottom - areaTop} fill="#2E2317" />
       {rows.map((r) => {
-        const shelfTop = 11 + r * ((h - 22) / 5);
-        const shelfH = (h - 22) / 5;
+        const shelfTop = shelfTopBase + r * rowH;
+        const shelfH = rowH;
         let x = 9;
         const books: ReactNode[] = [];
         let bi = 0;
@@ -196,6 +203,76 @@ function HallChandelier() {
   );
 }
 
+/** A brass rolling ladder for the towering shelves — L3 only. */
+function RollingLadder() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={40} height={160} viewBox="0 0 40 160">
+        {/* brass rail */}
+        <Rect x={0} y={6} width={40} height={5} rx={2.5} fill="#C9963C" />
+        <Rect x={4} y={11} width={5} height={140} rx={2.5} fill={WOOD_DARK} />
+        <Rect x={31} y={11} width={5} height={140} rx={2.5} fill={WOOD_DARK} />
+        {[24, 48, 72, 96, 120].map((y) => (
+          <Rect key={y} x={4} y={y} width={32} height={5} rx={2.5} fill={WOOD} />
+        ))}
+        <Circle cx={12} cy={154} r={5} fill="#3A2E26" />
+        <Circle cx={28} cy={154} r={5} fill="#3A2E26" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Rolling ladder</Text>
+    </View>
+  );
+}
+
+/** An elegant green-shaded banker's lamp — on every L3 study table. */
+function TableLamp({ delay = 0 }: { delay?: number }) {
+  return (
+    <View style={{ alignItems: "center", marginBottom: 2 }}>
+      <SoftPulse duration={2200 + delay}>
+        <View style={{ width: 34, height: 16, borderRadius: 14, backgroundColor: "#FCD34D", opacity: 0.35, marginBottom: -26 }} />
+      </SoftPulse>
+      <Svg width={38} height={32} viewBox="0 0 38 32">
+        <Rect x={15} y={16} width={8} height={14} rx={2} fill="#C9963C" />
+        <Rect x={9} y={28} width={20} height={4} rx={2} fill="#8A6D1C" />
+        <Rect x={4} y={2} width={30} height={15} rx={7.5} fill="#1B5E20" />
+        <Rect x={4} y={13} width={30} height={4} rx={2} fill="#2E7D32" opacity={0.6} />
+      </Svg>
+    </View>
+  );
+}
+
+/** A plush armchair for the L3 reading nook. */
+function Armchair() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={64} height={62} viewBox="0 0 64 62">
+        <Rect x={6} y={18} width={52} height={34} rx={8} fill="#8C3F28" />
+        <Rect x={12} y={24} width={40} height={20} rx={6} fill="#B4593A" />
+        <Rect x={0} y={28} width={14} height={20} rx={7} fill="#8C3F28" />
+        <Rect x={50} y={28} width={14} height={20} rx={7} fill="#8C3F28" />
+        <Rect x={6} y={2} width={52} height={22} rx={10} fill="#A34A30" />
+        <Rect x={14} y={54} width={6} height={6} fill={WOOD_DARK} />
+        <Rect x={44} y={54} width={6} height={6} fill={WOOD_DARK} />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Armchair</Text>
+    </View>
+  );
+}
+
+/** A grand stone column — L3 only. */
+function StoneColumn() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 4 }}>
+      <Svg width={34} height={152} viewBox="0 0 34 152">
+        <Rect x={2} y={0} width={30} height={10} rx={2} fill="#C9BFA8" />
+        <Rect x={7} y={10} width={20} height={128} fill="#E5DDCE" />
+        <Rect x={11} y={10} width={5} height={128} fill="#D8CFBB" />
+        <Rect x={20} y={10} width={5} height={128} fill="#D8CFBB" />
+        <Rect x={2} y={138} width={30} height={14} rx={2} fill="#C9BFA8" />
+      </Svg>
+    </View>
+  );
+}
+
 export default function LibraryInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastStudy, setLastStudy] = useState(0);
@@ -218,7 +295,7 @@ export default function LibraryInteriorScreen() {
 
   const levelBlurb =
     level >= 3
-      ? "A grand library — soaring shelves, grand windows, a card catalog."
+      ? "A true grand library — towering shelves with rolling ladders, stone columns, banker's lamps, and a plush reading nook."
       : level >= 2
         ? "A growing reading room — more shelves, two study tables, a globe."
         : "A quiet corner — a couple of shelves and one good table.";
@@ -264,22 +341,29 @@ export default function LibraryInteriorScreen() {
               <GrandWindow />
             </View>
           )}
-          {/* tall shelves */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
-            {Array.from({ length: shelfCount }).map((_, i) => (
-              <View key={i} style={{ marginHorizontal: 3, marginBottom: 6 }}>
-                <GrandShelf seed={i * 11 + 5} />
-              </View>
-            ))}
+          {/* tall shelves — towering at L3, flanked by columns and rolling ladders */}
+          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 6 }}>
+            {level >= 3 && <StoneColumn />}
+            {level >= 3 && <RollingLadder />}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", flex: 1 }}>
+              {Array.from({ length: shelfCount }).map((_, i) => (
+                <View key={i} style={{ marginHorizontal: 3, marginBottom: 6 }}>
+                  <GrandShelf seed={i * 11 + 5} tall={level >= 3} />
+                </View>
+              ))}
+            </View>
+            {level >= 3 && <RollingLadder />}
+            {level >= 3 && <StoneColumn />}
           </View>
 
-          {/* study tables with studiers */}
+          {/* study tables with studiers — banker's lamps on every L3 table */}
           <View style={{ paddingHorizontal: 12, marginTop: 8 }}>
             {Array.from({ length: tableCount }).map((_, t) => {
               const perTable = Math.ceil(studiers.length / tableCount);
               const group = studiers.slice(t * perTable, t * perTable + perTable);
               return (
                 <View key={t} style={{ alignItems: "center", marginBottom: 10 }}>
+                  {level >= 3 && <TableLamp delay={t * 400} />}
                   <StudyTable seed={t} />
                   <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: -4, flexWrap: "wrap" }}>
                     {group.map((p, i) => (
@@ -302,6 +386,21 @@ export default function LibraryInteriorScreen() {
             )}
           </View>
 
+          {/* L3 reading nook: plush armchairs on a rug */}
+          {level >= 3 && (
+            <View style={{ alignItems: "center", marginTop: 4 }}>
+              <View style={{ width: "86%", height: 14, borderRadius: 7, backgroundColor: "#8C3F28", borderWidth: 2, borderColor: "#C9963C" }} />
+              <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: -2, paddingBottom: 4 }}>
+                <Armchair />
+                <View style={{ width: 22 }} />
+                <TableLamp delay={700} />
+                <View style={{ width: 22 }} />
+                <Armchair />
+              </View>
+              <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Reading nook</Text>
+            </View>
+          )}
+
           {/* globe and card catalog extras */}
           {level >= 2 && (
             <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 24, paddingBottom: 6 }}>
@@ -317,9 +416,14 @@ export default function LibraryInteriorScreen() {
             </View>
           )}
 
-          {/* floor */}
-          <View style={{ height: 26, backgroundColor: "#DCD4C0" }}>
+          {/* floor — a red-carpet runner at L3 */}
+          <View style={{ height: level >= 3 ? 34 : 26, backgroundColor: "#DCD4C0" }}>
             <View style={{ height: 3, backgroundColor: "#CFC4AB" }} />
+            {level >= 3 && (
+              <View style={{ alignItems: "center", marginTop: 6 }}>
+                <View style={{ width: "72%", height: 14, borderRadius: 7, backgroundColor: "#8C3F28", borderWidth: 2, borderColor: "#C9963C" }} />
+              </View>
+            )}
           </View>
         </View>
 

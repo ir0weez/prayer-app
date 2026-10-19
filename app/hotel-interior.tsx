@@ -17,6 +17,7 @@ import {
 import {
   GentleBob,
   SeatedFigure,
+  SoftPulse,
   StandingFigure,
   pickPeople,
 } from "@/components/activity-figures";
@@ -40,12 +41,27 @@ const STORAGE_KEY = "prayercircle.interior.hotel.welcome.v1";
 const COINS_BY_LEVEL = [8, 15, 28];
 const XP_BY_LEVEL = [5, 10, 18];
 
-/** Chandelier — grows grander with level (L2 single, L3 double tier). */
+/** Chandelier — grows grander with level (L2 single, L3 double tier with crystals and a ceiling medallion). */
 function Chandelier({ grand }: { grand: boolean }) {
+  const drops = (xs: number[], topY: number) =>
+    xs.map((x) => (
+      <g key={x}>
+        <Line x1={x} y1={topY} x2={x} y2={topY + 9} stroke="#BFDCEF" strokeWidth={1.5} />
+        <Circle cx={x} cy={topY + 13} r={3.4} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
+      </g>
+    ));
   return (
     <View style={{ alignItems: "center", marginTop: 6 }}>
       <Line x1={0} y1={-26} x2={0} y2={-10} stroke={GOLD} strokeWidth={3} />
-      <Svg width={grand ? 190 : 130} height={grand ? 96 : 70} viewBox={`0 0 ${grand ? 190 : 130} ${grand ? 96 : 70}`}>
+      <Svg width={grand ? 190 : 130} height={grand ? 112 : 70} viewBox={`0 0 ${grand ? 190 : 130} ${grand ? 112 : 70}`}>
+        {grand && (
+          <>
+            {/* warm glow + ceiling medallion */}
+            <Ellipse cx={95} cy={52} rx={88} ry={44} fill="#FFE9A8" opacity={0.25} />
+            <Ellipse cx={95} cy={8} rx={28} ry={8} fill="none" stroke={GOLD} strokeWidth={3} />
+            <Ellipse cx={95} cy={8} rx={18} ry={5} fill="none" stroke={GOLD_LIGHT} strokeWidth={2} />
+          </>
+        )}
         {/* frame */}
         <Line x1={grand ? 95 : 65} y1={0} x2={grand ? 95 : 65} y2={grand ? 26 : 20} stroke={GOLD} strokeWidth={4} />
         <Ellipse cx={grand ? 95 : 65} cy={grand ? 34 : 28} rx={grand ? 78 : 52} ry={grand ? 18 : 13} fill="none" stroke={GOLD} strokeWidth={4} />
@@ -82,6 +98,10 @@ function Chandelier({ grand }: { grand: boolean }) {
                 </g>
               );
             })}
+            {/* crystal drops on both tiers */}
+            {drops([35, 65, 125, 155], 50)}
+            {drops([63, 79, 95, 111, 127], 82)}
+            <Circle cx={95} cy={104} r={4.5} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1.2} />
           </g>
         )}
       </Svg>
@@ -235,6 +255,102 @@ function WallArt() {
   );
 }
 
+/** A fluted marble column with gold capital (L3). */
+function MarbleColumn() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 4 }}>
+      <Svg width={46} height={148} viewBox="0 0 46 148">
+        {/* capital */}
+        <Rect x={6} y={4} width={34} height={10} rx={3} fill={GOLD} />
+        <Rect x={10} y={14} width={26} height={6} fill={GOLD_LIGHT} />
+        {/* fluted shaft */}
+        <Rect x={11} y={20} width={24} height={106} fill="#EFE9DC" stroke="#CFC7B8" strokeWidth={1.5} />
+        {[17, 23, 29].map((x) => (
+          <Line key={x} x1={x} y1={24} x2={x} y2={122} stroke="#D8D2C4" strokeWidth={2} />
+        ))}
+        {/* base */}
+        <Rect x={10} y={126} width={26} height={6} fill={GOLD_LIGHT} />
+        <Rect x={6} y={132} width={34} height={10} rx={3} fill={GOLD} />
+      </Svg>
+    </View>
+  );
+}
+
+/** A tall floral arrangement in a navy vase (L3). */
+function FlowerVase() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 6 }}>
+      <Svg width={46} height={86} viewBox="0 0 46 86">
+        <Line x1={23} y1={34} x2={23} y2={14} stroke="#5B8A5E" strokeWidth={2.5} />
+        <Line x1={23} y1={34} x2={15} y2={20} stroke="#5B8A5E" strokeWidth={2} />
+        <Line x1={23} y1={34} x2={31} y2={20} stroke="#5B8A5E" strokeWidth={2} />
+        <Circle cx={23} cy={11} r={7} fill="#F472B6" />
+        <Circle cx={23} cy={11} r={2.8} fill="#FDE68A" />
+        <Circle cx={14} cy={17} r={5.5} fill="#FBBF24" />
+        <Circle cx={32} cy={17} r={5.5} fill="#C084FC" />
+        <Circle cx={14} cy={17} r={2.2} fill="#FFF7D6" />
+        <Circle cx={32} cy={17} r={2.2} fill="#FFF7D6" />
+        {/* vase */}
+        <Polygon points="15,36 31,36 27,78 19,78" fill={NAVY} stroke={GOLD} strokeWidth={2} />
+        <Rect x={13} y={32} width={20} height={6} rx={3} fill={GOLD} />
+        <Line x1={19} y1={48} x2={27} y2={48} stroke={GOLD_LIGHT} strokeWidth={1.5} opacity={0.7} />
+      </Svg>
+    </View>
+  );
+}
+
+/** A glossy black grand piano with bench (L3). */
+function GrandPiano() {
+  return (
+    <View style={{ alignItems: "center", marginTop: 10 }}>
+      <SoftPulse duration={2800}>
+        <MaterialIcons name="music-note" size={16} color={GOLD} style={{ marginBottom: -4 }} />
+      </SoftPulse>
+      <Svg width={152} height={92} viewBox="0 0 152 92">
+        {/* lid, propped open */}
+        <Polygon points="14,44 118,44 118,10 132,44" fill="#1F2937" stroke={GOLD} strokeWidth={1.5} />
+        <Line x1={118} y1={44} x2={118} y2={14} stroke={GOLD} strokeWidth={2} />
+        {/* body */}
+        <Path d="M14 44 L118 44 Q142 44 142 62 Q142 78 116 78 L14 78 Z" fill="#111827" stroke="#374151" strokeWidth={2} />
+        {/* keys */}
+        <Rect x={14} y={62} width={40} height={12} fill="#F5EDE0" />
+        {[20, 26, 32, 38, 44].map((x) => (
+          <Rect key={x} x={x} y={62} width={4} height={7} fill="#1F2937" />
+        ))}
+        {/* gold trim + legs */}
+        <Path d="M14 78 L116 78" stroke={GOLD} strokeWidth={2} />
+        <Rect x={18} y={78} width={6} height={12} fill="#1F2937" />
+        <Rect x={128} y={66} width={6} height={24} fill="#1F2937" />
+        <Rect x={70} y={78} width={6} height={12} fill="#1F2937" />
+        {/* bench */}
+        <Rect x={44} y={80} width={34} height={7} rx={3} fill="#1F2937" stroke={GOLD} strokeWidth={1.5} />
+        <Rect x={48} y={87} width={5} height={5} fill="#1F2937" />
+        <Rect x={69} y={87} width={5} height={5} fill="#1F2937" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Grand piano</Text>
+    </View>
+  );
+}
+
+/** Velvet rope line on gold stanchions (L3). */
+function RopeLine() {
+  return (
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      <Svg width={230} height={44} viewBox="0 0 230 44">
+        {[30, 200].map((x) => (
+          <g key={x}>
+            <Ellipse cx={x} cy={40} rx={12} ry={4} fill={GOLD} stroke="#8A6D1C" strokeWidth={1.5} />
+            <Rect x={x - 3} y={10} width={6} height={30} fill={GOLD} stroke="#8A6D1C" strokeWidth={1} />
+            <Circle cx={x} cy={8} r={5} fill={GOLD} stroke="#8A6D1C" strokeWidth={1.5} />
+          </g>
+        ))}
+        <Path d="M30 22 Q115 44 200 22" stroke="#A31621" strokeWidth={5} fill="none" strokeLinecap="round" />
+        <Path d="M30 22 Q115 44 200 22" stroke="#C0392B" strokeWidth={2.5} fill="none" strokeLinecap="round" />
+      </Svg>
+    </View>
+  );
+}
+
 export default function HotelInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastWelcome, setLastWelcome] = useState(0);
@@ -255,7 +371,7 @@ export default function HotelInteriorScreen() {
 
   const levelBlurb =
     level >= 3
-      ? "Marble, chandeliers, and a sweeping staircase."
+      ? "Pure luxury — marble columns, a grand piano, crystal chandeliers, velvet ropes, and a sweeping staircase."
       : level >= 2
         ? "Warm light, soft rugs, and smiling faces."
         : "A simple, tidy lobby ready to grow.";
@@ -323,6 +439,16 @@ export default function HotelInteriorScreen() {
                 <Circle cx={level >= 3 ? 70 : 56} cy={22} r={13} fill="#FFF7D6" />
                 <Polygon points="0,100 34,58 62,100" fill={WOOD} />
                 <Polygon points="34,58 52,78 70,60 92,100 20,100" fill="#5B8A5E" />
+                {/* velvet drapes at L3 */}
+                {level >= 3 && (
+                  <>
+                    <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 20, backgroundColor: NAVY, borderRightWidth: 2, borderColor: GOLD }} />
+                    <View style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 20, backgroundColor: NAVY, borderLeftWidth: 2, borderColor: GOLD }} />
+                    <View style={{ position: "absolute", left: 0, right: 0, top: 0, height: 15, backgroundColor: NAVY_DARK, borderBottomWidth: 2, borderColor: GOLD }} />
+                    <View style={{ position: "absolute", left: 13, top: 54, width: 13, height: 13, borderRadius: 6.5, backgroundColor: GOLD }} />
+                    <View style={{ position: "absolute", right: 13, top: 54, width: 13, height: 13, borderRadius: 6.5, backgroundColor: GOLD }} />
+                  </>
+                )}
               </View>
               <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>City view</Text>
             </View>
@@ -330,38 +456,62 @@ export default function HotelInteriorScreen() {
             {level >= 3 ? <Staircase /> : <Palm delay={300} />}
           </View>
 
-          {/* check-in: the pawn greets an arriving villager */}
+          {/* check-in: the pawn greets an arriving villager, floral arrangements at L3 */}
           <View style={{ marginTop: 10, paddingHorizontal: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
-              {guests[0] && <StandingFigure person={guests[0]} delay={200} icon="luggage" iconColor={GOLD} />}
-              {pawn && (
-                <View style={{ alignItems: "center", marginHorizontal: 8 }}>
-                  <MaterialIcons name="waving-hand" size={15} color={GOLD} />
-                  <PawnPreview pawn={pawn} size={50} />
-                  <Text style={{ fontSize: 10, fontWeight: "700", color: NAVY, marginTop: 2 }}>{pawn.name.split(" ")[0]}</Text>
+              {level >= 3 && <FlowerVase />}
+              <View style={{ alignItems: "center" }}>
+                <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
+                  {guests[0] && <StandingFigure person={guests[0]} delay={200} icon="luggage" iconColor={GOLD} />}
+                  {pawn && (
+                    <View style={{ alignItems: "center", marginHorizontal: 8 }}>
+                      <MaterialIcons name="waving-hand" size={15} color={GOLD} />
+                      <PawnPreview pawn={pawn} size={50} />
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: NAVY, marginTop: 2 }}>{pawn.name.split(" ")[0]}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+                <CheckInDesk level={level} />
+              </View>
+              {level >= 3 && <FlowerVase />}
             </View>
-            <CheckInDesk level={level} />
           </View>
 
-          {/* rug (L2+) and lounge (L3) */}
+          {/* rug (L2+), velvet rope + grand carpet (L3), lounge between marble columns (L3) */}
           {level >= 2 && (
             <View style={{ alignItems: "center", marginTop: 6 }}>
-              <View
-                style={{
-                  width: "82%",
-                  height: 16,
-                  borderRadius: 8,
-                  backgroundColor: level >= 3 ? "#A31621" : "#B85450",
-                  borderWidth: 2,
-                  borderColor: GOLD,
-                }}
-              />
-              <View style={{ width: "70%", height: 8, borderRadius: 4, backgroundColor: "#C67B5C", marginTop: -12, opacity: 0.6 }} />
+              {level >= 3 && <RopeLine />}
+              {level >= 3 ? (
+                <View style={{ width: "92%", borderRadius: 10, backgroundColor: "#A31621", borderWidth: 3, borderColor: GOLD, padding: 5, alignItems: "center", marginTop: 4 }}>
+                  <View style={{ width: "100%", borderRadius: 6, borderWidth: 1.5, borderColor: GOLD_LIGHT, alignItems: "center", paddingVertical: 7 }}>
+                    <View style={{ width: 64, height: 12, borderRadius: 6, backgroundColor: GOLD, opacity: 0.55 }} />
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <View
+                    style={{
+                      width: "82%",
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: "#B85450",
+                      borderWidth: 2,
+                      borderColor: GOLD,
+                    }}
+                  />
+                  <View style={{ width: "70%", height: 8, borderRadius: 4, backgroundColor: "#C67B5C", marginTop: -12, opacity: 0.6 }} />
+                </>
+              )}
             </View>
           )}
-          {level >= 3 && <LoungeSet />}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 4 }}>
+              <MarbleColumn />
+              <LoungeSet />
+              <MarbleColumn />
+            </View>
+          )}
+          {level >= 3 && <GrandPiano />}
 
           {/* lounge villagers: reading and resting */}
           {(guests[1] || guests[2]) && level >= 2 && (
@@ -397,7 +547,7 @@ export default function HotelInteriorScreen() {
           onPrimary={handleWelcome}
           primaryColor={NAVY}
           level={level}
-          onUpgrade={() => handleUpgrade(level + 1 >= 3 ? "Marble, a grand chandelier, and the sweeping stairs." : "A grander desk, chandelier, and soft rugs.")}
+          onUpgrade={() => handleUpgrade(level + 1 >= 3 ? "Marble columns, a grand piano, crystal chandeliers, and velvet ropes." : "A grander desk, chandelier, and soft rugs.")}
         />
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Hospitality pays: each welcome brings coins and XP. Refreshes in an hour.

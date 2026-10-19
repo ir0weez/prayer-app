@@ -48,7 +48,7 @@ const TEXT_DIM = "#A99BC4";
 
 // ---------- curtains + stage dressing by level ----------
 // L1: simple dark curtains. L2: velvet + gold trim. L3: grand velvet, gold trim,
-// tassels, lit braziers and banners flanking the screen.
+// tassels, lit braziers, banners, and a gold-leaf garland across the top.
 function TheaterDressing({ level }: { level: number }) {
   const curtainColor = level >= 2 ? "#8E2A44" : "#5E1E2C";
   const trim = level >= 2;
@@ -119,6 +119,25 @@ function TheaterDressing({ level }: { level: number }) {
       {level >= 3 && brazier("br")}
       {level >= 3 && banner("bnl")}
       {level >= 3 && banner("bnr")}
+      {/* gold-leaf garland strung across the top at L3 */}
+      {level >= 3 && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "center", zIndex: 2 }}>
+          {Array.from({ length: 16 }).map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: 4.5,
+                backgroundColor: GOLD,
+                marginHorizontal: 3.5,
+                borderWidth: 1,
+                borderColor: "#8B5E34",
+              }}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -494,6 +513,109 @@ const THEME_LABELS: Record<MovieThemeKind, string> = {
   generic: "Movie night",
 };
 
+// ---------- grand stage footlights (L3): gilded platform edge + glowing footlights ----------
+function StageFootlights() {
+  return (
+    <View style={{ alignItems: "center", marginTop: 2, marginBottom: 4 }}>
+      {/* grand stage platform edge */}
+      <View style={{ width: "94%", height: 12, borderRadius: 6, backgroundColor: "#4A2C2A", borderWidth: 2, borderColor: GOLD }} />
+      {/* glowing footlights along the stage */}
+      <View style={{ flexDirection: "row", marginTop: 4 }}>
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <View key={i} style={{ alignItems: "center", marginHorizontal: 7 }}>
+            <View
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: "#FFE9B8",
+                borderWidth: 1,
+                borderColor: GOLD,
+                shadowColor: "#FFE9B8",
+                shadowOpacity: 0.9,
+                shadowRadius: 6,
+              }}
+            />
+            <View style={{ width: 14, height: 4, borderRadius: 2, backgroundColor: "#3A2A1C", marginTop: 1 }} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ---------- dramatic spotlight beams (L3): light shafts sweeping the stage ----------
+function StageBeams() {
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 360, zIndex: 2 }}>
+      <View style={{ position: "absolute", left: 70, top: 0, width: 46, height: 340, backgroundColor: "#FFE9B8", opacity: 0.1, transform: [{ rotate: "16deg" }] }} />
+      <View style={{ position: "absolute", right: 70, top: 0, width: 46, height: 340, backgroundColor: "#FFE9B8", opacity: 0.1, transform: [{ rotate: "-16deg" }] }} />
+      <View style={{ position: "absolute", left: "50%", marginLeft: -70, top: 0, width: 140, height: 340, backgroundColor: "#FFE9B8", opacity: 0.06 }} />
+      {/* pools of light where the beams land */}
+      <View style={{ position: "absolute", left: 30, top: 300, width: 110, height: 26, borderRadius: 13, backgroundColor: "#FFE9B8", opacity: 0.12 }} />
+      <View style={{ position: "absolute", right: 30, top: 300, width: 110, height: 26, borderRadius: 13, backgroundColor: "#FFE9B8", opacity: 0.12 }} />
+    </View>
+  );
+}
+
+// ---------- ornate opera balcony boxes (L3): gilded boxes with patrons + balcony rail ----------
+function OperaBalcony() {
+  const box = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 5 }}>
+      <View
+        style={{
+          width: 62,
+          height: 56,
+          borderRadius: 8,
+          backgroundColor: "#3B1F2E",
+          borderWidth: 3,
+          borderColor: GOLD,
+          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          paddingBottom: 5,
+        }}
+      >
+        {/* gold arch crown */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 16,
+            backgroundColor: GOLD,
+            opacity: 0.9,
+            borderBottomLeftRadius: 30,
+            borderBottomRightRadius: 30,
+          }}
+        />
+        {/* patrons in the box */}
+        <View style={{ flexDirection: "row" }}>
+          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: "#C9A87A", marginHorizontal: 2, borderWidth: 1, borderColor: GOLD }} />
+          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: "#E8C088", marginHorizontal: 2, borderWidth: 1, borderColor: GOLD }} />
+        </View>
+        <View style={{ width: 38, height: 7, borderRadius: 3.5, backgroundColor: "#5E1E2C", marginTop: 2 }} />
+      </View>
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginTop: 4, marginBottom: 2 }}>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
+        {[0, 1, 2, 3].map(box)}
+      </View>
+      {/* gilded balcony rail */}
+      <View style={{ width: "88%", height: 10, borderRadius: 5, backgroundColor: GOLD, borderWidth: 1, borderColor: "#8B5E34", marginTop: -4 }} />
+      {/* gold corbels under the rail */}
+      <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 2 }}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <View key={i} style={{ width: 6, height: 12, backgroundColor: GOLD, marginHorizontal: 22, borderRadius: 3, opacity: 0.85 }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ---------- main screen ----------
 
 export default function TheaterInteriorScreen() {
@@ -636,6 +758,11 @@ export default function TheaterInteriorScreen() {
           <View style={{ paddingHorizontal: 12, marginTop: -104 }}>
             <ThemedScreen theme={theme} level={level} />
           </View>
+
+          {/* grand opera dressing at L3: footlights, balcony boxes, light beams */}
+          {level >= 3 && <StageFootlights />}
+          {level >= 3 && <OperaBalcony />}
+          {level >= 3 && <StageBeams />}
 
           {/* audience rows */}
           <View style={{ paddingVertical: 14, paddingHorizontal: 8 }}>

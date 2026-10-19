@@ -3,7 +3,9 @@
 // the pawn shares a meal at a table. "Share a Meal" costs 3 coins, grants
 // 12 XP, on a 1-hour cooldown.
 // L1: 2 stalls, few tables. L2: 3 stalls, more tables, plants.
-// L3: 4 stalls, fountain drink station, string lights, nice flooring.
+// L3: a gourmet food hall — six cuisines with a kitchen crew, a glass dessert
+// case, a grand centerpiece planter, glowing pendant lights, string lights,
+// a fountain drink station, and warm checker floors with gold trim.
 // No emojis — SVG art and MaterialIcons only. Gentle sine-ease motion.
 
 import { useEffect, useState } from "react";
@@ -11,7 +13,7 @@ import type { ReactNode } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -45,6 +47,8 @@ const STALLS: Stall[] = [
   { name: "Noodles", icon: "ramen-dining", color: "#0E7C86", dark: "#0A5A62" },
   { name: "Pizza", icon: "local-pizza", color: "#C0392B", dark: "#922B21" },
   { name: "Sweets", icon: "icecream", color: "#8E44AD", dark: "#6C3483" },
+  { name: "Sushi", icon: "rice-bowl", color: "#0E7490", dark: "#0A4A5A" },
+  { name: "BBQ", icon: "kebab-dining", color: "#92400E", dark: "#6B2D08" },
 ];
 
 /** A food stall with an awning, menu board, and counter. */
@@ -168,6 +172,86 @@ function Plant() {
   );
 }
 
+/** A chef from the kitchen crew — L3 only. */
+function StallChef({ color, delay = 0 }: { color: string; delay?: number }) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <GentleBob delay={delay} amount={1.5}>
+        <Svg width={42} height={66} viewBox="0 0 42 66">
+          {/* chef hat */}
+          <Circle cx={21} cy={11} r={9} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth={1.5} />
+          <Rect x={13} y={17} width={16} height={5} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth={1.5} />
+          {/* head */}
+          <Circle cx={21} cy={28} r={7} fill="#F5C99B" />
+          {/* body + apron */}
+          <Rect x={12} y={35} width={18} height={24} rx={6} fill={color} />
+          <Rect x={16} y={35} width={10} height={24} fill="#FFFFFF" opacity={0.85} />
+          {/* arms */}
+          <Rect x={6} y={38} width={6} height={14} rx={3} fill={color} />
+          <Rect x={30} y={38} width={6} height={14} rx={3} fill={color} />
+        </Svg>
+      </GentleBob>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Chef</Text>
+    </View>
+  );
+}
+
+/** Warm pendant lights over the dining hall — L3 only. */
+function PendantLight({ delay = 0 }: { delay?: number }) {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 14 }}>
+      <View style={{ width: 3, height: 22, backgroundColor: "#6B4A2F" }} />
+      <SoftPulse duration={2100 + delay}>
+        <Svg width={40} height={24} viewBox="0 0 40 24">
+          <Path d="M20 2 L34 18 L6 18 Z" fill={ACCENT} />
+          <Ellipse cx={20} cy={20} rx={11} ry={3.5} fill="#FFE9A8" opacity={0.9} />
+        </Svg>
+      </SoftPulse>
+    </View>
+  );
+}
+
+/** A glass dessert display case — L3 only. */
+function DessertCase() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <SoftPulse duration={1800}>
+        <Svg width={122} height={64} viewBox="0 0 122 64">
+          <Rect x={2} y={32} width={118} height={30} rx={5} fill="#6B2D08" />
+          <Rect x={6} y={4} width={110} height={32} rx={5} fill="#FFF7E0" opacity={0.4} stroke={ACCENT} strokeWidth={2} />
+          <Rect x={10} y={20} width={102} height={3} fill={ACCENT} opacity={0.6} />
+          {/* treats */}
+          <Circle cx={30} cy={29} r={7} fill="#F472B6" />
+          <Rect x={50} y={22} width={14} height={10} rx={2} fill="#FBBF24" />
+          <Circle cx={84} cy={29} r={7} fill="#8E44AD" />
+          <Rect x={22} y={42} width={78} height={12} rx={3} fill="#F5D6B8" />
+        </Svg>
+      </SoftPulse>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Dessert case</Text>
+    </View>
+  );
+}
+
+/** A grand centerpiece planter — L3 only. */
+function CenterpiecePlanter() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <GentleBob amount={1.5}>
+        <Svg width={56} height={72} viewBox="0 0 56 72">
+          <Path d="M28 52 C28 38 28 30 28 20" stroke="#5B8A5E" strokeWidth={4} fill="none" />
+          <Path d="M28 26 C18 20 11 20 5 26 C13 30 21 32 28 32" fill="#6FA372" />
+          <Path d="M28 26 C38 20 45 20 51 26 C43 30 35 32 28 32" fill="#5B8A5E" />
+          <Circle cx={28} cy={16} r={6} fill="#E07A5F" />
+          <Circle cx={21} cy={22} r={4} fill="#E0A63F" />
+          <Circle cx={35} cy={22} r={4} fill="#C9758A" />
+        </Svg>
+      </GentleBob>
+      <View style={{ width: 32, height: 18, borderRadius: 4, backgroundColor: ACCENT_DARK, marginTop: -4 }} />
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Centerpiece</Text>
+    </View>
+  );
+}
+
 export default function FoodCourtInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastMeal, setLastMeal] = useState(0);
@@ -180,16 +264,16 @@ export default function FoodCourtInteriorScreen() {
   }, []);
 
   const remaining = Math.max(0, lastMeal + COOLDOWN_MS - Date.now());
-  const stalls = STALLS.slice(0, level >= 3 ? 4 : level >= 2 ? 3 : 2);
-  const diners = pickPeople(people, `food|${building?.id ?? "food"}|dine`, 6);
-  const inLine = pickPeople(people, `food|${building?.id ?? "food"}|line`, 2);
+  const stalls = STALLS.slice(0, level >= 3 ? 6 : level >= 2 ? 3 : 2);
+  const diners = pickPeople(people, `food|${building?.id ?? "food"}|dine`, level >= 3 ? 8 : 6);
+  const inLine = pickPeople(people, `food|${building?.id ?? "food"}|line`, level >= 3 ? 3 : 2);
 
-  const tableA = diners.slice(0, level >= 2 ? 3 : 2);
-  const tableB = level >= 3 ? diners.slice(3, 6) : [];
+  const tableA = diners.slice(0, level >= 3 ? 4 : level >= 2 ? 3 : 2);
+  const tableB = level >= 3 ? diners.slice(4, 8) : [];
 
   const levelBlurb =
     level >= 3
-      ? "A lively food hall — four cuisines, string lights, and drinks all around."
+      ? "A gourmet food hall — six cuisines, a kitchen crew, a dessert case, glowing pendants, and drinks all around."
       : level >= 2
         ? "A bustling court — three stalls, plenty of tables, and plants."
         : "A simple court — two stalls and a couple of shared tables.";
@@ -242,6 +326,24 @@ export default function FoodCourtInteriorScreen() {
             </View>
           )}
 
+          {/* glowing pendant lights over the hall at L3 */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", marginTop: 2 }}>
+              <PendantLight />
+              <PendantLight delay={450} />
+              <PendantLight delay={900} />
+            </View>
+          )}
+
+          {/* kitchen crew at L3 */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 44, marginTop: 8 }}>
+              <StallChef color={STALLS[0].color} />
+              <StallChef color={STALLS[2].color} delay={300} />
+              <StallChef color={STALLS[5].color} delay={600} />
+            </View>
+          )}
+
           {/* stalls */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", flexWrap: "wrap", marginTop: 6 }}>
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="food-court" />
@@ -260,6 +362,11 @@ export default function FoodCourtInteriorScreen() {
             {inLine[1] && (
               <GentleBob delay={450}>
                 <StandingFigure person={inLine[1]} delay={450} icon="ramen-dining" iconColor={ACCENT} showLabel />
+              </GentleBob>
+            )}
+            {level >= 3 && inLine[2] && (
+              <GentleBob delay={700}>
+                <StandingFigure person={inLine[2]} delay={700} icon="local-pizza" iconColor={ACCENT} showLabel />
               </GentleBob>
             )}
             {level >= 2 && <Plant />}
@@ -286,6 +393,15 @@ export default function FoodCourtInteriorScreen() {
             )}
           </View>
 
+          {/* L3: dessert case + centerpiece between the tables and the pawn */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8, paddingHorizontal: 12 }}>
+              <DessertCase />
+              <View style={{ width: 18 }} />
+              <CenterpiecePlanter />
+            </View>
+          )}
+
           {/* the pawn shares a meal */}
           {pawn && (
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 6 }}>
@@ -310,7 +426,7 @@ export default function FoodCourtInteriorScreen() {
                   <View key={i} style={{ flex: 1, height: 26, backgroundColor: i % 2 === 0 ? "#F0DFC0" : "#E0C89E" }} />
                 ))}
             </View>
-            <View style={{ height: 3, backgroundColor: level >= 3 ? "#D8BE94" : "#C0A67E" }} />
+            <View style={{ height: 3, backgroundColor: level >= 3 ? "#C9963C" : "#C0A67E" }} />
           </View>
         </View>
 
@@ -321,7 +437,7 @@ export default function FoodCourtInteriorScreen() {
           level={level}
           onUpgrade={() =>
             handleUpgrade(
-              level + 1 >= 3 ? "Four cuisines, a drink station, string lights, and warm checker floors." : "Three stalls, more tables, and greenery."
+              level + 1 >= 3 ? "Six cuisines, a kitchen crew, a dessert case, glowing pendants, and warm checker floors." : "Three stalls, more tables, and greenery."
             )
           }
         />

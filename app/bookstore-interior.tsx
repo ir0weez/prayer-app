@@ -1,13 +1,15 @@
 // Bookstore interior: a cozy bookshop — tall wooden shelves, a reading
 // nook, and villagers browsing and reading. L1: two plain shelves. L2: four
-// shelves, reading chairs, and a warm lamp. L3: six shelves, a fireplace
-// nook, a rolling ladder, and a chandelier. "Find a Good Book" grants XP on
+// shelves, reading chairs, and a warm lamp. L3: a beautiful bookshop —
+// shelves to the ceiling, a glowing storefront display window, a staff-picks
+// feature table, wall sconces, a crackling fireplace nook, a rolling ladder,
+// a chandelier, and a warm rug. "Find a Good Book" grants XP on
 // a 1-hour cooldown. No emojis — SVG art and MaterialIcons only.
 
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Ellipse, G, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Rect } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
@@ -190,6 +192,89 @@ function Chandelier() {
   );
 }
 
+/** A hanging "BESTSELLERS" banner — L3 only. */
+function BestsellerBanner() {
+  return (
+    <View style={{ alignItems: "center", paddingTop: 6 }}>
+      <View style={{ width: 3, height: 10, backgroundColor: WOOD_DARK }} />
+      <SoftPulse duration={1800}>
+        <View style={{ backgroundColor: "#7C3AED", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 2, borderColor: "#D9A441" }}>
+          <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 12, letterSpacing: 1.5 }}>BESTSELLERS</Text>
+        </View>
+      </SoftPulse>
+    </View>
+  );
+}
+
+/** A featured "Staff Picks" display table — L3 only. */
+function FeatureTable() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={122} height={58} viewBox="0 0 122 58">
+        <Rect x={4} y={36} width={114} height={8} rx={4} fill={WOOD} />
+        <Rect x={14} y={44} width={8} height={12} fill={WOOD_DARK} />
+        <Rect x={100} y={44} width={8} height={12} fill={WOOD_DARK} />
+        {/* stacked + leaning display books */}
+        <Rect x={18} y={24} width={20} height={12} rx={2} fill="#B45309" />
+        <Rect x={20} y={14} width={17} height={10} rx={2} fill="#2563EB" />
+        <Rect x={84} y={24} width={12} height={12} rx={2} fill="#059669" transform="rotate(-14 90 30)" />
+        <Rect x={52} y={8} width={16} height={28} rx={2} fill="#7C3AED" transform="rotate(12 60 22)" />
+        <Rect x={70} y={16} width={15} height={20} rx={2} fill="#DC2626" transform="rotate(-8 77 26)" />
+      </Svg>
+      <View style={{ backgroundColor: ACCENT, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 }}>
+        <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 10 }}>STAFF PICKS</Text>
+      </View>
+    </View>
+  );
+}
+
+/** A glowing storefront display window — L3 only. */
+function StorefrontWindow() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ width: 118, height: 88, borderRadius: 10, backgroundColor: "#BBDDF2", borderWidth: 6, borderColor: WOOD_DARK, overflow: "hidden", alignItems: "center" }}>
+        <View style={{ position: "absolute", top: 4, right: 6 }}>
+          <SoftPulse duration={2400}>
+            <Svg width={28} height={28} viewBox="0 0 28 28">
+              <Circle cx={14} cy={14} r={12} fill="#FFF7D6" />
+            </Svg>
+          </SoftPulse>
+        </View>
+        <View style={{ position: "absolute", bottom: 0, flexDirection: "row", alignItems: "flex-end" }}>
+          <Svg width={96} height={56} viewBox="0 0 96 56">
+            <Rect x={8} y={20} width={80} height={6} rx={3} fill={WOOD} />
+            <Rect x={12} y={-2} width={16} height={22} rx={2} fill={SPINE_COLORS[0]} />
+            <Rect x={30} y={-6} width={16} height={26} rx={2} fill={SPINE_COLORS[1]} />
+            <Rect x={48} y={0} width={16} height={20} rx={2} fill={SPINE_COLORS[2]} />
+            <Rect x={66} y={-4} width={16} height={24} rx={2} fill={SPINE_COLORS[4]} />
+          </Svg>
+        </View>
+        <View style={{ position: "absolute", left: "48%", top: 0, bottom: 0, width: 4, backgroundColor: WOOD_DARK }} />
+      </View>
+      <View style={{ width: 130, height: 6, borderRadius: 3, backgroundColor: WOOD, marginTop: -2 }} />
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Display window</Text>
+    </View>
+  );
+}
+
+/** A warm wall sconce — L3 only. */
+function WallSconce({ delay = 0 }: { delay?: number }) {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 6 }}>
+      <View style={{ position: "absolute", top: -2 }}>
+        <SoftPulse duration={2000 + delay}>
+          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#FFD98A", opacity: 0.5 }} />
+        </SoftPulse>
+      </View>
+      <Svg width={22} height={26} viewBox="0 0 22 26">
+        <Rect x={4} y={2} width={14} height={16} rx={3} fill="#D9A441" />
+        <Rect x={9} y={18} width={4} height={8} fill={WOOD_DARK} />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Sconce</Text>
+    </View>
+  );
+}
+
 export default function BookstoreInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastBrowse, setLastBrowse] = useState(0);
@@ -206,12 +291,12 @@ export default function BookstoreInteriorScreen() {
   void addCoins;
   const remaining = Math.max(0, lastBrowse + BROWSE_COOLDOWN_MS - Date.now());
   const browseXp = BROWSE_XP[level];
-  const browsers = pickPeople(people, `bookstore|${building?.id ?? "book"}`, 2);
-  const readers = pickPeople(people, `bookstore-readers|${building?.id ?? "book"}`, 2);
+  const browsers = pickPeople(people, `bookstore|${building?.id ?? "book"}`, level >= 3 ? 3 : 2);
+  const readers = pickPeople(people, `bookstore-readers|${building?.id ?? "book"}`, level >= 3 ? 3 : 2);
 
   const levelBlurb =
     level >= 3
-      ? "A grand bookshop — shelves to the ceiling, a crackling fireplace nook."
+      ? "A beautiful bookshop — shelves to the ceiling, a glowing display window, a staff-picks table, and a fireside nook."
       : level >= 2
         ? "A growing shop — reading chairs, a warm lamp, more shelves."
         : "A small shop — a couple of shelves and a quiet corner.";
@@ -249,6 +334,7 @@ export default function BookstoreInteriorScreen() {
               <Chandelier />
             </View>
           )}
+          {level >= 3 && <BestsellerBanner />}
           {/* shelves row */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingHorizontal: 12, paddingTop: 14 }}>
             {level >= 2 && <Ladder />}
@@ -266,6 +352,16 @@ export default function BookstoreInteriorScreen() {
             )}
           </View>
 
+          {/* L3 showcase row: staff-picks table, display window, sconces */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 14, marginTop: 10 }}>
+              <WallSconce />
+              <FeatureTable />
+              <StorefrontWindow />
+              <WallSconce delay={500} />
+            </View>
+          )}
+
           {/* villagers browsing the shelves */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 2 }}>
             {browsers.map((p, i) => (
@@ -277,6 +373,13 @@ export default function BookstoreInteriorScreen() {
               </Text>
             )}
           </View>
+
+          {/* warm rug under the L3 reading nook */}
+          {level >= 3 && (
+            <View style={{ alignItems: "center", marginTop: 8 }}>
+              <View style={{ width: "84%", height: 12, borderRadius: 6, backgroundColor: "#B4593A", borderWidth: 2, borderColor: "#D9A441" }} />
+            </View>
+          )}
 
           {/* reading nook: chairs + lamp (L2+) and seated readers */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 10, paddingBottom: 6 }}>
@@ -301,9 +404,9 @@ export default function BookstoreInteriorScreen() {
             )}
           </View>
 
-          {/* floor */}
-          <View style={{ height: 26, backgroundColor: "#E3D3B4" }}>
-            <View style={{ height: 3, backgroundColor: "#D3BF9C" }} />
+          {/* floor — polished wood with a gold trim at L3 */}
+          <View style={{ height: 26, backgroundColor: level >= 3 ? "#EAD9B8" : "#E3D3B4" }}>
+            <View style={{ height: 3, backgroundColor: level >= 3 ? "#C9963C" : "#D3BF9C" }} />
           </View>
         </View>
 

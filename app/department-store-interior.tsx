@@ -3,14 +3,16 @@
 // and ride the escalator; the pawn greets by the directory.
 // "Greet Shoppers" grants coins + XP on a 1-hour cooldown.
 // L1: 2 departments, plain. L2: 3 departments, directory sign, plants.
-// L3: 4 departments, grand chandelier, marble floor, banners.
+// L3: a true luxury emporium — six departments, a jewelry salon with a glowing
+// display case, velvet ropes, marble columns, a grand chandelier, banners,
+// and marble underfoot.
 // No emojis — SVG art and MaterialIcons only. Gentle sine-ease motion.
 
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -44,6 +46,8 @@ const DEPTS: Dept[] = [
   { name: "Home", icon: "home", color: "#0E7C86" },
   { name: "Toys", icon: "toys", color: "#D96C47" },
   { name: "Electronics", icon: "tv", color: "#2563EB" },
+  { name: "Jewelry", icon: "diamond", color: "#C9963C" },
+  { name: "Cosmetics", icon: "spa", color: "#EC4899" },
 ];
 
 /** Escalator with steps; shoppers ride on it. */
@@ -179,6 +183,66 @@ function Plant() {
   );
 }
 
+/** A glowing jewelry display case — L3 only. */
+function JewelryCase() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <SoftPulse duration={1700}>
+        <Svg width={112} height={66} viewBox="0 0 112 66">
+          <Rect x={2} y={32} width={108} height={32} rx={5} fill="#4B2E14" />
+          <Rect x={6} y={4} width={100} height={32} rx={5} fill="#E0F2FE" opacity={0.4} stroke={GOLD} strokeWidth={2} />
+          <Rect x={10} y={20} width={92} height={3} fill={GOLD} opacity={0.6} />
+          {/* jewels on velvet */}
+          {[
+            { x: 30, c: "#F472B6" }, { x: 56, c: "#22D3EE" }, { x: 82, c: "#A78BFA" },
+          ].map(({ x, c }) => (
+            <G key={x}>
+              <Ellipse cx={x} cy={30} rx={9} ry={4} fill="#7C2D12" opacity={0.7} />
+              <Circle cx={x} cy={22} r={7} fill={c} />
+              <Circle cx={x - 2} cy={19.5} r={2} fill="#FFFFFF" opacity={0.85} />
+            </G>
+          ))}
+        </Svg>
+      </SoftPulse>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Fine jewelry</Text>
+    </View>
+  );
+}
+
+/** Velvet-rope stanchions for the grand concourse — L3 only. */
+function VelvetRope() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 4 }}>
+      <Svg width={120} height={60} viewBox="0 0 120 60">
+        <Path d="M14 12 C40 34 80 34 106 12" stroke="#B91C1C" strokeWidth={5} fill="none" strokeLinecap="round" />
+        {[14, 106].map((x) => (
+          <G key={x}>
+            <Circle cx={x} cy={8} r={4} fill={GOLD} />
+            <Rect x={x - 2.5} y={8} width={5} height={38} fill={GOLD} />
+            <Rect x={x - 12} y={44} width={24} height={7} rx={3.5} fill="#8A6D1C" />
+          </G>
+        ))}
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>VIP entrance</Text>
+    </View>
+  );
+}
+
+/** A marble column for the grand concourse — L3 only. */
+function MarbleColumn() {
+  return (
+    <View style={{ alignItems: "center", marginHorizontal: 6 }}>
+      <Svg width={30} height={132} viewBox="0 0 30 132">
+        <Rect x={2} y={0} width={26} height={9} rx={2} fill={GOLD} />
+        <Rect x={6} y={9} width={18} height={110} fill="#F5F3FF" stroke="#DDD6FE" strokeWidth={1} />
+        <Rect x={10} y={9} width={4} height={110} fill="#EDE9FE" />
+        <Rect x={18} y={9} width={4} height={110} fill="#EDE9FE" opacity={0.6} />
+        <Rect x={2} y={119} width={26} height={13} rx={2} fill={GOLD} />
+      </Svg>
+    </View>
+  );
+}
+
 export default function DepartmentStoreInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastGreet, setLastGreet] = useState(0);
@@ -191,13 +255,14 @@ export default function DepartmentStoreInteriorScreen() {
   }, []);
 
   const remaining = Math.max(0, lastGreet + COOLDOWN_MS - Date.now());
-  const depts = DEPTS.slice(0, level >= 3 ? 4 : level >= 2 ? 3 : 2);
-  const shoppers = pickPeople(people, `dept|${building?.id ?? "dept"}|shop`, 5);
+  const depts = DEPTS.slice(0, level >= 3 ? 6 : level >= 2 ? 3 : 2);
+  const shoppers = pickPeople(people, `dept|${building?.id ?? "dept"}|shop`, level >= 3 ? 7 : 5);
   const onEscalator = pickPeople(people, `dept|${building?.id ?? "dept"}|esc`, 2);
+  const extraShopper = level >= 3 ? shoppers[6] : shoppers[3];
 
   const levelBlurb =
     level >= 3
-      ? "A grand emporium — four departments, a chandelier, banners, and marble underfoot."
+      ? "A true luxury emporium — six departments, a jewelry salon, velvet ropes, marble columns, and marble underfoot."
       : level >= 2
         ? "A fine department store — three departments, a directory, and greenery."
         : "A modest shop — two departments, but everything's neatly stocked.";
@@ -288,6 +353,16 @@ export default function DepartmentStoreInteriorScreen() {
             ))}
           </View>
 
+          {/* L3 luxury concourse: marble columns, jewelry salon, velvet ropes */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 10 }}>
+              <MarbleColumn />
+              <JewelryCase />
+              <VelvetRope />
+              <MarbleColumn />
+            </View>
+          )}
+
           {/* pawn greeting by the directory */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8 }}>
             {level >= 2 && <Directory />}
@@ -304,9 +379,9 @@ export default function DepartmentStoreInteriorScreen() {
             )}
             {level >= 2 && <Plant />}
             {level >= 3 && <Plant />}
-            {shoppers[3] && (
+            {extraShopper && (
               <GentleBob delay={700}>
-                <StandingFigure person={shoppers[3]} delay={700} icon="shopping-cart" iconColor={ACCENT} showLabel />
+                <StandingFigure person={extraShopper} delay={700} icon="shopping-cart" iconColor={ACCENT} showLabel />
               </GentleBob>
             )}
           </View>
@@ -317,7 +392,7 @@ export default function DepartmentStoreInteriorScreen() {
             {level >= 3 && (
               <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 5 }}>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <View key={i} style={{ width: 40, height: 8, backgroundColor: "#F5F3FF", marginHorizontal: 3, borderRadius: 2, opacity: 0.8 }} />
+                  <View key={i} style={{ width: 40, height: 8, backgroundColor: "#F5F3FF", marginHorizontal: 3, borderRadius: 2, opacity: 0.8, borderBottomWidth: 2, borderBottomColor: GOLD }} />
                 ))}
               </View>
             )}
@@ -331,7 +406,7 @@ export default function DepartmentStoreInteriorScreen() {
           level={level}
           onUpgrade={() =>
             handleUpgrade(
-              level + 1 >= 3 ? "Four departments, a grand chandelier, banners, and marble floors." : "Three departments, a directory sign, and plants."
+              level + 1 >= 3 ? "Six departments, a jewelry salon, velvet ropes, marble columns, and marble floors." : "Three departments, a directory sign, and plants."
             )
           }
         />

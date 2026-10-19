@@ -1,5 +1,9 @@
 // Apartment Complex interior: a warm lobby. Villagers check their mail and
-// chat in the lounge. "Visit Neighbors" grants XP + a few coins on a 1-hour
+// chat in the lounge. L1: a simple lobby. L2: a bulletin board, plants, a
+// cozy lounge. L3: luxury residences — marble underfoot, grand entrance
+// doors, a brushed-gold elevator, a gilt gallery wall, a concierge desk, a
+// grand chandelier, a garden view, a lounge hearth, and tall lobby palms.
+// "Visit Neighbors" grants XP + a few coins on a 1-hour
 // cooldown. No emojis — SVG art and MaterialIcons only.
 
 import { useEffect, useState } from "react";
@@ -16,6 +20,7 @@ import {
 import {
   GentleBob,
   SeatedFigure,
+  SoftPulse,
   StandingFigure,
   pickPeople,
 } from "@/components/activity-figures";
@@ -30,6 +35,7 @@ const CARD = "#FFFFFF";
 const TERRA = "#B4593A"; // terracotta
 const TERRA_DARK = "#8C3F28";
 const WOOD = "#8B5E34";
+const WOOD_DARK = "#5E3D22";
 const GREEN = "#5B8A5E";
 const GREEN_LIGHT = "#6FA372";
 const TEXT = "#3A2E26";
@@ -247,6 +253,113 @@ function Fern({ delay = 0 }: { delay?: number }) {
   );
 }
 
+/** Grand double entrance doors — L3 only. */
+function GrandDoors() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={112} height={98} viewBox="0 0 112 98">
+        <Rect x={0} y={0} width={112} height={98} rx={6} fill={WOOD_DARK} />
+        <Rect x={6} y={6} width={100} height={86} rx={4} fill={WOOD} />
+        <Rect x={12} y={12} width={41} height={74} rx={3} fill="#A9713F" />
+        <Rect x={59} y={12} width={41} height={74} rx={3} fill="#A9713F" />
+        {/* glass panes */}
+        <Rect x={20} y={20} width={25} height={28} rx={3} fill="#BAE6FD" opacity={0.8} />
+        <Rect x={67} y={20} width={25} height={28} rx={3} fill="#BAE6FD" opacity={0.8} />
+        <Line x1={56} y1={12} x2={56} y2={86} stroke={WOOD_DARK} strokeWidth={3} />
+        {/* gold handles */}
+        <Circle cx={51} cy={58} r={3.5} fill="#C9A227" />
+        <Circle cx={61} cy={58} r={3.5} fill="#C9A227" />
+        {/* panels */}
+        <Rect x={20} y={56} width={25} height={22} rx={2} fill="#8B5E34" />
+        <Rect x={67} y={56} width={25} height={22} rx={2} fill="#8B5E34" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Grand entrance</Text>
+    </View>
+  );
+}
+
+/** Brushed-gold elevator doors — L3 only. */
+function ElevatorDoors() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={86} height={102} viewBox="0 0 86 102">
+        <Rect x={0} y={0} width={86} height={102} rx={6} fill="#8A6D1C" />
+        <Rect x={6} y={6} width={74} height={90} rx={4} fill="#C9A227" />
+        <Rect x={10} y={10} width={31} height={82} fill="#D9B94A" />
+        <Rect x={45} y={10} width={31} height={82} fill="#C1A03A" />
+        <Line x1={43} y1={10} x2={43} y2={92} stroke="#8A6D1C" strokeWidth={2} />
+        <Rect x={35} y={0} width={16} height={8} rx={2} fill={TERRA} />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Elevator</Text>
+    </View>
+  );
+}
+
+/** Gilt-framed art on the lobby wall — L3 only. */
+function GiltFrames() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ flexDirection: "row" }}>
+        {[0, 1].map((i) => (
+          <View key={i} style={{ width: 58, height: 72, borderRadius: 4, backgroundColor: "#EFF6FF", borderWidth: 5, borderColor: "#C9A227", marginHorizontal: 5, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            <Svg width={42} height={52} viewBox="0 0 42 52">
+              <Circle cx={29} cy={12} r={7} fill="#F59E0B" />
+              <Rect x={4} y={32} width={34} height={16} fill="#7FB069" />
+              <Path d="M4 36 C12 24 20 36 28 26 C32 22 36 26 38 22" stroke="#2E7D32" strokeWidth={3} fill="none" />
+            </Svg>
+          </View>
+        ))}
+      </View>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Gallery wall</Text>
+    </View>
+  );
+}
+
+/** A tall lobby palm — L3 only. */
+function PalmPlanter({ delay = 0 }: { delay?: number }) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <GentleBob delay={delay} amount={2}>
+        <Svg width={62} height={98} viewBox="0 0 62 98">
+          <Path d="M31 72 C31 52 31 40 31 28" stroke="#7A5230" strokeWidth={5} fill="none" />
+          <Path d="M31 32 C19 24 9 24 3 30 C13 34 23 36 31 36" fill={GREEN} />
+          <Path d="M31 32 C43 24 53 24 59 30 C49 34 39 36 31 36" fill={GREEN_LIGHT} />
+          <Path d="M31 28 C23 16 15 14 9 18 C17 24 25 28 31 30" fill={GREEN_LIGHT} />
+          <Path d="M31 28 C39 16 47 14 53 18 C45 24 37 28 31 30" fill={GREEN} />
+          <Path d="M31 26 C29 18 29 12 31 6" stroke={GREEN} strokeWidth={4} fill="none" />
+        </Svg>
+      </GentleBob>
+      <View style={{ width: 30, height: 20, borderRadius: 4, backgroundColor: "#8C3F28", marginTop: -4 }} />
+      <View style={{ width: 38, height: 6, borderRadius: 3, backgroundColor: "#C9A227", marginTop: -2 }} />
+    </View>
+  );
+}
+
+/** A marble fireplace in the lounge — L3 only. */
+function LoungeFireplace() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={92} height={68} viewBox="0 0 92 68">
+        <Rect x={0} y={0} width={92} height={68} rx={6} fill="#E8E0D4" stroke="#C9A227" strokeWidth={2} />
+        <Rect x={21} y={19} width={50} height={41} rx={4} fill="#2B1D12" />
+        <Rect x={-4} y={0} width={100} height={9} rx={3} fill="#C9BFA8" />
+      </Svg>
+      <View style={{ position: "absolute", bottom: 8 }}>
+        <GentleBob amount={1.5}>
+          <SoftPulse duration={900}>
+            <Svg width={28} height={34} viewBox="0 0 28 34">
+              <Ellipse cx={14} cy={26} rx={10} ry={7} fill="#F59E0B" opacity={0.85} />
+              <Ellipse cx={14} cy={22} rx={6} ry={9} fill="#FBBF24" />
+              <Ellipse cx={14} cy={23} rx={3} ry={5} fill="#FEF3C7" />
+            </Svg>
+          </SoftPulse>
+        </GentleBob>
+      </View>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Lounge hearth</Text>
+    </View>
+  );
+}
+
 export default function ApartmentsInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastVisit, setLastVisit] = useState(0);
@@ -267,7 +380,7 @@ export default function ApartmentsInteriorScreen() {
 
   const levelBlurb =
     level >= 3
-      ? "A concierge desk, a garden view, and neighbors who linger."
+      ? "Luxury residences — marble underfoot, a grand entrance, a gilt gallery, a concierge, and a warm hearth."
       : level >= 2
         ? "Notes on the board, plants by the door, friendly faces."
         : "A simple lobby where neighbors wave hello.";
@@ -321,6 +434,14 @@ export default function ApartmentsInteriorScreen() {
             {level >= 3 && <GardenWindow />}
           </View>
 
+          {/* L3 grand entrance: double doors + gold elevator */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 14, marginTop: 10 }}>
+              <GrandDoors />
+              <ElevatorDoors />
+            </View>
+          )}
+
           {/* the pawn checking the board, a neighbor grabbing mail */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 10 }}>
             {neighbors[0] && <StandingFigure person={neighbors[0]} delay={200} icon="mail" iconColor={TERRA} />}
@@ -337,6 +458,13 @@ export default function ApartmentsInteriorScreen() {
           {/* concierge (L3) */}
           {level >= 3 && <ConciergeDesk />}
 
+          {/* gilt gallery wall (L3) */}
+          {level >= 3 && (
+            <View style={{ alignItems: "center", marginTop: 10 }}>
+              <GiltFrames />
+            </View>
+          )}
+
           {/* rug (L2+) + lounge with chatting neighbors */}
           {level >= 2 && (
             <View style={{ alignItems: "center", marginTop: 6 }}>
@@ -344,7 +472,15 @@ export default function ApartmentsInteriorScreen() {
               <View style={{ width: "68%", height: 8, borderRadius: 4, backgroundColor: "#E4A88C", marginTop: -12, opacity: 0.7 }} />
             </View>
           )}
-          {level >= 2 && <LoungeCorner level={level} />}
+          {level >= 2 && level < 3 && <LoungeCorner level={level} />}
+          {/* L3: lounge hearth beside the lounge */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8 }}>
+              <LoungeFireplace />
+              <View style={{ width: 14 }} />
+              <LoungeCorner level={level} />
+            </View>
+          )}
           {level >= 2 && (neighbors[1] || neighbors[2]) && (
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: level >= 3 ? 4 : -2, paddingBottom: 6 }}>
               {/* little chat bubbles above the chatters */}
@@ -356,17 +492,22 @@ export default function ApartmentsInteriorScreen() {
             </View>
           )}
 
-          {/* plants row (L2+) */}
+          {/* plants row (L2+) — tall lobby palms at L3 */}
           {level >= 2 && (
-            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 36, marginTop: 4 }}>
-              <Fern delay={500} />
-              <Fern delay={800} />
+            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 30, marginTop: 4 }}>
+              {level >= 3 ? <PalmPlanter delay={300} /> : <Fern delay={500} />}
+              {level >= 3 ? <PalmPlanter delay={700} /> : <Fern delay={800} />}
             </View>
           )}
 
-          {/* floor */}
-          <View style={{ height: 26, backgroundColor: "#EBDCC2", marginTop: 8 }}>
-            <View style={{ height: 3, backgroundColor: "#DECBA6" }} />
+          {/* floor — marble with a red-carpet runner at L3 */}
+          <View style={{ height: level >= 3 ? 36 : 26, backgroundColor: level >= 3 ? "#F5F0E6" : "#EBDCC2", marginTop: 8 }}>
+            <View style={{ height: 3, backgroundColor: level >= 3 ? "#E2D5BC" : "#DECBA6" }} />
+            {level >= 3 && (
+              <View style={{ alignItems: "center", marginTop: 7 }}>
+                <View style={{ width: "74%", height: 14, borderRadius: 7, backgroundColor: "#8C3F28", borderWidth: 2, borderColor: "#C9A227" }} />
+              </View>
+            )}
           </View>
         </View>
 
@@ -375,7 +516,7 @@ export default function ApartmentsInteriorScreen() {
           onPrimary={handleVisit}
           primaryColor={TERRA}
           level={level}
-          onUpgrade={() => handleUpgrade(level + 1 >= 3 ? "A concierge desk, a garden view, and a chandelier." : "A bulletin board, plants, and a cozy lounge.")}
+          onUpgrade={() => handleUpgrade(level + 1 >= 3 ? "Marble floors, a grand entrance, an elevator, a gallery wall, a concierge, and a lounge hearth." : "A bulletin board, plants, and a cozy lounge.")}
         />
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           A visit brings the community closer — and earns XP. Refreshes in an hour.

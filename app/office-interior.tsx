@@ -1,6 +1,9 @@
 // Office Tower interior: a modern office. Villagers type away at their
-// desks, the pawn helps with the whiteboard. "Help with Paperwork" grants
-// coins + XP on a 1-hour cooldown.
+// desks, the pawn helps with the whiteboard. L1: two desks, plain. L2: four
+// desks, a whiteboard, a plant. L3: executive suites — six sleek desks with
+// frosted glass partitions, skyline windows, glowing ceiling panels, a meeting
+// room, a corner office with an executive desk, a coffee station, and a wall
+// of awards. "Help with Paperwork" grants coins + XP on a 1-hour cooldown.
 // No emojis — SVG art and MaterialIcons only.
 
 import { useEffect, useState } from "react";
@@ -16,6 +19,7 @@ import {
 } from "@/components/interior-shell";
 import {
   GentleBob,
+  SoftPulse,
   WorkingFigure,
   pickPeople,
 } from "@/components/activity-figures";
@@ -204,6 +208,86 @@ function DeskPlant({ delay = 0 }: { delay?: number }) {
   );
 }
 
+/** Sleek glowing ceiling panels — L3 only. */
+function CeilingPanels() {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-evenly", paddingTop: 8 }}>
+      {[0, 1, 2].map((i) => (
+        <SoftPulse key={i} duration={2400 + i * 300}>
+          <View style={{ width: 72, height: 12, borderRadius: 6, backgroundColor: "#DBEAFE", borderWidth: 2, borderColor: "#93C5FD" }} />
+        </SoftPulse>
+      ))}
+    </View>
+  );
+}
+
+/** A frosted glass partition between workstations — L3 only. */
+function GlassDivider() {
+  return (
+    <View style={{ width: 7, height: 66, backgroundColor: "#BAE6FD", opacity: 0.55, borderRadius: 3, marginHorizontal: 1, alignSelf: "flex-end", marginBottom: 30 }} />
+  );
+}
+
+/** The corner office — executive desk and leather chair, L3 only. */
+function ExecutiveDesk() {
+  return (
+    <View style={{ alignItems: "center", marginTop: 10 }}>
+      <Text style={{ fontSize: 10, fontWeight: "800", color: BLUE, letterSpacing: 2, marginBottom: 4 }}>CORNER OFFICE</Text>
+      <Svg width={172} height={76} viewBox="0 0 172 76">
+        {/* desk */}
+        <Rect x={10} y={30} width={152} height={12} rx={5} fill={SLATE_DARK} />
+        <Rect x={10} y={30} width={152} height={5} rx={2.5} fill="#475569" />
+        <Rect x={18} y={42} width={10} height={28} fill={SLATE_DARK} />
+        <Rect x={144} y={42} width={10} height={28} fill={SLATE_DARK} />
+        {/* nameplate + desk lamp + papers */}
+        <Rect x={71} y={18} width={30} height={12} rx={2} fill="#C9963C" />
+        <Rect x={30} y={14} width={10} height={16} rx={2} fill={BLUE} />
+        <Rect x={122} y={20} width={24} height={10} rx={1.5} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth={1} />
+        {/* leather chair */}
+        <Rect x={73} y={44} width={26} height={22} rx={8} fill="#7C2D12" />
+        <Rect x={77} y={66} width={18} height={4} fill="#7C2D12" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Executive suite</Text>
+    </View>
+  );
+}
+
+/** The break-room coffee station — L3 only. */
+function CoffeeStation() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <Svg width={64} height={64} viewBox="0 0 64 64">
+        <Rect x={10} y={4} width={44} height={6} rx={3} fill="#64748B" />
+        <Rect x={10} y={12} width={9} height={12} rx={2} fill="#FFFFFF" stroke="#94A3B8" strokeWidth={1} />
+        <Rect x={24} y={12} width={9} height={12} rx={2} fill="#DBEAFE" stroke="#94A3B8" strokeWidth={1} />
+        <Rect x={38} y={12} width={9} height={12} rx={2} fill="#FEF3C7" stroke="#94A3B8" strokeWidth={1} />
+        <Rect x={6} y={26} width={52} height={32} rx={5} fill={SLATE} />
+        <Rect x={12} y={32} width={20} height={12} rx={2} fill="#0F172A" />
+        <Rect x={40} y={30} width={10} height={18} rx={3} fill="#E2E8F0" />
+      </Svg>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Coffee</Text>
+    </View>
+  );
+}
+
+/** Framed awards on the wall — L3 only. */
+function AwardWall() {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ flexDirection: "row" }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ width: 44, height: 58, borderRadius: 4, backgroundColor: "#FFFFFF", borderWidth: 4, borderColor: "#C9963C", marginHorizontal: 4, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="workspace-premium" size={18} color={BLUE} />
+            <View style={{ width: 24, height: 3, backgroundColor: "#CBD5E1", borderRadius: 1.5, marginTop: 3 }} />
+            <View style={{ width: 16, height: 3, backgroundColor: "#E2E8F0", borderRadius: 1.5, marginTop: 2 }} />
+          </View>
+        ))}
+      </View>
+      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Awards</Text>
+    </View>
+  );
+}
+
 export default function OfficeInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastPaperwork, setLastPaperwork] = useState(0);
@@ -226,7 +310,7 @@ export default function OfficeInteriorScreen() {
 
   const levelBlurb =
     level >= 3
-      ? "Six desks, skyline windows, and a real meeting room."
+      ? "Executive suites — glass partitions, skyline windows, a corner office, awards, and a real meeting room."
       : level >= 2
         ? "More desks, a whiteboard, and growing plans."
         : "A quiet two-desk office getting off the ground.";
@@ -279,13 +363,19 @@ export default function OfficeInteriorScreen() {
         >
           <WindowBand level={level} />
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="office" />
+          {level >= 3 && <CeilingPanels />}
 
-          {/* side row: whiteboard (L2+) with the pawn, art (L3), plant */}
+          {/* side row: whiteboard (L2+) with the pawn, awards (L3), art (L3), plant */}
           <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingHorizontal: 12 }}>
             {level >= 2 ? (
               <Whiteboard pawn={pawnChip} />
             ) : (
               <View style={{ alignItems: "center", marginTop: 14 }}>{pawnChip}</View>
+            )}
+            {level >= 3 && (
+              <View style={{ marginTop: 12 }}>
+                <AwardWall />
+              </View>
             )}
             {level >= 3 && (
               <View style={{ marginTop: 12 }}>
@@ -300,7 +390,7 @@ export default function OfficeInteriorScreen() {
             )}
           </View>
 
-          {/* workstations — 2 / 4 / 6 by level */}
+          {/* workstations — 2 / 4 / 6 by level, with glass partitions at L3 */}
           <View
             style={{
               flexDirection: "row",
@@ -311,15 +401,37 @@ export default function OfficeInteriorScreen() {
             }}
           >
             {Array.from({ length: deskCount }).map((_, i) => (
-              <Workstation key={i} person={workers[i] ?? null} delay={i * 220} deskColor={deskColor} />
+              <View key={i} style={{ flexDirection: "row", alignItems: "flex-end" }}>
+                <Workstation person={workers[i] ?? null} delay={i * 220} deskColor={deskColor} />
+                {level >= 3 && i < deskCount - 1 && <GlassDivider />}
+              </View>
             ))}
           </View>
 
           {level >= 3 && <ConferenceTable />}
 
-          {/* floor */}
-          <View style={{ height: 26, backgroundColor: "#D8E2EC", marginTop: 8 }}>
-            <View style={{ height: 3, backgroundColor: "#C2D0DE" }} />
+          {/* L3 executive row: corner office, coffee station, greenery */}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 16, marginTop: 8 }}>
+              <ExecutiveDesk />
+              <CoffeeStation />
+            </View>
+          )}
+          {level >= 3 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-evenly", alignItems: "flex-end", marginTop: 10, paddingBottom: 4 }}>
+              <DeskPlant delay={200} />
+              <DeskPlant delay={600} />
+              <DeskPlant delay={1000} />
+              <DeskPlant delay={1400} />
+            </View>
+          )}
+
+          {/* floor — polished with a shine strip at L3 */}
+          <View style={{ height: level >= 3 ? 32 : 26, backgroundColor: "#D8E2EC", marginTop: 8 }}>
+            <View style={{ height: 3, backgroundColor: level >= 3 ? "#93C5FD" : "#C2D0DE" }} />
+            {level >= 3 && (
+              <View style={{ height: 6, marginTop: 7, marginHorizontal: 48, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.55 }} />
+            )}
           </View>
         </View>
 

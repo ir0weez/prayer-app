@@ -553,6 +553,13 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-city-16", x: 6, y: 14, buildingType: "museum",        cost: 750, name: "Museum Quarter Lot" },
   { id: "plot-city-17", x: 0, y: 16, buildingType: "clock-tower",   cost: 650, name: "Clock Tower Green" },
   { id: "plot-city-18", x: 3, y: 16, buildingType: "embassy",       cost: 700, name: "Embassy Row Lot" },
+  // Midtown Terrace (y=9) — fills the empty rows between Theater District
+  // and the southern expansion. All unlock & upgrade, no free placement.
+  { id: "plot-city-19", x: 0, y: 9, buildingType: "apartments", cost: 650, name: "Midtown Residences" },
+  { id: "plot-city-20", x: 3, y: 9, buildingType: "office",     cost: 600, name: "Midtown Offices" },
+  { id: "plot-city-21", x: 6, y: 9, buildingType: "hotel",       cost: 625, name: "Midtown Hotel" },
+  // Harbor Terrace east (y=16) — the "future growth" area on the south terrace.
+  { id: "plot-city-22", x: 6, y: 16, buildingType: "department-store", cost: 700, name: "Harbor Retail Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -1411,6 +1418,15 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 130, name: "Apothecary", presetType: "apothecary" },
   { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["town-hall"], cost: 250, name: "Town Hall", presetType: "town-hall" },
   { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["post-office"], cost: 90, name: "Post Office", presetType: "post-office" },
+  // Southgate — fills the gap between the hospital/amphitheater row (y14-15)
+  // and the hub district. All preset lots: unlock & upgrade, no designing.
+  { id: "town-lot-s15", x: 2, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Southgate West", presetType: "pizza-place" },
+  { id: "town-lot-s16", x: 6, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Southgate East", presetType: "sushi-bar" },
+  // Pilgrim's Rest — fills the gap between the hub district (ends y24) and
+  // Artisans' Way (y27). A rest stop for travelers on Pilgrim's Way.
+  { id: "town-lot-p1", x: 0, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 85, name: "Pilgrim's Way West", presetType: "burger-joint" },
+  { id: "town-lot-p2", x: 3, y: 25, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 90, name: "Pilgrim Fountain", presetType: "fountain-plaza" },
+  { id: "town-lot-p3", x: 5, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 85, name: "Pilgrim's Way East", presetType: "taco-stand" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */

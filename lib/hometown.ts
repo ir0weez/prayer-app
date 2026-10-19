@@ -133,7 +133,20 @@ export type BuildingType =
   | "fountain-plaza"
   // Hospital (town): care for the town. The pawn goes here for doctor
   // appointments; a checkup grants a healing blessing for Dark Forest battles.
-  | "hospital";
+  | "hospital"
+  // Artisans' Row (town): artisan services along Artisans' Way, in the
+  // southern extension below the hub district. All preset lots — unlock &
+  // upgrade only, no designing. All have enterable interiors.
+  | "inn"          // lodging: villagers rest, the pawn greets guests
+  | "carpenter"    // woodworking shop: sawing, hammering, built furniture
+  | "pottery"      // pottery studio: wheels, kiln, shaped clay
+  | "music-hall"   // music hall: villagers play instruments (XP earner)
+  | "tailor"       // tailor: sewing, fabric bolts, fitting room
+  | "observatory"  // observatory: telescope, star charts (XP earner)
+  | "bathhouse"    // bathhouse: steam, pools, restful waters
+  | "apothecary"   // apothecary: herbs, potions, brewed remedies
+  | "town-hall"    // civic center: grand hall, assemblies, notice board
+  | "post-office"; // mail: letters, parcels, the villager clerk's counter
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -417,6 +430,18 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // here for doctor appointments, and a checkup grants a healing blessing
   // for the next Dark Forest battle (bigger blessing at higher levels).
   "hospital": { name: "Hospital", icon: "", cost: 250, tier: 2, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +3 coins/day." },
+  // Artisans' Row — artisan services in the southern extension. Icons are
+  // drawn as SVG in the art switch, not emoji, so defs use empty icons.
+  "inn":         { name: "Wayside Inn",       icon: "", cost: 120, tier: 1, incomePerDay: 6,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +6 coins/day." },
+  "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 110, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +4 coins/day." },
+  "pottery":     { name: "Pottery Studio",    icon: "", cost: 100, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +4 coins/day." },
+  "music-hall":  { name: "Music Hall",         icon: "", cost: 160, tier: 1, incomePerDay: 0,  xpPerDay: 35, maps: ["town"], description: "Song rises from the hall — instruments, voices, and joy. Villagers play here. +35 XP/day." },
+  "tailor":      { name: "Tailor",             icon: "", cost: 100, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "Clothes cut and sewn to measure. Bolts of fabric, needles flashing. +4 coins/day." },
+  "observatory": { name: "Observatory",        icon: "", cost: 200, tier: 2, incomePerDay: 0,  xpPerDay: 45, maps: ["town"], description: "A dome under the open sky. Villagers chart the stars the Lord set in place. +45 XP/day." },
+  "bathhouse":   { name: "Bathhouse",          icon: "", cost: 150, tier: 1, incomePerDay: 3,  xpPerDay: 0,  maps: ["town"], description: "Steam and warm pools for the weary. Rest in the waters and be refreshed. +3 coins/day." },
+  "apothecary":  { name: "Apothecary",         icon: "", cost: 130, tier: 1, incomePerDay: 5,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +5 coins/day." },
+  "town-hall":   { name: "Town Hall",          icon: "", cost: 250, tier: 2, incomePerDay: 10, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +10 coins/day." },
+  "post-office": { name: "Post Office",        icon: "", cost: 90,  tier: 1, incomePerDay: 3,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +3 coins/day." },
 };
 
 // ---- Hospital: the Doctor's Blessing (healing buff for Dark Forest) ----
@@ -1349,6 +1374,20 @@ export const TOWN_LOTS: TownLot[] = [
   // extension. Served by Southgate Lane, linked to Chapel Avenue.
   { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 120, name: "Healing Hills", presetType: "hospital" },
   { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 150, name: "Starlight Green", presetType: "amphitheater" },
+  // Artisans' Row — five artisan services on Artisans' Way, the craft street
+  // below the hub district. Preset lots: unlock & upgrade, no designing.
+  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["inn"], cost: 120, name: "Wayside Inn", presetType: "inn" },
+  { id: "town-lot-carpenter", x: 2, y: 28, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 110, name: "Carpenter's Workshop", presetType: "carpenter" },
+  { id: "town-lot-pottery", x: 4, y: 28, w: 2, h: 2, allowedTypes: ["pottery"], cost: 100, name: "Pottery Studio", presetType: "pottery" },
+  { id: "town-lot-musichall", x: 6, y: 28, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 160, name: "Music Hall", presetType: "music-hall" },
+  { id: "town-lot-tailor", x: 8, y: 28, w: 2, h: 2, allowedTypes: ["tailor"], cost: 100, name: "Tailor", presetType: "tailor" },
+  // Artisans' Row, south side — the observatory, bathhouse, apothecary,
+  // town hall, and post office. Preset lots: unlock & upgrade, no designing.
+  { id: "town-lot-observatory", x: 0, y: 31, w: 2, h: 2, allowedTypes: ["observatory"], cost: 200, name: "Observatory", presetType: "observatory" },
+  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["bathhouse"], cost: 150, name: "Bathhouse", presetType: "bathhouse" },
+  { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 130, name: "Apothecary", presetType: "apothecary" },
+  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["town-hall"], cost: 250, name: "Town Hall", presetType: "town-hall" },
+  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["post-office"], cost: 90, name: "Post Office", presetType: "post-office" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
@@ -1394,6 +1433,17 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Hub connector — north-south link between the landmark rows
   { x: 2, y: 17 }, { x: 2, y: 19 }, { x: 2, y: 20 },
   { x: 2, y: 22 }, { x: 2, y: 23 }, { x: 2, y: 25 },
+  // Artisans' Spur — drops below the hub district to Artisans' Way
+  { x: 2, y: 26 },
+  // Artisans' Way — the craft street above the north Artisans' Row lots
+  { x: 0, y: 27 }, { x: 1, y: 27 }, { x: 2, y: 27 }, { x: 3, y: 27 }, { x: 4, y: 27 },
+  { x: 5, y: 27 }, { x: 6, y: 27 }, { x: 7, y: 27 }, { x: 8, y: 27 }, { x: 9, y: 27 },
+  // Artisans' Lane — the middle street, between the two Artisans' Row lot rows
+  { x: 0, y: 30 }, { x: 1, y: 30 }, { x: 2, y: 30 }, { x: 3, y: 30 }, { x: 4, y: 30 },
+  { x: 5, y: 30 }, { x: 6, y: 30 }, { x: 7, y: 30 }, { x: 8, y: 30 }, { x: 9, y: 30 },
+  // South Walk — the buffer street below the south Artisans' Row lots
+  { x: 0, y: 33 }, { x: 1, y: 33 }, { x: 2, y: 33 }, { x: 3, y: 33 }, { x: 4, y: 33 },
+  { x: 5, y: 33 }, { x: 6, y: 33 }, { x: 7, y: 33 }, { x: 8, y: 33 }, { x: 9, y: 33 },
 ];
 
 /** A hub landmark — a place on the town map that travels to another map. */
@@ -1622,7 +1672,7 @@ export const TOWN_GRID_SIZE = 10;
  *  hospital and amphitheater sit in a southern extension (longer, not
  *  wider). Other maps (school, etc.) stay 10x10. */
 export const TOWN_GRID_W = 10;
-export const TOWN_GRID_H = 26;
+export const TOWN_GRID_H = 34;
 export const CITY_GRID_W = 10;
 export const CITY_GRID_H = 14;
 

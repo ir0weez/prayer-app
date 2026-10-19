@@ -1813,6 +1813,8 @@ export default function HometownScreen() {
   // doctor's at the hospital, movies at the amphitheater, rest at home, ministry
   // at the church. During an event the pawn/villagers gather instead of wandering.
   const [scheduleActivity, setScheduleActivity] = useState<ScheduleActivity | null>(null);
+  /** Tracks which haircut event already trimmed the pawn (once per event). */
+  const haircutDoneForRef = useRef<string | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
   // Mission Field: prayer lights sent out on missions (blessings on return)
   const [fieldMissions, setFieldMissions] = useState<FieldMission[]>(() => emptyMissions());
@@ -2117,6 +2119,17 @@ export default function HometownScreen() {
         return;
       }
       const target = resolveScheduleTarget(town.maps[activeMap].buildings, activity.kind);
+      // Haircut day: the pawn actually gets a trim (free — it's his real appointment).
+      if (activity.kind === "barbershop" && haircutDoneForRef.current !== activity.title) {
+        haircutDoneForRef.current = activity.title;
+        try {
+          const { loadCustomPawn, saveCustomPawn, cutHair } = await import("@/lib/pawn");
+          const pawn = await loadCustomPawn();
+          if (pawn) {
+            await saveCustomPawn(cutHair(pawn));
+          }
+        } catch {}
+      }
       setScheduleActivity(activity);
       setScheduleTarget(target);
     } catch {

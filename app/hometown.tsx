@@ -292,6 +292,46 @@ function daysBetween(a: string, b: string): number {
   return Math.floor((db - da) / 86400000);
 }
 
+/**
+ * Presence-gated income multiplier: a building only earns when villagers
+ * are actually there. This drives the prayer loop — pray → villagers appear
+ * → villagers visit buildings → buildings earn coins.
+ *
+ * - Live (app open): counts villagers within 2 tiles of the building.
+ *   0 nearby = 0 income, 1 = 40%, 2 = 70%, 3+ = 100%.
+ * - Away (on-open accrual): uses prayed count as a proxy — villagers were
+ *   "around" during the day. 0 prayed = 0 income, scales up to full at 8+.
+ */
+export function presenceMultiplierFor(
+  building: { x: number; y: number },
+  positions: Array<{ x: number; y: number }>,
+  prayedCount: number,
+  isLive: boolean,
+): number {
+  if (!isLive) {
+    // Time away: proxy by prayed count (villagers existed that day).
+    if (prayedCount <= 0) return 0;
+    return Math.min(1, prayedCount / 8);
+  }
+  // Live: count villagers within 2 tiles (Chebyshev distance).
+  const bx = building.x;
+  const by = building.y;
+  let count = 0;
+  for (const p of positions) {
+    const dx = Math.abs(p.x - bx);
+    const dy = Math.abs(p.y - by);
+    // Building footprints are 2x2; check within 2 tiles of the building origin.
+    if (dx <= 3 && dy <= 3) {
+      count++;
+      if (count >= 3) break;
+    }
+  }
+  if (count === 0) return 0;
+  if (count === 1) return 0.4;
+  if (count === 2) return 0.7;
+  return 1;
+}
+
 const TOWNSFOLK = ["🧑", "👩", "🧓", "👴", "👦", "👧", "🧔", "👵"];
 const WORKERS: Record<string, string> = {
   "farm": "🧑‍🌾",
@@ -2473,6 +2513,10 @@ export default function HometownScreen() {
   const lastFrenzyRef = useRef(0);
   // Per-minute income rates cached at mount tick, for the live interval tick.
   const perMinuteRateRef = useRef<Record<string, { coins: number; xp: number }>>({});
+  // Live villager positions (town + city), updated by TownNPCs/CityNPCs.
+  // Presence-gated income: buildings only earn when villagers are nearby.
+  const townNpcPositionsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const cityNpcPositionsRef = useRef<Array<{ x: number; y: number }>>([]);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [movingBuilding, setMovingBuilding] = useState<PlacedBuilding | null>(null);
   const [popupBuilding, setPopupBuilding] = useState<PlacedBuilding | null>(null);
@@ -3510,6 +3554,8 @@ export default function HometownScreen() {
               const churchPerMinute = b.type === "church" && earnsCoins
                 ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
                 : 0;
+              // Cache BASE rates (without presence). Presence is applied at
+              // accrual time: time-away proxy on open, live positions in tick.
               perMinuteRateRef.current[b.id] = {
                 coins: earnsCoins ? (basePerHour / 60 + churchPerMinute) * getEconomyScale() : 0,
                 xp: !earnsCoins && earnsXP ? (xpIncomeFor(b.type, b.level || 1) * wMult) / 24 / 60 : 0,
@@ -3519,9 +3565,11 @@ export default function HometownScreen() {
               const rate = perMinuteRateRef.current[b.id];
               const perMinuteCoins = rate ? rate.coins : 0;
               const perMinuteXP = rate ? rate.xp : 0;
+              // Presence gate (time away): scale by prayed count proxy.
+              const presenceMult = presenceMultiplierFor(b, [], prayedCount, false);
               const add = earnsCoins
-                ? minutesElapsed * perMinuteCoins
-                : minutesElapsed * perMinuteXP;
+                ? minutesElapsed * perMinuteCoins * presenceMult
+                : minutesElapsed * perMinuteXP * presenceMult;
               // ATM & vault bonuses drip as collectible coins inside the bank
               // interior instead of auto-adding to the building total.
               if (earnsCoins && (b.type === "bank" || b.type === "bank-tower")) {
@@ -3663,6 +3711,8 @@ export default function HometownScreen() {
         for (const mapId of TOWN_MAP_IDS) {
           const m = newMaps[mapId];
           if (!m) continue;
+          // Live villager positions for presence-gated income.
+          const positions = mapId === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
           const updatedBuildings = m.buildings.map((b) => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
             const minutesElapsed = Math.floor((now - lastTick) / 60000);
@@ -3672,8 +3722,13 @@ export default function HometownScreen() {
             if (!rate || perMin <= 0) {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
+            // Presence gate (live): only earn when villagers are nearby.
+            const presenceMult = presenceMultiplierFor(b, positions, prayedTodayRef.current, true);
+            if (presenceMult <= 0) {
+              return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
+            }
             changed = true;
-            const add = minutesElapsed * perMin;
+            const add = minutesElapsed * perMin * presenceMult;
             return {
               ...b,
               accumulated: Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100,
@@ -5514,7 +5569,7 @@ export default function HometownScreen() {
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
-          <TownNPCs mapState={map} cellSize={cellSize} bare onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
+          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
             const pid = String(p.id);
             const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
             if (vm) setVillagerMissionModal(vm);
@@ -5534,6 +5589,7 @@ export default function HometownScreen() {
                 cellSize={cellSize}
                 hometownNpcCount={countHometownNpcs(prayedToday)}
                 onBankVisit={handleBankVisit}
+                positionsRef={cityNpcPositionsRef}
               />
             </>
           )}
@@ -5613,8 +5669,35 @@ export default function HometownScreen() {
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             if (!earnsCoins && !earnsXP) return null;
+            // Presence indicator: dimmed person icon when no villagers are nearby
+            // (building isn't earning). Only for income buildings with nothing banked.
+            const positions = activeMap === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
+            const nearby = positions.filter((p) => Math.abs(p.x - b.x) <= 3 && Math.abs(p.y - b.y) <= 3).length;
+            const isQuiet = nearby === 0 && !(b.accumulated && b.accumulated > 0);
             // Only show the collectible once something has accumulated
-            if (!(b.accumulated && b.accumulated > 0)) return null;
+            if (!(b.accumulated && b.accumulated > 0)) {
+              // Show quiet indicator for empty earning buildings
+              if (!isQuiet) return null;
+              return (
+                <View
+                  key={`quiet-${b.id}`}
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    left: b.x * cellSize + fp.w * cellSize - 28,
+                    top: b.y * cellSize - 10,
+                    width: 36,
+                    height: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 99,
+                    opacity: 0.45,
+                  }}
+                >
+                  <MaterialIcons name="person-off" size={20} color="#9CA3AF" />
+                </View>
+              );
+            }
             return (
               <View
                 key={`coin-${b.id}`}

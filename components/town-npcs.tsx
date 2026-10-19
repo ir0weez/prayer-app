@@ -242,6 +242,7 @@ export function TownNPCs({
   scheduleMap,
   scheduleKind,
   bare,
+  positionsRef,
 }: {
   mapState: MapState;
   cellSize: number;
@@ -280,6 +281,8 @@ export function TownNPCs({
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
   mapStateRef.current = mapState;
+  const positionsRefHolder = useRef(positionsRef);
+  positionsRefHolder.current = positionsRef;
   const visitRef = useRef(onBankVisit);
   visitRef.current = onBankVisit;
   const tapRef = useRef(onVillagerTap);
@@ -1053,6 +1056,18 @@ export function TownNPCs({
       }
       sleepingRef.current = s0;
       setSleepingIds(s0);
+
+      // Publish live villager tile positions for presence-gated income.
+      // The parent reads positionsRef.current in its income tick.
+      const pr = positionsRefHolder.current;
+      if (pr) {
+        const arr: Array<{ x: number; y: number }> = [];
+        for (const npc of Object.values(logic)) {
+          // px/py are pixel centers; convert to tile coords.
+          arr.push({ x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 });
+        }
+        pr.current = arr;
+      }
     }
 
     const timer = setInterval(tick, 700);
@@ -1422,6 +1437,7 @@ export function CityNPCs({
   hometownNpcCount,
   onBankVisit,
   bare,
+  positionsRef,
 }: {
   mapState: MapState;
   cellSize: number;
@@ -1431,10 +1447,14 @@ export function CityNPCs({
   /** Render entities directly (no container) so the parent can depth-sort
       them with buildings via zIndex. */
   bare?: boolean;
+  /** Optional ref that receives live commuter tile positions [{x, y}, ...]. */
+  positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
 }) {
   const logicRef = useRef<Record<string, CityNpcLogic>>({});
   const mapStateRef = useRef(mapState);
   mapStateRef.current = mapState;
+  const positionsRefHolder = useRef(positionsRef);
+  positionsRefHolder.current = positionsRef;
   const countRef = useRef(hometownNpcCount);
   countRef.current = hometownNpcCount;
   const visitRef = useRef(onBankVisit);
@@ -1696,6 +1716,16 @@ export function CityNPCs({
       }
     }
     setRenderIds(Object.keys(logic));
+
+    // Publish live commuter tile positions for presence-gated income.
+    const pr = positionsRefHolder.current;
+    if (pr) {
+      const arr: Array<{ x: number; y: number }> = [];
+      for (const npc of Object.values(logic)) {
+        arr.push({ x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 });
+      }
+      pr.current = arr;
+    }
 
     const timer = setInterval(tick, 700);
     return () => clearInterval(timer);

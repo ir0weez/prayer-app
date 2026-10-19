@@ -4294,6 +4294,40 @@ function DoctorScene() {
   );
 }
 
+/** Barbershop: striped barber pole, chair, scissors. */
+function HaircutScene() {
+  return (
+    <SceneRoot base="#3B4A6B">
+      <BreatheGlow color="#EF4444" size={120} left="8%" bottom={60} min={0.12} max={0.22} duration={3200} />
+      {/* Barber pole */}
+      <View style={{ position: "absolute", left: "12%", top: 18, width: 26, height: 76 }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: 26, height: 8, borderRadius: 4, backgroundColor: "#C0C0C0" }} />
+        <View style={{ position: "absolute", left: 3, top: 8, width: 20, height: 60, borderRadius: 10, backgroundColor: "#FFFFFF", overflow: "hidden" }}>
+          <View style={{ position: "absolute", left: 0, top: 4, width: 20, height: 8, backgroundColor: "#EF4444", transform: [{ rotate: "-18deg" }] }} />
+          <View style={{ position: "absolute", left: 0, top: 22, width: 20, height: 8, backgroundColor: "#3B82F6", transform: [{ rotate: "-18deg" }] }} />
+          <View style={{ position: "absolute", left: 0, top: 40, width: 20, height: 8, backgroundColor: "#EF4444", transform: [{ rotate: "-18deg" }] }} />
+        </View>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 26, height: 8, borderRadius: 4, backgroundColor: "#C0C0C0" }} />
+      </View>
+      {/* Barber chair */}
+      <View style={{ position: "absolute", left: "48%", bottom: 14, width: 70, height: 70 }}>
+        <View style={{ position: "absolute", left: 28, bottom: 0, width: 14, height: 24, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 22, width: 50, height: 14, borderRadius: 7, backgroundColor: "#8D2B3A" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 36, width: 12, height: 30, borderRadius: 6, backgroundColor: "#8D2B3A" }} />
+        <View style={{ position: "absolute", left: 48, bottom: 36, width: 12, height: 30, borderRadius: 6, backgroundColor: "#8D2B3A" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 52, width: 26, height: 16, borderRadius: 8, backgroundColor: "#F5CBA7" }} />
+      </View>
+      {/* Scissors */}
+      <View style={{ position: "absolute", right: "12%", top: 30, width: 34, height: 34, opacity: 0.9 }}>
+        <View style={{ position: "absolute", left: 14, top: 0, width: 4, height: 30, backgroundColor: "#E0E0E0", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 14, top: 0, width: 4, height: 30, backgroundColor: "#E0E0E0", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: "#E0E0E0" }} />
+        <View style={{ position: "absolute", left: 20, bottom: 0, width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: "#E0E0E0" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
 /** Movie night: red curtains, glowing screen, popcorn bucket. */
 function MovieScene() {
   return (
@@ -6650,6 +6684,7 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Bible Study": return <BibleStudyScene />;
     case "Therapy": return <TherapyScene />;
     case "Doctor": return <DoctorScene />;
+    case "Haircut": return <HaircutScene />;
     case "Gardening": return <GardeningScene />;
     case "Baby Shower": return <BabyShowerScene />;
     case "Birthday": return <BirthdayScene />;

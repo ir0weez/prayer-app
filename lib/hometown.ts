@@ -1343,11 +1343,11 @@ export const TOWN_LOTS: TownLot[] = [
   { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
   { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
   { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
-  // Eastside — two new lots east of Chapel Avenue, served by the extended
-  // street rows. The hospital (care for the town) and a town amphitheater
-  // (for movie nights and shows with the villagers).
-  { id: "town-lot-hospital", x: 10, y: 3, w: 2, h: 2, allowedTypes: ["hospital"], cost: 120, name: "Healing Hills", presetType: "hospital" },
-  { id: "town-lot-amphi", x: 10, y: 6, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 150, name: "Starlight Green", presetType: "amphitheater" },
+  // Southgate — the hospital (care for the town) and a town amphitheater
+  // (for movie nights and shows with the villagers), in the southern
+  // extension. Served by Southgate Lane, linked to Chapel Avenue.
+  { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 120, name: "Healing Hills", presetType: "hospital" },
+  { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 150, name: "Starlight Green", presetType: "amphitheater" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */
@@ -1355,7 +1355,6 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Chapel Way — winds across the top of the hill, serving cottages, church, pawn house, farm
   { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
   { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 }, { x: 8, y: 2 }, { x: 9, y: 2 },
-  { x: 10, y: 2 }, { x: 11, y: 2 },
   // Cul-de-sac spur — tucks into the cottage cluster
   { x: 2, y: 0 }, { x: 2, y: 1 },
   // Chapel plaza spur — between church and pawn house
@@ -1363,21 +1362,23 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // Main Street — the bustling thoroughfare between the two market rows
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 },
-  { x: 10, y: 5 }, { x: 11, y: 5 },
   // Old Town Lane — between Old Town and the South End
   { x: 0, y: 8 }, { x: 1, y: 8 }, { x: 2, y: 8 }, { x: 3, y: 8 }, { x: 4, y: 8 },
   { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 }, { x: 9, y: 8 },
-  { x: 10, y: 8 }, { x: 11, y: 8 },
   // Harbor Lane — between the South End and Mercy's Shore
   { x: 0, y: 11 }, { x: 1, y: 11 }, { x: 2, y: 11 }, { x: 3, y: 11 }, { x: 4, y: 11 },
   { x: 5, y: 11 }, { x: 6, y: 11 }, { x: 7, y: 11 }, { x: 8, y: 11 }, { x: 9, y: 11 },
-  { x: 10, y: 11 }, { x: 11, y: 11 },
   // Chapel Avenue — the vertical spine linking every street, so villagers
   // walk the roads instead of floating over buildings
   { x: 8, y: 3 }, { x: 8, y: 4 },
   { x: 8, y: 6 }, { x: 8, y: 7 },
   { x: 8, y: 9 }, { x: 8, y: 10 },
   { x: 8, y: 12 }, { x: 8, y: 13 },
+  { x: 8, y: 14 }, { x: 8, y: 15 },
+  // Southgate Lane — serves the hospital and amphitheater in the southern
+  // extension, at the foot of the neighborhood
+  { x: 0, y: 16 }, { x: 1, y: 16 }, { x: 2, y: 16 }, { x: 3, y: 16 }, { x: 4, y: 16 },
+  { x: 5, y: 16 }, { x: 6, y: 16 }, { x: 7, y: 16 }, { x: 8, y: 16 }, { x: 9, y: 16 },
 ];
 
 /** Town path roads with stable ids (idempotent seeding). */
@@ -1450,11 +1451,14 @@ export function cottageResidents(
 }
 
 export function ensureTownNeighborhood(map: MapState): MapState {
-  // 1. Roads: drop non-path roads, seed the winding path.
-  const existingPathIds = new Set(
-    (map.roads || []).filter(isTownPath).map((r) => r.id)
+  // 1. Roads: drop non-path roads and stale path tiles (no longer in
+  //    TOWN_PATH, e.g. after a grid resize), seed the winding path.
+  const currentPathIds = new Set(townPathRoads().map((r) => r.id));
+  const keptPath = (map.roads || []).filter(
+    (r) => isTownPath(r) && currentPathIds.has(r.id)
   );
-  const freshPath = townPathRoads().filter((r) => !existingPathIds.has(r.id));
+  const keptIds = new Set(keptPath.map((r) => r.id));
+  const freshPath = townPathRoads().filter((r) => !keptIds.has(r.id));
   const nonPathRoads = (map.roads || []).filter((r) => !isTownPath(r));
 
   // 2. Buildings: assign unassigned buildings to empty lots by type.
@@ -1481,7 +1485,8 @@ export function ensureTownNeighborhood(map: MapState): MapState {
     return { ...b, x: lot.x, y: lot.y, townLotId: lot.id };
   });
 
-  const roadsChanged = freshPath.length > 0 || nonPathRoads.length > 0;
+  const staleDropped = (map.roads || []).length - keptPath.length - nonPathRoads.length;
+  const roadsChanged = freshPath.length > 0 || nonPathRoads.length > 0 || staleDropped > 0;
   const buildingsChanged = moved.some((b, i) => b !== buildings[i]);
   // Lot buildings render at their lot's position — if a lot moved (taller map,
   // new streets), snap its building along so nothing is left behind.
@@ -1495,7 +1500,7 @@ export function ensureTownNeighborhood(map: MapState): MapState {
   if (!roadsChanged && !buildingsChanged && !syncedChanged) return map;
   return {
     ...map,
-    roads: [...(map.roads || []).filter(isTownPath), ...freshPath],
+    roads: [...keptPath, ...freshPath],
     buildings: synced,
   };
 }
@@ -1544,15 +1549,15 @@ export type TownState = {
 
 export const TOWN_GRID_SIZE = 10;
 /** Town/city map dimensions — both grids are taller than wide so every
- *  district gets its own street. The town is also two columns wider (12x14)
- *  for the Eastside district (hospital + amphitheater). Other maps (school,
- *  etc.) stay 10x10. */
-export const TOWN_GRID_W = 12;
-export const TOWN_GRID_H = 14;
+ *  district gets its own street. The town is 10 wide and 18 tall: the
+ *  hospital and amphitheater sit in a southern extension (longer, not
+ *  wider). Other maps (school, etc.) stay 10x10. */
+export const TOWN_GRID_W = 10;
+export const TOWN_GRID_H = 18;
 export const CITY_GRID_W = 10;
 export const CITY_GRID_H = 14;
 
-/** Grid dimensions for a map — town and city are taller (10x14); others are 10x10. */
+/** Grid dimensions for a map — town is 10x18, city is 10x14; others are 10x10. */
 export function mapGridSize(mapId: TownMapId): { w: number; h: number } {
   if (mapId === "town") return { w: TOWN_GRID_W, h: TOWN_GRID_H };
   if (mapId === "city") return { w: CITY_GRID_W, h: CITY_GRID_H };

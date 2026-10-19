@@ -177,6 +177,10 @@ import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/mo
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { checkInStreak, nextMilestoneFor, type StreakState, emptyStreak } from "@/lib/town-streak";
+import {
+  getTodayVisitors, markVisitorClaimed, buildMerchantDeal,
+  type Visitor, type MerchantDeal,
+} from "@/lib/surprise-visitors";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import {
   loadGarden, saveGarden, gardenIsRipe, gardenMsUntilRipe, gardenHarvestReward,
@@ -1764,6 +1768,10 @@ export default function HometownScreen() {
   const [scheduleActivity, setScheduleActivity] = useState<ScheduleActivity | null>(null);
   /** Daily town visit streak — checked in on open. */
   const [streak, setStreak] = useState<StreakState>(emptyStreak);
+  /** Surprise visitors on the town map. */
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
+  const [merchantDeal, setMerchantDeal] = useState<MerchantDeal | null>(null);
   /** Tracks which haircut event already trimmed the pawn (once per event). */
   const haircutDoneForRef = useRef<string | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
@@ -2781,13 +2789,13 @@ export default function HometownScreen() {
   }, []);
 
   // Daily town visit streak — first open each calendar day checks in.
+  // Surprise visitors — seeded per day.
   useEffect(() => {
     (async () => {
       try {
         const { state, isNewDay, milestone } = await checkInStreak();
         setStreak(state);
-        if (!isNewDay) return;
-        if (milestone) {
+        if (isNewDay && milestone) {
           addCoins(milestone.coins);
           if (milestone.xp > 0) {
             awardCustomXP(milestone.xp, `town-streak:${state.streak}`).catch(() => undefined);
@@ -2798,6 +2806,8 @@ export default function HometownScreen() {
             `${milestone.label} — +${milestone.coins} coins${milestone.xp > 0 ? `, +${milestone.xp} XP` : ""}${milestone.title ? `. Title earned: ${milestone.title}` : ""}.`
           );
         }
+        const surprises = await getTodayVisitors();
+        setVisitors(surprises.visitors.filter((v) => !v.claimed));
       } catch {}
     })();
   }, []);
@@ -4568,6 +4578,47 @@ export default function HometownScreen() {
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
           {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} />}
+          {/* Surprise visitors — special encounters with "!" badges */}
+          {activeMap === "town" && visitors.map((v) => (
+            <Pressable
+              key={v.id}
+              onPress={() => {
+                setSelectedVisitor(v);
+                if (v.type === "merchant") {
+                  buildMerchantDeal().then(setMerchantDeal).catch(() => setMerchantDeal(null));
+                }
+              }}
+              style={{
+                position: "absolute",
+                left: v.x * cellSize - 8,
+                top: v.y * cellSize - 8,
+                width: 56,
+                height: 56,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View style={{
+                width: 44, height: 44, borderRadius: 22,
+                backgroundColor: v.type === "golden" ? "#FEF3C7" : v.type === "merchant" ? "#EDE9FE" : "#DBEAFE",
+                borderWidth: 2, borderColor: v.type === "golden" ? "#F59E0B" : v.type === "merchant" ? "#7C3AED" : "#3B82F6",
+                alignItems: "center", justifyContent: "center",
+              }}>
+                <MaterialIcons
+                  name={v.type === "golden" ? "wb-sunny" : v.type === "merchant" ? "store" : "person"}
+                  size={24}
+                  color={v.type === "golden" ? "#D97706" : v.type === "merchant" ? "#6D28D9" : "#1D4ED8"}
+                />
+              </View>
+              <View style={{
+                position: "absolute", top: -4, right: 2,
+                width: 20, height: 20, borderRadius: 10,
+                backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center",
+              }}>
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>!</Text>
+              </View>
+            </Pressable>
+          ))}
           {/* City delights: hidden coin caches, the wishing fountain, the street
               performer — little rewards tucked around the city. */}
           {activeMap === "city" && (
@@ -5204,6 +5255,152 @@ export default function HometownScreen() {
                     style={{ borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
                   >
                     <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 16 }}>Cancel</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+      {/* Surprise visitor interaction */}
+      <Modal
+        visible={selectedVisitor !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setSelectedVisitor(null); setMerchantDeal(null); }}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => { setSelectedVisitor(null); setMerchantDeal(null); }}
+        >
+          <Pressable
+            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 20, width: "100%", maxWidth: 340 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const v = selectedVisitor;
+              if (!v) return null;
+              if (v.type === "merchant") {
+                return (
+                  <>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                      <MaterialIcons name="store" size={28} color="#6D28D9" />
+                      <Text style={{ marginLeft: 10, fontSize: 18, fontWeight: "800", color: pt.text }}>Traveling Merchant</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 12 }}>
+                      "Traveler! I have wares from distant lands — just for today."
+                    </Text>
+                    {merchantDeal ? (
+                      <>
+                        <Text style={{ fontSize: 16, fontWeight: "700", color: pt.text, marginBottom: 4 }}>{merchantDeal.name}</Text>
+                        <Text style={{ fontSize: 13, color: pt.subtext, marginBottom: 12 }}>{merchantDeal.description}</Text>
+                        <Pressable
+                          onPress={async () => {
+                            if (coins.balance < merchantDeal.price) {
+                              Alert.alert("Not enough coins", `This costs ${merchantDeal.price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+                              return;
+                            }
+                            addCoins(-merchantDeal.price);
+                            if (merchantDeal.gearId) {
+                              const { loadInventory, saveInventory } = await import("@/lib/gear");
+                              const inv = await loadInventory();
+                              if (!inv.includes(merchantDeal.gearId)) {
+                                await saveInventory([...inv, merchantDeal.gearId]);
+                              }
+                            } else if (merchantDeal.xpReward > 0) {
+                              awardCustomXP(merchantDeal.xpReward, `merchant-blessing:${Date.now()}`).catch(() => undefined);
+                            }
+                            await markVisitorClaimed(v.id);
+                            setVisitors((prev) => prev.filter((x) => x.id !== v.id));
+                            setSelectedVisitor(null);
+                            setMerchantDeal(null);
+                            queueCelebration("milestone", "Deal sealed!", `The merchant bows and moves on.`);
+                          }}
+                          style={{ backgroundColor: "#7C3AED", borderRadius: 12, paddingVertical: 12, alignItems: "center", marginBottom: 8 }}
+                        >
+                          <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
+                            Buy for {merchantDeal.price.toFixed(2)} coins
+                          </Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 13, color: pt.subtext, marginBottom: 12 }}>Loading wares...</Text>
+                    )}
+                    <Pressable
+                      onPress={() => { setSelectedVisitor(null); setMerchantDeal(null); }}
+                      style={{ borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+                    >
+                      <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 15 }}>Maybe later</Text>
+                    </Pressable>
+                  </>
+                );
+              }
+              if (v.type === "stranger") {
+                return (
+                  <>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                      <MaterialIcons name="person" size={28} color="#1D4ED8" />
+                      <Text style={{ marginLeft: 10, fontSize: 18, fontWeight: "800", color: pt.text }}>A Stranger</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: pt.text, marginBottom: 16, lineHeight: 22 }}>{v.strangerText}</Text>
+                    <Pressable
+                      onPress={async () => {
+                        addCoins(v.strangerCoins || 0);
+                        if (v.strangerXp) {
+                          awardCustomXP(v.strangerXp, `stranger-prayer:${Date.now()}`).catch(() => undefined);
+                        }
+                        await markVisitorClaimed(v.id);
+                        setVisitors((prev) => prev.filter((x) => x.id !== v.id));
+                        setSelectedVisitor(null);
+                        queueCelebration("prayers", "Prayer lifted", `+${v.strangerCoins} coins, +${v.strangerXp} XP. The stranger walks on, lighter.`);
+                      }}
+                      style={{ backgroundColor: "#1D4ED8", borderRadius: 12, paddingVertical: 12, alignItems: "center", marginBottom: 8 }}
+                    >
+                      <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
+                        Pray with them (+{v.strangerCoins}c, +{v.strangerXp} XP)
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setSelectedVisitor(null)}
+                      style={{ borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+                    >
+                      <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 15 }}>Walk away</Text>
+                    </Pressable>
+                  </>
+                );
+              }
+              // Golden light — tap fast!
+              return (
+                <>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                    <MaterialIcons name="wb-sunny" size={28} color="#D97706" />
+                    <Text style={{ marginLeft: 10, fontSize: 18, fontWeight: "800", color: pt.text }}>Rare Golden Light</Text>
+                  </View>
+                  <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
+                    A brilliant light darts through town — catch its blessing before it fades!
+                  </Text>
+                  <Pressable
+                    onPress={async () => {
+                      addCoins(v.goldenCoins || 0);
+                      if (v.goldenXp) {
+                        awardCustomXP(v.goldenXp, `golden-light:${Date.now()}`).catch(() => undefined);
+                      }
+                      await markVisitorClaimed(v.id);
+                      setVisitors((prev) => prev.filter((x) => x.id !== v.id));
+                      setSelectedVisitor(null);
+                      queueCelebration("milestone", "Golden blessing!", `+${v.goldenCoins} coins, +${v.goldenXp} XP.`);
+                    }}
+                    style={{ backgroundColor: "#D97706", borderRadius: 12, paddingVertical: 12, alignItems: "center", marginBottom: 8 }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
+                      Catch it! (+{v.goldenCoins}c, +{v.goldenXp} XP)
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setSelectedVisitor(null)}
+                    style={{ borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+                  >
+                    <Text style={{ color: pt.subtext, fontWeight: "600", fontSize: 15 }}>Let it pass</Text>
                   </Pressable>
                 </>
               );

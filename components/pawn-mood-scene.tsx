@@ -127,27 +127,33 @@ function DriftingClouds() {
 function CelebrationScene() {
   return (
     <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 20, overflow: "hidden" }}>
-      <Svg width="100%" height="100%" viewBox="0 0 240 170" preserveAspectRatio="xMidYMid slice">
-        <Rect x={0} y={0} width={240} height={170} fill="#FEF3C7" />
-        <Rect x={0} y={0} width={240} height={110} fill="#FDE68A" opacity={0.45} />
-        <Circle cx={196} cy={36} r={30} fill="#FDE68A" opacity={0.35} />
-        <Circle cx={196} cy={36} r={19} fill="#FCD34D" />
-        <Circle cx={196} cy={36} r={14} fill="#FDE68A" />
-        <Ellipse cx={40} cy={185} rx={110} ry={52} fill="#BBF7D0" />
-        <Ellipse cx={210} cy={190} rx={120} ry={56} fill="#86EFAC" />
+      <Svg width="100%" height="100%" viewBox="0 0 360 170" preserveAspectRatio="xMidYMid slice">
+        <Rect x={0} y={0} width={360} height={170} fill="#FEF3C7" />
+        <Rect x={0} y={0} width={360} height={110} fill="#FDE68A" opacity={0.45} />
+        <Circle cx={300} cy={36} r={30} fill="#FDE68A" opacity={0.35} />
+        <Circle cx={300} cy={36} r={19} fill="#FCD34D" />
+        <Circle cx={300} cy={36} r={14} fill="#FDE68A" />
+        <Ellipse cx={60} cy={185} rx={130} ry={52} fill="#BBF7D0" />
+        <Ellipse cx={300} cy={190} rx={140} ry={56} fill="#86EFAC" />
         <G>
           <Circle cx={36} cy={150} r={4} fill="#F472B6" />
           <Circle cx={36} cy={150} r={1.6} fill="#FDE68A" />
           <Circle cx={70} cy={156} r={3.4} fill="#C084FC" />
           <Circle cx={70} cy={156} r={1.4} fill="#FDE68A" />
-          <Circle cx={180} cy={152} r={3.6} fill="#F472B6" />
-          <Circle cx={180} cy={152} r={1.5} fill="#FDE68A" />
-          <Circle cx={212} cy={158} r={3} fill="#60A5FA" />
-          <Circle cx={212} cy={158} r={1.2} fill="#FDE68A" />
+          <Circle cx={140} cy={148} r={3.8} fill="#F472B6" />
+          <Circle cx={140} cy={148} r={1.5} fill="#FDE68A" />
+          <Circle cx={180} cy={156} r={3.2} fill="#60A5FA" />
+          <Circle cx={180} cy={156} r={1.3} fill="#FDE68A" />
+          <Circle cx={250} cy={150} r={3.6} fill="#F472B6" />
+          <Circle cx={250} cy={150} r={1.5} fill="#FDE68A" />
+          <Circle cx={290} cy={158} r={3} fill="#C084FC" />
+          <Circle cx={290} cy={158} r={1.2} fill="#FDE68A" />
+          <Circle cx={320} cy={150} r={3.4} fill="#60A5FA" />
+          <Circle cx={320} cy={150} r={1.4} fill="#FDE68A" />
         </G>
       </Svg>
       <DriftingClouds />
-      <CelebrationParticles count={12} />
+      <CelebrationParticles count={16} />
     </View>
   );
 }
@@ -156,11 +162,14 @@ function CelebrationScene() {
 function CalmScene() {
   return (
     <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 20, overflow: "hidden" }}>
-      <Svg width="100%" height="100%" viewBox="0 0 240 170" preserveAspectRatio="xMidYMid slice">
-        <Rect x={0} y={0} width={240} height={170} fill="#F1F0FA" />
-        <Rect x={0} y={0} width={240} height={90} fill="#E4E2F5" opacity={0.6} />
-        <Circle cx={120} cy={52} r={22} fill="#DDD9F2" opacity={0.7} />
-        <Ellipse cx={120} cy={195} rx={150} ry={48} fill="#E2E0F0" />
+      <Svg width="100%" height="100%" viewBox="0 0 360 170" preserveAspectRatio="xMidYMid slice">
+        <Rect x={0} y={0} width={360} height={170} fill="#F1F0FA" />
+        <Rect x={0} y={0} width={360} height={90} fill="#E4E2F5" opacity={0.6} />
+        <Circle cx={180} cy={52} r={22} fill="#DDD9F2" opacity={0.7} />
+        <Ellipse cx={90} cy={195} rx={120} ry={48} fill="#E2E0F0" />
+        <Ellipse cx={270} cy={195} rx={120} ry={48} fill="#E2E0F0" />
+        <Circle cx={60} cy={40} r={2} fill="#C4BFE8" opacity={0.5} />
+        <Circle cx={300} cy={60} r={2.5} fill="#C4BFE8" opacity={0.5} />
       </Svg>
     </View>
   );
@@ -185,24 +194,26 @@ function MissedDayScene({
 
   return (
     <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, borderRadius: 20, overflow: "hidden" }}>
-      <Svg width="100%" height="100%" viewBox="0 0 260 190" preserveAspectRatio="xMidYMid slice">
-        <Rect x={0} y={0} width={260} height={190} fill="#3B3F5C" />
-        <Rect x={0} y={0} width={260} height={112} fill="#4A4E6E" opacity={0.7} />
-        <Circle cx={56} cy={36} r={14} fill="#E8E4F5" opacity={0.85} />
-        <Circle cx={51} cy={31} r={12} fill="#3B3F5C" opacity={0.35} />
-        <Circle cx={130} cy={24} r={1.6} fill="#FFFFFF" opacity={0.7} />
-        <Circle cx={182} cy={48} r={1.3} fill="#FFFFFF" opacity={0.6} />
-        <Circle cx={224} cy={26} r={1.6} fill="#FFFFFF" opacity={0.7} />
-        <Circle cx={98} cy={52} r={1.2} fill="#FFFFFF" opacity={0.5} />
+      <Svg width="100%" height="100%" viewBox="0 0 360 190" preserveAspectRatio="xMidYMid slice">
+        <Rect x={0} y={0} width={360} height={190} fill="#3B3F5C" />
+        <Rect x={0} y={0} width={360} height={112} fill="#4A4E6E" opacity={0.7} />
+        <Circle cx={80} cy={36} r={14} fill="#E8E4F5" opacity={0.85} />
+        <Circle cx={75} cy={31} r={12} fill="#3B3F5C" opacity={0.35} />
+        <Circle cx={180} cy={24} r={1.6} fill="#FFFFFF" opacity={0.7} />
+        <Circle cx={250} cy={48} r={1.3} fill="#FFFFFF" opacity={0.6} />
+        <Circle cx={310} cy={26} r={1.6} fill="#FFFFFF" opacity={0.7} />
+        <Circle cx={140} cy={52} r={1.2} fill="#FFFFFF" opacity={0.5} />
+        <Circle cx={40} cy={60} r={1.4} fill="#FFFFFF" opacity={0.5} />
+        <Circle cx={280} cy={70} r={1.2} fill="#FFFFFF" opacity={0.5} />
         <G opacity={0.85}>
-          <Polygon points="26,168 38,134 50,168" fill="#2A2E45" />
-          <Polygon points="212,168 224,134 236,168" fill="#2A2E45" />
+          <Polygon points="36,168 48,134 60,168" fill="#2A2E45" />
+          <Polygon points="300,168 312,134 324,168" fill="#2A2E45" />
         </G>
-        <Ellipse cx={130} cy={214} rx={175} ry={58} fill="#2E3247" />
+        <Ellipse cx={180} cy={214} rx={220} ry={58} fill="#2E3247" />
         <G>
-          <Line x1={92} y1={166} x2={104} y2={38} stroke="#5B5F7E" strokeWidth={7} strokeLinecap="round" />
-          <Line x1={168} y1={166} x2={156} y2={38} stroke="#5B5F7E" strokeWidth={7} strokeLinecap="round" />
-          <Line x1={100} y1={38} x2={160} y2={38} stroke="#6B6F8E" strokeWidth={6} strokeLinecap="round" />
+          <Line x1={142} y1={166} x2={154} y2={38} stroke="#5B5F7E" strokeWidth={7} strokeLinecap="round" />
+          <Line x1={218} y1={166} x2={206} y2={38} stroke="#5B5F7E" strokeWidth={7} strokeLinecap="round" />
+          <Line x1={150} y1={38} x2={210} y2={38} stroke="#6B6F8E" strokeWidth={6} strokeLinecap="round" />
         </G>
       </Svg>
       <Animated.View style={{ position: "absolute", left: 0, right: 0, top: 0, alignItems: "center" }}>
@@ -274,14 +285,14 @@ export function PawnMoodScene({
 
   if (status === "missed") {
     return (
-      <View style={{ width: 260, height: 190, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ width: "100%", aspectRatio: 2.1, alignItems: "center", justifyContent: "center" }}>
         <MissedDayScene pawnNode={renderPawn(54)} breatheS={breatheS} />
       </View>
     );
   }
 
   return (
-    <View style={{ width: 260, height: 190, alignItems: "center", justifyContent: "center" }}>
+    <View style={{ width: "100%", aspectRatio: 2.1, alignItems: "center", justifyContent: "center" }}>
       {status === "completed" ? <CelebrationScene /> : <CalmScene />}
       <Animated.View
         style={{

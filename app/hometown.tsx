@@ -2553,6 +2553,7 @@ export default function HometownScreen() {
   const [merchantDeal, setMerchantDeal] = useState<MerchantDeal | null>(null);
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
   const [collectionSummary, setCollectionSummary] = useState<CollectionState | null>(null);
   /** Active limited-time heavenly events (refreshed on open + every minute). */
   const [activeEvents, setActiveEvents] = useState<HeavenlyEvent[]>([]);
@@ -4865,7 +4866,7 @@ export default function HometownScreen() {
               <StreamBridge size={cellSize} />
             </View>
           )}
-          {roadAt(x, y) && !onBridge && (
+          {roadAt(x, y) && !onStream && (
             <View style={{ position: "absolute", width: cellSize, height: cellSize, backgroundColor: "#9CA3AF", alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
             </View>
@@ -4915,12 +4916,22 @@ export default function HometownScreen() {
           const collectible = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
           if (collectible <= 0) return null;
           return (
-            <Pressable
-              onPress={handleCollectAll}
-              style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 }}
-            >
-              <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF" }}>Collect All</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
+              <Pressable
+                onPress={handleCollectAll}
+                onLongPress={() => setCollectBreakdownOpen(true)}
+                style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row", alignItems: "center" }}
+              >
+                <MaterialIcons name="monetization-on" size={16} color="#FFFFFF" />
+                <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {collectible.toFixed(2)}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setCollectBreakdownOpen(true)}
+                style={{ marginLeft: 4, padding: 4 }}
+              >
+                <MaterialIcons name="info-outline" size={18} color="#92400E" />
+              </Pressable>
+            </View>
           );
         })()}
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -5596,6 +5607,8 @@ export default function HometownScreen() {
                   height: 60,
                   alignItems: "center",
                   justifyContent: "center",
+                  zIndex: 100,
+                  elevation: 100,
                 }}
               >
                 <SpinningCoin
@@ -6377,6 +6390,49 @@ export default function HometownScreen() {
       </Modal>
       {/* Collections book */}
       <CollectionsBook visible={collectionsOpen} onClose={() => setCollectionsOpen(false)} pt={pt} />
+      {/* Collect breakdown — what's collectible per building */}
+      <Modal
+        visible={collectBreakdownOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCollectBreakdownOpen(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setCollectBreakdownOpen(false)}
+        >
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 20, width: "100%", maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#92400E" }}>Ready to Collect</Text>
+              <Pressable onPress={() => setCollectBreakdownOpen(false)} style={{ padding: 4 }}>
+                <MaterialIcons name="close" size={22} color="#6B7280" />
+              </Pressable>
+            </View>
+            <ScrollView>
+              {town.maps[activeMap].buildings
+                .filter(b => (b.accumulated || 0) > 0)
+                .sort((a, b) => (b.accumulated || 0) - (a.accumulated || 0))
+                .map(b => (
+                  <View key={b.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937", flex: 1 }}>{BUILDINGS[b.type]?.name || b.type}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <MaterialIcons name="monetization-on" size={16} color="#D4AF37" />
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E", marginLeft: 4 }}>{(b.accumulated || 0).toFixed(2)}</Text>
+                    </View>
+                  </View>
+                ))}
+            </ScrollView>
+            <Pressable
+              onPress={() => { setCollectBreakdownOpen(false); handleCollectAll(); }}
+              style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: "center" }}
+            >
+              <Text style={{ fontWeight: "800", fontSize: 15, color: "#FFFFFF" }}>
+                Collect {town.maps[activeMap].buildings.reduce((s, b) => s + (b.accumulated || 0), 0).toFixed(2)}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
       {/* Villager identity — tap a light to see who walks with you */}
       <Modal
         visible={prayerVillagerInfo !== null}

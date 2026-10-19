@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -58,10 +58,10 @@ function RoundTable({ level }: { level: number }) {
       <Svg width={230} height={96} viewBox="0 0 230 96">
         {/* chairs hint */}
         {[30, 200].map((cx) => (
-          <g key={cx}>
+          <G key={cx}>
             <Rect x={cx - 16} y={52} width={32} height={10} rx={5} fill="#6B4A2F" />
             <Rect x={cx - 4} y={62} width={8} height={22} fill="#4E3421" />
-          </g>
+          </G>
         ))}
         {/* table */}
         <Ellipse cx={115} cy={52} rx={82} ry={24} fill={level >= 3 ? "#9A6B35" : "#8A5A2B"} stroke={level >= 3 ? GOLD : "#5E3D22"} strokeWidth={2.5} />

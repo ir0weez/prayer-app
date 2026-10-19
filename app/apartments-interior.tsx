@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   useInteriorData,
   InteriorHeader,
@@ -159,11 +159,11 @@ function Chandelier() {
         {Array.from({ length: 5 }).map((_, i) => {
           const x = 65 - 44 + (i * 88) / 4;
           return (
-            <g key={i}>
+            <G key={i}>
               <Line x1={65} y1={16} x2={x} y2={32} stroke="#C9A227" strokeWidth={3} />
               <Rect x={x - 3} y={20} width={6} height={11} rx={2} fill="#EAD58A" />
               <Circle cx={x} cy={18} r={3.5} fill="#FFF3C4" />
-            </g>
+            </G>
           );
         })}
       </Svg>

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -78,15 +78,15 @@ function Pigeonholes({ level }: { level: number }) {
             const y = 8 + r * 24;
             const hasLetter = (r * cols + c + level) % 3 !== 0;
             return (
-              <g key={`${r}-${c}`}>
+              <G key={`${r}-${c}`}>
                 <Rect x={x} y={y} width={22} height={20} rx={2} fill="#3F3A32" />
                 {hasLetter && (
-                  <g>
+                  <G>
                     <Rect x={x + 3} y={y + 5} width={16} height={11} rx={1.5} fill="#F8FAFC" stroke="#9CA3AF" strokeWidth={1} />
                     <Path d={`M${x + 4} ${y + 6} L${x + 11} ${y + 11} L${x + 18} ${y + 6}`} stroke="#9CA3AF" strokeWidth={1} fill="none" />
-                  </g>
+                  </G>
                 )}
-              </g>
+              </G>
             );
           })
         )}

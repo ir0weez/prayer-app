@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -45,28 +45,28 @@ function Painting({ w = 90, h = 70, art }: { w?: number; h?: number; art: "hills
         <Rect x={2} y={2} width={w + 12} height={h + 12} rx={4} fill={GOLD} stroke="#8A6D1C" strokeWidth={2.5} />
         <Rect x={8} y={8} width={w} height={h} fill="#F8FAFC" />
         {art === "hills" && (
-          <g>
+          <G>
             <Rect x={8} y={8} width={w} height={h * 0.55} fill="#BAE6FD" />
             <Path d={`M8 ${8 + h * 0.7} L${8 + w * 0.35} ${8 + h * 0.3} L${8 + w * 0.6} ${8 + h * 0.65} L${8 + w} ${8 + h * 0.4} L${8 + w} ${8 + h} L8 ${8 + h} Z`} fill="#3E8E41" />
             <Circle cx={8 + w * 0.75} cy={8 + h * 0.25} r={h * 0.12} fill="#FDE68A" />
-          </g>
+          </G>
         )}
         {art === "sea" && (
-          <g>
+          <G>
             <Rect x={8} y={8} width={w} height={h * 0.5} fill="#7DD3FC" />
             <Rect x={8} y={8 + h * 0.5} width={w} height={h * 0.5} fill="#0E7490" />
             <Path d={`M${8 + w * 0.2} ${8 + h * 0.55} q10 -6 20 0 l-4 10 h-14 Z`} fill="#8A5A2B" />
             <Path d={`M${8 + w * 0.3} ${8 + h * 0.55} L${8 + w * 0.3} ${8 + h * 0.3} L${8 + w * 0.55} ${8 + h * 0.55} Z`} fill="#F8FAFC" />
-          </g>
+          </G>
         )}
         {art === "stars" && (
-          <g>
+          <G>
             <Rect x={8} y={8} width={w} height={h} fill="#0F172A" />
             {[[0.25, 0.3], [0.5, 0.2], [0.7, 0.45], [0.4, 0.6], [0.65, 0.7]].map(([fx, fy], i) => (
               <Circle key={i} cx={8 + w * fx} cy={8 + h * fy} r={2.2} fill="#FDE68A" />
             ))}
             <Path d={`M${8 + w * 0.25} ${8 + h * 0.3} L${8 + w * 0.5} ${8 + h * 0.2} L${8 + w * 0.7} ${8 + h * 0.45}`} stroke="#7FA8C9" strokeWidth={1.2} fill="none" />
-          </g>
+          </G>
         )}
       </Svg>
     </View>
@@ -123,10 +123,10 @@ function GreatFossil({ grand = false }: { grand?: boolean }) {
         {/* mount base */}
         <Rect x={W * 0.3} y={98} width={W * 0.36} height={8} rx={4} fill={STONE_DARK} />
         {grand && (
-          <g>
+          <G>
             <Circle cx={W * 0.5} cy={20} r={4} fill={GOLD} />
             <Path d={`M${W * 0.5} 26 L${W * 0.5} 52`} stroke={GOLD} strokeWidth={1.5} strokeDasharray="4 3" />
-          </g>
+          </G>
         )}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>The Great Fossil</Text>

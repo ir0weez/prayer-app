@@ -63,9 +63,9 @@ function Escalator({ level }: { level: number }) {
           const x = 22 + i * 13;
           const y = 96 - i * 17;
           return (
-            <g key={i}>
+            <G key={i}>
               <Rect x={x} y={y} width={16} height={7} rx={2} fill="#6B7280" stroke="#4B5563" strokeWidth={1} />
-            </g>
+            </G>
           );
         })}
         {/* balustrade glass */}
@@ -149,10 +149,10 @@ function GrandChandelier() {
         <Ellipse cx={65} cy={41} rx={46} ry={10} fill={GOLD} />
         <Ellipse cx={65} cy={52} rx={30} ry={8} fill="#8A6D1C" opacity={0.6} />
         {[30, 48, 66, 84, 102].map((cx) => (
-          <g key={cx}>
+          <G key={cx}>
             <Rect x={cx - 3} y={22} width={6} height={18} rx={3} fill="#FDECC8" />
             <Circle cx={cx} cy={19} r={5.5} fill="#FFF7D6" />
-          </g>
+          </G>
         ))}
         <Circle cx={65} cy={56} r={7} fill="#E8B44C" />
       </Svg>

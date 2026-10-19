@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   useInteriorData,
   InteriorHeader,
@@ -52,14 +52,14 @@ function Skyline({ tall }: { tall: boolean }) {
       <Polygon points="30,64 30,44 52,44 52,28 70,28 70,64" fill="#7C93AC" />
       <Polygon points="66,64 66,24 88,24 88,64" fill="#94A3B8" />
       {tall && (
-        <g>
+        <G>
           <Polygon points="84,92 84,52 112,52 112,30 132,30 132,92" fill="#7C93AC" />
           <Polygon points="126,92 126,44 150,44 150,64 168,64 168,92" fill="#94A3B8" />
           <Polygon points="160,92 160,58 184,58 184,40 204,40 204,92" fill="#7C93AC" />
           <Polygon points="196,92 196,48 224,48 224,92" fill="#94A3B8" />
           <Polygon points="218,92 218,62 244,62 244,92" fill="#7C93AC" />
           <Path d="M0 92 L300 92" stroke="#64748B" strokeWidth={3} />
-        </g>
+        </G>
       )}
       {!tall && <Path d="M0 64 L210 64" stroke="#64748B" strokeWidth={3} />}
     </Svg>

@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -66,9 +66,9 @@ function Stage({ level }: { level: number }) {
         <Rect x={4} y={86} width={W - 8} height={10} rx={4} fill="#5E3D22" />
         {/* footlights */}
         {[0, 1, 2, 3, 4].map((i) => (
-          <g key={i}>
+          <G key={i}>
             <Circle cx={30 + i * ((W - 60) / 4)} cy={72} r={5} fill="#FDE68A" stroke="#8A6D1C" strokeWidth={1.5} />
-          </g>
+          </G>
         ))}
       </Svg>
     </View>
@@ -124,12 +124,12 @@ function HallChandelier() {
           <Line x1={65} y1={0} x2={65} y2={10} stroke="#8A6D1C" strokeWidth={4} />
           <Ellipse cx={65} cy={46} rx={40} ry={10} fill="none" stroke={GOLD} strokeWidth={4} />
           {[25, 45, 65, 85, 105].map((cx) => (
-            <g key={cx}>
+            <G key={cx}>
               <Line x1={65} y1={12} x2={cx} y2={46} stroke={GOLD} strokeWidth={2.5} />
               <Circle cx={cx} cy={42} r={4} fill="#FFF7D6" />
               <Line x1={cx} y1={56} x2={cx} y2={64} stroke="#BFDCEF" strokeWidth={1.5} />
               <Circle cx={cx} cy={68} r={3.5} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
-            </g>
+            </G>
           ))}
         </Svg>
       </SoftPulse>

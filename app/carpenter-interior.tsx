@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -70,14 +70,14 @@ function LumberStack() {
     <View style={{ alignItems: "center", marginHorizontal: 8 }}>
       <Svg width={70} height={80} viewBox="0 0 70 80">
         {[0, 1, 2, 3].map((r) => (
-          <g key={r}>
+          <G key={r}>
             {[0, 1, 2].map((c) => (
-              <g key={c}>
+              <G key={c}>
                 <Rect x={8 + c * 18} y={56 - r * 14} width={16} height={12} rx={2} fill={r % 2 ? "#C69A63" : "#B9834F"} stroke={WOOD_DEEP} strokeWidth={1.5} />
                 <Circle cx={16 + c * 18} cy={62 - r * 14} r={3} fill="#E8D2A8" />
-              </g>
+              </G>
             ))}
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Lumber</Text>

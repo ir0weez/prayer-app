@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -67,11 +67,11 @@ function SoakPool({ wide = false, mosaic = false }: { wide?: boolean; mosaic?: b
         <Path d={`M${W / 2 - 40} 36 q8 -5 16 0 q8 5 16 0`} stroke="#FFFFFF" strokeWidth={2} fill="none" opacity={0.9} strokeLinecap="round" />
         <Path d={`M${W / 2 - 10} 44 q8 -5 16 0 q8 5 16 0`} stroke="#E0F2FE" strokeWidth={1.6} fill="none" opacity={0.9} strokeLinecap="round" />
         {mosaic && (
-          <g>
+          <G>
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <Circle key={i} cx={20 + i * ((W - 40) / 5)} cy={64} r={4} fill="#FDE68A" opacity={0.9} />
             ))}
-          </g>
+          </G>
         )}
         {/* mosaic band */}
         <Rect x={4} y={58} width={W - 8} height={10} rx={5} fill={TILE_DARK} opacity={0.55} />

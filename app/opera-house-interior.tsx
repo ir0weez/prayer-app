@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -56,9 +56,9 @@ function GrandStage({ level }: { level: number }) {
         <Rect x={4} y={96} width={W - 8} height={12} rx={4} fill="#5E3D22" />
         {/* footlights */}
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <g key={i}>
+          <G key={i}>
             <Circle cx={28 + i * ((W - 56) / 5)} cy={80} r={5.5} fill="#FDE68A" stroke="#8A6D1C" strokeWidth={1.5} />
-          </g>
+          </G>
         ))}
         {/* spotlight beams */}
         <Path d={`M${W / 2 - 60} 8 L${W / 2 - 20} 80 L${W / 2 - 44} 80 Z`} fill="#FFF7D6" opacity={0.18} />
@@ -76,13 +76,13 @@ function OrchestraPit({ level }: { level: number }) {
       <Svg width={220} height={40} viewBox="0 0 220 40">
         <Rect x={10} y={6} width={200} height={28} rx={10} fill="#1F2937" stroke="#374151" strokeWidth={2} />
         {Array.from({ length: players }).map((_, i) => (
-          <g key={i}>
+          <G key={i}>
             <Circle cx={40 + i * 36} cy={16} r={7} fill="#D6A87C" />
             <Rect x={33 + i * 36} y={22} width={14} height={8} rx={3} fill="#7A5230" />
             {/* tiny violin */}
             <Ellipse cx={52 + i * 36} cy={24} rx={7} ry={5} fill="#8A5A2B" stroke="#5E3D22" strokeWidth={1.2} transform={`rotate(-20 ${52 + i * 36} 24)`} />
             <Line x1={56 + i * 36} y1={20} x2={66 + i * 36} y2={12} stroke="#5E3D22" strokeWidth={2} />
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Orchestra pit</Text>
@@ -122,12 +122,12 @@ function OperaChandelier({ grand = false }: { grand?: boolean }) {
           {Array.from({ length: drops }).map((_, i) => {
             const cx = 25 + i * ((grand ? 120 : 80) / (drops - 1));
             return (
-              <g key={i}>
+              <G key={i}>
                 <Line x1={(grand ? 170 : 130) / 2} y1={14} x2={cx} y2={50} stroke={GOLD} strokeWidth={2.5} />
                 <Circle cx={cx} cy={46} r={4.5} fill="#FFF7D6" />
                 <Line x1={cx} y1={62} x2={cx} y2={72} stroke="#BFDCEF" strokeWidth={1.5} />
                 <Circle cx={cx} cy={76} r={3.5} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
-              </g>
+              </G>
             );
           })}
         </Svg>

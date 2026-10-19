@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { scaledCoins, scaledXP } from "@/lib/hometown";
@@ -155,13 +155,13 @@ function Chandelier() {
             const t = i / (lamps.length - 1);
             const y = 44 + 44 * t * (1 - t) * 0.9 - 4;
             return (
-              <g key={cx}>
+              <G key={cx}>
                 <Line x1={cx} y1={y - 22} x2={cx} y2={y - 2} stroke={WOOD_DARK} strokeWidth={2.5} />
                 <Polygon points={`${cx - 8},${y - 2} ${cx + 8},${y - 2} ${cx + 5},${y + 12} ${cx - 5},${y + 12}`} fill="#FFF3D6" stroke={GOLD} strokeWidth={1.5} />
                 <Ellipse cx={cx} cy={y + 2} rx={4} ry={5} fill="#FFE9A8" />
                 <Line x1={cx} y1={y + 12} x2={cx} y2={y + 20} stroke="#BFDCEF" strokeWidth={1.5} />
                 <Circle cx={cx} cy={y + 24} r={3.2} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
-              </g>
+              </G>
             );
           })}
           {/* hanging center crystal */}
@@ -302,11 +302,11 @@ function BreadGarland({ width = 330 }: { width?: number }) {
         const x = width * t;
         const y = 4 + 48 * t * (1 - t);
         return (
-          <g key={i}>
+          <G key={i}>
             <Line x1={x} y1={y} x2={x} y2={y + 5} stroke={WOOD_DARK} strokeWidth={1.5} />
             <Ellipse cx={x} cy={y + 10} rx={7.5} ry={5} fill="#D9A45B" stroke="#A9713F" strokeWidth={1.2} />
             <Path d={`M${x - 3} ${y + 9} l3 -2.5 M${x + 1} ${y + 9} l3 -2.5`} stroke="#A9713F" strokeWidth={1.2} strokeLinecap="round" />
-          </g>
+          </G>
         );
       })}
     </Svg>

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -169,21 +169,21 @@ function CeilingLight({ level }: { level: number }) {
           {/* lower tier */}
           <Ellipse cx={75} cy={66} rx={52} ry={13} fill="none" stroke="#8A6D1C" strokeWidth={4} />
           {upper.map((cx) => (
-            <g key={`u${cx}`}>
+            <G key={`u${cx}`}>
               <Line x1={75} y1={24} x2={cx} y2={40} stroke="#C9963C" strokeWidth={2.5} />
               <Rect x={cx - 2.5} y={24} width={5} height={14} rx={2} fill="#FDECC8" />
               <Circle cx={cx} cy={22} r={4} fill="#FFF7D6" />
-            </g>
+            </G>
           ))}
           {lower.map((cx) => (
-            <g key={`l${cx}`}>
+            <G key={`l${cx}`}>
               <Line x1={75} y1={40} x2={cx} y2={66} stroke="#8A6D1C" strokeWidth={2.5} />
               <Rect x={cx - 2.5} y={50} width={5} height={14} rx={2} fill="#FDECC8" />
               <Circle cx={cx} cy={48} r={4} fill="#FFF7D6" />
               {/* crystal drop */}
               <Line x1={cx} y1={79} x2={cx} y2={88} stroke="#BFDCEF" strokeWidth={1.5} />
               <Circle cx={cx} cy={92} r={3.5} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
-            </g>
+            </G>
           ))}
           <Circle cx={75} cy={74} r={6} fill="#E8B44C" stroke="#8A6D1C" strokeWidth={1.5} />
         </Svg>
@@ -248,10 +248,10 @@ function SwagGarland({ width = 320 }: { width?: number }) {
         const x = width * t;
         const y = 6 + 84 * t * (1 - t);
         return (
-          <g key={i}>
+          <G key={i}>
             <Ellipse cx={x - 6} cy={y + 3} rx={6} ry={3.5} fill="#3E8E41" />
             <Ellipse cx={x + 6} cy={y + 3} rx={6} ry={3.5} fill="#3E8E41" />
-          </g>
+          </G>
         );
       })}
       {Array.from({ length: 7 }).map((_, i) => {

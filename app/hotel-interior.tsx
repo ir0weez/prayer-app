@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   useInteriorData,
   InteriorHeader,
@@ -45,10 +45,10 @@ const XP_BY_LEVEL = [5, 10, 18];
 function Chandelier({ grand }: { grand: boolean }) {
   const drops = (xs: number[], topY: number) =>
     xs.map((x) => (
-      <g key={x}>
+      <G key={x}>
         <Line x1={x} y1={topY} x2={x} y2={topY + 9} stroke="#BFDCEF" strokeWidth={1.5} />
         <Circle cx={x} cy={topY + 13} r={3.4} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1} />
-      </g>
+      </G>
     ));
   return (
     <View style={{ alignItems: "center", marginTop: 6 }}>
@@ -78,31 +78,31 @@ function Chandelier({ grand }: { grand: boolean }) {
           const spread = grand ? 68 : 44;
           const x = cx - spread + (i * spread * 2) / (grand ? 6 : 4);
           return (
-            <g key={i}>
+            <G key={i}>
               <Rect x={x - 3} y={grand ? 20 : 16} width={6} height={12} rx={2} fill={GOLD_LIGHT} />
               <Circle cx={x} cy={grand ? 18 : 14} r={3.5} fill="#FFF3C4" />
-            </g>
+            </G>
           );
         })}
         {/* second tier for the grand chandelier */}
         {grand && (
-          <g>
+          <G>
             <Line x1={95} y1={48} x2={95} y2={62} stroke={GOLD} strokeWidth={4} />
             <Ellipse cx={95} cy={72} rx={48} ry={11} fill="none" stroke={GOLD} strokeWidth={3} />
             {Array.from({ length: 5 }).map((_, i) => {
               const x = 95 - 40 + (i * 80) / 4;
               return (
-                <g key={i}>
+                <G key={i}>
                   <Rect x={x - 2.5} y={58} width={5} height={11} rx={2} fill={GOLD_LIGHT} />
                   <Circle cx={x} cy={56} r={3} fill="#FFF3C4" />
-                </g>
+                </G>
               );
             })}
             {/* crystal drops on both tiers */}
             {drops([35, 65, 125, 155], 50)}
             {drops([63, 79, 95, 111, 127], 82)}
             <Circle cx={95} cy={104} r={4.5} fill="#DFF2FD" stroke="#9FB3C8" strokeWidth={1.2} />
-          </g>
+          </G>
         )}
       </Svg>
     </View>
@@ -338,11 +338,11 @@ function RopeLine() {
     <View style={{ alignItems: "center", marginTop: 8 }}>
       <Svg width={230} height={44} viewBox="0 0 230 44">
         {[30, 200].map((x) => (
-          <g key={x}>
+          <G key={x}>
             <Ellipse cx={x} cy={40} rx={12} ry={4} fill={GOLD} stroke="#8A6D1C" strokeWidth={1.5} />
             <Rect x={x - 3} y={10} width={6} height={30} fill={GOLD} stroke="#8A6D1C" strokeWidth={1} />
             <Circle cx={x} cy={8} r={5} fill={GOLD} stroke="#8A6D1C" strokeWidth={1.5} />
-          </g>
+          </G>
         ))}
         <Path d="M30 22 Q115 44 200 22" stroke="#A31621" strokeWidth={5} fill="none" strokeLinecap="round" />
         <Path d="M30 22 Q115 44 200 22" stroke="#C0392B" strokeWidth={2.5} fill="none" strokeLinecap="round" />

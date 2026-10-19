@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polygon, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -69,10 +69,10 @@ function NoticeBoard({ level }: { level: number }) {
           const cx = 26 + (i % 4) * 26;
           const cy = 28 + Math.floor(i / 4) * 32;
           return (
-            <g key={i}>
+            <G key={i}>
               <Rect x={cx - 10} y={cy - 8} width={20} height={16} rx={2} fill={colors[i % colors.length]} stroke="#00000022" strokeWidth={1} transform={`rotate(${(i % 2 ? -6 : 6)} ${cx} ${cy})`} />
               <Circle cx={cx} cy={cy - 8} r={2.2} fill="#B91C1C" />
-            </g>
+            </G>
           );
         })}
         {level >= 3 && <Rect x={6} y={6} width={118} height={10} rx={5} fill={GOLD} stroke="#8A6D1C" strokeWidth={1.5} />}

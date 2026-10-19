@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -43,7 +43,7 @@ function Gear({ size, cx, cy, teeth = 8, brass = true, spin = 0 }: { size: numbe
   const color = brass ? BRASS : STEEL;
   const dark = brass ? BRASS_DARK : "#5E5646";
   return (
-    <g transform={`rotate(${spin} ${cx} ${cy})`}>
+    <G transform={`rotate(${spin} ${cx} ${cy})`}>
       {Array.from({ length: teeth }).map((_, i) => {
         const a = (i * 360) / teeth;
         const rad = (a * Math.PI) / 180;
@@ -60,7 +60,7 @@ function Gear({ size, cx, cy, teeth = 8, brass = true, spin = 0 }: { size: numbe
         return <Line key={i} x1={cx} y1={cy} x2={cx + (r - 14) * Math.cos(a)} y2={cy + (r - 14) * Math.sin(a)} stroke={dark} strokeWidth={3} />;
       })}
       <Circle cx={cx} cy={cy} r={5} fill={dark} />
-    </g>
+    </G>
   );
 }
 
@@ -121,11 +121,11 @@ function OilShelf() {
       <Svg width={120} height={70} viewBox="0 0 120 70">
         <Rect x={4} y={52} width={112} height={8} rx={3} fill="#5E5646" />
         {[0, 1, 2].map((i) => (
-          <g key={i}>
+          <G key={i}>
             <Path d={`M${24 + i * 34} 52 l4 -18 h12 l4 18 Z`} fill={BRASS} stroke={BRASS_DARK} strokeWidth={1.5} />
             <Line x1={34 + i * 34} y1={34} x2={42 + i * 34} y2={26} stroke={BRASS_DARK} strokeWidth={3} />
             <Circle cx={43 + i * 34} cy={25} r={2.5} fill={BRASS_DARK} />
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Oil cans</Text>

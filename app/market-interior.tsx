@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { scaledCoins, scaledXP } from "@/lib/hometown";
@@ -79,13 +79,13 @@ function EntranceArch({ grand, festive = false }: { grand: boolean; festive?: bo
     <View style={{ alignItems: "center", marginTop: 10 }}>
       <Svg width={W} height={festive ? H + 26 : H} viewBox={`0 0 ${W} ${festive ? H + 26 : H}`}>
         {festive && (
-          <g>
+          <G>
             {/* pennant flags */}
             <Line x1={W / 2 - 60} y1={26} x2={W / 2 - 60} y2={2} stroke={WOOD_DARK} strokeWidth={2.5} />
             <Polygon points={`${W / 2 - 60},2 ${W / 2 - 34},9 ${W / 2 - 60},16`} fill="#C0392B" />
             <Line x1={W / 2 + 60} y1={26} x2={W / 2 + 60} y2={2} stroke={WOOD_DARK} strokeWidth={2.5} />
             <Polygon points={`${W / 2 + 60},2 ${W / 2 + 86},9 ${W / 2 + 60},16`} fill="#0E7C86" />
-          </g>
+          </G>
         )}
         {/* pillars */}
         <Rect x={10} y={26} width={grand ? 20 : 16} height={H - 26} fill={pillar} />
@@ -98,10 +98,10 @@ function EntranceArch({ grand, festive = false }: { grand: boolean; festive?: bo
         {/* flower garland along the beam */}
         {festive &&
           garland.map((g, i) => (
-            <g key={i}>
+            <G key={i}>
               <Circle cx={g.x} cy={g.y - 7} r={5} fill={g.c} />
               <Circle cx={g.x} cy={g.y - 7} r={2} fill="#FDE68A" />
-            </g>
+            </G>
           ))}
         {grand && (
           <>
@@ -289,13 +289,13 @@ function LanternString({ width = 340 }: { width?: number }) {
           const x = width * t;
           const y = 4 + 52 * t * (1 - t);
           return (
-            <g key={i}>
+            <G key={i}>
               <Line x1={x} y1={y} x2={x} y2={y + 6} stroke={WOOD_DARK} strokeWidth={1.5} />
               <Ellipse cx={x} cy={y + 15} rx={9} ry={10} fill={colors[i % colors.length]} opacity={0.92} />
               <Ellipse cx={x} cy={y + 15} rx={4} ry={6} fill="#FFE9A8" opacity={0.55} />
               <Rect x={x - 3} y={y + 4} width={6} height={3} fill={WOOD_DARK} />
               <Rect x={x - 3} y={y + 24} width={6} height={3} fill={WOOD_DARK} />
-            </g>
+            </G>
           );
         })}
       </Svg>
@@ -313,13 +313,13 @@ function FlowerCart() {
         {bouquets.map((c, i) => {
           const x = 36 + i * 30;
           return (
-            <g key={i}>
+            <G key={i}>
               <Line x1={x} y1={44} x2={x} y2={28} stroke="#2F6B31" strokeWidth={2.5} />
               <Circle cx={x - 5} cy={24} r={7} fill={c} />
               <Circle cx={x + 5} cy={22} r={7} fill={c} opacity={0.85} />
               <Circle cx={x} cy={18} r={6} fill={c} />
               <Circle cx={x} cy={21} r={2.5} fill="#FDE68A" />
-            </g>
+            </G>
           );
         })}
         {/* cart bed */}

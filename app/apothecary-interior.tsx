@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -167,11 +167,11 @@ function HangingHerbs() {
       <Svg width={140} height={64} viewBox="0 0 140 64">
         <Rect x={4} y={4} width={132} height={7} rx={3.5} fill={WOOD_DARK} />
         {herbs.map((c, i) => (
-          <g key={i}>
+          <G key={i}>
             <Line x1={24 + i * 30} y1={11} x2={24 + i * 30} y2={20} stroke={WOOD_DARK} strokeWidth={2} />
             <Ellipse cx={24 + i * 30} cy={34} rx={10} ry={14} fill={c} />
             <Ellipse cx={20 + i * 30} cy={30} rx={4} ry={7} fill="#ffffff" opacity={0.18} />
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Drying herbs</Text>

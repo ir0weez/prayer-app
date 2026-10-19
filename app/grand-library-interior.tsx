@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -99,11 +99,11 @@ function ReadingTable({ level }: { level: number }) {
         <Path d="M130 44 q10 -6 20 0 q10 -6 20 0 l0 -12 q-10 -6 -20 0 q-10 -6 -20 0 Z" fill="#F8FAFC" stroke="#94A3B8" strokeWidth={1.5} />
         {/* brass lamps */}
         {[36, 184].map((cx) => (
-          <g key={cx}>
+          <G key={cx}>
             <Line x1={cx} y1={44} x2={cx} y2={24} stroke={GOLD} strokeWidth={3} />
             <Path d={`M${cx - 12} 24 h24 l-4 -10 h-16 Z`} fill={level >= 3 ? GOLD : "#E8B44C"} stroke="#8A6D1C" strokeWidth={1.5} />
             <Circle cx={cx} cy={28} r={4} fill="#FFF7D6" />
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Reading table</Text>

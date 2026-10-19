@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon } from "react-native-svg";
+import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon, G } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -1869,10 +1869,10 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
             <Path d="M4 28 A31 31 0 0 1 66 28 Z" fill={lv >= 3 ? "#C9963C" : "#94A3B8"} stroke="#475569" strokeWidth={2.5} />
             <Path d="M32 28 A31 31 0 0 1 38 3 L38 28 Z" fill="#1E293B" opacity={0.85} />
             {lv >= 2 && (
-              <g>
+              <G>
                 <Line x1={40} y1={14} x2={62} y2={6} stroke="#C9963C" strokeWidth={5} strokeLinecap="round" />
                 <Circle cx={62} cy={6} r={4} fill="#FDE68A" stroke="#8A6D1C" strokeWidth={1.5} />
-              </g>
+              </G>
             )}
           </Svg>
           <View style={{ width: w, height: towerH, backgroundColor: "#CBD5E1", borderWidth: 2, borderColor: "#64748B", borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }}>

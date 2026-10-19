@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -144,10 +144,10 @@ function DryingRack() {
         <Rect x={8} y={26} width={94} height={5} fill="#8A5A2B" />
         <Rect x={8} y={46} width={94} height={5} fill="#8A5A2B" />
         {[24, 52, 80].map((cx, i) => (
-          <g key={i}>
+          <G key={i}>
             <Ellipse cx={cx} cy={20} rx={8} ry={6} fill="#D9A066" stroke="#96522C" strokeWidth={1.5} />
             <Ellipse cx={cx} cy={40} rx={9} ry={6} fill="#C98F5A" stroke="#96522C" strokeWidth={1.5} />
-          </g>
+          </G>
         ))}
       </Svg>
       <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Drying rack</Text>

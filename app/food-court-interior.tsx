@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, Text as SvgText, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -98,10 +98,10 @@ function StringLights() {
       {[28, 55, 82, 137, 165, 192, 247, 275, 302].map((cx, i) => {
         const cy = i < 3 ? 12 + i * 4.6 : i < 6 ? 26 : 26 - (i - 6) * 7.5;
         return (
-          <g key={cx}>
+          <G key={cx}>
             <Line x1={cx} y1={cy - 6} x2={cx} y2={cy} stroke="#6B4A2F" strokeWidth={1.5} />
             <Circle cx={cx} cy={cy + 4} r={4.5} fill="#FFE9A8" stroke="#C9963C" strokeWidth={1} />
-          </g>
+          </G>
         );
       })}
     </Svg>
@@ -117,10 +117,10 @@ function DrinkStation() {
         <Rect x={6} y={40} width={58} height={10} rx={5} fill="#12A3AF" />
         {/* taps */}
         {[20, 35, 50].map((cx) => (
-          <g key={cx}>
+          <G key={cx}>
             <Rect x={cx - 4} y={50} width={8} height={12} rx={3} fill="#0A5A62" />
             <Circle cx={cx} cy={66} r={3.5} fill="#BEE3F8" />
-          </g>
+          </G>
         ))}
         <Rect x={10} y={18} width={50} height={22} rx={6} fill="#EAF6F7" stroke={ACCENT_DARK} strokeWidth={2} />
         <SvgText x={35} y={33} fontSize={10} fontWeight="800" fill={TEAL} textAnchor="middle">DRINKS</SvgText>

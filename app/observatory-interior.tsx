@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Line, Path, Rect, G } from "react-native-svg";
 import {
   InteriorActions,
   InteriorBanner,
@@ -68,13 +68,13 @@ function Telescope({ grand = false }: { grand?: boolean }) {
         <Path d="M75 108 L60 78 L90 78 Z" fill="#475569" stroke="#1E293B" strokeWidth={2} />
         <Circle cx={75} cy={76} r={9} fill={BRASS} stroke="#8A6D1C" strokeWidth={2} />
         {/* tube, angled up */}
-        <g transform="rotate(-24 75 70)">
+        <G transform="rotate(-24 75 70)">
           <Rect x={30} y={58} width={90} height={22} rx={10} fill={grand ? "#334155" : "#475569"} stroke={BRASS} strokeWidth={2.5} />
           <Rect x={30} y={58} width={90} height={7} rx={3.5} fill="#64748B" opacity={0.7} />
           <Ellipse cx={122} cy={69} rx={7} ry={11} fill="#0F172A" stroke={BRASS} strokeWidth={2.5} />
           <Circle cx={122} cy={69} r={4} fill="#1E3A5A" />
           <Rect x={22} y={62} width={10} height={14} rx={3} fill="#1E293B" />
-        </g>
+        </G>
         {/* eyepiece */}
         <Rect x={40} y={96} width={12} height={8} rx={3} fill={BRASS} stroke="#8A6D1C" strokeWidth={1.5} transform="rotate(-24 46 100)" />
       </Svg>

@@ -5,7 +5,8 @@ import { getTimeOfDay } from "@/lib/daynight";
 // ---------------------------------------------------------------------------
 // CityTraffic: flat little cars circulating the downtown street grid.
 // Purely visual — pointerEvents="none", native-driver animations.
-// Cars follow street tiles (avenues x=2/x=5, boulevards y=2/y=5).
+// Cars stay on street tiles only (avenues x=2/x=5, boulevards y=2/5/10/13).
+// At night the headlights glow.
 // ---------------------------------------------------------------------------
 
 type Tile = { x: number; y: number };
@@ -16,19 +17,40 @@ const CAR_COLORS = ["#EF4444", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6", "#E2E
 
 type Dir = "E" | "W" | "N" | "S";
 
-// Tile loops — all tiles are city streets (avenues x=2/x=5, boulevards y=2/y=5)
+// Tile loops — every tile below is a real city street tile:
+//   avenues: x=2 (West Ave) and x=5 (East Ave), y=0..13
+//   boulevards: y=2 (North), y=5 (South), y=10 (Midtown), y=13 (Harbor),
+//   at x=0,1,3,4,6,7 (avenue crossings ride the avenue tiles)
 const CAR_LOOPS: Tile[][] = [
-  // Center block — clockwise
+  // Downtown block — clockwise (West Ave / North Blvd / East Ave / South Blvd)
   [
     { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }, { x: 5, y: 2 },
     { x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 },
     { x: 4, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 5 },
     { x: 2, y: 4 }, { x: 2, y: 3 },
   ],
-  // Center block — counter-clockwise
+  // Downtown block — counter-clockwise
   [
     { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 },
     { x: 3, y: 5 }, { x: 4, y: 5 }, { x: 5, y: 5 },
+    { x: 5, y: 4 }, { x: 5, y: 3 }, { x: 5, y: 2 },
+    { x: 4, y: 2 }, { x: 3, y: 2 },
+  ],
+  // Midtown block — clockwise (West Ave / Midtown Blvd / East Ave / Harbor Blvd)
+  [
+    { x: 2, y: 10 }, { x: 3, y: 10 }, { x: 4, y: 10 }, { x: 5, y: 10 },
+    { x: 5, y: 11 }, { x: 5, y: 12 }, { x: 5, y: 13 },
+    { x: 4, y: 13 }, { x: 3, y: 13 }, { x: 2, y: 13 },
+    { x: 2, y: 12 }, { x: 2, y: 11 },
+  ],
+  // Grand loop — down West Ave to the harbor, up East Ave, back along North Blvd
+  [
+    { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 },
+    { x: 2, y: 6 }, { x: 2, y: 7 }, { x: 2, y: 8 }, { x: 2, y: 9 },
+    { x: 2, y: 10 }, { x: 2, y: 11 }, { x: 2, y: 12 }, { x: 2, y: 13 },
+    { x: 3, y: 13 }, { x: 4, y: 13 }, { x: 5, y: 13 },
+    { x: 5, y: 12 }, { x: 5, y: 11 }, { x: 5, y: 10 }, { x: 5, y: 9 },
+    { x: 5, y: 8 }, { x: 5, y: 7 }, { x: 5, y: 6 }, { x: 5, y: 5 },
     { x: 5, y: 4 }, { x: 5, y: 3 }, { x: 5, y: 2 },
     { x: 4, y: 2 }, { x: 3, y: 2 },
   ],
@@ -36,29 +58,18 @@ const CAR_LOOPS: Tile[][] = [
   [
     { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 },
     { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 2, y: 6 }, { x: 2, y: 7 },
-    { x: 2, y: 6 }, { x: 2, y: 5 }, { x: 2, y: 4 }, { x: 2, y: 3 },
-    { x: 2, y: 2 }, { x: 2, y: 1 },
+    { x: 2, y: 8 }, { x: 2, y: 9 }, { x: 2, y: 10 }, { x: 2, y: 11 },
+    { x: 2, y: 12 }, { x: 2, y: 13 },
+    { x: 2, y: 12 }, { x: 2, y: 11 }, { x: 2, y: 10 }, { x: 2, y: 9 },
+    { x: 2, y: 8 }, { x: 2, y: 7 }, { x: 2, y: 6 }, { x: 2, y: 5 },
+    { x: 2, y: 4 }, { x: 2, y: 3 }, { x: 2, y: 2 }, { x: 2, y: 1 },
   ],
-  // East Ave — northbound then back south
+  // Harbor Blvd — eastbound then back west
   [
-    { x: 5, y: 7 }, { x: 5, y: 6 }, { x: 5, y: 5 }, { x: 5, y: 4 },
-    { x: 5, y: 3 }, { x: 5, y: 2 }, { x: 5, y: 1 }, { x: 5, y: 0 },
-    { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }, { x: 5, y: 4 },
-    { x: 5, y: 5 }, { x: 5, y: 6 },
-  ],
-  // North Blvd — eastbound then back west
-  [
-    { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 },
-    { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 },
-    { x: 6, y: 2 }, { x: 5, y: 2 }, { x: 4, y: 2 }, { x: 3, y: 2 },
-    { x: 2, y: 2 }, { x: 1, y: 2 },
-  ],
-  // South Blvd — westbound then back east
-  [
-    { x: 7, y: 5 }, { x: 6, y: 5 }, { x: 5, y: 5 }, { x: 4, y: 5 },
-    { x: 3, y: 5 }, { x: 2, y: 5 }, { x: 1, y: 5 }, { x: 0, y: 5 },
-    { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
-    { x: 5, y: 5 }, { x: 6, y: 5 },
+    { x: 0, y: 13 }, { x: 1, y: 13 }, { x: 2, y: 13 }, { x: 3, y: 13 },
+    { x: 4, y: 13 }, { x: 5, y: 13 }, { x: 6, y: 13 }, { x: 7, y: 13 },
+    { x: 6, y: 13 }, { x: 5, y: 13 }, { x: 4, y: 13 }, { x: 3, y: 13 },
+    { x: 2, y: 13 }, { x: 1, y: 13 },
   ],
 ];
 
@@ -80,7 +91,7 @@ function dirOf(from: Px, to: Px): Dir {
   return "N";
 }
 
-function CarBody({ color, dir }: { color: string; dir: Dir }) {
+function CarBody({ color, dir, headlights }: { color: string; dir: Dir; headlights: boolean }) {
   const horizontal = dir === "E" || dir === "W";
   const w = horizontal ? 28 : 15;
   const h = horizontal ? 15 : 28;
@@ -93,6 +104,16 @@ function CarBody({ color, dir }: { color: string; dir: Dir }) {
     : {
         width: 11, height: 9, borderRadius: 2,
         left: 2, top: dir === "S" ? 15 : 4,
+      };
+  // Headlight beam — a warm glow just ahead of the front bumper, night only
+  const beamStyle = horizontal
+    ? {
+        width: 16, height: 8, borderRadius: 4,
+        left: dir === "E" ? w - 2 : -14, top: h / 2 - 4,
+      }
+    : {
+        width: 8, height: 16, borderRadius: 4,
+        left: w / 2 - 4, top: dir === "S" ? h - 2 : -14,
       };
   const wheelA = horizontal
     ? { left: 5, top: -3, width: 7, height: 4 }
@@ -114,6 +135,14 @@ function CarBody({ color, dir }: { color: string; dir: Dir }) {
       <View style={{ width: w, height: h, borderRadius: 6, backgroundColor: color }}>
         <View style={[{ position: "absolute", backgroundColor: "rgba(255,255,255,0.75)" }, shieldStyle]} />
       </View>
+      {headlights && (
+        <View
+          style={[
+            { position: "absolute", backgroundColor: "#FEF3C7", opacity: 0.9, shadowColor: "#FDE047", shadowRadius: 8, shadowOpacity: 0.9 },
+            beamStyle,
+          ]}
+        />
+      )}
     </View>
   );
 }
@@ -126,7 +155,7 @@ export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number
   orientsRef.current = orients;
   const carCountRef = useRef(carCount);
   carCountRef.current = carCount;
-  // At night the city sleeps — no traffic, regardless of house count.
+  // Night only changes the headlights — cars keep circulating.
   const [isNight, setIsNight] = useState(() => getTimeOfDay() === "night");
   useEffect(() => {
     const id = setInterval(() => {
@@ -141,8 +170,7 @@ export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number
     const logic = logicRef.current;
 
     const spawnCars = () => {
-      const raw = isNight ? 0 : carCountRef.current;
-      const n = Math.max(0, Math.min(CAR_LOOPS.length, Math.floor(raw)));
+      const n = Math.max(0, Math.min(CAR_LOOPS.length, Math.floor(carCountRef.current)));
       // Full rebuild: stop everything, spawn exactly n cars
       for (const id of Object.keys(logic)) {
         logic[id].anim?.stop();
@@ -192,14 +220,13 @@ export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number
       });
     };
 
-    // Spawn cars on mount / resize, whenever the house count changes,
-    // or when night falls / lifts (city sleeps at night).
+    // Spawn cars on mount / resize, whenever the count changes.
     spawnCars();
 
     return () => {
       for (const car of Object.values(logic)) car.anim?.stop();
     };
-  }, [cellSize, carCount, isNight]);
+  }, [cellSize, carCount]);
 
   // Entities as a fragment when bare — the parent depth-sorts them with
   // buildings via zIndex (cars drive BEHIND tall buildings).
@@ -222,7 +249,7 @@ export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number
             }}
             pointerEvents="none"
           >
-            <CarBody color={car.color} dir={dir} />
+            <CarBody color={car.color} dir={dir} headlights={isNight} />
           </Animated.View>
         );
       });

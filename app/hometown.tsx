@@ -261,6 +261,9 @@ import { SafeBoundary } from "@/components/safe-boundary";
 import { getTimeOfDay, PAGE_THEMES, type TimeOfDay } from "@/lib/daynight";
 import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/components/town-npcs";
 import { CityTraffic } from "@/components/city-traffic";
+import { ChimneySmoke, hasChimney } from "@/components/chimney-smoke";
+import { MapBirds } from "@/components/map-birds";
+import { NightWindowGlow, hasLitWindows } from "@/components/night-window-glow";
 import {
   getActiveScheduleActivity,
   resolveScheduleTarget,
@@ -2452,6 +2455,7 @@ export default function HometownScreen() {
     const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
+  const isNight = timeOfDay === "night";
   // City celebrations: load persisted state once (which milestones fired, etc.).
   useEffect(() => {
     loadCelebrations()
@@ -5366,6 +5370,18 @@ export default function HometownScreen() {
                 }}
               >
                 <BuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
+                {/* Ambient life: chimney smoke drifting from hearths */}
+                {hasChimney(b.type) && (
+                  <ChimneySmoke risePx={cellSize * 0.9} puffSize={Math.max(8, cellSize * 0.28)} />
+                )}
+                {/* Ambient life: warm window glow at night (8 PM – 6 AM) */}
+                {isNight && hasLitWindows(b.type) && (
+                  <NightWindowGlow
+                    buildingId={b.id}
+                    width={fp.w * cellSize}
+                    height={fp.h * cellSize + extraPx}
+                  />
+                )}
                 {/* L3 city towers glow with activity */}
                 {(b.level || 1) >= 3 && !!b.plotId && (
                   <View
@@ -5520,6 +5536,10 @@ export default function HometownScreen() {
                 onBankVisit={handleBankVisit}
               />
             </>
+          )}
+          {/* Ambient life: birds gliding across the sky in the daytime (town + city) */}
+          {(activeMap === "town" || activeMap === "city") && (
+            <MapBirds width={gridW * cellSize} height={gridH * cellSize} birdCount={4} />
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
           {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} />}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, Pressable, Animated, Easing, type GestureResponderEvent } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { TimeBlock, timeToMinutes, minutesToTime } from "@/lib/time-blocks";
@@ -10,12 +10,16 @@ interface TimeBlockIndicatorProps {
   block: TimeBlock;
   nowMinutes?: number | null;
   onPress?: (block: TimeBlock) => void;
+  onLongPress?: (block: TimeBlock, e: GestureResponderEvent) => void;
+  onPressOut?: () => void;
 }
 
 interface TimeBlockGroupProps {
   blocks: TimeBlock[];
   nowMinutes?: number | null;
   onPress?: (block: TimeBlock) => void;
+  onLongPress?: (block: TimeBlock, e: GestureResponderEvent) => void;
+  onPressOut?: () => void;
 }
 
 /** True when "now" falls inside this white block's hour. */
@@ -47,7 +51,7 @@ function blockCardHeight(block: TimeBlock, nowMinutes?: number | null): number {
   return block.durationMinutes <= 30 ? 52 : block.durationMinutes <= 60 ? 64 : 76;
 }
 
-export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndicatorProps) {
+export function TimeBlockIndicator({ block, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockIndicatorProps) {
   const colors = useColors();
   const isNow = blockContainsNow(block, nowMinutes);
 
@@ -56,6 +60,9 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
       accessibilityRole="button"
       accessibilityLabel={`White space from ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to add an event.`}
       onPress={() => onPress?.(block)}
+      onLongPress={(e) => onLongPress?.(block, e)}
+      delayLongPress={350}
+      onPressOut={() => onPressOut?.()}
       style={({ pressed }) => [
         styles.container,
         {
@@ -94,7 +101,7 @@ export function TimeBlockIndicator({ block, nowMinutes, onPress }: TimeBlockIndi
  * separate tappable row per hour divided by hairlines. Each row still opens
  * the event creator pre-filled with its own hour.
  */
-export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupProps) {
+export function TimeBlockGroup({ blocks, nowMinutes, onPress, onLongPress, onPressOut }: TimeBlockGroupProps) {
   const colors = useColors();
   if (blocks.length === 0) return null;
 
@@ -115,6 +122,9 @@ export function TimeBlockGroup({ blocks, nowMinutes, onPress }: TimeBlockGroupPr
           accessibilityRole="button"
           accessibilityLabel={`White space from ${format12HourTime(block.startTime)} to ${format12HourTime(block.endTime)}. Tap to choose what to add.`}
           onPress={() => onPress?.(block)}
+          onLongPress={(e) => onLongPress?.(block, e)}
+          delayLongPress={350}
+          onPressOut={() => onPressOut?.()}
           style={({ pressed }) => [
             styles.groupRow,
             index > 0 && {

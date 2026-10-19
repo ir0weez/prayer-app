@@ -54,6 +54,8 @@ import { NowIndicator, NowPill } from "./now-indicator";
 import { AvatarPeopleSelector } from "./avatar-people-selector";
 import { StackedAvatar } from "./stacked-avatar";
 import { ContextMenu, type ContextMenuAction } from "./context-menu";
+import { SlideQuickAddPicker, QA_BTN, QA_GAP, QA_PAD, QA_ROW_WIDTH, type QuickAddOption } from "./slide-quick-add";
+import { playPop, playTick } from "@/lib/pop-sound";
 import { EventEditForm } from "./event-edit-form";
 import { MinistryDetailCard } from "./ministry-detail-card";
 import { AlbumCard } from "./album-card";
@@ -9100,6 +9102,20 @@ export function ScheduleTab({
   const [showAddModal, setShowAddModal] = useState(false);
   // White-block hour menu: which free-hour block was tapped (null = closed)
   const [whiteBlockMenu, setWhiteBlockMenu] = useState<TimeBlock | null>(null);
+  // Facebook-style hold-and-slide quick-add: long-press a white block to pop
+  // the 5 options, slide across them, release to pick. Tap still opens the modal.
+  const [slidePicker, setSlidePicker] = useState<{ block: TimeBlock; left: number; top: number } | null>(null);
+  const [slideHovered, setSlideHovered] = useState(-1);
+  const slidePickerRef = useRef<typeof slidePicker>(null);
+  const slideHoveredRef = useRef(-1);
+  const pickerBecameResponderRef = useRef(false);
+  const rowLayoutRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const rootViewRef = useRef<View>(null);
+  const slideCtl = useRef({
+    updateHover: (_lx: number, _ly: number) => {},
+    grant: () => {},
+    finish: () => {},
+  }).current;
   const [addType, setAddType] = useState<"event" | "todo" | "ministry" | "bible-study" | "worship" | null>(null);
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
@@ -9141,6 +9157,121 @@ export function ScheduleTab({
     setAddType("ministry");
     setShowAddModal(false);
   };
+
+  /* ---------- Facebook-style hold-and-slide quick-add ---------- */
+  const QUICK_ADD_OPTIONS: QuickAddOption[] = [
+    { label: "Event", icon: "event", color: "#3DAA78" },
+    { label: "Todo", icon: "check-box", color: "#E3B341" },
+    { label: "Ministry", icon: "volunteer-activism", color: "#7C5CFF" },
+    { label: "Rest", icon: "bedtime", color: "#4DABF7" },
+    { label: "Reach Out", icon: "chat", color: "#FF8A65" },
+  ];
+
+  const runQuickAddAction = (block: TimeBlock, index: number) => {
+    switch (index) {
+      case 0: openNewEventEditorAtTime(block.startTime); break;
+      case 1: openNewTodoEditorAtTime(block.startTime); break;
+      case 2: openNewMinistryEditorAtTime(block.startTime); break;
+      case 3: openNewEventEditorAtTime(block.startTime, "Rest"); break;
+      case 4: openNewEventEditorAtTime(block.startTime, "Reach Out"); break;
+    }
+  };
+
+  const dismissSlidePicker = () => {
+    slidePickerRef.current = null;
+    setSlidePicker(null);
+    setSlideHovered(-1);
+    slideHoveredRef.current = -1;
+    rowLayoutRef.current = null;
+  };
+
+  const selectSlideOption = (index: number) => {
+    const p = slidePickerRef.current;
+    dismissSlidePicker();
+    if (p && index >= 0 && index < QUICK_ADD_OPTIONS.length) {
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playPop();
+      runQuickAddAction(p.block, index);
+    }
+  };
+
+  const showSlidePicker = (block: TimeBlock, e: any) => {
+    const { pageX, pageY } = e.nativeEvent;
+    // Convert the press point to root-relative coords for row positioning.
+    rootViewRef.current?.measureInWindow((rx: number, ry: number) => {
+      const ax = pageX - rx;
+      const ay = pageY - ry;
+      const { width: sw, height: sh } = Dimensions.get("window");
+      const left = Math.max(10, Math.min(ax - QA_ROW_WIDTH / 2, sw - QA_ROW_WIDTH - 10));
+      const top = Math.max(70, Math.min(ay - 150, sh - 230));
+      pickerBecameResponderRef.current = false;
+      slideHoveredRef.current = -1;
+      setSlideHovered(-1);
+      rowLayoutRef.current = null;
+      const v = { block, left, top };
+      slidePickerRef.current = v;
+      setSlidePicker(v);
+    });
+  };
+
+  /** Finger released on the block. If the slide never took over the gesture
+   * (plain long-press release), dismiss the picker. */
+  const handleWhiteBlockPressOut = () => {
+    setTimeout(() => {
+      if (!pickerBecameResponderRef.current) dismissSlidePicker();
+    }, 80);
+  };
+
+  /** Map a root-relative touch point to the hovered option (-1 = none). */
+  const updateSlideHover = (lx: number, ly: number) => {
+    const rl = rowLayoutRef.current;
+    let h = -1;
+    if (rl) {
+      const inY = ly >= rl.y - 44 && ly <= rl.y + rl.height + 44;
+      if (inY) {
+        for (let i = 0; i < QUICK_ADD_OPTIONS.length; i++) {
+          const cx = rl.x + QA_PAD + QA_BTN / 2 + i * (QA_BTN + QA_GAP);
+          if (Math.abs(lx - cx) <= (QA_BTN + QA_GAP) / 2) { h = i; break; }
+        }
+      }
+    }
+    if (h !== slideHoveredRef.current) {
+      slideHoveredRef.current = h;
+      setSlideHovered(h);
+      // Haptic + tick only when the hovered button CHANGES.
+      if (h >= 0) {
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playTick();
+      }
+    }
+  };
+
+  // Wire the mutable control surface read by the root PanResponder below.
+  slideCtl.updateHover = updateSlideHover;
+  slideCtl.grant = () => { pickerBecameResponderRef.current = true; };
+  slideCtl.finish = () => {
+    const h = slideHoveredRef.current;
+    if (h >= 0) selectSlideOption(h);
+    else dismissSlidePicker();
+  };
+
+  const rootPanResponder = useRef(
+    PanResponder.create({
+      // Never steal taps — only take over moves once the slide picker is open.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: () => slidePickerRef.current != null,
+      onPanResponderGrant: (evt) => {
+        slideCtl.grant();
+        slideCtl.updateHover(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+      },
+      onPanResponderMove: (evt) => {
+        slideCtl.updateHover(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
+      },
+      onPanResponderRelease: () => { slideCtl.finish(); },
+      onPanResponderTerminate: () => { dismissSlidePicker(); },
+    })
+  ).current;
+  /* --------------------------------------------------------------- */
 
   const closeEventEditor = () => {
     setEditingEvent(null);
@@ -11816,6 +11947,8 @@ export function ScheduleTab({
               block={item.data.block}
               nowMinutes={item.data.nowMinutes ?? null}
               onPress={(block) => setWhiteBlockMenu(block)}
+              onLongPress={(block, e) => showSlidePicker(block, e)}
+              onPressOut={handleWhiteBlockPressOut}
             />
           );
         case "time-block-group":
@@ -11824,6 +11957,8 @@ export function ScheduleTab({
               blocks={item.data.blocks}
               nowMinutes={item.data.nowMinutes ?? null}
               onPress={(block) => setWhiteBlockMenu(block)}
+              onLongPress={(block, e) => showSlidePicker(block, e)}
+              onPressOut={handleWhiteBlockPressOut}
             />
           );
         case "current-time-indicator":
@@ -11836,7 +11971,7 @@ export function ScheduleTab({
   );
 
   return (
-    <View style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
+    <View ref={rootViewRef} {...rootPanResponder.panHandlers} style={[scheduleStyles.container, { backgroundColor: colors.background }]}>
       {/* Pill-style floating header (see-through, like People tab) */}
       <Animated.View style={[{ position: 'absolute', top: 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, opacity: scrollY.interpolate({ inputRange: [200, 320], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: scrollY.interpolate({ inputRange: [200, 320], outputRange: [0, -60], extrapolate: 'clamp' }) }] }]}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 }}>
@@ -11962,6 +12097,7 @@ export function ScheduleTab({
               ref={mainListRef}
               style={{ flex: 1, position: "relative", zIndex: 1 }}
               data={scheduleSheetData}
+              scrollEnabled={slidePicker == null}
               onMomentumScrollEnd={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               onScrollEndDrag={(e) => onScrollYChange?.(e.nativeEvent.contentOffset.y)}
               keyExtractor={(item) => item.id === justAddedId ? `${item.id}-new` : item.id}
@@ -12338,6 +12474,22 @@ export function ScheduleTab({
           </ReAnimated.View>
         </View>
       </Modal>
+
+      {/* Facebook-style hold-and-slide quick-add picker */}
+      {slidePicker && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200, elevation: 20 }} pointerEvents="box-none">
+          <SlideQuickAddPicker
+            options={QUICK_ADD_OPTIONS}
+            left={slidePicker.left}
+            top={slidePicker.top}
+            headerText={`${format12HourTime(slidePicker.block.startTime)} → ${format12HourTime(slidePicker.block.endTime)}`}
+            hoveredIndex={slideHovered}
+            onSelectOption={selectSlideOption}
+            onDismiss={dismissSlidePicker}
+            onRowLayout={(x, y, width, height) => { rowLayoutRef.current = { x, y, width, height }; }}
+          />
+        </View>
+      )}
 
       <EventEditForm
         event={editingEvent || createScheduleEvent({ title: "", date: selectedDate, color: "#6B7280" })}

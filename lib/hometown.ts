@@ -146,7 +146,15 @@ export type BuildingType =
   | "bathhouse"    // bathhouse: steam, pools, restful waters
   | "apothecary"   // apothecary: herbs, potions, brewed remedies
   | "town-hall"    // civic center: grand hall, assemblies, notice board
-  | "post-office"; // mail: letters, parcels, the villager clerk's counter
+  | "post-office" // mail: letters, parcels, the villager clerk's counter
+  // City expansion — downtown cultural district (Library Row, Opera
+  // District, Museum Quarter, Clock Tower Green, Embassy Row). All on
+  // pre-placed plots: unlock & upgrade only, no free placement.
+  | "grand-library" // towering shelves of books — the city's XP earner
+  | "opera-house"   // grand stage, velvet seats, nightly performances
+  | "museum"        // exhibits and artifacts from the town's story
+  | "clock-tower"   // giant clock face, turning gears, the city's heartbeat
+  | "embassy";      // flags and diplomats — greetings exchanged daily
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -442,6 +450,13 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "apothecary":  { name: "Apothecary",         icon: "", cost: 130, tier: 1, incomePerDay: 5,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +5 coins/day." },
   "town-hall":   { name: "Town Hall",          icon: "", cost: 250, tier: 2, incomePerDay: 10, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +10 coins/day." },
   "post-office": { name: "Post Office",        icon: "", cost: 90,  tier: 1, incomePerDay: 3,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +3 coins/day." },
+  // City expansion — the downtown cultural district. Icons are drawn as SVG
+  // in the art switch, not emoji, so defs use empty icons.
+  "grand-library": { name: "Grand Library", icon: "", cost: 700, tier: 1, incomePerDay: 0,  xpPerDay: 120, maps: ["city"], description: "Towering shelves of wisdom in the heart of downtown. +120 XP/day." },
+  "opera-house":   { name: "Opera House",   icon: "", cost: 800, tier: 1, incomePerDay: 38, xpPerDay: 0,   maps: ["city"], description: "A grand stage with velvet seats and nightly performances. +38 coins/day." },
+  "museum":        { name: "Museum",        icon: "", cost: 750, tier: 1, incomePerDay: 32, xpPerDay: 0,   maps: ["city"], description: "Exhibits and artifacts telling the town's story. +32 coins/day." },
+  "clock-tower":   { name: "Clock Tower",   icon: "", cost: 650, tier: 1, incomePerDay: 30, xpPerDay: 0,   maps: ["city"], description: "A giant clock face over downtown — the city's heartbeat, wound daily. +30 coins/day." },
+  "embassy":       { name: "Embassy",       icon: "", cost: 700, tier: 1, incomePerDay: 34, xpPerDay: 0,   maps: ["city"], description: "Flags of many lands; diplomats exchange greetings daily. +34 coins/day." },
 };
 
 // ---- Hospital: the Doctor's Blessing (healing buff for Dark Forest) ----
@@ -530,6 +545,14 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-city-12", x: 6, y: 11, buildingType: "department-store", cost: 625, name: "South Retail Lot" },
   // Eastside — the Amphitheater, where the city gathers for music and stories
   { id: "plot-city-13", x: 8, y: 3, buildingType: "amphitheater", cost: 450, name: "Amphitheater Green" },
+  // Downtown cultural district — Library Row, Opera District, and Museum
+  // Quarter on the new y=14 terrace; Clock Tower Green and Embassy Row on
+  // the y=16 terrace below. (x=6..9, y=14..17 left open for future growth.)
+  { id: "plot-city-14", x: 0, y: 14, buildingType: "grand-library", cost: 700, name: "Library Row Lot" },
+  { id: "plot-city-15", x: 3, y: 14, buildingType: "opera-house",   cost: 800, name: "Opera District Lot" },
+  { id: "plot-city-16", x: 6, y: 14, buildingType: "museum",        cost: 750, name: "Museum Quarter Lot" },
+  { id: "plot-city-17", x: 0, y: 16, buildingType: "clock-tower",   cost: 650, name: "Clock Tower Green" },
+  { id: "plot-city-18", x: 3, y: 16, buildingType: "embassy",       cost: 700, name: "Embassy Row Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -1674,7 +1697,7 @@ export const TOWN_GRID_SIZE = 10;
 export const TOWN_GRID_W = 10;
 export const TOWN_GRID_H = 34;
 export const CITY_GRID_W = 10;
-export const CITY_GRID_H = 14;
+export const CITY_GRID_H = 18;
 
 /** Grid dimensions for a map — town is 10x26, city is 10x14; others are 10x10. */
 export function mapGridSize(mapId: TownMapId): { w: number; h: number } {

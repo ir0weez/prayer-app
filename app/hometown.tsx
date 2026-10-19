@@ -338,6 +338,12 @@ function tallArtExtraCells(type: string, level: number, floors: number): number 
     case "bathhouse": return 0.3;
     case "pottery": return 0.3;
     case "tailor": return 0.3;
+    // City cultural district — towers that rise over downtown
+    case "clock-tower": return 1.2;
+    case "grand-library": return 0.9;
+    case "opera-house": return 0.7;
+    case "museum": return 0.6;
+    case "embassy": return 0.6;
     default: return 0;
   }
 }
@@ -2058,6 +2064,209 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
         </View>
       );
     }
+    case "grand-library": {
+      // Grand Library — towering shelves of wisdom. Pseudo-3D tall block;
+      // taller shelf rows with level, brass entry doors at L3.
+      const H = artH ?? s;
+      const rows = lv >= 3 ? 6 : lv >= 2 ? 4 : 3;
+      return tallBlock({
+        s, H, w: s * 0.78,
+        front: "#3B4A6B", side: "#27324B", roof: "#1B2338",
+        lit: isLit, LIT,
+        rows, cols: 3,
+        winW: s * 0.14, winH: s * 0.09, gap: s * 0.035,
+        winOff: "#232D47", topPad: H * 0.05,
+        extraTop: (
+          <Svg width={s * 0.5} height={s * 0.16} viewBox="0 0 60 20" style={{ position: "absolute", top: -s * 0.13, alignSelf: "center" }}>
+            <Path d="M8 18 L14 18 L14 6 L20 10 L26 6 L26 18 L32 18 L32 6 L38 10 L44 6 L44 18 L52 18" fill="none" stroke="#C9963C" strokeWidth={2.5} />
+            <Rect x={6} y={16} width={48} height={4} rx={2} fill="#8A6D1C" />
+          </Svg>
+        ),
+        extraBottom: lv >= 3 ? (
+          <View style={{ position: "absolute", bottom: 0, flexDirection: "row", alignSelf: "center" }}>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * 0.11, height: s * 0.16, backgroundColor: "#8A6D1C", borderWidth: 1.5, borderColor: "#5E4A12", marginHorizontal: s * 0.02, borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
+            ))}
+          </View>
+        ) : undefined,
+      });
+    }
+    case "opera-house": {
+      // Opera House — a grand stage with a marquee and poster windows.
+      // L1: hall + marquee. L2: columns + gold trim. L3: statues, tall
+      // marquee, flags, glowing poster cases.
+      const H = artH ?? s;
+      const w = s * 0.98;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.08)}
+          {lv >= 3 && (
+            <View style={{ flexDirection: "row", marginBottom: -s * 0.02 }}>
+              {[0, 1].map((i) => (
+                <Svg key={i} width={s * 0.14} height={s * 0.22} viewBox="0 0 28 44" style={{ marginHorizontal: s * 0.14 }}>
+                  <Circle cx={14} cy={10} r={6} fill="#D6CDBB" stroke="#8A7F6A" strokeWidth={1.5} />
+                  <Path d="M8 16 h12 l3 22 h-18 Z" fill="#D6CDBB" stroke="#8A7F6A" strokeWidth={1.5} />
+                  <Rect x={6} y={38} width={16} height={5} rx={2} fill="#8A7F6A" />
+                </Svg>
+              ))}
+            </View>
+          )}
+          <View style={{ width: w, height: H * 0.62, backgroundColor: "#5B2B3A", borderWidth: 2, borderColor: "#3A1B26", borderRadius: 5 }}>
+            {sideShade(w, H * 0.62, 5)}
+            {/* marquee */}
+            <View style={{ position: "absolute", top: s * 0.1, left: s * 0.06, right: s * 0.06, height: s * 0.13, backgroundColor: "#F8FAFC", borderRadius: 4, borderWidth: 2, borderColor: lv >= 2 ? "#C9963C" : "#3A1B26", alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: "#5B2B3A", fontSize: 9, fontWeight: "800", letterSpacing: 4 }}>OPERA</Text>
+              {lv >= 3 && (
+                <View style={{ position: "absolute", top: -s * 0.045, flexDirection: "row" }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#FDE68A", marginHorizontal: 3, borderWidth: 1, borderColor: "#8A6D1C" }} />
+                  ))}
+                </View>
+              )}
+            </View>
+            {/* poster cases */}
+            {[0.14, 0.86].map((fx, i) => (
+              <View key={i} style={{ position: "absolute", top: s * 0.28, left: w * fx - s * 0.11, width: s * 0.22, height: s * 0.2, backgroundColor: isLit(i, 6) ? LIT : "#FDECC8", borderRadius: 4, borderWidth: 2, borderColor: lv >= 2 ? "#C9963C" : "#3A1B26", alignItems: "center", justifyContent: "center" }}>
+                <Svg width={s * 0.1} height={s * 0.12} viewBox="0 0 20 24">
+                  <Path d="M6 22 V8 L14 4 V20" fill="none" stroke="#5B2B3A" strokeWidth={1.8} />
+                  <Ellipse cx={4.5} cy={22} rx={2.8} ry={2.2} fill="#5B2B3A" />
+                  <Ellipse cx={12.5} cy={20} rx={2.8} ry={2.2} fill="#5B2B3A" />
+                </Svg>
+              </View>
+            ))}
+            {lv >= 2 && [0.06, 0.94].map((fx, i) => (
+              <View key={`c${i}`} style={{ position: "absolute", top: s * 0.06, bottom: 0, left: w * fx - s * 0.035, width: s * 0.07, backgroundColor: "#F1E8D8", borderRadius: 3, borderWidth: 1.5, borderColor: "#C9BBA0" }} />
+            ))}
+            {/* grand doors */}
+            <View style={{ position: "absolute", bottom: 0, alignSelf: "center", width: s * 0.3, height: s * 0.24, backgroundColor: "#2E1410", borderTopLeftRadius: 10, borderTopRightRadius: 10, borderWidth: 2, borderColor: lv >= 2 ? "#C9963C" : "#1A0D08", flexDirection: "row" }}>
+              <View style={{ flex: 1, borderRightWidth: 1.5, borderColor: lv >= 2 ? "#C9963C" : "#1A0D08" }} />
+              <View style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      );
+    }
+    case "museum": {
+      // Museum — a classical hall of exhibits. L1: pediment + columns, one
+      // exhibit window. L2: wider, statue out front. L3: grand museum with
+      // tall banners, glass dome, and lit exhibit halls.
+      const H = artH ?? s;
+      const w = s * 0.98;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.08)}
+          {lv >= 3 && (
+            <Svg width={s * 0.4} height={s * 0.16} viewBox="0 0 60 24" style={{ marginBottom: -s * 0.02 }}>
+              <Path d="M6 22 A24 24 0 0 1 54 22 Z" fill="#D9EDF5" opacity={0.55} stroke="#7FA8C9" strokeWidth={2} />
+            </Svg>
+          )}
+          <Svg width={w} height={s * 0.16} viewBox="0 0 100 18" style={{ marginBottom: -2 }}>
+            <Polygon points="2,18 50,2 98,18" fill={lv >= 3 ? "#C9963C" : "#E5E0D5"} stroke="#8A7F6A" strokeWidth={2.5} />
+          </Svg>
+          <View style={{ width: w, height: H * 0.5, backgroundColor: "#EFE9DC", borderWidth: 2, borderColor: "#8A7F6A", borderBottomLeftRadius: 5, borderBottomRightRadius: 5, flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingBottom: s * 0.03 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={{ width: s * 0.08, height: H * 0.42, backgroundColor: "#F8FAFC", borderRadius: 3, borderWidth: 1.5, borderColor: "#B8AE99" }} />
+            ))}
+            {/* exhibit windows */}
+            <View style={{ position: "absolute", top: s * 0.06, left: s * 0.12, width: s * 0.2, height: s * 0.14, backgroundColor: isLit(2, 7) ? LIT : "#D9EDF5", borderRadius: 3, borderWidth: 1.5, borderColor: "#7FA8C9", alignItems: "center", justifyContent: "center" }}>
+              <Svg width={s * 0.1} height={s * 0.09} viewBox="0 0 20 18">
+                <Rect x={4} y={6} width={12} height={9} rx={2} fill="#C9963C" stroke="#8A6D1C" strokeWidth={1.2} />
+                <Circle cx={10} cy={5} r={3.5} fill="#D9EDF5" stroke="#7FA8C9" strokeWidth={1.2} />
+              </Svg>
+            </View>
+            <View style={{ position: "absolute", top: s * 0.06, right: s * 0.12, width: s * 0.2, height: s * 0.14, backgroundColor: isLit(3, 8) ? LIT : "#D9EDF5", borderRadius: 3, borderWidth: 1.5, borderColor: "#7FA8C9", alignItems: "center", justifyContent: "center" }}>
+              <Svg width={s * 0.1} height={s * 0.09} viewBox="0 0 20 18">
+                <Path d="M10 2 L16 14 L4 14 Z" fill="#94A3B8" stroke="#475569" strokeWidth={1.2} />
+                <Rect x={4} y={14} width={12} height={3} fill="#475569" />
+              </Svg>
+            </View>
+            <View style={{ position: "absolute", bottom: 0, alignSelf: "center", width: s * 0.22, height: s * 0.2, backgroundColor: "#4A4238", borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
+          </View>
+          {lv >= 2 && (
+            <View style={{ position: "absolute", bottom: 0, left: s * 0.02, alignItems: "center" }}>
+              <Svg width={s * 0.16} height={s * 0.3} viewBox="0 0 32 60">
+                <Circle cx={16} cy={12} r={7} fill="#D6CDBB" stroke="#8A7F6A" strokeWidth={1.5} />
+                <Path d="M9 20 h14 l4 30 h-22 Z" fill="#D6CDBB" stroke="#8A7F6A" strokeWidth={1.5} />
+                <Rect x={6} y={50} width={20} height={7} rx={2} fill="#8A7F6A" />
+              </Svg>
+            </View>
+          )}
+        </View>
+      );
+    }
+    case "clock-tower": {
+      // Clock Tower — the city's heartbeat. A tall stone tower with a giant
+      // clock face, turning-gear hints, and a belfry. Taller with level.
+      const H = artH ?? s;
+      const w = s * 0.5;
+      const towerH = H * (lv >= 3 ? 0.86 : lv >= 2 ? 0.78 : 0.68);
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.4)}
+          {/* belfry cap */}
+          <Svg width={w * 1.5} height={s * 0.2} viewBox="0 0 60 24" style={{ marginBottom: -s * 0.02 }}>
+            <Polygon points="4,22 30,4 56,22" fill="#8A7F6A" stroke="#5E5646" strokeWidth={2.5} />
+            {lv >= 3 && <Circle cx={30} cy={12} r={5} fill="#C9963C" stroke="#8A6D1C" strokeWidth={1.5} />}
+          </Svg>
+          <View style={{ width: w, height: towerH, backgroundColor: "#C9BFAE", borderWidth: 2, borderColor: "#8A7F6A", borderBottomLeftRadius: 4, borderBottomRightRadius: 4, alignItems: "center" }}>
+            {sideShade(w, towerH, 4)}
+            {/* giant clock face */}
+            <View style={{ width: s * 0.34, height: s * 0.34, borderRadius: s * 0.17, backgroundColor: "#F8FAFC", borderWidth: 3, borderColor: lv >= 3 ? "#C9963C" : "#5E5646", marginTop: s * 0.06, alignItems: "center", justifyContent: "center" }}>
+              {/* 12 / 3 / 6 / 9 markers */}
+              <View style={{ position: "absolute", top: 5, width: 3, height: 9, backgroundColor: "#5E5646", borderRadius: 1.5 }} />
+              <View style={{ position: "absolute", bottom: 5, width: 3, height: 9, backgroundColor: "#5E5646", borderRadius: 1.5 }} />
+              <View style={{ position: "absolute", left: 5, width: 9, height: 3, backgroundColor: "#5E5646", borderRadius: 1.5 }} />
+              <View style={{ position: "absolute", right: 5, width: 9, height: 3, backgroundColor: "#5E5646", borderRadius: 1.5 }} />
+              <View style={{ width: 3, height: s * 0.11, backgroundColor: "#1F2937", borderRadius: 1.5, transform: [{ rotate: "200deg" }], marginBottom: -s * 0.05 }} />
+              <View style={{ width: 3, height: s * 0.08, backgroundColor: "#B91C1C", borderRadius: 1.5, transform: [{ rotate: "80deg" }], marginTop: -s * 0.04 }} />
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: lv >= 3 ? "#C9963C" : "#5E5646" }} />
+            </View>
+            {/* gear hints below the face */}
+            <Svg width={w * 0.9} height={s * 0.22} viewBox="0 0 60 26" style={{ marginTop: s * 0.04 }}>
+              <Circle cx={20} cy={13} r={9} fill="none" stroke="#8A7F6A" strokeWidth={3} />
+              {[0, 45, 90, 135].map((a) => (
+                <Line key={a} x1={20} y1={13} x2={20 + 9 * Math.cos((a * Math.PI) / 180)} y2={13 + 9 * Math.sin((a * Math.PI) / 180)} stroke="#8A7F6A" strokeWidth={2.5} />
+              ))}
+              <Circle cx={42} cy={13} r={6} fill="none" stroke="#A89E8C" strokeWidth={2.5} />
+              <Circle cx={20} cy={13} r={2.5} fill="#8A7F6A" />
+              <Circle cx={42} cy={13} r={2} fill="#A89E8C" />
+            </Svg>
+            {lv >= 2 && (
+              <View style={{ width: s * 0.2, height: s * 0.1, backgroundColor: isLit(1, 9) ? LIT : "#FDE68A", borderRadius: 3, borderWidth: 1.5, borderColor: "#8A7F6A", marginTop: s * 0.03 }} />
+            )}
+            <View style={{ position: "absolute", bottom: 0, width: s * 0.2, height: s * 0.18, backgroundColor: "#4A4238", borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
+          </View>
+        </View>
+      );
+    }
+    case "embassy": {
+      // Embassy — flags of many lands. Pseudo-3D block with flag poles on
+      // the roof; more flags and gold trim with level.
+      const H = artH ?? s;
+      const flags = lv >= 3 ? 5 : lv >= 2 ? 3 : 2;
+      const flagColors = ["#B91C1C", "#1D4ED8", "#16A34A", "#F59E0B", "#7C3AED"];
+      return tallBlock({
+        s, H, w: s * 0.72,
+        front: "#E8E2D4", side: "#C9BFAE", roof: "#8A7F6A",
+        lit: isLit, LIT,
+        rows: lv >= 3 ? 4 : 3, cols: 3,
+        winW: s * 0.11, winH: s * 0.09, gap: s * 0.035,
+        winOff: "#B8AE99", topPad: H * 0.05,
+        extraTop: (
+          <View style={{ position: "absolute", top: -s * 0.24, left: 0, right: 0, flexDirection: "row", justifyContent: "center" }}>
+            {Array.from({ length: flags }).map((_, i) => (
+              <Svg key={i} width={s * 0.16} height={s * 0.26} viewBox="0 0 32 52" style={{ marginHorizontal: 2 }}>
+                <Line x1={4} y1={2} x2={4} y2={50} stroke="#5E5646" strokeWidth={3} />
+                <Polygon points={`4,4 ${28},${10 + i * 2} 4,${16 + i * 2}`} fill={flagColors[i % flagColors.length]} stroke="#00000033" strokeWidth={1} />
+              </Svg>
+            ))}
+          </View>
+        ),
+        extraBottom: (
+          <View style={{ position: "absolute", bottom: 0, alignSelf: "center", width: s * 0.24, height: s * 0.2, backgroundColor: "#4A4238", borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1.5, borderColor: lv >= 3 ? "#C9963C" : "#2E2A24" }} />
+        ),
+      });
+    }
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -3605,6 +3814,38 @@ export default function HometownScreen() {
       enterActions.push({
         text: "Enter Market",
         onPress: () => router.push(`/market-interior?buildingId=${b.id}`),
+      });
+    }
+    // City cultural district interiors: grand library, opera house, museum,
+    // clock tower, embassy.
+    if (b.type === "grand-library") {
+      enterActions.push({
+        text: "Enter Library",
+        onPress: () => router.push(`/grand-library-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "opera-house") {
+      enterActions.push({
+        text: "Enter Opera House",
+        onPress: () => router.push(`/opera-house-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "museum") {
+      enterActions.push({
+        text: "Enter Museum",
+        onPress: () => router.push(`/museum-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "clock-tower") {
+      enterActions.push({
+        text: "Enter Clock Tower",
+        onPress: () => router.push(`/clock-tower-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "embassy") {
+      enterActions.push({
+        text: "Enter Embassy",
+        onPress: () => router.push(`/embassy-interior?buildingId=${b.id}`),
       });
     }
     if (level >= 3) {

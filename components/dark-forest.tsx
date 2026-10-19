@@ -15,6 +15,10 @@ export type DarkForestProps = {
   forest: DarkForestState;
   /** Tunic color from equipped clothes, so the pawn looks like yours. */
   tunicColor: string;
+  /** Equipped armor id (lib/gear) — drawn on the pawn sprite. */
+  armorId: string | null;
+  /** Equipped weapon id (lib/gear) — drawn in the pawn's hand. */
+  weaponId: string | null;
   timeOfDay: TimeOfDay;
   pt: PageTheme;
   onVictory: (wave: number) => void;
@@ -186,6 +190,194 @@ function Ember({ x, delay, dur }: { x: number; delay: number; dur: number }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Equipped gear visuals: armor on the pawn, weapon in its hand.       */
+/* The sprite is 65x70 (13x14 art at px=5). Overlays are drawn to      */
+/* match: head rows 0-5 (y 0-30), torso rows 6-9 (y 30-50).            */
+/* ------------------------------------------------------------------ */
+
+/** Gentle pulsing halo for high-tier gear. Not flashy — a slow breathe. */
+function TierGlow({ color, size, left, top }: { color: string; size: number; left: number; top: number }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.34] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", left, top, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity }}
+    />
+  );
+}
+
+/** Armor plates drawn over the pawn sprite. One look per tier. */
+function ArmorShapes({ armorId }: { armorId: string }) {
+  switch (armorId) {
+    case "cloth-guard":
+      // Padded cloth: quilted shoulder pads and a stitched chest pad.
+      return (
+        <G>
+          <Rect x={12} y={26} width={14} height={10} rx={4} fill="#C9B184" stroke="#A68B5B" strokeWidth={1} />
+          <Rect x={39} y={26} width={14} height={10} rx={4} fill="#C9B184" stroke="#A68B5B" strokeWidth={1} />
+          <Rect x={19} y={32} width={27} height={16} rx={4} fill="#D6C298" opacity={0.95} />
+          <Rect x={19} y={37.5} width={27} height={1.4} fill="#B39267" />
+          <Rect x={19} y={43} width={27} height={1.4} fill="#B39267" />
+        </G>
+      );
+    case "iron-plate":
+      // Forged steel: breastplate, pauldrons, helm band.
+      return (
+        <G>
+          <Rect x={10} y={24} width={17} height={13} rx={6} fill="#9AA3B2" />
+          <Rect x={10} y={24} width={17} height={4} rx={2} fill="#C3CAD6" />
+          <Rect x={38} y={24} width={17} height={13} rx={6} fill="#9AA3B2" />
+          <Rect x={38} y={24} width={17} height={4} rx={2} fill="#C3CAD6" />
+          <Rect x={15} y={30} width={35} height={20} rx={4} fill="#8E97A6" />
+          <Rect x={31} y={30} width={3} height={20} fill="#6B7280" />
+          <Rect x={15} y={46} width={35} height={4} fill="#6B7280" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#9AA3B2" />
+          <Rect x={31} y={9} width={3} height={9} fill="#6B7280" />
+        </G>
+      );
+    case "chainmail-vest":
+      // Interlocked rings: dark vest with ring links, mail skirt and coif shoulders.
+      return (
+        <G>
+          <Rect x={12} y={27} width={14} height={9} rx={4} fill="#4A525E" />
+          <Rect x={39} y={27} width={14} height={9} rx={4} fill="#4A525E" />
+          <Rect x={15} y={30} width={35} height={20} rx={4} fill="#5B6470" />
+          {[22, 30, 38, 46].map((cx) =>
+            [36, 44].map((cy) => (
+              <Circle key={`${cx}:${cy}`} cx={cx} cy={cy} r={2.4} fill="none" stroke="#39404B" strokeWidth={1.2} />
+            ))
+          )}
+          <Rect x={20} y={50} width={25} height={9} rx={3} fill="#4A525E" />
+        </G>
+      );
+    case "mithril-plate":
+      // Light as faith: bright silver-blue plate with a soft shimmer halo.
+      return (
+        <G>
+          <Rect x={10} y={24} width={17} height={13} rx={6} fill="#C7DFF5" />
+          <Rect x={10} y={24} width={17} height={4} rx={2} fill="#F2F9FF" />
+          <Rect x={38} y={24} width={17} height={13} rx={6} fill="#C7DFF5" />
+          <Rect x={38} y={24} width={17} height={4} rx={2} fill="#F2F9FF" />
+          <Rect x={15} y={30} width={35} height={20} rx={4} fill="#CFE4F7" />
+          <Rect x={31} y={30} width={3} height={20} fill="#8FB8DD" />
+          <Rect x={15} y={46} width={35} height={4} fill="#8FB8DD" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#CFE4F7" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#F2F9FF" />
+          <Rect x={31} y={9} width={3} height={9} fill="#8FB8DD" />
+        </G>
+      );
+    case "celestial-bulwark":
+      // Heaven's shield: radiant gold plate, bright trim, glowing crest.
+      return (
+        <G>
+          <Rect x={10} y={24} width={17} height={13} rx={6} fill="#F6DC8E" />
+          <Rect x={10} y={24} width={17} height={4} rx={2} fill="#FFF6D9" />
+          <Rect x={38} y={24} width={17} height={13} rx={6} fill="#F6DC8E" />
+          <Rect x={38} y={24} width={17} height={4} rx={2} fill="#FFF6D9" />
+          <Rect x={15} y={30} width={35} height={20} rx={4} fill="#F3D27A" />
+          <Rect x={31} y={30} width={3} height={20} fill="#D9A93F" />
+          <Rect x={15} y={46} width={35} height={4} fill="#D9A93F" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#F3D27A" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#FFF6D9" />
+          <Rect x={31} y={9} width={3} height={9} fill="#D9A93F" />
+        </G>
+      );
+    default:
+      // Unknown armor: plain steel plate, safe fallback.
+      return (
+        <G>
+          <Rect x={15} y={30} width={35} height={20} rx={4} fill="#8E97A6" />
+          <Rect x={31} y={30} width={3} height={20} fill="#6B7280" />
+        </G>
+      );
+  }
+}
+
+/** Weapon drawn in the pawn's hand (10x56 viewBox, same swing anchor as before). */
+function WeaponShapes({ weaponId }: { weaponId: string }) {
+  switch (weaponId) {
+    case "wooden-staff":
+      return (
+        <G>
+          <Rect x={3} y={2} width={4} height={48} rx={2} fill="#8B5A2B" />
+          <Circle cx={5} cy={5} r={4.5} fill="#A16207" />
+          <Rect x={3} y={18} width={4} height={3} fill="#5C3D1E" />
+          <Rect x={3} y={30} width={4} height={3} fill="#5C3D1E" />
+        </G>
+      );
+    case "iron-sword":
+      return (
+        <G>
+          <Rect x={3} y={0} width={4} height={40} fill="#94A3B8" />
+          <Rect x={4.2} y={2} width={1.6} height={36} fill="#64748B" />
+          <Rect x={0} y={40} width={10} height={4} fill="#57534C" />
+          <Rect x={3} y={44} width={4} height={12} fill="#292524" />
+          <Circle cx={5} cy={54} r={2.5} fill="#57534C" />
+        </G>
+      );
+    case "dawnblade":
+      return (
+        <G>
+          <Rect x={3} y={0} width={4} height={40} fill="#FDE68A" />
+          <Rect x={4} y={2} width={2} height={36} fill="#FBBF24" />
+          <Rect x={0} y={40} width={10} height={4} fill="#B45309" />
+          <Rect x={3} y={44} width={4} height={12} fill="#451A03" />
+        </G>
+      );
+    case "runeblade":
+      return (
+        <G>
+          <Rect x={3} y={0} width={4} height={40} fill="#BFDBFE" />
+          {[6, 14, 22, 30].map((y) => (
+            <Rect key={y} x={3.5} y={y} width={3} height={2} fill="#1D4ED8" />
+          ))}
+          <Rect x={0} y={40} width={10} height={4} fill="#1E3A8A" />
+          <Rect x={3} y={44} width={4} height={12} fill="#0F172A" />
+        </G>
+      );
+    case "seraphim-edge":
+      return (
+        <G>
+          <Rect x={3} y={0} width={4} height={40} fill="#FFFBEA" />
+          <Rect x={4} y={2} width={2} height={36} fill="#FDE047" />
+          <Rect x={0} y={40} width={10} height={4} fill="#F59E0B" />
+          <Rect x={3} y={44} width={4} height={12} fill="#78350F" />
+          <Circle cx={5} cy={54} r={2.5} fill="#FBBF24" />
+        </G>
+      );
+    case "steel-sword":
+    default:
+      return (
+        <G>
+          <Rect x={3} y={0} width={4} height={40} fill="#CBD5E1" />
+          <Rect x={3} y={0} width={2} height={40} fill="#F1F5F9" />
+          <Rect x={0} y={40} width={10} height={4} fill="#92400E" />
+          <Rect x={3} y={44} width={4} height={12} fill="#451A03" />
+        </G>
+      );
+  }
+}
+
+/** Soft glow color for magic-tier weapons. Null for plain steel. */
+function weaponGlowColor(weaponId: string | null): string | null {
+  if (weaponId === "dawnblade") return "#FBBF24";
+  if (weaponId === "runeblade") return "#60A5FA";
+  if (weaponId === "seraphim-edge") return "#FDE047";
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Floating damage numbers.                                            */
 /* ------------------------------------------------------------------ */
 
@@ -227,7 +419,7 @@ type FloatItem = { id: number; text: string; color: string; side: "left" | "righ
 
 let floatId = 0;
 
-export function DarkForest({ stats, forest, tunicColor, timeOfDay, pt, onVictory }: DarkForestProps) {
+export function DarkForest({ stats, forest, tunicColor, armorId, weaponId, timeOfDay, pt, onVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -387,16 +579,33 @@ export function DarkForest({ stats, forest, tunicColor, timeOfDay, pt, onVictory
             <>
               {/* pawn */}
               <View style={{ position: "absolute", left: 52, top: 250 }}>
+                {(armorId === "mithril-plate" || armorId === "celestial-bulwark") && (
+                  <TierGlow
+                    color={armorId === "mithril-plate" ? "#BFDBFE" : "#FDE68A"}
+                    size={104}
+                    left={-20}
+                    top={-17}
+                  />
+                )}
                 <PixelSprite art={PAWN_ART} palette={pawnPalette} px={5} />
-                {/* sword */}
-                <Animated.View style={{ position: "absolute", left: 58, top: 34, transform: [{ rotate: swordRotate }] }}>
-                  <Svg width={10} height={56} viewBox="0 0 10 56">
-                    <Rect x={3} y={0} width={4} height={40} fill="#CBD5E1" />
-                    <Rect x={3} y={0} width={2} height={40} fill="#F1F5F9" />
-                    <Rect x={0} y={40} width={10} height={4} fill="#92400E" />
-                    <Rect x={3} y={44} width={4} height={12} fill="#451A03" />
-                  </Svg>
-                </Animated.View>
+                {armorId && (
+                  <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0 }}>
+                    <Svg width={65} height={70} viewBox="0 0 65 70">
+                      <ArmorShapes armorId={armorId} />
+                    </Svg>
+                  </View>
+                )}
+                {/* weapon */}
+                {weaponId && (
+                  <Animated.View style={{ position: "absolute", left: 58, top: 34, transform: [{ rotate: swordRotate }] }}>
+                    {weaponGlowColor(weaponId) && (
+                      <TierGlow color={weaponGlowColor(weaponId)!} size={36} left={-13} top={6} />
+                    )}
+                    <Svg width={10} height={56} viewBox="0 0 10 56">
+                      <WeaponShapes weaponId={weaponId} />
+                    </Svg>
+                  </Animated.View>
+                )}
               </View>
               {/* demon */}
               {phase !== "victory" && (

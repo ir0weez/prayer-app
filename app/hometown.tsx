@@ -1774,6 +1774,8 @@ export default function HometownScreen() {
   riverRef.current = river;
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
   const [forestTunic, setForestTunic] = useState("#D6C9A8");
+  const [forestArmor, setForestArmor] = useState<string | null>(null);
+  const [forestWeapon, setForestWeapon] = useState<string | null>(null);
   // Villager missions: lights with a "?" ask Jonathan for help (2-5/day).
   const [vmState, setVmState] = useState<VillagerMissionState | null>(null);
   const vmStateRef = useRef<VillagerMissionState | null>(null);
@@ -3847,6 +3849,8 @@ export default function HometownScreen() {
         const clothesId = equipped.clothes;
         const item = clothesId ? GEAR_BY_ID[clothesId] : undefined;
         if (item?.visual.bodyColor) setForestTunic(item.visual.bodyColor);
+        setForestArmor(equipped.armor ?? null);
+        setForestWeapon(equipped.weapon ?? null);
       } catch {}
     })();
   }, [activeMap]);
@@ -4272,6 +4276,8 @@ export default function HometownScreen() {
           stats={forestStats}
           forest={forest}
           tunicColor={forestTunic}
+          armorId={forestArmor}
+          weaponId={forestWeapon}
           timeOfDay={timeOfDay}
           pt={pt}
           onVictory={handleForestVictory}

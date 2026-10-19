@@ -8,6 +8,8 @@ type Props = {
 
 type State = {
   hasError: boolean;
+  /** TEMPORARY diagnostics: shown under the fallback so the real bug can be fixed. */
+  errorDetails?: string;
 };
 
 /**
@@ -26,6 +28,15 @@ export class SafeBoundary extends React.Component<Props, State> {
   componentDidCatch(error: unknown) {
     try {
       console.warn("[SafeBoundary] caught render error:", error);
+    } catch {}
+    try {
+      const details =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error);
+      this.setState({ errorDetails: details.slice(0, 300) });
     } catch {}
   }
 
@@ -49,6 +60,11 @@ export class SafeBoundary extends React.Component<Props, State> {
           <Text style={{ fontSize: 12, color: "#B45309", textAlign: "center", marginTop: 6 }}>
             Nothing was lost — try reopening this view.
           </Text>
+          {this.state.errorDetails ? (
+            <Text style={{ fontSize: 10, color: "#A8A29E", textAlign: "center", marginTop: 8 }}>
+              Details: {this.state.errorDetails}
+            </Text>
+          ) : null}
         </View>
       );
     }

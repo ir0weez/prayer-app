@@ -3975,7 +3975,7 @@ export default function HometownScreen() {
             ? `${info.icon} ${info.name}`
             : unlocked
               ? `${info.icon} ${info.name}`
-              : `${info.icon} ${info.name} 🔒 ${mapUnlockCost(activeMap as TownMapId).toFixed(2)}🪙`;
+              : `${info.icon} ${info.name} 🔒 ${mapUnlockCost(id).toFixed(2)}🪙`;
           return (
             <Pressable
               key={id}

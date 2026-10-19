@@ -12,6 +12,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
@@ -231,6 +233,7 @@ export default function ClassroomInteriorScreen() {
 
         {/* classroom scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#BFDBFE", overflow: "hidden", backgroundColor: "#F8FBFF" }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
           {/* front of the room */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
             {level >= 2 && <WallMap />}

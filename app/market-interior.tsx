@@ -15,6 +15,8 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { formatCooldown } from "@/lib/gathering-places";
 import type { CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   FigureName,
   GentleBob,
@@ -234,6 +236,7 @@ export default function MarketInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
       <InteriorHeader icon="storefront" iconColor={BRONZE} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="shopping-basket" iconColor={BRONZE} title={buildingName} blurb={levelBlurb} accent="#D9C4A5" />

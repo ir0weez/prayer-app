@@ -22,6 +22,8 @@ import {
 import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#FBF3E8"; // warm cream
 const CARD = "#FFFFFF";
@@ -313,6 +315,7 @@ export default function ApartmentsInteriorScreen() {
 
           {/* upper room: mailboxes + board / garden window */}
           <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingHorizontal: 10, marginTop: 8 }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
             <Mailboxes level={level} />
             {level >= 2 ? <BulletinBoard /> : <Fern delay={200} />}
             {level >= 3 && <GardenWindow />}

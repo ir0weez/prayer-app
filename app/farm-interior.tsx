@@ -13,6 +13,8 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { formatCooldown } from "@/lib/gathering-places";
 import type { CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   FigureName,
   GentleBob,
@@ -322,6 +324,7 @@ export default function FarmInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
       <InteriorHeader icon="agriculture" iconColor={GREEN} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="eco" iconColor={GREEN} title={buildingName} blurb={levelBlurb} accent="#C9A86A" />

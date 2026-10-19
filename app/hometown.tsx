@@ -228,8 +228,8 @@ import {
   type DarkForestState,
 } from "@/lib/dark-forest";
 import { RiverCamp } from "@/components/river";
-import { HolidayMapOverlay, HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { SeasonMapOverlay, SeasonInteriorOverlay } from "@/components/season-decor";
+import { HolidayMapOverlay } from "@/components/holiday-decor";
+import { SeasonMapOverlay } from "@/components/season-decor";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   loadRiverState,
@@ -4289,8 +4289,6 @@ export default function HometownScreen() {
         <SeasonalBorder variant="river">
         <View>
         <SafeBoundary fallbackTitle="The river is resting">
-        <HolidayInteriorOverlay season={getHolidaySeason()} />
-        <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
         <RiverCamp
           river={river}
           timeOfDay={timeOfDay}

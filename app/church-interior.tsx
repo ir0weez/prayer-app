@@ -26,8 +26,7 @@ import {
   WorkingFigure,
   pickPeople,
 } from "@/components/activity-figures";
-import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 // ---------- palette: warm community church ----------
@@ -699,8 +698,9 @@ export default function ChurchInteriorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <HolidayInteriorOverlay season={getHolidaySeason()} />
-        <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
+        {/* sanctuary — wrapped for holiday/season atmosphere */}
+        <View style={{ position: "relative", overflow: "hidden", borderRadius: 18, marginHorizontal: 8, marginBottom: 8 }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
         {/* blessing banner */}
         <View
           style={{
@@ -799,6 +799,7 @@ export default function ChurchInteriorScreen() {
           <Text style={{ color: TEXT_DIM, fontSize: 11, marginTop: 10, fontStyle: "italic" }}>
             "The prayer of a righteous person is powerful and effective."
           </Text>
+        </View>
         </View>
 
         {/* ministry happening now? the room adapts to it */}

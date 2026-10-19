@@ -23,6 +23,8 @@ import {
 import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#F6F1E7"; // warm cream walls
 const CARD = "#FFFFFF";
@@ -302,6 +304,7 @@ export default function HotelInteriorScreen() {
 
           {/* upper room: staircase (L3) / art (L3) / window */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: 20, marginTop: 6 }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
             <View style={{ alignItems: "center" }}>
               {/* tall lobby window */}
               <View

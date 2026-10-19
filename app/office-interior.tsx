@@ -22,6 +22,8 @@ import {
 import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#F1F5F9"; // cool light slate
 const CARD = "#FFFFFF";
@@ -276,6 +278,7 @@ export default function OfficeInteriorScreen() {
           }}
         >
           <WindowBand level={level} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
 
           {/* side row: whiteboard (L2+) with the pawn, art (L3), plant */}
           <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingHorizontal: 12 }}>

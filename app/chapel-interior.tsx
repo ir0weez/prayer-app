@@ -13,6 +13,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
@@ -232,6 +234,7 @@ export default function ChapelInteriorScreen() {
 
         {/* chapel scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#E8DFC8", overflow: "hidden", backgroundColor: level >= 3 ? "#FBF9F3" : "#F6F2E8" }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
           {/* back wall: banner + altar + candles + stained glass */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
             {level >= 3 && <StainedGlass />}

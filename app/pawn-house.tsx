@@ -37,8 +37,7 @@ import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
 import { prayedTodayPeople, type PrayedPerson } from "@/lib/hometown";
 import { SeatedFigure, StandingFigure, SwimmingFigure, WorkingFigure, pickPeople } from "@/components/activity-figures";
-import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 /**
@@ -437,6 +436,7 @@ export default function PawnHouseScreen() {
 
   const renderLivingRoom = () => (
     <View style={{ width: roomViewWidth, height: roomViewHeight, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall }}>
+      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
       {/* floor */}
       <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: roomViewHeight * 0.34, backgroundColor: theme.floor }} />
       <View style={{ position: "absolute", left: 0, right: 0, bottom: roomViewHeight * 0.34, height: 4, backgroundColor: "rgba(0,0,0,0.12)" }} />
@@ -508,6 +508,7 @@ export default function PawnHouseScreen() {
     const litCount = candles.filter((c) => c.lit).length;
     return (
       <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
+        <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
         <Text style={{ color: "#FFE9C4", fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
           {litCount} of {candles.length} candles lit
         </Text>
@@ -533,6 +534,7 @@ export default function PawnHouseScreen() {
 
   const renderTrophyRoom = () => (
     <View style={{ width: roomViewWidth, borderRadius: 16, overflow: "hidden", backgroundColor: theme.wall, padding: 16 }}>
+      <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
       <Text style={{ color: theme.trim, fontWeight: "700", fontSize: 15, textAlign: "center", marginBottom: 4 }}>
         {trophies.length} trophies (+{(trophies.length * TROPHY_COIN_EACH * 100).toFixed(1)}% income)
       </Text>
@@ -619,8 +621,6 @@ export default function PawnHouseScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      <HolidayInteriorOverlay season={getHolidaySeason()} />
-      <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <MaterialIcons name="arrow-back" size={24} color="#1F2937" />

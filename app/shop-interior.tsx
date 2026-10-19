@@ -21,6 +21,8 @@ import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#F7F1E3";
 const CARD = "#FFFFFF";
@@ -231,6 +233,7 @@ export default function ShopInteriorScreen() {
           }}
         >
           <CeilingLight level={level} />
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
           {/* window */}
           <View style={{ alignItems: "flex-end", paddingRight: 18 }}>
             <Svg width={76} height={64} viewBox="0 0 76 64">

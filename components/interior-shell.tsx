@@ -9,9 +9,6 @@ import { Alert, Pressable, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { SeasonInteriorOverlay } from "@/components/season-decor";
-import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   BUILDINGS,
   COINS_STORAGE_KEY,
@@ -134,7 +131,6 @@ export function InteriorHeader({
 }) {
   const router = useRouter();
   return (
-    <View>
     <View style={{ flexDirection: "row", alignItems: "center", paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: bg }}>
       <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
         <MaterialIcons name="arrow-back" size={24} color={textColor} />
@@ -146,10 +142,6 @@ export function InteriorHeader({
         <MaterialIcons name="monetization-on" size={15} color="#B45309" />
         <Text style={{ marginLeft: 5, fontWeight: "700", color: textColor }}>{coins.balance.toFixed(2)}</Text>
       </View>
-    </View>
-    {/* Holiday garland — date-driven, renders only in season. */}
-    <HolidayInteriorOverlay season={getHolidaySeason()} />
-    <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
     </View>
   );
 }

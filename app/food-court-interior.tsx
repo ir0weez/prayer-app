@@ -23,6 +23,8 @@ import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#FBF6EC";
 const TEXT = "#3A2E1E";
@@ -242,6 +244,7 @@ export default function FoodCourtInteriorScreen() {
 
           {/* stalls */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", flexWrap: "wrap", marginTop: 6 }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
             {stalls.map((s) => (
               <FoodStall key={s.name} stall={s} />
             ))}

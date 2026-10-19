@@ -14,6 +14,8 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { formatCooldown } from "@/lib/gathering-places";
 import type { CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   FigureName,
   GentleBob,
@@ -264,6 +266,7 @@ export default function BakeryInteriorScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
       <InteriorHeader icon="bakery-dining" iconColor={GOLD} title={buildingName} coins={coins} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <InteriorBanner icon="cake" iconColor={GOLD} title={buildingName} blurb={levelBlurb} accent="#D9C4A5" />

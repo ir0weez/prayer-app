@@ -12,6 +12,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
@@ -248,6 +250,7 @@ export default function LibraryInteriorScreen() {
 
         {/* library scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#D8E4D4", overflow: "hidden", backgroundColor: level >= 3 ? "#F7F5EE" : "#F3F1EA" }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
           {level >= 3 && (
             <View style={{ alignItems: "center", paddingTop: 6 }}>
               <HallChandelier />

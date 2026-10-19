@@ -16,7 +16,7 @@ import { HOLIDAY_MAP_TINTS, type HolidaySeason } from "@/lib/seasons";
 /* ------------------------------------------------------------------ */
 
 /** A simple autumn leaf. */
-function LeafShape({ color, size = 10 }: { color: string; size?: number }) {
+export function LeafShape({ color, size = 10 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 20">
       <Path d="M10 1 C16 6, 17 13, 10 19 C3 13, 4 6, 10 1 Z" fill={color} />
@@ -26,7 +26,7 @@ function LeafShape({ color, size = 10 }: { color: string; size?: number }) {
 }
 
 /** A plain pumpkin. */
-function Pumpkin({ size = 28 }: { size?: number }) {
+export function Pumpkin({ size = 28 }: { size?: number }) {
   return (
     <Svg width={size} height={size * 0.85} viewBox="0 0 32 28">
       <Ellipse cx={16} cy={16} rx={13} ry={10} fill="#EA580C" />
@@ -38,7 +38,7 @@ function Pumpkin({ size = 28 }: { size?: number }) {
 }
 
 /** A jack-o'-lantern with a glowing carved face. */
-function JackOLantern({ size = 32 }: { size?: number }) {
+export function JackOLantern({ size = 32 }: { size?: number }) {
   const glow = useRef(new Animated.Value(0.6)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -79,7 +79,7 @@ function HayBale({ size = 30 }: { size?: number }) {
 }
 
 /** A cornucopia (horn of plenty). */
-function Cornucopia({ size = 40 }: { size?: number }) {
+export function Cornucopia({ size = 40 }: { size?: number }) {
   return (
     <Svg width={size} height={size * 0.75} viewBox="0 0 40 30">
       <Path d="M4 22 C10 24, 24 22, 34 8 C36 5, 34 2, 31 4 C22 12, 12 16, 4 16 Z" fill="#B45309" />
@@ -93,7 +93,7 @@ function Cornucopia({ size = 40 }: { size?: number }) {
 }
 
 /** A decorated Christmas pine. */
-function HolidayPine({ size = 40 }: { size?: number }) {
+export function HolidayPine({ size = 40 }: { size?: number }) {
   return (
     <Svg width={size} height={size * 1.2} viewBox="0 0 32 40">
       <Polygon points="16,2 26,18 6,18" fill="#15803D" />
@@ -110,7 +110,7 @@ function HolidayPine({ size = 40 }: { size?: number }) {
 }
 
 /** A wreath. */
-function Wreath({ size = 26 }: { size?: number }) {
+export function Wreath({ size = 26 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 28 28">
       <Circle cx={14} cy={14} r={10} fill="none" stroke="#15803D" strokeWidth={6} />
@@ -124,7 +124,7 @@ function Wreath({ size = 26 }: { size?: number }) {
 }
 
 /** A heart shape (SVG, not emoji). */
-function HeartGlyph({ color, size = 12 }: { color: string; size?: number }) {
+export function HeartGlyph({ color, size = 12 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 18">
       <Path
@@ -136,7 +136,7 @@ function HeartGlyph({ color, size = 12 }: { color: string; size?: number }) {
 }
 
 /** A small flower. */
-function FlowerGlyph({ petal, center, size = 14 }: { petal: string; center: string; size?: number }) {
+export function FlowerGlyph({ petal, center, size = 14 }: { petal: string; center: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 20">
       {[0, 72, 144, 216, 288].map((a) => (
@@ -210,7 +210,7 @@ function FlickerLamp({ size = 30 }: { size?: number }) {
 }
 
 /** Patriotic bunting string. */
-function Bunting({ width = 120, colors = ["#B91C1C", "#F8FAFC", "#1D4ED8"] }: { width?: number; colors?: string[] }) {
+export function Bunting({ width = 120, colors = ["#B91C1C", "#F8FAFC", "#1D4ED8"] }: { width?: number; colors?: string[] }) {
   const flags = Math.max(3, Math.floor(width / 18));
   const w = width / flags;
   return (
@@ -522,7 +522,7 @@ function TwinkleLight({ color, delay }: { color: string; delay: number }) {
 }
 
 /** A cobweb for a corner (Halloween). */
-function Cobweb({ size = 44 }: { size?: number }) {
+export function Cobweb({ size = 44 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 44 44">
       <Path d="M0 0 L44 0 M0 0 L0 44" stroke="#E7E5E4" strokeWidth={1.2} opacity={0.8} />

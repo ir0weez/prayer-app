@@ -12,6 +12,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { PawnPreview } from "@/components/pawn-preview";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
@@ -215,6 +217,7 @@ export default function ArcadeInteriorScreen() {
 
         {/* arcade scene — richer with level */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#3B2F5E", overflow: "hidden", backgroundColor: CARD }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
           {level >= 3 && (
             <View style={{ alignItems: "center", paddingTop: 8 }}>
               <DiscoBall />

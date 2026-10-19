@@ -22,6 +22,8 @@ import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
 import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#F4F1EA";
 const TEXT = "#2C2A33";
@@ -250,6 +252,7 @@ export default function DepartmentStoreInteriorScreen() {
 
           {/* escalator with riders */}
           <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8 }}>
+          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} />
             <Escalator level={level} />
             <View style={{ flexDirection: "row", alignItems: "flex-end", marginLeft: 6 }}>
               {onEscalator.map((p, i) => (

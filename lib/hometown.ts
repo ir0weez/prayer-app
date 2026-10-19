@@ -1380,7 +1380,75 @@ export const TOWN_PATH: Array<{ x: number; y: number }> = [
   // extension, at the foot of the neighborhood
   { x: 0, y: 16 }, { x: 1, y: 16 }, { x: 2, y: 16 }, { x: 3, y: 16 }, { x: 4, y: 16 },
   { x: 5, y: 16 }, { x: 6, y: 16 }, { x: 7, y: 16 }, { x: 8, y: 16 }, { x: 9, y: 16 },
+  // Pilgrim's Way — the southern hub district. Three east-west streets
+  // linking the map landmarks (Well, Garden, Mission Field, Dark Forest,
+  // River of Life), joined to Chapel Avenue.
+  { x: 0, y: 18 }, { x: 1, y: 18 }, { x: 2, y: 18 }, { x: 3, y: 18 }, { x: 4, y: 18 },
+  { x: 5, y: 18 }, { x: 6, y: 18 }, { x: 7, y: 18 }, { x: 8, y: 18 }, { x: 9, y: 18 },
+  { x: 0, y: 21 }, { x: 1, y: 21 }, { x: 2, y: 21 }, { x: 3, y: 21 }, { x: 4, y: 21 },
+  { x: 5, y: 21 }, { x: 6, y: 21 }, { x: 7, y: 21 }, { x: 8, y: 21 }, { x: 9, y: 21 },
+  { x: 0, y: 24 }, { x: 1, y: 24 }, { x: 2, y: 24 }, { x: 3, y: 24 }, { x: 4, y: 24 },
+  { x: 5, y: 24 }, { x: 6, y: 24 }, { x: 7, y: 24 }, { x: 8, y: 24 }, { x: 9, y: 24 },
+  // Chapel Avenue south extension — joins Southgate Lane to Pilgrim's Way
+  { x: 8, y: 17 },
+  // Hub connector — north-south link between the landmark rows
+  { x: 2, y: 17 }, { x: 2, y: 19 }, { x: 2, y: 20 },
+  { x: 2, y: 22 }, { x: 2, y: 23 }, { x: 2, y: 25 },
 ];
+
+/** A hub landmark — a place on the town map that travels to another map. */
+export type TownLandmark = {
+  id: string;
+  name: string;
+  blurb: string;
+  targetMap: TownMapId;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  art: "well" | "garden-gate" | "mission-field" | "dark-forest" | "river-dock";
+};
+
+/** The five gates of the hub district — each opens its map. */
+export const TOWN_LANDMARKS: TownLandmark[] = [
+  { id: "landmark-well",    name: "The Well",             blurb: "Draw living water, once a day",          targetMap: "well",    x: 0, y: 19, w: 2, h: 2, art: "well" },
+  { id: "landmark-garden",  name: "Garden of Remembrance", blurb: "Remember those you love",               targetMap: "mall",    x: 3, y: 19, w: 2, h: 2, art: "garden-gate" },
+  { id: "landmark-mission", name: "Mission Field",        blurb: "Send prayer lights on missions",         targetMap: "reserve", x: 5, y: 19, w: 2, h: 2, art: "mission-field" },
+  { id: "landmark-forest",  name: "Dark Forest",          blurb: "Battle demons in the dark wood",         targetMap: "forest",  x: 0, y: 22, w: 2, h: 2, art: "dark-forest" },
+  { id: "landmark-river",   name: "River of Life",        blurb: "Fish the waters, sell your catch",       targetMap: "river",   x: 3, y: 22, w: 2, h: 2, art: "river-dock" },
+];
+
+/** Find the landmark covering tile (x, y), if any. */
+export function townLandmarkAt(x: number, y: number): TownLandmark | undefined {
+  return TOWN_LANDMARKS.find((l) => x >= l.x && x < l.x + l.w && y >= l.y && y < l.y + l.h);
+}
+
+/**
+ * Living Stream — winds through the hub district from the east hills down
+ * to the southern waves. Purely decorative; villagers stroll its banks.
+ */
+export const TOWN_STREAM: Array<{ x: number; y: number }> = [
+  { x: 9, y: 19 },
+  { x: 9, y: 20 }, { x: 8, y: 20 }, { x: 7, y: 20 },
+  { x: 7, y: 21 },
+  { x: 7, y: 22 }, { x: 8, y: 22 }, { x: 9, y: 22 },
+  { x: 9, y: 23 },
+  { x: 9, y: 24 },
+  { x: 9, y: 25 },
+];
+
+const TOWN_STREAM_SET = new Set(TOWN_STREAM.map((s) => `${s.x}-${s.y}`));
+const TOWN_PATH_SET = new Set(TOWN_PATH.map((s) => `${s.x}-${s.y}`));
+
+/** True if the tile is stream water. */
+export function isStreamTile(x: number, y: number): boolean {
+  return TOWN_STREAM_SET.has(`${x}-${y}`);
+}
+
+/** True if a bridge spans the stream here (path crosses water). */
+export function isBridgeTile(x: number, y: number): boolean {
+  return isStreamTile(x, y) && TOWN_PATH_SET.has(`${x}-${y}`);
+}
 
 /** Town path roads with stable ids (idempotent seeding). */
 export function townPathRoads(): PlacedRoad[] {
@@ -1554,11 +1622,11 @@ export const TOWN_GRID_SIZE = 10;
  *  hospital and amphitheater sit in a southern extension (longer, not
  *  wider). Other maps (school, etc.) stay 10x10. */
 export const TOWN_GRID_W = 10;
-export const TOWN_GRID_H = 18;
+export const TOWN_GRID_H = 26;
 export const CITY_GRID_W = 10;
 export const CITY_GRID_H = 14;
 
-/** Grid dimensions for a map — town is 10x18, city is 10x14; others are 10x10. */
+/** Grid dimensions for a map — town is 10x26, city is 10x14; others are 10x10. */
 export function mapGridSize(mapId: TownMapId): { w: number; h: number } {
   if (mapId === "town") return { w: TOWN_GRID_W, h: TOWN_GRID_H };
   if (mapId === "city") return { w: CITY_GRID_W, h: CITY_GRID_H };

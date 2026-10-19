@@ -169,6 +169,11 @@ import {
   missionStatus,
   type FieldMission,
   type MissionDurationId,
+  TOWN_LANDMARKS,
+  townLandmarkAt,
+  type TownLandmark,
+  isStreamTile,
+  isBridgeTile,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
@@ -378,6 +383,122 @@ function tallBlock(opts: {
 // Building art using colored shapes (no emojis) - shape evolves with level.
 // artH: optional taller canvas height (px) for pseudo-3D tall buildings; art
 // stays bottom-anchored so it extends upward over neighboring squares.
+/** Living Stream water — gentle animated shimmer. Phase-offset per tile so the current feels alive. */
+function StreamWater({ size, phase = 0 }: { size: number; phase?: number }) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), (phase % 10) * 240);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [shimmer, phase]);
+  const op = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.75] });
+  const dx = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-3, 3] });
+  return (
+    <View style={{ position: "absolute", width: size, height: size, backgroundColor: "#7DD3FC", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      <View style={{ position: "absolute", width: size, height: size * 0.35, backgroundColor: "#38BDF8", opacity: 0.6, borderRadius: size }} />
+      <Animated.View style={{ opacity: op, transform: [{ translateX: dx }] }}>
+        <Svg width={size} height={size * 0.5} viewBox={`0 0 40 20`}>
+          <Path d="M0 10 Q10 4 20 10 T40 10" fill="none" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
+          <Path d="M0 16 Q10 10 20 16 T40 16" fill="none" stroke="#E0F2FE" strokeWidth={1.5} strokeLinecap="round" opacity={0.8} />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Wooden footbridge spanning the stream where Pilgrim's Way crosses. */
+function StreamBridge({ size }: { size: number }) {
+  return (
+    <View style={{ position: "absolute", width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      {/* planks */}
+      <View style={{ position: "absolute", width: size * 0.9, height: size * 0.55, backgroundColor: "#92400E", borderRadius: 3, borderWidth: 1.5, borderColor: "#78350F" }} />
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={{ position: "absolute", top: size * 0.24 + i * size * 0.09, width: size * 0.9, height: 1.5, backgroundColor: "#78350F", opacity: 0.7 }} />
+      ))}
+      {/* rails */}
+      <View style={{ position: "absolute", top: size * 0.16, width: size * 0.9, height: size * 0.08, backgroundColor: "#B45309", borderRadius: 2 }} />
+      <View style={{ position: "absolute", bottom: size * 0.16, width: size * 0.9, height: size * 0.08, backgroundColor: "#B45309", borderRadius: 2 }} />
+      <View style={{ position: "absolute", top: size * 0.16, left: size * 0.08, width: size * 0.07, height: size * 0.68, backgroundColor: "#92400E", borderRadius: 2 }} />
+      <View style={{ position: "absolute", top: size * 0.16, right: size * 0.08, width: size * 0.07, height: size * 0.68, backgroundColor: "#92400E", borderRadius: 2 }} />
+    </View>
+  );
+}
+
+/** Hub landmark art — the five gates to the other maps. 2x2 cells. */
+function LandmarkArt({ art, size }: { art: TownLandmark["art"]; size: number }) {
+  const s = size;
+  switch (art) {
+    case "well":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ position: "absolute", bottom: s * 0.42, width: s * 0.62, height: s * 0.3, backgroundColor: "#A8A29E", borderRadius: 8, borderWidth: 2, borderColor: "#78716C" }} />
+          <View style={{ position: "absolute", bottom: s * 0.48, width: s * 0.4, height: s * 0.16, backgroundColor: "#0C4A6E", borderRadius: s * 0.08 }} />
+          <View style={{ position: "absolute", bottom: s * 0.42, left: s * 0.22, width: s * 0.07, height: s * 0.42, backgroundColor: "#78350F", borderRadius: 2 }} />
+          <View style={{ position: "absolute", bottom: s * 0.42, right: s * 0.22, width: s * 0.07, height: s * 0.42, backgroundColor: "#78350F", borderRadius: 2 }} />
+          <View style={{ position: "absolute", bottom: s * 0.78, width: s * 0.78, height: s * 0.16, backgroundColor: "#92400E", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
+          <View style={{ position: "absolute", bottom: s * 0.06, width: s * 0.7, height: s * 0.1, backgroundColor: "#000000", opacity: 0.12, borderRadius: 999 }} />
+        </View>
+      );
+    case "garden-gate":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ position: "absolute", bottom: s * 0.1, left: s * 0.12, width: s * 0.12, height: s * 0.62, backgroundColor: "#D6D3D1", borderRadius: 4, borderWidth: 1.5, borderColor: "#A8A29E" }} />
+          <View style={{ position: "absolute", bottom: s * 0.1, right: s * 0.12, width: s * 0.12, height: s * 0.62, backgroundColor: "#D6D3D1", borderRadius: 4, borderWidth: 1.5, borderColor: "#A8A29E" }} />
+          <View style={{ position: "absolute", bottom: s * 0.66, width: s * 0.8, height: s * 0.14, backgroundColor: "#D6D3D1", borderRadius: 6, borderWidth: 1.5, borderColor: "#A8A29E" }} />
+          {[0.2, 0.38, 0.56, 0.74].map((fx, i) => (
+            <View key={i} style={{ position: "absolute", bottom: s * 0.72, left: s * fx, width: s * 0.09, height: s * 0.09, borderRadius: s * 0.045, backgroundColor: i % 2 ? "#F9A8D4" : "#F472B6" }} />
+          ))}
+          <View style={{ position: "absolute", bottom: s * 0.1, width: s * 0.5, height: s * 0.08, backgroundColor: "#000000", opacity: 0.1, borderRadius: 999 }} />
+        </View>
+      );
+    case "mission-field":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ position: "absolute", top: s * 0.08, right: s * 0.12, width: s * 0.22, height: s * 0.22, borderRadius: s * 0.11, backgroundColor: "#FBBF24" }} />
+          {[0, 1, 2].map((r) => (
+            <View key={r} style={{ position: "absolute", bottom: s * (0.14 + r * 0.2), width: s * 0.84, height: s * 0.12, backgroundColor: "#65A30D", borderRadius: 4, opacity: 0.9 - r * 0.12 }}>
+              {[0, 1, 2, 3, 4].map((c) => (
+                <View key={c} style={{ position: "absolute", bottom: s * 0.1, left: s * (0.08 + c * 0.16), width: s * 0.05, height: s * 0.14, backgroundColor: "#3F6212", borderRadius: 2 }} />
+              ))}
+            </View>
+          ))}
+        </View>
+      );
+    case "dark-forest":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ position: "absolute", top: 0, width: s, height: s * 0.9, backgroundColor: "#1C1917", opacity: 0.35, borderRadius: 8 }} />
+          {[0.16, 0.42, 0.68].map((fx, i) => (
+            <View key={i} style={{ position: "absolute", bottom: s * 0.1, left: s * fx, alignItems: "center" }}>
+              <View style={{ width: 0, height: 0, borderLeftWidth: s * 0.11, borderRightWidth: s * 0.11, borderBottomWidth: s * 0.3, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: i === 1 ? "#14532D" : "#1C3A2A" }} />
+              <View style={{ width: s * 0.06, height: s * 0.12, backgroundColor: "#3F2D1C" }} />
+            </View>
+          ))}
+          <View style={{ position: "absolute", top: s * 0.2, left: s * 0.3, width: s * 0.06, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: "#FDE68A", opacity: 0.9 }} />
+          <View style={{ position: "absolute", top: s * 0.32, right: s * 0.28, width: s * 0.05, height: s * 0.05, borderRadius: s * 0.025, backgroundColor: "#FDE68A", opacity: 0.7 }} />
+        </View>
+      );
+    case "river-dock":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          <View style={{ position: "absolute", bottom: s * 0.08, width: s * 0.9, height: s * 0.34, backgroundColor: "#7DD3FC", borderRadius: 8 }} />
+          <Svg width={s * 0.9} height={s * 0.2} viewBox="0 0 72 16" style={{ position: "absolute", bottom: s * 0.2 }}>
+            <Path d="M0 8 Q9 3 18 8 T36 8 T54 8 T72 8" fill="none" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" opacity={0.8} />
+          </Svg>
+          <View style={{ position: "absolute", bottom: s * 0.3, width: s * 0.5, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 2 }} />
+          {[0.3, 0.45, 0.6].map((fx, i) => (
+            <View key={i} style={{ position: "absolute", bottom: s * 0.14, left: s * fx, width: s * 0.05, height: s * 0.24, backgroundColor: "#78350F", borderRadius: 2 }} />
+          ))}
+        </View>
+      );
+  }
+}
+
 function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number }) {
   const s = size;
   const lv = level || 1;
@@ -3556,6 +3677,12 @@ export default function HometownScreen() {
     // Town map: neighborhood lots only — no free placement
     if (activeMap === "town") {
       const existing = buildingAt(x, y);
+      // Hub landmarks: tapping travels to the linked map (or unlocks it).
+      const landmark = townLandmarkAt(x, y);
+      if (landmark && !existing) {
+        handleMapSignSelect(landmark.targetMap);
+        return;
+      }
       // Town lot buildings: popup with upgrade only (no move/sell)
       if (existing?.townLotId) {
         handleTownLotBuildingPress(existing);
@@ -3993,6 +4120,8 @@ export default function HometownScreen() {
       const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
       const isSelected = selectedTile?.x === x && selectedTile?.y === y;
       const footprint = b ? buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b)) : { w: 1, h: 1 };
+      const onStream = activeMap === "town" && isStreamTile(x, y);
+      const onBridge = activeMap === "town" && isBridgeTile(x, y);
       cells.push(
         <Pressable
           key={`${x}-${y}`}
@@ -4004,9 +4133,9 @@ export default function HometownScreen() {
           style={{
             width: cellSize,
             height: cellSize,
-            backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : beachCells.has(`${x}-${y}`) ? "#FDE68A" : "#F3F4F6",
+            backgroundColor: isSelected ? "#FEF3C7" : b ? "#D1FAE5" : onStream ? "#7DD3FC" : beachCells.has(`${x}-${y}`) ? "#FDE68A" : "#F3F4F6",
             borderWidth: isOrigin || !b ? 1 : 0,
-            borderColor: isSelected ? "#F59E0B" : beachCells.has(`${x}-${y}`) ? "#FCD34D" : "#E5E7EB",
+            borderColor: isSelected ? "#F59E0B" : onStream ? "#38BDF8" : beachCells.has(`${x}-${y}`) ? "#FCD34D" : "#E5E7EB",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -4014,7 +4143,14 @@ export default function HometownScreen() {
           {decorationAt(x, y) && (
             <Text style={{ fontSize: 22 }}>{DECORATIONS[decorationAt(x, y)!.type].icon}</Text>
           )}
-          {roadAt(x, y) && (
+          {onStream && !onBridge && <StreamWater size={cellSize} phase={x + y} />}
+          {onBridge && (
+            <View style={{ position: "absolute", width: cellSize, height: cellSize }}>
+              <StreamWater size={cellSize} phase={x + y} />
+              <StreamBridge size={cellSize} />
+            </View>
+          )}
+          {roadAt(x, y) && !onBridge && (
             <View style={{ position: "absolute", width: cellSize, height: cellSize, backgroundColor: "#9CA3AF", alignItems: "center", justifyContent: "center" }}>
               <View style={{ width: cellSize * 0.7, height: 8, backgroundColor: "#6B7280", borderRadius: 4 }} />
             </View>
@@ -4754,6 +4890,39 @@ export default function HometownScreen() {
                   frenzy={frenzyActive}
                   isFull={!earnsXP && isBuildingStorageFull(b)}
                 />
+              </View>
+            );
+          })}
+          {/* Hub landmarks — the five gates to the other maps. Tappable via the grid cells below. */}
+          {activeMap === "town" && TOWN_LANDMARKS.map((lm) => {
+            const unlocked = unlockedMaps.includes(lm.targetMap);
+            const info = MAP_INFO[lm.targetMap];
+            return (
+              <View
+                key={`landmark-${lm.id}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: lm.x * cellSize,
+                  top: lm.y * cellSize,
+                  width: lm.w * cellSize,
+                  height: lm.h * cellSize,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: unlocked ? 1 : 0.75,
+                  zIndex: Math.round((lm.y + lm.h) * cellSize),
+                }}
+              >
+                <LandmarkArt art={lm.art} size={lm.w * cellSize * 0.92} />
+                <View style={{ position: "absolute", bottom: -2, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, flexDirection: "row", alignItems: "center" }}>
+                  {!unlocked && <MaterialIcons name="lock" size={10} color="#FDE68A" style={{ marginRight: 3 }} />}
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#FFFFFF" }}>{unlocked ? lm.name : `${mapUnlockCost(lm.targetMap).toFixed(0)}`}</Text>
+                </View>
+                {!unlocked && (
+                  <View style={{ position: "absolute", top: 2, right: 2, backgroundColor: "#1D4ED8", borderRadius: 999, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}>
+                    <MaterialIcons name="lock" size={12} color="#FFFFFF" />
+                  </View>
+                )}
               </View>
             );
           })}

@@ -31,7 +31,8 @@ export type ScheduleActivityKind =
   | "hospital"
   | "amphitheater"
   | "home"
-  | "church";
+  | "church"
+  | "barbershop";
 
 export type ScheduleActivity = {
   kind: ScheduleActivityKind;
@@ -96,6 +97,11 @@ const KIND_MATCHERS: Array<{ kind: ScheduleActivityKind; withVillagers: boolean;
     kind: "home",
     withVillagers: false,
     re: /\b(rest|nap|siesta)\b/i,
+  },
+  {
+    kind: "barbershop",
+    withVillagers: false,
+    re: /\b(haircut|hair cut|barber|barbershop|trim|shave)\b/i,
   },
 ];
 
@@ -214,6 +220,9 @@ export function resolveScheduleTarget(
       break;
     case "church":
       b = buildings.find((x) => x.type === "church");
+      break;
+    case "barbershop":
+      b = buildings.find((x) => x.type === "barbershop");
       break;
   }
   if (!b) return null;

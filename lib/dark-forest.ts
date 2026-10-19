@@ -39,6 +39,9 @@ const NIGHTMARE_NAMES = [
   "Doombringer",
 ];
 
+/** All demon names for the bestiary collection. */
+export const ALL_DEMON_NAMES: string[] = [...LESSER_NAMES, ...GREATER_NAMES, ...NIGHTMARE_NAMES];
+
 /** Wave 1 is the first demon. Everything scales from there. */
 export function demonForWave(wave: number): DemonDef {
   const w = Math.max(1, Math.floor(wave));

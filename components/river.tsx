@@ -10,10 +10,10 @@ import { MaterialIcons } from "@expo/vector-icons";
 import {
   RIVER_LEVELS,
   RIVER_LEVEL_NAMES,
-  randomFishName,
   type RiverLevel,
   type RiverState,
 } from "@/lib/river";
+import { randomFishSpecies } from "@/lib/collections";
 import { SKY_THEMES, type PageTheme, type TimeOfDay } from "@/lib/daynight";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
@@ -26,7 +26,7 @@ export type RiverCampProps = {
   tunicColor: string;
   /** First names of prayed people — a deterministic daily pick fish here. */
   villagerNames: string[];
-  onCatch: (fishName: string) => void;
+  onCatch: (speciesId: string, speciesName: string) => void;
   onSell: () => void;
   onUpgrade: () => void;
 };
@@ -382,9 +382,9 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, onC
       setPhase("waiting");
       const wait = 1500 + Math.random() * 1000; // 1.5 - 2.5 s on the line
       timers.current.push(setTimeout(() => {
-        const fish = randomFishName();
-        onCatch(fish);
-        setToast(`Caught a ${fish}!`);
+        const species = randomFishSpecies();
+        onCatch(species.id, species.name);
+        setToast(`Caught a ${species.name}!`);
         setPhase("idle");
         timers.current.push(setTimeout(() => setToast(null), 2600));
       }, wait));

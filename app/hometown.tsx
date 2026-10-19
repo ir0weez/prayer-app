@@ -181,6 +181,11 @@ import {
   getTodayVisitors, markVisitorClaimed, buildMerchantDeal,
   type Visitor, type MerchantDeal,
 } from "@/lib/surprise-visitors";
+import {
+  recordFishCatch, recordDemonDefeat, recordFlowerPlanted,
+  COLLECTION_SETS, loadCollections, type CollectionState,
+} from "@/lib/collections";
+import { CollectionsBook } from "@/components/collections-book";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import {
   loadGarden, saveGarden, gardenIsRipe, gardenMsUntilRipe, gardenHarvestReward,
@@ -1772,6 +1777,9 @@ export default function HometownScreen() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [merchantDeal, setMerchantDeal] = useState<MerchantDeal | null>(null);
+  /** Collections book modal. */
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [collectionSummary, setCollectionSummary] = useState<CollectionState | null>(null);
   /** Tracks which haircut event already trimmed the pawn (once per event). */
   const haircutDoneForRef = useRef<string | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
@@ -3811,6 +3819,15 @@ export default function HometownScreen() {
     if (demon.xp > 0) {
       awardCustomXP(demon.xp, `dark-forest:${wave}:${Date.now()}`).catch(() => undefined);
     }
+    // Record in the demon bestiary collection.
+    recordDemonDefeat(demon.name).then(({ justCompleted }) => {
+      if (justCompleted) {
+        const meta = COLLECTION_SETS.demons;
+        addCoins(meta.rewardCoins);
+        awardCustomXP(meta.rewardXp, `collection:demons`).catch(() => undefined);
+        queueCelebration("milestone", "Bestiary complete!", `Every demon catalogued. +${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+      }
+    }).catch(() => undefined);
     setForest(prev => {
       if (wave <= prev.highestWave) return prev;
       const next = { highestWave: wave };
@@ -3820,8 +3837,16 @@ export default function HometownScreen() {
   }, [addCoins]);
 
   /** River of Life: a fish on the line — creel +1, daily catch +1. */
-  const handleRiverCatch = useCallback((fishName: string) => {
-    void fishName;
+  const handleRiverCatch = useCallback((speciesId: string) => {
+    // Record the species in the collection book.
+    recordFishCatch(speciesId).then(({ justCompleted }) => {
+      if (justCompleted) {
+        const meta = COLLECTION_SETS.fish;
+        addCoins(meta.rewardCoins);
+        awardCustomXP(meta.rewardXp, `collection:fish`).catch(() => undefined);
+        queueCelebration("milestone", "Collection complete: River Fish!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+      }
+    }).catch(() => undefined);
     setRiver(prev => {
       const checked = newDayCheck(prev);
       const info = RIVER_LEVELS[checked.level];
@@ -4113,6 +4138,25 @@ export default function HometownScreen() {
         </View>
       ) : null}
 
+      {/* Collections button */}
+      <Pressable
+        onPress={() => {
+          loadCollections().then(setCollectionSummary).catch(() => undefined);
+          setCollectionsOpen(true);
+        }}
+        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#EDE9FE", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#C4B5FD" }}
+      >
+        <MaterialIcons name="collections-bookmark" size={14} color="#6D28D9" />
+        <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#5B21B6" }}>
+          Collections{(() => {
+            if (!collectionSummary) return "";
+            const total = collectionSummary.fish.length + collectionSummary.demons.length + collectionSummary.flowers.length;
+            const max = 10 + 15 + 6;
+            return ` ${total}/${max}`;
+          })()}
+        </Text>
+      </Pressable>
+
       {/* Garden visits chip — prayer lights paying respects (+0.1%/visit, 24h) */}
       {(() => {
         const gv = gardenVisitMult(gardenVisits);
@@ -4250,6 +4294,15 @@ export default function HometownScreen() {
             const next = { ...remembrance, people: [...remembrance.people, person] };
             setRemembrance(next);
             saveRemembrance(next);
+            // Record the flower kind in the collection book.
+            recordFlowerPlanted(flower).then(({ justCompleted }) => {
+              if (justCompleted) {
+                const meta = COLLECTION_SETS.flowers;
+                addCoins(meta.rewardCoins);
+                awardCustomXP(meta.rewardXp, `collection:flowers`).catch(() => undefined);
+                queueCelebration("milestone", "Collection complete: Garden Flowers!", `Every bloom planted. +${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+              }
+            }).catch(() => undefined);
           }}
           onUpdateNote={(id, note) => {
             const next = { ...remembrance, people: remembrance.people.map((p) => (p.id === id ? { ...p, note } : p)) };
@@ -5408,6 +5461,8 @@ export default function HometownScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* Collections book */}
+      <CollectionsBook visible={collectionsOpen} onClose={() => setCollectionsOpen(false)} pt={pt} />
       {/* Villager identity — tap a light to see who walks with you */}
       <Modal
         visible={prayerVillagerInfo !== null}

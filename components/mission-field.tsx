@@ -78,12 +78,26 @@ function MissionScene({
   const out = safe.filter((m) => { try { return m && !m.collected && missionStatus(m, now) === "out"; } catch { return false; } });
   const returned = safe.filter((m) => { try { return m && !m.collected && missionStatus(m, now) === "returned"; } catch { return false; } });
 
+  // Measure container width and set explicit height — aspectRatio is unreliable
+  // inside flex parents. Also guards against 0/NaN dimensions reaching native SVG.
+  const [sceneW, setSceneW] = useState(0);
+  const sceneH = sceneW > 0 && Number.isFinite(sceneW) ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
+  const validDims = sceneW > 0 && sceneH > 0 && Number.isFinite(sceneW) && Number.isFinite(sceneH);
+
   // Path winds from bottom-center to the horizon.
   const pathD = "M150 300 C 160 240, 200 220, 180 170 C 165 135, 175 110, 180 90";
 
   return (
-    <View style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, aspectRatio: SCENE_W / SCENE_H }}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
+    <View
+      onLayout={(e) => {
+        try {
+          const w = Math.round(e.nativeEvent.layout.width);
+          if (w > 0 && Number.isFinite(w) && w !== sceneW) setSceneW(w);
+        } catch {}
+      }}
+      style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, width: "100%", height: validDims ? sceneH : 200, backgroundColor: sky.top }}
+    >
+      <Svg width={validDims ? sceneW : 300} height={validDims ? sceneH : 200} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
         {/* sky */}
         <Rect x={0} y={0} width={SCENE_W} height={150} fill={sky.top} />
         <Rect x={0} y={90} width={SCENE_W} height={60} fill={sky.bottom} opacity={0.9} />

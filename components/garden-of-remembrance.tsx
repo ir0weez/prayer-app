@@ -478,12 +478,23 @@ function GardenScene({
   const bedFill = isNight ? "#332E45" : level >= 2 ? "#9A7B52" : "#8A9A6B";
   const grassWash = isNight ? "#1E1B2E" : level === 1 ? "#DCE8D2" : "#CFE0C8";
 
+  // Measure container width and set explicit height — aspectRatio is unreliable
+  // inside flex parents (scene would stretch to fill, leaving empty space).
+  const [sceneW, setSceneW] = useState(0);
+  const sceneH = sceneW > 0 ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
+
   // Winding path as a thick stroked curve
   const pathD = `M ${pathX(440)} 440 C ${pathX(380) + 24} 400, ${pathX(320) - 24} 360, ${pathX(300)} 300 C ${pathX(280) + 20} 260, ${pathX(200) - 20} 200, ${pathX(150)} 150 C ${pathX(120) + 10} 120, 178 105, 180 96`;
 
   return (
-    <View style={{ width: "100%", aspectRatio: SCENE_W / SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
+    <View
+      onLayout={(e) => {
+        const w = Math.round(e.nativeEvent.layout.width);
+        if (w > 0 && w !== sceneW) setSceneW(w);
+      }}
+      style={{ width: "100%", height: sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W)), backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
+    >
+      <Svg width={sceneW > 0 ? sceneW : 300} height={sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W))} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
         {/* soft grass wash */}
         <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.55} />
         {/* flower beds (two organic blobs flanking the path) */}

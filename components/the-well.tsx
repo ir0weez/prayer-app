@@ -163,6 +163,11 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawnToday]);
 
+  // Measure container width and set explicit height — aspectRatio is unreliable
+  // inside flex parents (scene would stretch to fill, leaving empty space).
+  const [sceneW, setSceneW] = useState(0);
+  const sceneH = sceneW > 0 ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
+
   const startDraw = () => {
     if (phase !== "idle" || drawnToday) return;
     setPhase("drawing");
@@ -212,8 +217,14 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
 
   return (
     <View style={{ marginBottom: 16 }}>
-      <View style={{ width: "100%", aspectRatio: SCENE_W / SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
-        <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
+      <View
+        onLayout={(e) => {
+          const w = Math.round(e.nativeEvent.layout.width);
+          if (w > 0 && w !== sceneW) setSceneW(w);
+        }}
+        style={{ width: "100%", height: sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W)), backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
+      >
+        <Svg width={sceneW > 0 ? sceneW : 300} height={sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W))} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
           {/* grass wash */}
           <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.6} />
           {/* dirt clearing around the well */}

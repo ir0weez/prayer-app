@@ -1560,58 +1560,6 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
   );
 }
 
-/** The River of Life — crystal water along the town's north edge (Rev 22:1).
- * Purely visual, but tappable: opens (or unlocks) the riverside camp map. */
-function RiverOfLife({ cellSize, onPress }: { cellSize: number; onPress: () => void }) {
-  const glint = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glint, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(glint, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [glint]);
-  const sparkleOpacity = glint.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        position: "absolute",
-        top: -12,
-        left: 0,
-        width: TOWN_GRID_SIZE * cellSize,
-        flexDirection: "row",
-        justifyContent: "space-around",
-        opacity: 0.9,
-      }}
-    >
-      {Array.from({ length: 10 }).map((_, i) => (
-        <Svg key={i} width={30} height={20} viewBox="0 0 30 20">
-          <Path
-            d="M0 8 Q7.5 1 15 8 T30 8"
-            fill="none"
-            stroke="#BAE6FD"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-          <Path
-            d="M0 14 Q7.5 7 15 14 T30 14"
-            fill="none"
-            stroke="#E0F2FE"
-            strokeWidth={2}
-            strokeLinecap="round"
-            opacity={0.8}
-          />
-          <AnimatedCircle cx={8 + (i % 3) * 7} cy={5} r={1.6} fill="#FFFFFF" opacity={sparkleOpacity} />
-        </Svg>
-      ))}
-    </Pressable>
-  );
-}
-
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
 function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -4379,8 +4327,6 @@ export default function HometownScreen() {
         >
         <View style={{ position: "relative" }}>
           {rows}
-          {/* The River of Life runs along the town's north edge — tap to visit the riverside camp. */}
-          {activeMap === "town" && <RiverOfLife cellSize={cellSize} onPress={() => handleMapSignSelect("river")} />}
           {/* Holiday decorations over the town/city grid — date-driven. */}
           {(activeMap === "town" || activeMap === "city") && (
             <HolidayMapOverlay season={getHolidaySeason()} />

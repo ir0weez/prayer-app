@@ -176,6 +176,7 @@ import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
 import { awardCustomXP } from "@/lib/xp-engine";
+import { checkInStreak, nextMilestoneFor, type StreakState, emptyStreak } from "@/lib/town-streak";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import {
   loadGarden, saveGarden, gardenIsRipe, gardenMsUntilRipe, gardenHarvestReward,
@@ -1761,6 +1762,8 @@ export default function HometownScreen() {
   // doctor's at the hospital, movies at the amphitheater, rest at home, ministry
   // at the church. During an event the pawn/villagers gather instead of wandering.
   const [scheduleActivity, setScheduleActivity] = useState<ScheduleActivity | null>(null);
+  /** Daily town visit streak — checked in on open. */
+  const [streak, setStreak] = useState<StreakState>(emptyStreak);
   /** Tracks which haircut event already trimmed the pawn (once per event). */
   const haircutDoneForRef = useRef<string | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null);
@@ -2773,6 +2776,28 @@ export default function HometownScreen() {
         }
         t = { ...t, lastIncomeDate: today };
         saveTown(t);
+      } catch {}
+    })();
+  }, []);
+
+  // Daily town visit streak — first open each calendar day checks in.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { state, isNewDay, milestone } = await checkInStreak();
+        setStreak(state);
+        if (!isNewDay) return;
+        if (milestone) {
+          addCoins(milestone.coins);
+          if (milestone.xp > 0) {
+            awardCustomXP(milestone.xp, `town-streak:${state.streak}`).catch(() => undefined);
+          }
+          queueCelebration(
+            "milestone",
+            `${state.streak}-day streak!`,
+            `${milestone.label} — +${milestone.coins} coins${milestone.xp > 0 ? `, +${milestone.xp} XP` : ""}${milestone.title ? `. Title earned: ${milestone.title}` : ""}.`
+          );
+        }
       } catch {}
     })();
   }, []);
@@ -4056,6 +4081,25 @@ export default function HometownScreen() {
           <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#8A6D1B" }}>
             {remembrance.people.length} remembered (+{((remembranceMult(remembrance.people.length) - 1) * 100).toFixed(1)}% income)
           </Text>
+        </View>
+      ) : null}
+
+      {/* Daily visit streak chip */}
+      {streak.streak > 0 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FDBA74" }}>
+          <MaterialIcons name="local-fire-department" size={14} color="#EA580C" />
+          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#9A3412" }}>
+            Day {streak.streak} streak{streak.bestStreak > streak.streak ? ` (best ${streak.bestStreak})` : ""}
+          </Text>
+          {(() => {
+            const nm = nextMilestoneFor(streak.streak);
+            if (!nm) return null;
+            return (
+              <Text style={{ marginLeft: 6, fontSize: 12, color: "#C2410C" }}>
+                → {nm.coins}c at day {nm.day}
+              </Text>
+            );
+          })()}
         </View>
       ) : null}
 

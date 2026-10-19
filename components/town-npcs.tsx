@@ -9,6 +9,8 @@ import {
   PRAYER_VILLAGER_CAP,
   isRestaurantType,
   isGatheringTime,
+  isStreamTile,
+  type BuildingType,
   type MapState,
 } from "@/lib/hometown";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -84,6 +86,11 @@ function ActivityGlyph({ type }: { type: string }) {
   return <MaterialIcons name={name as any} size={11} color="#92400E" />;
 }
 
+/** Pseudo-destination for free wandering: a stroll to a street corner, a
+ *  quiet lane, or the far ends of town. Not a building — no activity badge,
+ *  no bank bonus, no name label. Just exploring. */
+const STROLL_TYPE = "__stroll__";
+
 /** Villager meetups — two lights crossing paths pause for a quick chat. */
 const CHAT_RANGE_PX = 34;
 const CHAT_COOLDOWN_MS = 25000;
@@ -128,6 +135,9 @@ type NpcLogic = {
   anim: Animated.CompositeAnimation | null;
   destBuildingId?: string;
   destType?: string;
+  /** The building this light visited last — the next pick prefers somewhere
+   *  new so they don't pace between the same two doors. */
+  lastDestBuildingId?: string;
   /** Meetup bookkeeping. */
   chatUntil: number;
   chatPartnerId?: string;
@@ -263,6 +273,9 @@ export function TownNPCs({
   /** Render entities directly (no container) so the parent can depth-sort
       them with buildings via zIndex — villagers walk BEHIND tall buildings. */
   bare?: boolean;
+  /** Optional ref that receives live villager tile positions [{x, y}, ...],
+      updated on each render pass. Used for presence-gated building income. */
+  positionsRef?: React.MutableRefObject<Array<{ x: number; y: number }>>;
 }) {
   const logicRef = useRef<Record<string, NpcLogic>>({});
   const mapStateRef = useRef(mapState);
@@ -363,6 +376,94 @@ export function TownNPCs({
     const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 });
     const logic = logicRef.current;
 
+    /** How many other villagers are already heading to (or at) this
+     *  building — the spread-out metric. */
+    const crowdAt = (buildingId: string, selfId: string): number => {
+      let n = 0;
+      for (const other of Object.values(logic)) {
+        if (other.id === selfId) continue;
+        if (other.destBuildingId !== buildingId) continue;
+        if (other.state === "walking" || other.state === "visiting" || other.state === "chatting") n++;
+      }
+      return n;
+    };
+
+    const buildingDest = (b: { id: string; level?: number; type: BuildingType; x: number; y: number }) => {
+      const fp = buildingFootprint(b.level || 1, b.type);
+      return {
+        tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+        buildingId: b.id,
+        type: b.type,
+      };
+    };
+
+    /** Pick among candidate buildings with separation: draw a few at random
+     *  and take the least crowded (ties broken randomly), avoiding the last
+     *  place this villager visited — so they spread out instead of all
+     *  queueing at the same door or pacing the same two shops. */
+    const pickSpread = <T extends { id: string }>(
+      npc: NpcLogic,
+      candidates: T[],
+      toDest: (c: T) => { tile: Tile; buildingId: string; type: string }
+    ): { tile: Tile; buildingId: string; type: string } | null => {
+      if (candidates.length === 0) return null;
+      let best: T | null = null;
+      let bestScore = Infinity;
+      const draws = Math.min(4, candidates.length);
+      for (let i = 0; i < draws; i++) {
+        const c = candidates[Math.floor(Math.random() * candidates.length)];
+        if (best && c.id === best.id) continue;
+        const score =
+          crowdAt(c.id, npc.id) * 10 +
+          (c.id === npc.lastDestBuildingId ? 4 : 0) +
+          Math.random() * 2;
+        if (score < bestScore) {
+          bestScore = score;
+          best = c;
+        }
+      }
+      return best ? toDest(best) : null;
+    };
+
+    /** A free stroll: head to a street corner somewhere else on the map.
+     *  Draws 3 road tiles and takes the farthest from the villager's current
+     *  spot — villagers end up exploring the far ends of town, quiet lanes,
+     *  and the stream banks instead of pacing the same block. */
+    const pickStroll = (npc: NpcLogic): Tile | null => {
+      const ms = mapStateRef.current;
+      const roads = ms.roads.filter((r) => !isStreamTile(r.x, r.y));
+      if (roads.length === 0) return null;
+      const cx = npc.px / cellSize - 0.5;
+      const cy = npc.py / cellSize - 0.5;
+      let best: Tile | null = null;
+      let bestD = -1;
+      for (let i = 0; i < 3; i++) {
+        const r = roads[Math.floor(Math.random() * roads.length)];
+        const d = Math.abs(r.x - cx) + Math.abs(r.y - cy);
+        if (d > bestD) {
+          bestD = d;
+          best = r;
+        }
+      }
+      return best;
+    };
+
+    /** Send a villager walking to a destination (shared by the idle picker
+     *  and the keep-exploring chain below). */
+    const startWalkTo = (
+      npc: NpcLogic,
+      dest: { tile: Tile; buildingId: string; type: string }
+    ) => {
+      const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
+      npc.waypoints = buildPath(mapStateRef.current, fromTile, dest.tile, cellSize);
+      npc.wpIndex = 0;
+      npc.destBuildingId = dest.buildingId;
+      npc.destType = dest.type;
+      npc.lastDestBuildingId = dest.buildingId;
+      npc.state = "walking";
+      stepNpc(npc);
+    };
+
     const pickDestination = (npc: NpcLogic): { tile: Tile; buildingId: string; type: string } | null => {
       const ms = mapStateRef.current;
       const businesses = ms.buildings.filter((b) => {
@@ -388,10 +489,17 @@ export function TownNPCs({
         const restaurants = businesses.filter((b) => isRestaurantType(b.type));
         if (restaurants.length > 0) pool = restaurants;
       }
+      const roll = Math.random();
+      // Free wandering: a stroll across the map — the far ends, quiet lanes,
+      // the stream banks. This is what makes them explorers, not errand-runners.
+      if (roll < 0.38 && !isGatheringTime()) {
+        const stroll = pickStroll(npc);
+        if (stroll) return { tile: stroll, buildingId: STROLL_TYPE, type: STROLL_TYPE };
+      }
       // Home life: villagers with a cottage sometimes stay home to rest, or
       // visit a friend's cottage. This is what makes them residents, not wanderers.
       const homeBuilding = ms.buildings.find((b) => b.id === npc.homeId);
-      if (homeBuilding && homeBuilding.type === "villager-cottage" && Math.random() < 0.12) {
+      if (roll < 0.50 && homeBuilding && homeBuilding.type === "villager-cottage") {
         const cottages = ms.buildings.filter((b) => b.type === "villager-cottage");
         const target = cottages.length > 1 && Math.random() < 0.5
           ? cottages[Math.floor(Math.random() * cottages.length)]
@@ -406,19 +514,12 @@ export function TownNPCs({
       // Gathering places: villagers visit the Community Garden to tend crops,
       // and the Fountain Plaza to gather and rest. These are the heart of
       // community life — not businesses, but places to be together.
-      if (!isGatheringTime() && Math.random() < 0.15) {
+      if (roll < 0.62 && !isGatheringTime()) {
         const gathering = ms.buildings.filter(
           (b) => b.type === "community-garden" || b.type === "fountain-plaza"
         );
-        if (gathering.length > 0) {
-          const target = gathering[Math.floor(Math.random() * gathering.length)];
-          const fp = buildingFootprint(target.level || 1, target.type);
-          return {
-            tile: { x: target.x + fp.w / 2 - 0.5, y: target.y + fp.h / 2 - 0.5 },
-            buildingId: target.id,
-            type: target.type,
-          };
-        }
+        const picked = pickSpread(npc, gathering, buildingDest);
+        if (picked) return picked;
       }
       if (pool.length === 0) {
         // no shops yet — gather at the church instead
@@ -433,13 +534,9 @@ export function TownNPCs({
         }
         return null;
       }
-      const b = pool[Math.floor(Math.random() * pool.length)];
-      const fp = buildingFootprint(b.level || 1, b.type);
-      return {
-        tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
-        buildingId: b.id,
-        type: b.type,
-      };
+      // Shops and errands — with separation, so the town doesn't pile into
+      // one storefront while the rest of the street sits empty.
+      return pickSpread(npc, pool, buildingDest);
     };
 
     const arrive = (npc: NpcLogic) => {
@@ -452,7 +549,8 @@ export function TownNPCs({
         // During the gathering, lights linger for a real shared meal —
         // at the restaurants, or all as one at the Marriage Supper.
         const gatheringMeal = isGatheringTime() && npc.destType && (isRestaurantType(npc.destType as any) || npc.destType === "banquet-table");
-        npc.waitUntil = now + (nightNow ? 1200 : gatheringMeal ? 12000 + Math.random() * 8000 : 3000 + Math.random() * 5000);
+        const strolling = npc.destType === STROLL_TYPE;
+        npc.waitUntil = now + (nightNow ? 1200 : gatheringMeal ? 12000 + Math.random() * 8000 : strolling ? 1500 + Math.random() * 3000 : 3000 + Math.random() * 5000);
         // Visiting a bank? Customers doing business — bonus coins for the bank.
         if (!nightNow && (npc.destType === "bank" || npc.destType === "bank-tower") && npc.destBuildingId) {
           try {
@@ -664,14 +762,19 @@ export function TownNPCs({
             }
             dest = picked;
           }
-          const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
-          npc.waypoints = buildPath(mapStateRef.current, fromTile, dest.tile, cellSize);
-          npc.wpIndex = 0;
-          npc.destBuildingId = dest.buildingId;
-          npc.destType = dest.type;
-          npc.state = "walking";
-          stepNpc(npc);
+          startWalkTo(npc, dest);
         } else if (npc.state === "visiting" && now >= npc.waitUntil) {
+          // Daytime wanderers keep exploring instead of always heading home
+          // first — visit to visit, across the whole map. They still go home
+          // to sleep at night, and they disperse after gatherings.
+          const nightNow = getTimeOfDay() === "night";
+          if (!nightNow && !isGatheringTime() && Math.random() < 0.6) {
+            const chained = pickDestination(npc);
+            if (chained) {
+              startWalkTo(npc, chained);
+              continue;
+            }
+          }
           const fromTile: Tile = { x: npc.px / cellSize - 0.5, y: npc.py / cellSize - 0.5 };
           npc.waypoints = buildPath(mapStateRef.current, fromTile, npc.homeTile, cellSize);
           npc.wpIndex = 0;
@@ -926,6 +1029,7 @@ export function TownNPCs({
           anim: null,
           chatUntil: 0,
           lastChatAt: 0,
+          lastDestBuildingId: undefined,
         };
       }
     }
@@ -1442,11 +1546,50 @@ export function CityNPCs({
       return per[Math.floor(Math.random() * per.length)];
     };
 
-    const pickCommuterDest = (): { tile: Tile; id: string; type: string } | null => {
+    const pickCommuterDest = (npc: CityNpcLogic): { tile: Tile; id: string; type: string } | null => {
       const ms = mapStateRef.current;
+      // Street stroll: wander the city streets, not just building to building.
+      // Draws 3 street tiles and takes the farthest — commuters explore the
+      // far ends of the city instead of pacing the same block.
+      if (ms.roads.length > 0 && Math.random() < 0.3) {
+        const streets = ms.roads.filter((r) => !isStreamTile(r.x, r.y));
+        if (streets.length > 0) {
+          const cx = npc.px / cellSize - 0.5;
+          const cy = npc.py / cellSize - 0.5;
+          let best: Tile | null = null;
+          let bestD = -1;
+          for (let i = 0; i < 3; i++) {
+            const r = streets[Math.floor(Math.random() * streets.length)];
+            const d = Math.abs(r.x - cx) + Math.abs(r.y - cy);
+            if (d > bestD) {
+              bestD = d;
+              best = r;
+            }
+          }
+          if (best) return { tile: best, id: STROLL_TYPE, type: STROLL_TYPE };
+        }
+      }
       const spots = cityBuildingCenterTiles(ms);
       if (spots.length === 0) return null;
-      return spots[Math.floor(Math.random() * spots.length)];
+      // Spread out — prefer the quiet spots (least crowded of 4 draws) so
+      // commuters don't all pile into the same storefront.
+      let bestSpot: { tile: Tile; id: string; type: string } | null = null;
+      let bestScore = Infinity;
+      for (let i = 0; i < 4; i++) {
+        const s = spots[Math.floor(Math.random() * spots.length)];
+        let crowd = 0;
+        for (const other of Object.values(logic)) {
+          if (other.id === npc.id) continue;
+          if (other.destBuildingId !== s.id) continue;
+          if (other.state === "walking" || other.state === "visiting") crowd++;
+        }
+        const score = crowd * 10 + Math.random() * 2;
+        if (score < bestScore) {
+          bestScore = score;
+          bestSpot = s;
+        }
+      }
+      return bestSpot;
     };
 
     const tick = () => {
@@ -1508,7 +1651,7 @@ export function CityNPCs({
         if (npc.offShift) continue; // clocked out for the night
         if (night && npc.kind === "commuter") npc.visitsLeft = 0; // no late-night errands
         if (npc.state === "idle" && now >= npc.waitUntil) {
-          const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest();
+          const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest(npc);
           if (!dest) { npc.waitUntil = now + 4000; continue; }
           startWalk(npc, dest);
         } else if (npc.state === "visiting" && now >= npc.waitUntil) {
@@ -1526,7 +1669,7 @@ export function CityNPCs({
               continue;
             }
           }
-          const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest();
+          const dest = npc.kind === "worker" ? pickWorkerDest(npc) : pickCommuterDest(npc);
           if (!dest) { npc.waitUntil = now + 4000; continue; }
           startWalk(npc, dest);
         }

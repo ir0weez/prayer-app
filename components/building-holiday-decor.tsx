@@ -32,7 +32,12 @@ export type InteriorBuilding =
   | "church" | "chapel" | "restaurant" | "bakery" | "theater" | "hospital"
   | "farm" | "shop" | "market" | "hotel" | "arcade" | "library"
   | "bookstore" | "classroom" | "office" | "apartments" | "department-store"
-  | "food-court" | "pawn-house" | "river";
+  | "food-court" | "pawn-house" | "river"
+  // Artisans' Row (town) — decor added in the holiday-decor batch
+  | "inn" | "carpenter" | "pottery" | "music-hall" | "tailor"
+  | "observatory" | "bathhouse" | "apothecary" | "town-hall" | "post-office"
+  // City expansion — decor added in the holiday-decor batch
+  | "grand-library" | "opera-house" | "museum" | "clock-tower" | "embassy";
 
 /* ============================ new glyphs ============================ */
 
@@ -1567,6 +1572,23 @@ function SeasonDecor({ building, season }: { building: InteriorBuilding; season:
       summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#EA580C" size={22} /></Placed>,
       winter: <Placed style={{ bottom: 8, left: 12 }}><HolidayPine size={44} /></Placed>,
     },
+    // Artisans' Row + city expansion — unique holiday decor lands in the
+    // holiday-decor batch; placeholders keep the record exhaustive for now.
+    inn:            { spring: null, summer: null, fall: null, winter: null },
+    carpenter:      { spring: null, summer: null, fall: null, winter: null },
+    pottery:        { spring: null, summer: null, fall: null, winter: null },
+    "music-hall":   { spring: null, summer: null, fall: null, winter: null },
+    tailor:         { spring: null, summer: null, fall: null, winter: null },
+    observatory:    { spring: null, summer: null, fall: null, winter: null },
+    bathhouse:      { spring: null, summer: null, fall: null, winter: null },
+    apothecary:     { spring: null, summer: null, fall: null, winter: null },
+    "town-hall":    { spring: null, summer: null, fall: null, winter: null },
+    "post-office":  { spring: null, summer: null, fall: null, winter: null },
+    "grand-library":{ spring: null, summer: null, fall: null, winter: null },
+    "opera-house":  { spring: null, summer: null, fall: null, winter: null },
+    museum:         { spring: null, summer: null, fall: null, winter: null },
+    "clock-tower":  { spring: null, summer: null, fall: null, winter: null },
+    embassy:        { spring: null, summer: null, fall: null, winter: null },
   };
   return <>{touches[building]?.[season] ?? null}</>;
 }

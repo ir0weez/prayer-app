@@ -1758,6 +1758,151 @@ function GardeningScene() {
   );
 }
 
+/** Mow Lawn: lawnmower with mowed grass stripes, flying clippings, sun and clouds. */
+function MowLawnScene() {
+  return (
+    <SceneRoot base="#4A8E4A">
+      <BreatheGlow color="#FFD54F" size={100} left="70%" bottom={46} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "74%", bottom: 60, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD54F" }} />
+      <DriftingCloud top={12} size={44} duration={26000} delay={2000} />
+      <DriftingCloud top={30} size={30} duration={34000} delay={9000} />
+      {/* mowed grass stripes (vertical bands) */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "44%", flexDirection: "row" }}>
+        {["#66BB6A", "#57A55A", "#66BB6A", "#57A55A", "#66BB6A", "#57A55A"].map((c, i) => (
+          <View key={i} style={{ flex: 1, backgroundColor: c }} />
+        ))}
+      </View>
+      {/* grass tufts */}
+      <View style={{ position: "absolute", left: "8%", bottom: 46, width: 10, height: 12 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: "#2E7D32", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 2.5, height: 10, borderRadius: 1.5, backgroundColor: "#388E3C" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: "#2E7D32", transform: [{ rotate: "14deg" }] }} />
+      </View>
+      <View style={{ position: "absolute", left: "84%", bottom: 50, width: 10, height: 12 }}>
+        <View style={{ position: "absolute", left: 2, bottom: 0, width: 2.5, height: 11, borderRadius: 1.5, backgroundColor: "#2E7D32", transform: [{ rotate: "-12deg" }] }} />
+        <View style={{ position: "absolute", left: 5, bottom: 0, width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: "#388E3C" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 2.5, height: 10, borderRadius: 1.5, backgroundColor: "#2E7D32", transform: [{ rotate: "12deg" }] }} />
+      </View>
+      {/* lawnmower */}
+      <GentleBob left="34%" bottom={38} width={120} height={64} distance={3} duration={900}>
+        {/* handle */}
+        <View style={{ position: "absolute", left: 78, bottom: 34, width: 44, height: 6, borderRadius: 3, backgroundColor: "#78909C", transform: [{ rotate: "-38deg" }] }} />
+        <View style={{ position: "absolute", left: 112, bottom: 58, width: 16, height: 8, borderRadius: 4, backgroundColor: "#37474F" }} />
+        {/* grass catcher */}
+        <View style={{ position: "absolute", left: 88, bottom: 26, width: 30, height: 24, borderRadius: 5, backgroundColor: "#455A64" }} />
+        <View style={{ position: "absolute", left: 88, bottom: 26, width: 30, height: 8, borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: "#37474F" }} />
+        {/* mower body */}
+        <View style={{ position: "absolute", left: 18, bottom: 18, width: 74, height: 26, borderRadius: 10, backgroundColor: "#D32F2F" }} />
+        <View style={{ position: "absolute", left: 18, bottom: 36, width: 74, height: 8, borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: "#B71C1C" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 24, width: 12, height: 12, borderRadius: 6, backgroundColor: "#FFD54F" }} />
+        {/* wheels */}
+        <View style={{ position: "absolute", left: 26, bottom: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 31, bottom: 9, width: 12, height: 12, borderRadius: 6, backgroundColor: "#9E9E9E" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: "#212121" }} />
+        <View style={{ position: "absolute", left: 71, bottom: 9, width: 12, height: 12, borderRadius: 6, backgroundColor: "#9E9E9E" }} />
+      </GentleBob>
+      {/* flying grass clippings */}
+      <GentleBob left="30%" bottom={70} width={14} height={14} distance={10} duration={1400} delay={0}>
+        <View style={{ width: 5, height: 9, borderRadius: 2.5, backgroundColor: "#AED581", transform: [{ rotate: "24deg" }] }} />
+      </GentleBob>
+      <GentleBob left="44%" bottom={76} width={14} height={14} distance={12} duration={1700} delay={400}>
+        <View style={{ width: 5, height: 8, borderRadius: 2.5, backgroundColor: "#9CCC65", transform: [{ rotate: "-20deg" }] }} />
+      </GentleBob>
+      <GentleBob left="52%" bottom={64} width={14} height={14} distance={9} duration={1500} delay={800}>
+        <View style={{ width: 5, height: 9, borderRadius: 2.5, backgroundColor: "#C5E1A5", transform: [{ rotate: "40deg" }] }} />
+      </GentleBob>
+      <GentleBob left="24%" bottom={60} width={14} height={14} distance={11} duration={1900} delay={1100}>
+        <View style={{ width: 5, height: 8, borderRadius: 2.5, backgroundColor: "#AED581", transform: [{ rotate: "-34deg" }] }} />
+      </GentleBob>
+    </SceneRoot>
+  );
+}
+
+/** Prune: shears trimming a hedge, falling leaves, tidy garden. */
+function PruneScene() {
+  return (
+    <SceneRoot base="#2E7D32">
+      <BreatheGlow color="#FFD54F" size={90} left="16%" bottom={48} min={0.25} max={0.45} duration={5600} />
+      <View style={{ position: "absolute", left: "20%", bottom: 62, width: 38, height: 38, borderRadius: 19, backgroundColor: "#FFD54F" }} />
+      <DriftingCloud top={14} size={40} duration={28000} delay={4000} />
+      <DriftingCloud top={34} size={28} duration={36000} delay={12000} />
+      {/* ground */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -24, height: 72, borderRadius: 34, backgroundColor: "#1B5E20" }} />
+      {/* the hedge being trimmed */}
+      <View style={{ position: "absolute", left: "30%", bottom: 30, width: 150, height: 64 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 0, width: 150, height: 58, borderRadius: 22, backgroundColor: "#43A047" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 30, width: 130, height: 34, borderRadius: 17, backgroundColor: "#4CAF50" }} />
+        {/* fresh cut edge (lighter top) */}
+        <View style={{ position: "absolute", left: 14, bottom: 52, width: 122, height: 10, borderRadius: 5, backgroundColor: "#81C784" }} />
+        {/* leaf texture dots */}
+        <PulseDot left={30} bottom={36} size={6} color="#2E7D32" duration={2400} />
+        <PulseDot left={70} bottom={30} size={6} color="#2E7D32" duration={2100} delay={600} />
+        <PulseDot left={110} bottom={38} size={6} color="#2E7D32" duration={2600} delay={300} />
+      </View>
+      {/* pruning shears */}
+      <GentleSway left="56%" bottom={58} width={70} height={46} arc={9} duration={2200}>
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 34, height: 9, borderRadius: 4.5, backgroundColor: "#B0BEC5", transform: [{ rotate: "-24deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 8, width: 34, height: 9, borderRadius: 4.5, backgroundColor: "#90A4AE", transform: [{ rotate: "24deg" }] }} />
+        <View style={{ position: "absolute", left: 38, bottom: 18, width: 10, height: 10, borderRadius: 5, backgroundColor: "#37474F" }} />
+        <View style={{ position: "absolute", left: 44, bottom: 4, width: 9, height: 18, borderRadius: 4.5, backgroundColor: "#D32F2F", transform: [{ rotate: "18deg" }] }} />
+        <View style={{ position: "absolute", left: 52, bottom: 4, width: 9, height: 18, borderRadius: 4.5, backgroundColor: "#D32F2F", transform: [{ rotate: "-18deg" }] }} />
+      </GentleSway>
+      {/* falling leaves */}
+      <FallMotes colors={["#66BB6A", "#AED581", "#9CCC65"]} count={8} size={7} duration={7000} seed={7} ellipse spin />
+      {/* tidy potted plant beside */}
+      <View style={{ position: "absolute", left: "12%", bottom: 30, width: 40, height: 52 }}>
+        <View style={{ position: "absolute", left: 8, bottom: 0, width: 24, height: 20, borderRadius: 4, backgroundColor: "#8D6E63" }} />
+        <View style={{ position: "absolute", left: 12, bottom: 16, width: 16, height: 16, borderRadius: 8, backgroundColor: "#66BB6A" }} />
+        <View style={{ position: "absolute", left: 6, bottom: 26, width: 12, height: 12, borderRadius: 6, backgroundColor: "#81C784" }} />
+        <View style={{ position: "absolute", left: 22, bottom: 26, width: 12, height: 12, borderRadius: 6, backgroundColor: "#81C784" }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Harvest: basket of vegetables and fruit, warm sun, farm rows. */
+function HarvestScene() {
+  return (
+    <SceneRoot base="#C97A2B">
+      <BreatheGlow color="#FFE082" size={110} left="72%" bottom={44} min={0.3} max={0.5} duration={5000} />
+      <View style={{ position: "absolute", left: "76%", bottom: 58, width: 48, height: 48, borderRadius: 24, backgroundColor: "#FFD54F" }} />
+      <DriftingCloud top={12} size={42} duration={30000} delay={6000} />
+      {/* field rows */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -22, height: 76, borderRadius: 32, backgroundColor: "#8D5A1E" }} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: 8, height: 10, backgroundColor: "#A06A24", opacity: 0.8 }} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: 24, height: 10, backgroundColor: "#A06A24", opacity: 0.6 }} />
+      {/* crop rows with veggies */}
+      <View style={{ position: "absolute", left: "10%", bottom: 34, flexDirection: "row", alignItems: "flex-end" }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ width: 26, height: 30, marginRight: 14, alignItems: "center" }}>
+            <View style={{ width: 3, height: 16, borderRadius: 1.5, backgroundColor: "#558B2F" }} />
+            <View style={{ position: "absolute", bottom: 10, width: 18, height: 14, borderRadius: 7, backgroundColor: "#E53935" }} />
+            <View style={{ position: "absolute", bottom: 20, width: 8, height: 6, borderTopLeftRadius: 4, borderTopRightRadius: 4, backgroundColor: "#43A047" }} />
+          </View>
+        ))}
+      </View>
+      {/* harvest basket */}
+      <GentleBob left="58%" bottom={30} width={110} height={70} distance={5} duration={3400}>
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 90, height: 44, borderRadius: 8, backgroundColor: "#8D6E63" }} />
+        <View style={{ position: "absolute", left: 10, bottom: 0, width: 90, height: 12, borderBottomLeftRadius: 8, borderBottomRightRadius: 8, backgroundColor: "#6D4C41" }} />
+        <View style={{ position: "absolute", left: 16, bottom: 12, width: 78, height: 5, backgroundColor: "#5D4037", opacity: 0.5 }} />
+        <View style={{ position: "absolute", left: 16, bottom: 24, width: 78, height: 5, backgroundColor: "#5D4037", opacity: 0.5 }} />
+        {/* produce piled in */}
+        <View style={{ position: "absolute", left: 20, bottom: 38, width: 20, height: 18, borderRadius: 9, backgroundColor: "#E53935" }} />
+        <View style={{ position: "absolute", left: 42, bottom: 40, width: 22, height: 20, borderRadius: 10, backgroundColor: "#FB8C00" }} />
+        <View style={{ position: "absolute", left: 66, bottom: 38, width: 18, height: 16, borderRadius: 8, backgroundColor: "#FDD835" }} />
+        <View style={{ position: "absolute", left: 32, bottom: 52, width: 18, height: 16, borderRadius: 8, backgroundColor: "#7CB342" }} />
+        <View style={{ position: "absolute", left: 54, bottom: 54, width: 16, height: 15, borderRadius: 7.5, backgroundColor: "#E53935" }} />
+        {/* leaf sprigs */}
+        <View style={{ position: "absolute", left: 28, bottom: 60, width: 4, height: 10, borderRadius: 2, backgroundColor: "#558B2F", transform: [{ rotate: "-20deg" }] }} />
+        <View style={{ position: "absolute", left: 70, bottom: 62, width: 4, height: 10, borderRadius: 2, backgroundColor: "#558B2F", transform: [{ rotate: "20deg" }] }} />
+      </GentleBob>
+      {/* floating pollen / harvest dust */}
+      <FallMotes colors={["#FFE082", "#FFD54F", "#FFF3E0"]} count={7} size={5} duration={9000} seed={11} />
+    </SceneRoot>
+  );
+}
+
 /** Christmas: pine tree with twinkling lights, presents, falling snow. */
 function ChristmasScene() {
   return (
@@ -6688,6 +6833,9 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Doctor": return <DoctorScene />;
     case "Haircut": return <HaircutScene />;
     case "Gardening": return <GardeningScene />;
+    case "Mow Lawn": return <MowLawnScene />;
+    case "Prune": return <PruneScene />;
+    case "Harvest": return <HarvestScene />;
     case "Baby Shower": return <BabyShowerScene />;
     case "Birthday": return <BirthdayScene />;
     case "Christmas": return <ChristmasScene />;

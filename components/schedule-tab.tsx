@@ -12331,6 +12331,9 @@ export function ScheduleTab({
               <ReAnimated.View entering={FadeIn.duration(180).delay(120).easing(Easing.out(Easing.quad))}>
                 <WhiteBlockCircleButton label="Rest" icon="bedtime" color="#4DABF7" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Rest"); }} />
               </ReAnimated.View>
+              <ReAnimated.View entering={FadeIn.duration(180).delay(160).easing(Easing.out(Easing.quad))}>
+                <WhiteBlockCircleButton label="Reach Out" icon="chat" color="#FF8A65" onPress={() => { const b = whiteBlockMenu; setWhiteBlockMenu(null); if (b) openNewEventEditorAtTime(b.startTime, "Reach Out"); }} />
+              </ReAnimated.View>
             </View>
           </ReAnimated.View>
         </View>

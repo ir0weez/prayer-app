@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import Svg, { Circle, Ellipse, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Path, Polygon, Rect } from "react-native-svg";
 import {
   MISSION_DURATIONS,
   MISSION_DURATION_ORDER,
@@ -45,23 +45,23 @@ function skyColors(timeOfDay: TimeOfDay): { top: string; bottom: string; sun: st
 /** A simple tree. */
 function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <G transform={`translate(${x} ${y}) scale(${s})`}>
       <Rect x={-3} y={0} width={6} height={18} fill="#78350F" rx={2} />
       <Circle cx={0} cy={-8} r={16} fill="#15803D" />
       <Circle cx={-10} cy={-2} r={11} fill="#16A34A" />
       <Circle cx={10} cy={-2} r={11} fill="#16A34A" />
-    </g>
+    </G>
   );
 }
 
 /** A small golden figure walking the path (a light out on mission). */
 function MissionWalker({ x, y, returning }: { x: number; y: number; returning: boolean }) {
   return (
-    <g transform={`translate(${x} ${y})`}>
+    <G transform={`translate(${x} ${y})`}>
       {returning && <Circle cx={0} cy={-14} r={16} fill="#FBBF24" opacity={0.3} />}
       <Circle cx={0} cy={-18} r={7} fill="#FDE68A" stroke="#F59E0B" strokeWidth={1.5} />
       <Rect x={-6} y={-12} width={12} height={16} rx={6} fill="#FDE68A" stroke="#F59E0B" strokeWidth={1.5} />
-    </g>
+    </G>
   );
 }
 

@@ -212,8 +212,8 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
 
   return (
     <View style={{ marginBottom: 16 }}>
-      <View style={{ width: SCENE_W, height: SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
-        <Svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`}>
+      <View style={{ width: "100%", aspectRatio: SCENE_W / SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
+        <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
           {/* grass wash */}
           <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.6} />
           {/* dirt clearing around the well */}
@@ -309,10 +309,10 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
 
       {/* verse + streak */}
       {phase !== "idle" && (
-        <View style={{ marginTop: 16, alignItems: "center", paddingHorizontal: 8 }}>
+        <View style={{ marginTop: 16, alignItems: "center", paddingHorizontal: 16, width: "100%" }}>
           <View style={{ position: "relative", width: "100%", alignItems: "center" }}>
             <BreathingGlow color={isNight ? "#3B82F6" : "#7DD3FC"} />
-            <Text style={{ fontSize: 15, fontStyle: "italic", lineHeight: 24, textAlign: "center", color: pt.text }}>
+            <Text style={{ fontSize: 15, fontStyle: "italic", lineHeight: 24, textAlign: "center", color: pt.text, flexShrink: 1, width: "100%" }}>
               &ldquo;{verse.text}&rdquo;
             </Text>
             <Text style={{ marginTop: 8, fontSize: 13, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>

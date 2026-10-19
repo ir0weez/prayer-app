@@ -82,8 +82,8 @@ function MissionScene({
   const pathD = "M150 300 C 160 240, 200 220, 180 170 C 165 135, 175 110, 180 90";
 
   return (
-    <View style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12 }}>
-      <Svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`}>
+    <View style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, aspectRatio: SCENE_W / SCENE_H }}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
         {/* sky */}
         <Rect x={0} y={0} width={SCENE_W} height={150} fill={sky.top} />
         <Rect x={0} y={90} width={SCENE_W} height={60} fill={sky.bottom} opacity={0.9} />

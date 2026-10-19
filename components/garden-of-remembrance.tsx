@@ -482,8 +482,8 @@ function GardenScene({
   const pathD = `M ${pathX(440)} 440 C ${pathX(380) + 24} 400, ${pathX(320) - 24} 360, ${pathX(300)} 300 C ${pathX(280) + 20} 260, ${pathX(200) - 20} 200, ${pathX(150)} 150 C ${pathX(120) + 10} 120, 178 105, 180 96`;
 
   return (
-    <View style={{ width: SCENE_W, height: SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
-      <Svg width={SCENE_W} height={SCENE_H} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`}>
+    <View style={{ width: "100%", aspectRatio: SCENE_W / SCENE_H, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
         {/* soft grass wash */}
         <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.55} />
         {/* flower beds (two organic blobs flanking the path) */}

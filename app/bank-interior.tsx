@@ -36,6 +36,8 @@ import {
   type PlacedBuilding,
 } from "@/lib/hometown";
 import { completeMission, loadMissions, type Mission } from "@/lib/missions";
+import { HolidayInteriorOverlay } from "@/components/holiday-decor";
+import { getHolidaySeason } from "@/lib/seasons";
 
 let idCounter = 0;
 function nextId() {
@@ -888,6 +890,7 @@ export default function BankInteriorScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
+      <HolidayInteriorOverlay season={getHolidaySeason()} />
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <MaterialIcons name="arrow-back" size={24} color="#1C1917" />

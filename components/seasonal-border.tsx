@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import { Animated, Easing, View, Pressable } from "react-native";
 import Svg, { Path, Polygon, Rect, Circle } from "react-native-svg";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
+import { getHolidaySeason } from "@/lib/seasons";
+import { HolidaySkyEffect, LighthouseHolidayDressing, HolidayBorderMood } from "@/components/holiday-decor";
+import type { HolidaySeason } from "@/lib/seasons";
 
 /**
  * Living border around the Hometown maps: each map sits inside a world
@@ -470,9 +473,10 @@ export type BorderLighthouse = {
   onPress: () => void;
 };
 
-function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPress }: {
+function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPress, season }: {
   scene: SceneTheme; lit: boolean; level: number;
   rewardPulse: number; milestonePulse: number; onPress: () => void;
+  season?: HolidaySeason;
 }) {
   const beamSpin = useRef(new Animated.Value(0)).current;
   const breathe = useRef(new Animated.Value(0.5)).current;
@@ -614,6 +618,8 @@ function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPre
             <Circle cx={11} cy={11} r={9} fill="none" stroke="#FDE68A" strokeWidth={2} />
           </Svg>
         </Animated.View>
+        {/* Holiday dressing — date-driven */}
+        {season && season !== "none" && <LighthouseHolidayDressing season={season} />}
       </View>
     </Pressable>
   );
@@ -711,6 +717,12 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
   // City windows light up at dusk and night.
   const windowsLit = timeOfDay === "evening" || timeOfDay === "night";
 
+  // Holiday season — date-driven (snow in December, leaves in
+  // November, fog + embers in October, petals in spring, hearts in
+  // February, sparkles around the 4th of July).
+  const holidaySeason = getHolidaySeason();
+  const showSnow = holidaySeason === "christmas";
+
   // Side scenery per map:
   // - town: city skyline left, lighthouse right (tappable, daily blessing)
   // - city: ocean left (water halfway up, then sky), hometown cottages right
@@ -729,12 +741,10 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
         rewardPulse={lighthouse.rewardPulse}
         milestonePulse={lighthouse.milestonePulse}
         onPress={lighthouse.onPress}
+        season={holidaySeason}
       />
     ) :
     <ForestStrip scene={scene} />;
-
-  // Gentle snowfall in December — calm white dots, no cartoon glyphs.
-  const showSnow = new Date().getMonth() === 11;
 
   return (
     <View style={{ position: "relative", backgroundColor: sky.bg, borderRadius: 16, overflow: "hidden" }}>
@@ -783,6 +793,11 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
             <Snowflake left={270} delay={1800} duration={9800} size={10} />
           </>
         )}
+        {/* Holiday sky particles for the other seasons (leaves, petals,
+            hearts, embers, fog, sparkles). Christmas keeps its snowfall. */}
+        {holidaySeason !== "none" && holidaySeason !== "christmas" && (
+          <HolidaySkyEffect season={holidaySeason} />
+        )}
       </View>
 
       {/* Sun / moon */}
@@ -815,6 +830,9 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
 
       {/* Beach: sand + animated waves */}
       <BeachStrip scene={scene} />
+
+      {/* Holiday mood over the whole border — date-driven atmosphere */}
+      {holidaySeason !== "none" && <HolidayBorderMood season={holidaySeason} />}
     </View>
   );
 }

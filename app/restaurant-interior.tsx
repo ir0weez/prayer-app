@@ -27,6 +27,8 @@ import {
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { FigureName, GentleBob } from "@/components/activity-figures";
+import { HolidayInteriorOverlay } from "@/components/holiday-decor";
+import { getHolidaySeason } from "@/lib/seasons";
 
 // ---------- palette: warm candlelit dining room ----------
 // Dark warm wood, amber candlelight, golden accents — an evening meal together.
@@ -894,6 +896,7 @@ export default function RestaurantInteriorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <HolidayInteriorOverlay season={getHolidaySeason()} />
         {gathering && (
           <View
             style={{

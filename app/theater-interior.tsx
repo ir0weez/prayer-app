@@ -36,6 +36,8 @@ import { getActiveScheduleActivity, movieThemeForTitle, type MovieThemeKind } fr
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { GentleBob, SoftPulse, FigureName, WatchingFigure, pickPeople } from "@/components/activity-figures";
+import { HolidayInteriorOverlay } from "@/components/holiday-decor";
+import { getHolidaySeason } from "@/lib/seasons";
 
 const BG = "#141021"; // night theater
 const CARD = "#221B36";
@@ -615,6 +617,7 @@ export default function TheaterInteriorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <HolidayInteriorOverlay season={getHolidaySeason()} />
         {/* theme banner */}
         <View style={{ marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: CARD, borderWidth: 1, borderColor: GOLD, padding: 12, flexDirection: "row", alignItems: "center" }}>
           <MaterialIcons name="movie" size={24} color={GOLD} />

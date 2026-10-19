@@ -33,7 +33,8 @@ import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
 import { DoctorFigure, GentleBob, NurseFigure, SoftPulse, pickPeople } from "@/components/activity-figures";
 import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { getHolidaySeason } from "@/lib/seasons";
+import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 const BG = "#F2F7FA"; // clean clinical light
 const CARD = "#FFFFFF";
@@ -336,6 +337,7 @@ export default function HospitalInteriorScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <HolidayInteriorOverlay season={getHolidaySeason()} />
+        <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
         {/* blessing banner */}
         <View style={{ marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: CARD, borderWidth: 1, borderColor: "#BFE3E8", padding: 14, flexDirection: "row", alignItems: "center" }}>
           <MaterialIcons name="health-and-safety" size={26} color={TEAL} />

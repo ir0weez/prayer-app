@@ -229,7 +229,8 @@ import {
 } from "@/lib/dark-forest";
 import { RiverCamp } from "@/components/river";
 import { HolidayMapOverlay, HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { getHolidaySeason } from "@/lib/seasons";
+import { SeasonMapOverlay, SeasonInteriorOverlay } from "@/components/season-decor";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   loadRiverState,
   saveRiverState,
@@ -4328,6 +4329,7 @@ export default function HometownScreen() {
         <View>
         <SafeBoundary fallbackTitle="The river is resting">
         <HolidayInteriorOverlay season={getHolidaySeason()} />
+        <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
         <RiverCamp
           river={river}
           timeOfDay={timeOfDay}
@@ -4369,6 +4371,10 @@ export default function HometownScreen() {
           {/* Holiday decorations over the town/city grid — date-driven. */}
           {(activeMap === "town" || activeMap === "city") && (
             <HolidayMapOverlay season={getHolidaySeason()} />
+          )}
+          {/* Four-seasons dressing — fills the gaps between holidays. */}
+          {(activeMap === "town" || activeMap === "city") && (
+            <SeasonMapOverlay season={getSeason()} holiday={getHolidaySeason()} />
           )}
           {/* Depth-sorted layer: buildings, villagers, cars, and the player's pawn
               all interleave by Y. A tall building's art extends above its square;

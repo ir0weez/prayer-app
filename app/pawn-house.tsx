@@ -38,7 +38,8 @@ import { getTimeOfDay } from "@/lib/daynight";
 import { prayedTodayPeople, type PrayedPerson } from "@/lib/hometown";
 import { SeatedFigure, StandingFigure, SwimmingFigure, WorkingFigure, pickPeople } from "@/components/activity-figures";
 import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { getHolidaySeason } from "@/lib/seasons";
+import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 /**
  * The player's pawn, shown using the room's furniture.
@@ -619,6 +620,7 @@ export default function PawnHouseScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#FDF6E3" }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       <HolidayInteriorOverlay season={getHolidaySeason()} />
+      <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <MaterialIcons name="arrow-back" size={24} color="#1F2937" />

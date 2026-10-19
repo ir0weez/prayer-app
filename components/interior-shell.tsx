@@ -10,7 +10,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { getHolidaySeason } from "@/lib/seasons";
+import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   BUILDINGS,
   COINS_STORAGE_KEY,
@@ -148,6 +149,7 @@ export function InteriorHeader({
     </View>
     {/* Holiday garland — date-driven, renders only in season. */}
     <HolidayInteriorOverlay season={getHolidaySeason()} />
+    <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
     </View>
   );
 }

@@ -27,7 +27,8 @@ import {
   pickPeople,
 } from "@/components/activity-figures";
 import { HolidayInteriorOverlay } from "@/components/holiday-decor";
-import { getHolidaySeason } from "@/lib/seasons";
+import { SeasonInteriorOverlay } from "@/components/season-decor";
+import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
 // ---------- palette: warm community church ----------
 // Bright morning light, honey wood, cream walls — a welcoming gathering place.
@@ -699,6 +700,7 @@ export default function ChurchInteriorScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <HolidayInteriorOverlay season={getHolidaySeason()} />
+        <SeasonInteriorOverlay season={getSeason()} holiday={getHolidaySeason()} />
         {/* blessing banner */}
         <View
           style={{

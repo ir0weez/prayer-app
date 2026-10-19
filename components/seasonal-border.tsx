@@ -3,9 +3,11 @@ import type { ReactNode } from "react";
 import { Animated, Easing, View, Pressable } from "react-native";
 import Svg, { Path, Polygon, Rect, Circle } from "react-native-svg";
 import { getTimeOfDay, SKY_THEMES, type TimeOfDay } from "@/lib/daynight";
-import { getHolidaySeason } from "@/lib/seasons";
+import { getHolidaySeason, getSeason, SEASON_HUES, SEASON_SKY_TINT, mixHex } from "@/lib/seasons";
 import { HolidaySkyEffect, LighthouseHolidayDressing, HolidayBorderMood } from "@/components/holiday-decor";
+import { SeasonSkyEffect, SeasonBorderMood, LighthouseSeasonDressing } from "@/components/season-decor";
 import type { HolidaySeason } from "@/lib/seasons";
+import type { Season } from "@/lib/seasons";
 
 /**
  * Living border around the Hometown maps: each map sits inside a world
@@ -473,10 +475,12 @@ export type BorderLighthouse = {
   onPress: () => void;
 };
 
-function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPress, season }: {
+function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPress, season, envSeason }: {
   scene: SceneTheme; lit: boolean; level: number;
   rewardPulse: number; milestonePulse: number; onPress: () => void;
   season?: HolidaySeason;
+  /** Natural season — dressed only when no holiday is active. */
+  envSeason?: Season;
 }) {
   const beamSpin = useRef(new Animated.Value(0)).current;
   const breathe = useRef(new Animated.Value(0.5)).current;
@@ -620,6 +624,8 @@ function LighthouseStrip({ scene, lit, level, rewardPulse, milestonePulse, onPre
         </Animated.View>
         {/* Holiday dressing — date-driven */}
         {season && season !== "none" && <LighthouseHolidayDressing season={season} />}
+        {/* Seasonal dressing — only when no holiday is active */}
+        {(!season || season === "none") && envSeason && <LighthouseSeasonDressing season={envSeason} />}
       </View>
     </Pressable>
   );
@@ -713,7 +719,21 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
     })();
   }, []);
   const sky = SKY_THEMES[timeOfDay];
-  const scene = SCENE_THEMES[timeOfDay];
+  // Season hues blend over the time-of-day lighting: the season sets the
+  // palette (orange trees in fall, snow ground in winter) while the time
+  // of day keeps control of the light (winter night stays dark, just snowy).
+  const season = getSeason();
+  const hues = SEASON_HUES[season];
+  const baseScene = SCENE_THEMES[timeOfDay];
+  const scene: SceneTheme = {
+    ...baseScene,
+    tree: mixHex(baseScene.tree, hues.tree, 0.62),
+    treeDark: mixHex(baseScene.treeDark, hues.treeDark, 0.62),
+    ground: mixHex(baseScene.ground, hues.ground, 0.6),
+    water: mixHex(baseScene.water, hues.water, 0.45),
+    waterDeep: mixHex(baseScene.waterDeep, hues.waterDeep, 0.45),
+    sand: mixHex(baseScene.sand, hues.sand, 0.4),
+  };
   // City windows light up at dusk and night.
   const windowsLit = timeOfDay === "evening" || timeOfDay === "night";
 
@@ -742,6 +762,7 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
         milestonePulse={lighthouse.milestonePulse}
         onPress={lighthouse.onPress}
         season={holidaySeason}
+        envSeason={holidaySeason === "none" ? season : undefined}
       />
     ) :
     <ForestStrip scene={scene} />;
@@ -798,7 +819,16 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
         {holidaySeason !== "none" && holidaySeason !== "christmas" && (
           <HolidaySkyEffect season={holidaySeason} />
         )}
+        {/* Four-seasons sky particles — only when no holiday is active. */}
+        {holidaySeason === "none" && (
+          <SeasonSkyEffect season={season} timeOfDay={timeOfDay} />
+        )}
       </View>
+
+      {/* Whisper of seasonal color over the sky — off during holidays. */}
+      {holidaySeason === "none" && (
+        <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: SEASON_SKY_TINT[season] }} />
+      )}
 
       {/* Sun / moon */}
       <CelestialOrb color={sky.orb} glowColor={sky.glow} isMoon={sky.isNight} />
@@ -833,6 +863,8 @@ export function SeasonalBorder({ children, variant = "town", lighthouse }: {
 
       {/* Holiday mood over the whole border — date-driven atmosphere */}
       {holidaySeason !== "none" && <HolidayBorderMood season={holidaySeason} />}
+      {/* Four-seasons mood — fills the gaps between holidays. */}
+      {holidaySeason === "none" && <SeasonBorderMood season={season} timeOfDay={timeOfDay} />}
     </View>
   );
 }

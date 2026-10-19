@@ -116,6 +116,62 @@ type MoveKind = "desk" | "carpet" | "furniture";
 
 const VISITOR_COLORS = ["#F9A8D4", "#93C5FD", "#86EFAC", "#FDE68A", "#C4B5FD", "#FDBA74"];
 
+/** Decorative wall band by bank building level — the room itself gets richer.
+ *  L1: plain. L2: wainscoting + wall clock. L3: chandelier + framed art. */
+function BankLevelDecor({ level }: { level: number }) {
+  if (level < 2) return null;
+  return (
+    <View style={{ alignItems: "center", marginBottom: 8 }}>
+      {level >= 3 && (
+        <View style={{ alignItems: "center", marginBottom: 4 }}>
+          <View style={{ width: 3, height: 22, backgroundColor: "#8B5E34" }} />
+          <View
+            style={{
+              width: 110,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: "#8B5E34",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-evenly",
+              paddingHorizontal: 10,
+            }}
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={{ alignItems: "center" }}>
+                <View style={{ width: 6, height: 8, borderRadius: 3, backgroundColor: "#FFB84D" }} />
+                <View style={{ width: 7, height: 10, borderRadius: 3, backgroundColor: "#FFF9F0", marginTop: -2 }} />
+              </View>
+            ))}
+          </View>
+          <View style={{ width: 130, height: 20, borderRadius: 10, backgroundColor: "#FFB84D", opacity: 0.2, marginTop: -28 }} />
+        </View>
+      )}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", paddingHorizontal: 12 }}>
+        {/* wainscoting strip */}
+        <View style={{ flex: 1, height: 26, backgroundColor: "#6B4A2B", borderRadius: 4, marginRight: 8, borderWidth: 1, borderColor: "#54371F" }}>
+          <View style={{ height: 3, backgroundColor: "#8B5E34", marginTop: 4, marginHorizontal: 6, borderRadius: 2 }} />
+        </View>
+        {/* wall clock */}
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF", borderWidth: 3, borderColor: "#8B5E34", alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: 3, height: 12, backgroundColor: "#1C1917", marginTop: -10 }} />
+          <View style={{ width: 8, height: 3, backgroundColor: "#1C1917", marginLeft: 6, marginTop: -3 }} />
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#B8860B", marginTop: -4 }} />
+        </View>
+        <View style={{ flex: 1, height: 26, backgroundColor: "#6B4A2B", borderRadius: 4, marginLeft: 8, borderWidth: 1, borderColor: "#54371F" }}>
+          <View style={{ height: 3, backgroundColor: "#8B5E34", marginTop: 4, marginHorizontal: 6, borderRadius: 2 }} />
+        </View>
+        {/* framed art at L3 */}
+        {level >= 3 && (
+          <View style={{ width: 56, height: 44, borderRadius: 4, backgroundColor: "#1E3A8A", borderWidth: 4, borderColor: "#B8860B", marginLeft: 8, alignItems: "center", justifyContent: "center" }}>
+            <MaterialIcons name="account-balance" size={20} color="#FDE68A" />
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 /** Tiny storage fill bar under an ATM/vault tile. Shows FULL when capped. */
 function StorageBar({ pending, cap }: { pending: number; cap: number }) {
   const fill = cap > 0 ? Math.min(1, pending / cap) : 0;
@@ -930,6 +986,8 @@ export default function BankInteriorScreen() {
           Floor {safeFloor} · {themeName}
         </Text>
       </View>
+      {/* the room itself gets richer with the building's level */}
+      <BankLevelDecor level={Math.min(Math.max(building?.level || 1, 1), 3)} />
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <View style={{ position: "relative", width: w * cellSize, height: h * cellSize }}>
           {rows}

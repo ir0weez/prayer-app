@@ -570,6 +570,87 @@ function WallArt({ tier }: { tier: number }) {
   );
 }
 
+// ---------- chandelier by building level ----------
+// L1: none. L2: simple candle ring. L3: grand golden chandelier.
+function DiningChandelier({ level }: { level: number }) {
+  if (level < 2) return null;
+  const grand = level >= 3;
+  const candleCount = grand ? 8 : 5;
+  return (
+    <View style={{ alignItems: "center", marginBottom: 2 }}>
+      <View style={{ width: 3, height: 30, backgroundColor: WOOD_DARK }} />
+      <View
+        style={{
+          width: grand ? 170 : 120,
+          height: grand ? 30 : 24,
+          borderRadius: grand ? 15 : 12,
+          backgroundColor: grand ? GOLD : WOOD_DARK,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-evenly",
+          paddingHorizontal: 12,
+          borderWidth: grand ? 2 : 0,
+          borderColor: "#8B5E34",
+        }}
+      >
+        {Array.from({ length: candleCount }).map((_, i) => (
+          <View key={i} style={{ alignItems: "center" }}>
+            <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: FLAME }} />
+            <View style={{ width: 8, height: 12, borderRadius: 3, backgroundColor: "#FFF9F0", marginTop: -2 }} />
+          </View>
+        ))}
+      </View>
+      <View
+        style={{
+          width: grand ? 190 : 140,
+          height: 26,
+          borderRadius: 13,
+          backgroundColor: FLAME,
+          opacity: 0.16,
+          marginTop: grand ? -40 : -34,
+        }}
+      />
+    </View>
+  );
+}
+
+// ---------- banquet candelabras + flowers by building level ----------
+function BanquetDressing({ level }: { level: number }) {
+  if (level < 2) return null;
+  const candelabra = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 18 }}>
+      <View style={{ flexDirection: "row" }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ alignItems: "center", marginHorizontal: 3 }}>
+            <View style={{ width: 6, height: 9, borderRadius: 3, backgroundColor: FLAME }} />
+            <View style={{ width: 7, height: 16, borderRadius: 3, backgroundColor: "#FFF9F0", marginTop: -2 }} />
+          </View>
+        ))}
+      </View>
+      <View style={{ width: 10, height: 26, backgroundColor: GOLD, marginTop: 2 }} />
+      <View style={{ width: 30, height: 6, borderRadius: 3, backgroundColor: GOLD, marginTop: 1 }} />
+    </View>
+  );
+  const bouquet = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 14 }}>
+      <View style={{ flexDirection: "row" }}>
+        {["#E86A92", "#F2A541", "#9C6FB5", "#E4572E"].map((c, i) => (
+          <View key={i} style={{ width: 13, height: 13, borderRadius: 6.5, backgroundColor: c, marginHorizontal: 1 }} />
+        ))}
+      </View>
+      <View style={{ width: 20, height: 24, borderRadius: 4, backgroundColor: "#B0724A", marginTop: -3 }} />
+    </View>
+  );
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginBottom: 6 }}>
+      {candelabra(0)}
+      {level >= 3 && bouquet(0)}
+      {level >= 3 && bouquet(1)}
+      {candelabra(1)}
+    </View>
+  );
+}
+
 // ---------- gentle floating bread indicator (fade only, no bounce) ----------
 function BreakingBreadFloat() {
   const drift = useRef(new Animated.Value(0)).current;
@@ -746,6 +827,8 @@ export default function RestaurantInteriorScreen() {
 
   const def = building ? BUILDINGS[building.type] : null;
   const name = def?.name ?? "Restaurant";
+  // Building upgrade level drives the room's richness: more tables, chandelier, rug.
+  const bLevel = Math.min(Math.max(building?.level || 1, 1), 3);
 
   const gathering = isGatheringTime();
   const isBanquet = building?.type === "feast-hall" || building?.type === "banquet-table";
@@ -756,9 +839,10 @@ export default function RestaurantInteriorScreen() {
     ? BANQUET_GATHER_CAPS[Math.min(Math.max(building?.level || 1, 1), 3)] ?? 40
     : isBanquet ? (gathering ? 24 : 6) : gathering ? 12 : 6;
   const diners = pickDiners(people, buildingId ?? "restaurant", cap);
-  // 3 tables: diners split round-robin so tables fill evenly
-  const tableDiners: PrayedPerson[][] = [[], [], []];
-  diners.forEach((p, i) => tableDiners[i % 3].push(p));
+  // More tables as the building levels up: 2 → 3 → 4 (banquet uses the one long table).
+  const tableCount = isBanquet ? 1 : bLevel >= 3 ? 4 : bLevel >= 2 ? 3 : 2;
+  const tableDiners: PrayedPerson[][] = Array.from({ length: tableCount }, () => []);
+  diners.forEach((p, i) => tableDiners[i % tableCount].push(p));
 
   const tablesTier = interior.furniture["tables"] || 0;
   const chairsTier = interior.furniture["chairs"] || 0;
@@ -850,12 +934,44 @@ export default function RestaurantInteriorScreen() {
             {lightsTier > 0 && <StringLights tier={lightsTier} />}
             {artTier > 0 && <WallArt tier={artTier} />}
           </View>
-          {/* wooden floor */}
-          <View style={{ backgroundColor: FLOOR, paddingTop: 6, paddingBottom: 10 }}>
+          {/* wooden floor — richer with level: L3 gets a grand rug under the tables */}
+          <View style={{ backgroundColor: bLevel >= 3 ? "#7A5533" : FLOOR, paddingTop: 6, paddingBottom: 10 }}>
             {/* floorboards */}
             <View style={{ position: "absolute", top: 24, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
             <View style={{ position: "absolute", top: 60, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
             <View style={{ position: "absolute", top: 100, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
+            {/* chandelier by building level */}
+            <DiningChandelier level={bLevel} />
+            {/* grand rug at L3 */}
+            {bLevel >= 3 && (
+              <View style={{ alignItems: "center", marginBottom: -6 }}>
+                <View
+                  style={{
+                    width: "86%",
+                    height: 300,
+                    borderRadius: 24,
+                    backgroundColor: "#7A2E2E",
+                    borderWidth: 3,
+                    borderColor: GOLD,
+                    opacity: 0.9,
+                    position: "absolute",
+                    top: 120,
+                  }}
+                />
+                <View
+                  style={{
+                    width: "78%",
+                    height: 284,
+                    borderRadius: 18,
+                    borderWidth: 2,
+                    borderColor: GOLD,
+                    opacity: 0.9,
+                    position: "absolute",
+                    top: 128,
+                  }}
+                />
+              </View>
+            )}
 
             {gathering && (
               <View
@@ -875,9 +991,12 @@ export default function RestaurantInteriorScreen() {
             {/* kitchen at the back */}
             <KitchenCounter tier={kitchenTier} />
 
-            {/* the three tables — or the one long banquet table */}
+            {/* the tables — or the one long banquet table */}
             {isBanquet ? (
-              <BanquetTable diners={diners} tablesTier={tablesTier} />
+              <>
+                <BanquetDressing level={bLevel} />
+                <BanquetTable diners={diners} tablesTier={tablesTier} />
+              </>
             ) : (
               tableDiners.map((group, i) => (
                 <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} />

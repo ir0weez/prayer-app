@@ -133,6 +133,128 @@ function Candle({ person, onPress }: { person: FullPerson; onPress: () => void }
   );
 }
 
+// ---------- wall banners + chandelier, by church level ----------
+// L1: bare walls. L2: simple fabric banners. L3: gold-trimmed banners + chandelier.
+function ChurchBanners({ level }: { level: number }) {
+  if (level < 2) return null;
+  const bannerColor = level >= 3 ? "#7A2E2E" : "#8B5E34";
+  const trimColor = level >= 3 ? GOLD : WOOD_PALE;
+  const banner = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 26 }}>
+      <View
+        style={{
+          width: 54,
+          height: 120,
+          backgroundColor: bannerColor,
+          borderWidth: level >= 3 ? 3 : 2,
+          borderColor: trimColor,
+          borderTopLeftRadius: 6,
+          borderTopRightRadius: 6,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MaterialIcons name={level >= 3 ? "wb-sunny" : "favorite"} size={22} color={trimColor} />
+        {level >= 3 && (
+          <View style={{ marginTop: 6, width: 30, height: 2, backgroundColor: trimColor, borderRadius: 1 }} />
+        )}
+      </View>
+      {/* pointed bottom */}
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 27,
+          borderRightWidth: 27,
+          borderTopWidth: 18,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: bannerColor,
+        }}
+      />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginBottom: 2 }}>
+      {level >= 3 && (
+        <View style={{ alignItems: "center", marginBottom: 6 }}>
+          {/* hanging chandelier: ring of candles */}
+          <View style={{ width: 3, height: 26, backgroundColor: WOOD_DARK }} />
+          <View
+            style={{
+              width: 130,
+              height: 26,
+              borderRadius: 13,
+              backgroundColor: WOOD_DARK,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-evenly",
+              paddingHorizontal: 10,
+            }}
+          >
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View key={i} style={{ alignItems: "center" }}>
+                <View style={{ width: 8, height: 12, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD }} />
+                <View style={{ width: 6, height: 8, borderRadius: 3, backgroundColor: FLAME, marginTop: -2 }} />
+              </View>
+            ))}
+          </View>
+          <View style={{ width: 150, height: 30, borderRadius: 15, backgroundColor: FLAME, opacity: 0.18, marginTop: -34 }} />
+        </View>
+      )}
+      <View style={{ flexDirection: "row", justifyContent: "center" }}>
+        {banner(0)}
+        {banner(1)}
+      </View>
+    </View>
+  );
+}
+
+// ---------- altar dressing by level ----------
+// L1: plain wooden cross. L2: + white cloth + candles. L3: + gold cloth + flowers.
+function AltarDressing({ level }: { level: number }) {
+  if (level < 2) return null;
+  const candle = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 44 }}>
+      <View style={{ width: 8, height: 14, borderRadius: 4, backgroundColor: FLAME }} />
+      <View style={{ width: 10, height: 30, borderRadius: 4, backgroundColor: "#FFF6E3", borderWidth: 1, borderColor: GOLD, marginTop: -2 }} />
+      <View style={{ width: 22, height: 6, borderRadius: 3, backgroundColor: WOOD_DARK, marginTop: 2 }} />
+    </View>
+  );
+  const flowers = (key: number) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 30 }}>
+      <View style={{ flexDirection: "row" }}>
+        {["#E86A92", "#F2A541", "#9C6FB5"].map((c, i) => (
+          <View key={i} style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: c, marginHorizontal: 1 }} />
+        ))}
+      </View>
+      <View style={{ width: 18, height: 22, borderRadius: 4, backgroundColor: "#B0724A", marginTop: -3 }} />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      {/* altar cloth over the stage */}
+      <View
+        style={{
+          width: 210,
+          height: 14,
+          borderRadius: 6,
+          backgroundColor: level >= 3 ? GOLD : "#FFF9F0",
+          borderWidth: 1,
+          borderColor: level >= 3 ? "#8B5E34" : "#EAD9B8",
+          marginBottom: 6,
+        }}
+      />
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        {candle(0)}
+        {level >= 3 && flowers(0)}
+        {level >= 3 && flowers(1)}
+        {candle(1)}
+      </View>
+    </View>
+  );
+}
+
 // ---------- simple warm window ----------
 // A plain arched window with morning light streaming in and a simple cross
 // mullion — warm and unadorned, not ornate stained glass.
@@ -196,7 +318,8 @@ function WarmWindow({ wide = false }: { wide?: boolean }) {
 
 // ---------- simple chair with seated figure ----------
 // Individual wooden chairs instead of formal pews — casual gathering.
-function ChairRow({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxSeats?: number }) {
+// L3 adds plush cushions (obviously richer at a glance).
+function ChairRow({ occupants, maxSeats = 6, plush = false }: { occupants: PrayedPerson[]; maxSeats?: number; plush?: boolean }) {
   const shown = occupants.slice(0, maxSeats);
   return (
     <View style={{ marginVertical: 10, alignItems: "center" }}>
@@ -246,11 +369,11 @@ function ChairRow({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxS
                   position: "absolute",
                   bottom: -2,
                   width: 36,
-                  height: 26,
+                  height: plush ? 30 : 26,
                   borderRadius: 6,
-                  backgroundColor: WOOD_PALE,
+                  backgroundColor: plush ? "#7A2E2E" : WOOD_PALE,
                   borderWidth: 2,
-                  borderColor: WOOD_DARK,
+                  borderColor: plush ? GOLD : WOOD_DARK,
                   zIndex: -1,
                 }}
               />
@@ -266,12 +389,12 @@ function ChairRow({ occupants, maxSeats = 6 }: { occupants: PrayedPerson[]; maxS
               key={p.id}
               style={{
                 width: 34,
-                height: 8,
+                height: plush ? 12 : 8,
                 borderRadius: 4,
-                backgroundColor: WOOD,
+                backgroundColor: plush ? "#A63D3D" : WOOD,
                 marginHorizontal: 6,
                 borderWidth: 1,
-                borderColor: WOOD_DARK,
+                borderColor: plush ? GOLD : WOOD_DARK,
               }}
             />
           ))}
@@ -605,6 +728,9 @@ export default function ChurchInteriorScreen() {
           ))}
         </View>
 
+        {/* banners + chandelier by level */}
+        <ChurchBanners level={level} />
+
         {/* front: simple wooden stage with podium + cross */}
         <View style={{ alignItems: "center", marginVertical: 16 }}>
           <View style={{ alignItems: "center" }}>
@@ -633,6 +759,8 @@ export default function ChurchInteriorScreen() {
                 borderColor: WOOD_DARK,
               }}
             />
+            {/* altar dressing by level: cloth, candles, flowers */}
+            <AltarDressing level={level} />
             {/* podium */}
             <View style={{ alignItems: "center", marginTop: -2 }}>
               <View
@@ -728,7 +856,7 @@ export default function ChurchInteriorScreen() {
                   The chairs are empty. Pray for someone today and they'll take a seat.
                 </Text>
               ) : (
-                rows.map((occ, i) => <ChairRow key={i} occupants={occ} />)
+                rows.map((occ, i) => <ChairRow key={i} occupants={occ} plush={level >= 3} />)
               )}
             </View>
           </>
@@ -754,8 +882,8 @@ export default function ChurchInteriorScreen() {
                 backgroundColor: "#FFF3DC",
                 borderRadius: 16,
                 padding: 10,
-                borderWidth: 1,
-                borderColor: "#EAD9B8",
+                borderWidth: level >= 3 ? 3 : 1,
+                borderColor: level >= 3 ? GOLD : "#EAD9B8",
               }}
             >
               {people.map((p) => (

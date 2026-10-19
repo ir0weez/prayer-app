@@ -40,8 +40,86 @@ import { GentleBob, SoftPulse, FigureName, WatchingFigure, pickPeople } from "@/
 const BG = "#141021"; // night theater
 const CARD = "#221B36";
 const GOLD = "#E0A63F";
+const FLAME = "#FF9A3D";
 const TEXT = "#F2EAD8";
 const TEXT_DIM = "#A99BC4";
+
+// ---------- curtains + stage dressing by level ----------
+// L1: simple dark curtains. L2: velvet + gold trim. L3: grand velvet, gold trim,
+// tassels, lit braziers and banners flanking the screen.
+function TheaterDressing({ level }: { level: number }) {
+  const curtainColor = level >= 2 ? "#8E2A44" : "#5E1E2C";
+  const trim = level >= 2;
+  const curtain = (key: string) => (
+    <View key={key} style={{ alignItems: "center" }}>
+      <View
+        style={{
+          width: 26,
+          height: level >= 3 ? 140 : 120,
+          backgroundColor: curtainColor,
+          borderBottomLeftRadius: 13,
+          borderBottomRightRadius: 13,
+          opacity: 0.95,
+          borderLeftWidth: trim ? 2 : 0,
+          borderRightWidth: trim ? 2 : 0,
+          borderBottomWidth: trim ? 2 : 0,
+          borderColor: GOLD,
+        }}
+      />
+      {level >= 3 && (
+        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD, marginTop: -5 }} />
+      )}
+    </View>
+  );
+  const brazier = (key: string) => (
+    <View key={key} style={{ alignItems: "center", position: "absolute", top: 118, ...(key === "bl" ? { left: 14 } : { right: 14 }) }}>
+      <View style={{ width: 26, height: 20, borderRadius: 6, backgroundColor: FLAME, opacity: 0.9 }} />
+      <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#FFD97A", marginTop: -18 }} />
+      <View style={{ width: 12, height: 30, backgroundColor: "#3A2A1C", marginTop: 2 }} />
+      <View style={{ width: 30, height: 6, borderRadius: 3, backgroundColor: "#3A2A1C", marginTop: 1 }} />
+      <View style={{ width: 44, height: 22, borderRadius: 11, backgroundColor: FLAME, opacity: 0.25, marginTop: -52 }} />
+    </View>
+  );
+  const banner = (key: string) => (
+    <View key={key} style={{ alignItems: "center", position: "absolute", top: 8, ...(key === "bnl" ? { left: 52 } : { right: 52 }) }}>
+      <View
+        style={{
+          width: 40,
+          height: 84,
+          backgroundColor: "#7A2438",
+          borderWidth: 2,
+          borderColor: GOLD,
+          borderTopLeftRadius: 4,
+          borderTopRightRadius: 4,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <MaterialIcons name="theater-comedy" size={20} color={GOLD} />
+      </View>
+      <View
+        style={{
+          width: 0, height: 0,
+          borderLeftWidth: 20, borderRightWidth: 20, borderTopWidth: 12,
+          borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: "#7A2438",
+        }}
+      />
+    </View>
+  );
+  return (
+    <View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingTop: 8 }}>
+        {[0, 1, 2, 3, 4].map((i) => curtain(`l${i}`))}
+        <View style={{ flex: 1 }} />
+        {[0, 1, 2, 3, 4].map((i) => curtain(`r${i}`))}
+      </View>
+      {level >= 3 && brazier("bl")}
+      {level >= 3 && brazier("br")}
+      {level >= 3 && banner("bnl")}
+      {level >= 3 && banner("bnr")}
+    </View>
+  );
+}
 
 /** Slow drifting motion for ambient elements (bats, snow, clouds). */
 function Drift({ children, fromX = 0, toX = 0, fromY = 0, toY = 0, duration = 6000, delay = 0 }: {
@@ -301,8 +379,9 @@ function GenericStage() {
   );
 }
 
-/** The themed movie screen, with ambient animation overlays. */
-function ThemedScreen({ theme }: { theme: MovieThemeKind }) {
+/** The themed movie screen, with ambient animation overlays.
+ *  Frame richness follows the building level: L1 plain, L2 gold, L3 ornate. */
+function ThemedScreen({ theme, level = 1 }: { theme: MovieThemeKind; level?: number }) {
   const scene = (() => {
     switch (theme) {
       case "horror": return <HorrorStage />;
@@ -319,7 +398,30 @@ function ThemedScreen({ theme }: { theme: MovieThemeKind }) {
     }
   })();
   return (
-    <View style={{ borderRadius: 12, overflow: "hidden", borderWidth: 3, borderColor: "#3A2E55", backgroundColor: "#000" }}>
+    <View style={{ alignItems: "center" }}>
+      {/* ornate side columns at L3 */}
+      {level >= 3 && (
+        <View style={{ position: "absolute", left: -6, top: -8, bottom: -8, width: 14, zIndex: 2 }}>
+          <View style={{ flex: 1, backgroundColor: GOLD, borderRadius: 7, borderWidth: 1, borderColor: "#8B5E34" }} />
+          <View style={{ width: 20, height: 10, borderRadius: 5, backgroundColor: GOLD, marginLeft: -3, marginTop: 4 }} />
+          <View style={{ width: 20, height: 10, borderRadius: 5, backgroundColor: GOLD, marginLeft: -3, marginTop: 4 }} />
+        </View>
+      )}
+      {level >= 3 && (
+        <View style={{ position: "absolute", right: -6, top: -8, bottom: -8, width: 14, zIndex: 2 }}>
+          <View style={{ flex: 1, backgroundColor: GOLD, borderRadius: 7, borderWidth: 1, borderColor: "#8B5E34" }} />
+          <View style={{ width: 20, height: 10, borderRadius: 5, backgroundColor: GOLD, marginLeft: -3, marginTop: 4 }} />
+          <View style={{ width: 20, height: 10, borderRadius: 5, backgroundColor: GOLD, marginLeft: -3, marginTop: 4 }} />
+        </View>
+      )}
+    <View style={{
+      borderRadius: 12,
+      overflow: "hidden",
+      borderWidth: level >= 3 ? 5 : 3,
+      borderColor: level >= 2 ? GOLD : "#3A2E55",
+      backgroundColor: "#000",
+      width: "100%",
+    }}>
       {scene}
       {/* ambient overlays per theme */}
       {theme === "horror" && (
@@ -371,6 +473,7 @@ function ThemedScreen({ theme }: { theme: MovieThemeKind }) {
           ))}
         </View>
       )}
+    </View>
     </View>
   );
 }
@@ -525,18 +628,10 @@ export default function TheaterInteriorScreen() {
 
         {/* the screen + audience */}
         <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#3A2E55", overflow: "hidden", backgroundColor: "#0B0817" }}>
-          {/* curtains */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 8, paddingTop: 8 }}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <View key={`l${i}`} style={{ width: 26, height: 120, backgroundColor: "#7A2438", borderBottomLeftRadius: 13, borderBottomRightRadius: 13, opacity: 0.95 }} />
-            ))}
-            <View style={{ flex: 1 }} />
-            {[0, 1, 2, 3, 4].map((i) => (
-              <View key={`r${i}`} style={{ width: 26, height: 120, backgroundColor: "#7A2438", borderBottomLeftRadius: 13, borderBottomRightRadius: 13, opacity: 0.95 }} />
-            ))}
-          </View>
+          {/* curtains + stage dressing by level */}
+          <TheaterDressing level={level} />
           <View style={{ paddingHorizontal: 12, marginTop: -104 }}>
-            <ThemedScreen theme={theme} />
+            <ThemedScreen theme={theme} level={level} />
           </View>
 
           {/* audience rows */}

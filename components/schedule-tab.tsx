@@ -7102,7 +7102,14 @@ function EventCardInner({
                   {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
                 </Text>
               )}
-              {event.location && (
+              {(event.keyword === "TV Show" || (!event.keyword && event.title.trim().toLowerCase() === "tv show")) && (event.season || event.episode) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <MaterialIcons name="tv" size={15} color={`${timeOffTextColor}CC`} />
+                  <Text style={{ color: `${timeOffTextColor}CC`, fontSize: 13 }} numberOfLines={1}>
+                    {event.season ? `S${event.season}` : ""}{event.season && event.episode ? " " : ""}{event.episode ? `E${event.episode}` : ""}
+                  </Text>
+                </View>
+              ) : event.location && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <MaterialIcons name="location-on" size={15} color={`${timeOffTextColor}CC`} />
                   <Text style={{ color: `${timeOffTextColor}CC`, fontSize: 13 }} numberOfLines={1}>{event.location}</Text>
@@ -7256,7 +7263,14 @@ function EventCardInner({
                   {format12HourTime(event.startTime)}{event.endTime ? ` – ${format12HourTime(event.endTime)}` : ""}
                 </Text>
               )}
-              {event.location && (
+              {keyword.label === "TV Show" && (event.season || event.episode) ? (
+                <View style={eventStyles.illustratedLocationRow}>
+                  <MaterialIcons name="tv" size={15} color="#FFFFFFBB" />
+                  <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>
+                    {event.season ? `S${event.season}` : ""}{event.season && event.episode ? " " : ""}{event.episode ? `E${event.episode}` : ""}
+                  </Text>
+                </View>
+              ) : event.location && (
                 <View style={eventStyles.illustratedLocationRow}>
                   <MaterialIcons name="location-on" size={15} color="#FFFFFFBB" />
                   <Text style={[eventStyles.illustratedLocation, { color: '#FFFFFFBB' }]} numberOfLines={1}>

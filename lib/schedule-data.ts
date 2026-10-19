@@ -30,6 +30,8 @@ export type ScheduleEvent = {
   keyword?: string; // Detected keyword for illustration
   isHoliday?: boolean; // Auto-seeded US holiday (render-only, never editable/persisted)
   linkedPeopleIds?: string[]; // IDs of people from prayer list linked to this event
+  season?: number; // TV Show season number
+  episode?: number; // TV Show episode number
 };
 
 export type ScheduleTodo = {

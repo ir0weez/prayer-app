@@ -13,7 +13,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { useColors } from "@/hooks/use-colors";
-import { ScheduleEvent } from "@/lib/schedule-data";
+import { ScheduleEvent, EVENT_KEYWORD_MAP, detectEventKeyword } from "@/lib/schedule-data";
 import { extractPosterColor } from "@/lib/poster-color";
 import { DateTimePicker } from "./date-time-picker";
 
@@ -52,6 +52,35 @@ export function EventEditForm({
   const [formOffEvent, setFormOffEvent] = useState(event.isOffEvent === true);
   const [formPosterImage, setFormPosterImage] = useState(event.posterImageUri || "");
   const [formPosterColor, setFormPosterColor] = useState(event.posterColor);
+  const [formSeason, setFormSeason] = useState(event.season ? String(event.season) : "");
+  const [formEpisode, setFormEpisode] = useState(event.episode ? String(event.episode) : "");
+  const [titleFocused, setTitleFocused] = useState(false);
+
+  // Is this a TV Show event? (drives conditional season/episode fields)
+  const isTVShow = (() => {
+    const kw = event.keyword
+      ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword)
+      : detectEventKeyword(formTitle);
+    if (kw?.label === "TV Show") return true;
+    return formTitle.trim().toLowerCase() === "tv show";
+  })();
+
+  // Title autocomplete suggestions from animated keywords
+  const titleSuggestions = (() => {
+    const q = formTitle.trim().toLowerCase();
+    if (q.length < 2 || !titleFocused) return [];
+    const matches = EVENT_KEYWORD_MAP.filter((k) => {
+      if (k.label.toLowerCase().includes(q)) return true;
+      return k.keywords.some((kw) => kw.toLowerCase().includes(q));
+    });
+    // Prefer label matches first
+    matches.sort((a, b) => {
+      const aLabel = a.label.toLowerCase().includes(q) ? 0 : 1;
+      const bLabel = b.label.toLowerCase().includes(q) ? 0 : 1;
+      return aLabel - bLabel;
+    });
+    return matches.slice(0, 5);
+  })();
 
   useEffect(() => {
     if (!visible) return;
@@ -67,6 +96,9 @@ export function EventEditForm({
     setFormOffEvent(event.isOffEvent === true);
     setFormPosterImage(event.posterImageUri || "");
     setFormPosterColor(event.posterColor);
+    setFormSeason(event.season ? String(event.season) : "");
+    setFormEpisode(event.episode ? String(event.episode) : "");
+    setTitleFocused(false);
   }, [event, visible]);
 
   const handleStartTimeChange = (value: string) => {
@@ -89,6 +121,8 @@ export function EventEditForm({
       isOffEvent: formOffEvent,
       posterImageUri: formPosterImage || undefined,
       posterColor: formPosterColor,
+      season: isTVShow && formSeason ? parseInt(formSeason, 10) || undefined : undefined,
+      episode: isTVShow && formEpisode ? parseInt(formEpisode, 10) || undefined : undefined,
     };
     onSave(updatedEvent);
     onClose();
@@ -107,6 +141,8 @@ export function EventEditForm({
     setFormOffEvent(event.isOffEvent === true);
     setFormPosterImage(event.posterImageUri || "");
     setFormPosterColor(event.posterColor);
+    setFormSeason(event.season ? String(event.season) : "");
+    setFormEpisode(event.episode ? String(event.episode) : "");
   };
 
   const pickPoster = async () => {
@@ -149,6 +185,8 @@ export function EventEditForm({
           <TextInput
             value={formTitle}
             onChangeText={setFormTitle}
+            onFocus={() => setTitleFocused(true)}
+            onBlur={() => setTimeout(() => setTitleFocused(false), 150)}
             placeholder="Event title"
             placeholderTextColor={colors.muted}
             style={[
@@ -156,6 +194,27 @@ export function EventEditForm({
               { color: colors.foreground, borderColor: colors.border },
             ]}
           />
+          {titleSuggestions.length > 0 && (
+            <View style={[styles.suggestBox, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              {titleSuggestions.map((s) => (
+                <Pressable
+                  key={s.label}
+                  onPress={() => {
+                    setFormTitle(s.label);
+                    setTitleFocused(false);
+                  }}
+                  style={styles.suggestRow}
+                >
+                  <MaterialIcons name={s.icon as any} size={18} color={colors.primary} />
+                  <Text style={[styles.suggestLabel, { color: colors.foreground }]}>{s.label}</Text>
+                  <View style={styles.suggestBadge}>
+                    <MaterialIcons name="auto-awesome" size={12} color={colors.primary} />
+                    <Text style={[styles.suggestBadgeText, { color: colors.primary }]}>Animated</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           <View style={[styles.offEventRow, { borderColor: formColor + "45", backgroundColor: formColor + "10" }]}>
             <View style={styles.offEventCopy}>
@@ -223,20 +282,58 @@ export function EventEditForm({
             ))}
           </View>
 
-          {/* Location */}
-          <Text style={[styles.label, { color: colors.muted }]}>
-            LOCATION (optional)
-          </Text>
-          <TextInput
-            value={formLocation}
-            onChangeText={setFormLocation}
-            placeholder="Event location"
-            placeholderTextColor={colors.muted}
-            style={[
-              styles.input,
-              { color: colors.foreground, borderColor: colors.border },
-            ]}
-          />
+          {/* Location — hidden for TV Show (season/episode shown instead) */}
+          {!isTVShow && (
+            <>
+              <Text style={[styles.label, { color: colors.muted }]}>
+                LOCATION (optional)
+              </Text>
+              <TextInput
+                value={formLocation}
+                onChangeText={setFormLocation}
+                placeholder="Event location"
+                placeholderTextColor={colors.muted}
+                style={[
+                  styles.input,
+                  { color: colors.foreground, borderColor: colors.border },
+                ]}
+              />
+            </>
+          )}
+
+          {/* TV Show: Season + Episode */}
+          {isTVShow && (
+            <View style={styles.seasonEpisodeRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: colors.muted }]}>SEASON</Text>
+                <TextInput
+                  value={formSeason}
+                  onChangeText={(t) => setFormSeason(t.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 2"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  style={[
+                    styles.input,
+                    { color: colors.foreground, borderColor: colors.border },
+                  ]}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: colors.muted }]}>EPISODE</Text>
+                <TextInput
+                  value={formEpisode}
+                  onChangeText={(t) => setFormEpisode(t.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 5"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  style={[
+                    styles.input,
+                    { color: colors.foreground, borderColor: colors.border },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
 
           {/* Time to leave */}
           <Text style={[styles.label, { color: colors.muted }]}>
@@ -435,5 +532,37 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  suggestBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: -4,
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  suggestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  suggestLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+  },
+  suggestBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  suggestBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  seasonEpisodeRow: {
+    flexDirection: "row",
+    gap: 12,
   },
 });

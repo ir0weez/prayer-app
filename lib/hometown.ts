@@ -154,7 +154,13 @@ export type BuildingType =
   | "opera-house"   // grand stage, velvet seats, nightly performances
   | "museum"        // exhibits and artifacts from the town's story
   | "clock-tower"   // giant clock face, turning gears, the city's heartbeat
-  | "embassy";      // flags and diplomats — greetings exchanged daily
+  | "embassy"       // flags and diplomats — greetings exchanged daily
+  // Eastside expansion — the new right-hand column of the city grid
+  // (x=8..9). Brand-new building types on pre-placed plots.
+  | "music-studio"    // recording booth, instruments, villagers lay down tracks
+  | "art-gallery"     // paintings and sculptures on quiet gallery walls
+  | "flower-market"   // stalls of fresh blooms, the city's color corner
+  | "coffee-roastery"; // roaster, bean sacks, and a warm tasting counter
 
 export type DecorationType = "fountain" | "statue" | "garden" | "lantern";
 
@@ -457,6 +463,11 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "museum":        { name: "Museum",        icon: "", cost: 750, tier: 1, incomePerDay: 32, xpPerDay: 0,   maps: ["city"], description: "Exhibits and artifacts telling the town's story. +32 coins/day." },
   "clock-tower":   { name: "Clock Tower",   icon: "", cost: 650, tier: 1, incomePerDay: 30, xpPerDay: 0,   maps: ["city"], description: "A giant clock face over downtown — the city's heartbeat, wound daily. +30 coins/day." },
   "embassy":       { name: "Embassy",       icon: "", cost: 700, tier: 1, incomePerDay: 34, xpPerDay: 0,   maps: ["city"], description: "Flags of many lands; diplomats exchange greetings daily. +34 coins/day." },
+  // Eastside expansion — brand-new city buildings on the new right-side lots
+  "music-studio":    { name: "Music Studio",    icon: "", cost: 600, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A warm recording studio where the city lays down tracks. +20 coins/day." },
+  "art-gallery":     { name: "Art Gallery",     icon: "", cost: 550, tier: 1, incomePerDay: 16, xpPerDay: 0, maps: ["city"], description: "Paintings and sculptures on quiet gallery walls. +16 coins/day." },
+  "flower-market":   { name: "Flower Market",   icon: "", cost: 400, tier: 1, incomePerDay: 14, xpPerDay: 0, maps: ["city"], description: "Stalls of fresh blooms — the city's corner of color. +14 coins/day." },
+  "coffee-roastery": { name: "Coffee Roastery", icon: "", cost: 500, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "The roaster hums, the tasting counter is warm. +18 coins/day." },
 };
 
 // ---- Hospital: the Doctor's Blessing (healing buff for Dark Forest) ----
@@ -560,6 +571,13 @@ export const CITY_PLOTS: CityPlot[] = [
   { id: "plot-city-21", x: 6, y: 9, buildingType: "hotel",       cost: 625, name: "Midtown Hotel" },
   // Harbor Terrace east (y=16) — the "future growth" area on the south terrace.
   { id: "plot-city-22", x: 6, y: 16, buildingType: "department-store", cost: 700, name: "Harbor Retail Lot" },
+  // Eastside expansion — fills the bare right-hand columns (x=8..9). The
+  // wishing fountain sits at (8,6) and the street performer at (8,1), so the
+  // strip starts at y=8. Brand-new building types, all unlock & upgrade.
+  { id: "plot-city-23", x: 8, y: 8,  buildingType: "music-studio",    cost: 600, name: "Eastside Studio Lot" },
+  { id: "plot-city-24", x: 8, y: 11, buildingType: "art-gallery",     cost: 550, name: "Gallery Row Lot" },
+  { id: "plot-city-25", x: 8, y: 14, buildingType: "flower-market",   cost: 450, name: "Bloom Terrace Lot" },
+  { id: "plot-city-26", x: 8, y: 16, buildingType: "coffee-roastery", cost: 500, name: "Harbor Roastery Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -1285,12 +1303,16 @@ export const CITY_STREETS: Array<{ x: number; y: number }> = [
   // South Blvd (y=5, skipping avenue intersections)
   { x: 0, y: 5 }, { x: 1, y: 5 }, { x: 3, y: 5 },
   { x: 4, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 },
-  // Midtown Blvd (y=10) — serves the southern expansion
+  // Midtown Blvd (y=10) — serves the southern expansion; extends east to
+  // give the new Eastside lots road frontage
   { x: 0, y: 10 }, { x: 1, y: 10 }, { x: 3, y: 10 },
   { x: 4, y: 10 }, { x: 6, y: 10 }, { x: 7, y: 10 },
-  // Harbor Blvd (y=13) — southern edge of the expanded city
+  { x: 8, y: 10 }, { x: 9, y: 10 },
+  // Harbor Blvd (y=13) — southern edge of the expanded city; extends east
+  // for the Eastside lots
   { x: 0, y: 13 }, { x: 1, y: 13 }, { x: 3, y: 13 },
   { x: 4, y: 13 }, { x: 6, y: 13 }, { x: 7, y: 13 },
+  { x: 8, y: 13 }, { x: 9, y: 13 },
 ];
 
 /** City streets as PlacedRoads with stable ids (idempotent seeding). */

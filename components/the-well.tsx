@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
 import { localDateStr, wellDrawnOn, wellVerseForDate, type WellState } from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
@@ -14,6 +14,9 @@ export type TheWellProps = {
 
 const SCENE_W = 360;
 const SCENE_H = 470;
+// Fixed horizontal space these scenes sit inside: 16px hometown ScrollView
+// padding each side + 26px SeasonalBorder gutter each side = 84.
+const SCENE_H_INSET = 84;
 
 const SCENE_BG: Record<TimeOfDay, string> = {
   morning: "#FDF6EC",
@@ -33,7 +36,7 @@ function mulberry32(seed: number) {
   };
 }
 
-function Butterfly({ color, seed, bounds }: { color: string; seed: number; bounds: { x0: number; x1: number; y0: number; y1: number } }) {
+function Butterfly({ color, seed, bounds, k }: { color: string; seed: number; bounds: { x0: number; x1: number; y0: number; y1: number }; k: number }) {
   const drift = useRef(new Animated.Value(0)).current;
   const flap = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -52,10 +55,12 @@ function Butterfly({ color, seed, bounds }: { color: string; seed: number; bound
     d.start(); f.start();
     return () => { d.stop(); f.stop(); };
   }, [drift, flap, seed]);
-  const baseX = bounds.x0 + ((seed * 97) % (bounds.x1 - bounds.x0));
-  const baseY = bounds.y0 + ((seed * 53) % (bounds.y1 - bounds.y0));
-  const translateX = drift.interpolate({ inputRange: [0, 1], outputRange: [-30, 30] });
-  const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [-20, 20] });
+  // Bounds are in scene (viewBox) units — scale to device px so the
+  // butterflies stay inside the rendered scene at any screen width.
+  const baseX = (bounds.x0 + ((seed * 97) % (bounds.x1 - bounds.x0))) * k;
+  const baseY = (bounds.y0 + ((seed * 53) % (bounds.y1 - bounds.y0))) * k;
+  const translateX = drift.interpolate({ inputRange: [0, 1], outputRange: [-30 * k, 30 * k] });
+  const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [-20 * k, 20 * k] });
   const scaleX = flap.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] });
   return (
     <Animated.View
@@ -94,18 +99,20 @@ function Firefly({ x, y, dur, delay }: { x: number; y: number; dur: number; dela
   );
 }
 
-function Fireflies({ count, seedOffset }: { count: number; seedOffset: number }) {
+function Fireflies({ count, seedOffset, k }: { count: number; seedOffset: number; k: number }) {
   const items = useMemo(() => {
     return Array.from({ length: count }, (_, i) => {
       const rng = mulberry32((i + seedOffset) * 331 + 7);
       return {
-        x: 20 + rng() * (SCENE_W - 40),
-        y: 100 + rng() * 330,
+        // Scene (viewBox) units — scaled to device px at render so the
+        // fireflies stay inside the rendered scene at any screen width.
+        x: (20 + rng() * (SCENE_W - 40)) * k,
+        y: (100 + rng() * 330) * k,
         dur: 2400 + rng() * 2600,
         delay: rng() * 2000,
       };
     });
-  }, [count, seedOffset]);
+  }, [count, seedOffset, k]);
   return (
     <>
       {items.map((f, i) => (
@@ -176,12 +183,16 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawnToday]);
 
-  // Measure container width and set explicit height — aspectRatio is unreliable
-  // inside flex parents (scene would stretch to fill, leaving empty space).
-  const [sceneW, setSceneW] = useState(0);
-  const sceneH = sceneW > 0 ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
+  // Scene dimensions are anchored to the device window, not to onLayout
+  // measurement: the scene's visible slot is exactly windowWidth - 84, and
+  // measuring the container could report a width wider than the visible
+  // screen (overflow). aspectRatio is also unreliable inside flex parents.
+  const { width: windowW } = useWindowDimensions();
+  const sceneW =
+    Number.isFinite(windowW) && windowW > SCENE_H_INSET ? Math.floor(windowW - SCENE_H_INSET) : 300;
+  const sceneH = Math.round(sceneW * (SCENE_H / SCENE_W));
   // Scale factor for the rope/bucket overlay + tap target (SVG scales via viewBox).
-  const k = sceneW > 0 ? sceneW / SCENE_W : 300 / SCENE_W;
+  const k = sceneW / SCENE_W;
 
   const startDraw = () => {
     if (phase !== "idle" || drawnToday) return;
@@ -257,17 +268,13 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           ? "A new beginning"
           : null;
 
-  const renderedW = sceneW > 0 ? sceneW : 300;
-  const renderedH = sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W));
+  const renderedW = sceneW;
+  const renderedH = sceneH;
 
   return (
     <View style={{ marginBottom: 16 }}>
       <View
-        onLayout={(e) => {
-          const w = Math.round(e.nativeEvent.layout.width);
-          if (w > 0 && w !== sceneW) setSceneW(w);
-        }}
-        style={{ width: "100%", height: renderedH, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
+        style={{ width: renderedW, maxWidth: "100%", height: renderedH, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
       >
         <Svg width={renderedW} height={renderedH} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
           {/* grass — layered wash, deeper toward the bottom */}
@@ -381,7 +388,7 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           <Ellipse cx={WELL_CX} cy={316} rx={24} ry={7} fill={water} opacity={isNight ? 0.5 : 0.8} />
         </Svg>
 
-        {/* rope + bucket (animated, scaled to measured width so it tracks the crossbar) */}
+        {/* rope + bucket (animated, scaled to scene width so it tracks the crossbar) */}
         <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: renderedW, height: renderedH }}>
           <Animated.View style={{ position: "absolute", left: (WELL_CX - 1.5) * k, top: CROSSBAR_Y * k, width: 3 * k, height: Animated.multiply(ropeHeight, k), backgroundColor: isNight ? "#6B5B3E" : "#A0824F" }} />
           <Animated.View style={{ position: "absolute", left: (WELL_CX - 18) * k, top: Animated.add(Animated.multiply(bucketY, k), -13 * k), width: 36 * k, height: 26 * k }}>
@@ -414,12 +421,12 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
         {/* ambient life */}
         {!isNight && (
           <>
-            <Butterfly color="#F9A8D4" seed={1} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
-            <Butterfly color="#FDE68A" seed={2} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
-            <Butterfly color="#BAE6FD" seed={3} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
+            <Butterfly color="#F9A8D4" seed={1} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} k={k} />
+            <Butterfly color="#FDE68A" seed={2} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} k={k} />
+            <Butterfly color="#BAE6FD" seed={3} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} k={k} />
           </>
         )}
-        {isNight && <Fireflies count={9} seedOffset={11} />}
+        {isNight && <Fireflies count={9} seedOffset={11} k={k} />}
       </View>
 
       {/* verse + streak */}

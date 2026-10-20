@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Svg, { Circle, Ellipse, G, Path, Polygon, Rect } from "react-native-svg";
@@ -30,6 +31,11 @@ export type MissionFieldProps = {
 
 const SCENE_W = 360;
 const SCENE_H = 300;
+// Fixed horizontal space these scenes sit inside: 16px hometown ScrollView
+// padding each side + 26px SeasonalBorder gutter each side = 84. Measured
+// container widths wider than this are clamped so the scene never overflows
+// the visible screen horizontally.
+const SCENE_H_INSET = 84;
 
 /** Sky colors by time of day. */
 function skyColors(timeOfDay: TimeOfDay): { top: string; bottom: string; sun: string } {
@@ -80,7 +86,14 @@ function MissionScene({
 
   // Measure container width and set explicit height — aspectRatio is unreliable
   // inside flex parents. Also guards against 0/NaN dimensions reaching native SVG.
-  const [sceneW, setSceneW] = useState(0);
+  // The measured width is clamped to the window-anchored slot (windowW - 84):
+  // parents can report a width wider than the visible screen, which overflowed
+  // the scene horizontally. Height logic is unchanged (derived from sceneW).
+  const { width: windowW } = useWindowDimensions();
+  const maxSceneW =
+    Number.isFinite(windowW) && windowW > SCENE_H_INSET ? Math.floor(windowW - SCENE_H_INSET) : Number.POSITIVE_INFINITY;
+  const [rawSceneW, setSceneW] = useState(0);
+  const sceneW = rawSceneW > 0 ? Math.min(rawSceneW, maxSceneW) : 0;
   const sceneH = sceneW > 0 && Number.isFinite(sceneW) ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
   const validDims = sceneW > 0 && sceneH > 0 && Number.isFinite(sceneW) && Number.isFinite(sceneH);
 
@@ -92,10 +105,10 @@ function MissionScene({
       onLayout={(e) => {
         try {
           const w = Math.round(e.nativeEvent.layout.width);
-          if (w > 0 && Number.isFinite(w) && w !== sceneW) setSceneW(w);
+          if (w > 0 && Number.isFinite(w) && w !== rawSceneW) setSceneW(w);
         } catch {}
       }}
-      style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, width: "100%", height: validDims ? sceneH : 200, backgroundColor: sky.top }}
+      style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12, width: "100%", maxWidth: "100%", height: validDims ? sceneH : 200, backgroundColor: sky.top }}
     >
       <Svg width={validDims ? sceneW : 300} height={validDims ? sceneH : 200} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
         {/* sky */}

@@ -36,6 +36,8 @@ export type InteriorBuilding =
   // Artisans' Row (town) — decor added in the holiday-decor batch
   | "inn" | "carpenter" | "pottery" | "music-hall" | "tailor"
   | "observatory" | "bathhouse" | "apothecary" | "town-hall" | "post-office"
+  // Ministry Row (town) — the converted southern lots
+  | "bible-study-hall" | "fasting-house" | "gym" | "outreach-center"
   // City expansion — decor added in the holiday-decor batch
   | "grand-library" | "opera-house" | "museum" | "clock-tower" | "embassy"
   // City eastside — decor added in the eastside batch
@@ -2166,6 +2168,203 @@ function PostOfficeDecor({ holiday }: { holiday: HolidaySeason }) {
   }
 }
 
+/* ---------------------------- bible-study-hall ----------------------- */
+function BibleStudyHallDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><BlackCandle size={20} /></Placed>
+          <Placed style={{ top: 40, right: 8 }}><Cobweb size={38} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: "38%" }}><WheatSheaf size={30} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><Pumpkin size={24} /></Placed>
+        </>
+      );
+    case "christmas":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: "40%" }}><Nativity size={48} /></Placed>
+          <Placed style={{ bottom: 10, left: 12 }}><Wreath size={28} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><CandleCenterpiece size={24} /></Placed>
+        </>
+      );
+    case "valentines":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><HeartGlyph size={22} color="#C4493B" /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><RoseVase size={24} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><EasterBasket size={30} /></Placed>
+          <Placed style={{ bottom: 8, right: 14 }}><FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={22} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* ----------------------------- fasting-house ------------------------- */
+function FastingHouseDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      // Still just candles and quiet — the house keeps its hush.
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><BlackCandle size={20} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><BlackCandle size={16} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><Pumpkin size={22} /></Placed>
+        </>
+      );
+    case "christmas":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: "42%" }}><CandleCenterpiece size={28} /></Placed>
+          <Placed style={{ bottom: 10, left: 12 }}><Wreath size={26} /></Placed>
+        </>
+      );
+    case "valentines":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: "44%" }}><CandleCenterpiece size={24} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={22} /></Placed>
+          <Placed style={{ bottom: 8, right: 14 }}><FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={20} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ bottom: 10, right: 12 }}><CandleCenterpiece size={24} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* --------------------------------- gym ------------------------------- */
+function GymDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><JackOLantern size={28} /></Placed>
+          <Placed style={{ top: 44, right: 10 }}><Bat size={15} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><Pumpkin size={26} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><PumpkinPie size={28} /></Placed>
+        </>
+      );
+    case "christmas":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><Wreath size={28} /></Placed>
+          <Placed style={{ bottom: 8, right: 12 }}><MiniTree size={34} /></Placed>
+        </>
+      );
+    case "valentines":
+      return (
+        <>
+          <Placed style={{ top: 56, left: 0, right: 0, alignItems: "center" }}><PaperHearts size={40} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><PaintedEgg color="#BAE6FD" size={18} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><EasterBasket size={28} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* ---------------------------- outreach-center ------------------------ */
+function OutreachCenterDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><JackOLantern size={28} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><Pumpkin size={24} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      // The pantry's biggest week — the cornucopia belongs here.
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: "36%" }}><Cornucopia size={44} /></Placed>
+          <Placed style={{ bottom: 10, left: 12 }}><WheatSheaf size={26} /></Placed>
+        </>
+      );
+    case "christmas":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><GiftBox color="#B91C1C" size={26} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><GiftBox color="#166534" size={22} /></Placed>
+          <Placed style={{ bottom: 8, left: "42%" }}><Wreath size={28} /></Placed>
+        </>
+      );
+    case "valentines":
+      return (
+        <>
+          <Placed style={{ top: 56, left: 0, right: 0, alignItems: "center" }}><PaperHearts size={42} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><RoseVase size={24} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><EasterBasket size={32} /></Placed>
+          <Placed style={{ bottom: 8, right: 14 }}><FlowerGlyph petal="#BBF7D0" center="#16A34A" size={22} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
 /* ----------------------------- grand-library -------------------------- */
 function GrandLibraryDecor({ holiday }: { holiday: HolidaySeason }) {
   switch (holiday) {
@@ -2818,6 +3017,31 @@ function SeasonDecor({ building, season }: { building: InteriorBuilding; season:
       fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#D97706" size={18} /></Placed>,
       winter: <Placed style={{ bottom: 10, right: 12 }}><GiftBox color="#1D4ED8" size={24} /></Placed>,
     },
+    // Ministry Row — quiet, place-flavored seasonal touches.
+    "bible-study-hall": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={20} /></Placed>,
+      summer: null,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><WheatSheaf size={26} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Poinsettia size={22} /></Placed>,
+    },
+    "fasting-house": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={18} /></Placed>,
+      summer: <Placed style={{ bottom: 10, right: 12 }}><CandleCenterpiece size={22} /></Placed>,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><Pumpkin size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Wreath size={24} /></Placed>,
+    },
+    gym: {
+      spring: <Placed style={{ bottom: 10, right: 14 }}><FlowerGlyph petal="#BBF7D0" center="#16A34A" size={18} /></Placed>,
+      summer: null,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#EA580C" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Wreath size={26} /></Placed>,
+    },
+    "outreach-center": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FBCFE8" center="#EC4899" size={20} /></Placed>,
+      summer: <Placed style={{ bottom: 10, right: 12 }}><GiftBox color="#2E7D74" size={22} /></Placed>,
+      fall: <Placed style={{ bottom: 8, left: 12 }}><Cornucopia size={36} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><HolidayPine size={36} /></Placed>,
+    },
     "grand-library": {
       spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#C4B5FD" center="#FDE68A" size={20} /></Placed>,
       summer: null,
@@ -2926,6 +3150,11 @@ export function BuildingHolidayDecor({
       case "apothecary": return <ApothecaryDecor holiday={holiday} />;
       case "town-hall": return <TownHallDecor holiday={holiday} />;
       case "post-office": return <PostOfficeDecor holiday={holiday} />;
+      // Ministry Row
+      case "bible-study-hall": return <BibleStudyHallDecor holiday={holiday} />;
+      case "fasting-house": return <FastingHouseDecor holiday={holiday} />;
+      case "gym": return <GymDecor holiday={holiday} />;
+      case "outreach-center": return <OutreachCenterDecor holiday={holiday} />;
       // City cultural district
       case "grand-library": return <GrandLibraryDecor holiday={holiday} />;
       case "opera-house": return <OperaHouseDecor holiday={holiday} />;

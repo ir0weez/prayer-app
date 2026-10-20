@@ -7,6 +7,13 @@
 //   Movie/TV/Theater       -> the amphitheater (everyone goes)
 //   Rest/Nap               -> home, the pawn house (pawn rests alone)
 //   Ministry events        -> the church (everyone gathers)
+//   Bible Study            -> the Bible Study Hall (circles; church if unbuilt)
+//   Fasting                -> the Fasting House (hero alone, quiet)
+//   Outreach / food drives -> the Outreach Center (church if unbuilt)
+//   Gym / workout          -> the Gym (hero alone)
+// Ministry items route by their title first when a natural home exists
+// (a "Garden Prayer" ministry goes to the garden, a "Bible Study"
+// ministry to the hall); otherwise ministries gather at the church.
 // During the event they stay AT the location; when it ends they resume
 // their normal wandering. Night still wins — everyone sleeps.
 
@@ -32,6 +39,10 @@ export type ScheduleActivityKind =
   | "amphitheater"
   | "home"
   | "church"
+  | "bible-study"
+  | "fasting"
+  | "outreach"
+  | "gym"
   | "barbershop"
   | "garden";
 
@@ -85,6 +96,29 @@ const KIND_MATCHERS: Array<{ kind: ScheduleActivityKind; withVillagers: boolean;
     re: /\b(movie|film|cinema|theater|theatre|concert|tv)\b/i,
   },
   {
+    // Bible Study has its own hall now — checked before the church
+    // matcher, which also lists it. Falls back to the church in
+    // resolveScheduleTarget while the hall is unbuilt.
+    kind: "bible-study",
+    withVillagers: true,
+    re: /\b(bible study|scripture study|study group|bible class)\b/i,
+  },
+  {
+    // Fasting is quiet and solitary — the hero goes to the Fasting House
+    // alone. (\b keeps "breakfast" from matching.)
+    kind: "fasting",
+    withVillagers: false,
+    re: /\b(fast|fasting|fast day)\b/i,
+  },
+  {
+    // Outreach has a home of its own now — the Outreach Center (pantry,
+    // serving counter). Generic serving/volunteering still gathers at
+    // the church via the matcher below.
+    kind: "outreach",
+    withVillagers: true,
+    re: /\b(outreach|food drive|food pantry|food bank|donation drive|care packages?)\b/i,
+  },
+  {
     kind: "church",
     withVillagers: true,
     re: /\b(serve|serving|volunteer|outreach|ministry|worship|bible study|prayer meeting|small group|youth group|service project)\b/i,
@@ -108,6 +142,12 @@ const KIND_MATCHERS: Array<{ kind: ScheduleActivityKind; withVillagers: boolean;
     kind: "garden",
     withVillagers: true,
     re: /\b(garden|gardening|planting|mow lawn|mowing|prune|pruning|harvest|harvesting)\b/i,
+  },
+  {
+    // Workouts send the hero to the Gym, alone — it's his training time.
+    kind: "gym",
+    withVillagers: false,
+    re: /\b(gym|workout|work out|exercise|exercising|fitness|cardio|lifting weights|weight ?lifting)\b/i,
   },
 ];
 
@@ -178,10 +218,17 @@ export async function getActiveScheduleActivity(
     if (active.length === 0) return null;
 
     for (const item of active) {
-      // Ministry items always mean church with the villagers.
+      // Ministries gather at the church with the villagers — unless the
+      // title names a natural home of its own (a "Garden Prayer" ministry
+      // goes to the garden, a "Bible Study" ministry to the study hall,
+      // an outreach ministry to the Outreach Center).
       if (item.ministry) {
+        const matched = matchKind(item.title);
         const end = new Date(now);
         end.setHours(Math.floor(item.endMin / 60), item.endMin % 60, 0, 0);
+        if (matched) {
+          return { ...matched, withVillagers: true, title: item.title, notes: item.notes, endsAtMs: end.getTime() };
+        }
         return { kind: "church", withVillagers: true, title: item.title, notes: item.notes, endsAtMs: end.getTime() };
       }
       const matched = matchKind(item.title);
@@ -226,6 +273,25 @@ export function resolveScheduleTarget(
       break;
     case "church":
       b = buildings.find((x) => x.type === "church");
+      break;
+    case "bible-study":
+      // The study hall when built; the church hosts the circles until then.
+      b =
+        buildings.find((x) => x.type === "bible-study-hall") ??
+        buildings.find((x) => x.type === "church");
+      break;
+    case "fasting":
+      b =
+        buildings.find((x) => x.type === "fasting-house") ??
+        buildings.find((x) => x.type === "church");
+      break;
+    case "outreach":
+      b =
+        buildings.find((x) => x.type === "outreach-center") ??
+        buildings.find((x) => x.type === "church");
+      break;
+    case "gym":
+      b = buildings.find((x) => x.type === "gym");
       break;
     case "barbershop":
       b = buildings.find((x) => x.type === "barbershop");

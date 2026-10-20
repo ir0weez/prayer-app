@@ -430,6 +430,11 @@ function tallArtExtraCells(type: string, level: number, floors: number): number 
     case "observatory": return 0.8;
     case "town-hall": return 0.6;
     case "music-hall": return 0.5;
+    // Ministry Row — the converted southern lots
+    case "bible-study-hall": return 0.6;
+    case "fasting-house": return 0.4;
+    case "gym": return 0.4;
+    case "outreach-center": return 0.4;
     case "inn": return 0.4;
     case "carpenter": return 0.4;
     case "apothecary": return 0.4;
@@ -2164,6 +2169,282 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
               <View style={{ position: "absolute", top: s * 0.2, left: s * 0.05, width: s * 0.16, height: s * 0.12, backgroundColor: isLit(5, 2) ? LIT : "#BEE3F8", borderRadius: 3, borderWidth: 1.5, borderColor: "#C9963C" }} />
             )}
             <View style={{ position: "absolute", bottom: 0, left: w / 2 - s * 0.1, width: s * 0.2, height: s * 0.22, backgroundColor: "#374151", borderTopLeftRadius: 8, borderTopRightRadius: 8 }} />
+          </View>
+        </View>
+      );
+    }
+    case "bible-study-hall": {
+      // Bible Study Hall — warm stone hall for circle gatherings.
+      // L1: gabled hall, arched windows, open-book sign, cross finial.
+      // L2: taller facade, second row of windows, verse banner.
+      // L3: library wing with a tall shelf window, gold trim, steps.
+      const H = artH ?? s;
+      const w = s * 0.94;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.15)}
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            <View style={{ alignItems: "center" }}>
+              {/* cross finial */}
+              <Svg width={s * 0.12} height={s * 0.2} viewBox="0 0 12 20">
+                <Rect x={5} y={0} width={2.4} height={20} fill={lv >= 3 ? "#C9963C" : "#8A7F6A"} />
+                <Rect x={1.5} y={5} width={9.4} height={2.4} fill={lv >= 3 ? "#C9963C" : "#8A7F6A"} />
+              </Svg>
+              {/* gabled roof */}
+              <Svg width={w * 0.78} height={s * 0.2} viewBox="0 0 100 22" style={{ marginBottom: -2 }}>
+                <Polygon points="2,22 50,2 98,22" fill="#5B6B82" stroke="#42506A" strokeWidth={2.5} />
+                {lv >= 3 && <Polygon points="22,22 50,9 78,22" fill="#C9963C" opacity={0.5} />}
+              </Svg>
+              {/* facade */}
+              <View style={{ width: w * 0.78, height: H * (lv >= 2 ? 0.52 : 0.42), backgroundColor: "#F1E8D8", borderWidth: 2, borderColor: "#A2937A", borderBottomLeftRadius: 4, borderBottomRightRadius: 4, alignItems: "center" }}>
+                {/* open-book sign */}
+                <Svg width={s * 0.3} height={s * 0.17} viewBox="0 0 30 17" style={{ marginTop: s * 0.04 }}>
+                  <Path d="M15 3 C11 0.8, 5 0.8, 2 2.4 L2 14 C5 12.4, 11 12.4, 15 14.6 C19 12.4, 25 12.4, 28 14 L28 2.4 C25 0.8, 19 0.8, 15 3 Z" fill="#FFF8E7" stroke="#C9963C" strokeWidth={1.8} />
+                  <Line x1={15} y1={3} x2={15} y2={14.6} stroke="#C9963C" strokeWidth={1.4} />
+                  <Line x1={5} y1={5.4} x2={12} y2={4.4} stroke="#B8AE99" strokeWidth={1.2} />
+                  <Line x1={5} y1={8.8} x2={12} y2={7.8} stroke="#B8AE99" strokeWidth={1.2} />
+                  <Line x1={18} y1={4.4} x2={25} y2={5.4} stroke="#B8AE99" strokeWidth={1.2} />
+                  <Line x1={18} y1={7.8} x2={25} y2={8.8} stroke="#B8AE99" strokeWidth={1.2} />
+                </Svg>
+                {/* arched windows */}
+                <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
+                  {[0, 1].map((i) => (
+                    <View key={i} style={{ width: s * 0.12, height: s * 0.17, backgroundColor: isLit(i, 3) ? LIT : "#CBD8EA", borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06, borderWidth: 1.5, borderColor: "#8A7F6A", marginHorizontal: s * 0.05 }} />
+                  ))}
+                </View>
+                {lv >= 2 && (
+                  <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
+                    {[0, 1, 2].map((i) => (
+                      <View key={i} style={{ width: s * 0.09, height: s * 0.11, backgroundColor: isLit(i + 2, 1) ? LIT : "#CBD8EA", borderTopLeftRadius: s * 0.045, borderTopRightRadius: s * 0.045, borderWidth: 1.5, borderColor: "#8A7F6A", marginHorizontal: s * 0.035 }} />
+                    ))}
+                  </View>
+                )}
+                {/* door */}
+                <View style={{ position: "absolute", bottom: 0, width: s * 0.17, height: s * 0.2, backgroundColor: "#6B4423", borderTopLeftRadius: s * 0.085, borderTopRightRadius: s * 0.085, borderWidth: 1.5, borderColor: "#4E2F16" }} />
+                {/* verse banner (L2+) */}
+                {lv >= 2 && (
+                  <View style={{ position: "absolute", top: s * 0.05, right: s * 0.04, width: s * 0.06, height: s * 0.2, backgroundColor: "#7C2D3E", borderRadius: 2, borderWidth: 1, borderColor: "#5E1F2D", alignItems: "center", paddingTop: 2 }}>
+                    <View style={{ width: s * 0.03, height: 2, backgroundColor: "#F4D47C", marginVertical: 1.5 }} />
+                    <View style={{ width: s * 0.03, height: 2, backgroundColor: "#F4D47C", marginVertical: 1.5 }} />
+                    <View style={{ width: s * 0.03, height: 2, backgroundColor: "#F4D47C", marginVertical: 1.5 }} />
+                  </View>
+                )}
+              </View>
+            </View>
+            {/* library wing (L3) */}
+            {lv >= 3 && (
+              <View style={{ width: w * 0.24, height: H * 0.4, backgroundColor: "#E7DCC4", borderWidth: 2, borderColor: "#A2937A", borderBottomRightRadius: 4, marginLeft: -2, alignItems: "center", paddingTop: s * 0.04 }}>
+                <View style={{ width: s * 0.15, height: s * 0.22, backgroundColor: "#FFF3D6", borderRadius: 3, borderWidth: 1.5, borderColor: "#8A6D1C", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", paddingBottom: 2 }}>
+                  {["#B91C1C", "#1D4ED8", "#166534", "#C9963C", "#7C2D3E"].map((c, i) => (
+                    <View key={i} style={{ width: 3, height: s * (0.1 + (i % 3) * 0.03), backgroundColor: c, marginHorizontal: 0.8 }} />
+                  ))}
+                </View>
+                <View style={{ width: s * 0.1, height: s * 0.13, backgroundColor: "#6B4423", borderTopLeftRadius: 5, borderTopRightRadius: 5, marginTop: s * 0.05 }} />
+              </View>
+            )}
+          </View>
+          {lv >= 3 && (
+            <View style={{ width: w * 0.5, height: 4, backgroundColor: "#D6CDBB", borderRadius: 2, marginTop: 2, borderWidth: 1, borderColor: "#B8AE99" }} />
+          )}
+        </View>
+      );
+    }
+    case "fasting-house": {
+      // The Fasting House — a quiet cottage set apart for prayer.
+      // L1: sage cottage, candle-glow window, small cross over the door.
+      // L2: porch with a prayer bench, lantern, second glowing window.
+      // L3: glass garden window with plants, second bench, stone path.
+      const H = artH ?? s;
+      const w = s * 0.9;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          {/* chimney */}
+          <View style={{ position: "absolute", bottom: H * 0.52, right: s * 0.16, width: s * 0.09, height: s * 0.16, backgroundColor: "#8A8B7A", borderWidth: 1.5, borderColor: "#6B6C5C" }} />
+          <Svg width={w} height={s * 0.18} viewBox="0 0 100 20" style={{ marginBottom: -2 }}>
+            <Polygon points="2,20 50,2 98,20" fill="#A05244" stroke="#7E3B30" strokeWidth={2.5} />
+          </Svg>
+          <View style={{ width: w, height: H * 0.46, backgroundColor: "#E9EBDD", borderWidth: 2, borderColor: "#7A7C66", borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }}>
+            {sideShade(w, H * 0.46, 4)}
+            {/* candle-glow windows — always warm, even by day */}
+            <View style={{ position: "absolute", top: s * 0.07, left: s * 0.07, width: s * 0.15, height: s * 0.16, backgroundColor: "#FDE68A", borderRadius: 3, borderWidth: 1.5, borderColor: "#7A7C66", alignItems: "center", justifyContent: "center" }}>
+              <Svg width={s * 0.07} height={s * 0.1} viewBox="0 0 8 12">
+                <Rect x={3} y={5} width={2.4} height={6} fill="#F8FAFC" />
+                <Path d="M4.2 0.6 C5.4 2.4, 5.4 3.8, 4.2 5 C3 3.8, 3 2.4, 4.2 0.6 Z" fill="#F59E0B" />
+              </Svg>
+            </View>
+            {lv >= 2 && (
+              <View style={{ position: "absolute", top: s * 0.07, right: s * 0.07, width: s * 0.15, height: s * 0.16, backgroundColor: "#FDE68A", borderRadius: 3, borderWidth: 1.5, borderColor: "#7A7C66", alignItems: "center", justifyContent: "center" }}>
+                <Svg width={s * 0.07} height={s * 0.1} viewBox="0 0 8 12">
+                  <Rect x={3} y={5} width={2.4} height={6} fill="#F8FAFC" />
+                  <Path d="M4.2 0.6 C5.4 2.4, 5.4 3.8, 4.2 5 C3 3.8, 3 2.4, 4.2 0.6 Z" fill="#F59E0B" />
+                </Svg>
+              </View>
+            )}
+            {/* door with a small cross */}
+            <View style={{ position: "absolute", bottom: 0, left: w / 2 - s * 0.085, width: s * 0.17, height: s * 0.24, backgroundColor: "#5E4A33", borderTopLeftRadius: 7, borderTopRightRadius: 7, borderWidth: 1.5, borderColor: "#42331F", alignItems: "center", paddingTop: s * 0.03 }}>
+              <Svg width={s * 0.06} height={s * 0.09} viewBox="0 0 8 12">
+                <Rect x={3.2} y={0} width={1.8} height={12} fill="#E9C767" />
+                <Rect x={0.8} y={3.4} width={6.6} height={1.8} fill="#E9C767" />
+              </Svg>
+            </View>
+            {/* garden window (L3) — plants behind arched glass */}
+            {lv >= 3 && (
+              <View style={{ position: "absolute", bottom: s * 0.02, left: s * 0.05, width: s * 0.2, height: s * 0.24, backgroundColor: "#DDEBD2", borderTopLeftRadius: s * 0.1, borderTopRightRadius: s * 0.1, borderWidth: 1.5, borderColor: "#5F7355", overflow: "hidden", alignItems: "center", justifyContent: "flex-end" }}>
+                <Svg width={s * 0.17} height={s * 0.16} viewBox="0 0 20 18">
+                  <Path d="M10 17 L10 8 M10 11 C7 10, 5.4 8, 5 5 C8 5.4, 10 7, 10 11 M10 9 C13 8.4, 14.6 6.6, 15 3.6 C12 4, 10 5.8, 10 9" stroke="#3E7C43" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+                  <Rect x={6.5} y={15} width={7} height={3} fill="#A05244" />
+                </Svg>
+              </View>
+            )}
+          </View>
+          {/* porch bench + lantern (L2+) */}
+          {lv >= 2 && (
+            <View style={{ position: "absolute", bottom: 0, right: s * 0.04, alignItems: "center" }}>
+              <View style={{ width: s * 0.07, height: s * 0.1, backgroundColor: "#FDE68A", borderRadius: 3, borderWidth: 1.5, borderColor: "#42331F", marginBottom: 2 }} />
+              <View style={{ width: s * 0.2, height: s * 0.05, backgroundColor: "#8A5A2B", borderRadius: 2, borderWidth: 1, borderColor: "#5E3D22" }} />
+              <View style={{ flexDirection: "row" }}>
+                <View style={{ width: 3, height: s * 0.06, backgroundColor: "#5E3D22", marginHorizontal: s * 0.03 }} />
+                <View style={{ width: 3, height: s * 0.06, backgroundColor: "#5E3D22", marginHorizontal: s * 0.03 }} />
+              </View>
+            </View>
+          )}
+          {lv >= 3 && (
+            <View style={{ flexDirection: "row", marginTop: 2 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ width: s * 0.09, height: 4, backgroundColor: "#C9C4B4", borderRadius: 2, marginHorizontal: 2, borderWidth: 0.8, borderColor: "#A8A28E" }} />
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    }
+    case "gym": {
+      // The Gym — sturdy brick hall for training the body.
+      // L1: brick hall, wide glass front, kettlebell sign.
+      // L2: window band with dumbbell silhouettes, outdoor mat.
+      // L3: glass curtain front, trophy shelf in the window, track stripe.
+      const H = artH ?? s;
+      const w = s * 0.94;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          <View style={{ width: w, height: H * (lv >= 3 ? 0.58 : 0.5), backgroundColor: "#A5553F", borderWidth: 2, borderColor: "#71382A", borderRadius: 4 }}>
+            {sideShade(w, H * 0.58, 4)}
+            {/* parapet band */}
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: s * 0.09, backgroundColor: "#8C4630", borderTopLeftRadius: 3, borderTopRightRadius: 3, flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+              {/* barbell mark */}
+              <Svg width={s * 0.3} height={s * 0.07} viewBox="0 0 30 7">
+                <Line x1={3} y1={3.5} x2={27} y2={3.5} stroke="#F3E3BC" strokeWidth={1.8} />
+                <Rect x={5} y={0.5} width={3} height={6} rx={1} fill="#F3E3BC" />
+                <Rect x={9.5} y={1.5} width={2.4} height={4} rx={1} fill="#F3E3BC" />
+                <Rect x={18.1} y={1.5} width={2.4} height={4} rx={1} fill="#F3E3BC" />
+                <Rect x={22} y={0.5} width={3} height={6} rx={1} fill="#F3E3BC" />
+              </Svg>
+            </View>
+            {/* glass front */}
+            <View style={{ position: "absolute", top: s * 0.13, left: s * 0.06, right: s * 0.06, height: s * (lv >= 3 ? 0.3 : 0.2), backgroundColor: lv >= 3 ? "#BFE0EA" : "#9FC6D4", borderRadius: 4, borderWidth: 1.5, borderColor: "#71382A", flexDirection: "row", alignItems: "flex-end", justifyContent: "space-around", paddingBottom: 3, overflow: "hidden" }}>
+              {/* dumbbell silhouettes */}
+              {[0, 1, 2].map((i) => (
+                <Svg key={i} width={s * 0.13} height={s * 0.08} viewBox="0 0 16 9">
+                  <Line x1={2} y1={4.5} x2={14} y2={4.5} stroke="#5E3D22" strokeWidth={1.6} />
+                  <Rect x={2.5} y={1.5} width={2.6} height={6} rx={1} fill="#374151" />
+                  <Rect x={10.9} y={1.5} width={2.6} height={6} rx={1} fill="#374151" />
+                </Svg>
+              ))}
+              {/* trophy shelf (L3) */}
+              {lv >= 3 && [0, 1].map((i) => (
+                <Svg key={`t${i}`} width={s * 0.09} height={s * 0.11} viewBox="0 0 10 12">
+                  <Path d="M2 1 h6 v3.4 c0 2-1.3 3.1-3 3.1 S2 6.4, 2 4.4 Z" fill="#E9C767" stroke="#8A6D1C" strokeWidth={0.9} />
+                  <Path d="M2 2 C0.6 2, 0.2 3.4, 1 4.4 M8 2 C9.4 2, 9.8 3.4, 9 4.4" stroke="#8A6D1C" strokeWidth={0.9} fill="none" />
+                  <Rect x={4.2} y={7.6} width={1.6} height={1.8} fill="#8A6D1C" />
+                  <Rect x={2.6} y={9.4} width={4.8} height={1.6} fill="#8A6D1C" />
+                </Svg>
+              ))}
+            </View>
+            {/* kettlebell sign */}
+            <View style={{ position: "absolute", bottom: s * 0.03, left: s * 0.06, width: s * 0.13, height: s * 0.15, alignItems: "center" }}>
+              <Svg width={s * 0.13} height={s * 0.15} viewBox="0 0 13 15">
+                <Path d="M3.4 6.4 C3.4 2.6, 9.6 2.6, 9.6 6.4" fill="none" stroke="#374151" strokeWidth={1.8} />
+                <Circle cx={6.5} cy={10} r={4.4} fill="#374151" />
+                <Circle cx={5.2} cy={8.6} r={1.2} fill="#6B7280" />
+              </Svg>
+            </View>
+            {/* door */}
+            <View style={{ position: "absolute", bottom: 0, right: s * 0.07, width: s * 0.16, height: s * 0.2, backgroundColor: "#4A2E28", borderTopLeftRadius: 6, borderTopRightRadius: 6, borderWidth: 1.5, borderColor: "#2E1B16" }} />
+            {/* track stripe (L3) */}
+            {lv >= 3 && <View style={{ position: "absolute", bottom: s * 0.02, left: s * 0.26, right: s * 0.26, height: 3, backgroundColor: "#E4572E", borderRadius: 2 }} />}
+          </View>
+          {/* outdoor mat (L2+) */}
+          {lv >= 2 && (
+            <View style={{ width: w * 0.6, height: 5, backgroundColor: "#3E6B8C", borderRadius: 2.5, marginTop: 2, borderWidth: 1, borderColor: "#2C4E66" }} />
+          )}
+        </View>
+      );
+    }
+    case "outreach-center": {
+      // Outreach Center — warm storefront with a serving awning.
+      // L1: awning, heart sign, crates by the door.
+      // L2: donation box, pantry shelf visible in the window.
+      // L3: wide awning + banner, crate tower, serving counter at the front.
+      const H = artH ?? s;
+      const w = s * 0.92;
+      return (
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          {/* crates beside the door */}
+          <View style={{ position: "absolute", bottom: 0, left: s * 0.02, alignItems: "center" }}>
+            <View style={{ width: s * 0.15, height: s * 0.1, backgroundColor: "#C69A63", borderRadius: 2, borderWidth: 1.5, borderColor: "#8A5A2B" }} />
+            <View style={{ width: s * 0.17, height: s * 0.11, backgroundColor: "#B8894F", borderRadius: 2, borderWidth: 1.5, borderColor: "#8A5A2B", marginTop: -1 }} />
+            {lv >= 3 && <View style={{ width: s * 0.12, height: s * 0.09, backgroundColor: "#C69A63", borderRadius: 2, borderWidth: 1.5, borderColor: "#8A5A2B", marginTop: -1 }} />}
+          </View>
+          <View style={{ width: w, height: H * 0.54, backgroundColor: "#F6E3C2", borderWidth: 2, borderColor: "#9A6A35", borderRadius: 4, marginLeft: s * 0.08 }}>
+            {sideShade(w, H * 0.54, 4)}
+            {/* serving awning */}
+            <View style={{ position: "absolute", top: -s * 0.02, left: -s * 0.02, right: -s * 0.02, height: s * 0.09, backgroundColor: "#2E7D74", borderRadius: 3, borderWidth: 1.5, borderColor: "#1F5A54", flexDirection: "row", overflow: "hidden" }}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <View key={i} style={{ flex: 1, backgroundColor: i % 2 ? "#2E7D74" : "#F6E3C2" }} />
+              ))}
+            </View>
+            {/* heart sign */}
+            <View style={{ position: "absolute", top: s * 0.1, alignSelf: "center", width: s * 0.16, height: s * 0.16, borderRadius: s * 0.08, backgroundColor: "#FFF8E7", borderWidth: 2, borderColor: "#B3543F", alignItems: "center", justifyContent: "center" }}>
+              <Svg width={s * 0.1} height={s * 0.09} viewBox="0 0 20 18">
+                <Path d="M10 16.4 C4 12.4, 1.6 9.2, 1.6 5.8 C1.6 3, 3.8 1.2, 6.2 1.2 C7.9 1.2, 9.3 2.1, 10 3.4 C10.7 2.1, 12.1 1.2, 13.8 1.2 C16.2 1.2, 18.4 3, 18.4 5.8 C18.4 9.2, 16 12.4, 10 16.4 Z" fill="#C4493B" />
+              </Svg>
+            </View>
+            {/* pantry window (L2+) — cans and boxes on a shelf */}
+            {lv >= 2 && (
+              <View style={{ position: "absolute", top: s * 0.12, left: s * 0.05, width: s * 0.26, height: s * 0.17, backgroundColor: "#FFF3D6", borderRadius: 3, borderWidth: 1.5, borderColor: "#9A6A35", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", paddingBottom: 2 }}>
+                {["#C4493B", "#2E7D74", "#E9C767", "#7A5230"].map((c, i) => (
+                  <View key={i} style={{ width: s * 0.045, height: s * (0.07 + (i % 2) * 0.03), backgroundColor: c, borderRadius: 1.5, marginHorizontal: 1.2 }} />
+                ))}
+                <View style={{ position: "absolute", bottom: s * 0.09, left: 2, right: 2, height: 2, backgroundColor: "#9A6A35" }} />
+              </View>
+            )}
+            {/* donation box (L2+) */}
+            {lv >= 2 && (
+              <View style={{ position: "absolute", bottom: s * 0.02, right: s * 0.04, width: s * 0.11, height: s * 0.13, backgroundColor: "#2E7D74", borderRadius: 3, borderWidth: 1.5, borderColor: "#1F5A54", alignItems: "center", paddingTop: 2 }}>
+                <View style={{ width: s * 0.06, height: 2.4, backgroundColor: "#123B36", borderRadius: 1.2 }} />
+              </View>
+            )}
+            {/* serving counter (L3) — open front with a counter ledge */}
+            {lv >= 3 && (
+              <View style={{ position: "absolute", bottom: 0, left: s * 0.08, width: s * 0.3, height: s * 0.1, backgroundColor: "#8A5A2B", borderTopLeftRadius: 3, borderTopRightRadius: 3, borderWidth: 1.5, borderColor: "#5E3D22", flexDirection: "row", justifyContent: "space-around", alignItems: "flex-start", paddingTop: 2 }}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={{ width: s * 0.05, height: s * 0.04, backgroundColor: "#E9C767", borderRadius: 2 }} />
+                ))}
+              </View>
+            )}
+            {/* door */}
+            <View style={{ position: "absolute", bottom: 0, left: w / 2 - s * 0.02, width: s * 0.17, height: s * 0.21, backgroundColor: "#7A5230", borderTopLeftRadius: 7, borderTopRightRadius: 7, borderWidth: 1.5, borderColor: "#4E2F16" }} />
+            {/* welcome banner (L3) */}
+            {lv >= 3 && (
+              <View style={{ position: "absolute", top: s * 0.11, right: s * 0.04, width: s * 0.06, height: s * 0.19, backgroundColor: "#C4493B", borderRadius: 2, borderWidth: 1, borderColor: "#8E2F24", alignItems: "center", paddingTop: 2 }}>
+                <Svg width={s * 0.04} height={s * 0.04} viewBox="0 0 20 18">
+                  <Path d="M10 16.4 C4 12.4, 1.6 9.2, 1.6 5.8 C1.6 3, 3.8 1.2, 6.2 1.2 C7.9 1.2, 9.3 2.1, 10 3.4 C10.7 2.1, 12.1 1.2, 13.8 1.2 C16.2 1.2, 18.4 3, 18.4 5.8 C18.4 9.2, 16 12.4, 10 16.4 Z" fill="#F6E3C2" />
+                </Svg>
+              </View>
+            )}
           </View>
         </View>
       );
@@ -4986,6 +5267,19 @@ export default function HometownScreen() {
       return;
     } else if (b.type === "post-office") {
       router.push(`/post-office-interior?buildingId=${b.id}`);
+      return;
+    // Ministry Row — enterable ministry interiors
+    } else if (b.type === "bible-study-hall") {
+      router.push(`/bible-study-hall-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "fasting-house") {
+      router.push(`/fasting-house-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "gym") {
+      router.push(`/gym-interior?buildingId=${b.id}`);
+      return;
+    } else if (b.type === "outreach-center") {
+      router.push(`/outreach-center-interior?buildingId=${b.id}`);
       return;
     } else if (b.type === "bank" || b.type === "bank-tower") {
       router.push(`/bank-interior?buildingId=${b.id}`);

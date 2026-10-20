@@ -16,6 +16,7 @@ const CHIMNEY_TYPES = new Set([
   "pawn-house",
   "farm",
   "inn",
+  "fasting-house",
   "bakery",
   "pizza-place",
   "burger-joint",

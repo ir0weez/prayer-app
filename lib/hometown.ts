@@ -134,6 +134,13 @@ export type BuildingType =
   // Hospital (town): care for the town. The pawn goes here for doctor
   // appointments; a checkup grants a healing blessing for Dark Forest battles.
   | "hospital"
+  // Ministry Row (town): the southern lots converted from underused
+  // artisan services into ministry buildings tied to Jonathan's real
+  // schedule — the Hero and villagers are routed here by schedule events.
+  | "bible-study-hall" // study hall: circle tables, open Bibles, library wall at L3
+  | "fasting-house"    // quiet house of prayer & fasting: benches, candles, bare table
+  | "gym"              // the gym: mats, weights, a small court; workouts route here
+  | "outreach-center"  // food pantry + serving counter: outreach events route here
   // Artisans' Row (town): artisan services along Artisans' Way, in the
   // southern extension below the hub district. All preset lots — unlock &
   // upgrade only, no designing. All have enterable interiors.
@@ -459,6 +466,13 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // here for doctor appointments, and a checkup grants a healing blessing
   // for the next Dark Forest battle (bigger blessing at higher levels).
   "hospital": { name: "Hospital", icon: "", cost: 2750, tier: 2, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +30 coins/day." },
+  // Ministry Row — special enterable buildings tied to Jonathan's schedule
+  // and ministries. Costs/incomes sit in line with the Artisans' Row
+  // buildings they replaced, so the tuned 365-day pacing is untouched.
+  "bible-study-hall": { name: "Bible Study Hall", icon: "", cost: 2750, tier: 2, incomePerDay: 60,  xpPerDay: 30, maps: ["town"], description: "Circles of tables and open Bibles under a verse banner. Bible Study gatherings meet here. +60 coins/day, +30 XP/day." },
+  "fasting-house":    { name: "The Fasting House", icon: "", cost: 1320, tier: 1, incomePerDay: 30,  xpPerDay: 15, maps: ["town"], description: "A quiet house set apart for prayer and fasting — benches, candles, and a table that stays bare. +30 coins/day, +15 XP/day." },
+  "gym":              { name: "The Gym",           icon: "", cost: 1650, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Mats, weights, and room to move. Workouts and training happen here. +40 coins/day." },
+  "outreach-center":  { name: "Outreach Center",   icon: "", cost: 990,  tier: 1, incomePerDay: 30,  xpPerDay: 10, maps: ["town"], description: "Pantry shelves, donation boxes, and a serving counter for the neighborhood. +30 coins/day, +10 XP/day." },
   // Artisans' Row — artisan services in the southern extension. Icons are
   // drawn as SVG in the art switch, not emoji, so defs use empty icons.
   "inn":         { name: "Wayside Inn",       icon: "", cost: 1320, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the Hero greets the guests. +60 coins/day." },
@@ -1552,20 +1566,25 @@ export const TOWN_LOTS: TownLot[] = [
   // extension. Served by Southgate Lane, linked to Chapel Avenue.
   { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 1320, name: "Healing Hills", presetType: "hospital" },
   { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 1650, name: "Starlight Green", presetType: "amphitheater" },
-  // Artisans' Row — five artisan services on Artisans' Way, the craft street
-  // below the hub district. Preset lots: unlock & upgrade, no designing.
-  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["inn"], cost: 1320, name: "Wayside Inn", presetType: "inn" },
+  // Ministry Row (north side) — the Wayside Inn lot is now the Fasting
+  // House, a quiet retreat at the head of the street. The remaining
+  // artisan services keep their lots. Preset: unlock & upgrade only.
+  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["fasting-house"], cost: 1320, name: "Fasting House", presetType: "fasting-house" },
   { id: "town-lot-carpenter", x: 2, y: 28, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 1210, name: "Carpenter's Workshop", presetType: "carpenter" },
   { id: "town-lot-pottery", x: 4, y: 28, w: 2, h: 2, allowedTypes: ["pottery"], cost: 1100, name: "Pottery Studio", presetType: "pottery" },
   { id: "town-lot-musichall", x: 6, y: 28, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 1760, name: "Music Hall", presetType: "music-hall" },
   { id: "town-lot-tailor", x: 8, y: 28, w: 2, h: 2, allowedTypes: ["tailor"], cost: 1100, name: "Tailor", presetType: "tailor" },
-  // Artisans' Row, south side — the observatory, bathhouse, apothecary,
-  // town hall, and post office. Preset lots: unlock & upgrade, no designing.
+  // Ministry Row, south side — the observatory and apothecary keep their
+  // lots; the bathhouse is now the Gym, the town hall is now the Bible
+  // Study Hall, and the post office is now the Outreach Center. Preset
+  // lots: unlock & upgrade, no designing. (Existing buildings on the
+  // converted lots are remapped to the new types — see
+  // ensureTownNeighborhood — keeping their levels.)
   { id: "town-lot-observatory", x: 0, y: 31, w: 2, h: 2, allowedTypes: ["observatory"], cost: 2200, name: "Observatory", presetType: "observatory" },
-  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["bathhouse"], cost: 1650, name: "Bathhouse", presetType: "bathhouse" },
+  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["gym"], cost: 1650, name: "The Gym", presetType: "gym" },
   { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 1430, name: "Apothecary", presetType: "apothecary" },
-  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["town-hall"], cost: 2750, name: "Town Hall", presetType: "town-hall" },
-  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["post-office"], cost: 990, name: "Post Office", presetType: "post-office" },
+  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["bible-study-hall"], cost: 2750, name: "Bible Study Hall", presetType: "bible-study-hall" },
+  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["outreach-center"], cost: 990, name: "Outreach Center", presetType: "outreach-center" },
   // Southgate — fills the gap between the hospital/amphitheater row (y14-15)
   // and the hub district. All preset lots: unlock & upgrade, no designing.
   { id: "town-lot-s15", x: 2, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate West", presetType: "pizza-place" },
@@ -1756,7 +1775,33 @@ export function cottageResidents(
   );
 }
 
+/**
+ * Ministry Row conversion (Oct 2026): four underused southern lots became
+ * ministry buildings. A building already standing on a converted lot keeps
+ * its plot and level — only its type changes to the lot's new building.
+ * Keyed by lot id so a legacy free-placed building of an old type (not on
+ * the converted lot) is left exactly as it was.
+ */
+const LOT_TYPE_REMAP: Record<string, { from: BuildingType; to: BuildingType }> = {
+  "town-lot-inn": { from: "inn", to: "fasting-house" },
+  "town-lot-bathhouse": { from: "bathhouse", to: "gym" },
+  "town-lot-townhall": { from: "town-hall", to: "bible-study-hall" },
+  "town-lot-postoffice": { from: "post-office", to: "outreach-center" },
+};
+
 export function ensureTownNeighborhood(map: MapState): MapState {
+  // 0. Ministry Row conversion: remap building types on converted lots
+  //    (built state and level are preserved).
+  const rawBuildings = map.buildings || [];
+  const remapped = rawBuildings.map((b) => {
+    if (!b.townLotId) return b;
+    const remap = LOT_TYPE_REMAP[b.townLotId];
+    if (remap && b.type === remap.from) return { ...b, type: remap.to };
+    return b;
+  });
+  const remapChanged = remapped.some((b, i) => b !== rawBuildings[i]);
+  if (remapChanged) map = { ...map, buildings: remapped };
+
   // 1. Roads: drop non-path roads and stale path tiles (no longer in
   //    TOWN_PATH, e.g. after a grid resize), seed the winding path.
   const currentPathIds = new Set(townPathRoads().map((r) => r.id));

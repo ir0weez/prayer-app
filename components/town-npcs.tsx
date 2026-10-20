@@ -60,6 +60,11 @@ const ACTIVITY_ICONS: Record<string, string> = {
   /** Gathering places — villagers tending, gathering, resting together. */
   "community-garden": "spa",
   "fountain-plaza": "people",
+  /** Ministry Row — schedule events route the hero (and villagers) here. */
+  "bible-study-hall": "menu-book",
+  "fasting-house": "self-improvement",
+  gym: "fitness-center",
+  "outreach-center": "volunteer-activism",
   /** Schedule sync — the pawn mimics Jonathan's day; villagers join people events. */
   "amphitheater": "theater-comedy",
   "hospital": "local-hospital",

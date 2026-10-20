@@ -2630,6 +2630,7 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
           opacity: collecting ? collectOpacity : 1,
           flexDirection: "row",
           alignItems: "center",
+          flexShrink: 0,
           backgroundColor: palette.container,
           borderRadius: 999, // Material pill
           paddingHorizontal: 6,
@@ -2653,16 +2654,19 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
             backgroundColor: isXP ? palette.icon : "#D4AF37",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
             marginRight: 5,
           }}
         >
           <MaterialIcons name={isXP ? "bolt" : "monetization-on"} size={11} color="#FFFFFF" />
         </Animated.View>
         <Text
+          numberOfLines={1}
           style={{
             fontSize: 11,
             fontWeight: "600",
             letterSpacing: 0.3,
+            flexShrink: 0,
             color: palette.onContainer,
           }}
         >
@@ -2826,15 +2830,39 @@ export default function HometownScreen() {
   const mapGridRef = useRef<View>(null);
   const burstIdRef = useRef(0);
   const fxTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // FX teardown discipline: every deferred award / animation completion in
+  // the collect sequence checks `mountedRef` before touching state, and the
+  // Collect All run is identified by `fxRunRef` so stale callbacks from an
+  // interrupted run can never fire into a newer one. The morph-back used to
+  // clear collectFx straight from the flip-reverse callback while the face
+  // swap raced it — that chain is now a single guarded completion path.
+  const mountedRef = useRef(true);
+  const fxRunRef = useRef(0);
+  const fxPhaseRef = useRef<{ run: number; landed: boolean; cleared: boolean }>({ run: 0, landed: false, cleared: false });
+  const flipAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const morphAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  useEffect(() => () => { fxTimeoutsRef.current.forEach(clearTimeout); }, []);
+  useEffect(() => { mountedRef.current = true; }, []);
+  useEffect(() => () => {
+    mountedRef.current = false;
+    fxTimeoutsRef.current.forEach(clearTimeout);
+    fxTimeoutsRef.current = [];
+    flipAnimRef.current?.stop();
+    morphAnimRef.current?.stop();
+  }, []);
 
   const measureBalance = useCallback(() => {
-    const el = balanceRef.current;
-    if (!el) return;
-    el.measure((_x, _y, w, h, px, py) => {
-      if (w > 0) balancePosRef.current = { x: px + w / 2, y: py + h / 2 };
-    });
+    const el = balanceRef.current as unknown as View | null;
+    if (!el || typeof el.measure !== "function") return;
+    try {
+      el.measure((_x, _y, w, h, px, py) => {
+        if (mountedRef.current && Number.isFinite(w) && w > 0 && Number.isFinite(px) && Number.isFinite(py)) {
+          balancePosRef.current = { x: px + w / 2, y: py + h / 2 };
+        }
+      });
+    } catch {
+      // Measuring is best-effort — balanceTarget() has a fallback position.
+    }
   }, []);
   useEffect(() => { measureBalance(); }, [measureBalance]);
 
@@ -2846,17 +2874,24 @@ export default function HometownScreen() {
     return { x: Math.max(60, windowW - 90), y: insets.top + 44 };
   }, [windowW, insets.top]);
 
-  const spawnBurst = useCallback((sx: number, sy: number, kind: "coins" | "xp") => {
-    const d = balanceTarget();
-    const id = `burst-${burstIdRef.current++}`;
-    setBursts((prev) => [...prev, { id, sx, sy, dx: d.x, dy: d.y, kind }]);
-  }, [balanceTarget]);
-
   const removeBurst = useCallback((id: string) => {
     setBursts((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
+  const spawnBurst = useCallback((sx: number, sy: number, kind: "coins" | "xp") => {
+    if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
+    const d = balanceTarget();
+    const id = `burst-${burstIdRef.current++}`;
+    setBursts((prev) => [...prev.slice(-11), { id, sx, sy, dx: d.x, dy: d.y, kind }]);
+    // Safety net: a burst always leaves the overlay, even if one of its
+    // flyers is interrupted before it can report in.
+    fxTimeoutsRef.current.push(setTimeout(() => {
+      if (mountedRef.current) removeBurst(id);
+    }, COIN_FLY_MS + 4 * 80 + 800));
+  }, [balanceTarget, removeBurst]);
+
   const pulseBalance = useCallback(() => {
+    if (!mountedRef.current) return;
     balancePulseAnim.setValue(0);
     Animated.timing(balancePulseAnim, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
   }, [balancePulseAnim]);
@@ -2864,10 +2899,15 @@ export default function HometownScreen() {
   /** Measure the map grid's on-screen origin, then run cb with it. */
   const withGridOrigin = useCallback((cb: (gx: number, gy: number) => void) => {
     const el = mapGridRef.current;
-    if (!el) { cb(0, 0); return; }
-    el.measure((_x, _y, w, _h, px, py) => {
-      if (w > 0) cb(px, py); else cb(0, 0);
-    });
+    if (!el || typeof el.measure !== "function") { cb(0, 0); return; }
+    try {
+      el.measure((_x, _y, w, _h, px, py) => {
+        if (!mountedRef.current) return;
+        if (w > 0 && Number.isFinite(px) && Number.isFinite(py)) cb(px, py); else cb(0, 0);
+      });
+    } catch {
+      cb(0, 0);
+    }
   }, []);
   /** Income bonus breakdown sheet (the collapsed header chips). */
   const [incomeBreakdownOpen, setIncomeBreakdownOpen] = useState(false);
@@ -2927,15 +2967,38 @@ export default function HometownScreen() {
   // off the screen (the pill also has a maxWidth cap in the header).
   const headerCoinText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(2));
   useEffect(() => {
-    Animated.timing(pillMorph, {
+    // Stop any in-flight morph first: two JS-driver timings writing the
+    // same value (plus the face swap) racing each other is exactly the
+    // morph-back churn this effect exists to order.
+    morphAnimRef.current?.stop();
+    const anim = Animated.timing(pillMorph, {
       toValue: pillCollectMode ? 1 : 0,
       duration: 280,
       easing: Easing.inOut(Easing.sin),
       useNativeDriver: false,
-    }).start();
-    const t = setTimeout(() => setPillFace(pillCollectMode ? "collect" : "balance"), 140);
-    return () => clearTimeout(t);
+    });
+    morphAnimRef.current = anim;
+    anim.start();
+    const t = setTimeout(() => {
+      if (mountedRef.current) setPillFace(pillCollectMode ? "collect" : "balance");
+    }, 140);
+    return () => {
+      clearTimeout(t);
+      anim.stop();
+    };
   }, [pillCollectMode, pillMorph]);
+  // The header pill's outer transform: pulse and morph scales merged into
+  // ONE derived value. Two separate { scale } entries driven by two
+  // different animated values used to sit in the same transform array and
+  // update concurrently during the collect teardown.
+  const pillScale = useMemo(
+    () =>
+      Animated.multiply(
+        balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }),
+        pillMorph.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.93, 1] })
+      ),
+    [balancePulseAnim, pillMorph]
+  );
 
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
@@ -5053,35 +5116,85 @@ export default function HometownScreen() {
     // Zero the buildings NOW (map pills vanish instantly), the balance ticks
     // up when the flying coins land ~0.85s later.
     saveMap({ ...map, buildings: updatedBuildings });
-    measureBalance();
-    // Fan the coins from up to 8 pending buildings toward the balance.
-    withGridOrigin((gx, gy) => {
-      pendingBuildings.slice(0, 8).forEach((b) => {
-        const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
-        spawnBurst(
-          gx + (b.x + fp.w / 2) * cellSize,
-          gy + (b.y + fp.h / 2) * cellSize,
-          xpIncomeFor(b.type, b.level || 1) > 0 ? "xp" : "coins"
-        );
-      });
-    });
-    // The header pill turns: flips to the green "Collected!" face while the
-    // coins are in the air, then turns back.
-    setCollectFx({ coins: totalCoins, xp: totalXP });
-    collectFlip.setValue(0);
-    Animated.timing(collectFlip, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.sin), useNativeDriver: false }).start();
-    fxTimeoutsRef.current.push(setTimeout(() => {
+    const awardNow = () => {
       if (totalXP > 0) {
         awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
       }
       if (totalCoins > 0) {
         addCoins(Math.round(totalCoins * 100) / 100);
       }
-      pulseBalance();
-    }, COIN_LAND_MS));
-    fxTimeoutsRef.current.push(setTimeout(() => {
-      Animated.timing(collectFlip, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: false }).start(() => setCollectFx(null));
-    }, COIN_LAND_MS + 350));
+    };
+    // The collect must NEVER crash the app: any failure in the FX layer
+    // falls back to awarding instantly with no animation at all.
+    try {
+      // One run, one completion path. Every deferred step below checks the
+      // run id + phase flags, so an interrupted flip, a double-fired
+      // callback, or an unmounted screen can never tear the pill down
+      // halfway or set state after the FX is gone.
+      const run = fxRunRef.current + 1;
+      fxRunRef.current = run;
+      fxPhaseRef.current = { run, landed: false, cleared: false };
+      const fxAlive = () =>
+        mountedRef.current && fxPhaseRef.current.run === run;
+
+      const clearFx = () => {
+        if (!fxAlive() || fxPhaseRef.current.cleared) return;
+        fxPhaseRef.current.cleared = true;
+        collectFlip.setValue(0);
+        setCollectFx(null);
+      };
+      const landFx = () => {
+        if (!fxAlive() || fxPhaseRef.current.landed) return;
+        fxPhaseRef.current.landed = true;
+        awardNow();
+        pulseBalance();
+        // Morph back: ONE flip-reverse. Its completion clears the FX —
+        // and only on a genuine finish; a safety timeout covers the case
+        // where the animation is interrupted and never reports back.
+        flipAnimRef.current?.stop();
+        const back = Animated.timing(collectFlip, {
+          toValue: 0,
+          duration: 240,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        });
+        flipAnimRef.current = back;
+        back.start(({ finished }) => {
+          if (finished) clearFx();
+        });
+        fxTimeoutsRef.current.push(setTimeout(clearFx, 700));
+      };
+
+      measureBalance();
+      // Fan the coins from up to 8 pending buildings toward the balance.
+      withGridOrigin((gx, gy) => {
+        if (!fxAlive()) return;
+        pendingBuildings.slice(0, 8).forEach((b) => {
+          const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+          spawnBurst(
+            gx + (b.x + fp.w / 2) * cellSize,
+            gy + (b.y + fp.h / 2) * cellSize,
+            xpIncomeFor(b.type, b.level || 1) > 0 ? "xp" : "coins"
+          );
+        });
+      });
+      // The header pill turns: flips to the green "Collected!" face while
+      // the coins are in the air, then turns back via landFx/clearFx.
+      setCollectFx({ coins: totalCoins, xp: totalXP });
+      collectFlip.setValue(0);
+      flipAnimRef.current?.stop();
+      const fwd = Animated.timing(collectFlip, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: false,
+      });
+      flipAnimRef.current = fwd;
+      fwd.start();
+      fxTimeoutsRef.current.push(setTimeout(landFx, COIN_LAND_MS));
+    } catch {
+      awardNow();
+    }
   };
 
   /** Send a prayer light out on a mission. */
@@ -5276,6 +5389,7 @@ export default function HometownScreen() {
       });
     }
     fxTimeoutsRef.current.push(setTimeout(() => {
+      if (!mountedRef.current) return;
       if (isXP) {
         awardCustomXP(Math.max(1, Math.floor(amount)), `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
       } else {
@@ -5406,7 +5520,7 @@ export default function HometownScreen() {
           <Animated.View
             ref={balanceRef}
             onLayout={measureBalance}
-            style={{ flexShrink: 1, maxWidth: Math.round(windowW * 0.5), transform: [{ scale: balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }) }, { scale: pillMorph.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.93, 1] }) }] }}
+            style={{ flexShrink: 1, maxWidth: Math.round(windowW * 0.5), transform: [{ scale: pillScale }] }}
           >
             <Pressable
               onPress={pillCollectMode && !collectFx ? handleCollectAll : undefined}
@@ -6115,8 +6229,8 @@ export default function HometownScreen() {
                   position: "absolute",
                   left: b.x * cellSize + 2,
                   top: b.y * cellSize - 12,
-                  zIndex: 98,
-                  elevation: 98,
+                  zIndex: 1990,
+                  elevation: 1990,
                 }}
               >
                 <View
@@ -6173,7 +6287,8 @@ export default function HometownScreen() {
                     height: 36,
                     alignItems: "center",
                     justifyContent: "center",
-                    zIndex: 99,
+                    zIndex: 1991,
+                    elevation: 1991,
                     opacity: 0.45,
                   }}
                 >
@@ -6190,14 +6305,21 @@ export default function HometownScreen() {
                 pointerEvents="box-none"
                 style={{
                   position: "absolute",
-                  left: b.x * cellSize + fp.w * cellSize - 30,
+                  // Wide slot anchored on the building's top-right corner.
+                  // The old 60dp box was narrower than the pill itself, so
+                  // Yoga capped the pill and its amount wrapped to two
+                  // lines. 104dp always fits icon + "+132.10" + markers.
+                  left: (b.x + fp.w) * cellSize - 44,
                   top: b.y * cellSize - 14,
-                  width: 60,
+                  width: 104,
                   height: 60,
                   alignItems: "center",
                   justifyContent: "center",
-                  zIndex: 100,
-                  elevation: 100,
+                  // Above ALL building art: depth-sorted buildings carry
+                  // zIndex up to ~gridH*cellSize inside their layer, so the
+                  // badge layer must sit higher still.
+                  zIndex: 2000,
+                  elevation: 2000,
                 }}
               >
                 <SpinningCoin

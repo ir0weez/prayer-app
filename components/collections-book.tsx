@@ -9,10 +9,12 @@ import {
   FISH_SPECIES,
   FLOWER_KINDS,
   RARITY_COLORS,
+  SHELL_SPECIES,
   loadCollections,
   type CollectionSetId,
   type CollectionState,
 } from "@/lib/collections";
+import { ShellArt } from "@/components/shell-art";
 import { ALL_DEMON_NAMES } from "@/lib/dark-forest";
 
 type Props = {
@@ -41,7 +43,13 @@ export function CollectionsBook({ visible, onClose, pt }: Props) {
 
   const meta = COLLECTION_SETS[tab];
   const caughtCount =
-    tab === "fish" ? state?.fish.length ?? 0 : tab === "demons" ? state?.demons.length ?? 0 : state?.flowers.length ?? 0;
+    tab === "fish"
+      ? state?.fish.length ?? 0
+      : tab === "demons"
+        ? state?.demons.length ?? 0
+        : tab === "shells"
+          ? state?.shells.length ?? 0
+          : state?.flowers.length ?? 0;
   const isComplete = (state?.completedSets ?? []).includes(tab);
 
   return (
@@ -163,6 +171,33 @@ export function CollectionsBook({ visible, onClose, pt }: Props) {
                       <MaterialIcons name="bug-report" size={26} color={caught ? "#DC2626" : "#9CA3AF"} />
                       <Text style={{ fontSize: 11, fontWeight: "700", color: caught ? pt.text : "#9CA3AF", marginTop: 4, textAlign: "center" }}>
                         {caught ? name : "???"}
+                      </Text>
+                    </View>
+                  );
+                })}
+              {tab === "shells" &&
+                SHELL_SPECIES.map((s) => {
+                  const caught = state?.shells.includes(s.id) ?? false;
+                  return (
+                    <View
+                      key={s.id}
+                      style={{
+                        width: "31%",
+                        borderRadius: 10,
+                        padding: 8,
+                        alignItems: "center",
+                        backgroundColor: caught ? "#F0F9FF" : "rgba(0,0,0,0.04)",
+                        borderWidth: 1,
+                        borderColor: caught ? RARITY_COLORS[s.rarity] : "transparent",
+                        opacity: caught ? 1 : 0.55,
+                      }}
+                    >
+                      <ShellArt icon={s.icon} color={caught ? s.color : "#9CA3AF"} size={28} />
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: caught ? pt.text : "#9CA3AF", marginTop: 4, textAlign: "center" }}>
+                        {caught ? s.name : "???"}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: caught ? RARITY_COLORS[s.rarity] : "#9CA3AF", textTransform: "capitalize" }}>
+                        {s.rarity}
                       </Text>
                     </View>
                   );

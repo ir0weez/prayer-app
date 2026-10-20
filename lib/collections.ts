@@ -7,7 +7,7 @@ export const COLLECTIONS_STORAGE_KEY = "prayercircle.hometown.collections.v1";
 
 import { ALL_DEMON_NAMES } from "./dark-forest";
 
-export type CollectionSetId = "fish" | "demons" | "flowers";
+export type CollectionSetId = "fish" | "demons" | "flowers" | "shells";
 
 /* ---------------- Fish species (River of Life) ---------------- */
 
@@ -67,6 +67,41 @@ export const FLOWER_KINDS = [
   { kind: 5, name: "Forget-me-not" },
 ] as const;
 
+/* ---------------- Shells (Mercy's Shore — Tide Pools) ---------------- */
+
+export type ShellSpecies = {
+  id: string;
+  name: string;
+  rarity: FishRarity;
+  /** Relative find weight in the tide pools. */
+  weight: number;
+  color: string;
+  /** Silhouette key drawn by components/shell-art. */
+  icon: string;
+};
+
+export const SHELL_SPECIES: ShellSpecies[] = [
+  { id: "quahog", name: "Quahog Clam", rarity: "common", weight: 30, color: "#A8A29E", icon: "clam" },
+  { id: "scallop", name: "Bay Scallop", rarity: "common", weight: 28, color: "#FB923C", icon: "scallop" },
+  { id: "cowrie", name: "Tiger Cowrie", rarity: "uncommon", weight: 18, color: "#B45309", icon: "cowrie" },
+  { id: "sanddollar", name: "Sand Dollar", rarity: "uncommon", weight: 14, color: "#D6D3D1", icon: "sanddollar" },
+  { id: "whelk", name: "Lightning Whelk", rarity: "rare", weight: 8, color: "#78716C", icon: "whelk" },
+  { id: "conch", name: "Queen Conch", rarity: "legendary", weight: 2, color: "#F9A8D4", icon: "conch" },
+];
+
+export const SHELL_BY_ID: Record<string, ShellSpecies> = Object.fromEntries(SHELL_SPECIES.map((s) => [s.id, s]));
+
+/** Weighted random shell for a tide-pool find. */
+export function randomShellSpecies(rng: () => number = Math.random): ShellSpecies {
+  const total = SHELL_SPECIES.reduce((s, x) => s + x.weight, 0);
+  let roll = rng() * total;
+  for (const s of SHELL_SPECIES) {
+    roll -= s.weight;
+    if (roll <= 0) return s;
+  }
+  return SHELL_SPECIES[0];
+}
+
 /* ---------------- Set metadata ---------------- */
 
 export type CollectionSetMeta = {
@@ -83,6 +118,7 @@ export const COLLECTION_SETS: Record<CollectionSetId, CollectionSetMeta> = {
   fish: { id: "fish", name: "River Fish", icon: "phishing", total: FISH_SPECIES.length, rewardCoins: 1500, rewardXp: 75, rewardTitle: "Master Angler" },
   demons: { id: "demons", name: "Demon Bestiary", icon: "bug-report", total: ALL_DEMON_NAMES.length, rewardCoins: 2000, rewardXp: 100, rewardTitle: "Demonbane" },
   flowers: { id: "flowers", name: "Garden Flowers", icon: "local-florist", total: FLOWER_KINDS.length, rewardCoins: 1000, rewardXp: 50, rewardTitle: "Master Gardener" },
+  shells: { id: "shells", name: "Shore Shells", icon: "waves", total: SHELL_SPECIES.length, rewardCoins: 1200, rewardXp: 60, rewardTitle: "Shell Seeker" },
 };
 
 /* ---------------- State ---------------- */
@@ -91,6 +127,7 @@ export type CollectionState = {
   fish: string[];
   demons: string[];
   flowers: number[];
+  shells: string[];
   /** Set ids that already paid their completion reward. */
   completedSets: CollectionSetId[];
   /** Titles earned from completed sets. */
@@ -98,7 +135,7 @@ export type CollectionState = {
 };
 
 export function emptyCollections(): CollectionState {
-  return { fish: [], demons: [], flowers: [], completedSets: [], titles: [] };
+  return { fish: [], demons: [], flowers: [], shells: [], completedSets: [], titles: [] };
 }
 
 export async function loadCollections(): Promise<CollectionState> {
@@ -112,7 +149,8 @@ export async function loadCollections(): Promise<CollectionState> {
       fish: Array.isArray(s.fish) ? s.fish.filter((x: unknown) => typeof x === "string") : base.fish,
       demons: Array.isArray(s.demons) ? s.demons.filter((x: unknown) => typeof x === "string") : base.demons,
       flowers: Array.isArray(s.flowers) ? s.flowers.filter((x: unknown) => typeof x === "number") : base.flowers,
-      completedSets: Array.isArray(s.completedSets) ? s.completedSets.filter((x: unknown) => x === "fish" || x === "demons" || x === "flowers") : [],
+      shells: Array.isArray(s.shells) ? s.shells.filter((x: unknown) => typeof x === "string") : base.shells,
+      completedSets: Array.isArray(s.completedSets) ? s.completedSets.filter((x: unknown) => x === "fish" || x === "demons" || x === "flowers" || x === "shells") : [],
       titles: Array.isArray(s.titles) ? s.titles.filter((x: unknown) => typeof x === "string") : [],
     };
   } catch {
@@ -162,6 +200,15 @@ export async function recordDemonDefeat(demonName: string): Promise<CollectionUp
   if (state.demons.includes(demonName)) return { state, isNew: false, justCompleted: null };
   const next = { ...state, demons: [...state.demons, demonName] };
   const result = withCompletion(next, "demons", next.demons.length);
+  await saveCollections(result.state);
+  return result;
+}
+
+export async function recordShellFind(speciesId: string): Promise<CollectionUpdate> {
+  const state = await loadCollections();
+  if (state.shells.includes(speciesId)) return { state, isNew: false, justCompleted: null };
+  const next = { ...state, shells: [...state.shells, speciesId] };
+  const result = withCompletion(next, "shells", next.shells.length);
   await saveCollections(result.state);
   return result;
 }

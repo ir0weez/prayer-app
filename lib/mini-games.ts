@@ -11,7 +11,18 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type MiniGameId = "verse" | "training" | "packing" | "candle";
+export type MiniGameId =
+  | "verse"
+  | "training"
+  | "packing"
+  | "candle"
+  | "popcorn"
+  | "garden"
+  | "serve"
+  | "rhythm"
+  | "trim"
+  | "tide"
+  | "grill";
 
 /** Max plays per day, per game. */
 export const MINI_GAME_CAPS: Record<MiniGameId, number> = {
@@ -19,6 +30,13 @@ export const MINI_GAME_CAPS: Record<MiniGameId, number> = {
   training: 3,
   packing: 3,
   candle: 2,
+  popcorn: 3,
+  garden: 3,
+  serve: 3,
+  rhythm: 3,
+  trim: 3,
+  tide: 3,
+  grill: 3,
 };
 
 const PLAYS_KEY = "prayercircle.minigames.plays.v1";
@@ -45,7 +63,10 @@ type PlaysState = {
 };
 
 function emptyPlays(): PlaysState {
-  return { day: todayString(), counts: { verse: 0, training: 0, packing: 0, candle: 0 } };
+  return {
+    day: todayString(),
+    counts: { verse: 0, training: 0, packing: 0, candle: 0, popcorn: 0, garden: 0, serve: 0, rhythm: 0, trim: 0, tide: 0, grill: 0 },
+  };
 }
 
 async function loadPlaysState(): Promise<PlaysState> {
@@ -191,3 +212,103 @@ export const PACK_ITEMS: PackItem[] = [
   { name: "Yogurt Cup", category: "dairy", icon: "yogurt" },
   { name: "Butter Dish", category: "dairy", icon: "butter" },
 ];
+
+// ---------------------------------------------------------------------------
+// Serve the Table — dishes per cuisine. Keyed by restaurant building type
+// (the same id the cuisine-themes system uses); "generic" is the fallback
+// for any type without its own menu. `icon` keys are drawn by the game.
+// ---------------------------------------------------------------------------
+
+export type ServeDish = {
+  name: string;
+  /** Icon key drawn by the game component. */
+  icon: string;
+};
+
+export const SERVE_MENUS: Record<string, ServeDish[]> = {
+  "pizza-place": [
+    { name: "Pizza Slice", icon: "pizza" },
+    { name: "Garlic Bread", icon: "bread" },
+    { name: "Pasta Bowl", icon: "bowl" },
+    { name: "Garden Salad", icon: "salad" },
+    { name: "Cola Cup", icon: "drink" },
+    { name: "Gelato Cup", icon: "cake" },
+  ],
+  "burger-joint": [
+    { name: "Smash Burger", icon: "burger" },
+    { name: "Crispy Fries", icon: "fries" },
+    { name: "Berry Shake", icon: "shake" },
+    { name: "Apple Pie", icon: "pie" },
+    { name: "Coffee", icon: "coffee" },
+    { name: "Side Salad", icon: "salad" },
+  ],
+  "taco-stand": [
+    { name: "Street Taco", icon: "taco" },
+    { name: "Burrito", icon: "burrito" },
+    { name: "Elote Corn", icon: "corn" },
+    { name: "Salsa Bowl", icon: "bowl" },
+    { name: "Agua Fresca", icon: "drink" },
+    { name: "Churros", icon: "cake" },
+  ],
+  "sushi-bar": [
+    { name: "Nigiri Plate", icon: "sushi" },
+    { name: "Miso Soup", icon: "soup" },
+    { name: "Edamame Bowl", icon: "bowl" },
+    { name: "Green Tea", icon: "coffee" },
+    { name: "Mochi", icon: "cake" },
+    { name: "Seaweed Salad", icon: "salad" },
+  ],
+  diner: [
+    { name: "Pancake Stack", icon: "cake" },
+    { name: "Fried Eggs", icon: "egg" },
+    { name: "Coffee", icon: "coffee" },
+    { name: "Buttered Toast", icon: "bread" },
+    { name: "Tomato Soup", icon: "soup" },
+    { name: "Pie Slice", icon: "pie" },
+  ],
+  "upper-room": [
+    { name: "Bread Loaf", icon: "bread" },
+    { name: "Baked Fish", icon: "fish" },
+    { name: "Grapes", icon: "grapes" },
+    { name: "Honey Bowl", icon: "bowl" },
+    { name: "Olive Salad", icon: "salad" },
+    { name: "Water Cup", icon: "drink" },
+  ],
+  "manna-house": [
+    { name: "Manna Bowl", icon: "bowl" },
+    { name: "Quail Skewer", icon: "skewer" },
+    { name: "Fresh Bread", icon: "bread" },
+    { name: "Milk Cup", icon: "drink" },
+    { name: "Dates & Grapes", icon: "grapes" },
+    { name: "Honey Cake", icon: "cake" },
+  ],
+  "feast-hall": [
+    { name: "Roast Platter", icon: "skewer" },
+    { name: "Bread Basket", icon: "bread" },
+    { name: "Soup Tureen", icon: "soup" },
+    { name: "Fruit & Grapes", icon: "grapes" },
+    { name: "Harvest Pie", icon: "pie" },
+    { name: "Cider Mug", icon: "drink" },
+  ],
+  "banquet-table": [
+    { name: "Roast Platter", icon: "skewer" },
+    { name: "Bread Basket", icon: "bread" },
+    { name: "Garden Salad", icon: "salad" },
+    { name: "Soup Tureen", icon: "soup" },
+    { name: "Grapes", icon: "grapes" },
+    { name: "Celebration Cake", icon: "cake" },
+  ],
+  generic: [
+    { name: "Chef's Burger", icon: "burger" },
+    { name: "Fries", icon: "fries" },
+    { name: "House Salad", icon: "salad" },
+    { name: "Soup of the Day", icon: "soup" },
+    { name: "Coffee", icon: "coffee" },
+    { name: "Pie Slice", icon: "pie" },
+  ],
+};
+
+/** The dish list for a restaurant type, generic menu as the fallback. */
+export function serveMenuFor(cuisine: string): ServeDish[] {
+  return SERVE_MENUS[cuisine] ?? SERVE_MENUS.generic;
+}

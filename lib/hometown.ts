@@ -705,23 +705,38 @@ export function stockCapForLevel(level: number): number {
 }
 
 /**
- * The daily drain window: a FULL stocked building empties linearly across
- * the day, from 06:00 to midnight (18 hours = 1080 minutes). Shelves are
- * refilled by Restock villagers carrying boxes from the church — nothing
- * else puts stock back.
+ * A drain anchor: the stock level at a moment in time. Stock drains
+ * LINEARLY from the anchor to exactly zero at the midnight that ends the
+ * anchor's local day — no matter when the shelves were filled. A building
+ * filled at 09:00 and one filled at 20:00 both stand empty at 24:00; the
+ * later fill simply drains faster. Anchors are (re)written whenever stock
+ * changes: a box delivery, the live tick, the time-away catch-up, or the
+ * half-cap seed for an untracked building. Re-anchoring mid-drain is safe:
+ * the line to (midnight, 0) through the current point is the same line.
  */
-export const STOCK_DRAIN_WINDOW_MINUTES = 18 * 60;
+export type StockAnchor = { stock: number; atMs: number };
 
-/** Units of stock drained from a building with the given cap over `minutes`. */
-export function stockDrainedOver(cap: number, minutes: number): number {
-  if (!Number.isFinite(cap) || !Number.isFinite(minutes) || cap <= 0 || minutes <= 0) return 0;
-  return (cap * minutes) / STOCK_DRAIN_WINDOW_MINUTES;
+/** Ms timestamp of the midnight (24:00) that ends the local day of `ms`. */
+export function endOfLocalDayMs(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(24, 0, 0, 0);
+  return d.getTime();
 }
 
-/** Stock remaining after the daily drain runs for `minutes`. Never below 0. */
-export function applyStockDrain(stock: number, cap: number, minutes: number): number {
-  if (!Number.isFinite(stock)) return 0;
-  return Math.max(0, stock - stockDrainedOver(cap, minutes));
+/**
+ * Stock remaining at `nowMs` for an anchored level: anchorStock scaled by
+ * the fraction of the anchor's day still left. At/after that day's
+ * midnight the stock is exactly 0.
+ */
+export function anchoredStockAt(anchorStock: number, anchorMs: number, nowMs: number): number {
+  if (!Number.isFinite(anchorStock) || anchorStock <= 0) return 0;
+  if (!Number.isFinite(anchorMs) || !Number.isFinite(nowMs)) return 0;
+  if (nowMs <= anchorMs) return anchorStock;
+  const midnight = endOfLocalDayMs(anchorMs);
+  if (nowMs >= midnight) return 0;
+  const span = midnight - anchorMs;
+  if (span <= 0) return 0;
+  return Math.max(0, anchorStock * ((midnight - nowMs) / span));
 }
 
 /** One delivered box fills this fraction of a building's stock capacity. */
@@ -787,14 +802,28 @@ export function isStockedBuildingType(type: BuildingType | string): boolean {
   return isFoodBuildingType(type) || STOCKED_RETAIL_TYPES.has(type);
 }
 
+/** Income multiplier while a building is in its stocked state. */
+export const STOCKED_INCOME_MULT = 1.5;
+
 /**
- * Income multiplier from the stock on hand: full shelves = +50%,
- * empty shelves = the regular 1.0× — stock is a bonus, never a gate.
+ * The stock bonus is a switch, not a ramp: a stocked-type building is
+ * "stocked" for the day once its shelves reach 100% (see
+ * stockedDateByBuilding on TownState — the local date it hit full). The
+ * switch stays ON while the level drains and turns OFF at midnight, when
+ * the stock empties — no partial bonus for partial shelves.
  */
-export function stockMultiplierFor(stock: number, cap: number): number {
-  if (!Number.isFinite(stock) || !Number.isFinite(cap) || cap <= 0) return 1;
-  const ratio = Math.min(1, Math.max(0, stock / cap));
-  return 1 + 0.5 * ratio;
+export function isStockedToday(
+  stockedDateByBuilding: Record<string, string> | undefined,
+  buildingId: string,
+  nowMs: number,
+): boolean {
+  return stockedDateByBuilding?.[buildingId] === localDateStr(new Date(nowMs));
+}
+
+/** Income multiplier for a stocked-type building: ×1.5 while its stocked
+ *  switch is on for the day, ×1.0 otherwise. */
+export function stockMultiplierFor(stockedToday: boolean): number {
+  return stockedToday ? STOCKED_INCOME_MULT : 1;
 }
 
 /**
@@ -809,6 +838,27 @@ export function stockForBuilding(
   const v = stockByBuilding?.[buildingId];
   if (typeof v === "number" && Number.isFinite(v)) return Math.max(0, v);
   return stockCapForLevel(level) / 2;
+}
+
+/**
+ * The live stock level at `nowMs`, anchor-aware. With an anchor the level
+ * follows the anchored drain to midnight; without one (older saves) the
+ * stored level stands — the caller's next persist anchors it at that
+ * level. Anchored values are clamped to capacity (levels can change).
+ */
+export function currentStockForBuilding(
+  stockByBuilding: Record<string, number> | undefined,
+  stockAnchorsByBuilding: Record<string, StockAnchor> | undefined,
+  buildingId: string,
+  level: number,
+  nowMs: number,
+): number {
+  const anchor = stockAnchorsByBuilding?.[buildingId];
+  const cap = stockCapForLevel(level);
+  if (anchor && Number.isFinite(anchor.stock) && Number.isFinite(anchor.atMs)) {
+    return Math.min(cap, anchoredStockAt(anchor.stock, anchor.atMs, nowMs));
+  }
+  return Math.min(cap, stockForBuilding(stockByBuilding, buildingId, level));
 }
 
 /** Fixed upgrade costs for restaurants: L1 purchase is the plot cost (300c). */
@@ -1965,6 +2015,14 @@ export type TownState = {
   /** Stock on hand per building id (only stocked building types use it).
    *  Optional so older saved games load cleanly — missing = half cap. */
   stockByBuilding?: Record<string, number>;
+  /** Drain anchor per building id (stock level + when it was set). Stock
+   *  drains linearly from the anchor to zero at that day's midnight.
+   *  Optional — older saves have none; their stored level is treated as
+   *  anchored "now" until the next persist writes a real anchor. */
+  stockAnchorsByBuilding?: Record<string, StockAnchor>;
+  /** Per building id, the local date ("YYYY-MM-DD") its stock reached
+   *  100%. That date IS the stocked switch: on for that date, off after. */
+  stockedDateByBuilding?: Record<string, string>;
 };
 
 export const TOWN_GRID_SIZE = 10;
@@ -2002,6 +2060,8 @@ export function emptyTownState(): TownState {
     },
     lastIncomeDate: null,
     stockByBuilding: {},
+    stockAnchorsByBuilding: {},
+    stockedDateByBuilding: {},
   };
 }
 
@@ -2025,6 +2085,33 @@ function parseStockByBuilding(value: unknown): Record<string, number> {
   return out;
 }
 
+/** Sanitize persisted stock anchors: building id -> { stock >= 0, atMs > 0 }. */
+function parseStockAnchors(value: unknown): Record<string, StockAnchor> {
+  const out: Record<string, StockAnchor> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [id, v] of Object.entries(value as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const a = v as Partial<StockAnchor>;
+    if (
+      typeof a.stock === "number" && Number.isFinite(a.stock) && a.stock >= 0 &&
+      typeof a.atMs === "number" && Number.isFinite(a.atMs) && a.atMs > 0
+    ) {
+      out[id] = { stock: a.stock, atMs: a.atMs };
+    }
+  }
+  return out;
+}
+
+/** Sanitize persisted stocked-date flags: building id -> "YYYY-MM-DD". */
+function parseStockedDates(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [id, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) out[id] = v;
+  }
+  return out;
+}
+
 export function parseTown(value: unknown): TownState {
   if (!value || typeof value !== "object") return emptyTownState();
   const t = value as Partial<TownState> & { buildings?: unknown; decorations?: unknown; roads?: unknown };
@@ -2032,6 +2119,8 @@ export function parseTown(value: unknown): TownState {
   // Stock must round-trip: dropping it here re-seeded every stocked
   // building at half cap on every app open.
   const stockByBuilding = parseStockByBuilding(t.stockByBuilding);
+  const stockAnchorsByBuilding = parseStockAnchors(t.stockAnchorsByBuilding);
+  const stockedDateByBuilding = parseStockedDates(t.stockedDateByBuilding);
   // New multi-map format
   if (t.maps && typeof t.maps === "object") {
     const raw = t.maps as Partial<Record<TownMapId, unknown>>;
@@ -2048,6 +2137,8 @@ export function parseTown(value: unknown): TownState {
       },
       lastIncomeDate,
       stockByBuilding,
+      stockAnchorsByBuilding,
+      stockedDateByBuilding,
     };
   }
   // Old single-map format: migrate everything into the town map
@@ -2064,6 +2155,8 @@ export function parseTown(value: unknown): TownState {
     },
     lastIncomeDate,
     stockByBuilding,
+    stockAnchorsByBuilding,
+    stockedDateByBuilding,
   };
 }
 /**
@@ -2362,13 +2455,27 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = populationMult(prayedCount);
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult;
+    // Stocked switch (best effort from persisted state): the estimate
+    // credits the ×1.5 when the building's stocked flag is dated today —
+    // or dated the last income day, for missed-day catch-up spanning the
+    // day it was stocked.
+    let stockMult = 1;
+    if (town && isStockedBuildingType(b.type)) {
+      const stockedDate = town.stockedDateByBuilding?.[b.id];
+      if (
+        stockedDate &&
+        (stockedDate === localDateStr(new Date(nowMs)) || stockedDate === town.lastIncomeDate)
+      ) {
+        stockMult = STOCKED_INCOME_MULT;
+      }
+    }
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult * stockMult;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -2377,8 +2484,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {

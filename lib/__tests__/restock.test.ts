@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  STOCKED_INCOME_MULT,
   STOCK_CAP_BY_LEVEL,
-  STOCK_DRAIN_WINDOW_MINUTES,
+  anchoredStockAt,
   applyRestockBox,
-  applyStockDrain,
+  currentStockForBuilding,
+  endOfLocalDayMs,
+  isStockedToday,
+  localDateStr,
   neediestStockedBuilding,
   restockBoxUnits,
-  stockDrainedOver,
+  stockMultiplierFor,
 } from "../hometown";
 import {
   RESTOCK_BOX_BONUS_COINS,
@@ -42,33 +46,105 @@ describe("restock box math", () => {
   });
 });
 
-describe("daily stock drain (depletion to midnight)", () => {
-  it("the window is 06:00 to 24:00 — 1080 minutes", () => {
-    expect(STOCK_DRAIN_WINDOW_MINUTES).toBe(18 * 60);
+describe("anchored stock drain (empties at midnight, from whenever filled)", () => {
+  // Local-time instants on an arbitrary day.
+  const at = (h: number, min = 0, dayOffset = 0) => {
+    const d = new Date(2026, 9, 20 + dayOffset, h, min, 0, 0);
+    return d.getTime();
+  };
+
+  it("endOfLocalDayMs is the coming 24:00 of the same local day", () => {
+    expect(endOfLocalDayMs(at(9))).toBe(at(0, 0, 1));
+    expect(endOfLocalDayMs(at(23, 59))).toBe(at(0, 0, 1));
+    expect(endOfLocalDayMs(at(0))).toBe(at(0, 0, 1));
   });
 
-  it("a full building drains to empty across the whole window", () => {
-    for (const cap of Object.values(STOCK_CAP_BY_LEVEL)) {
-      expect(stockDrainedOver(cap, STOCK_DRAIN_WINDOW_MINUTES)).toBeCloseTo(cap);
-      expect(applyStockDrain(cap, cap, STOCK_DRAIN_WINDOW_MINUTES)).toBeCloseTo(0);
-    }
+  it("filled at 20:00 is empty at 24:00 the same night", () => {
+    expect(anchoredStockAt(160, at(20), at(0, 0, 1))).toBe(0); // next 00:00
+    expect(anchoredStockAt(160, at(20), at(23, 59))).toBeGreaterThan(0);
   });
 
-  it("half the window drains half the stock, whatever the level", () => {
-    expect(applyStockDrain(160, 160, STOCK_DRAIN_WINDOW_MINUTES / 2)).toBeCloseTo(80);
-    expect(applyStockDrain(40, 40, STOCK_DRAIN_WINDOW_MINUTES / 2)).toBeCloseTo(20);
-    // Drain is proportional to cap, not to current stock: a half-full
-    // building still loses cap/2 over half a day — and clamps at zero.
-    expect(applyStockDrain(20, 40, STOCK_DRAIN_WINDOW_MINUTES / 2)).toBeCloseTo(0);
+  it("filled at 09:00 is also empty at 24:00 — later fills just drain faster", () => {
+    expect(anchoredStockAt(160, at(9), at(0, 0, 1))).toBe(0);
+    // Same instant (21:00): the 09:00 fill has been draining for 12 hours,
+    // the 20:00 fill for one — but both stand empty at 24:00.
+    expect(anchoredStockAt(160, at(9), at(21))).toBeLessThan(anchoredStockAt(160, at(20), at(21)));
   });
 
-  it("drain never takes stock below zero, even over many days", () => {
-    expect(applyStockDrain(10, 40, STOCK_DRAIN_WINDOW_MINUTES * 30)).toBe(0);
-    expect(applyStockDrain(0, 40, 60)).toBe(0);
+  it("the drain is linear: the midpoint of the remaining day holds half", () => {
+    // 09:00 fill: midpoint of 09:00→24:00 is 16:30.
+    expect(anchoredStockAt(160, at(9), at(16, 30))).toBeCloseTo(80);
+    // 20:00 fill: midpoint of 20:00→24:00 is 22:00.
+    expect(anchoredStockAt(160, at(20), at(22))).toBeCloseTo(80);
+    // A partial fill drains proportionally from its own level.
+    expect(anchoredStockAt(40, at(9), at(16, 30))).toBeCloseTo(20);
   });
 
-  it("an hour of drain on a level-3 shop is cap/18", () => {
-    expect(stockDrainedOver(160, 60)).toBeCloseTo(160 / 18);
+  it("at/before the anchor the full anchored level stands; empty stays empty", () => {
+    expect(anchoredStockAt(160, at(9), at(9))).toBe(160);
+    expect(anchoredStockAt(160, at(9), at(8))).toBe(160); // clock skew guard
+    expect(anchoredStockAt(0, at(9), at(12))).toBe(0);
+  });
+
+  it("a fill after midnight anchors to the NEXT midnight", () => {
+    const fill = at(0, 30, 1); // 00:30 on the next day
+    expect(anchoredStockAt(160, fill, at(0, 0, 1))).toBe(160);
+    expect(anchoredStockAt(160, fill, at(12, 15, 1))).toBeCloseTo(80); // midpoint 00:30→24:00
+    expect(anchoredStockAt(160, fill, at(0, 0, 2))).toBe(0);
+  });
+
+  it("re-anchoring mid-drain at the current level changes nothing", () => {
+    const t = at(14);
+    const cur = anchoredStockAt(160, at(9), t);
+    expect(anchoredStockAt(cur, t, at(20))).toBeCloseTo(anchoredStockAt(160, at(9), at(20)));
+    expect(anchoredStockAt(cur, t, at(0, 0, 1))).toBe(0);
+  });
+
+  it("currentStockForBuilding follows the anchor when one exists", () => {
+    const anchors = { diner: { stock: 160, atMs: at(9) } };
+    const stored = { diner: 160 };
+    expect(currentStockForBuilding(stored, anchors, "diner", 3, at(16, 30))).toBeCloseTo(80);
+    expect(currentStockForBuilding(stored, anchors, "diner", 3, at(0, 0, 1))).toBe(0);
+  });
+
+  it("currentStockForBuilding without an anchor stands at the stored level (old saves)", () => {
+    const stored = { diner: 33 };
+    expect(currentStockForBuilding(stored, {}, "diner", 3, at(18))).toBe(33);
+    expect(currentStockForBuilding(stored, undefined, "diner", 3, at(18))).toBe(33);
+    // Untracked buildings still seed at half cap.
+    expect(currentStockForBuilding({}, {}, "diner", 1, at(18))).toBe(20);
+  });
+});
+
+describe("stocked switch (bonus is on/off, not a ramp)", () => {
+  const at = (h: number, dayOffset = 0) => new Date(2026, 9, 20 + dayOffset, h, 0, 0, 0).getTime();
+  const today = localDateStr(new Date(at(12)));
+  const yesterday = localDateStr(new Date(at(12, -1)));
+
+  it("99% stocked earns no bonus; 100% turns the switch on", () => {
+    // The switch is the persisted stocked-date, set when a delivery (or a
+    // materialization) sees the level reach cap — levels alone never pay.
+    expect(stockMultiplierFor(isStockedToday({}, "diner", at(12)))).toBe(1);
+    expect(stockMultiplierFor(isStockedToday({ diner: yesterday }, "diner", at(12)))).toBe(1);
+    expect(stockMultiplierFor(isStockedToday({ diner: today }, "diner", at(12)))).toBe(STOCKED_INCOME_MULT);
+    expect(STOCKED_INCOME_MULT).toBe(1.5);
+  });
+
+  it("once on, the switch stays on while the level drains the same day", () => {
+    const anchors = { diner: { stock: 160, atMs: at(9) } };
+    const stockedDates = { diner: today };
+    // By 21:00 the level has drained to 20% of the 09:00 fill...
+    const level = currentStockForBuilding({ diner: 160 }, anchors, "diner", 3, at(21));
+    expect(level / 160).toBeCloseTo(0.2);
+    // ...but the bonus is still on.
+    expect(isStockedToday(stockedDates, "diner", at(21))).toBe(true);
+    expect(stockMultiplierFor(isStockedToday(stockedDates, "diner", at(21)))).toBe(1.5);
+  });
+
+  it("the switch turns off the next day (and the stock is empty)", () => {
+    const stockedDates = { diner: today };
+    expect(isStockedToday(stockedDates, "diner", at(0, 1))).toBe(false);
+    expect(stockMultiplierFor(isStockedToday(stockedDates, "diner", at(9, 1)))).toBe(1);
   });
 });
 

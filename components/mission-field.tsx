@@ -244,8 +244,16 @@ export function MissionField(props: MissionFieldProps) {
     setCollectMission(null);
   };
 
+  // The SeasonalBorder center column sizes itself from content intrinsic
+  // width (flexShrink: 0), which can measure wider than the visible screen
+  // and push text/buttons past the right edge. Pin the root to the
+  // window-anchored slot so everything inside wraps at the real width.
+  const { width: windowW } = useWindowDimensions();
+  const contentW =
+    Number.isFinite(windowW) && windowW > SCENE_H_INSET ? Math.floor(windowW - SCENE_H_INSET) : undefined;
+
   return (
-    <View>
+    <View style={contentW ? { width: contentW, maxWidth: "100%" } : undefined}>
       <MissionScene missions={missions} timeOfDay={timeOfDay} />
 
       <Text style={{ color: safePt.subtext, marginBottom: 12, fontSize: 13 }}>

@@ -876,8 +876,16 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
   const upgradeCost = nextLevel ? REMEMBRANCE_UPGRADE_COSTS[nextLevel] : 0;
   const levelNames = { 1: "Simple Garden", 2: "Cultivated Garden", 3: "Heavenly Garden" } as const;
 
+  // The SeasonalBorder center column sizes itself from content intrinsic
+  // width (flexShrink: 0), which can measure wider than the visible screen
+  // and push the status card text past the right edge. Pin the root to the
+  // window-anchored slot so everything inside wraps at the real width.
+  const { width: windowW } = useWindowDimensions();
+  const contentW =
+    Number.isFinite(windowW) && windowW > SCENE_H_INSET ? Math.floor(windowW - SCENE_H_INSET) : undefined;
+
   return (
-    <View style={{ marginBottom: 16 }}>
+    <View style={contentW ? { marginBottom: 16, width: contentW, maxWidth: "100%" } : { marginBottom: 16 }}>
       <GardenScene
         remembrance={remembrance}
         timeOfDay={timeOfDay}

@@ -211,16 +211,16 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
   const bucketY = bucketAnim.interpolate({ inputRange: [0, 1], outputRange: [BUCKET_DOWN, BUCKET_UP] });
   const ropeHeight = bucketAnim.interpolate({ inputRange: [0, 1], outputRange: [BUCKET_DOWN - CROSSBAR_Y, BUCKET_UP - CROSSBAR_Y] });
 
-  const grassWash = isNight ? "#1E1B2E" : "#CFE0C2";
-  const grassDeep = isNight ? "#191627" : "#BFD3B0";
-  const dirt = isNight ? "#3A3145" : "#D9C49A";
-  const stone = isNight ? "#4A4458" : "#B9AB8C";
-  const stoneEdge = isNight ? "#37324A" : "#8F8060";
-  const wood = isNight ? "#5B4A32" : "#7A5228";
-  const woodDark = isNight ? "#463826" : "#5E3F1E";
-  const leaf = isNight ? "#243528" : "#5D8F5D";
-  const leaf2 = isNight ? "#2A3D2E" : "#6FA06F";
-  const water = isNight ? "#2E4A5E" : "#7DD3FC";
+  const grassWash = isNight ? "#2B2740" : "#CFE0C2";
+  const grassDeep = isNight ? "#241F38" : "#BFD3B0";
+  const dirt = isNight ? "#4A4159" : "#D9C49A";
+  const stone = isNight ? "#6B6683" : "#B9AB8C";
+  const stoneEdge = isNight ? "#4E4A66" : "#8F8060";
+  const wood = isNight ? "#7D6545" : "#7A5228";
+  const woodDark = isNight ? "#5E4C33" : "#5E3F1E";
+  const leaf = isNight ? "#35543D" : "#5D8F5D";
+  const leaf2 = isNight ? "#40604A" : "#6FA06F";
+  const water = isNight ? "#3E5F7A" : "#7DD3FC";
 
   const flowers = useMemo(() => {
     const rng = mulberry32(4242);
@@ -272,7 +272,10 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
   const renderedH = sceneH;
 
   return (
-    <View style={{ marginBottom: 16 }}>
+    // Root pinned to the window-anchored slot: the SeasonalBorder center
+    // column sizes from content intrinsic width (flexShrink: 0), which can
+    // measure wider than the screen and cut the verse off at the right edge.
+    <View style={{ marginBottom: 16, width: sceneW, maxWidth: "100%" }}>
       <View
         style={{ width: renderedW, maxWidth: "100%", height: renderedH, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
       >
@@ -280,6 +283,13 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           {/* grass — layered wash, deeper toward the bottom */}
           <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.7} />
           <Rect x={0} y={300} width={SCENE_W} height={SCENE_H - 300} fill={grassDeep} opacity={0.45} />
+          {/* moonlight pool behind the well so the scene reads at night */}
+          {isNight && (
+            <>
+              <Ellipse cx={WELL_CX} cy={250} rx={150} ry={190} fill="#A8C4E8" opacity={0.1} />
+              <Ellipse cx={WELL_CX} cy={392} rx={120} ry={42} fill="#C7D8F2" opacity={0.08} />
+            </>
+          )}
 
           {/* winding stone path from the bottom edge up to the well */}
           <Path d={`M ${WELL_CX} ${SCENE_H} C 160 445, 200 432, 186 408`} stroke={stoneEdge} strokeWidth={38} fill="none" strokeLinecap="round" opacity={0.85} />
@@ -309,7 +319,7 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
             { x: 308, y: 410, s: 1.1 },
           ].map((t, i) => (
             <G key={i} transform={`translate(${t.x} ${t.y}) scale(${t.s})`}>
-              <Rect x={-4.5} y={0} width={9} height={20} rx={3.5} fill={isNight ? "#3E2F22" : "#6E4F26"} />
+              <Rect x={-4.5} y={0} width={9} height={20} rx={3.5} fill={isNight ? "#55432C" : "#6E4F26"} />
               <Circle cx={0} cy={-16} r={22} fill={leaf} opacity={0.95} />
               <Circle cx={-13} cy={-7} r={14} fill={leaf2} opacity={0.9} />
               <Circle cx={13} cy={-7} r={14} fill={leaf2} opacity={0.9} />
@@ -346,7 +356,8 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
 
           {/* stone lantern (lower right) */}
           <G>
-            {isNight && <Circle cx={306} cy={348} r={26} fill="#FBBF24" opacity={0.28} />}
+            {isNight && <Circle cx={306} cy={348} r={34} fill="#FBBF24" opacity={0.42} />}
+            {isNight && <Ellipse cx={306} cy={386} rx={30} ry={10} fill="#FDE68A" opacity={0.14} />}
             <Rect x={302} y={366} width={8} height={18} fill={stoneEdge} opacity={0.9} />
             <Rect x={296} y={344} width={20} height={24} rx={4} fill={stone} stroke={stoneEdge} strokeWidth={2} />
             <Rect x={300} y={349} width={12} height={14} rx={2} fill={isNight ? "#FDE68A" : "#FEF3C7"} opacity={isNight ? 1 : 0.75} />
@@ -354,7 +365,12 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           </G>
 
           {/* moon glow at night */}
-          {isNight && <Circle cx={310} cy={52} r={26} fill="#FDE68A" opacity={0.35} />}
+          {isNight && (
+            <>
+              <Circle cx={310} cy={52} r={48} fill="#FDE68A" opacity={0.16} />
+              <Circle cx={310} cy={52} r={30} fill="#FDE68A" opacity={0.5} />
+            </>
+          )}
 
           {/* ---- the well ---- */}
           {/* posts */}
@@ -385,17 +401,17 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           {/* dark water opening */}
           <Ellipse cx={WELL_CX} cy={318} rx={50} ry={15} fill={stone} stroke={stoneEdge} strokeWidth={3} />
           <Ellipse cx={WELL_CX} cy={318} rx={38} ry={11} fill={isNight ? "#10131F" : "#1E293B"} />
-          <Ellipse cx={WELL_CX} cy={316} rx={24} ry={7} fill={water} opacity={isNight ? 0.5 : 0.8} />
+          <Ellipse cx={WELL_CX} cy={316} rx={24} ry={7} fill={water} opacity={isNight ? 0.65 : 0.8} />
         </Svg>
 
         {/* rope + bucket (animated, scaled to scene width so it tracks the crossbar) */}
         <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: renderedW, height: renderedH }}>
-          <Animated.View style={{ position: "absolute", left: (WELL_CX - 1.5) * k, top: CROSSBAR_Y * k, width: 3 * k, height: Animated.multiply(ropeHeight, k), backgroundColor: isNight ? "#6B5B3E" : "#A0824F" }} />
+          <Animated.View style={{ position: "absolute", left: (WELL_CX - 1.5) * k, top: CROSSBAR_Y * k, width: 3 * k, height: Animated.multiply(ropeHeight, k), backgroundColor: isNight ? "#8A7550" : "#A0824F" }} />
           <Animated.View style={{ position: "absolute", left: (WELL_CX - 18) * k, top: Animated.add(Animated.multiply(bucketY, k), -13 * k), width: 36 * k, height: 26 * k }}>
             <Svg width={36 * k} height={26 * k} viewBox="0 0 36 26">
-              <Polygon points="4,2 32,2 28,24 8,24" fill={isNight ? "#5B4A32" : "#8B5E34"} />
-              <Rect x={4} y={2} width={28} height={4} fill={isNight ? "#463826" : "#6B4423"} />
-              <Rect x={7} y={12} width={22} height={3} fill={isNight ? "#463826" : "#6B4423"} opacity={0.8} />
+              <Polygon points="4,2 32,2 28,24 8,24" fill={isNight ? "#7D6545" : "#8B5E34"} />
+              <Rect x={4} y={2} width={28} height={4} fill={isNight ? "#5E4C33" : "#6B4423"} />
+              <Rect x={7} y={12} width={22} height={3} fill={isNight ? "#5E4C33" : "#6B4423"} opacity={0.8} />
               <Ellipse cx={18} cy={4} rx={12} ry={3} fill={water} opacity={0.9} />
             </Svg>
           </Animated.View>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon, G } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -2448,9 +2448,108 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
  * Material label typography, subtle elevation, and a state layer on press.
  * Coins and XP keep their tonal palettes; frenzy (2x) and FULL stay readable.
  */
-function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
+/** How long one flying coin takes to reach the balance. */
+const COIN_FLY_MS = 650;
+/** When the awarded coins "land" — balance ticks up and pulses then. */
+const COIN_LAND_MS = 850;
+
+type CoinBurstData = {
+  id: string;
+  sx: number;
+  sy: number;
+  dx: number;
+  dy: number;
+  kind: "coins" | "xp";
+};
+
+/** One little coin (or XP bolt) flying from a building up to the balance. */
+function CoinFlyer({ sx, sy, dx, dy, delay, kind, onDone }: { sx: number; sy: number; dx: number; dy: number; delay: number; kind: "coins" | "xp"; onDone: () => void }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const anim = Animated.sequence([
+      Animated.delay(delay),
+      Animated.parallel([
+        Animated.timing(t, { toValue: 1, duration: COIN_FLY_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.delay(COIN_FLY_MS * 0.72),
+          Animated.timing(fade, { toValue: 0, duration: COIN_FLY_MS * 0.28, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ]),
+    ]);
+    anim.start(({ finished }) => { if (finished) onDone(); });
+    return () => anim.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const translateX = t.interpolate({ inputRange: [0, 1], outputRange: [sx - dx, 0] });
+  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [sy - dy, 0] });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: dx - 11,
+        top: dy - 11,
+        transform: [{ translateX }, { translateY }],
+        opacity: fade,
+      }}
+    >
+      <View
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          backgroundColor: kind === "xp" ? "#6750A4" : "#D4AF37",
+          borderWidth: 1,
+          borderColor: kind === "xp" ? "#4F378B" : "#B8860B",
+          alignItems: "center",
+          justifyContent: "center",
+          elevation: 5,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 3,
+        }}
+      >
+        <MaterialIcons name={kind === "xp" ? "bolt" : "monetization-on"} size={13} color="#FFFFFF" />
+      </View>
+    </Animated.View>
+  );
+}
+
+/** A small fan of coins flying together from one collect point. */
+function CoinBurst({ burst, onDone }: { burst: CoinBurstData; onDone: (id: string) => void }) {
+  const COUNT = 4;
+  const [landed, setLanded] = useState(0);
+  useEffect(() => {
+    if (landed >= COUNT) onDone(burst.id);
+  }, [landed, burst.id, onDone]);
+  return (
+    <React.Fragment>
+      {Array.from({ length: COUNT }, (_, i) => (
+        <CoinFlyer
+          key={i}
+          sx={burst.sx + (i - (COUNT - 1) / 2) * 16}
+          sy={burst.sy + (i % 2) * 12}
+          dx={burst.dx}
+          dy={burst.dy}
+          delay={i * 80}
+          kind={burst.kind}
+          onDone={() => setLanded((n) => n + 1)}
+        />
+      ))}
+    </React.Fragment>
+  );
+}
+
+function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: (pageX?: number, pageY?: number) => void; frenzy?: boolean; isFull?: boolean }) {
   const flipAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const collectAnim = useRef(new Animated.Value(0)).current;
+  const [collecting, setCollecting] = useState(false);
 
   useEffect(() => {
     const flip = Animated.loop(
@@ -2485,6 +2584,13 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
   const hasAmount = amount > 0;
   const isXP = kind === "xp";
 
+  // Compact amount label: large pending amounts use K so the pill never grows fat.
+  const amountLabel = hasAmount
+    ? isXP
+      ? amount >= 1000 ? `+${(amount / 1000).toFixed(1)}K XP` : `+${Math.floor(amount)} XP`
+      : amount >= 1000 ? `+${(amount / 1000).toFixed(1)}K` : `+${amount.toFixed(2)}`
+    : "earning";
+
   // Material 3 tonal palettes.
   const palette = isXP
     ? { container: "#E8DEF8", onContainer: "#1D192B", icon: "#6750A4" }
@@ -2492,11 +2598,19 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
       ? { container: frenzy ? "#FDE047" : "#FFDF9E", onContainer: "#402D00", icon: "#8A6D00" }
       : { container: "#EDEBE8", onContainer: "#6B6B6B", icon: "#9A9A9A" };
 
+  const collectScale = collectAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] });
+  const collectOpacity = collectAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+
   return (
     <Pressable
       onPress={(e) => {
         e.stopPropagation();
-        onCollect();
+        if (collecting) return;
+        setCollecting(true);
+        // Morph: shrink + fade, then hand off to the real collect (coins fly).
+        Animated.timing(collectAnim, { toValue: 1, duration: 220, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start(({ finished }) => {
+          if (finished) onCollect(e.nativeEvent.pageX, e.nativeEvent.pageY);
+        });
       }}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={({ pressed }) => ({
@@ -2507,14 +2621,17 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
     >
       <Animated.View
         style={{
-          transform: frenzy ? [{ scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }] : [],
+          transform: [
+            { scale: collecting ? collectScale : 1 },
+            ...(frenzy && !collecting ? [{ scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }] : []),
+          ],
+          opacity: collecting ? collectOpacity : 1,
           flexDirection: "row",
           alignItems: "center",
           backgroundColor: palette.container,
           borderRadius: 999, // Material pill
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-          minHeight: 40,
+          paddingHorizontal: 6,
+          paddingVertical: 3,
           borderWidth: 1,
           borderColor: "rgba(0,0,0,0.06)",
           shadowColor: "#000",
@@ -2528,36 +2645,36 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
         <Animated.View
           style={{
             transform: [{ rotateY }],
-            width: 24,
-            height: 24,
-            borderRadius: 12,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
             backgroundColor: isXP ? palette.icon : "#D4AF37",
             alignItems: "center",
             justifyContent: "center",
-            marginRight: 8,
+            marginRight: 5,
           }}
         >
-          <MaterialIcons name={isXP ? "bolt" : "monetization-on"} size={15} color="#FFFFFF" />
+          <MaterialIcons name={isXP ? "bolt" : "monetization-on"} size={11} color="#FFFFFF" />
         </Animated.View>
         <Text
           style={{
-            fontSize: 13,
-            fontWeight: "500",
-            letterSpacing: 0.4,
+            fontSize: 11,
+            fontWeight: "600",
+            letterSpacing: 0.3,
             color: palette.onContainer,
           }}
         >
-          {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(2)}`) : "earning"}
+          {amountLabel}
         </Text>
       </Animated.View>
       {frenzy && (
-        <View style={{ position: "absolute", top: -9, right: -6, backgroundColor: "#CA8A04", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, elevation: 2 }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>2x</Text>
+        <View style={{ position: "absolute", top: -7, right: -4, backgroundColor: "#CA8A04", borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, elevation: 2 }}>
+          <Text style={{ fontSize: 9, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>2x</Text>
         </View>
       )}
       {isFull && !frenzy && (
-        <View style={{ position: "absolute", top: -9, right: -6, backgroundColor: "#DC2626", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, elevation: 2 }}>
-          <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>FULL</Text>
+        <View style={{ position: "absolute", top: -7, right: -4, backgroundColor: "#DC2626", borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, elevation: 2 }}>
+          <Text style={{ fontSize: 9, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>FULL</Text>
         </View>
       )}
     </Pressable>
@@ -2688,6 +2805,62 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
+  // Coin-fly FX: bursts of coins fly from collected buildings up to the
+  // balance, which ticks up (and pulses) when they land. The header Collect
+  // All pill flips to a "Collected!" face while the coins are in the air.
+  const { width: windowW } = useWindowDimensions();
+  const [bursts, setBursts] = useState<CoinBurstData[]>([]);
+  const [collectFx, setCollectFx] = useState<{ coins: number; xp: number } | null>(null);
+  const collectFlip = useRef(new Animated.Value(0)).current;
+  const balancePulseAnim = useRef(new Animated.Value(0)).current;
+  const balanceRef = useRef<View>(null);
+  const balancePosRef = useRef({ x: 0, y: 0 });
+  const mapGridRef = useRef<View>(null);
+  const burstIdRef = useRef(0);
+  const fxTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => () => { fxTimeoutsRef.current.forEach(clearTimeout); }, []);
+
+  const measureBalance = useCallback(() => {
+    const el = balanceRef.current;
+    if (!el) return;
+    el.measure((_x, _y, w, h, px, py) => {
+      if (w > 0) balancePosRef.current = { x: px + w / 2, y: py + h / 2 };
+    });
+  }, []);
+  useEffect(() => { measureBalance(); }, [measureBalance]);
+
+  const balanceTarget = useCallback(() => {
+    const p = balancePosRef.current;
+    // If the balance hasn't been measured yet (or is scrolled off the top),
+    // aim at the usual top-right header spot.
+    if (p.x > 0 && p.y > 10) return p;
+    return { x: Math.max(60, windowW - 90), y: insets.top + 44 };
+  }, [windowW, insets.top]);
+
+  const spawnBurst = useCallback((sx: number, sy: number, kind: "coins" | "xp") => {
+    const d = balanceTarget();
+    const id = `burst-${burstIdRef.current++}`;
+    setBursts((prev) => [...prev, { id, sx, sy, dx: d.x, dy: d.y, kind }]);
+  }, [balanceTarget]);
+
+  const removeBurst = useCallback((id: string) => {
+    setBursts((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  const pulseBalance = useCallback(() => {
+    balancePulseAnim.setValue(0);
+    Animated.timing(balancePulseAnim, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
+  }, [balancePulseAnim]);
+
+  /** Measure the map grid's on-screen origin, then run cb with it. */
+  const withGridOrigin = useCallback((cb: (gx: number, gy: number) => void) => {
+    const el = mapGridRef.current;
+    if (!el) { cb(0, 0); return; }
+    el.measure((_x, _y, w, _h, px, py) => {
+      if (w > 0) cb(px, py); else cb(0, 0);
+    });
+  }, []);
   /** Income bonus breakdown sheet (the collapsed header chips). */
   const [incomeBreakdownOpen, setIncomeBreakdownOpen] = useState(false);
   /** Streak detail sheet (tapped from the compact streak chip). */
@@ -4829,6 +5002,7 @@ export default function HometownScreen() {
     const now = Date.now();
     let totalCoins = 0;
     let totalXP = 0;
+    const pendingBuildings = map.buildings.filter((b) => (b.accumulated || 0) > 0);
     const updatedBuildings = map.buildings.map((b) => {
       const acc = b.accumulated || 0;
       if (acc <= 0) return b;
@@ -4842,13 +5016,38 @@ export default function HometownScreen() {
       return { ...b, accumulated: 0, lastTick: new Date().toISOString() };
     });
     if (totalCoins <= 0 && totalXP <= 0) return;
+    // Zero the buildings NOW (map pills vanish instantly), the balance ticks
+    // up when the flying coins land ~0.85s later.
     saveMap({ ...map, buildings: updatedBuildings });
-    if (totalXP > 0) {
-      awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
-    }
-    if (totalCoins > 0) {
-      addCoins(Math.round(totalCoins * 100) / 100);
-    }
+    measureBalance();
+    // Fan the coins from up to 8 pending buildings toward the balance.
+    withGridOrigin((gx, gy) => {
+      pendingBuildings.slice(0, 8).forEach((b) => {
+        const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+        spawnBurst(
+          gx + (b.x + fp.w / 2) * cellSize,
+          gy + (b.y + fp.h / 2) * cellSize,
+          xpIncomeFor(b.type, b.level || 1) > 0 ? "xp" : "coins"
+        );
+      });
+    });
+    // The header pill turns: flips to the green "Collected!" face while the
+    // coins are in the air, then turns back.
+    setCollectFx({ coins: totalCoins, xp: totalXP });
+    collectFlip.setValue(0);
+    Animated.timing(collectFlip, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.sin), useNativeDriver: false }).start();
+    fxTimeoutsRef.current.push(setTimeout(() => {
+      if (totalXP > 0) {
+        awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
+      }
+      if (totalCoins > 0) {
+        addCoins(Math.round(totalCoins * 100) / 100);
+      }
+      pulseBalance();
+    }, COIN_LAND_MS));
+    fxTimeoutsRef.current.push(setTimeout(() => {
+      Animated.timing(collectFlip, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: false }).start(() => setCollectFx(null));
+    }, COIN_LAND_MS + 350));
   };
 
   /** Send a prayer light out on a mission. */
@@ -5007,7 +5206,7 @@ export default function HometownScreen() {
     })();
   }, [activeMap]);
 
-  const handleCollectBuilding = (buildingId: string) => {
+  const handleCollectBuilding = (buildingId: string, pageX?: number, pageY?: number) => {
     const now = Date.now();
     // Frenzy tap tracking (every press counts, even on empty coins)
     const recentTaps = tapTimesRef.current.filter(t => now - t < FRENZY_WINDOW_MS);
@@ -5025,17 +5224,31 @@ export default function HometownScreen() {
     if (!building || !(building.accumulated || 0)) return;
     let amount = building.accumulated || 0;
     if (now < frenzyUntilRef.current) amount = Math.round(amount * FRENZY_MULT * 10) / 10;
+    const isXP = xpIncomeFor(building.type, building.level || 1) > 0;
+    // Zero the building NOW (its pill has already morphed away); the award
+    // lands in the balance when the coins fly in.
     const updatedBuildings = map.buildings.map(b =>
       b.id === buildingId ? { ...b, accumulated: 0, lastTick: new Date().toISOString() } : b
     );
     saveMap({ ...map, buildings: updatedBuildings });
-    if (xpIncomeFor(building.type, building.level || 1) > 0) {
-      // School building: awards XP instead of coins
-      const xp = Math.max(1, Math.floor(amount));
-      awardCustomXP(xp, `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
+    measureBalance();
+    // Coins fly from where the pill was tapped (fall back to the tile pos).
+    if (pageX != null && pageY != null) {
+      spawnBurst(pageX, pageY, isXP ? "xp" : "coins");
     } else {
-      addCoins(amount);
+      const fp = buildingFootprint(building.level || 1, building.type, hasFixedFootprint(building));
+      withGridOrigin((gx, gy) => {
+        spawnBurst(gx + (building.x + fp.w / 2) * cellSize, gy + (building.y + fp.h / 2) * cellSize, isXP ? "xp" : "coins");
+      });
     }
+    fxTimeoutsRef.current.push(setTimeout(() => {
+      if (isXP) {
+        awardCustomXP(Math.max(1, Math.floor(amount)), `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
+      } else {
+        addCoins(amount);
+      }
+      pulseBalance();
+    }, COIN_LAND_MS));
   };
 
   const handlePlaceRoad = () => {
@@ -5142,7 +5355,8 @@ export default function HometownScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16 }}>
+    <View style={{ flex: 1, backgroundColor: pt.bg }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
         <Pressable onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12, minHeight: 44, justifyContent: "center" }}>
           <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
@@ -5151,17 +5365,32 @@ export default function HometownScreen() {
         <View style={{ flex: 1 }} />
         {(() => {
           const collectible = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
-          if (collectible <= 0) return null;
+          // Stay visible while the collect FX plays (coins in the air).
+          if (collectible <= 0 && !collectFx) return null;
+          const flipBg = collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["#D4AF37", "#16A34A"] });
+          const flipRotate = collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+          const flipScale = collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] });
           return (
             <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
               <Pressable
                 onPress={handleCollectAll}
                 onLongPress={() => setCollectBreakdownOpen(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                style={({ pressed }) => ({ backgroundColor: pressed ? "#B8963A" : "#D4AF37", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 })}
+                style={{ borderRadius: 999 }}
               >
-                <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
-                <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {collectible.toFixed(2)}</Text>
+                <Animated.View style={{ backgroundColor: flipBg, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, transform: [{ rotateY: flipRotate }, { scale: flipScale }] }}>
+                  {collectFx ? (
+                    <>
+                      <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
+                    </>
+                  ) : (
+                    <>
+                      <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
+                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {collectible.toFixed(2)}</Text>
+                    </>
+                  )}
+                </Animated.View>
               </Pressable>
               <Pressable
                 onPress={() => setCollectBreakdownOpen(true)}
@@ -5173,10 +5402,16 @@ export default function HometownScreen() {
             </View>
           );
         })()}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3C7", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, minHeight: 44 }}>
-          <MaterialIcons name="monetization-on" size={18} color="#92400E" />
-          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
-        </View>
+        <Animated.View
+          ref={balanceRef}
+          onLayout={measureBalance}
+          style={{ transform: [{ scale: balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }) }] }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3C7", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, minHeight: 44 }}>
+            <MaterialIcons name="monetization-on" size={18} color="#92400E" />
+            <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
+          </View>
+        </Animated.View>
       </View>
 
       {/* Compact header summary — the income bonuses (milestone, prayer,
@@ -5523,7 +5758,7 @@ export default function HometownScreen() {
               : undefined
           }
         >
-        <View style={{ position: "relative" }}>
+        <View ref={mapGridRef} style={{ position: "relative" }}>
           {rows}
           {/* Holiday decorations over the town/city grid — date-driven. */}
           {(activeMap === "town" || activeMap === "city") && (
@@ -5912,7 +6147,7 @@ export default function HometownScreen() {
                 <SpinningCoin
                   amount={b.accumulated || 0}
                   kind={earnsXP ? "xp" : "coins"}
-                  onCollect={() => handleCollectBuilding(b.id)}
+                  onCollect={(px, py) => handleCollectBuilding(b.id, px, py)}
                   frenzy={frenzyActive}
                   isFull={!earnsXP && isBuildingStorageFull(b)}
                 />
@@ -7605,5 +7840,14 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
     </ScrollView>
+    {/* Coin-fly overlay: coins burst from collected buildings and fly up to
+        the balance in the header. Lives outside the ScrollView so the coins
+        can cross into the header; never touches anything. */}
+    <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 999, elevation: 999 }}>
+      {bursts.map((b) => (
+        <CoinBurst key={b.id} burst={b} onDone={removeBurst} />
+      ))}
+    </View>
+    </View>
   );
 }

@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Animated, Easing, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Path, Polyline, Rect, Text as SvgText } from "react-native-svg";
 import {
   getFastCalendarDays,
   getFastEndDate,
@@ -10,10 +10,20 @@ import {
   type PersonalFast,
 } from "@/lib/prayercircle-fasting";
 import { FAST_TRIVIA_QUESTIONS } from "@/lib/fast-trivia";
-import { FAST_PAWNS, getPawnDef, isPawnUnlocked, pawnUnlockLabel, type FastPawnId } from "@/lib/fast-pawns";
+import {
+  FAST_PAWNS,
+  FAST_PAWN_HERO_STYLES,
+  RAINBOW_HERO_ART,
+  RAINBOW_HERO_PALETTE,
+  getPawnDef,
+  isPawnUnlocked,
+  pawnUnlockLabel,
+  type FastPawnId,
+} from "@/lib/fast-pawns";
 
 import { MONUMENT_DESIGNS, type MonumentDesign } from "@/lib/monuments";
 import { PawnPreview } from "@/components/pawn-preview";
+import { HERO_ART, HeroThumbnail } from "@/components/hero-sprite";
 import { PawnMoodScene } from "@/components/pawn-mood-scene";
 import { GEAR_BY_ID, loadEquipped, type GearItem } from "@/lib/gear";
 import type { CustomPawn } from "@/lib/pawn";
@@ -133,136 +143,39 @@ export function getSpecialSpaceXP(kind: FastSpecialKind, dayNum: number): number
   return Math.round(SPECIAL_BASE_XP[kind] * getStreakTier(dayNum).mult);
 }
 
-/** Unlockable pawn shapes, 24px viewBox, single warm tone. */
-export function FastPawnShape({ id, size = 20, color = "#FFD54F" }: { id: string; size?: number; color?: string }) {
-  const kind = getPawnDef(id).id;
-  // Use WebP art for pebble creatures
-  const pebbleImage = PEBBLE_IMAGES[id];
-  if (pebbleImage) {
-    return (
-      <Image source={pebbleImage} style={{ width: size, height: size, borderRadius: size / 4 }} resizeMode="contain" />
-    );
-  }
+/**
+ * Unlockable board pieces — little Hero figures. Each piece keeps its name,
+ * unlock condition and signature colors (lib/fast-pawns FAST_PAWN_HERO_STYLES),
+ * expressed as the hero's tunic / hair / skin / eyes / accessory. A caller
+ * color (board or picker theme) wins for the tunic when one is passed.
+ */
+export const FastPawnShape = memo(function FastPawnShape({
+  id,
+  size = 20,
+  color,
+}: {
+  id: string;
+  size?: number;
+  color?: string;
+}) {
+  const def = getPawnDef(id);
+  const hs = FAST_PAWN_HERO_STYLES[def.id];
+  const rainbow = def.id === "pebble-rainbow";
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      {kind === "pebble" && (
-        <>
-          <Circle cx="12" cy="12" r="9" fill={color} />
-          <Circle cx="8.5" cy="8.5" r="2.8" fill="#FFFFFF" opacity="0.55" />
-        </>
-      )}
-      {kind === "ring" && <Circle cx="12" cy="12" r="8" fill="none" stroke={color} strokeWidth="3.5" />}
-      {kind === "star" && (
-        <Path
-          d="M12 2 L14.47 8.60 L21.51 8.91 L15.99 13.30 L17.88 20.09 L12 16.2 L6.12 20.09 L8.01 13.30 L2.49 8.91 L9.53 8.60 Z"
-          fill={color}
-        />
-      )}
-      {kind === "flame" && (
-        <Path
-          d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"
-          fill={color}
-        />
-      )}
-      {kind === "diamond" && (
-        <>
-          <Polygon points="12,2 20,9 12,22 4,9" fill={color} />
-          <Path d="M4 9 H20 M12 2 L8.5 9 L12 22 M12 2 L15.5 9 L12 22" stroke={color} strokeWidth="1" fill="none" opacity="0.45" />
-        </>
-      )}
-      {kind === "crown" && (
-        <Path
-          d="M3 8 L5.5 16 Q6 17 7 17 L17 17 Q18 17 18.5 16 L21 8 L16.5 11.5 L12 5.5 L7.5 11.5 Z M5 19 L19 19 L19 21 L5 21 Z"
-          fill={color}
-        />
-      )}
-      {kind === "comet" && (
-        <>
-          <Path d="M11 10 L2.5 16.5 L11 14.5 Z" fill={color} opacity="0.75" />
-          <Circle cx="15.5" cy="10" r="5.5" fill={color} />
-          <Circle cx="13.8" cy="8.2" r="1.6" fill="#FFFFFF" opacity="0.7" />
-        </>
-      )}
-      {kind === "sun" && (
-        <>
-          <Circle cx="12" cy="12" r="5.5" fill={color} />
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
-            const rad = (deg * Math.PI) / 180;
-            const x1 = 12 + 8 * Math.cos(rad);
-            const y1 = 12 + 8 * Math.sin(rad);
-            const x2 = 12 + 11 * Math.cos(rad);
-            const y2 = 12 + 11 * Math.sin(rad);
-            return <Line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2.2" strokeLinecap="round" />;
-          })}
-        </>
-      )}
-      {kind === "heart" && (
-        <Path
-          d="M12 21 C7 16.5 3 13 3 8.8 C3 6 5.2 4 7.8 4 C9.5 4 11 5 12 6.5 C13 5 14.5 4 16.2 4 C18.8 4 21 6 21 8.8 C21 13 17 16.5 12 21 Z"
-          fill={color}
-        />
-      )}
-      {kind === "sketch" && (
-        <>
-          <Circle cx="12" cy="12" r="8.5" fill="none" stroke={color} strokeWidth="1.8" />
-          <Circle cx="12.5" cy="11.5" r="7.4" fill="none" stroke={color} strokeWidth="1.1" opacity="0.6" />
-        </>
-      )}
-      {kind === "moon" && (
-        <Path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill={color} />
-      )}
-      {kind === "lightning" && (
-        <Path d="M13 2 L3 14 H11 L9 22 L20 9 H13 Z" fill={color} />
-      )}
-      {kind === "drop" && (
-        <Path d="M12 2 C12 2 5 11 5 15.5 A7 7 0 0 0 19 15.5 C19 11 12 2 12 2 Z" fill={color} />
-      )}
-      {kind === "leaf" && (
-        <>
-          <Path d="M20 4 C10 4 4 10 4 20 C14 20 20 14 20 4 Z" fill={color} />
-          <Path d="M4 20 C8 14 12 10 18 6" stroke={color} strokeWidth="1.4" fill="none" opacity="0.7" />
-        </>
-      )}
-      {kind === "chess" && (
-        <>
-          <Circle cx="12" cy="6.6" r="3.4" fill={color} />
-          <Path d="M9.5 13.2 L7.9 19.2 Q7.7 20.4 8.8 20.4 L15.2 20.4 Q16.3 20.4 16.1 19.2 L14.5 13.2 Z" fill={color} />
-          <Path d="M8.6 10.6 L15.4 10.6 L15.4 12.4 L8.6 12.4 Z" fill={color} />
-        </>
-      )}
-      {kind === "prayer" && (
-        <Path
-          d="M12 3 C10.5 5 9 7 8.2 9.5 C7.4 12 7 14.5 7.2 17 C7.3 18.5 8 20 9 21 L10.5 21 C10 19.5 9.8 18 10 16.5 L10.8 20.5 L11.8 21 L12 16 C12.2 18 12.6 19.8 13.4 21 L15 21 C16 20 16.7 18.5 16.8 17 C17 14.5 16.6 12 15.8 9.5 C15 7 13.5 5 12 3 Z"
-          fill={color}
-        />
-      )}
-      {kind === "fish" && (
-        <Path d="M4 12 Q10 6 18 6 Q14 9 14 12 Q14 15 18 18 Q10 18 4 12 Z" fill={color} />
-      )}
-      {kind === "dove" && (
-        <>
-          <Path
-            d="M6 16 C6 11.5 9 8.5 13 8.5 C15.5 8.5 17.5 10 18 12.5 C18.4 15 16 17.5 12.5 17.5 L8 17.5 C7 17 6 16.6 6 16 Z"
-            fill={color}
-          />
-          <Circle cx="16.6" cy="9.2" r="2.4" fill={color} />
-          <Path d="M18.8 8.6 L21 9.6 L18.8 10.6 Z" fill={color} />
-          <Path d="M8.5 14.5 C10.5 11.5 13.5 10.3 15.8 11 C13.8 12 11.3 13.6 10 15.8 Z" fill={color} opacity="0.65" />
-          <Path d="M6.5 15.5 L2.8 18 L6.8 17.4 Z" fill={color} />
-        </>
-      )}
-      {kind === "shield" && (
-        <Path d="M12 2 L20 5.5 V11 C20 17 16.5 20.5 12 22 C7.5 20.5 4 17 4 11 V5.5 Z" fill={color} />
-      )}
-      {kind === "neon" && (
-        <>
-          <Circle cx="12" cy="12" r="10.5" fill="none" stroke={color} strokeWidth="1.6" opacity="0.35" />
-          <Circle cx="12" cy="12" r="7.5" fill="none" stroke={color} strokeWidth="2.6" />
-        </>
-      )}
-    </Svg>
+    <HeroThumbnail
+      size={size}
+      tunicColor={rainbow ? hs.tunic : color ?? hs.tunic}
+      skinColor={hs.skin}
+      hairStyle={hs.hairStyle}
+      hairColor={hs.hair}
+      eyeStyle={hs.eyeStyle ?? "round"}
+      mouthStyle="smile"
+      accessory={hs.accessory ?? "none"}
+      artOverride={rainbow ? RAINBOW_HERO_ART : undefined}
+      paletteExtra={rainbow ? RAINBOW_HERO_PALETTE : undefined}
+    />
   );
-}
+});
 
 /** Horizontal pawn picker: all pawns, locked ones dimmed with their unlock condition. */
 export function FastPawnPicker({
@@ -965,302 +878,76 @@ export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: Fas
  * matching the approved mockup. Rows wind left-to-right, then right-to-left.
  * Fasts over 60 days paginate into 30-day windows.
  */
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedG = Animated.createAnimatedComponent(G);
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-/** Gentle bobbing pawn for the SVG board. */
+/** Mini Hero for the SVG board: the pixel sprite drawn as SVG rects,
+ * centred on the tile with its feet at the tile's centre-bottom. */
 function SvgPawn({ cx, cy, color }: { cx: number; cy: number; color: string }) {
-  const bob = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const rise = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: -4, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(bob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-      ]),
-    );
-    rise.start();
-    return () => rise.stop();
-  }, [bob]);
+  const palette: Record<string, string> = {
+    K: "#1F2937",
+    H: "#6B4423",
+    S: "#F5D0A9",
+    E: "#1F2937",
+    C: color,
+    B: "#4A3728",
+    L: "#374151",
+  };
+  const u = 1.9;
+  const x0 = cx - 7 * u;
+  const y0 = cy + 13 - 14 * u;
   return (
     <G>
-      <AnimatedCircle cx={cx} cy={Animated.add(bob, cy - 2)} r={11} fill={color} stroke="#FFFFFF" strokeWidth={2.5} />
-      <AnimatedCircle cx={cx - 3.5} cy={Animated.add(bob, cy - 5.5)} r={3} fill="#FFFFFF" opacity={0.55} />
+      {HERO_ART.map((row, y) =>
+        [...row].map((ch, x) => {
+          if (ch === "." || ch === " ") return null;
+          const fill = palette[ch];
+          if (!fill) return null;
+          return (
+            <Rect
+              key={`${x}:${y}`}
+              x={x0 + x * u}
+              y={y0 + y * u}
+              width={u + 0.08}
+              height={u + 0.08}
+              fill={fill}
+            />
+          );
+        })
+      )}
     </G>
   );
 }
 
-/** View-based pawn with bob animation — renders the selected pawn shape, centered, with shine. */
-const PEBBLE_IMAGES: Record<string, any> = {
-  "pebble-mossy": require("@/assets/pawns/pebbles/pebble-mossy.webp"),
-  "pebble-slate": require("@/assets/pawns/pebbles/pebble-slate.webp"),
-  "pebble-ember": require("@/assets/pawns/pebbles/pebble-ember.webp"),
-  "pebble-frost": require("@/assets/pawns/pebbles/pebble-frost.webp"),
-  "pebble-crystal": require("@/assets/pawns/pebbles/pebble-crystal.webp"),
-  "pebble-sand": require("@/assets/pawns/pebbles/pebble-sand.webp"),
-  "pebble-ocean": require("@/assets/pawns/pebbles/pebble-ocean.webp"),
-  "pebble-golden": require("@/assets/pawns/pebbles/pebble-golden.webp"),
-  "pebble-shadow": require("@/assets/pawns/pebbles/pebble-shadow.webp"),
-  "pebble-rainbow": require("@/assets/pawns/pebbles/pebble-rainbow.webp"),
-  "pebble-diamond": require("@/assets/pawns/pebbles/pebble-diamond.webp"),
-};
-
+/** View-based board pawn: the selected piece as a little Hero figure with a
+ * gentle bob, centred in its tile. */
 function ViewPawn({ pawnId, color, size }: { pawnId?: string; color: string; size: number }) {
   const id = pawnId || "pebble";
   const anim = useRef(new Animated.Value(0)).current;
 
-  // Image-based pebble creatures
-  const pebbleImage = PEBBLE_IMAGES[id];
   useEffect(() => {
-    if (!pebbleImage) return;
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(anim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(anim, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [pebbleImage]);
-  if (pebbleImage) {
-    return (
-      <Animated.View style={{ transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }] }}>
-        <Image source={pebbleImage} style={{ width: size * 0.9, height: size * 0.9, borderRadius: size * 0.45 }} />
-      </Animated.View>
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
     );
-  }
-
-  useEffect(() => {
-    let loop: Animated.CompositeAnimation;
-    const sine = Easing.inOut(Easing.sin);
-    switch (id) {
-      case "pebble": // gentle bob
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1200, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1200, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "ring": // slow spin
-        loop = Animated.loop(Animated.timing(anim, { toValue: 1, duration: 6000, easing: Easing.linear, useNativeDriver: true }));
-        break;
-      case "heart": // heartbeat: lub-dub
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.7, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 900, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "star": // twinkle
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 800, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 800, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "sketch": // pencil wobble
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 900, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: -1, duration: 900, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 900, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "moon": // phases breathe
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 2000, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 2000, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "flame": // flicker
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.3, duration: 220, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.8, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 260, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        ]));
-        break;
-      case "lightning": // electric zap
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 120, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1400, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "drop": // drip fall
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1000, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        ]));
-        break;
-      case "diamond": // sparkle spin
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1500, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1500, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "leaf": // breeze sway
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1400, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: -1, duration: 1400, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1400, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "chess": // knight rock
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1100, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: -1, duration: 1100, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1100, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "crown": // royal hover
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1600, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1600, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "prayer": // reverent lift
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1800, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1800, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "fish": // swim sway
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1000, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: -1, duration: 1000, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1000, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "dove": // soar
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1500, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1500, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "comet": // streak shimmer
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1800, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "shield": // guard pulse
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 1300, easing: sine, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 1300, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "neon": // sign buzz
-        loop = Animated.loop(Animated.sequence([
-          Animated.timing(anim, { toValue: 1, duration: 200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.4, duration: 150, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0.9, duration: 250, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 2000, easing: sine, useNativeDriver: true }),
-        ]));
-        break;
-      case "sun": // rays rotate
-      default: // sun: slow spin
-        loop = Animated.loop(Animated.timing(anim, { toValue: 1, duration: 8000, easing: Easing.linear, useNativeDriver: true }));
-        break;
-    }
-    // Reset for linear loops (ring, sun)
-    if (id === "ring" || id === "sun") anim.setValue(0);
     loop.start();
     return () => loop.stop();
-  }, [id]);
+  }, [anim]);
 
   const pawnSize = 30;
-  // Per-pawn transform mapping
-  const style: any = {
-    position: "absolute",
-    left: (size - pawnSize) / 2,
-    top: (size - pawnSize) / 2,
-    width: pawnSize,
-    height: pawnSize,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  };
-  switch (id) {
-    case "pebble":
-      style.transform = [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }];
-      break;
-    case "ring":
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }];
-      break;
-    case "heart":
-      style.transform = [{ scale: anim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1.12, 1.25] }) }];
-      break;
-    case "star":
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] });
-      style.transform = [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }) }];
-      break;
-    case "sketch":
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-12deg", "12deg"] }) }];
-      break;
-    case "moon":
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] });
-      style.transform = [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1.05] }) }];
-      break;
-    case "flame":
-      style.transform = [
-        { scaleY: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) },
-        { scaleX: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] }) },
-      ];
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
-      break;
-    case "lightning":
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
-      break;
-    case "drop":
-      style.transform = [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 5] }) }];
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] });
-      break;
-    case "diamond":
-      style.transform = [
-        { rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ["-12deg", "12deg"] }) },
-        { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
-      ];
-      break;
-    case "leaf":
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-14deg", "14deg"] }) }];
-      break;
-    case "chess":
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-8deg", "8deg"] }) }];
-      break;
-    case "crown":
-      style.transform = [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }];
-      break;
-    case "prayer":
-      style.transform = [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }];
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
-      break;
-    case "fish":
-      style.transform = [
-        { translateX: anim.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] }) },
-        { rotate: anim.interpolate({ inputRange: [-1, 1], outputRange: ["-6deg", "6deg"] }) },
-      ];
-      break;
-    case "dove":
-      style.transform = [
-        { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
-        { rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-4deg"] }) },
-      ];
-      break;
-    case "comet":
-      style.transform = [{ translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) }];
-      style.opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
-      break;
-    case "shield":
-      style.transform = [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }];
-      break;
-    case "neon":
-      style.opacity = anim.interpolate({ inputRange: [0, 0.4, 0.9, 1], outputRange: [1, 0.55, 0.95, 1] });
-      break;
-    case "sun":
-    default:
-      style.transform = [{ rotate: anim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }];
-      break;
-  }
-
   return (
-    <Animated.View style={style}>
+    <Animated.View
+      style={{
+        position: "absolute",
+        left: (size - pawnSize) / 2,
+        top: (size - pawnSize) / 2,
+        width: pawnSize,
+        height: pawnSize,
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 10,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
+      }}
+    >
       <FastPawnShape id={id} size={pawnSize} color={color} />
     </Animated.View>
   );

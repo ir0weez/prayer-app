@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { PawnAccessory, PawnEyeStyle, PawnHairStyle } from "@/lib/pawn";
 
 export type FastPawnId =
   | "pebble" | "ring" | "heart" | "star" | "sketch" | "moon"
@@ -56,6 +57,84 @@ export const FAST_PAWNS: FastPawnDef[] = [
   { id: "pebble-rainbow", name: "Rainbow Pebble", level: 0 },
   { id: "pebble-diamond", name: "Diamond Pebble", level: 0 },
 ];
+
+/**
+ * How each unlockable board piece dresses the Hero. The pieces are little
+ * hero figures now (the old pawn shapes are retired): each keeps its name,
+ * unlock condition and signature colors — expressed as the hero's tunic,
+ * hair, skin, eyes and accessory. When a caller passes its own color (the
+ * board / picker theme), that color wins for the tunic.
+ */
+export type FastPawnHeroStyle = {
+  tunic: string;
+  hair: string;
+  hairStyle: PawnHairStyle;
+  skin?: string;
+  eyeStyle?: PawnEyeStyle;
+  accessory?: PawnAccessory;
+};
+
+export const FAST_PAWN_HERO_STYLES: Record<FastPawnId, FastPawnHeroStyle> = {
+  pebble: { tunic: "#FFD54F", hair: "#6B4423", hairStyle: "short" },
+  ring: { tunic: "#F59E0B", hair: "#111827", hairStyle: "short" },
+  heart: { tunic: "#EF4444", hair: "#7F1D1D", hairStyle: "medium" },
+  star: { tunic: "#FBBF24", hair: "#F59E0B", hairStyle: "curly", eyeStyle: "starry" },
+  sketch: { tunic: "#9CA3AF", hair: "#374151", hairStyle: "sidepart" },
+  moon: { tunic: "#6366F1", hair: "#1E1B4B", hairStyle: "medium", eyeStyle: "sleepy" },
+  flame: { tunic: "#F97316", hair: "#DC2626", hairStyle: "mohawk" },
+  lightning: { tunic: "#1F2937", hair: "#FDE047", hairStyle: "mohawk" },
+  drop: { tunic: "#3B82F6", hair: "#1D4ED8", hairStyle: "fade" },
+  diamond: { tunic: "#A5F3FC", hair: "#BAE6FD", hairStyle: "bun", skin: "#F8FAFC" },
+  leaf: { tunic: "#22C55E", hair: "#166534", hairStyle: "wavy" },
+  chess: { tunic: "#111827", hair: "#F9FAFB", hairStyle: "short" },
+  crown: { tunic: "#7C3AED", hair: "#111827", hairStyle: "short", accessory: "crown" },
+  prayer: { tunic: "#F5F5F4", hair: "#78716C", hairStyle: "long", eyeStyle: "happy", accessory: "halo" },
+  fish: { tunic: "#0EA5E9", hair: "#0369A1", hairStyle: "fade" },
+  dove: { tunic: "#F8FAFC", hair: "#CBD5E1", hairStyle: "long", eyeStyle: "happy" },
+  comet: { tunic: "#8B5CF6", hair: "#DDD6FE", hairStyle: "ponytail" },
+  shield: { tunic: "#64748B", hair: "#334155", hairStyle: "buzz" },
+  neon: { tunic: "#EC4899", hair: "#22D3EE", hairStyle: "mohawk" },
+  sun: { tunic: "#FBBF24", hair: "#F59E0B", hairStyle: "curly", eyeStyle: "happy", accessory: "halo" },
+  "pebble-mossy": { tunic: "#65A30D", hair: "#3F6212", hairStyle: "curly" },
+  "pebble-slate": { tunic: "#64748B", hair: "#334155", hairStyle: "short" },
+  "pebble-sand": { tunic: "#D9A441", hair: "#92400E", hairStyle: "medium" },
+  "pebble-ocean": { tunic: "#0284C7", hair: "#075985", hairStyle: "wavy" },
+  "pebble-ember": { tunic: "#EA580C", hair: "#7C2D12", hairStyle: "mohawk" },
+  "pebble-frost": { tunic: "#E0F2FE", hair: "#7DD3FC", hairStyle: "long", skin: "#F8FAFC" },
+  "pebble-crystal": { tunic: "#C084FC", hair: "#E9D5FF", hairStyle: "bun" },
+  "pebble-golden": { tunic: "#F59E0B", hair: "#B45309", hairStyle: "short", accessory: "crown" },
+  "pebble-shadow": { tunic: "#1F2937", hair: "#030712", hairStyle: "long", skin: "#9CA3AF" },
+  "pebble-rainbow": { tunic: "#FACC15", hair: "#111827", hairStyle: "curly", eyeStyle: "happy" },
+  "pebble-diamond": { tunic: "#F0FDFA", hair: "#99F6E4", hairStyle: "bun", skin: "#F8FAFC" },
+};
+
+/** Rainbow-striped sprite art for the Rainbow Pebble hero (letters R/O/Y/G/U/V
+ * are palette keys — see RAINBOW_HERO_PALETTE). */
+export const RAINBOW_HERO_ART: string[] = [
+  ".....KKKK.....",
+  "....KHHHHK....",
+  "....KHSSHK....",
+  "....KSEESK....",
+  "....KSSSSK....",
+  ".....KSSK.....",
+  "....KRRRRK....",
+  "...KOOOOOOK...",
+  "...KYBBBBYK...",
+  "...KGGGGGGK...",
+  "....KUUUK.....",
+  "....KUUUK.....",
+  "...KVVKKVVK...",
+  "..............",
+];
+
+export const RAINBOW_HERO_PALETTE: Record<string, string> = {
+  R: "#EF4444",
+  O: "#F97316",
+  Y: "#FACC15",
+  G: "#22C55E",
+  U: "#3B82F6",
+  V: "#8B5CF6",
+};
 
 export function isPawnUnlocked(pawn: FastPawnDef, level: number, prayerStreak = 0, ownedShopIds: string[] = []): boolean {
   if (pawn.prayerStreak != null) return prayerStreak >= pawn.prayerStreak;

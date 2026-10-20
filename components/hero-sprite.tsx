@@ -9,8 +9,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
-import Svg, { Circle, G, Path, Rect } from "react-native-svg";
-import { beardGrowthFor, type CustomPawn, type PawnBeardStyle, type PawnHairStyle } from "@/lib/pawn";
+import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
+import {
+  beardGrowthFor,
+  type CustomPawn,
+  type PawnAccessory,
+  type PawnBeardStyle,
+  type PawnBodyStyle,
+  type PawnEyeStyle,
+  type PawnHairStyle,
+  type PawnMouthStyle,
+} from "@/lib/pawn";
 import { GEAR_BY_ID, defaultEquipped, loadEquipped, type EquippedGear, type GearItem } from "@/lib/gear";
 
 /* ------------------------------------------------------------------ */
@@ -58,6 +67,55 @@ export const HERO_ART = [
   "...KLLKKLLK...",
   "..............",
 ];
+
+const HERO_HEAD_ROWS = HERO_ART.slice(0, 6);
+
+/**
+ * Torso + leg rows (rows 6-13) per creator body shape. The head rows never
+ * change, so the hair / eyes / mouth / beard overlays stay aligned for every
+ * shape — only the silhouette below the neck differs, and it reads at
+ * thumbnail size: Round bulges in the middle on short legs, Tall is slim
+ * with long legs, Stocky is wide at the shoulders with a wide stance.
+ */
+const HERO_BODY_ROWS: Record<PawnBodyStyle, string[]> = {
+  pebble: HERO_ART.slice(6),
+  round: [
+    "....KCCCCK....",
+    "..KCCCCCCCCK..",
+    "..KCCCBBCCCK..",
+    "..KCCCCCCCCK..",
+    "....KLLLK.....",
+    "...KLLKKLLK...",
+    "..............",
+    "..............",
+  ],
+  tall: [
+    "....KCCCCK....",
+    "....KCCCCK....",
+    "....KCBBCK....",
+    "....KCCCCK....",
+    "....KLLLK.....",
+    "....KLLLK.....",
+    "....KLLLK.....",
+    "...KLLKKLLK...",
+  ],
+  stocky: [
+    "...KCCCCCCK...",
+    "..KCCCCCCCCK..",
+    "..KCCCBBCCCK..",
+    "..KCCCCCCCCK..",
+    "...KLLLLLK....",
+    "...KLLLLLK....",
+    "..KLLLKKLLLK..",
+    "..............",
+  ],
+};
+
+/** Sprite art for a creator body shape (pebble = the classic art). */
+export function heroArtForBodyStyle(style: PawnBodyStyle = "pebble"): string[] {
+  if (style === "pebble") return HERO_ART;
+  return [...HERO_HEAD_ROWS, ...HERO_BODY_ROWS[style]];
+}
 
 /** Gentle pulsing halo for high-tier gear. Not flashy — a slow breathe. */
 export function TierGlow({ color, size, left, top }: { color: string; size: number; left: number; top: number }) {
@@ -751,6 +809,117 @@ export function HeroBeard({ style, length, color }: { style: PawnBeardStyle; len
 
 
 /* ------------------------------------------------------------------ */
+/* Face + accessory overlays (creator appearance, in the 65x70 box).   */
+/* The sprite's own eyes are two adjacent pixels at art cols 6-7,      */
+/* rows 3 -> overlay x 30-40, y 15-20; face centre x = 35. The eye     */
+/* styles repaint that band with skin first, then draw their pattern.  */
+/* ------------------------------------------------------------------ */
+
+const FACE_INK = "#1F2937";
+
+export function HeroEyes({ style, skin }: { style: PawnEyeStyle; skin: string }) {
+  const patch = <Rect x={29} y={14.4} width={12} height={6.4} fill={skin} />;
+  switch (style) {
+    case "round":
+      return (
+        <G>
+          {patch}
+          <Rect x={31} y={15.6} width={3} height={4} rx={0.9} fill={FACE_INK} />
+          <Rect x={36} y={15.6} width={3} height={4} rx={0.9} fill={FACE_INK} />
+          <Rect x={31.7} y={16.2} width={1.1} height={1.1} fill="#FFFFFF" />
+          <Rect x={36.7} y={16.2} width={1.1} height={1.1} fill="#FFFFFF" />
+        </G>
+      );
+    case "happy":
+      return (
+        <G>
+          {patch}
+          <Path d="M30.6 18.8 L32.5 16.6 L34.4 18.8" stroke={FACE_INK} strokeWidth={1.6} strokeLinecap="round" fill="none" />
+          <Path d="M35.6 18.8 L37.5 16.6 L39.4 18.8" stroke={FACE_INK} strokeWidth={1.6} strokeLinecap="round" fill="none" />
+        </G>
+      );
+    case "sleepy":
+      return (
+        <G>
+          {patch}
+          <Rect x={30.4} y={17.6} width={4.2} height={1.4} rx={0.7} fill={FACE_INK} />
+          <Rect x={35.4} y={17.6} width={4.2} height={1.4} rx={0.7} fill={FACE_INK} />
+        </G>
+      );
+    case "determined":
+      return (
+        <G>
+          {patch}
+          <Path d="M30.2 15 L34.8 16.6" stroke={FACE_INK} strokeWidth={1.7} strokeLinecap="round" />
+          <Path d="M39.8 15 L35.2 16.6" stroke={FACE_INK} strokeWidth={1.7} strokeLinecap="round" />
+          <Rect x={31.3} y={17.4} width={2.5} height={2.5} fill={FACE_INK} />
+          <Rect x={36.2} y={17.4} width={2.5} height={2.5} fill={FACE_INK} />
+        </G>
+      );
+    case "starry":
+      return (
+        <G>
+          {patch}
+          {[32.5, 37.5].map((cx) => (
+            <G key={cx}>
+              <Rect x={cx - 0.7} y={15} width={1.4} height={5} fill="#F59E0B" />
+              <Rect x={cx - 2.2} y={16.8} width={4.4} height={1.4} fill="#F59E0B" />
+            </G>
+          ))}
+        </G>
+      );
+  }
+}
+
+/** Pixel mouth under the eyes (the beard, drawn after, covers it when worn). */
+export function HeroMouth({ style }: { style: PawnMouthStyle }) {
+  switch (style) {
+    case "smile":
+      return <Path d="M31.8 22.6 Q35 25.6 38.2 22.6" stroke={FACE_INK} strokeWidth={1.5} strokeLinecap="round" fill="none" />;
+    case "open":
+      return <Rect x={33.3} y={22.2} width={3.4} height={4.2} rx={1.7} fill={FACE_INK} />;
+    case "flat":
+      return <Rect x={32.4} y={23.6} width={5.2} height={1.4} rx={0.7} fill={FACE_INK} />;
+    case "smirk":
+      return <Path d="M32 23.8 Q35.8 25.2 38.4 22.4" stroke={FACE_INK} strokeWidth={1.5} strokeLinecap="round" fill="none" />;
+  }
+}
+
+/** Worn accessories from the creator, drawn over the hair (centred on the
+ * hair cap at x 32.5, kept inside the top of the box so nothing clips). */
+export function HeroAccessory({ kind }: { kind: PawnAccessory }) {
+  switch (kind) {
+    case "none":
+      return null;
+    case "tophat":
+      return (
+        <G>
+          <Rect x={23} y={0} width={17} height={4.6} fill="#111827" />
+          <Rect x={23} y={3.2} width={17} height={1.5} fill="#DC2626" />
+          <Rect x={18.5} y={4.6} width={26} height={1.8} fill="#111827" />
+        </G>
+      );
+    case "crown":
+      return (
+        <G>
+          <Path d="M22 4.4 L22 0.8 L26 2.8 L30.5 0.4 L35 2.8 L39 0.8 L43 4.4 Z" fill="#FBBF24" />
+          <Rect x={22} y={4.4} width={21} height={1.8} fill="#F59E0B" />
+          <Circle cx={32.5} cy={3.4} r={1.2} fill="#EF4444" />
+        </G>
+      );
+    case "halo":
+      return <Ellipse cx={32.5} cy={2.2} rx={9.5} ry={2.3} stroke="#FDE68A" strokeWidth={1.8} fill="none" />;
+    case "cap":
+      return (
+        <G>
+          <Path d="M20.5 6.5 Q32.5 -3.5 44.5 6.5 Z" fill="#DC2626" />
+          <Rect x={36} y={5.6} width={11} height={2.1} rx={1} fill="#991B1B" />
+        </G>
+      );
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* The Hero figure                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -787,6 +956,20 @@ export type HeroFigureProps = {
   size?: number;
   /** Weapon rotation (the Dark Forest swing passes its animated value). */
   weaponAngle?: string;
+  /** Creator body shape — swaps the torso/leg sprite rows (head unchanged). */
+  bodyStyle?: PawnBodyStyle;
+  /** Creator eye style — pixel pattern repainted over the sprite's eyes. */
+  eyeStyle?: PawnEyeStyle;
+  /** Creator mouth style — pixel mouth under the eyes. */
+  mouthStyle?: PawnMouthStyle;
+  /** Creator accessory worn over the hair (top hat / crown / halo / cap). */
+  accessory?: PawnAccessory;
+  /** Skin tone for the sprite's face (palette S). */
+  skinColor?: string;
+  /** Full sprite-art override (themed board pieces, e.g. rainbow stripes). */
+  artOverride?: string[];
+  /** Extra palette entries for characters used by artOverride. */
+  paletteExtra?: Record<string, string>;
 };
 
 /**
@@ -803,15 +986,22 @@ export function HeroFigure({
   beardLength = 0,
   size = HERO_BOX_W,
   weaponAngle,
+  bodyStyle = "pebble",
+  eyeStyle,
+  mouthStyle,
+  accessory = "none",
+  skinColor = "#F5D0A9",
+  artOverride,
+  paletteExtra,
 }: HeroFigureProps) {
   const k = size / HERO_BOX_W;
-  const palette = { K: "#1F2937", H: "#6B4423", S: "#F5D0A9", E: "#1F2937", C: tunicColor, B: "#4A3728", L: "#374151" };
+  const palette = { K: "#1F2937", H: "#6B4423", S: skinColor, E: "#1F2937", C: tunicColor, B: "#4A3728", L: "#374151", ...paletteExtra };
   const glow = armorId ? HERO_GLOW_ARMORS[armorId] : undefined;
   const glowColor = weaponId ? weaponGlowColor(weaponId) : null;
   return (
     <View style={{ width: size, height: HERO_BOX_H * k }}>
       {glow && <TierGlow color={glow} size={104 * k} left={-20 * k} top={-17 * k} />}
-      <PixelSprite art={HERO_ART} palette={palette} px={5 * k} />
+      <PixelSprite art={artOverride ?? heroArtForBodyStyle(bodyStyle)} palette={palette} px={5 * k} />
       {armorId && (
         <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0 }}>
           <Svg width={size} height={HERO_BOX_H * k} viewBox="0 0 65 70">
@@ -822,8 +1012,11 @@ export function HeroFigure({
       {/* the saved appearance's own hair + beard — the hero is your character */}
       <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0 }}>
         <Svg width={size} height={HERO_BOX_H * k} viewBox="0 0 65 70">
+          {eyeStyle && <HeroEyes style={eyeStyle} skin={skinColor} />}
+          {mouthStyle && <HeroMouth style={mouthStyle} />}
           <HeroHair style={hairStyle} color={hairColor} />
           <HeroBeard style={beardStyle} length={beardLength} color={hairColor} />
+          <HeroAccessory kind={accessory} />
         </Svg>
       </View>
       {weaponId && (
@@ -895,6 +1088,76 @@ export function HeroForPawn({
       beardStyle={pawn.beardStyle}
       beardLength={beardLength}
       size={size}
+      bodyStyle={pawn.bodyStyle}
+      eyeStyle={pawn.eyeStyle}
+      mouthStyle={pawn.mouthStyle}
+      accessory={pawn.accessory}
     />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Storage-free thumbnail for option grids (creator, barbershop,       */
+/* board-piece pickers): the hero with an explicit appearance, no      */
+/* equipped armor/weapon, so the option being picked is what reads.    */
+/* ------------------------------------------------------------------ */
+
+export type HeroThumbnailProps = {
+  /** Tile size (the full figure's width, or the crop box when headOnly). */
+  size?: number;
+  tunicColor: string;
+  skinColor?: string;
+  hairStyle?: PawnHairStyle;
+  hairColor?: string;
+  beardStyle?: PawnBeardStyle;
+  beardLength?: number;
+  eyeStyle?: PawnEyeStyle;
+  mouthStyle?: PawnMouthStyle;
+  accessory?: PawnAccessory;
+  bodyStyle?: PawnBodyStyle;
+  /** Crop to the head + beard (face-option tiles: eyes, mouth, hair, beard). */
+  headOnly?: boolean;
+  artOverride?: string[];
+  paletteExtra?: Record<string, string>;
+};
+
+export function HeroThumbnail({
+  size = 56,
+  headOnly,
+  tunicColor,
+  skinColor,
+  hairStyle,
+  hairColor,
+  beardStyle,
+  beardLength,
+  eyeStyle,
+  mouthStyle,
+  accessory,
+  bodyStyle,
+  artOverride,
+  paletteExtra,
+}: HeroThumbnailProps) {
+  const figure = (
+    <HeroFigure
+      tunicColor={tunicColor}
+      skinColor={skinColor}
+      hairStyle={hairStyle}
+      hairColor={hairColor}
+      beardStyle={beardStyle}
+      beardLength={beardLength}
+      eyeStyle={eyeStyle}
+      mouthStyle={mouthStyle}
+      accessory={accessory}
+      bodyStyle={bodyStyle}
+      artOverride={artOverride}
+      paletteExtra={paletteExtra}
+      size={headOnly ? size * 1.38 : size}
+    />
+  );
+  if (!headOnly) return figure;
+  return (
+    <View style={{ width: size, height: size, overflow: "hidden", alignItems: "center" }}>
+      {figure}
+    </View>
   );
 }

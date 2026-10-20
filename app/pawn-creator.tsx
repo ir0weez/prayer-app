@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { PawnPreview } from "@/components/pawn-preview";
+import { HeroThumbnail } from "@/components/hero-sprite";
 import {
   PAWN_ACCESSORIES,
   PAWN_BODY_COLORS,
@@ -121,7 +122,16 @@ export default function PawnCreatorScreen() {
                   borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF",
                 }}
               >
-                <PawnPreview pawn={{ ...draft, bodyStyle: opt.id as PawnBodyStyle, beardLength: 0, hairLength: 0 }} size={52} variant="face" />
+                <HeroThumbnail
+                  size={52}
+                  tunicColor={draft.bodyColor}
+                  hairStyle={draft.hairStyle}
+                  hairColor={draft.hairColor || "#111827"}
+                  eyeStyle={draft.eyeStyle}
+                  mouthStyle={draft.mouthStyle}
+                  accessory={draft.accessory}
+                  bodyStyle={opt.id as PawnBodyStyle}
+                />
                 <Text style={{ fontSize: 10, color: selected ? "#FFFFFF" : "#A78BFA", marginTop: 2, fontWeight: selected ? "700" : "400" }}>{opt.name}</Text>
               </Pressable>
             );
@@ -176,7 +186,16 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("eyeStyle", opt.id as PawnEyeStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, eyeStyle: opt.id as PawnEyeStyle, mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
+                <HeroThumbnail
+                  headOnly
+                  size={52}
+                  tunicColor={draft.bodyColor}
+                  hairStyle={draft.hairStyle}
+                  hairColor={draft.hairColor || "#111827"}
+                  eyeStyle={opt.id as PawnEyeStyle}
+                  mouthStyle="flat"
+                  bodyStyle={draft.bodyStyle}
+                />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -194,7 +213,16 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("mouthStyle", opt.id as PawnMouthStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, mouthStyle: opt.id as PawnMouthStyle, eyeStyle: "round", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
+                <HeroThumbnail
+                  headOnly
+                  size={52}
+                  tunicColor={draft.bodyColor}
+                  hairStyle={draft.hairStyle}
+                  hairColor={draft.hairColor || "#111827"}
+                  eyeStyle="round"
+                  mouthStyle={opt.id as PawnMouthStyle}
+                  bodyStyle={draft.bodyStyle}
+                />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -212,7 +240,17 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("accessory", opt.id as PawnAccessory)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, accessory: opt.id as PawnAccessory, eyeStyle: "round", mouthStyle: "smile", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
+                <HeroThumbnail
+                  headOnly
+                  size={52}
+                  tunicColor={draft.bodyColor}
+                  hairStyle={draft.hairStyle}
+                  hairColor={draft.hairColor || "#111827"}
+                  eyeStyle="round"
+                  mouthStyle="smile"
+                  accessory={opt.id as PawnAccessory}
+                  bodyStyle={draft.bodyStyle}
+                />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );

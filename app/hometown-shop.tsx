@@ -11,6 +11,7 @@ import {
   type HometownCoins,
   type ShopItem,
 } from "@/lib/hometown";
+import { FastPawnShape } from "@/components/fast-board";
 
 export default function HometownShopScreen() {
   const router = useRouter();
@@ -111,7 +112,15 @@ export default function HometownShopScreen() {
                     opacity: isOwned || locked ? 0.6 : 1,
                   }}
                 >
-                  <Text style={{ fontSize: 28 }}>{item.icon}</Text>
+                  {item.type === "pawn-skin" ? (
+                    // Hero Skins are little Hero figures in the skin's colors
+                    // (shop id "pawn-shadow" -> board piece "pebble-shadow").
+                    <View style={{ width: 40, alignItems: "center" }}>
+                      <FastPawnShape id={item.id.replace("pawn-", "pebble-")} size={30} />
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 28 }}>{item.icon}</Text>
+                  )}
                   <View style={{ marginLeft: 12, flex: 1 }}>
                     <Text style={{ fontWeight: "700" }}>{item.name}</Text>
                     <Text style={{ fontSize: 12, color: "#78716C" }}>{item.description}</Text>

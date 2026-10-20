@@ -7,11 +7,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
 import { demonForWave, demonPalette, zoneForWave, zoneLabel, FOREST_ZONES, type DarkForestState, type DemonDef, type ForestZone } from "@/lib/dark-forest";
-import { ArmorShapes, HERO_ART, HeroBeard, HeroHair, PixelSprite, TierGlow, WeaponShapes, armorGlowColor, weaponGlowColor } from "@/components/hero-sprite";
+import { ArmorShapes, HeroAccessory, HeroBeard, HeroEyes, HeroHair, HeroMouth, PixelSprite, TierGlow, WeaponShapes, armorGlowColor, heroArtForBodyStyle, weaponGlowColor } from "@/components/hero-sprite";
 import { BADGE_BY_ID, type BossDef } from "@/lib/badges";
 import { BadgeMedallion } from "@/components/badge-case";
 import type { CombatStats } from "@/lib/gear";
-import type { PawnBeardStyle, PawnHairStyle } from "@/lib/pawn";
+import type { PawnAccessory, PawnBeardStyle, PawnBodyStyle, PawnEyeStyle, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 
 export type DarkForestProps = {
@@ -30,6 +30,11 @@ export type DarkForestProps = {
   hairStyle?: PawnHairStyle;
   hairColor?: string;
   beardStyle?: PawnBeardStyle;
+  /** Creator appearance — body shape, eyes, mouth and accessory. */
+  bodyStyle?: PawnBodyStyle;
+  eyeStyle?: PawnEyeStyle;
+  mouthStyle?: PawnMouthStyle;
+  accessory?: PawnAccessory;
   /** Current beard growth 0-100 (lib/pawn beardGrowthFor). */
   beardLength?: number;
   timeOfDay: TimeOfDay;
@@ -429,7 +434,7 @@ type FloatItem = { id: number; text: string; color: string; side: "left" | "righ
 
 let floatId = 0;
 
-export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, timeOfDay, pt, onVictory, bossGate = null, onBossVictory }: DarkForestProps) {
+export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", eyeStyle, mouthStyle, accessory = "none", timeOfDay, pt, onVictory, bossGate = null, onBossVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -670,7 +675,7 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
                 {armorGlowColor(armorId) && (
                   <TierGlow color={armorGlowColor(armorId)!} size={104} left={-20} top={-17} />
                 )}
-                <PixelSprite art={HERO_ART} palette={pawnPalette} px={5} />
+                <PixelSprite art={heroArtForBodyStyle(bodyStyle)} palette={pawnPalette} px={5} />
                 {armorId && (
                   <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0 }}>
                     <Svg width={65} height={70} viewBox="0 0 65 70">
@@ -681,8 +686,11 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
                 {/* the hero's own hair + beard, from the saved appearance */}
                 <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0 }}>
                   <Svg width={65} height={70} viewBox="0 0 65 70">
+                    {eyeStyle && <HeroEyes style={eyeStyle} skin="#F5D0A9" />}
+                    {mouthStyle && <HeroMouth style={mouthStyle} />}
                     <HeroHair style={hairStyle} color={hairColor} />
                     <HeroBeard style={beardStyle} length={beardLength} color={hairColor} />
+                    <HeroAccessory kind={accessory} />
                   </Svg>
                 </View>
                 {/* weapon */}

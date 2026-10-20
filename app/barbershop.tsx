@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { PawnPreview } from "@/components/pawn-preview";
+import { HeroThumbnail } from "@/components/hero-sprite";
 import {
   BARBERSHOP_TRIM_COST,
   PAWN_BEARD_STYLES,
@@ -438,7 +439,21 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} variant="face" />}
+                    preview={
+                    <HeroThumbnail
+                      headOnly
+                      size={64}
+                      tunicColor={pawn.bodyColor}
+                      hairStyle={s.id}
+                      hairColor={pawn.hairColor || "#111827"}
+                      beardStyle={pawn.beardStyle}
+                      beardLength={isMale ? beardLength : 0}
+                      eyeStyle={pawn.eyeStyle}
+                      mouthStyle={pawn.mouthStyle}
+                      accessory={pawn.accessory}
+                      bodyStyle={pawn.bodyStyle}
+                    />
+                  }
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
@@ -567,7 +582,21 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} variant="face" />}
+                    preview={
+                    <HeroThumbnail
+                      headOnly
+                      size={64}
+                      tunicColor={pawn.bodyColor}
+                      hairStyle={s.id}
+                      hairColor={pawn.hairColor || "#111827"}
+                      beardStyle={pawn.beardStyle}
+                      beardLength={isMale ? beardLength : 0}
+                      eyeStyle={pawn.eyeStyle}
+                      mouthStyle={pawn.mouthStyle}
+                      accessory={pawn.accessory}
+                      bodyStyle={pawn.bodyStyle}
+                    />
+                  }
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
@@ -622,7 +651,21 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, beardStyle: s.id, beardLength: 55 }} size={64} variant="face" />}
+                    preview={
+                    <HeroThumbnail
+                      headOnly
+                      size={64}
+                      tunicColor={pawn.bodyColor}
+                      hairStyle={pawn.hairStyle}
+                      hairColor={pawn.hairColor || "#111827"}
+                      beardStyle={s.id}
+                      beardLength={55}
+                      eyeStyle={pawn.eyeStyle}
+                      mouthStyle={pawn.mouthStyle}
+                      accessory={pawn.accessory}
+                      bodyStyle={pawn.bodyStyle}
+                    />
+                  }
                     name={s.name}
                     owned={owned}
                     equipped={equipped}

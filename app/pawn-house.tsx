@@ -10,6 +10,7 @@ import {
   parseCoins,
   type HometownCoins,
   scaledCoins,
+  scaledXP,
 } from "@/lib/hometown";
 import {
   HOUSE_ROOMS,
@@ -33,6 +34,10 @@ import {
   type Trophy,
 } from "@/lib/pawn-house";
 import { RoomFurnitureArt, type RoomPieceId } from "@/components/room-furniture-art";
+import { awardCustomXP } from "@/lib/xp-engine";
+import { GrillGame } from "@/components/grill-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 import { PawnPreview } from "@/components/pawn-preview";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -762,6 +767,12 @@ export default function PawnHouseScreen() {
   const [garden, setGarden] = useState<GardenData>({ completed: 0, total: 0, fastName: "" });
   const [visitors, setVisitors] = useState<PrayedPerson[]>([]);
   const [bonuses, setBonuses] = useState<HouseBonuses>(getCachedHouseBonuses());
+  const [grillPlaysLeft, setGrillPlaysLeft] = useState<number | null>(null);
+  const [playingGrill, setPlayingGrill] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("grill").then(setGrillPlaysLeft).catch(() => setGrillPlaysLeft(0));
+  }, []);
 
   useEffect(() => {
     coinsRef.current = coins;
@@ -800,6 +811,18 @@ export default function PawnHouseScreen() {
       return next.balance >= 0;
     },
     [persistCoins]
+  );
+
+  const handleGrillComplete = useCallback(
+    (raw: MiniGameReward): MiniGameReward => {
+      const c = scaledCoins(raw.coins);
+      const xp = scaledXP(raw.xp);
+      if (c > 0) addCoins(c);
+      if (xp > 0) awardCustomXP(xp, `minigame-grill-${Date.now()}`).catch(() => undefined);
+      recordPlay("grill").then(setGrillPlaysLeft).catch(() => undefined);
+      return { coins: c, xp };
+    },
+    [addCoins]
   );
 
   const reload = useCallback(async () => {
@@ -1234,6 +1257,29 @@ export default function PawnHouseScreen() {
       </ScrollView>
 
       {renderRoomBody()}
+
+      {roomId === "backyard" && room.unlocked && (
+        (room.furniture["bbq"] || 0) > 0 ? (
+          <>
+            <PlayCard
+              icon="outdoor-grill"
+              title="Play: Grill Master"
+              blurb="Ten things on the grate — burgers, corn, skewers, all at their own pace. Flip once, serve in the golden window, and don't let a single one burn."
+              playsLeft={grillPlaysLeft}
+              cap={MINI_GAME_CAPS.grill}
+              accent="#EA580C"
+              onPlay={() => setPlayingGrill(true)}
+            />
+            {playingGrill && (
+              <GrillGame accent="#EA580C" onComplete={handleGrillComplete} onExit={() => setPlayingGrill(false)} />
+            )}
+          </>
+        ) : (
+          <Text style={{ color: "#A08B7A", fontSize: 12, textAlign: "center", marginTop: 12, paddingHorizontal: 24 }}>
+            Put a BBQ grill in the backyard and you can play Grill Master here.
+          </Text>
+        )
+      )}
 
       {room.unlocked && def.kind === "living" && (
         <View style={{ marginTop: 12 }}>

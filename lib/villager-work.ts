@@ -13,7 +13,9 @@ export type WorkKind =
   | "prune-flowers"
   | "bank-shift"
   | "restaurant-shift"
-  | "deliver-meal";
+  | "deliver-meal"
+  | "work-farm"
+  | "tend-garden";
 
 export type WorkStatus = "en-route" | "working" | "done";
 
@@ -40,6 +42,12 @@ export const WORK_KINDS: Record<
     rewardXP: number;
     /** MaterialIcons name shown above the light while they work. */
     badgeIcon: string;
+    /**
+     * Where the shift happens. When a villager is actively working ("working"
+     * status) at a farm or community garden, nearby food buildings get the
+     * supply-chain bonus (+35% income).
+     */
+    siteType?: "farm" | "community-garden";
   }
 > = {
   "clean-garden": {
@@ -50,6 +58,7 @@ export const WORK_KINDS: Record<
     rewardCoins: 15,
     rewardXP: 6,
     badgeIcon: "cleaning-services",
+    siteType: "community-garden",
   },
   "prune-flowers": {
     label: "Prune Flowers",
@@ -59,6 +68,7 @@ export const WORK_KINDS: Record<
     rewardCoins: 8,
     rewardXP: 4,
     badgeIcon: "content-cut",
+    siteType: "farm",
   },
   "bank-shift": {
     label: "Work at the Bank",
@@ -86,6 +96,26 @@ export const WORK_KINDS: Record<
     rewardCoins: 12,
     rewardXP: 6,
     badgeIcon: "delivery-dining",
+  },
+  "work-farm": {
+    label: "Work the Farm",
+    blurb: "Tend the fields and harvest at the farm — nearby food shops and restaurants earn +35%.",
+    durationMs: 60 * 60 * 1000,
+    durationLabel: "1 hour",
+    rewardCoins: 25,
+    rewardXP: 10,
+    badgeIcon: "agriculture",
+    siteType: "farm",
+  },
+  "tend-garden": {
+    label: "Tend the Community Garden",
+    blurb: "Work the beds at the Community Garden — fresh produce boosts nearby food buildings +35%.",
+    durationMs: 60 * 60 * 1000,
+    durationLabel: "1 hour",
+    rewardCoins: 25,
+    rewardXP: 10,
+    badgeIcon: "grass",
+    siteType: "community-garden",
   },
 };
 
@@ -218,4 +248,40 @@ export function workCountdownText(endsAt: number, nowMs: number): string {
   const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
   const ss = String(s).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+// ---- Supply chain: staffed farms & gardens boost nearby food buildings ----
+
+/** Income multiplier for food buildings within range of a staffed farm/garden. */
+export const SUPPLY_BONUS_MULT = 1.35;
+
+/** Chebyshev tile radius: staffed farm/garden supplies food buildings this close. */
+export const SUPPLY_RADIUS_TILES = 4;
+
+/**
+ * Positions of farms/community gardens that currently have a villager
+ * actively working ("working" status — arrived and on the clock). Mirrors
+ * the first-matching-building targeting used by findWorkTarget in
+ * app/hometown.tsx.
+ */
+export function staffedSupplySites(
+  assignments: VillagerWorkAssignment[],
+  buildings: Array<{ x: number; y: number; type: string }>
+): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (const a of assignments) {
+    if (a.status !== "working") continue;
+    const siteType = WORK_KINDS[a.kind]?.siteType;
+    if (!siteType) continue;
+    const b = buildings.find((x) => x.type === siteType);
+    if (b) out.push({ x: b.x, y: b.y });
+  }
+  return out;
+}
+
+/** True when any farm/garden has a worker on the clock right now. */
+export function anySupplySiteStaffed(assignments: VillagerWorkAssignment[]): boolean {
+  return assignments.some(
+    (a) => a.status === "working" && !!WORK_KINDS[a.kind]?.siteType
+  );
 }

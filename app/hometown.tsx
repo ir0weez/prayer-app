@@ -86,6 +86,7 @@ import {
   buildingStorageCap,
   isBuildingStorageFull,
   isRestaurantType,
+  isFoodBuildingType,
   RESTAURANT_GATHER_CAPS,
   isGatheringTime,
   totalGatherCapacity,
@@ -229,6 +230,10 @@ import {
   activeWorkAssignments,
   personHasActiveWork,
   workCountdownText,
+  staffedSupplySites,
+  anySupplySiteStaffed,
+  SUPPLY_BONUS_MULT,
+  SUPPLY_RADIUS_TILES,
   WORK_KINDS,
   type WorkKind,
   type VillagerWorkAssignment,
@@ -330,6 +335,29 @@ export function presenceMultiplierFor(
   if (count === 0) return 0;
   if (count === 1) return 0.4;
   if (count === 2) return 0.7;
+  return 1;
+}
+
+/**
+ * Supply-chain bonus multiplier: when a villager is actively working at a
+ * farm or community garden, food buildings (restaurants, groceries, bakery,
+ * diner, feast halls, coffee roastery) within SUPPLY_RADIUS_TILES of the
+ * staffed site earn +35%. Multiplies ON TOP of all other multipliers —
+ * food buildings work normally without it; the bonus never gates income.
+ */
+export function supplyMultiplierFor(
+  building: { x: number; y: number; type: string },
+  sites: Array<{ x: number; y: number }>,
+): number {
+  if (sites.length === 0 || !isFoodBuildingType(building.type)) return 1;
+  for (const s of sites) {
+    if (
+      Math.abs(building.x - s.x) <= SUPPLY_RADIUS_TILES &&
+      Math.abs(building.y - s.y) <= SUPPLY_RADIUS_TILES
+    ) {
+      return SUPPLY_BONUS_MULT;
+    }
+  }
   return 1;
 }
 
@@ -2679,6 +2707,13 @@ export default function HometownScreen() {
   // The active map's state (all grid logic operates on this)
   const map: MapState = town.maps[activeMap];
 
+  // Supply chain (render): staffed farms/gardens on the active map, so food
+  // buildings in range can show the green "supplied" badge.
+  const renderSupplySites = useMemo(
+    () => (workState ? staffedSupplySites(workState.assignments, map.buildings) : []),
+    [workState, map]
+  );
+
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
   const lightInfos = useMemo<LightInfo[]>(() => {
@@ -2784,6 +2819,14 @@ export default function HometownScreen() {
         case "prune-flowers": {
           const farm = buildings.find((b) => b.type === "farm");
           return farm ? centerOf(farm) : null;
+        }
+        case "work-farm": {
+          const farm = buildings.find((b) => b.type === "farm");
+          return farm ? centerOf(farm) : null;
+        }
+        case "tend-garden": {
+          const g = buildings.find((b) => b.type === "community-garden");
+          return g ? centerOf(g) : null;
         }
         case "bank-shift": {
           const bank =
@@ -3574,6 +3617,14 @@ export default function HometownScreen() {
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
+        // Supply chain (time away): villagers who were on the clock at a farm
+        // or garden during the away window supplied nearby food buildings.
+        // workStateRef is normally set by the work-load effect; fall back to a
+        // direct load so the catch-up accrual sees it too.
+        let awayWorkAssignments: VillagerWorkAssignment[] = workStateRef.current?.assignments ?? [];
+        if (!workStateRef.current) {
+          try { awayWorkAssignments = (await loadVillagerWorkState()).assignments; } catch {}
+        }
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
@@ -3608,8 +3659,19 @@ export default function HometownScreen() {
               const perMinuteXP = rate ? rate.xp : 0;
               // Presence gate (time away): scale by prayed count proxy.
               const presenceMult = presenceMultiplierFor(b, [], prayedCount, false);
+              // Supply bonus (time away): a farm/garden shift whose end time
+              // overlapped this building's away window supplies it (+35%).
+              const supplyMult = earnsCoins
+                ? supplyMultiplierFor(
+                    b,
+                    staffedSupplySites(
+                      awayWorkAssignments.filter((a) => a.endsAt > lastTick),
+                      m.buildings
+                    )
+                  )
+                : 1;
               const add = earnsCoins
-                ? minutesElapsed * perMinuteCoins * presenceMult
+                ? minutesElapsed * perMinuteCoins * presenceMult * supplyMult
                 : minutesElapsed * perMinuteXP * presenceMult;
               // ATM & vault bonuses drip as collectible coins inside the bank
               // interior instead of auto-adding to the building total.
@@ -3754,6 +3816,11 @@ export default function HometownScreen() {
           if (!m) continue;
           // Live villager positions for presence-gated income.
           const positions = mapId === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
+          // Live supply chain: staffed farms/gardens on this map boost nearby
+          // food buildings (+35%, multiplicative with everything else).
+          const liveSites = workStateRef.current
+            ? staffedSupplySites(workStateRef.current.assignments, m.buildings)
+            : [];
           const updatedBuildings = m.buildings.map((b) => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
             const minutesElapsed = Math.floor((now - lastTick) / 60000);
@@ -3769,7 +3836,8 @@ export default function HometownScreen() {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
             changed = true;
-            const add = minutesElapsed * perMin * presenceMult;
+            const supplyMult = supplyMultiplierFor(b, liveSites);
+            const add = minutesElapsed * perMin * presenceMult * supplyMult;
             return {
               ...b,
               accumulated: Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100,
@@ -5693,7 +5761,40 @@ export default function HometownScreen() {
             const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-            if (!earnsCoins && !earnsXP) return null;
+            // Supply-chain indicator: small green tag when a staffed farm or
+            // garden boosts this food building (+35%). Distinct from the grey
+            // presence badge — this one means bonus income is flowing.
+            const supplied = supplyMultiplierFor(b, renderSupplySites) > 1;
+            const supplyBadge = supplied ? (
+              <View
+                key={`supply-${b.id}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: b.x * cellSize + 2,
+                  top: b.y * cellSize - 12,
+                  zIndex: 98,
+                  elevation: 98,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#DCFCE7",
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderWidth: 1,
+                    borderColor: "#86EFAC",
+                  }}
+                >
+                  <MaterialIcons name="agriculture" size={11} color="#166534" />
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#166534", marginLeft: 2 }}>+35%</Text>
+                </View>
+              </View>
+            ) : null;
+            if (!earnsCoins && !earnsXP) return supplyBadge;
             // Presence indicator: dimmed person icon when no villagers are nearby
             // (building isn't earning). Only for income buildings with nothing banked.
             const positions = activeMap === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
@@ -5702,8 +5803,10 @@ export default function HometownScreen() {
             // Only show the collectible once something has accumulated
             if (!(b.accumulated && b.accumulated > 0)) {
               // Show quiet indicator for empty earning buildings
-              if (!isQuiet) return null;
+              if (!isQuiet) return supplyBadge;
               return (
+                <React.Fragment key={`overlay-${b.id}`}>
+                  {supplyBadge}
                 <View
                   key={`quiet-${b.id}`}
                   pointerEvents="none"
@@ -5721,9 +5824,12 @@ export default function HometownScreen() {
                 >
                   <MaterialIcons name="person-off" size={20} color="#9CA3AF" />
                 </View>
+                </React.Fragment>
               );
             }
             return (
+              <React.Fragment key={`overlay-${b.id}`}>
+                {supplyBadge}
               <View
                 key={`coin-${b.id}`}
                 pointerEvents="box-none"
@@ -5747,6 +5853,7 @@ export default function HometownScreen() {
                   isFull={!earnsXP && isBuildingStorageFull(b)}
                 />
               </View>
+              </React.Fragment>
             );
           })}
           {/* Hub landmarks — the five gates to the other maps. Tappable via the grid cells below. */}
@@ -6609,6 +6716,19 @@ export default function HometownScreen() {
                   </View>
                 );
               })()}
+              {/* Supply chain: staffed farm/garden boosts nearby food buildings */}
+              {workState && anySupplySiteStaffed(workState.assignments) ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="agriculture" size={20} color="#166534" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Farm supply</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Food buildings near a staffed farm or garden</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{Math.round((SUPPLY_BONUS_MULT - 1) * 100)}%
+                  </Text>
+                </View>
+              ) : null}
             </ScrollView>
             {/* Combined total — the same multiplicative mix the town actually earns */}
             {(() => {

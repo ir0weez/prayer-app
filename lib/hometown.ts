@@ -629,6 +629,32 @@ export function isRestaurantType(type: BuildingType): boolean {
   return type === "upper-room" || type === "manna-house" || type === "feast-hall";
 }
 
+/**
+ * Food-selling buildings: all cuisines, groceries, bakery, diner, the feast
+ * halls, and the coffee roastery. These receive the supply-chain bonus when
+ * a farm or community garden is staffed nearby (see lib/villager-work.ts).
+ */
+export const FOOD_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingType>([
+  "pizza-place",
+  "burger-joint",
+  "taco-stand",
+  "sushi-bar",
+  "diner",
+  "upper-room",
+  "manna-house",
+  "feast-hall",
+  "banquet-table",
+  "market",
+  "city-market",
+  "food-court",
+  "bakery",
+  "coffee-roastery",
+]);
+
+export function isFoodBuildingType(type: BuildingType | string): boolean {
+  return (FOOD_BUILDING_TYPES as ReadonlySet<string>).has(type);
+}
+
 /** Fixed upgrade costs for restaurants: L1 purchase is the plot cost (300c). */
 export const RESTAURANT_UPGRADE_COSTS: Record<number, number> = { 2: 500, 3: 800 };
 

@@ -254,6 +254,44 @@ function Hair({ style, s, length = 0, color = HAIR }: { style: PawnHairStyle; s:
           <View style={{ position: "absolute", top: s * 0.22, right: s * 0.02, width: s * 0.13, height: s * 0.4, backgroundColor: color, borderRadius: s * 0.06 }} />
         </>
       );
+    case "laurel":
+      // Prestige (Crown 1): neat cap crowned with a golden laurel wreath.
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * (0.18 + (length / 100) * 0.22), backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          {[0.16, 0.3, 0.44, 0.58, 0.72].map((fx, i) => (
+            <View key={i} style={{ position: "absolute", top: -s * 0.09 + Math.abs(i - 2) * s * 0.018, left: s * fx, width: s * 0.11, height: s * 0.07, borderRadius: s * 0.035, backgroundColor: i % 2 ? "#D4AF37" : "#F6C453", transform: [{ rotate: `${(i - 2) * 18}deg` }] }} />
+          ))}
+          <View style={{ position: "absolute", top: s * 0.02, left: s * 0.1, width: s * 0.8, height: s * 0.028, backgroundColor: "#B8912C", borderRadius: s * 0.014 }} />
+        </>
+      );
+    case "coronet":
+      // Prestige (Crown 2): radiant coronet — gold band, bright points, glow gems.
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * (0.18 + (length / 100) * 0.22), backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: -s * 0.05, left: s * 0.12, width: s * 0.76, height: s * 0.07, backgroundColor: "#F6C453", borderRadius: s * 0.02 }} />
+          {[0.2, 0.42, 0.64].map((fx, i) => (
+            <View key={i} style={{ position: "absolute", top: -s * 0.16, left: s * fx, width: s * 0.09, height: s * 0.12, backgroundColor: "#FDE68A", borderTopLeftRadius: s * 0.045, borderTopRightRadius: s * 0.045 }} />
+          ))}
+          {[0.245, 0.465, 0.685].map((fx, i) => (
+            <View key={`g${i}`} style={{ position: "absolute", top: -s * 0.035, left: s * fx, width: s * 0.045, height: s * 0.045, borderRadius: s * 0.023, backgroundColor: "#FFFFFF" }} />
+          ))}
+        </>
+      );
+    case "glorymane":
+      // Prestige (Crown 3): a flowing mane, streaked with light.
+      return (
+        <>
+          <View style={{ position: "absolute", top: -s * 0.03, left: s * 0.07, width: s * 0.86, height: s * 0.24, backgroundColor: color, borderTopLeftRadius: s * 0.16, borderTopRightRadius: s * 0.16, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05 }} />
+          <View style={{ position: "absolute", top: s * 0.12, left: s * 0.02, width: s * 0.14, height: s * 0.72 * sideScale, backgroundColor: color, borderRadius: s * 0.07 }} />
+          <View style={{ position: "absolute", top: s * 0.12, right: s * 0.02, width: s * 0.14, height: s * 0.72 * sideScale, backgroundColor: color, borderRadius: s * 0.07 }} />
+          <View style={{ position: "absolute", top: s * 0.14, left: s * 0.045, width: s * 0.035, height: s * 0.6 * sideScale, backgroundColor: "#FDE68A", borderRadius: s * 0.018, opacity: 0.85 }} />
+          <View style={{ position: "absolute", top: s * 0.14, right: s * 0.045, width: s * 0.035, height: s * 0.6 * sideScale, backgroundColor: "#FDE68A", borderRadius: s * 0.018, opacity: 0.85 }} />
+          <View style={{ position: "absolute", top: -s * 0.02, left: s * 0.3, width: s * 0.04, height: s * 0.2, backgroundColor: "#FFFFFF", borderRadius: s * 0.02, opacity: 0.7 }} />
+          <View style={{ position: "absolute", top: -s * 0.02, left: s * 0.62, width: s * 0.04, height: s * 0.2, backgroundColor: "#FFFFFF", borderRadius: s * 0.02, opacity: 0.7 }} />
+        </>
+      );
     default:
       return null;
   }
@@ -283,6 +321,33 @@ function Beard({ length, s, style = "full" }: { length: number; s: number; style
     const h = s * (length <= 66 ? 0.22 : 0.36);
     return (
       <View style={{ position: "absolute", top: s * 0.6, left: s * 0.5 - w / 2, width: w, height: h, backgroundColor: HAIR, borderBottomLeftRadius: s * 0.1, borderBottomRightRadius: s * 0.1, borderTopLeftRadius: s * 0.04, borderTopRightRadius: s * 0.04 }} />
+    );
+  }
+  if (style === "gilded" || style === "radiant" || style === "heavenly") {
+    // Prestige beards: full beards with tier regalia — a gold band
+    // (gilded), bright light-edged strands (radiant), or long white
+    // glory (heavenly).
+    const w = s * 0.8;
+    const h = s * (style === "heavenly" ? 0.72 : length <= 66 ? 0.38 : 0.58);
+    const fill = style === "heavenly" ? "#E8E4DA" : HAIR;
+    return (
+      <View style={{ position: "absolute", top: s * 0.44, left: s * 0.5 - w / 2, width: w, height: h, backgroundColor: fill, borderBottomLeftRadius: s * 0.26, borderBottomRightRadius: s * 0.26, borderTopLeftRadius: s * 0.1, borderTopRightRadius: s * 0.1 }}>
+        {style === "gilded" && (
+          <View style={{ position: "absolute", bottom: s * 0.07, left: s * 0.12, right: s * 0.12, height: s * 0.045, backgroundColor: "#D4AF37", borderRadius: s * 0.022 }} />
+        )}
+        {style === "radiant" && (
+          <>
+            <View style={{ position: "absolute", top: s * 0.06, left: s * 0.14, width: s * 0.045, height: h - s * 0.14, backgroundColor: "#FDE68A", borderRadius: s * 0.022, opacity: 0.9 }} />
+            <View style={{ position: "absolute", top: s * 0.06, right: s * 0.14, width: s * 0.045, height: h - s * 0.14, backgroundColor: "#FDE68A", borderRadius: s * 0.022, opacity: 0.9 }} />
+          </>
+        )}
+        {style === "heavenly" && (
+          <>
+            <View style={{ position: "absolute", top: s * 0.05, left: s * 0.3, width: s * 0.05, height: h - s * 0.1, backgroundColor: "#FFFFFF", borderRadius: s * 0.025, opacity: 0.75 }} />
+            <View style={{ position: "absolute", bottom: s * 0.05, left: s * 0.2, right: s * 0.2, height: s * 0.04, backgroundColor: "#D4AF37", borderRadius: s * 0.02, opacity: 0.8 }} />
+          </>
+        )}
+      </View>
     );
   }
   if (length <= 66) {

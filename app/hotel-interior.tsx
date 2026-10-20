@@ -38,7 +38,7 @@ const TEXT = "#2E2A24";
 const TEXT_DIM = "#8A7E6D";
 const COOLDOWN_MS = 60 * 60 * 1000;
 const STORAGE_KEY = "prayercircle.interior.hotel.welcome.v1";
-const COINS_BY_LEVEL = [8, 15, 28];
+const COINS_BY_LEVEL = [80, 150, 280];
 const XP_BY_LEVEL = [5, 10, 18];
 
 /** Chandelier — grows grander with level (L2 single, L3 double tier with crystals and a ceiling medallion). */

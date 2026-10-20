@@ -32,7 +32,7 @@ const TEXT = "#3F2D1C";
 const TEXT_DIM = "#8A715A";
 const ACCENT = "#B45309";
 
-const STOCK_COINS: Record<number, number> = { 1: 4, 2: 8, 3: 14 };
+const STOCK_COINS: Record<number, number> = { 1: 40, 2: 80, 3: 140 };
 const STOCK_XP: Record<number, number> = { 1: 3, 2: 6, 3: 10 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const STOCK_KEY = "prayercircle.interior.shop.stock.v1";

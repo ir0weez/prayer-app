@@ -42,7 +42,7 @@ const GOLD = "#D97706";
 const TEXT_DIM = "#8A7360";
 const BAKE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const BAKE_KEY = "prayercircle.interior.bakery.bake.v1";
-const BAKE_COINS: Record<number, number> = { 1: 4, 2: 8, 3: 14 };
+const BAKE_COINS: Record<number, number> = { 1: 40, 2: 80, 3: 140 };
 const BAKE_XP: Record<number, number> = { 1: 3, 2: 6, 3: 10 };
 
 /** One brick oven with a softly pulsing fire in its mouth. `compact` narrows it so three fit at L3. */

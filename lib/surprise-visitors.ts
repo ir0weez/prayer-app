@@ -68,11 +68,11 @@ function mulberry32(seed: number): () => number {
 }
 
 const STRANGER_REQUESTS = [
-  { text: "A weary traveler asks: \"Will you pray for my family back home?\"", coins: 12, xp: 10 },
-  { text: "A stranger whispers: \"I lost my way. Pray I find my road.\"", coins: 10, xp: 12 },
-  { text: "An old pilgrim asks: \"Remember my village in your prayers tonight.\"", coins: 15, xp: 8 },
-  { text: "A young mother pleads: \"Pray for my sick child.\"", coins: 14, xp: 14 },
-  { text: "A merchant's guard asks: \"Pray for safe travels on the road ahead.\"", coins: 11, xp: 9 },
+  { text: "A weary traveler asks: \"Will you pray for my family back home?\"", coins: 120, xp: 10 },
+  { text: "A stranger whispers: \"I lost my way. Pray I find my road.\"", coins: 100, xp: 12 },
+  { text: "An old pilgrim asks: \"Remember my village in your prayers tonight.\"", coins: 150, xp: 8 },
+  { text: "A young mother pleads: \"Pray for my sick child.\"", coins: 140, xp: 14 },
+  { text: "A merchant's guard asks: \"Pray for safe travels on the road ahead.\"", coins: 110, xp: 9 },
 ];
 
 export function emptySurprises(): SurpriseState {
@@ -150,7 +150,7 @@ function generateVisitors(date: string, nowMs: number): SurpriseState {
       const req = STRANGER_REQUESTS[Math.floor(rng() * STRANGER_REQUESTS.length)];
       visitors.push({ id, type, x, y, expiresAtMs: null, claimed: false, strangerText: req.text, strangerCoins: req.coins, strangerXp: req.xp });
     } else {
-      const coins = 25 + Math.floor(rng() * 26); // 25-50
+      const coins = 250 + Math.floor(rng() * 260); // 250-500
       const xp = 15 + Math.floor(rng() * 16); // 15-30
       visitors.push({ id, type, x, y, expiresAtMs: nowMs + 30000, claimed: false, goldenCoins: coins, goldenXp: xp });
     }

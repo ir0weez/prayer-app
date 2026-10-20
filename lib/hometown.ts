@@ -44,7 +44,7 @@ export type MapInfo = {
 
 export const MAP_INFO: Record<TownMapId, MapInfo> = {
   town:    { name: "Hometown", icon: "🏠", description: "Your starter town", unlockCost: 0, comingSoon: false },
-  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 1500, comingSoon: false },
+  city:    { name: "City",     icon: "🏙️", description: "Bigger buildings, bigger earnings", unlockCost: 50000, comingSoon: false },
   // NOTE: the "mall" map id is legacy storage — it now renders the Garden of
   // Remembrance, a sacred memorial space. The id is kept so existing unlock
   // state carries over.
@@ -247,7 +247,7 @@ export async function loadActiveFastLength(): Promise<number> {
 export const HOUSE_LEVEL_NAMES: Record<number, string> = {
   1: "Cottage", 2: "House", 3: "Townhouse", 4: "Villa", 5: "Mansion",
 };
-export const HOUSE_UPGRADE_COSTS: Record<number, number> = { 2: 15, 3: 40, 4: 75, 5: 150 };
+export const HOUSE_UPGRADE_COSTS: Record<number, number> = { 2: 75, 3: 400, 4: 750, 5: 1500 };
 
 /** Max upgrade level for a building type (houses go to 5, everything else 3). */
 export function maxLevelFor(type: BuildingType): number {
@@ -270,7 +270,7 @@ export function churchNameFor(level: number): string {
 }
 
 /** Coins/hour bonus per prayer contact prayed for today. */
-export const CHURCH_PRAYER_COINS_PER_HOUR = 2;
+export const CHURCH_PRAYER_COINS_PER_HOUR = 20;
 
 /** Max blessed prayer villagers wandering town (also the prayer-star cap). */
 export const PRAYER_VILLAGER_CAP = 40;
@@ -364,10 +364,17 @@ export function populationMult(prayedCount: number): number {
 
 export function upgradeCostFor(type: BuildingType, toLevel: number): number {
   if (type === "house") return scaledCoins(HOUSE_UPGRADE_COSTS[toLevel] ?? 0);
-  // Restaurant Row has fixed upgrade costs (the banquet gets grander).
-  if (isRestaurantType(type)) return scaledCoins(RESTAURANT_UPGRADE_COSTS[toLevel] ?? 0);
-  const base = BUILDINGS[type].cost;
-  return scaledCoins(base * (UPGRADE_COST_MULT as Record<number, number>)[toLevel]);
+  const def = BUILDINGS[type];
+  // City buildings are post-prestige endgame: upgrades are anchored to
+  // ~60,000 (L2) / ~250,000 (L3) for a typical 600-coin city building,
+  // scaled per building by its base cost.
+  const isCityType = def.maps.length > 0 && def.maps.every((m) => m === "city");
+  if (isCityType) {
+    return scaledCoins(toLevel >= 3 ? def.cost * 400 : def.cost * 100);
+  }
+  // Town upgrades: L2 costs 5x the old price, L3 costs 10x the old price
+  // (old prices were base x3 / base x5).
+  return scaledCoins(def.cost * (toLevel >= 3 ? 50 : 15));
 }
 
 export function incomeFor(type: BuildingType, level: number): number {
@@ -392,45 +399,45 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
   "villager-cottage": { name: "Villager Cottage", icon: "", cost: 25, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A cozy home for the people you've prayed for. Villagers sleep here at night, rest here by day, and visit one another." },
   "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
-  "farm":       { name: "Farm",       icon: "🌾", cost: 20,  tier: 1, incomePerDay: 2,  xpPerDay: 0, maps: ["town"], description: "+2 coins per day while your streak is alive." },
-  "shop":       { name: "Shop",       icon: "🏪", cost: 40,  tier: 1, incomePerDay: 3,  xpPerDay: 0, maps: ["town"], description: "+3 coins per day while your streak is alive." },
-  "bakery":     { name: "Bakery",     icon: "🥖", cost: 80,  tier: 2, incomePerDay: 5,  xpPerDay: 0, maps: ["town"], description: "+5 coins per day while your streak is alive." },
-  "market":     { name: "Market",     icon: "🏬", cost: 160, tier: 3, incomePerDay: 8,  xpPerDay: 0, maps: ["town"], description: "+8 coins per day while your streak is alive." },
-  "bank":       { name: "Bank",       icon: "🏦", cost: 350, tier: 4, incomePerDay: 12, xpPerDay: 0, maps: ["town"], description: "+12 coins per day while your streak is alive." },
-  "barbershop": { name: "Barbershop", icon: "💈", cost: 60,  tier: 1, incomePerDay: 1,  xpPerDay: 0, maps: ["town"], description: "+1 coin/day. Boosts connected businesses +25%." },
-  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 65, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +1 coin/day." },
-  "armory":       { name: "Armory",       icon: "🛡️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +2 coins/day." },
-  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 105, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +2 coins/day." },
-  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 80, tier: 1, incomePerDay: 1, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +1 coin/day." },
-  "church":       { name: "Chapel",       icon: "⛪", cost: 100, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +2 coins/hour for each person you've prayed for today." },
+  "farm":       { name: "Farm",       icon: "🌾", cost: 20,  tier: 1, incomePerDay: 20,  xpPerDay: 0, maps: ["town"], description: "+20 coins per day while your streak is alive." },
+  "shop":       { name: "Shop",       icon: "🏪", cost: 40,  tier: 1, incomePerDay: 30,  xpPerDay: 0, maps: ["town"], description: "+30 coins per day while your streak is alive." },
+  "bakery":     { name: "Bakery",     icon: "🥖", cost: 80,  tier: 2, incomePerDay: 50,  xpPerDay: 0, maps: ["town"], description: "+50 coins per day while your streak is alive." },
+  "market":     { name: "Market",     icon: "🏬", cost: 160, tier: 3, incomePerDay: 80,  xpPerDay: 0, maps: ["town"], description: "+80 coins per day while your streak is alive." },
+  "bank":       { name: "Bank",       icon: "🏦", cost: 350, tier: 4, incomePerDay: 120, xpPerDay: 0, maps: ["town"], description: "+120 coins per day while your streak is alive." },
+  "barbershop": { name: "Barbershop", icon: "💈", cost: 60,  tier: 1, incomePerDay: 10,  xpPerDay: 0, maps: ["town"], description: "+10 coins/day. Boosts connected businesses +25%." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 65, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +10 coins/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 105, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +20 coins/day." },
+  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 105, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +20 coins/day." },
+  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 80, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +10 coins/day." },
+  "church":       { name: "Chapel",       icon: "⛪", cost: 100, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +20 coins/hour for each person you've prayed for today." },
   // City — big buildings, big earnings
-  "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 650, tier: 1, incomePerDay: 25, xpPerDay: 0, maps: ["city"], description: "A towering bank. +25 coins/day." },
-  "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +20 coins/day." },
-  "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 460, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +18 coins/day." },
-  "office":           { name: "Office Tower",     icon: "🏢", cost: 400, tier: 1, incomePerDay: 15, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +15 coins/day." },
-  "apartments":       { name: "Apartment Complex", icon: "🏘️", cost: 700, tier: 1, incomePerDay: 28, xpPerDay: 0, maps: ["city"], description: "Homes for city workers. +28 coins/day." },
-  "city-market":      { name: "City Market Hall", icon: "🏪", cost: 600, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "The city's grand market. +24 coins/day." },
-  "theater":          { name: "Grand Theater",    icon: "🎭", cost: 550, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "Music and stories nightly. +22 coins/day." },
+  "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 650, tier: 1, incomePerDay: 250, xpPerDay: 0, maps: ["city"], description: "A towering bank. +250 coins/day." },
+  "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 200, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +200 coins/day." },
+  "hotel":            { name: "Grand Hotel",      icon: "🏨", cost: 460, tier: 1, incomePerDay: 180, xpPerDay: 0, maps: ["city"], description: "Luxury suites downtown. +180 coins/day." },
+  "office":           { name: "Office Tower",     icon: "🏢", cost: 400, tier: 1, incomePerDay: 150, xpPerDay: 0, maps: ["city"], description: "Busy professionals. +150 coins/day." },
+  "apartments":       { name: "Apartment Complex", icon: "🏘️", cost: 700, tier: 1, incomePerDay: 280, xpPerDay: 0, maps: ["city"], description: "Homes for city workers. +280 coins/day." },
+  "city-market":      { name: "City Market Hall", icon: "🏪", cost: 600, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["city"], description: "The city's grand market. +240 coins/day." },
+  "theater":          { name: "Grand Theater",    icon: "🎭", cost: 550, tier: 1, incomePerDay: 220, xpPerDay: 0, maps: ["city"], description: "Music and stories nightly. +220 coins/day." },
   // Mall (retired) — the map is now the Garden of Remembrance. Defs are kept
   // so old saves can be refunded at full price; maps: [] means unbuildable.
-  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 8,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +8 coins/day." },
-  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 6,  xpPerDay: 0, maps: [], description: "Quiet readers. +6 coins/day." },
-  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: [], description: "Tokens and high scores. +10 coins/day." },
-  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 12, xpPerDay: 0, maps: [], description: "Now showing. +12 coins/day." },
+  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 80,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +80 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 60,  xpPerDay: 0, maps: [], description: "Quiet readers. +60 coins/day." },
+  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 100, xpPerDay: 0, maps: [], description: "Tokens and high scores. +100 coins/day." },
+  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 120, xpPerDay: 0, maps: [], description: "Now showing. +120 coins/day." },
   // School — XP earners
   "library":   { name: "Library",   icon: "📖", cost: 130, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
   "classroom": { name: "Classroom", icon: "📝", cost: 105,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
   "chapel":    { name: "Chapel",    icon: "⛪", cost: 160, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
   // Restaurants — hometown food businesses
-  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 80, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +3 coins/day." },
-  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 80, tier: 1, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +3 coins/day." },
-  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 60, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +2 coins/day." },
-  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 105, tier: 1, incomePerDay: 4, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +4 coins/day." },
-  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 65, tier: 1, incomePerDay: 2, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +2 coins/day." },
+  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 80, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +30 coins/day." },
+  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 80, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +30 coins/day." },
+  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 60, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +20 coins/day." },
+  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 105, tier: 1, incomePerDay: 40, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +40 coins/day." },
+  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 65, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +20 coins/day." },
   // Restaurant Row — city gathering spots where prayer villagers break bread
-  "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 22, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +22 coins/day." },
-  "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +20 coins/day." },
-  "feast-hall":  { name: "The Banquet Table", icon: "🍷", cost: 300, tier: 1, incomePerDay: 24, xpPerDay: 0, maps: ["city"], description: "One long table where all gather. +24 coins/day." },
+  "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 220, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +220 coins/day." },
+  "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 200, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +200 coins/day." },
+  "feast-hall":  { name: "The Banquet Table", icon: "🍷", cost: 300, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["city"], description: "One long table where all gather. +240 coins/day." },
   // The Marriage Supper — a sacred town green, not a business. During The
   // Gathering (Mon/Wed/Fri 6–8pm) every prayer light gathers here instead of
   // the restaurants, for a bigger breaking-bread blessing. Upgrades grow the
@@ -443,31 +450,31 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // Hospital — care for the town. Unlockable and upgradeable; the pawn comes
   // here for doctor appointments, and a checkup grants a healing blessing
   // for the next Dark Forest battle (bigger blessing at higher levels).
-  "hospital": { name: "Hospital", icon: "", cost: 250, tier: 2, incomePerDay: 3, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +3 coins/day." },
+  "hospital": { name: "Hospital", icon: "", cost: 250, tier: 2, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +30 coins/day." },
   // Artisans' Row — artisan services in the southern extension. Icons are
   // drawn as SVG in the art switch, not emoji, so defs use empty icons.
-  "inn":         { name: "Wayside Inn",       icon: "", cost: 120, tier: 1, incomePerDay: 6,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +6 coins/day." },
-  "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 110, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +4 coins/day." },
-  "pottery":     { name: "Pottery Studio",    icon: "", cost: 100, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +4 coins/day." },
+  "inn":         { name: "Wayside Inn",       icon: "", cost: 120, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +60 coins/day." },
+  "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 110, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +40 coins/day." },
+  "pottery":     { name: "Pottery Studio",    icon: "", cost: 100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +40 coins/day." },
   "music-hall":  { name: "Music Hall",         icon: "", cost: 160, tier: 1, incomePerDay: 0,  xpPerDay: 35, maps: ["town"], description: "Song rises from the hall — instruments, voices, and joy. Villagers play here. +35 XP/day." },
-  "tailor":      { name: "Tailor",             icon: "", cost: 100, tier: 1, incomePerDay: 4,  xpPerDay: 0,  maps: ["town"], description: "Clothes cut and sewn to measure. Bolts of fabric, needles flashing. +4 coins/day." },
+  "tailor":      { name: "Tailor",             icon: "", cost: 100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clothes cut and sewn to measure. Bolts of fabric, needles flashing. +40 coins/day." },
   "observatory": { name: "Observatory",        icon: "", cost: 200, tier: 2, incomePerDay: 0,  xpPerDay: 45, maps: ["town"], description: "A dome under the open sky. Villagers chart the stars the Lord set in place. +45 XP/day." },
-  "bathhouse":   { name: "Bathhouse",          icon: "", cost: 150, tier: 1, incomePerDay: 3,  xpPerDay: 0,  maps: ["town"], description: "Steam and warm pools for the weary. Rest in the waters and be refreshed. +3 coins/day." },
-  "apothecary":  { name: "Apothecary",         icon: "", cost: 130, tier: 1, incomePerDay: 5,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +5 coins/day." },
-  "town-hall":   { name: "Town Hall",          icon: "", cost: 250, tier: 2, incomePerDay: 10, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +10 coins/day." },
-  "post-office": { name: "Post Office",        icon: "", cost: 90,  tier: 1, incomePerDay: 3,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +3 coins/day." },
+  "bathhouse":   { name: "Bathhouse",          icon: "", cost: 150, tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Steam and warm pools for the weary. Rest in the waters and be refreshed. +30 coins/day." },
+  "apothecary":  { name: "Apothecary",         icon: "", cost: 130, tier: 1, incomePerDay: 50,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +50 coins/day." },
+  "town-hall":   { name: "Town Hall",          icon: "", cost: 250, tier: 2, incomePerDay: 100, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +100 coins/day." },
+  "post-office": { name: "Post Office",        icon: "", cost: 90,  tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +30 coins/day." },
   // City expansion — the downtown cultural district. Icons are drawn as SVG
   // in the art switch, not emoji, so defs use empty icons.
   "grand-library": { name: "Grand Library", icon: "", cost: 700, tier: 1, incomePerDay: 0,  xpPerDay: 120, maps: ["city"], description: "Towering shelves of wisdom in the heart of downtown. +120 XP/day." },
-  "opera-house":   { name: "Opera House",   icon: "", cost: 800, tier: 1, incomePerDay: 38, xpPerDay: 0,   maps: ["city"], description: "A grand stage with velvet seats and nightly performances. +38 coins/day." },
-  "museum":        { name: "Museum",        icon: "", cost: 750, tier: 1, incomePerDay: 32, xpPerDay: 0,   maps: ["city"], description: "Exhibits and artifacts telling the town's story. +32 coins/day." },
-  "clock-tower":   { name: "Clock Tower",   icon: "", cost: 650, tier: 1, incomePerDay: 30, xpPerDay: 0,   maps: ["city"], description: "A giant clock face over downtown — the city's heartbeat, wound daily. +30 coins/day." },
-  "embassy":       { name: "Embassy",       icon: "", cost: 700, tier: 1, incomePerDay: 34, xpPerDay: 0,   maps: ["city"], description: "Flags of many lands; diplomats exchange greetings daily. +34 coins/day." },
+  "opera-house":   { name: "Opera House",   icon: "", cost: 800, tier: 1, incomePerDay: 380, xpPerDay: 0,   maps: ["city"], description: "A grand stage with velvet seats and nightly performances. +380 coins/day." },
+  "museum":        { name: "Museum",        icon: "", cost: 750, tier: 1, incomePerDay: 320, xpPerDay: 0,   maps: ["city"], description: "Exhibits and artifacts telling the town's story. +320 coins/day." },
+  "clock-tower":   { name: "Clock Tower",   icon: "", cost: 650, tier: 1, incomePerDay: 300, xpPerDay: 0,   maps: ["city"], description: "A giant clock face over downtown — the city's heartbeat, wound daily. +300 coins/day." },
+  "embassy":       { name: "Embassy",       icon: "", cost: 700, tier: 1, incomePerDay: 340, xpPerDay: 0,   maps: ["city"], description: "Flags of many lands; diplomats exchange greetings daily. +340 coins/day." },
   // Eastside expansion — brand-new city buildings on the new right-side lots
-  "music-studio":    { name: "Music Studio",    icon: "", cost: 600, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["city"], description: "A warm recording studio where the city lays down tracks. +20 coins/day." },
-  "art-gallery":     { name: "Art Gallery",     icon: "", cost: 550, tier: 1, incomePerDay: 16, xpPerDay: 0, maps: ["city"], description: "Paintings and sculptures on quiet gallery walls. +16 coins/day." },
-  "flower-market":   { name: "Flower Market",   icon: "", cost: 400, tier: 1, incomePerDay: 14, xpPerDay: 0, maps: ["city"], description: "Stalls of fresh blooms — the city's corner of color. +14 coins/day." },
-  "coffee-roastery": { name: "Coffee Roastery", icon: "", cost: 500, tier: 1, incomePerDay: 18, xpPerDay: 0, maps: ["city"], description: "The roaster hums, the tasting counter is warm. +18 coins/day." },
+  "music-studio":    { name: "Music Studio",    icon: "", cost: 600, tier: 1, incomePerDay: 200, xpPerDay: 0, maps: ["city"], description: "A warm recording studio where the city lays down tracks. +200 coins/day." },
+  "art-gallery":     { name: "Art Gallery",     icon: "", cost: 550, tier: 1, incomePerDay: 160, xpPerDay: 0, maps: ["city"], description: "Paintings and sculptures on quiet gallery walls. +160 coins/day." },
+  "flower-market":   { name: "Flower Market",   icon: "", cost: 400, tier: 1, incomePerDay: 140, xpPerDay: 0, maps: ["city"], description: "Stalls of fresh blooms — the city's corner of color. +140 coins/day." },
+  "coffee-roastery": { name: "Coffee Roastery", icon: "", cost: 500, tier: 1, incomePerDay: 180, xpPerDay: 0, maps: ["city"], description: "The roaster hums, the tasting counter is warm. +180 coins/day." },
 };
 
 // ---- Hospital: the Doctor's Blessing (healing buff for Dark Forest) ----
@@ -536,48 +543,48 @@ export type CityPlot = {
 };
 
 export const CITY_PLOTS: CityPlot[] = [
-  { id: "plot-city-1", x: 0, y: 0, buildingType: "bank-tower",       cost: 300, name: "Financial District Lot" },
-  { id: "plot-city-2", x: 6, y: 0, buildingType: "department-store", cost: 450, name: "Retail Row Lot" },
-  { id: "plot-city-3", x: 0, y: 6, buildingType: "hotel",            cost: 375, name: "Hospitality Lot" },
-  { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 375, name: "Business Park Lot" },
-  { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 600, name: "Central Tower Lot" },
-  { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 525, name: "Uptown Lot" },
+  { id: "plot-city-1", x: 0, y: 0, buildingType: "bank-tower",       cost: 15000, name: "Financial District Lot" },
+  { id: "plot-city-2", x: 6, y: 0, buildingType: "department-store", cost: 22500, name: "Retail Row Lot" },
+  { id: "plot-city-3", x: 0, y: 6, buildingType: "hotel",            cost: 18750, name: "Hospitality Lot" },
+  { id: "plot-city-4", x: 6, y: 6, buildingType: "office",           cost: 18750, name: "Business Park Lot" },
+  { id: "plot-city-5", x: 3, y: 3, buildingType: "bank-tower",       cost: 30000, name: "Central Tower Lot" },
+  { id: "plot-city-6", x: 3, y: 0, buildingType: "office",           cost: 26250, name: "Uptown Lot" },
   // Restaurant Row — where the prayer villagers gather to break bread
-  { id: "plot-rest-1", x: 0, y: 3, buildingType: "upper-room",  cost: 300, name: "Restaurant Row West" },
-  { id: "plot-rest-2", x: 6, y: 3, buildingType: "manna-house", cost: 300, name: "Restaurant Row East" },
-  { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 300, name: "Banquet Table Lot" },
+  { id: "plot-rest-1", x: 0, y: 3, buildingType: "upper-room",  cost: 15000, name: "Restaurant Row West" },
+  { id: "plot-rest-2", x: 6, y: 3, buildingType: "manna-house", cost: 15000, name: "Restaurant Row East" },
+  { id: "plot-rest-3", x: 3, y: 6, buildingType: "feast-hall",  cost: 15000, name: "Banquet Table Lot" },
   // Southern expansion — Midtown (y8-9) and Harbor (y11-12) districts.
   // More buildings, more income.
-  { id: "plot-city-7",  x: 0, y: 8,  buildingType: "apartments",      cost: 650, name: "Uptown Apartments" },
-  { id: "plot-city-8",  x: 3, y: 8,  buildingType: "theater",         cost: 550, name: "Theater District Lot" },
-  { id: "plot-city-9",  x: 6, y: 8,  buildingType: "city-market",      cost: 600, name: "City Market Lot" },
-  { id: "plot-city-10", x: 0, y: 11, buildingType: "office",          cost: 500, name: "South Office Lot" },
-  { id: "plot-city-11", x: 3, y: 11, buildingType: "hotel",           cost: 575, name: "South Hotel Lot" },
-  { id: "plot-city-12", x: 6, y: 11, buildingType: "department-store", cost: 625, name: "South Retail Lot" },
+  { id: "plot-city-7",  x: 0, y: 8,  buildingType: "apartments",      cost: 32500, name: "Uptown Apartments" },
+  { id: "plot-city-8",  x: 3, y: 8,  buildingType: "theater",         cost: 27500, name: "Theater District Lot" },
+  { id: "plot-city-9",  x: 6, y: 8,  buildingType: "city-market",      cost: 30000, name: "City Market Lot" },
+  { id: "plot-city-10", x: 0, y: 11, buildingType: "office",          cost: 25000, name: "South Office Lot" },
+  { id: "plot-city-11", x: 3, y: 11, buildingType: "hotel",           cost: 28750, name: "South Hotel Lot" },
+  { id: "plot-city-12", x: 6, y: 11, buildingType: "department-store", cost: 31250, name: "South Retail Lot" },
   // Eastside — the Amphitheater, where the city gathers for music and stories
-  { id: "plot-city-13", x: 8, y: 3, buildingType: "amphitheater", cost: 450, name: "Amphitheater Green" },
+  { id: "plot-city-13", x: 8, y: 3, buildingType: "amphitheater", cost: 22500, name: "Amphitheater Green" },
   // Downtown cultural district — Library Row, Opera District, and Museum
   // Quarter on the new y=14 terrace; Clock Tower Green and Embassy Row on
   // the y=16 terrace below. (x=6..9, y=14..17 left open for future growth.)
-  { id: "plot-city-14", x: 0, y: 14, buildingType: "grand-library", cost: 700, name: "Library Row Lot" },
-  { id: "plot-city-15", x: 3, y: 14, buildingType: "opera-house",   cost: 800, name: "Opera District Lot" },
-  { id: "plot-city-16", x: 6, y: 14, buildingType: "museum",        cost: 750, name: "Museum Quarter Lot" },
-  { id: "plot-city-17", x: 0, y: 16, buildingType: "clock-tower",   cost: 650, name: "Clock Tower Green" },
-  { id: "plot-city-18", x: 3, y: 16, buildingType: "embassy",       cost: 700, name: "Embassy Row Lot" },
+  { id: "plot-city-14", x: 0, y: 14, buildingType: "grand-library", cost: 35000, name: "Library Row Lot" },
+  { id: "plot-city-15", x: 3, y: 14, buildingType: "opera-house",   cost: 40000, name: "Opera District Lot" },
+  { id: "plot-city-16", x: 6, y: 14, buildingType: "museum",        cost: 37500, name: "Museum Quarter Lot" },
+  { id: "plot-city-17", x: 0, y: 16, buildingType: "clock-tower",   cost: 32500, name: "Clock Tower Green" },
+  { id: "plot-city-18", x: 3, y: 16, buildingType: "embassy",       cost: 35000, name: "Embassy Row Lot" },
   // Midtown Terrace (y=9) — fills the empty rows between Theater District
   // and the southern expansion. All unlock & upgrade, no free placement.
-  { id: "plot-city-19", x: 0, y: 9, buildingType: "apartments", cost: 650, name: "Midtown Residences" },
-  { id: "plot-city-20", x: 3, y: 9, buildingType: "office",     cost: 600, name: "Midtown Offices" },
-  { id: "plot-city-21", x: 6, y: 9, buildingType: "hotel",       cost: 625, name: "Midtown Hotel" },
+  { id: "plot-city-19", x: 0, y: 9, buildingType: "apartments", cost: 32500, name: "Midtown Residences" },
+  { id: "plot-city-20", x: 3, y: 9, buildingType: "office",     cost: 30000, name: "Midtown Offices" },
+  { id: "plot-city-21", x: 6, y: 9, buildingType: "hotel",       cost: 31250, name: "Midtown Hotel" },
   // Harbor Terrace east (y=16) — the "future growth" area on the south terrace.
-  { id: "plot-city-22", x: 6, y: 16, buildingType: "department-store", cost: 700, name: "Harbor Retail Lot" },
+  { id: "plot-city-22", x: 6, y: 16, buildingType: "department-store", cost: 35000, name: "Harbor Retail Lot" },
   // Eastside expansion — fills the bare right-hand columns (x=8..9). The
   // wishing fountain sits at (8,6) and the street performer at (8,1), so the
   // strip starts at y=8. Brand-new building types, all unlock & upgrade.
-  { id: "plot-city-23", x: 8, y: 8,  buildingType: "music-studio",    cost: 600, name: "Eastside Studio Lot" },
-  { id: "plot-city-24", x: 8, y: 11, buildingType: "art-gallery",     cost: 550, name: "Gallery Row Lot" },
-  { id: "plot-city-25", x: 8, y: 14, buildingType: "flower-market",   cost: 450, name: "Bloom Terrace Lot" },
-  { id: "plot-city-26", x: 8, y: 16, buildingType: "coffee-roastery", cost: 500, name: "Harbor Roastery Lot" },
+  { id: "plot-city-23", x: 8, y: 8,  buildingType: "music-studio",    cost: 30000, name: "Eastside Studio Lot" },
+  { id: "plot-city-24", x: 8, y: 11, buildingType: "art-gallery",     cost: 27500, name: "Gallery Row Lot" },
+  { id: "plot-city-25", x: 8, y: 14, buildingType: "flower-market",   cost: 22500, name: "Bloom Terrace Lot" },
+  { id: "plot-city-26", x: 8, y: 16, buildingType: "coffee-roastery", cost: 25000, name: "Harbor Roastery Lot" },
 ];
 
 /** Plot building income multipliers — aggressive endgame scaling (vs standard 1/2.5/5). */
@@ -813,7 +820,7 @@ export function findBanquetTable(town: TownState): PlacedBuilding | undefined {
 // ---- The Lighthouse ----
 
 /** Coins granted for receiving the lighthouse blessing (once per day, × level). */
-export const LIGHTHOUSE_BLESSING_COINS = 10;
+export const LIGHTHOUSE_BLESSING_COINS = 100;
 
 /** Max lighthouse level. */
 export const LIGHTHOUSE_MAX_LEVEL = 3;
@@ -1229,9 +1236,9 @@ export type MissionDuration = {
 };
 
 export const MISSION_DURATIONS: Record<MissionDurationId, MissionDuration> = {
-  short: { id: "short", label: "Short visit", hours: 1, coinsMin: 5, coinsMax: 10, xp: 0, verseChance: 0, blurb: "A quick visit to someone nearby who needs prayer." },
-  day:   { id: "day",   label: "Day trip",    hours: 4, coinsMin: 15, coinsMax: 25, xp: 10, verseChance: 0.15, blurb: "A few hours out in the field, breaking bread." },
-  long:  { id: "long",  label: "Long journey", hours: 8, coinsMin: 30, coinsMax: 50, xp: 25, verseChance: 0.5, blurb: "A full journey to the far edge — and back changed." },
+  short: { id: "short", label: "Short visit", hours: 1, coinsMin: 50, coinsMax: 100, xp: 0, verseChance: 0, blurb: "A quick visit to someone nearby who needs prayer." },
+  day:   { id: "day",   label: "Day trip",    hours: 4, coinsMin: 150, coinsMax: 250, xp: 10, verseChance: 0.15, blurb: "A few hours out in the field, breaking bread." },
+  long:  { id: "long",  label: "Long journey", hours: 8, coinsMin: 300, coinsMax: 500, xp: 25, verseChance: 0.5, blurb: "A full journey to the far edge — and back changed." },
 };
 
 export const MISSION_DURATION_ORDER: MissionDurationId[] = ["short", "day", "long"];
@@ -2125,7 +2132,7 @@ export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string)
 export const BANK_MAX_FLOORS = 5;
 /** Cost to add the next floor when the tower currently has `currentFloors` (1-4). */
 export function bankFloorCost(currentFloors: number): number {
-  const costs: Record<number, number> = { 1: 100, 2: 250, 3: 500, 4: 1000 };
+  const costs: Record<number, number> = { 1: 10000, 2: 25000, 3: 50000, 4: 100000 };
   return scaledCoins(costs[currentFloors] ?? 0);
 }
 /** Income multiplier for a bank-tower with `floors` stories: +50% per extra floor. */
@@ -2197,13 +2204,13 @@ export const FRENZY_DURATION_MS = 10000;
 export const FRENZY_COOLDOWN_MS = 5 * 60 * 1000;
 export const FRENZY_MULT = 2;
 
-export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1): number {
+export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1): number {
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = populationMult(prayedCount);
   return map.buildings.reduce((sum, b) => {
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus;
+    const multiplier = roadMultiplierForBuilding(map, b.id) * shopAdjacencyBonusForBuilding(map, b.id) * floorMult * workerMult(b) * milestoneMult * popMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * prestigeMult;
     return sum + (base * multiplier);
   }, 0);
 }
@@ -2212,8 +2219,8 @@ export function dailyXPForMap(map: MapState): number {
   return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
 }
 
-export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus), 0) * houseMult;
+export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult), 0) * houseMult;
 }
 
 export function dailyXPForTown(town: TownState): number {
@@ -2463,11 +2470,11 @@ const BANK_FURNITURE_SPECS: Array<{ type: BankFurnitureType; tiers: [FurnitureTi
   {
     type: "atm",
     tiers: [
-      { name: "ATM", icon: "🏧", cost: 150, max: 2, effectPct: 0, flatPerHour: 8, blurb: "+8 coins/hour" },
-      { name: "Express ATM", icon: "🏧", cost: 230, max: 2, effectPct: 0, flatPerHour: 12, blurb: "+12 coins/hour" },
-      { name: "Gold ATM", icon: "🏧", cost: 300, max: 2, effectPct: 0, flatPerHour: 16, blurb: "+16 coins/hour" },
-      { name: "Platinum ATM", icon: "🏧", cost: 380, max: 2, effectPct: 0, flatPerHour: 20, blurb: "+20 coins/hour" },
-      { name: "Diamond ATM", icon: "🏧", cost: 450, max: 2, effectPct: 0, flatPerHour: 25, blurb: "+25 coins/hour" },
+      { name: "ATM", icon: "🏧", cost: 150, max: 2, effectPct: 0, flatPerHour: 80, blurb: "+80 coins/hour" },
+      { name: "Express ATM", icon: "🏧", cost: 230, max: 2, effectPct: 0, flatPerHour: 120, blurb: "+120 coins/hour" },
+      { name: "Gold ATM", icon: "🏧", cost: 300, max: 2, effectPct: 0, flatPerHour: 160, blurb: "+160 coins/hour" },
+      { name: "Platinum ATM", icon: "🏧", cost: 380, max: 2, effectPct: 0, flatPerHour: 200, blurb: "+200 coins/hour" },
+      { name: "Diamond ATM", icon: "🏧", cost: 450, max: 2, effectPct: 0, flatPerHour: 250, blurb: "+250 coins/hour" },
     ],
   },
   {
@@ -2759,7 +2766,7 @@ export async function bankDeskMultiplier(buildingId: string): Promise<number> {
 /** Last-tap timestamps per light id. */
 export const LIGHT_TAP_KEY = "prayercircle.hometown.light-taps.v1";
 export const LIGHT_TAP_COOLDOWN_MS = 3600000; // 1 hour
-export const LIGHT_TAP_COINS = 2;
+export const LIGHT_TAP_COINS = 20;
 
 export function parseLightTaps(value: unknown): Record<string, number> {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -2784,9 +2791,9 @@ export function canThankLight(taps: Record<string, number>, lightId: string, now
 
 export const PRAYER_BONUS_KEY = "prayercircle.hometown.prayer-bonus.v1";
 export const PRAYER_COIN_BONUSES = [
-  { threshold: 5, coins: 25 },
-  { threshold: 10, coins: 50 },
-  { threshold: 20, coins: 100 },
+  { threshold: 5, coins: 250 },
+  { threshold: 10, coins: 500 },
+  { threshold: 20, coins: 1000 },
 ] as const;
 
 export type PrayerBonusState = { date: string; awarded: number[] };
@@ -2809,7 +2816,7 @@ export function parsePrayerBonus(value: unknown): PrayerBonusState {
 export const WORK_SHIFT_KEY = "prayercircle.hometown.work-shifts.v1";
 export const WORK_SHIFT_COOLDOWN_MS = 300000; // 5 minutes
 export const WORK_SHIFT_TAPS_PER_COIN = 5;
-export const WORK_SHIFT_MAX_COINS = 20;
+export const WORK_SHIFT_MAX_COINS = 200;
 export const WORK_SHIFT_DURATION_MS = 10000; // 10 seconds
 
 export function parseWorkShifts(value: unknown): Record<string, number> {
@@ -2830,11 +2837,11 @@ export function canWorkShift(shifts: Record<string, number>, buildingId: string,
 }
 
 // ---------------------------------------------------------------------------
-// Fast day green bonus — 5 coins per completed fast day
+// Fast day green bonus — 50 coins per completed fast day
 // ---------------------------------------------------------------------------
 
 export const FAST_DAY_COIN_KEY = "prayercircle.hometown.fast-day-coins.v1";
-export const FAST_DAY_COINS = 5;
+export const FAST_DAY_COINS = 50;
 
 /** Set of "fastId:date" keys already counted for coins. */
 export function parseFastDayCoins(value: unknown): string[] {

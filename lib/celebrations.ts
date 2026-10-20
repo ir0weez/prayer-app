@@ -130,7 +130,7 @@ const WISH_VERSES: Array<{ text: string; ref: string }> = [
 /** A random blessing for tossing a coin in: coins (2-12), XP (5-20), or a verse. */
 export function fountainBlessing(): FountainBlessing {
   const roll = Math.random();
-  if (roll < 0.4) return { kind: "coins", coins: 2 + Math.floor(Math.random() * 11) };
+  if (roll < 0.4) return { kind: "coins", coins: 20 + Math.floor(Math.random() * 110) };
   if (roll < 0.75) return { kind: "xp", xp: 5 + Math.floor(Math.random() * 16) };
   const v = WISH_VERSES[Math.floor(Math.random() * WISH_VERSES.length)];
   return { kind: "verse", text: v.text, ref: v.ref };

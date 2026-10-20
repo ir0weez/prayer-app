@@ -42,7 +42,7 @@ const TEXT = "#3A2E26";
 const TEXT_DIM = "#9A8874";
 const COOLDOWN_MS = 60 * 60 * 1000;
 const STORAGE_KEY = "prayercircle.interior.apartments.neighbors.v1";
-const COINS_BY_LEVEL = [2, 4, 8];
+const COINS_BY_LEVEL = [20, 40, 80];
 const XP_BY_LEVEL = [8, 14, 22];
 
 /** Wall of mailboxes — with a letter glowing at L2+. */

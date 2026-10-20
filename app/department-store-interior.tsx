@@ -34,7 +34,7 @@ const ACCENT = "#7C3AED";
 const ACCENT_DARK = "#5B21B6";
 const GOLD = "#C9963C";
 
-const GREET_COINS: Record<number, number> = { 1: 6, 2: 12, 3: 22 };
+const GREET_COINS: Record<number, number> = { 1: 60, 2: 120, 3: 220 };
 const GREET_XP: Record<number, number> = { 1: 6, 2: 12, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const GREET_KEY = "prayercircle.interior.deptstore.greet.v1";

@@ -12,6 +12,8 @@ type MapSignsProps = {
   activeMap: TownMapId;
   unlockedMaps: TownMapId[];
   onSelectMap: (id: TownMapId) => void;
+  /** Hide the City arm entirely — the City does not exist pre-prestige. */
+  hideCity?: boolean;
 };
 
 function SignArm({
@@ -56,7 +58,7 @@ function SignArm({
   );
 }
 
-export function MapSigns({ activeMap, unlockedMaps, onSelectMap }: MapSignsProps) {
+export function MapSigns({ activeMap, unlockedMaps, onSelectMap, hideCity = false }: MapSignsProps) {
   const arm = (mapId: TownMapId, arrow: string, arrowSide: "left" | "right" | "top") => (
     <SignArm
       mapId={mapId}
@@ -73,7 +75,7 @@ export function MapSigns({ activeMap, unlockedMaps, onSelectMap }: MapSignsProps
       {arm("mall", "⬆️", "top")}
       {/* Post row: city arm left, wooden post, school arm right */}
       <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-        {arm("city", "⬅️", "left")}
+        {!hideCity && arm("city", "⬅️", "left")}
         <View
           style={{ width: 10, height: 40, backgroundColor: "#6B4423", borderRadius: 4, marginHorizontal: 8 }}
         />

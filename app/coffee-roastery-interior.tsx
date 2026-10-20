@@ -37,7 +37,7 @@ const COPPER = "#B87333";
 const COPPER_DARK = "#8A5225";
 const BURLAP = "#C8A876";
 
-const TASTING_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 26 };
+const TASTING_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 260 };
 const TASTING_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const TASTING_KEY = "prayercircle.interior.coffee-roastery.tasting.v1";

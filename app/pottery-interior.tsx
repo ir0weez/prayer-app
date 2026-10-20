@@ -31,7 +31,7 @@ const CLAY_DARK = "#96522C";
 const TEXT_DIM = "#A08B6B";
 const ACCENT = "#9C4A1A";
 
-const THROW_COINS: Record<number, number> = { 1: 4, 2: 8, 3: 16 };
+const THROW_COINS: Record<number, number> = { 1: 40, 2: 80, 3: 160 };
 const THROW_XP: Record<number, number> = { 1: 3, 2: 6, 3: 12 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const THROW_KEY = "prayercircle.interior.pottery.throw.v1";

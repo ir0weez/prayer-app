@@ -30,6 +30,7 @@ import {
   shopLevelFor,
 } from "@/lib/pawn";
 import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY } from "@/lib/hometown";
+import { loadPrestigeLevel } from "@/lib/prestige";
 
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
@@ -141,12 +142,13 @@ export default function BarbershopScreen() {
   const [ownedBeard, setOwnedBeard] = useState<PawnBeardStyle[]>(["none", "full"]);
   const [discountMult, setDiscountMult] = useState(1);
   const [shopLevel, setShopLevel] = useState(0);
+  const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   const [hasShop, setHasShop] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [p, c, oh, ob, townRaw, disc, lvl] = await Promise.all([
+    const [p, c, oh, ob, townRaw, disc, lvl, prestige] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadOwnedHairStyles(),
@@ -154,7 +156,9 @@ export default function BarbershopScreen() {
       AsyncStorage.getItem(TOWN_STORAGE_KEY),
       styleDiscountMult(),
       shopLevelFor("barbershop"),
+      loadPrestigeLevel(),
     ]);
+    setPrestigeLevel(prestige);
     setDiscountMult(disc);
     setShopLevel(lvl);
     setPawn(p);
@@ -397,10 +401,11 @@ export default function BarbershopScreen() {
             <SectionHeader title="HAIR STYLES" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
               {PAWN_HAIR_STYLES.filter((s) => s.gender === "both" || s.gender === pawn.gender).map((s) => {
-                const owned = ownedHair.includes(s.id);
+                const crownLocked = !!s.unlockPrestige && prestigeLevel < s.unlockPrestige;
+                const owned = ownedHair.includes(s.id) || (!!s.unlockPrestige && !crownLocked);
                 const equipped = pawn.hairStyle === s.id;
                 const price = discountedStylePrice(s.cost, discountMult);
-                const locked = !owned && s.minShopLevel > shopLevel;
+                const locked = crownLocked || (!owned && s.minShopLevel > shopLevel);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -411,7 +416,7 @@ export default function BarbershopScreen() {
                     cost={price}
                     canAfford={coins.balance >= price}
                     locked={locked}
-                    lockLabel={`Upgrade barbershop to Lv ${s.minShopLevel}`}
+                    lockLabel={crownLocked ? `Requires Crown ${s.unlockPrestige}` : `Upgrade barbershop to Lv ${s.minShopLevel}`}
                     onBuy={() => handleBuyHair(s.id, discountedStylePrice(s.cost, discountMult), s.minShopLevel)}
                     onEquip={() => handleEquipHair(s.id)}
                   />
@@ -525,10 +530,11 @@ export default function BarbershopScreen() {
             <SectionHeader title="HAIR STYLES" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
               {PAWN_HAIR_STYLES.filter((s) => s.gender === "both" || s.gender === pawn.gender).map((s) => {
-                const owned = ownedHair.includes(s.id);
+                const crownLocked = !!s.unlockPrestige && prestigeLevel < s.unlockPrestige;
+                const owned = ownedHair.includes(s.id) || (!!s.unlockPrestige && !crownLocked);
                 const equipped = pawn.hairStyle === s.id;
                 const price = discountedStylePrice(s.cost, discountMult);
-                const locked = !owned && s.minShopLevel > shopLevel;
+                const locked = crownLocked || (!owned && s.minShopLevel > shopLevel);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -539,7 +545,7 @@ export default function BarbershopScreen() {
                     cost={price}
                     canAfford={coins.balance >= price}
                     locked={locked}
-                    lockLabel={`Upgrade barbershop to Lv ${s.minShopLevel}`}
+                    lockLabel={crownLocked ? `Requires Crown ${s.unlockPrestige}` : `Upgrade barbershop to Lv ${s.minShopLevel}`}
                     onBuy={() => handleBuyHair(s.id, discountedStylePrice(s.cost, discountMult), s.minShopLevel)}
                     onEquip={() => handleEquipHair(s.id)}
                   />
@@ -579,10 +585,11 @@ export default function BarbershopScreen() {
             <SectionHeader title="BEARD STYLES" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
               {PAWN_BEARD_STYLES.map((s) => {
-                const owned = ownedBeard.includes(s.id);
+                const crownLocked = !!s.unlockPrestige && prestigeLevel < s.unlockPrestige;
+                const owned = ownedBeard.includes(s.id) || (!!s.unlockPrestige && !crownLocked);
                 const equipped = pawn.beardStyle === s.id;
                 const price = discountedStylePrice(s.cost, discountMult);
-                const locked = !owned && s.minShopLevel > shopLevel;
+                const locked = crownLocked || (!owned && s.minShopLevel > shopLevel);
                 return (
                   <StyleGridItem
                     key={s.id}
@@ -593,7 +600,7 @@ export default function BarbershopScreen() {
                     cost={price}
                     canAfford={coins.balance >= price}
                     locked={locked}
-                    lockLabel={`Upgrade barbershop to Lv ${s.minShopLevel}`}
+                    lockLabel={crownLocked ? `Requires Crown ${s.unlockPrestige}` : `Upgrade barbershop to Lv ${s.minShopLevel}`}
                     onBuy={() => handleBuyBeard(s.id, price, s.minShopLevel)}
                     onEquip={() => handleEquipBeard(s.id)}
                   />

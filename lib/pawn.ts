@@ -10,7 +10,7 @@ export type PawnEyeStyle = "round" | "happy" | "sleepy" | "determined" | "starry
 export type PawnMouthStyle = "smile" | "open" | "flat" | "smirk";
 export type PawnAccessory = "none" | "tophat" | "crown" | "halo" | "cap";
 export type PawnGender = "male" | "female";
-export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun" | "bob" | "ponytail" | "braid" | "pixie" | "fade" | "buzz" | "curly" | "dreads" | "pompadour" | "sidepart" | "pigtails" | "highbun" | "wavy" | "lob";
+export type PawnHairStyle = "bald" | "short" | "medium" | "long" | "mohawk" | "bun" | "bob" | "ponytail" | "braid" | "pixie" | "fade" | "buzz" | "curly" | "dreads" | "pompadour" | "sidepart" | "pigtails" | "highbun" | "wavy" | "lob" | "laurel" | "coronet" | "glorymane";
 
 export type PawnBodyStyle = "pebble" | "round" | "tall" | "stocky";
 
@@ -25,13 +25,17 @@ export const HAIR_GROWTH_PER_DAY = 12;
 export const HAIR_MAX = 100;
 export const BEARD_GROWTH_PER_DAY = 12;
 
-export type PawnBeardStyle = "none" | "full" | "goatee" | "mustache";
+export type PawnBeardStyle = "none" | "full" | "goatee" | "mustache" | "gilded" | "radiant" | "heavenly";
 
-export const PAWN_BEARD_STYLES: { id: PawnBeardStyle; name: string; cost: number; description: string; minShopLevel: 1 | 2 | 3 }[] = [
+export const PAWN_BEARD_STYLES: { id: PawnBeardStyle; name: string; cost: number; description: string; minShopLevel: 1 | 2 | 3; unlockPrestige?: number }[] = [
   { id: "none", name: "Clean Shaven", cost: 0, description: "No beard, ever.", minShopLevel: 1 },
   { id: "full", name: "Full Beard", cost: 0, description: "The classic. Grows wild if you let it.", minShopLevel: 1 },
   { id: "goatee", name: "Goatee", cost: 15, description: "Chin patch. Sharp and deliberate.", minShopLevel: 2 },
   { id: "mustache", name: "Mustache", cost: 15, description: "Upper lip only. Distinguished.", minShopLevel: 3 },
+  // Prestige styles — free to wear once the Crown is earned.
+  { id: "gilded", name: "Gilded Beard", cost: 0, description: "A full beard bound with a band of gold.", minShopLevel: 1, unlockPrestige: 1 },
+  { id: "radiant", name: "Radiant Beard", cost: 0, description: "Full and bright, with light at the edges.", minShopLevel: 1, unlockPrestige: 2 },
+  { id: "heavenly", name: "Heavenly Beard", cost: 0, description: "Long, white, and glorious — the elder's crown.", minShopLevel: 1, unlockPrestige: 3 },
 ];
 
 export const BEARD_STYLES_STORAGE_KEY = "prayercircle.pawn.beardstyles.v1";
@@ -43,7 +47,7 @@ export async function loadOwnedBeardStyles(): Promise<PawnBeardStyle[]> {
     if (!raw) return ["none", "full"];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return ["none", "full"];
-    const valid = arr.filter((s): s is PawnBeardStyle => ["none", "full", "goatee", "mustache"].includes(s));
+    const valid = arr.filter((s): s is PawnBeardStyle => PAWN_BEARD_STYLES.some((b) => b.id === s));
     if (!valid.includes("none")) valid.push("none");
     if (!valid.includes("full")) valid.push("full");
     return valid;
@@ -156,7 +160,7 @@ export const PAWN_GENDERS: { id: PawnGender; label: string }[] = [
 
 export type HairStyleGender = "male" | "female" | "both";
 
-export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string; gender: HairStyleGender; minShopLevel: 1 | 2 | 3 }[] = [
+export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number; description: string; gender: HairStyleGender; minShopLevel: 1 | 2 | 3; unlockPrestige?: number }[] = [
   { id: "bald", label: "Bald", cost: 0, description: "Clean and simple.", gender: "both", minShopLevel: 1 },
   { id: "short", label: "Short", cost: 0, description: "Neat and tidy.", gender: "both", minShopLevel: 1 },
   { id: "medium", label: "Medium", cost: 10, description: "A bit of length on the sides.", gender: "male", minShopLevel: 2 },
@@ -177,6 +181,10 @@ export const PAWN_HAIR_STYLES: { id: PawnHairStyle; label: string; cost: number;
   { id: "lob", label: "Lob", cost: 15, description: "Long bob, shoulder length.", gender: "female", minShopLevel: 1 },
   { id: "wavy", label: "Wavy", cost: 20, description: "Shoulder-length waves.", gender: "female", minShopLevel: 2 },
   { id: "highbun", label: "High Bun", cost: 20, description: "Bun piled high on top.", gender: "female", minShopLevel: 2 },
+  // Prestige styles — free to wear once the Crown is earned.
+  { id: "laurel", label: "Laurel Crown", cost: 0, description: "A victor's laurel, woven with gold.", gender: "both", minShopLevel: 1, unlockPrestige: 1 },
+  { id: "coronet", label: "Radiant Coronet", cost: 0, description: "A shining coronet — light at every point.", gender: "both", minShopLevel: 1, unlockPrestige: 2 },
+  { id: "glorymane", label: "Glory Mane", cost: 0, description: "A flowing mane streaked with glory.", gender: "both", minShopLevel: 1, unlockPrestige: 3 },
 ];
 
 export const PAWN_HAIR_COLORS: { id: string; name: string }[] = [
@@ -271,7 +279,7 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
     gender: isGender(p.gender) ? p.gender : "male",
     hairStyle: isHairStyle(p.hairStyle) ? p.hairStyle : "short",
     bodyStyle: ["pebble", "round", "tall", "stocky"].includes(p.bodyStyle as string) ? (p.bodyStyle as PawnBodyStyle) : "pebble",
-    beardStyle: ["none", "full", "goatee", "mustache"].includes(p.beardStyle as string) ? (p.beardStyle as PawnBeardStyle) : "full",
+    beardStyle: PAWN_BEARD_STYLES.some((b) => b.id === p.beardStyle) ? (p.beardStyle as PawnBeardStyle) : "full",
     beardLength,
     lastTrim: typeof p.lastTrim === "string" ? p.lastTrim : new Date().toISOString(),
     hairColor: typeof p.hairColor === "string" && PAWN_HAIR_COLORS.some((c) => c.id === p.hairColor) ? p.hairColor : "#111827",

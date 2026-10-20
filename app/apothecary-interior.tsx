@@ -33,7 +33,7 @@ const TEXT_DIM = "#8A9A76";
 const ACCENT = "#3F7A3A";
 const GOLD = "#C9963C";
 
-const BREW_COINS: Record<number, number> = { 1: 5, 2: 10, 3: 18 };
+const BREW_COINS: Record<number, number> = { 1: 50, 2: 100, 3: 180 };
 const BREW_XP: Record<number, number> = { 1: 4, 2: 8, 3: 14 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const BREW_KEY = "prayercircle.interior.apothecary.brew.v1";

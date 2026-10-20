@@ -36,6 +36,8 @@ export type GearItem = {
   unlockDays: number;
   /** XP level required to unlock (0/undefined = none) */
   unlockLevel?: number;
+  /** Prestige Crowns required to unlock (0/undefined = none) */
+  unlockPrestige?: number;
   /** shop building level required for this item to appear (1-3) */
   minShopLevel: 1 | 2 | 3;
   description: string;
@@ -335,6 +337,127 @@ export const GEAR_CATALOG: GearItem[] = [
     boost: { xpMult: 0.5, attack: 62 },
     visual: {},
   },
+  // ---- Prestige tiers (Crown-gated, post-prestige endgame gear) ----
+  // Crown 1 — Gilded: gold-trimmed, forged for those who began again.
+  {
+    id: "gilded-blade",
+    name: "Gilded Blade",
+    type: "weapon",
+    icon: "swords",
+    cost: 25000,
+    unlockDays: 0,
+    unlockPrestige: 1,
+    minShopLevel: 3,
+    description: "Gold along the edge, steel in the heart. +60% XP.",
+    boost: { xpMult: 0.6, attack: 84 },
+    visual: {},
+  },
+  {
+    id: "gilded-aegis",
+    name: "Gilded Aegis",
+    type: "armor",
+    icon: "shield",
+    cost: 25000,
+    unlockDays: 0,
+    unlockPrestige: 1,
+    minShopLevel: 3,
+    description: "Trimmed in gold, proof against the dark. +6 max hearts.",
+    boost: { hearts: 6, defense: 27 },
+    visual: {},
+  },
+  {
+    id: "gilded-raiment",
+    name: "Gilded Raiment",
+    type: "clothes",
+    icon: "workspace-premium",
+    cost: 25000,
+    unlockDays: 0,
+    unlockPrestige: 1,
+    minShopLevel: 3,
+    description: "Deep crimson, edged with gold thread. +20% town coins.",
+    boost: { coinMult: 0.2 },
+    visual: { bodyColor: "#7F1D1D", pattern: "belt" },
+  },
+  // Crown 2 — Radiant: glowing accents, light worked into the metal.
+  {
+    id: "radiant-blade",
+    name: "Radiant Blade",
+    type: "weapon",
+    icon: "flare",
+    cost: 120000,
+    unlockDays: 0,
+    unlockPrestige: 2,
+    minShopLevel: 3,
+    description: "It shines in the dark places. +75% XP.",
+    boost: { xpMult: 0.75, attack: 118 },
+    visual: {},
+  },
+  {
+    id: "radiant-aegis",
+    name: "Radiant Aegis",
+    type: "armor",
+    icon: "security",
+    cost: 120000,
+    unlockDays: 0,
+    unlockPrestige: 2,
+    minShopLevel: 3,
+    description: "Light lives in this steel. +8 max hearts.",
+    boost: { hearts: 8, defense: 38 },
+    visual: {},
+  },
+  {
+    id: "radiant-raiment",
+    name: "Radiant Raiment",
+    type: "clothes",
+    icon: "flare",
+    cost: 120000,
+    unlockDays: 0,
+    unlockPrestige: 2,
+    minShopLevel: 3,
+    description: "Sky-blue, luminous at the seams. +30% town coins, +10% XP.",
+    boost: { coinMult: 0.3, xpMult: 0.1 },
+    visual: { bodyColor: "#0EA5E9", pattern: "stripes" },
+  },
+  // Crown 3 — Heavenly: the summit. Nothing above this.
+  {
+    id: "heavenly-blade",
+    name: "Heavenly Blade",
+    type: "weapon",
+    icon: "auto-awesome",
+    cost: 500000,
+    unlockDays: 0,
+    unlockPrestige: 3,
+    minShopLevel: 3,
+    description: "A sword from the armory above. +100% XP.",
+    boost: { xpMult: 1.0, attack: 165 },
+    visual: {},
+  },
+  {
+    id: "heavenly-aegis",
+    name: "Heavenly Aegis",
+    type: "armor",
+    icon: "workspace-premium",
+    cost: 500000,
+    unlockDays: 0,
+    unlockPrestige: 3,
+    minShopLevel: 3,
+    description: "The shield of the morning. +10 max hearts.",
+    boost: { hearts: 10, defense: 54 },
+    visual: {},
+  },
+  {
+    id: "heavenly-raiment",
+    name: "Heavenly Raiment",
+    type: "clothes",
+    icon: "auto-awesome",
+    cost: 500000,
+    unlockDays: 0,
+    unlockPrestige: 3,
+    minShopLevel: 3,
+    description: "White and gold, like the city to come. +50% town coins, +25% XP.",
+    boost: { coinMult: 0.5, xpMult: 0.25 },
+    visual: { bodyColor: "#FFFBEB", pattern: "stripes" },
+  },
   // ---- Tools (+coins) ----
   {
     id: "copper-pick",
@@ -439,6 +562,11 @@ export function isUnlocked(item: GearItem, fastDay: number): boolean {
 /** True when the player's XP level meets the item's level requirement. */
 export function isLevelUnlocked(item: GearItem, level: number): boolean {
   return level >= (item.unlockLevel || 0);
+}
+
+/** True when the player's prestige Crowns meet the item's Crown requirement. */
+export function isPrestigeUnlocked(item: GearItem, prestigeLevel: number): boolean {
+  return prestigeLevel >= (item.unlockPrestige || 0);
 }
 
 export type TotalBoosts = { xpMult: number; coinMult: number; hearts: number };

@@ -26,11 +26,11 @@ export type StreakMilestone = {
 };
 
 export const STREAK_MILESTONES: StreakMilestone[] = [
-  { day: 1, coins: 5, xp: 0, label: "First visit" },
-  { day: 3, coins: 15, xp: 0, label: "3-day streak" },
-  { day: 7, coins: 40, xp: 25, label: "One week strong" },
-  { day: 14, coins: 100, xp: 50, label: "Two weeks strong" },
-  { day: 30, coins: 250, xp: 100, title: "Faithful Resident", label: "A full month" },
+  { day: 1, coins: 50, xp: 0, label: "First visit" },
+  { day: 3, coins: 150, xp: 0, label: "3-day streak" },
+  { day: 7, coins: 400, xp: 25, label: "One week strong" },
+  { day: 14, coins: 1000, xp: 50, label: "Two weeks strong" },
+  { day: 30, coins: 2500, xp: 100, title: "Faithful Resident", label: "A full month" },
 ];
 
 /** Next milestone after the given streak day (null when all are passed). */

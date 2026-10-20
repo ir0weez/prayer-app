@@ -32,7 +32,7 @@ const WOOD_DEEP = "#5E3D22";
 const TEXT_DIM = "#9A7B55";
 const ACCENT = "#92400E";
 
-const BUILD_COINS: Record<number, number> = { 1: 5, 2: 10, 3: 18 };
+const BUILD_COINS: Record<number, number> = { 1: 50, 2: 100, 3: 180 };
 const BUILD_XP: Record<number, number> = { 1: 4, 2: 8, 3: 14 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const BUILD_KEY = "prayercircle.interior.carpenter.build.v1";

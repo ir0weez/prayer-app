@@ -23,7 +23,7 @@ export const GARDEN_PLOTS: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
 /** Minutes for crops to ripen, by level (greenhouse speeds it up). */
 export const GARDEN_RIPEN_MINUTES: Record<number, number> = { 1: 120, 2: 90, 3: 60 };
 /** Coins per plot at harvest, by level. */
-export const GARDEN_COINS_PER_PLOT: Record<number, number> = { 1: 3, 2: 5, 3: 8 };
+export const GARDEN_COINS_PER_PLOT: Record<number, number> = { 1: 30, 2: 50, 3: 80 };
 /** XP per plot at harvest, by level. */
 export const GARDEN_XP_PER_PLOT: Record<number, number> = { 1: 2, 2: 4, 3: 7 };
 
@@ -79,7 +79,7 @@ export const AMPHITHEATER_KEY = "prayercircle.hometown.amphitheater.v1";
 export const SHOW_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 /** Coins for attending a show, by amphitheater level. */
-export const SHOW_COINS: Record<number, number> = { 1: 10, 2: 20, 3: 35 };
+export const SHOW_COINS: Record<number, number> = { 1: 100, 2: 200, 3: 350 };
 /** XP for attending a show, by amphitheater level. */
 export const SHOW_XP: Record<number, number> = { 1: 15, 2: 30, 3: 50 };
 
@@ -139,7 +139,7 @@ export const PLAZA_KEY = "prayercircle.hometown.fountain-plaza.v1";
 export const REST_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /** Coins for resting at the plaza, by level. */
-export const REST_COINS: Record<number, number> = { 1: 5, 2: 12, 3: 25 };
+export const REST_COINS: Record<number, number> = { 1: 50, 2: 120, 3: 250 };
 /** XP for resting at the plaza, by level. */
 export const REST_XP: Record<number, number> = { 1: 8, 2: 18, 3: 35 };
 

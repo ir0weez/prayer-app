@@ -31,7 +31,7 @@ const TILE_DARK = "#0369A1";
 const TEXT_DIM = "#7FA3B8";
 const ACCENT = "#0284C7";
 
-const REST_COINS: Record<number, number> = { 1: 3, 2: 6, 3: 12 };
+const REST_COINS: Record<number, number> = { 1: 30, 2: 60, 3: 120 };
 const REST_XP: Record<number, number> = { 1: 4, 2: 8, 3: 16 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const REST_KEY = "prayercircle.interior.bathhouse.rest.v1";

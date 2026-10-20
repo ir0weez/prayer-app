@@ -32,7 +32,7 @@ const GOLD = "#C9963C";
 const TEXT_DIM = "#A08787";
 const ACCENT = "#B4232F";
 
-const OPERA_COINS: Record<number, number> = { 1: 8, 2: 16, 3: 30 };
+const OPERA_COINS: Record<number, number> = { 1: 80, 2: 160, 3: 300 };
 const OPERA_XP: Record<number, number> = { 1: 6, 2: 12, 3: 22 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const OPERA_KEY = "prayercircle.interior.operahouse.attend.v1";

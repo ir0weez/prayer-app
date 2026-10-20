@@ -42,7 +42,7 @@ const TEXT = "#4A3B28";
 const TEXT_DIM = "#8A7A5F";
 const BROWSE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const BROWSE_KEY = "prayercircle.interior.market.browse.v1";
-const BROWSE_COINS: Record<number, number> = { 1: 4, 2: 8, 3: 15 };
+const BROWSE_COINS: Record<number, number> = { 1: 40, 2: 80, 3: 150 };
 const BROWSE_XP: Record<number, number> = { 1: 3, 2: 6, 3: 10 };
 const STALL_COLORS = [
   { a: "#C0392B", b: "#F5EDE0" },

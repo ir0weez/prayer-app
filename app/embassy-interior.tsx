@@ -31,7 +31,7 @@ const TEXT_DIM = "#8A99AD";
 const ACCENT = "#1D4ED8";
 const GOLD = "#C9963C";
 
-const GREET_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 28 };
+const GREET_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 280 };
 const GREET_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const GREET_KEY = "prayercircle.interior.embassy.greet.v1";

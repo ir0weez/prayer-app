@@ -44,37 +44,37 @@ export const VILLAGER_MISSION_KINDS: Record<
   church: {
     message: "Walk with me to the chapel? I'd like to sit with you a while.",
     targetLabel: "Chapel",
-    rewardCoins: 10,
+    rewardCoins: 100,
     rewardXP: 8,
   },
   barbershop: {
     message: "I could really use a haircut. Will you come with me to the barbershop?",
     targetLabel: "Barbershop",
-    rewardCoins: 10,
+    rewardCoins: 100,
     rewardXP: 8,
   },
   restaurant: {
     message: "I'm hungry — will you break bread with me?",
     targetLabel: "Restaurant",
-    rewardCoins: 12,
+    rewardCoins: 120,
     rewardXP: 8,
   },
   garden: {
     message: "There's someone I want to remember. Walk with me to the garden?",
     targetLabel: "Garden of Remembrance",
-    rewardCoins: 14,
+    rewardCoins: 140,
     rewardXP: 12,
   },
   bank: {
     message: "I need to stop by the bank. Walk with me?",
     targetLabel: "Bank",
-    rewardCoins: 10,
+    rewardCoins: 100,
     rewardXP: 8,
   },
   well: {
     message: "I'm thirsty in a deeper way. Come draw water with me at the well?",
     targetLabel: "The Well",
-    rewardCoins: 14,
+    rewardCoins: 140,
     rewardXP: 12,
   },
 };

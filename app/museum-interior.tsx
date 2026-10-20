@@ -32,7 +32,7 @@ const TEXT_DIM = "#A0977F";
 const ACCENT = "#5B6B8C";
 const GOLD = "#C9963C";
 
-const TOUR_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 26 };
+const TOUR_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 260 };
 const TOUR_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const TOUR_KEY = "prayercircle.interior.museum.tour.v1";

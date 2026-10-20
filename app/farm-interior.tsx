@@ -41,7 +41,7 @@ const TEXT_DIM = "#7A6A52";
 const GREEN = "#5B8A5E";
 const HARVEST_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const HARVEST_KEY = "prayercircle.interior.farm.harvest.v1";
-const HARVEST_COINS: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
+const HARVEST_COINS: Record<number, number> = { 1: 50, 2: 100, 3: 200 };
 const HARVEST_XP: Record<number, number> = { 1: 4, 2: 8, 3: 12 };
 const FARM_TOOLS = ["agriculture", "eco", "water-drop", "grass"];
 

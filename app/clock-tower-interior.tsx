@@ -32,7 +32,7 @@ const STEEL = "#8A7F6A";
 const TEXT_DIM = "#A0977F";
 const ACCENT = "#8A6D1C";
 
-const WIND_COINS: Record<number, number> = { 1: 6, 2: 12, 3: 24 };
+const WIND_COINS: Record<number, number> = { 1: 60, 2: 120, 3: 240 };
 const WIND_XP: Record<number, number> = { 1: 5, 2: 10, 3: 18 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const WIND_KEY = "prayercircle.interior.clocktower.wind.v1";

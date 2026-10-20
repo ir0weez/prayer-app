@@ -31,7 +31,7 @@ const TEXT_DIM = "#A08BB5";
 const ACCENT = "#7C3AED";
 const GOLD = "#C9963C";
 
-const SEW_COINS: Record<number, number> = { 1: 4, 2: 9, 3: 16 };
+const SEW_COINS: Record<number, number> = { 1: 40, 2: 90, 3: 160 };
 const SEW_XP: Record<number, number> = { 1: 3, 2: 6, 3: 12 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const SEW_KEY = "prayercircle.interior.tailor.sew.v1";

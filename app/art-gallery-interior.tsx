@@ -35,7 +35,7 @@ const ACCENT = "#475569";
 const GOLD = "#C9963C";
 const WOOD_COLOR = "#8A5A2B";
 
-const VIEW_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 26 };
+const VIEW_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 260 };
 const VIEW_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const VIEW_KEY = "prayercircle.interior.art-gallery.view.v1";

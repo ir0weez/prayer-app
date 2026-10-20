@@ -13,6 +13,7 @@ import {
   GEAR_CATALOG,
   GEAR_TYPE_META,
   isLevelUnlocked,
+  isPrestigeUnlocked,
   isUnlocked,
   loadEquipped,
   loadInventory,
@@ -25,6 +26,7 @@ import {
   type GearType,
 } from "@/lib/gear";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
+import { loadPrestigeLevel } from "@/lib/prestige";
 import { COINS_STORAGE_KEY } from "@/lib/hometown";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
@@ -88,10 +90,11 @@ export default function GearShopScreen() {
   const [fastDay, setFastDay] = useState(1);
   const [level, setLevel] = useState(1);
   const [shopLevel, setShopLevel] = useState(0);
+  const [prestigeLevel, setPrestigeLevel] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [p, c, inv, eq, day, lvl, xp] = await Promise.all([
+    const [p, c, inv, eq, day, lvl, xp, prestige] = await Promise.all([
       loadCustomPawn(),
       loadCoins(),
       loadInventory(),
@@ -99,7 +102,9 @@ export default function GearShopScreen() {
       loadFastDay(),
       shopLevelFor(shopType),
       loadXPState(),
+      loadPrestigeLevel(),
     ]);
+    setPrestigeLevel(prestige);
     setPawn(p);
     setCoins(c);
     setInventory(inv);
@@ -132,6 +137,10 @@ export default function GearShopScreen() {
     }
     if (!isLevelUnlocked(item, level)) {
       Alert.alert("Locked", `Unlocks at Level ${item.unlockLevel}. You're Level ${level}.`);
+      return;
+    }
+    if (!isPrestigeUnlocked(item, prestigeLevel)) {
+      Alert.alert("Locked", `${item.name} requires Crown ${item.unlockPrestige}. Prestige by completing 365 days of fasting, then choose Begin Again in Hometown.`);
       return;
     }
     if (coins.balance < item.cost) {
@@ -205,7 +214,8 @@ export default function GearShopScreen() {
           const unlocked = isUnlocked(item, fastDay);
           const levelLocked = item.minShopLevel > shopLevel;
           const xpLocked = !isLevelUnlocked(item, level);
-          const blocked = !unlocked || levelLocked || xpLocked;
+          const crownLocked = !isPrestigeUnlocked(item, prestigeLevel);
+          const blocked = !unlocked || levelLocked || xpLocked || crownLocked;
           const boost = boostLabel(item);
           return (
             <View key={item.id} style={{ backgroundColor: CARD, borderRadius: 16, padding: 16, marginBottom: 12, opacity: blocked ? 0.6 : 1 }}>
@@ -230,6 +240,11 @@ export default function GearShopScreen() {
                   {xpLocked && (
                     <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
                       Unlocks at Level {item.unlockLevel} (you're Level {level})
+                    </Text>
+                  )}
+                  {crownLocked && (
+                    <Text style={{ color: "#F87171", fontSize: 12, marginTop: 2 }}>
+                      Requires Crown {item.unlockPrestige} (you have {prestigeLevel})
                     </Text>
                   )}
                 </View>

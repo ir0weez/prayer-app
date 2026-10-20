@@ -35,7 +35,7 @@ const ACCENT = "#6D28D9";
 const GOLD = "#C9963C";
 const RED = "#B91C1C";
 
-const SESSION_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 26 };
+const SESSION_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 260 };
 const SESSION_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const SESSION_KEY = "prayercircle.interior.music-studio.session.v1";

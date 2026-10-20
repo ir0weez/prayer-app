@@ -5,6 +5,8 @@
 
 export const COLLECTIONS_STORAGE_KEY = "prayercircle.hometown.collections.v1";
 
+import { ALL_DEMON_NAMES } from "./dark-forest";
+
 export type CollectionSetId = "fish" | "demons" | "flowers";
 
 /* ---------------- Fish species (River of Life) ---------------- */
@@ -78,9 +80,9 @@ export type CollectionSetMeta = {
 };
 
 export const COLLECTION_SETS: Record<CollectionSetId, CollectionSetMeta> = {
-  fish: { id: "fish", name: "River Fish", icon: "phishing", total: FISH_SPECIES.length, rewardCoins: 150, rewardXp: 75, rewardTitle: "Master Angler" },
-  demons: { id: "demons", name: "Demon Bestiary", icon: "bug-report", total: 15, rewardCoins: 200, rewardXp: 100, rewardTitle: "Demonbane" },
-  flowers: { id: "flowers", name: "Garden Flowers", icon: "local-florist", total: FLOWER_KINDS.length, rewardCoins: 100, rewardXp: 50, rewardTitle: "Master Gardener" },
+  fish: { id: "fish", name: "River Fish", icon: "phishing", total: FISH_SPECIES.length, rewardCoins: 1500, rewardXp: 75, rewardTitle: "Master Angler" },
+  demons: { id: "demons", name: "Demon Bestiary", icon: "bug-report", total: ALL_DEMON_NAMES.length, rewardCoins: 2000, rewardXp: 100, rewardTitle: "Demonbane" },
+  flowers: { id: "flowers", name: "Garden Flowers", icon: "local-florist", total: FLOWER_KINDS.length, rewardCoins: 1000, rewardXp: 50, rewardTitle: "Master Gardener" },
 };
 
 /* ---------------- State ---------------- */

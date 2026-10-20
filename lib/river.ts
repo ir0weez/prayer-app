@@ -29,9 +29,9 @@ export type RiverLevelInfo = {
 };
 
 export const RIVER_LEVELS: Record<RiverLevel, RiverLevelInfo> = {
-  1: { fishPerDay: 5, coinPerFish: 3, upgradeCost: 800 },
-  2: { fishPerDay: 8, coinPerFish: 5, upgradeCost: 1200 },
-  3: { fishPerDay: 12, coinPerFish: 8, upgradeCost: 0 },
+  1: { fishPerDay: 5, coinPerFish: 30, upgradeCost: 800 },
+  2: { fishPerDay: 8, coinPerFish: 50, upgradeCost: 1200 },
+  3: { fishPerDay: 12, coinPerFish: 80, upgradeCost: 0 },
 };
 
 export const RIVER_LEVEL_NAMES: Record<RiverLevel, string> = {

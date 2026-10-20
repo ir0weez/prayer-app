@@ -32,7 +32,7 @@ const TEXT_DIM = "#8A99AD";
 const ACCENT = "#1D4ED8";
 const GOLD = "#C9963C";
 
-const SORT_COINS: Record<number, number> = { 1: 4, 2: 8, 3: 16 };
+const SORT_COINS: Record<number, number> = { 1: 40, 2: 80, 3: 160 };
 const SORT_XP: Record<number, number> = { 1: 3, 2: 6, 3: 12 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const SORT_KEY = "prayercircle.interior.postoffice.sort.v1";

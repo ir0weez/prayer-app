@@ -39,7 +39,7 @@ const GOLD = "#C9963C";
 /** Bloom colors that cycle through every bucket and stall. */
 const BLOOMS = ["#E11D48", "#F59E0B", "#EC4899", "#8B5CF6", "#F97316", "#EAB308"];
 
-const BOUQUET_COINS: Record<number, number> = { 1: 7, 2: 14, 3: 26 };
+const BOUQUET_COINS: Record<number, number> = { 1: 70, 2: 140, 3: 260 };
 const BOUQUET_XP: Record<number, number> = { 1: 5, 2: 10, 3: 20 };
 const COOLDOWN_MS = 60 * 60 * 1000;
 const BOUQUET_KEY = "prayercircle.interior.flower-market.bouquet.v1";

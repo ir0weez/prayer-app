@@ -13,6 +13,8 @@ import {
   parseCoins,
   parseTown,
   prayedTodayPeople,
+  scaledCoins,
+  scaledXP,
   type HometownCoins,
   type PlacedBuilding,
   type PrayedPerson,
@@ -38,6 +40,10 @@ import {
   CuisineCenterpiece,
   type CuisinePalette,
 } from "@/components/cuisine-themes";
+import { awardCustomXP } from "@/lib/xp-engine";
+import { ServeGame } from "@/components/serve-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 // ---------- palette: warm candlelit dining room ----------
 // Dark warm wood, amber candlelight, golden accents — an evening meal together.
@@ -1033,6 +1039,12 @@ export default function RestaurantInteriorScreen() {
   const [people, setPeople] = useState<PrayedPerson[]>([]);
   const [interior, setInterior] = useState<RestaurantInteriorState>({ furniture: {} });
   const [loaded, setLoaded] = useState(false);
+  const [servePlaysLeft, setServePlaysLeft] = useState<number | null>(null);
+  const [playingServe, setPlayingServe] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("serve").then(setServePlaysLeft).catch(() => setServePlaysLeft(0));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -1094,6 +1106,15 @@ export default function RestaurantInteriorScreen() {
     },
     [buildingId, interior, addCoins]
   );
+
+  const handleServeComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-serve-${Date.now()}`).catch(() => undefined);
+    recordPlay("serve").then(setServePlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   const def = building ? BUILDINGS[building.type] : null;
   const name = def?.name ?? "Restaurant";
@@ -1380,6 +1401,19 @@ export default function RestaurantInteriorScreen() {
               />
             ))}
           </View>
+        )}
+
+        <PlayCard
+          icon="room-service"
+          title="Play: Serve the Table"
+          blurb="Five tables this shift. Serve each order dish by dish, in order — this kitchen's own menu — before patience runs thin. Good service earns good tips."
+          playsLeft={servePlaysLeft}
+          cap={MINI_GAME_CAPS.serve}
+          accent={pal.accent}
+          onPlay={() => setPlayingServe(true)}
+        />
+        {playingServe && (
+          <ServeGame accent={pal.accent} onComplete={handleServeComplete} onExit={() => setPlayingServe(false)} cuisine={cuisine} />
         )}
 
         {!loaded && (

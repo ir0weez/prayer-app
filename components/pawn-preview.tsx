@@ -2,6 +2,7 @@ import { View } from "react-native";
 import type { CustomPawn, PawnAccessory, PawnBeardStyle, PawnEyeStyle, PawnGender, PawnHairStyle, PawnMouthStyle } from "@/lib/pawn";
 import { beardGrowthFor, hairGrowthFor } from "@/lib/pawn";
 import type { GearItem } from "@/lib/gear";
+import { HeroForPawn } from "@/components/hero-sprite";
 
 const INK = "#1F2937";
 const HAIR = "#111827";
@@ -412,8 +413,10 @@ function Accessory({ kind, s }: { kind: PawnAccessory; s: number }) {
   }
 }
 
-/** Renders a custom pawn as a chess-pawn silhouette: round head + cylindrical body. */
-export function PawnPreview({ pawn, size = 120, equippedGear }: { pawn: CustomPawn; size?: number; equippedGear?: GearItem | null }) {
+/** The original face renderer: round head + cylindrical body. Kept for the
+ * creator/barbershop option grids, where face-feature differences (eyes,
+ * mouth, accessories, body styles) need to read at small sizes. */
+function PawnFacePreview({ pawn, size = 120, equippedGear }: { pawn: CustomPawn; size?: number; equippedGear?: GearItem | null }) {
   const s = size;
   const bodyStyle = pawn.bodyStyle || 'pebble';
   // Head is constant; body proportions vary by style
@@ -481,4 +484,30 @@ export function PawnPreview({ pawn, size = 120, equippedGear }: { pawn: CustomPa
       </View>
     </View>
   );
+}
+
+/**
+ * The player's character. Default ("hero") renders the 8-bit Hero — the
+ * Dark Forest character wearing the equipped armor, weapon and clothes,
+ * with the saved appearance's hair and beard — everywhere the character
+ * appears in the world (maps, interiors, profile). The creator and
+ * barbershop option grids pass variant="face" for the detailed face
+ * renderer, where eyes/mouth/accessory differences need to read small.
+ */
+export function PawnPreview({
+  pawn,
+  size = 120,
+  equippedGear,
+  variant = "hero",
+}: {
+  pawn: CustomPawn;
+  size?: number;
+  equippedGear?: GearItem | null;
+  variant?: "hero" | "face";
+}) {
+  if (variant === "face") {
+    return <PawnFacePreview pawn={pawn} size={size} equippedGear={equippedGear} />;
+  }
+  const clothesItem = equippedGear && equippedGear.type === "clothes" ? equippedGear : null;
+  return <HeroForPawn pawn={pawn} size={size} clothesItem={clothesItem} />;
 }

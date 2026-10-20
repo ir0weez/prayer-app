@@ -406,14 +406,14 @@ export type BuildingDef = {
 export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "house":      { name: "Cottage",    icon: "🏠", cost: 55,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
   "villager-cottage": { name: "Villager Cottage", icon: "", cost: 275, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A cozy home for the people you've prayed for. Villagers sleep here at night, rest here by day, and visit one another." },
-  "pawn-house": { name: "Pawn House", icon: "🏡", cost: 110,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
+  "pawn-house": { name: "Hero's House", icon: "🏡", cost: 110,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your Hero's home. Tap to enter and decorate." },
   "farm":       { name: "Farm",       icon: "🌾", cost: 220,  tier: 1, incomePerDay: 20,  xpPerDay: 0, maps: ["town"], description: "+20 coins per day while your streak is alive." },
   "shop":       { name: "Shop",       icon: "🏪", cost: 440,  tier: 1, incomePerDay: 30,  xpPerDay: 0, maps: ["town"], description: "+30 coins per day while your streak is alive." },
   "bakery":     { name: "Bakery",     icon: "🥖", cost: 880,  tier: 2, incomePerDay: 50,  xpPerDay: 0, maps: ["town"], description: "+50 coins per day while your streak is alive." },
   "market":     { name: "Market",     icon: "🏬", cost: 1760, tier: 3, incomePerDay: 80,  xpPerDay: 0, maps: ["town"], description: "+80 coins per day while your streak is alive." },
   "bank":       { name: "Bank",       icon: "🏦", cost: 3850, tier: 4, incomePerDay: 120, xpPerDay: 0, maps: ["town"], description: "+120 coins per day while your streak is alive." },
   "barbershop": { name: "Barbershop", icon: "💈", cost: 660,  tier: 1, incomePerDay: 10,  xpPerDay: 0, maps: ["town"], description: "+10 coins/day. Boosts connected businesses +25%." },
-  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 715, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +10 coins/day." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 715, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your Hero. +10 coins/day." },
   "armory":       { name: "Armory",       icon: "🛡️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +20 coins/day." },
   "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +20 coins/day." },
   "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 880, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +10 coins/day." },
@@ -461,7 +461,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "hospital": { name: "Hospital", icon: "", cost: 2750, tier: 2, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +30 coins/day." },
   // Artisans' Row — artisan services in the southern extension. Icons are
   // drawn as SVG in the art switch, not emoji, so defs use empty icons.
-  "inn":         { name: "Wayside Inn",       icon: "", cost: 1320, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +60 coins/day." },
+  "inn":         { name: "Wayside Inn",       icon: "", cost: 1320, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the Hero greets the guests. +60 coins/day." },
   "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 1210, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +40 coins/day." },
   "pottery":     { name: "Pottery Studio",    icon: "", cost: 1100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +40 coins/day." },
   "music-hall":  { name: "Music Hall",         icon: "", cost: 1760, tier: 1, incomePerDay: 0,  xpPerDay: 35, maps: ["town"], description: "Song rises from the hall — instruments, voices, and joy. Villagers play here. +35 XP/day." },

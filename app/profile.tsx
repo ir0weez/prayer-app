@@ -974,7 +974,7 @@ export default function ProfileScreen() {
               )}
               <View style={{ marginLeft: 10, flex: 1 }}>
                 <Text style={{ fontWeight: "700", fontSize: 16, color: "#FFFFFF" }}>
-                  {customPawn ? (customPawn.name || "Your Pawn") : "Forge Your Pawn"}
+                  {customPawn ? (customPawn.name || "Your Hero") : "Forge Your Hero"}
                 </Text>
                 <Text style={{ fontSize: 12, color: "#A78BFA" }}>
                   {customPawn ? "Tap to customize" : "Design your own pawn companion"}

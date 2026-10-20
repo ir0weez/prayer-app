@@ -70,7 +70,7 @@ export default function HometownShopScreen() {
   const sections: { title: string; type: ShopItem["type"] }[] = [
     { title: "Monuments", type: "monument" },
     { title: "Decorations", type: "decoration" },
-    { title: "Pawn Skins", type: "pawn-skin" },
+    { title: "Hero Skins", type: "pawn-skin" },
   ];
 
   return (

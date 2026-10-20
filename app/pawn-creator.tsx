@@ -77,7 +77,7 @@ export default function PawnCreatorScreen() {
             <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: "800", color: "#FFFFFF", textAlign: "center" }}>Forge Your Pawn</Text>
+            <Text style={{ fontSize: 20, fontWeight: "800", color: "#FFFFFF", textAlign: "center" }}>Forge Your Hero</Text>
             <Text style={{ fontSize: 13, color: LABEL, textAlign: "center", marginTop: 2 }}>Choose your companion for the journey</Text>
           </View>
           <View style={{ width: 40 }} />
@@ -89,7 +89,7 @@ export default function PawnCreatorScreen() {
           <TextInput
             value={draft.name}
             onChangeText={(t) => set("name", t)}
-            placeholder="Name your pawn"
+            placeholder="Name your Hero"
             placeholderTextColor="rgba(255,255,255,0.4)"
             style={{
               marginTop: 12,
@@ -121,7 +121,7 @@ export default function PawnCreatorScreen() {
                   borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF",
                 }}
               >
-                <PawnPreview pawn={{ ...draft, bodyStyle: opt.id as PawnBodyStyle, beardLength: 0, hairLength: 0 }} size={52} />
+                <PawnPreview pawn={{ ...draft, bodyStyle: opt.id as PawnBodyStyle, beardLength: 0, hairLength: 0 }} size={52} variant="face" />
                 <Text style={{ fontSize: 10, color: selected ? "#FFFFFF" : "#A78BFA", marginTop: 2, fontWeight: selected ? "700" : "400" }}>{opt.name}</Text>
               </Pressable>
             );
@@ -176,7 +176,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("eyeStyle", opt.id as PawnEyeStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, eyeStyle: opt.id as PawnEyeStyle, mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
+                <PawnPreview pawn={{ ...draft, eyeStyle: opt.id as PawnEyeStyle, mouthStyle: "flat", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -194,7 +194,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("mouthStyle", opt.id as PawnMouthStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, mouthStyle: opt.id as PawnMouthStyle, eyeStyle: "round", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
+                <PawnPreview pawn={{ ...draft, mouthStyle: opt.id as PawnMouthStyle, eyeStyle: "round", accessory: "none", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -212,7 +212,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("accessory", opt.id as PawnAccessory)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <PawnPreview pawn={{ ...draft, accessory: opt.id as PawnAccessory, eyeStyle: "round", mouthStyle: "smile", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} />
+                <PawnPreview pawn={{ ...draft, accessory: opt.id as PawnAccessory, eyeStyle: "round", mouthStyle: "smile", beardLength: 0, lastTrim: new Date().toISOString() }} size={52} variant="face" />
                 <Text style={{ fontSize: 11, color: selected ? "#FFFFFF" : LABEL, fontWeight: selected ? "700" : "400", marginTop: 4 }}>{opt.label}</Text>
               </Pressable>
             );
@@ -225,7 +225,7 @@ export default function PawnCreatorScreen() {
             <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>Cancel</Text>
           </Pressable>
           <Pressable onPress={handleSave} style={{ flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: ACCENT, alignItems: "center" }}>
-            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Save Pawn</Text>
+            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15 }}>Save Hero</Text>
           </Pressable>
         </View>
         <Text style={{ fontSize: 12, color: LABEL, textAlign: "center", marginTop: 12 }}>

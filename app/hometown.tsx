@@ -4618,7 +4618,7 @@ export default function HometownScreen() {
     const buildingPrice = scaledCoins(def.cost);
     const total = lotPrice + buildingPrice;
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
-      Alert.alert("Already built", "You already have a pawn house!");
+      Alert.alert("Already built", "You already have a Hero's house!");
       return;
     }
     if (type === "banquet-table" && map.buildings.some((b) => b.type === "banquet-table")) {
@@ -5260,7 +5260,7 @@ export default function HometownScreen() {
       return;
     }
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
-      Alert.alert("Already built", "You already have a pawn house!");
+      Alert.alert("Already built", "You already have a Hero's house!");
       return;
     }
     const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
@@ -5930,7 +5930,7 @@ export default function HometownScreen() {
         <Text style={{ fontSize: 24 }}>🛍️</Text>
         <View style={{ marginLeft: 10, flex: 1 }}>
           <Text style={{ fontWeight: "700", fontSize: 16, color: pt.text }}>Town Shop</Text>
-          <Text style={{ fontSize: 12, color: pt.subtext }}>Monuments, decorations, pawn skins</Text>
+          <Text style={{ fontSize: 12, color: pt.subtext }}>Monuments, decorations, hero skins</Text>
         </View>
         <Text style={{ fontSize: 20, color: pt.subtext }}>→</Text>
       </Pressable>

@@ -906,7 +906,7 @@ export function PawnCompanion({
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Name your pawn"
+            placeholder="Name your Hero"
             placeholderTextColor={colors.muted}
             style={{
               color: colors.foreground,

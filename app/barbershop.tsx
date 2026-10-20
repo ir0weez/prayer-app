@@ -360,7 +360,7 @@ export default function BarbershopScreen() {
               onPress={() => router.push("/pawn-creator")}
               style={{ marginTop: 16, backgroundColor: ACCENT, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 }}
             >
-              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Forge Your Pawn</Text>
+              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Forge Your Hero</Text>
             </Pressable>
           </View>
         ) : !isMale ? (
@@ -395,7 +395,7 @@ export default function BarbershopScreen() {
 
             {discountMult < 1 && (
               <Text style={{ color: "#4ADE80", fontSize: 12, textAlign: "center", marginBottom: 8, fontWeight: "700" }}>
-                🎉 75% OFF — new pawn discount! (Ends after first prestige)
+                🎉 75% OFF — new Hero discount! (Ends after first prestige)
               </Text>
             )}
             <SectionHeader title="HAIR STYLES" />
@@ -409,7 +409,7 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} />}
+                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} variant="face" />}
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
@@ -524,7 +524,7 @@ export default function BarbershopScreen() {
 
             {discountMult < 1 && (
               <Text style={{ color: "#4ADE80", fontSize: 12, textAlign: "center", marginBottom: 8, fontWeight: "700" }}>
-                🎉 75% OFF — new pawn discount! (Ends after first prestige)
+                🎉 75% OFF — new Hero discount! (Ends after first prestige)
               </Text>
             )}
             <SectionHeader title="HAIR STYLES" />
@@ -538,7 +538,7 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} />}
+                    preview={<PawnPreview pawn={{ ...pawn, hairStyle: s.id, hairLength: 60 }} size={64} variant="face" />}
                     name={s.label}
                     owned={owned}
                     equipped={equipped}
@@ -593,7 +593,7 @@ export default function BarbershopScreen() {
                 return (
                   <StyleGridItem
                     key={s.id}
-                    preview={<PawnPreview pawn={{ ...pawn, beardStyle: s.id, beardLength: 55 }} size={64} />}
+                    preview={<PawnPreview pawn={{ ...pawn, beardStyle: s.id, beardLength: 55 }} size={64} variant="face" />}
                     name={s.name}
                     owned={owned}
                     equipped={equipped}

@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Text, View } from "react-native";
-import { PawnPreview } from "@/components/pawn-preview";
+import { Animated, Easing, Text } from "react-native";
+import { HeroForPawn } from "@/components/hero-sprite";
 import { CUSTOM_PAWN_STORAGE_KEY, loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
 import { TOWN_GRID_W, TOWN_GRID_H } from "@/lib/hometown";
 
-const PAWN_SIZE = 30;
-// Slightly larger than the 16px villager lights, with a gold ring so
-// Jonathan can spot himself at a glance.
-const RING = "#FBBF24";
+const PAWN_SIZE = 34;
 
 /**
- * The player's own pawn, wandering the hometown during the day.
- * Uses their actual pawn-creator appearance. At night they're in bed
- * in the pawn house (rendered there), so this hides after dark.
+ * The Hero — the player's own character, wandering the hometown during
+ * the day: the 8-bit Dark Forest hero wearing what's equipped, with the
+ * saved appearance's hair and beard. At night they're in bed in the
+ * Hero's house (rendered there), so this hides after dark.
  */
 export function PlayerPawnWanderer({ cellSize, destTile }: { cellSize: number; destTile?: { x: number; y: number } | null }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
@@ -129,18 +127,8 @@ export function PlayerPawnWanderer({ cellSize, destTile }: { cellSize: number; d
       >
         {pawn.name || "You"}
       </Text>
-      {/* gold ring + pawn */}
-      <View
-        style={{
-          borderRadius: PAWN_SIZE / 2,
-          borderWidth: 2,
-          borderColor: RING,
-          padding: 1,
-          backgroundColor: "rgba(251,191,36,0.15)",
-        }}
-      >
-        <PawnPreview pawn={pawn} size={PAWN_SIZE - 6} />
-      </View>
+      {/* the Hero, wearing what's equipped */}
+      <HeroForPawn pawn={pawn} size={PAWN_SIZE} />
     </Animated.View>
   );
 }

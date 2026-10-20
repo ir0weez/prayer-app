@@ -1191,7 +1191,7 @@ export default function PawnHouseScreen() {
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
           <MaterialIcons name="arrow-back" size={24} color="#1F2937" />
         </Pressable>
-        <Text style={{ fontSize: 22, fontWeight: "800" }}>Pawn House</Text>
+        <Text style={{ fontSize: 22, fontWeight: "800" }}>Hero's House</Text>
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <MaterialIcons name="monetization-on" size={16} color="#B8860B" />

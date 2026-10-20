@@ -395,21 +395,29 @@ export type BuildingDef = {
   description: string;
 };
 
+// PACING (tuned Oct 2026 against a simulation of the live accrual model):
+// town lot + building costs are scaled so one pre-prestige run lasts about
+// a 365-day fast for an engaged player — first building on day 1, all lots
+// built by ~day 60, and the L2/L3 upgrades as the long tail, with the full
+// town (every lot, everything L3) landing around day 300-365. Pure-city
+// building costs are NOT scaled — the city is post-prestige endgame and
+// keeps its own prices. Upgrade costs derive from these base costs
+// (see upgradeCostFor), so they scale with them.
 export const BUILDINGS: Record<BuildingType, BuildingDef> = {
-  "house":      { name: "Cottage",    icon: "🏠", cost: 5,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
-  "villager-cottage": { name: "Villager Cottage", icon: "", cost: 25, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A cozy home for the people you've prayed for. Villagers sleep here at night, rest here by day, and visit one another." },
-  "pawn-house": { name: "Pawn House", icon: "🏡", cost: 10,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
-  "farm":       { name: "Farm",       icon: "🌾", cost: 20,  tier: 1, incomePerDay: 20,  xpPerDay: 0, maps: ["town"], description: "+20 coins per day while your streak is alive." },
-  "shop":       { name: "Shop",       icon: "🏪", cost: 40,  tier: 1, incomePerDay: 30,  xpPerDay: 0, maps: ["town"], description: "+30 coins per day while your streak is alive." },
-  "bakery":     { name: "Bakery",     icon: "🥖", cost: 80,  tier: 2, incomePerDay: 50,  xpPerDay: 0, maps: ["town"], description: "+50 coins per day while your streak is alive." },
-  "market":     { name: "Market",     icon: "🏬", cost: 160, tier: 3, incomePerDay: 80,  xpPerDay: 0, maps: ["town"], description: "+80 coins per day while your streak is alive." },
-  "bank":       { name: "Bank",       icon: "🏦", cost: 350, tier: 4, incomePerDay: 120, xpPerDay: 0, maps: ["town"], description: "+120 coins per day while your streak is alive." },
-  "barbershop": { name: "Barbershop", icon: "💈", cost: 60,  tier: 1, incomePerDay: 10,  xpPerDay: 0, maps: ["town"], description: "+10 coins/day. Boosts connected businesses +25%." },
-  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 65, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +10 coins/day." },
-  "armory":       { name: "Armory",       icon: "🛡️", cost: 105, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +20 coins/day." },
-  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 105, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +20 coins/day." },
-  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 80, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +10 coins/day." },
-  "church":       { name: "Chapel",       icon: "⛪", cost: 100, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +20 coins/hour for each person you've prayed for today." },
+  "house":      { name: "Cottage",    icon: "🏠", cost: 55,   tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "A cozy home for your townsfolk." },
+  "villager-cottage": { name: "Villager Cottage", icon: "", cost: 275, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A cozy home for the people you've prayed for. Villagers sleep here at night, rest here by day, and visit one another." },
+  "pawn-house": { name: "Pawn House", icon: "🏡", cost: 110,  tier: 1, incomePerDay: 0,  xpPerDay: 0, maps: ["town"], description: "Your pawn's home. Tap to enter and decorate." },
+  "farm":       { name: "Farm",       icon: "🌾", cost: 220,  tier: 1, incomePerDay: 20,  xpPerDay: 0, maps: ["town"], description: "+20 coins per day while your streak is alive." },
+  "shop":       { name: "Shop",       icon: "🏪", cost: 440,  tier: 1, incomePerDay: 30,  xpPerDay: 0, maps: ["town"], description: "+30 coins per day while your streak is alive." },
+  "bakery":     { name: "Bakery",     icon: "🥖", cost: 880,  tier: 2, incomePerDay: 50,  xpPerDay: 0, maps: ["town"], description: "+50 coins per day while your streak is alive." },
+  "market":     { name: "Market",     icon: "🏬", cost: 1760, tier: 3, incomePerDay: 80,  xpPerDay: 0, maps: ["town"], description: "+80 coins per day while your streak is alive." },
+  "bank":       { name: "Bank",       icon: "🏦", cost: 3850, tier: 4, incomePerDay: 120, xpPerDay: 0, maps: ["town"], description: "+120 coins per day while your streak is alive." },
+  "barbershop": { name: "Barbershop", icon: "💈", cost: 660,  tier: 1, incomePerDay: 10,  xpPerDay: 0, maps: ["town"], description: "+10 coins/day. Boosts connected businesses +25%." },
+  "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 715, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your pawn. +10 coins/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +20 coins/day." },
+  "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +20 coins/day." },
+  "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 880, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +10 coins/day." },
+  "church":       { name: "Chapel",       icon: "⛪", cost: 1100, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +20 coins/hour for each person you've prayed for today." },
   // City — big buildings, big earnings
   "bank-tower":       { name: "Bank Tower",       icon: "🏦", cost: 650, tier: 1, incomePerDay: 250, xpPerDay: 0, maps: ["city"], description: "A towering bank. +250 coins/day." },
   "department-store": { name: "Department Store", icon: "🏬", cost: 525, tier: 1, incomePerDay: 200, xpPerDay: 0, maps: ["city"], description: "Everything under one roof. +200 coins/day." },
@@ -420,20 +428,20 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "theater":          { name: "Grand Theater",    icon: "🎭", cost: 550, tier: 1, incomePerDay: 220, xpPerDay: 0, maps: ["city"], description: "Music and stories nightly. +220 coins/day." },
   // Mall (retired) — the map is now the Garden of Remembrance. Defs are kept
   // so old saves can be refunded at full price; maps: [] means unbuildable.
-  "food-court": { name: "Food Court", icon: "🍔", cost: 130, tier: 1, incomePerDay: 80,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +80 coins/day." },
-  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 105,  tier: 1, incomePerDay: 60,  xpPerDay: 0, maps: [], description: "Quiet readers. +60 coins/day." },
-  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 160, tier: 1, incomePerDay: 100, xpPerDay: 0, maps: [], description: "Tokens and high scores. +100 coins/day." },
-  "cinema":     { name: "Cinema",     icon: "🎬", cost: 200, tier: 1, incomePerDay: 120, xpPerDay: 0, maps: [], description: "Now showing. +120 coins/day." },
+  "food-court": { name: "Food Court", icon: "🍔", cost: 1430, tier: 1, incomePerDay: 80,  xpPerDay: 0, maps: [], description: "Hungry shoppers. +80 coins/day." },
+  "bookstore":  { name: "Bookstore",  icon: "📚", cost: 1155,  tier: 1, incomePerDay: 60,  xpPerDay: 0, maps: [], description: "Quiet readers. +60 coins/day." },
+  "arcade":     { name: "Arcade",     icon: "🕹️", cost: 1760, tier: 1, incomePerDay: 100, xpPerDay: 0, maps: [], description: "Tokens and high scores. +100 coins/day." },
+  "cinema":     { name: "Cinema",     icon: "🎬", cost: 2200, tier: 1, incomePerDay: 120, xpPerDay: 0, maps: [], description: "Now showing. +120 coins/day." },
   // School — XP earners
-  "library":   { name: "Library",   icon: "📖", cost: 130, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
-  "classroom": { name: "Classroom", icon: "📝", cost: 105,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
-  "chapel":    { name: "Chapel",    icon: "⛪", cost: 160, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
+  "library":   { name: "Library",   icon: "📖", cost: 1430, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
+  "classroom": { name: "Classroom", icon: "📝", cost: 1155,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
+  "chapel":    { name: "Chapel",    icon: "⛪", cost: 1760, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
   // Restaurants — hometown food businesses
-  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 80, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +30 coins/day." },
-  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 80, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +30 coins/day." },
-  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 60, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +20 coins/day." },
-  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 105, tier: 1, incomePerDay: 40, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +40 coins/day." },
-  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 65, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +20 coins/day." },
+  "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +30 coins/day." },
+  "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +30 coins/day." },
+  "taco-stand":   { name: "Taco Stand",   icon: "🌮", cost: 660, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Street tacos to go. +20 coins/day." },
+  "sushi-bar":    { name: "Sushi Bar",    icon: "🍣", cost: 1155, tier: 1, incomePerDay: 40, xpPerDay: 0, maps: ["town"], description: "Fresh daily. +40 coins/day." },
+  "diner":        { name: "Pancake Diner", icon: "🥞", cost: 715, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Breakfast all day. +20 coins/day." },
   // Restaurant Row — city gathering spots where prayer villagers break bread
   "upper-room":  { name: "The Upper Room", icon: "🍞", cost: 300, tier: 1, incomePerDay: 220, xpPerDay: 0, maps: ["city"], description: "A warm communal dining hall. +220 coins/day." },
   "manna-house": { name: "Manna House",    icon: "🥐", cost: 300, tier: 1, incomePerDay: 200, xpPerDay: 0, maps: ["city"], description: "A cozy bakery for breaking bread. +200 coins/day." },
@@ -442,27 +450,27 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   // Gathering (Mon/Wed/Fri 6–8pm) every prayer light gathers here instead of
   // the restaurants, for a bigger breaking-bread blessing. Upgrades grow the
   // table: more villagers, richer blessing. (icon is drawn as SVG, not emoji.)
-  "banquet-table": { name: "The Marriage Supper", icon: "", cost: 150, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "One long table under open sky. During The Gathering, all gather here for a greater blessing." },
+  "banquet-table": { name: "The Marriage Supper", icon: "", cost: 1650, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "One long table under open sky. During The Gathering, all gather here for a greater blessing." },
   // Interactive gathering places — tappable, upgradeable, never just decoration.
-  "community-garden": { name: "Community Garden", icon: "", cost: 100, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "Villagers grow crops together. Tap to harvest when ripe — coins and XP, richer at higher levels." },
-  "amphitheater": { name: "Amphitheater", icon: "", cost: 400, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["city", "town"], description: "Music and stories under open sky. Tap to attend a show — a blessing of XP and coins." },
-  "fountain-plaza": { name: "Fountain Plaza", icon: "", cost: 120, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A quiet plaza where villagers gather and rest. Tap to rest a while — a small refresh of coins and XP." },
+  "community-garden": { name: "Community Garden", icon: "", cost: 1100, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "Villagers grow crops together. Tap to harvest when ripe — coins and XP, richer at higher levels." },
+  "amphitheater": { name: "Amphitheater", icon: "", cost: 4400, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["city", "town"], description: "Music and stories under open sky. Tap to attend a show — a blessing of XP and coins." },
+  "fountain-plaza": { name: "Fountain Plaza", icon: "", cost: 1320, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["town"], description: "A quiet plaza where villagers gather and rest. Tap to rest a while — a small refresh of coins and XP." },
   // Hospital — care for the town. Unlockable and upgradeable; the pawn comes
   // here for doctor appointments, and a checkup grants a healing blessing
   // for the next Dark Forest battle (bigger blessing at higher levels).
-  "hospital": { name: "Hospital", icon: "", cost: 250, tier: 2, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +30 coins/day." },
+  "hospital": { name: "Hospital", icon: "", cost: 2750, tier: 2, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Care for the town. Tap for a checkup — a healing blessing for your next Dark Forest battle. +30 coins/day." },
   // Artisans' Row — artisan services in the southern extension. Icons are
   // drawn as SVG in the art switch, not emoji, so defs use empty icons.
-  "inn":         { name: "Wayside Inn",       icon: "", cost: 120, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +60 coins/day." },
-  "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 110, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +40 coins/day." },
-  "pottery":     { name: "Pottery Studio",    icon: "", cost: 100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +40 coins/day." },
-  "music-hall":  { name: "Music Hall",         icon: "", cost: 160, tier: 1, incomePerDay: 0,  xpPerDay: 35, maps: ["town"], description: "Song rises from the hall — instruments, voices, and joy. Villagers play here. +35 XP/day." },
-  "tailor":      { name: "Tailor",             icon: "", cost: 100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clothes cut and sewn to measure. Bolts of fabric, needles flashing. +40 coins/day." },
-  "observatory": { name: "Observatory",        icon: "", cost: 200, tier: 2, incomePerDay: 0,  xpPerDay: 45, maps: ["town"], description: "A dome under the open sky. Villagers chart the stars the Lord set in place. +45 XP/day." },
-  "bathhouse":   { name: "Bathhouse",          icon: "", cost: 150, tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Steam and warm pools for the weary. Rest in the waters and be refreshed. +30 coins/day." },
-  "apothecary":  { name: "Apothecary",         icon: "", cost: 130, tier: 1, incomePerDay: 50,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +50 coins/day." },
-  "town-hall":   { name: "Town Hall",          icon: "", cost: 250, tier: 2, incomePerDay: 100, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +100 coins/day." },
-  "post-office": { name: "Post Office",        icon: "", cost: 90,  tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +30 coins/day." },
+  "inn":         { name: "Wayside Inn",       icon: "", cost: 1320, tier: 1, incomePerDay: 60,  xpPerDay: 0,  maps: ["town"], description: "A warm rest for weary travelers. Villagers rest here, and the pawn greets the guests. +60 coins/day." },
+  "carpenter":   { name: "Carpenter's Workshop", icon: "", cost: 1210, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "The sound of saws and hammers. Fine wooden goods, built to last. +40 coins/day." },
+  "pottery":     { name: "Pottery Studio",    icon: "", cost: 1100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clay turned to beauty on the wheel. Kiln-fired vessels for the town. +40 coins/day." },
+  "music-hall":  { name: "Music Hall",         icon: "", cost: 1760, tier: 1, incomePerDay: 0,  xpPerDay: 35, maps: ["town"], description: "Song rises from the hall — instruments, voices, and joy. Villagers play here. +35 XP/day." },
+  "tailor":      { name: "Tailor",             icon: "", cost: 1100, tier: 1, incomePerDay: 40,  xpPerDay: 0,  maps: ["town"], description: "Clothes cut and sewn to measure. Bolts of fabric, needles flashing. +40 coins/day." },
+  "observatory": { name: "Observatory",        icon: "", cost: 2200, tier: 2, incomePerDay: 0,  xpPerDay: 45, maps: ["town"], description: "A dome under the open sky. Villagers chart the stars the Lord set in place. +45 XP/day." },
+  "bathhouse":   { name: "Bathhouse",          icon: "", cost: 1650, tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Steam and warm pools for the weary. Rest in the waters and be refreshed. +30 coins/day." },
+  "apothecary":  { name: "Apothecary",         icon: "", cost: 1430, tier: 1, incomePerDay: 50,  xpPerDay: 0,  maps: ["town"], description: "Herbs hung to dry, remedies brewed with care. The town's healing shelves. +50 coins/day." },
+  "town-hall":   { name: "Town Hall",          icon: "", cost: 2750, tier: 2, incomePerDay: 100, xpPerDay: 0,  maps: ["town"], description: "The civic heart of town — assemblies, records, and the notice board. +100 coins/day." },
+  "post-office": { name: "Post Office",        icon: "", cost: 990,  tier: 1, incomePerDay: 30,  xpPerDay: 0,  maps: ["town"], description: "Letters and parcels, sorted with care. The villager clerk never misses a delivery. +30 coins/day." },
   // City expansion — the downtown cultural district. Icons are drawn as SVG
   // in the art switch, not emoji, so defs use empty icons.
   "grand-library": { name: "Grand Library", icon: "", cost: 700, tier: 1, incomePerDay: 0,  xpPerDay: 120, maps: ["city"], description: "Towering shelves of wisdom in the heart of downtown. +120 XP/day." },
@@ -1496,77 +1504,77 @@ const TOWN_SHOP_TYPES: BuildingType[] = [
 export const TOWN_LOTS: TownLot[] = [
   // Chapel Hill shops (2x2 commercial — converted from cottage lots;
   // houses removed, prayer lights are the population now)
-  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Chapel Shops", presetType: "diner" },
+  { id: "town-lot-n1", x: 0, y: 0, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Chapel Shops", presetType: "diner" },
   // Chapel Hill — the church, prominent at the top of the neighborhood
-  { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 50, name: "Chapel Hill" },
+  { id: "town-lot-church", x: 3, y: 0, w: 2, h: 2, allowedTypes: ["church"], cost: 550, name: "Chapel Hill" },
   // Hearthside — the pawn's home, near the church
-  { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 25, name: "Hearthside" },
+  { id: "town-lot-pawn", x: 6, y: 0, w: 2, h: 2, allowedTypes: ["pawn-house"], cost: 275, name: "Hearthside" },
   // Sunny Acres — farm on the hilltop (moved from west side for the bigger grid)
-  { id: "town-lot-farm", x: 8, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 50, name: "Sunny Acres" },
+  { id: "town-lot-farm", x: 8, y: 0, w: 2, h: 2, allowedTypes: ["farm"], cost: 550, name: "Sunny Acres" },
   // Main Street North — 5 preset commercial lots (unlock & upgrade)
-  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street West", presetType: "shop" },
-  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street", presetType: "bakery" },
-  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street Central", presetType: "market" },
-  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Main Street East", presetType: "bank" },
+  { id: "town-lot-s1", x: 0, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street West", presetType: "shop" },
+  { id: "town-lot-s2", x: 2, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street", presetType: "bakery" },
+  { id: "town-lot-s3", x: 4, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street Central", presetType: "market" },
+  { id: "town-lot-s4", x: 6, y: 3, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Main Street East", presetType: "bank" },
   // Old Town South — 4 preset commercial lots (the 5th moved south to make
   // room for Chapel Avenue, the vertical spine connecting every street)
-  { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town West", presetType: "barbershop" },
-  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town", presetType: "armory" },
-  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town Central", presetType: "weaponsmith" },
-  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Old Town East", presetType: "toolshop" },
+  { id: "town-lot-s6", x: 0, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town West", presetType: "barbershop" },
+  { id: "town-lot-s7", x: 2, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town", presetType: "armory" },
+  { id: "town-lot-s8", x: 4, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town Central", presetType: "weaponsmith" },
+  { id: "town-lot-s9", x: 6, y: 6, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Old Town East", presetType: "toolshop" },
   // South End — Market Corner, Garden Corner, and the Marriage Supper green,
   // served by Old Town Lane (north) and Harbor Lane (south)
-  { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "South End West", presetType: "clothes-shop" },
-  { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 75, name: "South End Garden", presetType: "community-garden" },
-  { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 200, name: "Marriage Supper Green", presetType: "banquet-table" },
+  { id: "town-lot-s5", x: 0, y: 9, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "South End West", presetType: "clothes-shop" },
+  { id: "town-lot-s10", x: 2, y: 9, w: 2, h: 2, allowedTypes: ["community-garden"], cost: 825, name: "South End Garden", presetType: "community-garden" },
+  { id: "town-lot-banquet", x: 4, y: 9, w: 2, h: 2, allowedTypes: ["banquet-table"], cost: 2200, name: "Marriage Supper Green", presetType: "banquet-table" },
   // Fountain Plaza — a quiet gathering place in the South End, east of the garden
-  { id: "town-lot-plaza", x: 6, y: 9, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 90, name: "Plaza Green", presetType: "fountain-plaza" },
+  { id: "town-lot-plaza", x: 6, y: 9, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Plaza Green", presetType: "fountain-plaza" },
   // Cottage Row — cozy 1x1 homes for the prayer lights along the east edge.
   // Each cottage gives villagers a place to belong: they sleep here at
   // night, rest here by day, and visit one another.
-  { id: "town-lot-c1", x: 9, y: 3, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row North" },
-  { id: "town-lot-c2", x: 9, y: 4, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row North East" },
-  { id: "town-lot-c3", x: 9, y: 6, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row" },
-  { id: "town-lot-c4", x: 9, y: 7, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row East" },
-  { id: "town-lot-c5", x: 9, y: 9, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row South" },
-  { id: "town-lot-c6", x: 9, y: 10, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row South East" },
-  { id: "town-lot-c7", x: 9, y: 12, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row Shore" },
-  { id: "town-lot-c8", x: 9, y: 13, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 25, name: "Cottage Row Far Shore" },
+  { id: "town-lot-c1", x: 9, y: 3, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row North" },
+  { id: "town-lot-c2", x: 9, y: 4, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row North East" },
+  { id: "town-lot-c3", x: 9, y: 6, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row" },
+  { id: "town-lot-c4", x: 9, y: 7, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row East" },
+  { id: "town-lot-c5", x: 9, y: 9, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row South" },
+  { id: "town-lot-c6", x: 9, y: 10, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row South East" },
+  { id: "town-lot-c7", x: 9, y: 12, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row Shore" },
+  { id: "town-lot-c8", x: 9, y: 13, w: 1, h: 1, allowedTypes: ["villager-cottage"], cost: 275, name: "Cottage Row Far Shore" },
   // Mercy's Shore — 4 beach-themed lots with preset beachside dining, now the
   // southernmost district with the waves right below.
   // (NPCs reach via Harbor Lane — no more floating over buildings)
-  { id: "town-lot-s11", x: 0, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
-  { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
-  { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
-  { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
+  { id: "town-lot-s11", x: 0, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore West", presetType: "pizza-place", beach: true },
+  { id: "town-lot-s12", x: 2, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore", presetType: "burger-joint", beach: true },
+  { id: "town-lot-s13", x: 4, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore Central", presetType: "taco-stand", beach: true },
+  { id: "town-lot-s14", x: 6, y: 12, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Mercy's Shore East", presetType: "sushi-bar", beach: true },
   // Southgate — the hospital (care for the town) and a town amphitheater
   // (for movie nights and shows with the villagers), in the southern
   // extension. Served by Southgate Lane, linked to Chapel Avenue.
-  { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 120, name: "Healing Hills", presetType: "hospital" },
-  { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 150, name: "Starlight Green", presetType: "amphitheater" },
+  { id: "town-lot-hospital", x: 0, y: 14, w: 2, h: 2, allowedTypes: ["hospital"], cost: 1320, name: "Healing Hills", presetType: "hospital" },
+  { id: "town-lot-amphi", x: 4, y: 14, w: 2, h: 2, allowedTypes: ["amphitheater"], cost: 1650, name: "Starlight Green", presetType: "amphitheater" },
   // Artisans' Row — five artisan services on Artisans' Way, the craft street
   // below the hub district. Preset lots: unlock & upgrade, no designing.
-  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["inn"], cost: 120, name: "Wayside Inn", presetType: "inn" },
-  { id: "town-lot-carpenter", x: 2, y: 28, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 110, name: "Carpenter's Workshop", presetType: "carpenter" },
-  { id: "town-lot-pottery", x: 4, y: 28, w: 2, h: 2, allowedTypes: ["pottery"], cost: 100, name: "Pottery Studio", presetType: "pottery" },
-  { id: "town-lot-musichall", x: 6, y: 28, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 160, name: "Music Hall", presetType: "music-hall" },
-  { id: "town-lot-tailor", x: 8, y: 28, w: 2, h: 2, allowedTypes: ["tailor"], cost: 100, name: "Tailor", presetType: "tailor" },
+  { id: "town-lot-inn", x: 0, y: 28, w: 2, h: 2, allowedTypes: ["inn"], cost: 1320, name: "Wayside Inn", presetType: "inn" },
+  { id: "town-lot-carpenter", x: 2, y: 28, w: 2, h: 2, allowedTypes: ["carpenter"], cost: 1210, name: "Carpenter's Workshop", presetType: "carpenter" },
+  { id: "town-lot-pottery", x: 4, y: 28, w: 2, h: 2, allowedTypes: ["pottery"], cost: 1100, name: "Pottery Studio", presetType: "pottery" },
+  { id: "town-lot-musichall", x: 6, y: 28, w: 2, h: 2, allowedTypes: ["music-hall"], cost: 1760, name: "Music Hall", presetType: "music-hall" },
+  { id: "town-lot-tailor", x: 8, y: 28, w: 2, h: 2, allowedTypes: ["tailor"], cost: 1100, name: "Tailor", presetType: "tailor" },
   // Artisans' Row, south side — the observatory, bathhouse, apothecary,
   // town hall, and post office. Preset lots: unlock & upgrade, no designing.
-  { id: "town-lot-observatory", x: 0, y: 31, w: 2, h: 2, allowedTypes: ["observatory"], cost: 200, name: "Observatory", presetType: "observatory" },
-  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["bathhouse"], cost: 150, name: "Bathhouse", presetType: "bathhouse" },
-  { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 130, name: "Apothecary", presetType: "apothecary" },
-  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["town-hall"], cost: 250, name: "Town Hall", presetType: "town-hall" },
-  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["post-office"], cost: 90, name: "Post Office", presetType: "post-office" },
+  { id: "town-lot-observatory", x: 0, y: 31, w: 2, h: 2, allowedTypes: ["observatory"], cost: 2200, name: "Observatory", presetType: "observatory" },
+  { id: "town-lot-bathhouse", x: 2, y: 31, w: 2, h: 2, allowedTypes: ["bathhouse"], cost: 1650, name: "Bathhouse", presetType: "bathhouse" },
+  { id: "town-lot-apothecary", x: 4, y: 31, w: 2, h: 2, allowedTypes: ["apothecary"], cost: 1430, name: "Apothecary", presetType: "apothecary" },
+  { id: "town-lot-townhall", x: 6, y: 31, w: 2, h: 2, allowedTypes: ["town-hall"], cost: 2750, name: "Town Hall", presetType: "town-hall" },
+  { id: "town-lot-postoffice", x: 8, y: 31, w: 2, h: 2, allowedTypes: ["post-office"], cost: 990, name: "Post Office", presetType: "post-office" },
   // Southgate — fills the gap between the hospital/amphitheater row (y14-15)
   // and the hub district. All preset lots: unlock & upgrade, no designing.
-  { id: "town-lot-s15", x: 2, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Southgate West", presetType: "pizza-place" },
-  { id: "town-lot-s16", x: 6, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 75, name: "Southgate East", presetType: "sushi-bar" },
+  { id: "town-lot-s15", x: 2, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate West", presetType: "pizza-place" },
+  { id: "town-lot-s16", x: 6, y: 14, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 825, name: "Southgate East", presetType: "sushi-bar" },
   // Pilgrim's Rest — fills the gap between the hub district (ends y24) and
   // Artisans' Way (y27). A rest stop for travelers on Pilgrim's Way.
-  { id: "town-lot-p1", x: 0, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 85, name: "Pilgrim's Way West", presetType: "burger-joint" },
-  { id: "town-lot-p2", x: 3, y: 25, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 90, name: "Pilgrim Fountain", presetType: "fountain-plaza" },
-  { id: "town-lot-p3", x: 5, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 85, name: "Pilgrim's Way East", presetType: "taco-stand" },
+  { id: "town-lot-p1", x: 0, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way West", presetType: "burger-joint" },
+  { id: "town-lot-p2", x: 3, y: 25, w: 2, h: 2, allowedTypes: ["fountain-plaza"], cost: 990, name: "Pilgrim Fountain", presetType: "fountain-plaza" },
+  { id: "town-lot-p3", x: 5, y: 25, w: 2, h: 2, allowedTypes: TOWN_SHOP_TYPES, cost: 935, name: "Pilgrim's Way East", presetType: "taco-stand" },
 ];
 
 /** Winding neighborhood path tiles — permanent infrastructure (not a grid). */

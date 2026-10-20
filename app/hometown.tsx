@@ -5115,19 +5115,6 @@ export default function HometownScreen() {
         </View>
       ))}
 
-      {/* Garden visits chip — prayer lights paying respects (+0.1%/visit, 24h) */}
-      {(() => {
-        const gv = gardenVisitMult(gardenVisits);
-        if (gv <= 1) return null;
-        return (
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0FDF4", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#BBF7D0" }}>
-            <Text style={{ fontSize: 14 }}>🌸</Text>
-            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#166534" }}>
-              Garden visits: +{((gv - 1) * 100).toFixed(1)}%
-            </Text>
-          </View>
-        );
-      })()}
 
       {/* Mission Field: lights back from missions, waiting to be welcomed home */}
       {(() => {

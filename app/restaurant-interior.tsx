@@ -29,6 +29,15 @@ import { PawnPreview } from "@/components/pawn-preview";
 import { FigureName, GentleBob } from "@/components/activity-figures";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import {
+  CUISINE_THEMES,
+  CuisineWallDecor,
+  CuisineOverhead,
+  CuisineSignature,
+  CuisineFloor,
+  CuisineCenterpiece,
+  type CuisinePalette,
+} from "@/components/cuisine-themes";
 
 // ---------- palette: warm candlelit dining room ----------
 // Dark warm wood, amber candlelight, golden accents — an evening meal together.
@@ -47,6 +56,14 @@ const FLOOR_LINE = "#54371F";
 
 // Tablecloth color per tables tier (0 = bare wood, no cloth)
 const TABLECLOTH = ["", "#F7EBD4", "#C9754A", "#7A3B2E"];
+
+// Default palette (generic candlelit dining room) for themed sub-components.
+const DEFAULT_PAL: CuisinePalette = {
+  bg: BG, wall: "#3A2817", floor: FLOOR, floorLine: FLOOR_LINE,
+  card: CARD, cardBorder: CARD_BORDER, accent: GOLD,
+  text: TEXT, textDim: TEXT_DIM,
+  cloth: TABLECLOTH, wood: WOOD, woodDark: WOOD_DARK,
+};
 
 // ---------- gentle bob for seated villagers (sin easing, no bounce) ----------
 function Bobbing({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
@@ -78,7 +95,7 @@ function Bobbing({ children, delay = 0 }: { children: React.ReactNode; delay?: n
 
 // ---------- the player's pawn, seated and eating ----------
 // Sits at the head of the table — this is Jonathan's seat.
-function PawnDiner({ delay = 0 }: { delay?: number }) {
+function PawnDiner({ delay = 0, pal = DEFAULT_PAL }: { delay?: number; pal?: CuisinePalette }) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   useEffect(() => {
     loadCustomPawn().then((p) => p && setPawn(p)).catch(() => undefined);
@@ -100,7 +117,7 @@ function PawnDiner({ delay = 0 }: { delay?: number }) {
             opacity: 0.32,
           }}
         />
-        <View style={{ borderWidth: 2, borderColor: GOLD, borderRadius: 24, padding: 1, backgroundColor: "rgba(224,166,63,0.12)" }}>
+        <View style={{ borderWidth: 2, borderColor: pal.accent, borderRadius: 24, padding: 1, backgroundColor: "rgba(224,166,63,0.12)" }}>
           <PawnPreview pawn={pawn} size={38} />
         </View>
         {/* plate in front */}
@@ -125,11 +142,11 @@ function PawnDiner({ delay = 0 }: { delay?: number }) {
 }
 
 // ---------- seated villager: golden figure in a chair ----------
-function SeatedVillager({ person, chairTier, delay }: { person: PrayedPerson; chairTier: number; delay: number }) {
+function SeatedVillager({ person, chairTier, delay, pal = DEFAULT_PAL }: { person: PrayedPerson; chairTier: number; delay: number; pal?: CuisinePalette }) {
   // Chair style by tier: 0-1 simple stool, 2 cushioned, 3 banquet (taller back)
   const backH = chairTier >= 3 ? 30 : 22;
   const backW = chairTier >= 3 ? 40 : 34;
-  const seatColor = chairTier === 0 ? WOOD : chairTier === 1 ? WOOD : chairTier === 2 ? "#7A3B2E" : "#4E2A1E";
+  const seatColor = chairTier === 0 ? pal.wood : chairTier === 1 ? pal.wood : chairTier === 2 ? "#7A3B2E" : "#4E2A1E";
   return (
     <Bobbing delay={delay}>
       <View style={{ alignItems: "center", marginHorizontal: 7 }}>
@@ -153,7 +170,7 @@ function SeatedVillager({ person, chairTier, delay }: { person: PrayedPerson; ch
             borderRadius: 10,
             backgroundColor: person.accentColor || "#E8C088",
             borderWidth: 1.5,
-            borderColor: GOLD,
+            borderColor: pal.accent,
           }}
         />
         {/* shoulders */}
@@ -177,7 +194,7 @@ function SeatedVillager({ person, chairTier, delay }: { person: PrayedPerson; ch
             borderRadius: 6,
             backgroundColor: seatColor,
             borderWidth: 2,
-            borderColor: WOOD_DARK,
+            borderColor: pal.woodDark,
             zIndex: -1,
           }}
         />
@@ -194,22 +211,26 @@ function DiningTable({
   chairsTier,
   pawnFirst = false,
   grand = false,
+  pal = DEFAULT_PAL,
+  cuisine = "",
 }: {
   diners: PrayedPerson[];
   tablesTier: number;
   chairsTier: number;
   pawnFirst?: boolean;
   grand?: boolean;
+  pal?: CuisinePalette;
+  cuisine?: string;
 }) {
-  const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
-  const topColor = cloth || WOOD;
+  const cloth = pal.cloth[Math.min(tablesTier, 3)] || "";
+  const topColor = cloth || pal.wood;
   return (
     <View style={{ alignItems: "center", marginVertical: 10 }}>
       {/* seated diners (up to 4: two above, two below the table) — the pawn takes the head seat */}
       <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", minHeight: 52 }}>
-        {pawnFirst && <PawnDiner delay={0} />}
+        {pawnFirst && <PawnDiner delay={0} pal={pal} />}
         {diners.slice(0, pawnFirst ? 1 : 2).map((p, i) => (
-          <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={(i + 1) * 180} />
+          <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={(i + 1) * 180} pal={pal} />
         ))}
       </View>
       {/* round table top */}
@@ -221,7 +242,7 @@ function DiningTable({
             borderRadius: 20,
             backgroundColor: topColor,
             borderWidth: 2,
-            borderColor: tablesTier > 0 ? GOLD : WOOD_DARK,
+            borderColor: tablesTier > 0 ? pal.accent : pal.woodDark,
             justifyContent: "center",
             alignItems: "center",
           }}
@@ -248,41 +269,24 @@ function DiningTable({
         {tablesTier >= 3 && (
           <View style={{ flexDirection: "row", marginTop: -3 }}>
             {Array.from({ length: 12 }).map((_, i) => (
-              <View key={i} style={{ width: 5, height: 8, borderRadius: 2, backgroundColor: GOLD, marginHorizontal: 2.5, opacity: 0.9 }} />
+              <View key={i} style={{ width: 5, height: 8, borderRadius: 2, backgroundColor: pal.accent, marginHorizontal: 2.5, opacity: 0.9 }} />
             ))}
           </View>
         )}
-        {/* candlelit floral centerpiece at the grand level */}
+        {/* themed centerpiece at the grand level */}
         {grand && (
           <View style={{ position: "absolute", top: -4, left: 0, right: 0, alignItems: "center", zIndex: 3 }}>
-            <View
-              style={{
-                position: "absolute",
-                top: -10,
-                width: 30,
-                height: 30,
-                borderRadius: 15,
-                backgroundColor: FLAME,
-                opacity: 0.25,
-              }}
-            />
-            <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: FLAME }} />
-            <View style={{ width: 8, height: 14, borderRadius: 3, backgroundColor: "#FFF9F0", borderWidth: 1, borderColor: GOLD, marginTop: -2 }} />
-            <View style={{ flexDirection: "row", marginTop: 2 }}>
-              {["#E86A92", "#F2A541", "#9C6FB5"].map((c, i) => (
-                <View key={i} style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: c, marginHorizontal: 1.5 }} />
-              ))}
-            </View>
+            <CuisineCenterpiece cuisine={cuisine} grand={grand} />
           </View>
         )}
         {/* table leg + base */}
-        <View style={{ width: 12, height: 26, backgroundColor: WOOD_DARK }} />
-        <View style={{ width: 70, height: 8, borderRadius: 4, backgroundColor: WOOD_DARK }} />
+        <View style={{ width: 12, height: 26, backgroundColor: pal.woodDark }} />
+        <View style={{ width: 70, height: 8, borderRadius: 4, backgroundColor: pal.woodDark }} />
       </View>
       <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", minHeight: 52, marginTop: -38 }}>
         {diners.slice(2, 4).map((p, i) => (
           <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
-            <SeatedVillager person={p} chairTier={chairsTier} delay={(i + 2) * 180} />
+            <SeatedVillager person={p} chairTier={chairsTier} delay={(i + 2) * 180} pal={pal} />
           </View>
         ))}
       </View>
@@ -292,7 +296,7 @@ function DiningTable({
 
 // ---------- banquet seating: named villager at the long table ----------
 // Each diner gets their name above them so Jonathan knows who sits where.
-function BanquetSeated({ person, delay }: { person: PrayedPerson; delay: number }) {
+function BanquetSeated({ person, delay, pal = DEFAULT_PAL }: { person: PrayedPerson; delay: number; pal?: CuisinePalette }) {
   const firstName = (person.name || "Guest").split(" ")[0];
   return (
     <Bobbing delay={delay}>
@@ -334,7 +338,7 @@ function BanquetSeated({ person, delay }: { person: PrayedPerson; delay: number 
             borderRadius: 10,
             backgroundColor: person.accentColor || "#E8C088",
             borderWidth: 1.5,
-            borderColor: GOLD,
+            borderColor: pal.accent,
           }}
         />
         {/* shoulders */}
@@ -358,7 +362,7 @@ function BanquetSeated({ person, delay }: { person: PrayedPerson; delay: number 
             borderRadius: 6,
             backgroundColor: "#4E2A1E",
             borderWidth: 2,
-            borderColor: WOOD_DARK,
+            borderColor: pal.woodDark,
             zIndex: -1,
           }}
         />
@@ -369,9 +373,9 @@ function BanquetSeated({ person, delay }: { person: PrayedPerson; delay: number 
 
 // ---------- the one long banquet table ----------
 // Diners sit along both sides; names above every seat.
-function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTier: number }) {
-  const cloth = TABLECLOTH[Math.min(tablesTier, 3)] || "";
-  const topColor = cloth || WOOD;
+function BanquetTable({ diners, tablesTier, pal = DEFAULT_PAL, cuisine = "" }: { diners: PrayedPerson[]; tablesTier: number; pal?: CuisinePalette; cuisine?: string }) {
+  const cloth = pal.cloth[Math.min(tablesTier, 3)] || "";
+  const topColor = cloth || pal.wood;
   // Split diners along the two long sides
   const topRow = diners.filter((_, i) => i % 2 === 0);
   const bottomRow = diners.filter((_, i) => i % 2 === 1);
@@ -380,16 +384,24 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
     <View style={{ alignItems: "center", marginVertical: 12, paddingHorizontal: 8 }}>
       {/* the pawn at the head of the table */}
       <View style={{ marginBottom: 2 }}>
-        <PawnDiner delay={0} />
+        <PawnDiner delay={0} pal={pal} />
       </View>
       {/* top side diners */}
       <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", flexWrap: "wrap", minHeight: 64 }}>
         {topRow.map((p, i) => (
-          <BanquetSeated key={p.id} person={p} delay={i * 150} />
+          <BanquetSeated key={p.id} person={p} delay={i * 150} pal={pal} />
         ))}
       </View>
       {/* the long table */}
       <View style={{ alignItems: "center", marginVertical: 2 }}>
+        {/* themed centerpieces along the table */}
+        <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: -6, zIndex: 3 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ marginHorizontal: 18 }}>
+              <CuisineCenterpiece cuisine={cuisine} grand />
+            </View>
+          ))}
+        </View>
         <View
           style={{
             minWidth: 220,
@@ -398,7 +410,7 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
             borderRadius: 12,
             backgroundColor: topColor,
             borderWidth: 2,
-            borderColor: tablesTier > 0 ? GOLD : WOOD_DARK,
+            borderColor: tablesTier > 0 ? pal.accent : pal.woodDark,
             justifyContent: "center",
             alignItems: "center",
             paddingHorizontal: 12,
@@ -425,8 +437,8 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
         </View>
         {/* table legs */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", width: 180 }}>
-          <View style={{ width: 12, height: 22, backgroundColor: WOOD_DARK }} />
-          <View style={{ width: 12, height: 22, backgroundColor: WOOD_DARK }} />
+          <View style={{ width: 12, height: 22, backgroundColor: pal.woodDark }} />
+          <View style={{ width: 12, height: 22, backgroundColor: pal.woodDark }} />
         </View>
       </View>
       {/* bottom side diners (mirrored) */}
@@ -434,7 +446,7 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
         {bottomRow.map((p, i) => (
           <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
             <View style={{ transform: [{ scaleY: -1 }] }}>
-              <BanquetSeated person={p} delay={(i + topRow.length) * 150} />
+              <BanquetSeated person={p} delay={(i + topRow.length) * 150} pal={pal} />
             </View>
           </View>
         ))}
@@ -444,8 +456,10 @@ function BanquetTable({ diners, tablesTier }: { diners: PrayedPerson[]; tablesTi
 }
 
 // ---------- kitchen counter at the back (style by kitchen tier) ----------
-function KitchenCounter({ tier }: { tier: number }) {
-  if (tier >= 2) {
+// Cuisines with their own signature oven/grill skip the generic brick oven.
+function KitchenCounter({ tier, cuisine = "" }: { tier: number; cuisine?: string }) {
+  const hasSignatureOven = cuisine === "pizza-place" || cuisine === "manna-house" || cuisine === "taco-stand" || cuisine === "sushi-bar" || cuisine === "diner";
+  if (tier >= 2 && !hasSignatureOven) {
     // Brick oven (t2) / Chef's Kitchen (t3): arched oven with a warm fire
     return (
       <View style={{ alignItems: "center", marginTop: 6 }}>
@@ -918,7 +932,16 @@ function BreakingBreadFloat() {
         transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }],
       }}
     >
-      <Text style={{ fontSize: 26 }}>🍞</Text>
+      {/* drawn bread loaf */}
+      <View style={{ alignItems: "center" }}>
+        <View style={{ width: 40, height: 22, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#D8A85C", borderWidth: 2, borderColor: "#A87838" }} />
+        <View style={{ flexDirection: "row", marginTop: -18 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ width: 8, height: 3, borderRadius: 1.5, backgroundColor: "#FFF3D6", marginHorizontal: 2, transform: [{ rotate: "-20deg" }] }} />
+          ))}
+        </View>
+        <View style={{ width: 46, height: 5, borderRadius: 2.5, backgroundColor: "#8B5E34", marginTop: 12 }} />
+      </View>
       <Text style={{ color: GOLD, fontSize: 12, fontWeight: "700", marginTop: 2 }}>Breaking bread together</Text>
     </Animated.View>
   );
@@ -930,11 +953,13 @@ function FurnitureRow({
   tier,
   affordable,
   onBuy,
+  pal = DEFAULT_PAL,
 }: {
   slot: RestaurantSlot;
   tier: number;
   affordable: (cost: number) => boolean;
   onBuy: (slot: RestaurantSlot) => void;
+  pal?: CuisinePalette;
 }) {
   const maxed = tier >= 3;
   const nextName = maxed ? null : slot.tierNames[tier]; // tier 0 -> tierNames[0]
@@ -944,10 +969,10 @@ function FurnitureRow({
   return (
     <View
       style={{
-        backgroundColor: CARD,
+        backgroundColor: pal.card,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: CARD_BORDER,
+        borderColor: pal.cardBorder,
         padding: 12,
         marginBottom: 10,
         flexDirection: "row",
@@ -956,27 +981,27 @@ function FurnitureRow({
     >
       <Text style={{ fontSize: 26 }}>{slot.icon}</Text>
       <View style={{ marginLeft: 12, flex: 1 }}>
-        <Text style={{ color: TEXT, fontWeight: "800", fontSize: 14 }}>{slot.name}</Text>
-        <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 1 }}>
+        <Text style={{ color: pal.text, fontWeight: "800", fontSize: 14 }}>{slot.name}</Text>
+        <Text style={{ color: pal.textDim, fontSize: 12, marginTop: 1 }}>
           {tier > 0 ? slot.tierNames[tier - 1] : "Not furnished"}
           {bonus > 0 ? `  ·  +${bonus}% income` : ""}
         </Text>
-        {!maxed && <Text style={{ color: TEXT_DIM, fontSize: 11, marginTop: 1 }}>{slot.blurb}</Text>}
-        {maxed && <Text style={{ color: GOLD, fontSize: 11, marginTop: 1, fontWeight: "700" }}>Fully furnished</Text>}
+        {!maxed && <Text style={{ color: pal.textDim, fontSize: 11, marginTop: 1 }}>{slot.blurb}</Text>}
+        {maxed && <Text style={{ color: pal.accent, fontSize: 11, marginTop: 1, fontWeight: "700" }}>Fully furnished</Text>}
       </View>
       {!maxed && (
         <Pressable
           onPress={() => onBuy(slot)}
           disabled={!canAfford}
           style={{
-            backgroundColor: canAfford ? GOLD : "#4A3826",
+            backgroundColor: canAfford ? pal.accent : "#4A3826",
             borderRadius: 12,
             paddingHorizontal: 12,
             paddingVertical: 8,
             opacity: canAfford ? 1 : 0.5,
           }}
         >
-          <Text style={{ color: canAfford ? "#241811" : TEXT_DIM, fontWeight: "800", fontSize: 12 }}>
+          <Text style={{ color: canAfford ? "#241811" : pal.textDim, fontWeight: "800", fontSize: 12 }}>
             {tier === 0 ? "Buy" : "Upgrade"} 🪙{nextCost.toFixed(2)}
           </Text>
         </Pressable>
@@ -1072,6 +1097,10 @@ export default function RestaurantInteriorScreen() {
 
   const def = building ? BUILDINGS[building.type] : null;
   const name = def?.name ?? "Restaurant";
+  // Cuisine theme: the interior is styled to the food this place serves.
+  const cuisine = building?.type ?? "diner";
+  const pal: CuisinePalette =
+    cuisine in CUISINE_THEMES ? CUISINE_THEMES[cuisine as keyof typeof CUISINE_THEMES] : DEFAULT_PAL;
   // Building upgrade level drives the room's richness: more tables, chandelier, rug.
   const bLevel = Math.min(Math.max(building?.level || 1, 1), 3);
 
@@ -1102,7 +1131,7 @@ export default function RestaurantInteriorScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: pal.bg }}>
       {/* header */}
       <View
         style={{
@@ -1114,25 +1143,25 @@ export default function RestaurantInteriorScreen() {
         }}
       >
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
-          <MaterialIcons name="arrow-back" size={24} color={TEXT} />
+          <MaterialIcons name="arrow-back" size={24} color={pal.text} />
         </Pressable>
-        <MaterialIcons name="restaurant" size={26} color={GOLD} style={{ marginLeft: 4 }} />
-        <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: TEXT }}>{name}</Text>
+        <MaterialIcons name="restaurant" size={26} color={pal.accent} style={{ marginLeft: 4 }} />
+        <Text style={{ marginLeft: 8, fontSize: 20, fontWeight: "800", color: pal.text }}>{name}</Text>
         <View style={{ flex: 1 }} />
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: CARD,
+            backgroundColor: pal.card,
             borderRadius: 16,
             paddingHorizontal: 10,
             paddingVertical: 5,
             borderWidth: 1,
-            borderColor: CARD_BORDER,
+            borderColor: pal.cardBorder,
           }}
         >
           <Text style={{ fontSize: 15 }}>🪙</Text>
-          <Text style={{ marginLeft: 5, fontWeight: "700", color: TEXT }}>
+          <Text style={{ marginLeft: 5, fontWeight: "700", color: pal.text }}>
             {coins.balance.toFixed(2)}
           </Text>
         </View>
@@ -1145,18 +1174,21 @@ export default function RestaurantInteriorScreen() {
               marginHorizontal: 16,
               marginBottom: 12,
               borderRadius: 16,
-              backgroundColor: "#4A3319",
+              backgroundColor: pal.card,
               borderWidth: 1,
-              borderColor: GOLD,
+              borderColor: pal.accent,
               padding: 14,
               flexDirection: "row",
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 26 }}>🍞</Text>
+            <View style={{ alignItems: "center" }}>
+              <View style={{ width: 30, height: 18, borderTopLeftRadius: 15, borderTopRightRadius: 15, backgroundColor: "#D8A85C", borderWidth: 2, borderColor: "#A87838" }} />
+              <View style={{ width: 34, height: 4, borderRadius: 2, backgroundColor: "#8B5E34", marginTop: -2 }} />
+            </View>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>The Gathering is on</Text>
-              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+              <Text style={{ color: pal.text, fontWeight: "800", fontSize: 15 }}>The Gathering is on</Text>
+              <Text style={{ color: pal.textDim, fontSize: 12, marginTop: 2 }}>
                 Extra chairs are out — up to 12 villagers can break bread together tonight.
               </Text>
             </View>
@@ -1169,29 +1201,35 @@ export default function RestaurantInteriorScreen() {
             marginHorizontal: 16,
             borderRadius: 18,
             borderWidth: 1,
-            borderColor: CARD_BORDER,
+            borderColor: pal.cardBorder,
             overflow: "hidden",
-            backgroundColor: "#2E2013",
+            backgroundColor: pal.wall,
           }}
         >
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="restaurant" />
-          {/* back wall */}
-          <View style={{ backgroundColor: "#3A2817", paddingBottom: 4 }}>
-            {lightsTier > 0 && <StringLights tier={lightsTier} />}
-            {artTier > 0 && <WallArt tier={artTier} />}
-            {bLevel >= 3 && <WallSconces />}
+          {/* back wall — themed decor */}
+          <View style={{ backgroundColor: pal.wall, paddingBottom: 4 }}>
+            <CuisineOverhead cuisine={cuisine} level={bLevel} lightsTier={lightsTier} />
+            {lightsTier > 0 && (cuisine === "feast-hall" || cuisine === "upper-room") && <StringLights tier={lightsTier} />}
+            {artTier > 0 && <CuisineWallDecor cuisine={cuisine} tier={artTier} />}
+            {bLevel >= 3 && (cuisine === "feast-hall" || cuisine === "upper-room" || cuisine === "manna-house") && <WallSconces />}
           </View>
-          {/* wooden floor — richer with level: L3 gets a grand rug under the tables */}
-          <View style={{ backgroundColor: bLevel >= 3 ? "#7A5533" : FLOOR, paddingTop: 6, paddingBottom: 10 }}>
-            {/* floorboards */}
-            <View style={{ position: "absolute", top: 24, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
-            <View style={{ position: "absolute", top: 60, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
-            <View style={{ position: "absolute", top: 100, left: 0, right: 0, height: 1, backgroundColor: FLOOR_LINE, opacity: 0.5 }} />
-            {/* elegant drapery + chandelier by building level */}
-            {bLevel >= 3 && <ElegantDrapery />}
-            <DiningChandelier level={bLevel} />
-            {/* grand rug at L3 */}
-            {bLevel >= 3 && (
+          {/* floor — themed treatment */}
+          <View style={{ backgroundColor: pal.floor, paddingTop: 6, paddingBottom: 10 }}>
+            <CuisineFloor cuisine={cuisine} level={bLevel} />
+            {/* floorboards for wood-floor cuisines */}
+            {(cuisine === "pizza-place" || cuisine === "taco-stand" || cuisine === "manna-house") && (
+              <>
+                <View style={{ position: "absolute", top: 24, left: 0, right: 0, height: 1, backgroundColor: pal.floorLine, opacity: 0.5 }} />
+                <View style={{ position: "absolute", top: 60, left: 0, right: 0, height: 1, backgroundColor: pal.floorLine, opacity: 0.5 }} />
+                <View style={{ position: "absolute", top: 100, left: 0, right: 0, height: 1, backgroundColor: pal.floorLine, opacity: 0.5 }} />
+              </>
+            )}
+            {/* elegant drapery + chandelier for the grand candlelit halls */}
+            {bLevel >= 3 && (cuisine === "feast-hall" || cuisine === "upper-room") && <ElegantDrapery />}
+            {(cuisine === "feast-hall" || cuisine === "upper-room" || cuisine === "manna-house") && <DiningChandelier level={bLevel} />}
+            {/* grand rug at L3 for the warm halls */}
+            {bLevel >= 3 && (cuisine === "feast-hall" || cuisine === "upper-room" || cuisine === "manna-house") && (
               <View style={{ alignItems: "center", marginBottom: -6 }}>
                 <View
                   style={{
@@ -1200,7 +1238,7 @@ export default function RestaurantInteriorScreen() {
                     borderRadius: 24,
                     backgroundColor: "#7A2E2E",
                     borderWidth: 3,
-                    borderColor: GOLD,
+                    borderColor: pal.accent,
                     opacity: 0.9,
                     position: "absolute",
                     top: 120,
@@ -1212,7 +1250,7 @@ export default function RestaurantInteriorScreen() {
                     height: 284,
                     borderRadius: 18,
                     borderWidth: 2,
-                    borderColor: GOLD,
+                    borderColor: pal.accent,
                     opacity: 0.9,
                     position: "absolute",
                     top: 128,
@@ -1230,24 +1268,25 @@ export default function RestaurantInteriorScreen() {
                   left: 12,
                   right: 12,
                   borderRadius: 16,
-                  backgroundColor: GOLD,
+                  backgroundColor: pal.accent,
                   opacity: 0.10,
                 }}
               />
             )}
 
-            {/* kitchen at the back */}
-            <KitchenCounter tier={kitchenTier} />
+            {/* signature cuisine piece + kitchen at the back */}
+            <CuisineSignature cuisine={cuisine} level={bLevel} kitchenTier={kitchenTier} />
+            <KitchenCounter tier={kitchenTier} cuisine={cuisine} />
 
             {/* the tables — or the one long banquet table */}
             {isBanquet ? (
               <>
                 <BanquetDressing level={bLevel} />
-                <BanquetTable diners={diners} tablesTier={tablesTier} />
+                <BanquetTable diners={diners} tablesTier={tablesTier} pal={pal} cuisine={cuisine} />
               </>
             ) : (
               tableDiners.map((group, i) => (
-                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} grand={bLevel >= 3} />
+                <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} grand={bLevel >= 3} pal={pal} cuisine={cuisine} />
               ))
             )}
 
@@ -1256,7 +1295,7 @@ export default function RestaurantInteriorScreen() {
             {diners.length === 0 && (
               <Text
                 style={{
-                  color: TEXT_DIM,
+                  color: pal.textDim,
                   fontSize: 13,
                   fontStyle: "italic",
                   textAlign: "center",
@@ -1280,20 +1319,20 @@ export default function RestaurantInteriorScreen() {
               marginHorizontal: 16,
               marginTop: 16,
               borderRadius: 16,
-              backgroundColor: CARD,
+              backgroundColor: pal.card,
               borderWidth: 1,
-              borderColor: GOLD,
+              borderColor: pal.accent,
               padding: 14,
               flexDirection: "row",
               alignItems: "center",
             }}
           >
-            <MaterialIcons name="favorite" size={26} color={GOLD} />
+            <MaterialIcons name="favorite" size={26} color={pal.accent} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
+              <Text style={{ color: pal.text, fontWeight: "800", fontSize: 15 }}>
                 Fellowship blessing: +{(100 * (BANQUET_FELLOWSHIP_RATES[Math.min(Math.max(building?.level || 1, 1), 3)] ?? 0.012) * Math.min(diners.length, cap)).toFixed(1)}% income
               </Text>
-              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+              <Text style={{ color: pal.textDim, fontSize: 12, marginTop: 2 }}>
                 {diners.length} {diners.length === 1 ? "villager" : "villagers"} gathered at the long table — the whole town breaks bread as one.
               </Text>
             </View>
@@ -1304,20 +1343,20 @@ export default function RestaurantInteriorScreen() {
               marginHorizontal: 16,
               marginTop: 16,
               borderRadius: 16,
-              backgroundColor: CARD,
+              backgroundColor: pal.card,
               borderWidth: 1,
-              borderColor: GOLD,
+              borderColor: pal.accent,
               padding: 14,
               flexDirection: "row",
               alignItems: "center",
             }}
           >
-            <MaterialIcons name="trending-up" size={26} color={GOLD} />
+            <MaterialIcons name="trending-up" size={26} color={pal.accent} />
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={{ color: TEXT, fontWeight: "800", fontSize: 15 }}>
+              <Text style={{ color: pal.text, fontWeight: "800", fontSize: 15 }}>
                 Interior bonus: +{totalBonusPct}% income
               </Text>
-              <Text style={{ color: TEXT_DIM, fontSize: 12, marginTop: 2 }}>
+              <Text style={{ color: pal.textDim, fontSize: 12, marginTop: 2 }}>
                 Furnishing your restaurant draws more villagers — and more coins.
               </Text>
             </View>
@@ -1327,7 +1366,7 @@ export default function RestaurantInteriorScreen() {
         {/* furniture panel — not for the Marriage Supper */}
         {!isMarriageSupper && (
           <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
-            <Text style={{ color: GOLD, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 8 }}>
+            <Text style={{ color: pal.accent, fontWeight: "800", fontSize: 13, letterSpacing: 1.5, marginBottom: 8 }}>
               FURNISH THE DINING ROOM
             </Text>
             {RESTAURANT_SLOTS.map((slot) => (
@@ -1337,13 +1376,14 @@ export default function RestaurantInteriorScreen() {
                 tier={interior.furniture[slot.id] || 0}
                 affordable={(cost) => coinsRef.current.balance >= cost}
                 onBuy={handleBuy}
+                pal={pal}
               />
             ))}
           </View>
         )}
 
         {!loaded && (
-          <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Setting the tables…</Text>
+          <Text style={{ color: pal.textDim, textAlign: "center", marginTop: 20 }}>Setting the tables…</Text>
         )}
       </ScrollView>
     </View>

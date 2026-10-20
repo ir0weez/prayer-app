@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { applyDailyHeartRegen, applyXPAward, getLevelForXP, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, maxHeartsForLevel, normalizeXPState, xpRequiredForLevel } from "./xp-engine";
+import { describe, expect, it, vi } from "vitest";
+
+// In-memory AsyncStorage so the gear boost cache can be exercised through
+// the real load/save paths (same pattern as badges-prestige.test.ts).
+const store = new Map<string, string>();
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: vi.fn(async (k: string) => store.get(k) ?? null),
+    setItem: vi.fn(async (k: string, v: string) => { store.set(k, v); }),
+    removeItem: vi.fn(async (k: string) => { store.delete(k); }),
+    clear: vi.fn(async () => { store.clear(); }),
+  },
+}));
+
+import { applyDailyHeartRegen, applyXPAward, FASTING_HEARTS_CAP, getLevelForXP, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, maxHeartsForLevel, normalizeXPState, xpRequiredForLevel } from "./xp-engine";
 
 describe("XP engine", () => {
   it("uses cumulative level thresholds", () => {
@@ -50,13 +63,34 @@ describe("XP engine", () => {
     expect(getXPLevelBadgeFrame(150)).toBe("radiant");
   });
 
-  it("grants +1 max heart at levels 25/50/75/100", () => {
+  it("grants +1 max heart at levels 25/50, hard-capped at 6 fasting hearts", () => {
+    expect(FASTING_HEARTS_CAP).toBe(6);
     expect(maxHeartsForLevel(1)).toBe(4);
     expect(maxHeartsForLevel(24)).toBe(4);
     expect(maxHeartsForLevel(25)).toBe(5);
     expect(maxHeartsForLevel(50)).toBe(6);
-    expect(maxHeartsForLevel(75)).toBe(7);
-    expect(maxHeartsForLevel(100)).toBe(8);
+    expect(maxHeartsForLevel(75)).toBe(6);
+    expect(maxHeartsForLevel(100)).toBe(6);
+  });
+
+  it("keeps fasting hearts gear-free: equipped gear hearts never raise the fasting max", async () => {
+    const { saveEquipped, defaultEquipped, refreshGearBoostCache, getCachedBoosts } = await import("./gear");
+    // Mithril Plate carries +4 hearts — Dark Forest combat health only.
+    await saveEquipped({ ...defaultEquipped(), armor: "mithril-plate" });
+    const boosts = await refreshGearBoostCache();
+    expect(boosts.hearts).toBe(4);
+    expect(getCachedBoosts().hearts).toBe(4);
+    // The fasting max ignores the equipped gear at every level.
+    expect(maxHeartsForLevel(1)).toBe(4);
+    expect(maxHeartsForLevel(15)).toBe(4);
+    expect(maxHeartsForLevel(100)).toBe(6);
+    // A saved state inflated by the old gear-heart rule clamps down on load
+    // (level 15, 8 hearts -> the gear-free max of 4).
+    expect(normalizeXPState({ totalXP: 10851, hearts: 8 }).hearts).toBe(4);
+    // Leave an empty boost cache behind for the other tests.
+    await saveEquipped(defaultEquipped());
+    await refreshGearBoostCache();
+    expect(getCachedBoosts().hearts).toBe(0);
   });
 
   it("backfills hearts for stored states that predate them", () => {

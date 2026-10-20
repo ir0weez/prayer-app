@@ -421,7 +421,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "bank":       { name: "Bank",       icon: "🏦", cost: 3850, tier: 4, incomePerDay: 120, xpPerDay: 0, maps: ["town"], description: "+120 coins per day while your streak is alive." },
   "barbershop": { name: "Barbershop", icon: "💈", cost: 660,  tier: 1, incomePerDay: 10,  xpPerDay: 0, maps: ["town"], description: "+10 coins/day. Boosts connected businesses +25%." },
   "clothes-shop": { name: "Clothes Shop", icon: "👕", cost: 715, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy outfits for your Hero. +10 coins/day." },
-  "armory":       { name: "Armory",       icon: "🛡️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +hearts. +20 coins/day." },
+  "armory":       { name: "Armory",       icon: "🛡️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy armor for +forest hearts. +20 coins/day." },
   "weaponsmith":  { name: "Weaponsmith",  icon: "⚔️", cost: 1155, tier: 1, incomePerDay: 20, xpPerDay: 0, maps: ["town"], description: "Buy weapons for +XP. +20 coins/day." },
   "toolshop":     { name: "Tool Shop",    icon: "🔨", cost: 880, tier: 1, incomePerDay: 10, xpPerDay: 0, maps: ["town"], description: "Buy tools for +coins. +10 coins/day." },
   "church":       { name: "Chapel",       icon: "⛪", cost: 1100, tier: 1, incomePerDay: 240, xpPerDay: 0, maps: ["town"], description: "A house of prayer. +20 coins/hour for each person you've prayed for today." },

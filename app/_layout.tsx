@@ -52,7 +52,7 @@ function RootLayoutContent() {
   useEffect(() => {
     initManusRuntime();
     configureLocalNotifications();
-    // Warm the gear boost cache so XP/hearts/coin boosts apply everywhere.
+    // Warm the gear boost cache so XP/coin boosts apply everywhere.
     refreshGearBoostCache().catch(() => {});
     // Warm the character stat boost cache too.
     refreshStatBoostCache().catch(() => {});

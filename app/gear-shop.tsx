@@ -70,7 +70,7 @@ function boostLabel(item: GearItem): string | null {
   const parts: string[] = [];
   if (item.boost.xpMult) parts.push(`+${Math.round(item.boost.xpMult * 100)}% XP`);
   if (item.boost.coinMult) parts.push(`+${Math.round(item.boost.coinMult * 100)}% coins`);
-  if (item.boost.hearts) parts.push(`+${item.boost.hearts} heart${item.boost.hearts > 1 ? "s" : ""}`);
+  if (item.boost.hearts) parts.push(`+${item.boost.hearts} forest heart${item.boost.hearts > 1 ? "s" : ""}`);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 

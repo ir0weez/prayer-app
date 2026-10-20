@@ -117,10 +117,21 @@ export function xpRequiredForLevel(level: number): number {
 /** Levels that grant +1 max heart each. */
 export const XP_HEART_MILESTONES = [25, 50, 75, 100];
 
-/** Maximum hearts for a level: 4 base, +1 at each milestone (25/50/75/100), + gear bonus. */
+/**
+ * Fasting hearts are hard-capped at 6 (Jonathan's ruling, 2026-10-20):
+ * hearts measure daily faithfulness, so they come only from level
+ * milestones — they are not buyable. Equipped gear hearts apply ONLY to
+ * Dark Forest combat health (lib/gear combatStats), never to this max:
+ * otherwise purchased armor would let a player skip a week of fasting
+ * and lose nothing.
+ */
+export const FASTING_HEARTS_CAP = 6;
+
+/** Maximum fasting hearts for a level: 4 base, +1 at each milestone (25/50/75/100), capped at 6. Gear never counts. */
 export function maxHeartsForLevel(level: number): number {
   const safeLevel = Math.max(1, Math.floor(level));
-  return 4 + XP_HEART_MILESTONES.filter((milestone) => safeLevel >= milestone).length + getCachedBoosts().hearts;
+  const milestoneHearts = XP_HEART_MILESTONES.filter((milestone) => safeLevel >= milestone).length;
+  return Math.min(FASTING_HEARTS_CAP, 4 + milestoneHearts);
 }
 
 function daysBetweenDateStrings(from: string, to: string): number {

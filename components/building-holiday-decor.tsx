@@ -13,7 +13,7 @@
 /* ------------------------------------------------------------------ */
 
 import { View } from "react-native";
-import Svg, { Circle, Ellipse, G, Path, Polygon, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
 import {
   Bunting,
   Cobweb,
@@ -37,7 +37,9 @@ export type InteriorBuilding =
   | "inn" | "carpenter" | "pottery" | "music-hall" | "tailor"
   | "observatory" | "bathhouse" | "apothecary" | "town-hall" | "post-office"
   // City expansion — decor added in the holiday-decor batch
-  | "grand-library" | "opera-house" | "museum" | "clock-tower" | "embassy";
+  | "grand-library" | "opera-house" | "museum" | "clock-tower" | "embassy"
+  // City eastside — decor added in the eastside batch
+  | "music-studio" | "art-gallery" | "flower-market" | "coffee-roastery";
 
 /* ============================ new glyphs ============================ */
 
@@ -426,6 +428,179 @@ function PaperHearts({ size = 40 }: { size?: number }) {
 }
 
 /* ==================== per-building decor ==================== */
+
+/** String of gold music notes on a sagging cord — music studio decor. */
+function MusicNoteGarland({ width = 200 }: { width?: number }) {
+  const h = width * 0.34;
+  const yOnString = (t: number) =>
+    (1 - t) * (1 - t) * 6 + 2 * (1 - t) * t * h * 0.6 + t * t * 6;
+  return (
+    <Svg width={width} height={h} viewBox={`0 0 ${width} ${h}`}>
+      <Path
+        d={`M2 6 Q ${width / 2} ${h * 0.6} ${width - 2} 6`}
+        fill="none"
+        stroke="#92400E"
+        strokeWidth={2.5}
+      />
+      {[0.14, 0.32, 0.5, 0.68, 0.86].map((t, i) => {
+        const x = 2 + t * (width - 4);
+        const y = yOnString(t);
+        return (
+          <G key={t} transform={`translate(${x} ${y})`}>
+            <Line x1={0} y1={0} x2={0} y2={9} stroke="#92400E" strokeWidth={1.5} />
+            <G transform="translate(0 11) scale(0.9)">
+              {i % 2 === 0 ? (
+                <G>
+                  <Path d="M5 16 V4 L15 2 V14" fill="none" stroke="#D97706" strokeWidth={2.4} />
+                  <Ellipse cx={3} cy={16} rx={3.2} ry={2.4} fill="#D97706" />
+                  <Ellipse cx={13} cy={14} rx={3.2} ry={2.4} fill="#D97706" />
+                </G>
+              ) : (
+                <G>
+                  <Path d="M8 14 V2" fill="none" stroke="#B45309" strokeWidth={2.4} />
+                  <Ellipse cx={5.6} cy={14} rx={3.2} ry={2.4} fill="#B45309" />
+                  <Circle cx={8} cy={2} r={1.6} fill="#B45309" />
+                </G>
+              )}
+            </G>
+          </G>
+        );
+      })}
+    </Svg>
+  );
+}
+
+/** Framed mini-painting with a holiday bow — art gallery decor. */
+function FramedMiniPainting({
+  size = 36,
+  variant = 0,
+  bow = "#B91C1C",
+}: {
+  size?: number;
+  variant?: number;
+  bow?: string;
+}) {
+  return (
+    <Svg width={size} height={size * 1.22} viewBox="0 0 36 44">
+      <Rect x={2} y={6} width={32} height={32} rx={2} fill="#7C2D12" />
+      <Rect x={5} y={9} width={26} height={26} fill="#FEF9EC" />
+      {variant === 0 && (
+        <G>
+          <Circle cx={14} cy={18} r={5} fill="#E8590C" />
+          <Path d="M5 32 L13 24 L21 29 L31 23 V35 H5 Z" fill="#2F9E6E" />
+        </G>
+      )}
+      {variant === 1 && (
+        <G>
+          <Rect x={9} y={14} width={6} height={14} fill="#3B82F6" />
+          <Rect x={17} y={11} width={6} height={17} fill="#8B5CF6" />
+          <Rect x={25} y={16} width={6} height={12} fill="#EC4899" />
+        </G>
+      )}
+      {variant === 2 && (
+        <G>
+          <Circle cx={18} cy={22} r={9} fill="none" stroke="#0E7490" strokeWidth={2.6} />
+          <Circle cx={18} cy={22} r={4.5} fill="#F59E0B" />
+        </G>
+      )}
+      {/* bow on the frame's top corner */}
+      <G transform="translate(26 1)">
+        <Polygon points="0,7 8,0 8,7" fill={bow} />
+        <Polygon points="16,7 8,0 8,7" fill={bow} opacity={0.82} />
+        <Circle cx={8} cy={7} r={2.4} fill={bow} />
+        <Path d="M8 9.4 L5 16 M8 9.4 L11 16" stroke={bow} strokeWidth={1.8} />
+      </G>
+    </Svg>
+  );
+}
+
+/** Pine garland swag with berries and a bow — flower market decor. */
+function GarlandSwag({ width = 140 }: { width?: number }) {
+  const h = width * 0.4;
+  const cx = width / 2;
+  const n = Math.max(6, Math.floor(width / 20));
+  const sprigs: React.ReactNode[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = 4 + t * (width - 8);
+    const y = 6 + Math.sin(Math.PI * t) * h * 0.55;
+    const rot = (t - 0.5) * 40;
+    sprigs.push(
+      <G key={i} transform={`translate(${x} ${y}) rotate(${rot})`}>
+        <Ellipse cx={0} cy={6} rx={5} ry={10} fill="#166534" />
+        <Ellipse cx={0} cy={6} rx={2.4} ry={6.4} fill="#22C55E" />
+        {i % 2 === 0 && <Circle cx={3} cy={3} r={2} fill="#B91C1C" />}
+      </G>
+    );
+  }
+  return (
+    <Svg width={width} height={h + 26} viewBox={`0 0 ${width} ${h + 26}`}>
+      <Path
+        d={`M4 6 Q ${cx} ${h * 1.2} ${width - 4} 6`}
+        fill="none"
+        stroke="#14532D"
+        strokeWidth={3}
+      />
+      {sprigs}
+      {/* bow at the swag's center */}
+      <G transform={`translate(${cx - 8} ${6 + h * 0.55})`}>
+        <Polygon points="0,6 8,0 8,6" fill="#B91C1C" />
+        <Polygon points="16,6 8,0 8,6" fill="#DC2626" />
+        <Circle cx={8} cy={6} r={2.6} fill="#991B1B" />
+        <Path d="M8 8.6 L5 16 M8 8.6 L11 16" stroke="#B91C1C" strokeWidth={1.8} />
+      </G>
+    </Svg>
+  );
+}
+
+/** Potted poinsettia — flower market Christmas. */
+function PoinsettiaPot({ size = 30 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size * 1.5} viewBox="0 0 30 45">
+      {[0, 60, 120, 180, 240, 300].map((r) => (
+        <G key={r} transform={`rotate(${r} 15 13)`}>
+          <Ellipse cx={15} cy={7} rx={4.4} ry={8} fill="#B91C1C" />
+          <Ellipse cx={15} cy={7} rx={2.2} ry={5} fill="#DC2626" />
+        </G>
+      ))}
+      <Circle cx={15} cy={13} r={3.6} fill="#FBBF24" />
+      <Path d="M8 27 h14 l-1.6 14 h-10.8 Z" fill="#C0562F" stroke="#8A3A1E" strokeWidth={1.4} />
+      <Rect x={6.5} y={24} width={17} height={4} rx={1.5} fill="#A8482A" stroke="#8A3A1E" strokeWidth={1} />
+    </Svg>
+  );
+}
+
+/** Cozy mug whose steam curls into a heart — coffee roastery decor. */
+function SteamMug({ size = 30 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size * 1.4} viewBox="0 0 30 42">
+      {/* heart-shaped steam */}
+      <Path
+        d="M15 2 C13 5, 10 6, 10 8.6 C10 10.6, 12 11.6, 15 13.4 C18 11.6, 20 10.6, 20 8.6 C20 6, 17 5, 15 2 Z"
+        fill="#B45309"
+        opacity={0.75}
+      />
+      {/* mug */}
+      <Path
+        d="M5 17 h16 v7 a5 5 0 0 1 -5 5 h-6 a5 5 0 0 1 -5 -5 Z"
+        fill="#B91C1C"
+        stroke="#7F1D1D"
+        strokeWidth={1.5}
+      />
+      <Path d="M21 18.5 h1.5 a3.5 3.5 0 0 1 0 7 H21" fill="none" stroke="#7F1D1D" strokeWidth={2} />
+      {/* heart on the mug */}
+      <G transform="translate(10 20)">
+        <HeartGlyph color="#FDE68A" size={9} />
+      </G>
+      {/* pine sprigs beside the mug */}
+      <G transform="translate(26 34)">
+        <Ellipse cx={0} cy={0} rx={2.4} ry={6} fill="#166534" transform="rotate(30)" />
+        <Ellipse cx={0} cy={0} rx={2.4} ry={6} fill="#166534" transform="rotate(-30)" />
+        <Circle cx={0} cy={-2} r={1.8} fill="#B91C1C" />
+      </G>
+    </Svg>
+  );
+}
 
 /** Absolutely-positioned wrapper. */
 function Placed({ children, style }: { children: React.ReactNode; style: any }) {
@@ -2250,6 +2425,230 @@ function EmbassyDecor({ holiday }: { holiday: HolidaySeason }) {
   }
 }
 
+/* ----------------------------- music-studio -------------------------- */
+function MusicStudioDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      // A haunted session — the booth light nobody switched on.
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><JackOLantern size={28} /></Placed>
+          <Placed style={{ bottom: "42%", right: "12%" }}><GhostLight size={28} /></Placed>
+          <Placed style={{ top: 60, left: "30%" }}><Bat size={18} /></Placed>
+          <Placed style={{ top: 88, right: "24%" }}><Bat size={14} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: 12 }}><WheatSheaf size={30} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><Cornucopia size={38} /></Placed>
+        </>
+      );
+    case "christmas":
+      // Gold notes strung over the studio, a wreath on the booth door.
+      return (
+        <>
+          <Placed style={{ top: 48, left: 0, right: 0, alignItems: "center" }}><MusicNoteGarland width={230} /></Placed>
+          <Placed style={{ bottom: 12, left: "42%" }}><Wreath size={32} /></Placed>
+          <Placed style={{ bottom: 8, right: 12 }}><MiniTree size={34} /></Placed>
+        </>
+      );
+    case "valentines":
+      // A love song in the booth.
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><PaperHearts size={42} /></Placed>
+          <Placed style={{ bottom: 10, left: 14 }}><RoseVase size={26} /></Placed>
+          <Placed style={{ bottom: 12, right: 14 }}><HeartGlyph color="#F43F5E" size={22} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={24} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><PaintedEgg color="#C4B5FD" size={18} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* ----------------------------- art-gallery --------------------------- */
+function ArtGalleryDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      // The portrait eyes follow you around the room.
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><SpookyBooks size={32} /></Placed>
+          <Placed style={{ top: 44, right: 8 }}><Cobweb size={42} /></Placed>
+          <Placed style={{ top: 60, left: "34%" }}><Bat size={16} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: 12 }}><Cornucopia size={40} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><Pumpkin size={28} /></Placed>
+        </>
+      );
+    case "christmas":
+      // Mini-paintings rehung with holiday bows, a tree in the corner.
+      return (
+        <>
+          <Placed style={{ top: 64, left: "16%" }}><FramedMiniPainting size={36} variant={0} /></Placed>
+          <Placed style={{ top: 64, right: "16%" }}><FramedMiniPainting size={36} variant={1} /></Placed>
+          <Placed style={{ bottom: 8, right: 12 }}><MiniTree size={36} /></Placed>
+        </>
+      );
+    case "valentines":
+      // The rose-bow triptych.
+      return (
+        <>
+          <Placed style={{ top: 64, left: "18%" }}><FramedMiniPainting size={34} variant={2} bow="#EC4899" /></Placed>
+          <Placed style={{ top: 64, right: "18%" }}><FramedMiniPainting size={34} variant={0} bow="#F43F5E" /></Placed>
+          <Placed style={{ bottom: 10, left: 14 }}><RoseVase size={26} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ top: 64, left: "18%" }}><FramedMiniPainting size={32} variant={1} bow="#A7F3D0" /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><EasterBasket size={30} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* ---------------------------- flower-market -------------------------- */
+function FlowerMarketDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      // Pumpkins take over the empty stalls.
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: 12 }}><Pumpkin size={30} /></Placed>
+          <Placed style={{ bottom: 8, left: 46 }}><Pumpkin size={22} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><JackOLantern size={28} /></Placed>
+          <Placed style={{ bottom: "42%", left: "44%" }}><GhostLight size={24} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: 12 }}><Cornucopia size={42} /></Placed>
+          <Placed style={{ bottom: 8, right: 12 }}><WheatSheaf size={30} /></Placed>
+        </>
+      );
+    case "christmas":
+      // Poinsettias everywhere, garland swags over the stalls.
+      return (
+        <>
+          <Placed style={{ top: 48, left: 0, right: 0, alignItems: "center" }}><GarlandSwag width={230} /></Placed>
+          <Placed style={{ bottom: 8, left: 12 }}><PoinsettiaPot size={30} /></Placed>
+          <Placed style={{ bottom: 8, right: 12 }}><PoinsettiaPot size={30} /></Placed>
+          <Placed style={{ bottom: 8, right: 52 }}><PoinsettiaPot size={24} /></Placed>
+        </>
+      );
+    case "valentines":
+      // Rose season at the market.
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 14 }}><RoseVase size={28} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><RoseVase size={28} /></Placed>
+          <Placed style={{ bottom: 14, left: "44%" }}><HeartGlyph color="#E11D63" size={24} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: 12 }}><EasterBasket size={32} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><FlowerGlyph petal="#FBCFE8" center="#F59E0B" size={26} /></Placed>
+          <Placed style={{ bottom: 10, right: 50 }}><PaintedEgg color="#A7F3D0" size={18} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={240} colors={["#B91C1C", "#F8FAFC", "#1D4ED8"]} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+/* --------------------------- coffee-roastery ------------------------- */
+function CoffeeRoasteryDecor({ holiday }: { holiday: HolidaySeason }) {
+  switch (holiday) {
+    case "halloween":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><JackOLantern size={28} /></Placed>
+          <Placed style={{ top: 44, right: 8 }}><Cobweb size={40} /></Placed>
+          <Placed style={{ top: 64, right: "26%" }}><Bat size={16} /></Placed>
+        </>
+      );
+    case "thanksgiving":
+      // Pie with your coffee, always.
+      return (
+        <>
+          <Placed style={{ bottom: 8, left: "38%" }}><FeastPlatter size={44} /></Placed>
+          <Placed style={{ bottom: 10, right: 12 }}><PumpkinPie size={30} /></Placed>
+        </>
+      );
+    case "christmas":
+      // Steam hearts over the mugs, pine by the roaster.
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 14 }}><SteamMug size={30} /></Placed>
+          <Placed style={{ bottom: 10, right: 16 }}><SteamMug size={26} /></Placed>
+          <Placed style={{ bottom: 8, right: 56 }}><HolidayPine size={40} /></Placed>
+          <Placed style={{ bottom: 12, left: 56 }}><StarCookie size={20} /></Placed>
+        </>
+      );
+    case "valentines":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: "42%" }}><SteamMug size={30} /></Placed>
+          <Placed style={{ bottom: 12, right: 14 }}><RoseVase size={24} /></Placed>
+          <Placed style={{ top: 56, left: 0, right: 0, alignItems: "center" }}><PaperHearts size={40} /></Placed>
+        </>
+      );
+    case "easter":
+      return (
+        <>
+          <Placed style={{ bottom: 10, left: 12 }}><PaintedEgg color="#F9A8D4" size={18} /></Placed>
+          <Placed style={{ bottom: 10, right: 14 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={24} /></Placed>
+        </>
+      );
+    case "independence":
+      return (
+        <>
+          <Placed style={{ top: 52, left: 0, right: 0, alignItems: "center" }}><Bunting width={220} /></Placed>
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
 /* ===================== season touches (no holiday) ==================== */
 /* Lighter, building-flavored seasonal accents for the gaps between      */
 /* holidays.                                                             */
@@ -2449,6 +2848,30 @@ function SeasonDecor({ building, season }: { building: InteriorBuilding; season:
       fall: <Placed style={{ bottom: 10, right: 12 }}><LeafShape color="#B91C1C" size={20} /></Placed>,
       winter: <Placed style={{ bottom: 8, left: 12 }}><HolidayPine size={38} /></Placed>,
     },
+    "music-studio": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#C4B5FD" center="#FDE68A" size={20} /></Placed>,
+      summer: null,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#B45309" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Wreath size={28} /></Placed>,
+    },
+    "art-gallery": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FramedMiniPainting size={32} variant={0} bow="#F9A8D4" /></Placed>,
+      summer: null,
+      fall: <Placed style={{ bottom: 10, right: 12 }}><LeafShape color="#D97706" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, left: 12 }}><FramedMiniPainting size={32} variant={2} bow="#166534" /></Placed>,
+    },
+    "flower-market": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#F9A8D4" center="#E11D63" size={26} /></Placed>,
+      summer: <Placed style={{ bottom: 10, right: 12 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={22} /></Placed>,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#EA580C" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 8, right: 12 }}><Poinsettia size={24} /></Placed>,
+    },
+    "coffee-roastery": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FBCFE8" center="#EC4899" size={18} /></Placed>,
+      summer: null,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#92400E" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 8, right: 12 }}><SteamMug size={28} /></Placed>,
+    },
   };
   return <>{touches[building]?.[season] ?? null}</>;
 }
@@ -2509,6 +2932,11 @@ export function BuildingHolidayDecor({
       case "museum": return <MuseumDecor holiday={holiday} />;
       case "clock-tower": return <ClockTowerDecor holiday={holiday} />;
       case "embassy": return <EmbassyDecor holiday={holiday} />;
+      // City eastside
+      case "music-studio": return <MusicStudioDecor holiday={holiday} />;
+      case "art-gallery": return <ArtGalleryDecor holiday={holiday} />;
+      case "flower-market": return <FlowerMarketDecor holiday={holiday} />;
+      case "coffee-roastery": return <CoffeeRoasteryDecor holiday={holiday} />;
       default: return null;
     }
   }

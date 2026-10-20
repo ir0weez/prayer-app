@@ -388,6 +388,11 @@ function tallArtExtraCells(type: string, level: number, floors: number): number 
     case "opera-house": return 0.7;
     case "museum": return 0.6;
     case "embassy": return 0.6;
+    // City eastside — art & market row
+    case "music-studio": return 0.5;
+    case "art-gallery": return 0.5;
+    case "flower-market": return 0.3;
+    case "coffee-roastery": return 0.4;
     default: return 0;
   }
 }
@@ -3942,6 +3947,32 @@ export default function HometownScreen() {
       enterActions.push({
         text: "Enter Embassy",
         onPress: () => router.push(`/embassy-interior?buildingId=${b.id}`),
+      });
+    }
+    // City eastside interiors: music studio, art gallery, flower market,
+    // coffee roastery.
+    if (b.type === "music-studio") {
+      enterActions.push({
+        text: "Enter Studio",
+        onPress: () => router.push(`/music-studio-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "art-gallery") {
+      enterActions.push({
+        text: "Enter Gallery",
+        onPress: () => router.push(`/art-gallery-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "flower-market") {
+      enterActions.push({
+        text: "Enter Market",
+        onPress: () => router.push(`/flower-market-interior?buildingId=${b.id}`),
+      });
+    }
+    if (b.type === "coffee-roastery") {
+      enterActions.push({
+        text: "Enter Roastery",
+        onPress: () => router.push(`/coffee-roastery-interior?buildingId=${b.id}`),
       });
     }
     if (level >= 3) {

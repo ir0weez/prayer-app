@@ -568,10 +568,15 @@ function TownNPCsImpl({
             missionArrivalRef.current?.(String(npc.prayerId || npc.id));
           } catch {}
         }
-        // On a Jonathan-assigned work shift? Stay put until the shift ends —
-        // the timer lives in the parent, so pin the visit to it.
+        // On a Jonathan-assigned work shift AND arrived at the work site?
+        // Stay put until the shift ends — the timer lives in the parent,
+        // so pin the visit to it. Arriving anywhere else must NOT clock
+        // them in: this used to fire on any arrival while a shift was
+        // active, so a light whose pre-assignment stroll ended first got
+        // marked "working" and pinned at the wrong building all shift.
+        const wguide = workGuidesRef.current?.[String(npc.prayerId || npc.id)];
         const winfo = workMapRef.current?.[String(npc.prayerId || npc.id)];
-        if (winfo) {
+        if (winfo && wguide && npc.destBuildingId === wguide.buildingId) {
           npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
           try {
             workArrivalRef.current?.(String(npc.prayerId || npc.id));
@@ -884,8 +889,9 @@ function TownNPCsImpl({
         workBadgeRef.current = nextWorkBadge;
         setWorkBadgeMap(nextWorkBadge);
       }
-      // Sync the working set: lights clocked in at their site (in workMap but
-      // no longer en-route) get the working rock — busy, not loitering.
+      // Sync the working set: lights clocked in AT their work site get the
+      // working rock — busy, not loitering. (Guides now cover the whole
+      // shift, so "at the site" is: visiting the guide's building.)
       const nextWorking = new Set<string>();
       if (!night) {
         const wm = workMapRef.current;
@@ -893,7 +899,13 @@ function TownNPCsImpl({
         if (wm) {
           for (const npc of Object.values(logic)) {
             const pid = String(npc.prayerId || npc.id);
-            if (wm[pid] && !(wg && wg[pid]) && npc.state === "visiting") {
+            const guide = wg?.[pid];
+            if (
+              wm[pid] &&
+              npc.state === "visiting" &&
+              guide &&
+              npc.destBuildingId === guide.buildingId
+            ) {
               nextWorking.add(npc.id);
             }
           }

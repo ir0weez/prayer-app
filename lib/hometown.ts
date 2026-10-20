@@ -1217,7 +1217,19 @@ export function gardenVisitMult(state: GardenVisitState | null, now: Date = new 
 // a short visit, a day trip, or a long journey. They leave town, and when
 // the time is up they return with a blessing: coins, XP, sometimes a verse.
 
-export const MISSION_STORAGE_KEY = "prayercircle.hometown.missions.v1";
+/**
+ * Field missions live under their OWN key. They used to share
+ * "prayercircle.hometown.missions.v1" with the daily popup missions in
+ * lib/missions.ts — every save from either system overwrote the other's
+ * records, and each parser silently dropped the other's entries, so an
+ * in-flight field trip vanished from storage on the next hometown open
+ * (or bank visit): the light reappeared in town and the trip looked like
+ * it had "finished early". Daily missions keep the legacy key; field
+ * missions moved here, and loadMissions() salvages any field missions
+ * still stored under the legacy key.
+ */
+export const MISSION_STORAGE_KEY = "prayercircle.hometown.field-missions.v1";
+const LEGACY_MISSION_STORAGE_KEY = "prayercircle.hometown.missions.v1";
 /** Max concurrent uncollected missions. */
 export const MAX_ACTIVE_MISSIONS = 10;
 
@@ -1330,8 +1342,20 @@ export async function loadMissions(): Promise<FieldMission[]> {
   try {
     const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     const raw = await AsyncStorage.getItem(MISSION_STORAGE_KEY);
-    if (!raw) return [];
-    return parseMissions(JSON.parse(raw));
+    if (raw) return parseMissions(JSON.parse(raw));
+    // One-time salvage: field missions saved before the key split live
+    // under the legacy key, mixed in with daily popup missions.
+    // parseMissions only accepts field-mission-shaped entries, so daily
+    // missions are ignored here and left untouched in place.
+    const legacy = await AsyncStorage.getItem(LEGACY_MISSION_STORAGE_KEY);
+    if (!legacy) return [];
+    const salvaged = parseMissions(JSON.parse(legacy));
+    if (salvaged.length > 0) {
+      try {
+        await AsyncStorage.setItem(MISSION_STORAGE_KEY, JSON.stringify(salvaged));
+      } catch {}
+    }
+    return salvaged;
   } catch { return []; }
 }
 
@@ -1872,10 +1896,23 @@ function parseMapState(value: unknown): MapState {
   };
 }
 
+/** Sanitize a persisted stock record: building id -> finite units >= 0. */
+function parseStockByBuilding(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [id, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) out[id] = v;
+  }
+  return out;
+}
+
 export function parseTown(value: unknown): TownState {
   if (!value || typeof value !== "object") return emptyTownState();
   const t = value as Partial<TownState> & { buildings?: unknown; decorations?: unknown; roads?: unknown };
   const lastIncomeDate = typeof t.lastIncomeDate === "string" ? t.lastIncomeDate : null;
+  // Stock must round-trip: dropping it here re-seeded every stocked
+  // building at half cap on every app open.
+  const stockByBuilding = parseStockByBuilding(t.stockByBuilding);
   // New multi-map format
   if (t.maps && typeof t.maps === "object") {
     const raw = t.maps as Partial<Record<TownMapId, unknown>>;
@@ -1891,6 +1928,7 @@ export function parseTown(value: unknown): TownState {
         river: parseMapState(raw.river),
       },
       lastIncomeDate,
+      stockByBuilding,
     };
   }
   // Old single-map format: migrate everything into the town map
@@ -1906,6 +1944,7 @@ export function parseTown(value: unknown): TownState {
       river: emptyMapState(),
     },
     lastIncomeDate,
+    stockByBuilding,
   };
 }
 /**

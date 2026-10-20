@@ -3255,12 +3255,19 @@ export default function HometownScreen() {
     []
   );
 
-  /** personId -> forced destination while a light walks to its work site. */
+  /**
+   * personId -> forced destination for a light on a work shift. Covers
+   * BOTH "en-route" and "working": a clocked-in light must be steered
+   * back to the site whenever they aren't on it — villagers respawn at
+   * home on every app open and get sent home at nightfall, so guiding
+   * only "en-route" lights left "working" shifts standing empty at the
+   * farm while the worker wandered town with a badge.
+   */
   const workGuides = useMemo(() => {
     const out: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }> = {};
     if (!workState) return out;
     for (const a of workState.assignments) {
-      if (a.status !== "en-route") continue;
+      if (a.status === "done") continue;
       const target = findWorkTarget(a.kind);
       if (target) out[a.personId] = target;
     }
@@ -3311,6 +3318,9 @@ export default function HometownScreen() {
   const handleWorkArrival = useCallback(async (personId: string) => {
     const st = workStateRef.current;
     if (!st) return;
+    // TownNPCs re-fires this while a worker sits at their site; only the
+    // en-route -> working transition is real work (state + save).
+    if (!st.assignments.some((a) => a.personId === personId && a.status === "en-route")) return;
     const next = markWorkArrived(st, personId);
     workStateRef.current = next;
     setWorkState(next);

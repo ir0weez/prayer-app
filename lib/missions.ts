@@ -6,6 +6,9 @@ import { PEOPLE_STORAGE_KEY } from "./prayercircle-storage";
 import { getPrayerCheckInPeople, type Person } from "./prayercircle-data";
 import { COINS_STORAGE_KEY, parseCoins } from "./hometown";
 
+// Daily popup missions ONLY. Field missions (lib/hometown.ts) used to
+// share this exact key and both systems wiped each other's records on
+// every save — they now live under "prayercircle.hometown.field-missions.v1".
 export const MISSIONS_STORAGE_KEY = "prayercircle.hometown.missions.v1";
 
 export type MissionType = "reach-out" | "bank-visit" | "school-study";

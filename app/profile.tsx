@@ -9,6 +9,7 @@ import { Alert, findNodeHandle, Image, Modal, Pressable, ScrollView, StyleSheet,
 import { ScreenContainer } from "@/components/screen-container";
 import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
+import { PrestigePrompt } from "@/components/prestige-prompt";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
@@ -957,6 +958,8 @@ export default function ProfileScreen() {
               );
             })()}
             </View>
+            {/* End-of-fast "Begin Again?" prestige prompt (shows once per completed fast) */}
+            <PrestigePrompt fasts={fasts} />
             {hometownUnlocked ? (
             <Pressable
               onPress={() => router.push("/pawn-creator")}

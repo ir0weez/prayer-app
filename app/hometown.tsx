@@ -188,9 +188,10 @@ import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
 import {
-  loadPrestigeLevel, syncCompletedFastDays, prestigeMultiplier, prestigeEligible,
-  daysRequiredForNextCrown, performPrestigeReset, cityExists,
+  loadPrestigeLevel, loadPrestigeState, prestigeMultiplier, totalPrestigeMultiplier,
+  prestigeOffer, performPrestige, cityExists, type PrestigeOffer,
 } from "@/lib/prestige";
+import type { PersonalFast } from "@/lib/prayercircle-fasting";
 import { beardGrowthFor, loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { checkInStreak, nextMilestoneFor, type StreakState, emptyStreak } from "@/lib/town-streak";
@@ -3024,9 +3025,12 @@ export default function HometownScreen() {
   const [river, setRiver] = useState<RiverState>(() => defaultRiverState());
   const riverRef = useRef(river);
   riverRef.current = river;
-  // Prestige ("Begin Again"): Crowns from completed fast days.
+  // Prestige ("Begin Again"): Crowns and devotion from fasts. The offer is
+  // the tier of the longest fast started since the last prestige.
   const [prestigeLevel, setPrestigeLevel] = useState(0);
-  const [prestigeDays, setPrestigeDays] = useState(0);
+  const [prestigeDevotion, setPrestigeDevotion] = useState(0);
+  const [prestigeOfferState, setPrestigeOfferState] = useState<PrestigeOffer | null>(null);
+  const fastsRef = useRef<PersonalFast[]>([]);
   const [beginAgainOpen, setBeginAgainOpen] = useState(false);
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
   const [forestTunic, setForestTunic] = useState("#D6C9A8");
@@ -3672,7 +3676,7 @@ export default function HometownScreen() {
   const handleUnlockMap = useCallback((id: TownMapId) => {
     // The City does not exist before the first Crown (unless grandfathered).
     if (id === "city" && !cityExists(prestigeLevel, unlockedMaps)) {
-      Alert.alert("The City", "The city appears after your first Crown. Complete 365 days of fasting, then choose Begin Again.");
+      Alert.alert("The City", "The city appears after your first Crown. Begin again after a fast of 365 days or more to earn one.");
       return;
     }
     const info = MAP_INFO[id];
@@ -3709,11 +3713,17 @@ export default function HometownScreen() {
     ]);
   }, [unlockedMaps, addCoins, switchMap, prestigeLevel]);
 
-  /** "Begin Again" — prestige: reset the run, keep the Crown. */
+  /** "Begin Again" — prestige: reset the run, claim the fast's reward. */
   const handlePrestige = useCallback(async () => {
     try {
-      const res = await performPrestigeReset();
-      setPrestigeLevel(res.level);
+      const res = await performPrestige(fastsRef.current);
+      if (!res) {
+        setBeginAgainOpen(false);
+        return;
+      }
+      setPrestigeLevel(res.crowns);
+      setPrestigeDevotion(res.devotionBonus);
+      setPrestigeOfferState(null);
       setTown(res.town);
       setCoins(res.coins);
       setPurchasedPlots([]);
@@ -3721,12 +3731,24 @@ export default function HometownScreen() {
       setActiveMap("town");
       setSelectedTile(null);
       perMinuteRateRef.current = {};
+      // The gear reset too — the forest hero starts bare-handed again.
+      setForestArmor(null);
+      setForestWeapon(null);
+      setForestTunic("#D6C9A8");
       setBeginAgainOpen(false);
-      queueCelebration(
-        "milestone",
-        `Crown ${res.level}!`,
-        `You began again — every coin the town earns is now x${prestigeMultiplier(res.level)}. The City awaits: 50,000 coins to unlock.`
-      );
+      if (res.kind === "crown") {
+        queueCelebration(
+          "milestone",
+          `Crown ${res.crowns}!`,
+          `You began again — every coin the town earns is now x${totalPrestigeMultiplier(res.crowns, res.devotionBonus)}. The City awaits: 50,000 coins to unlock.`
+        );
+      } else {
+        queueCelebration(
+          "milestone",
+          "You began again!",
+          `Your ${res.durationDays}-day fast leaves a permanent devotion bonus of +${Math.round(res.devotionBonus * 100)}% on every coin your town earns.`
+        );
+      }
     } catch {}
   }, [queueCelebration]);
 
@@ -3796,18 +3818,20 @@ export default function HometownScreen() {
             setHometownLocked(!hometownUnlockedForFastLength(fastLen));
           }
         } catch {}
-        // Prestige: load the Crown level and credit any newly completed
-        // fasts (365 completed days earn a Crown). The multiplier joins
-        // the accrual chain below.
+        // Prestige: load the Crown level + devotion bonus, and the current
+        // offer (the longest fast started since the last prestige). The
+        // combined multiplier joins the accrual chain below.
         let pMult = 1;
         try {
           const pLevel = await loadPrestigeLevel();
           setPrestigeLevel(pLevel);
-          pMult = prestigeMultiplier(pLevel);
+          const pState = await loadPrestigeState();
+          setPrestigeDevotion(pState.devotionBonus);
+          pMult = totalPrestigeMultiplier(pLevel, pState.devotionBonus);
           const fastsArr = fastsRaw ? JSON.parse(fastsRaw) : [];
           if (Array.isArray(fastsArr)) {
-            const prog = await syncCompletedFastDays(fastsArr);
-            setPrestigeDays(prog.totalCompletedFastDays);
+            fastsRef.current = fastsArr as PersonalFast[];
+            setPrestigeOfferState(prestigeOffer(fastsRef.current, pState));
           }
         } catch {}
         let c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
@@ -5749,7 +5773,7 @@ export default function HometownScreen() {
             fellowshipMult(fellowship) *
             remembranceMult(remembrance.people.length) *
             gardenVisitMult(gardenVisits) *
-            prestigeMultiplier(prestigeLevel);
+            totalPrestigeMultiplier(prestigeLevel, prestigeDevotion);
           if (combined <= 1) return null;
           return (
             <Pressable
@@ -5803,9 +5827,15 @@ export default function HometownScreen() {
         >
           <MaterialIcons name="workspace-premium" size={14} color="#B8912C" />
           <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
-            {prestigeLevel > 0
-              ? `Crown ${prestigeLevel} · Begin Again`
-              : `${prestigeDays} / ${daysRequiredForNextCrown(prestigeLevel)} fast days to a Crown`}
+            {prestigeOfferState
+              ? prestigeOfferState.kind === "crown"
+                ? "Begin Again — a Crown awaits"
+                : `Begin Again — +${Math.round(prestigeOfferState.bonus * 100)}% awaits`
+              : prestigeLevel > 0
+                ? `Crown ${prestigeLevel} · Begin Again`
+                : prestigeDevotion > 0
+                  ? `Devotion +${Math.round(prestigeDevotion * 100)}% · Begin Again`
+                  : "Begin Again"}
           </Text>
         </Pressable>
       </View>
@@ -7349,10 +7379,23 @@ export default function HometownScreen() {
                   <MaterialIcons name="workspace-premium" size={20} color="#B8912C" />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={{ fontSize: 15, color: "#1F2937" }}>Prestige — Crown {prestigeLevel}</Text>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Earned by beginning again after 365-day fasts</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Earned by beginning again after a fast of 365 days or more</Text>
                   </View>
                   <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
                     x{prestigeMultiplier(prestigeLevel)}
+                  </Text>
+                </View>
+              ) : null}
+              {/* Devotion bonus — permanent % from sub-Crown prestiges */}
+              {prestigeDevotion > 0 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="favorite" size={20} color="#B8912C" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Devotion bonus</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Earned by beginning again after shorter fasts — it never fades</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{Math.round(prestigeDevotion * 100)}%
                   </Text>
                 </View>
               ) : null}
@@ -7434,7 +7477,7 @@ export default function HometownScreen() {
                 fellowshipMult(fellowship) *
                 remembranceMult(remembrance.people.length) *
                 gardenVisitMult(gardenVisits) *
-                prestigeMultiplier(prestigeLevel);
+                totalPrestigeMultiplier(prestigeLevel, prestigeDevotion);
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 4 }}>
                   <Text style={{ fontSize: 15, fontWeight: "800", color: "#92400E" }}>Combined income bonus</Text>
@@ -7467,14 +7510,25 @@ export default function HometownScreen() {
               </Pressable>
             </View>
             <ScrollView>
-              {prestigeEligible(prestigeLevel, prestigeDays) ? (
+              {prestigeOfferState ? (
                 <>
-                  <Text style={{ fontSize: 15, color: "#1F2937", lineHeight: 21 }}>
-                    You have completed {prestigeDays} days of fasting. Begin again as{" "}
-                    <Text style={{ fontWeight: "800" }}>Crown {prestigeLevel + 1}</Text> — every coin your town earns is multiplied{" "}
-                    <Text style={{ fontWeight: "800" }}>x{prestigeMultiplier(prestigeLevel + 1)}</Text>, forever.
-                  </Text>
-                  {prestigeLevel === 0 ? (
+                  {prestigeOfferState.kind === "crown" ? (
+                    <Text style={{ fontSize: 15, color: "#1F2937", lineHeight: 21 }}>
+                      Your {prestigeOfferState.durationDays}-day fast has earned a{" "}
+                      <Text style={{ fontWeight: "800" }}>Crown</Text>. Begin again as{" "}
+                      <Text style={{ fontWeight: "800" }}>Crown {prestigeLevel + 1}</Text> — every coin your town earns is multiplied{" "}
+                      <Text style={{ fontWeight: "800" }}>x{totalPrestigeMultiplier(prestigeLevel + 1, prestigeDevotion)}</Text>, forever.
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 15, color: "#1F2937", lineHeight: 21 }}>
+                      Your {prestigeOfferState.durationDays}-day fast earns a permanent{" "}
+                      <Text style={{ fontWeight: "800" }}>+{Math.round(prestigeOfferState.bonus * 100)}% income bonus</Text> — your devotion
+                      bonus would become{" "}
+                      <Text style={{ fontWeight: "800" }}>+{Math.round((prestigeDevotion + prestigeOfferState.bonus) * 100)}%</Text> on every coin
+                      your town earns, forever.
+                    </Text>
+                  )}
+                  {prestigeOfferState.kind === "crown" && prestigeLevel === 0 ? (
                     <Text style={{ fontSize: 15, color: "#1F2937", lineHeight: 21, marginTop: 10 }}>
                       And the City appears — an endgame of 15,000–40,000 coin plots and upgrades in the hundreds of thousands. Unlocking it costs 50,000 coins.
                     </Text>
@@ -7484,6 +7538,7 @@ export default function HometownScreen() {
                     "Every building in town and the city — plots return to the start",
                     "Building levels and all shop stock",
                     "Your spendable coin balance (back to 0)",
+                    "All owned gear — weapons, armor and clothing return to the shops",
                     "The City unlock — it must be bought again for 50,000 coins",
                   ].map((line) => (
                     <View key={line} style={{ flexDirection: "row", marginTop: 6 }}>
@@ -7493,14 +7548,14 @@ export default function HometownScreen() {
                   ))}
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#166534", marginTop: 14, letterSpacing: 0.4 }}>WHAT YOU KEEP</Text>
                   {[
-                    "Your Crowns — and the income multiplier they carry",
+                    "Your Crowns and devotion bonus — and the income they carry",
                     "Your prayer streak, XP and level",
                     "Your collections book",
                     "The Garden of Remembrance, just as you left it",
                     "Your prayer villagers and everything they carry",
-                    "All owned gear, clothes and barbershop styles",
+                    "Your barbershop styles — including Crown hairstyles and beards",
                     "The Well, Garden, Mission Field, Dark Forest and River of Life",
-                    "Your fasts — every completed day still counts",
+                    "Your fasts",
                   ].map((line) => (
                     <View key={line} style={{ flexDirection: "row", marginTop: 6 }}>
                       <MaterialIcons name="check-circle" size={16} color="#166534" />
@@ -7511,20 +7566,29 @@ export default function HometownScreen() {
               ) : (
                 <>
                   <Text style={{ fontSize: 15, color: "#1F2937", lineHeight: 21 }}>
-                    A Crown is earned by fasting: complete{" "}
-                    <Text style={{ fontWeight: "800" }}>{daysRequiredForNextCrown(prestigeLevel)} total days</Text> of fasting, then begin
-                    again — your town resets, and every coin it earns is multiplied{" "}
-                    <Text style={{ fontWeight: "800" }}>x{prestigeMultiplier(prestigeLevel + 1)}</Text> forever.
+                    Begin again when a fast ends — or during one — and the fast's length sets your reward. Each fast can grant its reward once.
                   </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, marginTop: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#F3F4F6" }}>
-                    <MaterialIcons name="workspace-premium" size={20} color="#B8912C" />
-                    <Text style={{ fontSize: 15, color: "#1F2937", flex: 1, marginLeft: 10 }}>
-                      {prestigeLevel === 0 ? "Toward your first Crown" : `Toward Crown ${prestigeLevel + 1}`}
+                  {[
+                    { label: "Fast under 40 days", value: "+5% income, forever" },
+                    { label: "Fast of 40–364 days", value: "+25% income, forever" },
+                    { label: "Fast of 365 days or more", value: "A Crown — income x2, and the City" },
+                  ].map((row) => (
+                    <View key={row.label} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                      <MaterialIcons name="workspace-premium" size={18} color="#B8912C" />
+                      <Text style={{ fontSize: 14, color: "#1F2937", flex: 1, marginLeft: 10 }}>{row.label}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#92400E" }}>{row.value}</Text>
+                    </View>
+                  ))}
+                  {(prestigeLevel > 0 || prestigeDevotion > 0) ? (
+                    <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 20, marginTop: 10 }}>
+                      You carry {prestigeLevel > 0 ? `${prestigeLevel} Crown${prestigeLevel === 1 ? "" : "s"}` : "no Crowns yet"}
+                      {prestigeDevotion > 0 ? ` and a +${Math.round(prestigeDevotion * 100)}% devotion bonus` : ""} — start another fast to begin again.
                     </Text>
-                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
-                      {prestigeDays} / {daysRequiredForNextCrown(prestigeLevel)} days
+                  ) : (
+                    <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 20, marginTop: 10 }}>
+                      Start a fast, and Begin Again will be waiting here — and offered to you when the fast ends.
                     </Text>
-                  </View>
+                  )}
                   {prestigeLevel === 0 ? (
                     <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 20, marginTop: 10 }}>
                       The City does not exist yet. It appears after your first Crown — the endgame, priced for those who began again.
@@ -7533,14 +7597,16 @@ export default function HometownScreen() {
                 </>
               )}
             </ScrollView>
-            {prestigeEligible(prestigeLevel, prestigeDays) ? (
+            {prestigeOfferState ? (
               <Pressable
                 onPress={handlePrestige}
                 style={{ backgroundColor: "#B8912C", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 16, flexDirection: "row", justifyContent: "center" }}
               >
                 <MaterialIcons name="workspace-premium" size={18} color="#FFFFFF" />
                 <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 6 }}>
-                  Begin Again — Crown {prestigeLevel + 1}
+                  {prestigeOfferState.kind === "crown"
+                    ? `Begin Again — Crown ${prestigeLevel + 1}`
+                    : `Begin Again — +${Math.round(prestigeOfferState.bonus * 100)}% forever`}
                 </Text>
               </Pressable>
             ) : null}
@@ -7548,7 +7614,7 @@ export default function HometownScreen() {
               onPress={() => setBeginAgainOpen(false)}
               style={{ borderRadius: 12, paddingVertical: 11, alignItems: "center", marginTop: 8 }}
             >
-              <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 14 }}>{prestigeEligible(prestigeLevel, prestigeDays) ? "Not yet" : "Close"}</Text>
+              <Text style={{ color: "#6B7280", fontWeight: "700", fontSize: 14 }}>{prestigeOfferState ? "Not yet" : "Close"}</Text>
             </Pressable>
           </View>
         </Pressable>

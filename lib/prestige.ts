@@ -1,25 +1,32 @@
 // Prestige — "Begin Again".
 //
-// A prestige (a Crown) is earned only through fasting: once Jonathan has
-// completed 365 total days of fasting he may reset his town — every
-// building on both maps, his spendable coins, his shop stock — and begin
-// again with a permanent income multiplier. Each Crown doubles all town
-// income (2^level), forever.
+// Prestige can be taken when a fast ends (an end-of-fast prompt offers it),
+// or at any time from the Hometown "Begin Again" button while a qualifying
+// fast — one started since the last prestige — is active or finished. The
+// reward depends on THAT fast's length:
 //
-// The City does not exist until the first Crown: at prestige 0 the city
-// map is not rendered at all (unless a save already had it unlocked —
-// existing unlocks are grandfathered, never taken away). After the first
-// Crown the city becomes the post-prestige endgame: a 50,000-coin unlock,
-// 15,000–40,000 plots, and upgrades anchored near 60,000 / 250,000.
+//   under 40 days  -> +5% permanent income bonus ("devotion")
+//   40-364 days    -> +25% permanent income bonus ("devotion")
+//   365+ days      -> a Crown: income x2 (multiplicative), the City exists,
+//                     and the Crown gear tiers unlock
 //
-// The prestige LEVEL lives in the long-standing integer key
+// Sub-Crown bonuses accumulate in a persistent devotion bonus. The total
+// income multiplier is (1 + devotionBonus) x 2^crowns, wired into the same
+// accrual chain as the other blessings.
+//
+// The Crown level lives in the long-standing integer key
 // "prayercircle.hometown.prestige.v1" (read by the profile badge and the
-// barbershop's new-pawn discount). The completed-fast-days accumulator
-// lives in its own key so finished fasts are credited exactly once, even
-// if a fast is later edited or deleted.
+// barbershop's new-player discount). The rest of the prestige state lives
+// in the progress key; the pre-tier shape ({countedFastIds,
+// totalCompletedFastDays}) migrates forward with devotion 0 and no last
+// prestige, so the longest fast on record simply becomes the offer.
+//
+// The City does not exist until the first Crown: at 0 Crowns the city map
+// is not rendered at all (unless a save already had it unlocked — existing
+// unlocks are grandfathered, never taken away).
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { isFastCompleted, type PersonalFast } from "./prayercircle-fasting";
+import type { PersonalFast } from "./prayercircle-fasting";
 import {
   CITY_PLOTS_STORAGE_KEY,
   COINS_STORAGE_KEY,
@@ -32,17 +39,24 @@ import {
   type TownMapId,
   type TownState,
 } from "./hometown";
+import { GEAR_EQUIPPED_KEY, GEAR_INVENTORY_KEY, defaultEquipped } from "./gear";
 
 export const PRESTIGE_LEVEL_KEY = "prayercircle.hometown.prestige.v1";
 export const PRESTIGE_PROGRESS_KEY = "prayercircle.hometown.prestige-days.v1";
 
-/** Completed fast days required per Crown (365 for the first, 730 total for the second, ...). */
-export const PRESTIGE_DAYS_PER_CROWN = 365;
+/** Permanent income bonus from prestiging a fast under 40 days. */
+export const DEVOTION_SMALL_FAST_BONUS = 0.05;
+/** Permanent income bonus from prestiging a 40-364 day fast. */
+export const DEVOTION_FAST_BONUS = 0.25;
+/** Fast length (days) that earns a Crown instead of a devotion bonus. */
+export const CROWN_MIN_FAST_DAYS = 365;
+/** Fast length (days) that earns the full devotion bonus instead of the small one. */
+export const DEVOTION_MIN_FAST_DAYS = 40;
 
 /** One-time coin cost to unlock the City once it exists (prestige >= 1). */
 export const CITY_UNLOCK_COST = 50000;
 
-// ---- Level ----
+// ---- Crowns (the level key) ----
 
 export function parsePrestigeLevel(raw: string | null | undefined): number {
   if (!raw) return 0;
@@ -64,85 +78,151 @@ export async function savePrestigeLevel(level: number): Promise<void> {
   } catch {}
 }
 
-/** Permanent income multiplier from Crowns: Crown 1 = x2, Crown 2 = x4, ... */
+/** Income multiplier from Crowns alone: Crown 1 = x2, Crown 2 = x4, ... */
 export function prestigeMultiplier(level: number): number {
   const lv = Math.max(0, Math.floor(level) || 0);
   return Math.pow(2, lv);
 }
 
-/** Total completed fast days needed to earn the NEXT Crown at the given level. */
-export function daysRequiredForNextCrown(level: number): number {
-  return PRESTIGE_DAYS_PER_CROWN * (Math.max(0, Math.floor(level) || 0) + 1);
+/** Total permanent income multiplier: devotion bonus, multiplied by Crowns. */
+export function totalPrestigeMultiplier(crowns: number, devotionBonus: number): number {
+  const devotion = Math.max(0, devotionBonus || 0);
+  return (1 + devotion) * prestigeMultiplier(crowns);
 }
 
-// ---- Completed fast days accumulator ----
+// ---- Tiers ----
 
-export type PrestigeProgress = {
-  /** Ids of completed fasts already credited (each fast counts once). */
-  countedFastIds: string[];
-  /** Sum of the lengths of all credited completed fasts. */
-  totalCompletedFastDays: number;
+export type PrestigeTierKind = "devotion-small" | "devotion" | "crown";
+
+export type PrestigeTier = {
+  kind: PrestigeTierKind;
+  /** Fractional permanent income bonus for devotion tiers (0 for a Crown). */
+  bonus: number;
 };
 
-export function emptyPrestigeProgress(): PrestigeProgress {
-  return { countedFastIds: [], totalCompletedFastDays: 0 };
+/** The prestige reward a fast of the given length grants. */
+export function tierForFastLength(durationDays: number): PrestigeTier {
+  const d = Math.max(0, Math.floor(durationDays) || 0);
+  if (d >= CROWN_MIN_FAST_DAYS) return { kind: "crown", bonus: 0 };
+  if (d >= DEVOTION_MIN_FAST_DAYS) return { kind: "devotion", bonus: DEVOTION_FAST_BONUS };
+  return { kind: "devotion-small", bonus: DEVOTION_SMALL_FAST_BONUS };
 }
 
-export function parsePrestigeProgress(value: unknown): PrestigeProgress {
-  if (!value || typeof value !== "object") return emptyPrestigeProgress();
-  const v = value as Partial<PrestigeProgress>;
+// ---- Prestige state (the progress key) ----
+
+export type PrestigeState = {
+  /** Accumulated permanent income bonus from sub-Crown prestiges (0.30 = +30%). */
+  devotionBonus: number;
+  /** ISO timestamp of the last prestige (null when never). */
+  lastPrestigeAt: string | null;
+  /** Fasts already consumed by a prestige — each fast grants its reward once. */
+  consumedFastIds: string[];
+  /** Fasts the end-of-fast prompt has already been shown for. */
+  promptedFastIds: string[];
+  /** Total prestiges taken, all tiers. */
+  totalPrestiges: number;
+};
+
+export function emptyPrestigeState(): PrestigeState {
   return {
-    countedFastIds: Array.isArray(v.countedFastIds)
-      ? v.countedFastIds.filter((x): x is string => typeof x === "string")
+    devotionBonus: 0,
+    lastPrestigeAt: null,
+    consumedFastIds: [],
+    promptedFastIds: [],
+    totalPrestiges: 0,
+  };
+}
+
+export function parsePrestigeState(value: unknown): PrestigeState {
+  if (!value || typeof value !== "object") return emptyPrestigeState();
+  const v = value as Partial<PrestigeState>;
+  // Legacy shape ({countedFastIds, totalCompletedFastDays}) carries none of
+  // the new fields, so it migrates to the defaults: no devotion, no last
+  // prestige — past fasts become eligible offers under the tier rules, and
+  // Crowns (stored separately) are untouched.
+  return {
+    devotionBonus:
+      typeof v.devotionBonus === "number" && v.devotionBonus > 0 ? v.devotionBonus : 0,
+    lastPrestigeAt: typeof v.lastPrestigeAt === "string" ? v.lastPrestigeAt : null,
+    consumedFastIds: Array.isArray(v.consumedFastIds)
+      ? v.consumedFastIds.filter((x): x is string => typeof x === "string")
       : [],
-    totalCompletedFastDays:
-      typeof v.totalCompletedFastDays === "number" && v.totalCompletedFastDays > 0
-        ? Math.floor(v.totalCompletedFastDays)
+    promptedFastIds: Array.isArray(v.promptedFastIds)
+      ? v.promptedFastIds.filter((x): x is string => typeof x === "string")
+      : [],
+    totalPrestiges:
+      typeof v.totalPrestiges === "number" && v.totalPrestiges > 0
+        ? Math.floor(v.totalPrestiges)
         : 0,
   };
 }
 
-export async function loadPrestigeProgress(): Promise<PrestigeProgress> {
+export async function loadPrestigeState(): Promise<PrestigeState> {
   try {
     const raw = await AsyncStorage.getItem(PRESTIGE_PROGRESS_KEY);
-    if (!raw) return emptyPrestigeProgress();
-    return parsePrestigeProgress(JSON.parse(raw));
+    if (!raw) return emptyPrestigeState();
+    return parsePrestigeState(JSON.parse(raw));
   } catch {
-    return emptyPrestigeProgress();
+    return emptyPrestigeState();
   }
 }
 
-export async function savePrestigeProgress(p: PrestigeProgress): Promise<void> {
+export async function savePrestigeState(state: PrestigeState): Promise<void> {
   try {
-    await AsyncStorage.setItem(PRESTIGE_PROGRESS_KEY, JSON.stringify(p));
+    await AsyncStorage.setItem(PRESTIGE_PROGRESS_KEY, JSON.stringify(state));
   } catch {}
 }
 
-/**
- * Credit any newly COMPLETED fasts (every day marked completed) into the
- * accumulator. Idempotent: a fast id is credited exactly once, so totals
- * only ever grow as more fasts are finished.
- */
-export async function syncCompletedFastDays(fasts: PersonalFast[]): Promise<PrestigeProgress> {
-  const progress = await loadPrestigeProgress();
-  const counted = new Set(progress.countedFastIds);
-  let total = progress.totalCompletedFastDays;
-  let changed = false;
-  for (const fast of fasts) {
-    if (!fast || typeof fast.id !== "string" || counted.has(fast.id)) continue;
-    if (!isFastCompleted(fast)) continue;
-    counted.add(fast.id);
-    total += Math.max(0, Math.floor(fast.durationDays) || 0);
-    changed = true;
-  }
-  const next: PrestigeProgress = { countedFastIds: [...counted], totalCompletedFastDays: total };
-  if (changed) await savePrestigeProgress(next);
-  return next;
+/** Record that the end-of-fast prompt was shown for a fast (shown once per fast). */
+export async function markFastPrompted(fastId: string): Promise<void> {
+  const state = await loadPrestigeState();
+  if (state.promptedFastIds.includes(fastId)) return;
+  await savePrestigeState({ ...state, promptedFastIds: [...state.promptedFastIds, fastId] });
 }
 
-/** True when the accumulated completed fast days earn the next Crown. */
-export function prestigeEligible(level: number, totalCompletedFastDays: number): boolean {
-  return totalCompletedFastDays >= daysRequiredForNextCrown(level);
+// ---- The offer: the longest fast started since the last prestige ----
+
+export type PrestigeOffer = {
+  fastId: string;
+  durationDays: number;
+  kind: PrestigeTierKind;
+  /** Fractional permanent income bonus for devotion tiers (0 for a Crown). */
+  bonus: number;
+};
+
+/** When a fast started (ISO). createdAt is a timestamp; startDate is a day. */
+function fastStartedAt(fast: PersonalFast): string {
+  if (typeof fast.createdAt === "string" && fast.createdAt) return fast.createdAt;
+  return typeof fast.startDate === "string" ? fast.startDate : "";
+}
+
+/**
+ * A fast qualifies when it started since the last prestige (or no prestige
+ * has happened yet) and hasn't already been consumed by one.
+ */
+export function fastQualifiesForPrestige(fast: PersonalFast, state: PrestigeState): boolean {
+  if (!fast || typeof fast.id !== "string") return false;
+  if (state.consumedFastIds.includes(fast.id)) return false;
+  if (!state.lastPrestigeAt) return true;
+  const started = fastStartedAt(fast);
+  if (!started) return false;
+  const startedMs = Date.parse(started);
+  const prestigeMs = Date.parse(state.lastPrestigeAt);
+  if (!Number.isFinite(startedMs) || !Number.isFinite(prestigeMs)) return started >= state.lastPrestigeAt;
+  return startedMs >= prestigeMs;
+}
+
+/** The current prestige offer: the tier of the longest qualifying fast. */
+export function prestigeOffer(fasts: PersonalFast[], state: PrestigeState): PrestigeOffer | null {
+  if (!Array.isArray(fasts)) return null;
+  let best: PersonalFast | null = null;
+  for (const fast of fasts) {
+    if (!fastQualifiesForPrestige(fast, state)) continue;
+    if (!best || (fast.durationDays || 0) > (best.durationDays || 0)) best = fast;
+  }
+  if (!best) return null;
+  const tier = tierForFastLength(best.durationDays || 0);
+  return { fastId: best.id, durationDays: best.durationDays || 0, kind: tier.kind, bonus: tier.bonus };
 }
 
 /**
@@ -154,28 +234,57 @@ export function cityExists(prestigeLevel: number, unlockedMaps: TownMapId[]): bo
   return prestigeLevel >= 1 || unlockedMaps.includes("city");
 }
 
-// ---- The reset ----
+// ---- Performing a prestige ----
 
-export type PrestigeResetResult = {
-  level: number;
+export type PerformPrestigeResult = {
+  kind: PrestigeTierKind;
+  /** The fast whose length set the tier. */
+  durationDays: number;
+  crowns: number;
+  devotionBonus: number;
   town: TownState;
   coins: HometownCoins;
   unlockedMaps: TownMapId[];
 };
 
 /**
- * Perform "Begin Again": level +1, and the run resets.
+ * Perform "Begin Again" for the current offer (the longest fast started
+ * since the last prestige). Returns null when there is no offer.
+ *
+ * REWARD (by that fast's length): under 40 days +5% devotion, 40-364 days
+ * +25% devotion, 365+ days a Crown (level +1). The fast is consumed — it
+ * cannot grant a second prestige.
  *
  * RESET: every building on BOTH maps (plots back to run start), building
- * stock, purchased city plots, the spendable coin balance, and the City
- * unlock (it must be bought again at the post-prestige price).
+ * stock, purchased city plots, the spendable coin balance, the City
+ * unlock (bought again at the post-prestige price), and ALL owned +
+ * equipped gear (weapons, armor, purchased clothing) — the gear resets
+ * too. Crown-gated hairstyles and beards are NOT gear: they belong to the
+ * Crown and stay.
  * KEPT: lifetime earnings (milestones), prayer streak, XP/level,
  * collections, Garden of Remembrance, prayer villagers, villager data,
- * owned gear and styles, the other map unlocks, and fast progress.
+ * barbershop styles, the other map unlocks, and fast progress.
  */
-export async function performPrestigeReset(): Promise<PrestigeResetResult> {
-  const level = (await loadPrestigeLevel()) + 1;
-  await savePrestigeLevel(level);
+export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPrestigeResult | null> {
+  const state = await loadPrestigeState();
+  const offer = prestigeOffer(fasts, state);
+  if (!offer) return null;
+
+  let crowns = await loadPrestigeLevel();
+  let devotionBonus = state.devotionBonus;
+  if (offer.kind === "crown") {
+    crowns += 1;
+    await savePrestigeLevel(crowns);
+  } else {
+    devotionBonus = Math.round((devotionBonus + offer.bonus) * 100) / 100;
+  }
+  await savePrestigeState({
+    devotionBonus,
+    lastPrestigeAt: new Date().toISOString(),
+    consumedFastIds: [...state.consumedFastIds, offer.fastId],
+    promptedFastIds: state.promptedFastIds,
+    totalPrestiges: state.totalPrestiges + 1,
+  });
 
   let coins: HometownCoins = { balance: 0, lifetimeEarned: 0 };
   try {
@@ -194,6 +303,12 @@ export async function performPrestigeReset(): Promise<PrestigeResetResult> {
     await AsyncStorage.setItem(CITY_PLOTS_STORAGE_KEY, JSON.stringify([]));
   } catch {}
 
+  // The gear resets too: owned + equipped weapons, armor and clothing.
+  try {
+    await AsyncStorage.setItem(GEAR_INVENTORY_KEY, JSON.stringify([]));
+    await AsyncStorage.setItem(GEAR_EQUIPPED_KEY, JSON.stringify(defaultEquipped()));
+  } catch {}
+
   let unlockedMaps: TownMapId[] = ["town"];
   try {
     const raw = await AsyncStorage.getItem(MAP_UNLOCKED_KEY);
@@ -201,5 +316,13 @@ export async function performPrestigeReset(): Promise<PrestigeResetResult> {
     await AsyncStorage.setItem(MAP_UNLOCKED_KEY, JSON.stringify(unlockedMaps));
   } catch {}
 
-  return { level, town, coins, unlockedMaps };
+  return {
+    kind: offer.kind,
+    durationDays: offer.durationDays,
+    crowns,
+    devotionBonus,
+    town,
+    coins,
+    unlockedMaps,
+  };
 }

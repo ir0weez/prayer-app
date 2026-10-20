@@ -67,7 +67,17 @@ export async function styleDiscountMult(): Promise<number> {
     const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
     const raw = await AsyncStorage.getItem("prayercircle.hometown.prestige.v1");
     const level = raw ? parseInt(raw, 10) || 0 : 0;
-    return level === 0 ? 0.25 : 1;
+    if (level > 0) return 1;
+    // Any prestige ends the discount — including a sub-Crown devotion
+    // prestige, which doesn't raise the Crown level key.
+    const prog = await AsyncStorage.getItem("prayercircle.hometown.prestige-days.v1");
+    if (prog) {
+      try {
+        const parsed = JSON.parse(prog);
+        if (parsed && typeof parsed.totalPrestiges === "number" && parsed.totalPrestiges > 0) return 1;
+      } catch {}
+    }
+    return 0.25;
   } catch { return 1; }
 }
 

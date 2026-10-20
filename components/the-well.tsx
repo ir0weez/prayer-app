@@ -100,7 +100,7 @@ function Fireflies({ count, seedOffset }: { count: number; seedOffset: number })
       const rng = mulberry32((i + seedOffset) * 331 + 7);
       return {
         x: 20 + rng() * (SCENE_W - 40),
-        y: 120 + rng() * 300,
+        y: 100 + rng() * 330,
         dur: 2400 + rng() * 2600,
         delay: rng() * 2000,
       };
@@ -141,8 +141,21 @@ function BreathingGlow({ color }: { color: string }) {
   );
 }
 
-const BUCKET_DOWN = 318; // resting, just above the water
-const BUCKET_UP = 208;   // raised to the crossbar
+/** A small tuft of grass — three blades. */
+function GrassTuft({ x, y, s, color, color2 }: { x: number; y: number; s: number; color: string; color2: string }) {
+  return (
+    <G transform={`translate(${x} ${y}) scale(${s})`}>
+      <Path d="M0 0 C -2 -8, -4 -12, -7 -16" stroke={color} strokeWidth={2.5} fill="none" strokeLinecap="round" />
+      <Path d="M0 0 C 0 -9, 1 -14, 0 -19" stroke={color2} strokeWidth={2.5} fill="none" strokeLinecap="round" />
+      <Path d="M0 0 C 2 -8, 4 -12, 7 -15" stroke={color} strokeWidth={2.5} fill="none" strokeLinecap="round" />
+    </G>
+  );
+}
+
+const CROSSBAR_Y = 176; // rope anchor under the crossbar
+const BUCKET_DOWN = 300; // resting, just above the water
+const BUCKET_UP = 190;   // raised to the crossbar
+const WELL_CX = 180;
 
 export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
   const isNight = timeOfDay === "night";
@@ -167,6 +180,8 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
   // inside flex parents (scene would stretch to fill, leaving empty space).
   const [sceneW, setSceneW] = useState(0);
   const sceneH = sceneW > 0 ? Math.round(sceneW * (SCENE_H / SCENE_W)) : 0;
+  // Scale factor for the rope/bucket overlay + tap target (SVG scales via viewBox).
+  const k = sceneW > 0 ? sceneW / SCENE_W : 300 / SCENE_W;
 
   const startDraw = () => {
     if (phase !== "idle" || drawnToday) return;
@@ -183,28 +198,55 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
   };
 
   const bucketY = bucketAnim.interpolate({ inputRange: [0, 1], outputRange: [BUCKET_DOWN, BUCKET_UP] });
-  const ropeHeight = bucketAnim.interpolate({ inputRange: [0, 1], outputRange: [BUCKET_DOWN - 196, BUCKET_UP - 196] });
+  const ropeHeight = bucketAnim.interpolate({ inputRange: [0, 1], outputRange: [BUCKET_DOWN - CROSSBAR_Y, BUCKET_UP - CROSSBAR_Y] });
 
-  const grassWash = isNight ? "#1E1B2E" : "#D8E6CE";
-  const dirt = isNight ? "#3A3145" : "#E3D3B3";
-  const stone = isNight ? "#4A4458" : "#CFC4AC";
-  const stoneEdge = isNight ? "#37324A" : "#A99B7E";
-  const wood = isNight ? "#5B4A32" : "#8B5E34";
-  const woodDark = isNight ? "#463826" : "#6B4423";
-  const leaf = isNight ? "#243528" : "#6B9E6B";
-  const leaf2 = isNight ? "#2A3D2E" : "#7BAF7B";
+  const grassWash = isNight ? "#1E1B2E" : "#CFE0C2";
+  const grassDeep = isNight ? "#191627" : "#BFD3B0";
+  const dirt = isNight ? "#3A3145" : "#D9C49A";
+  const stone = isNight ? "#4A4458" : "#B9AB8C";
+  const stoneEdge = isNight ? "#37324A" : "#8F8060";
+  const wood = isNight ? "#5B4A32" : "#7A5228";
+  const woodDark = isNight ? "#463826" : "#5E3F1E";
+  const leaf = isNight ? "#243528" : "#5D8F5D";
+  const leaf2 = isNight ? "#2A3D2E" : "#6FA06F";
   const water = isNight ? "#2E4A5E" : "#7DD3FC";
 
   const flowers = useMemo(() => {
     const rng = mulberry32(4242);
-    const cols = isNight ? ["#8B7BB8", "#7BA3B8", "#B88BA3"] : ["#F9A8D4", "#FDE68A", "#FCA5A5", "#FBCFE8"];
-    return Array.from({ length: 14 }, (_, i) => ({
-      x: 24 + rng() * (SCENE_W - 48),
-      y: 150 + rng() * 290,
-      c: cols[i % cols.length],
-      s: 3 + rng() * 2.5,
-    }));
+    const cols = isNight ? ["#8B7BB8", "#7BA3B8", "#B88BA3"] : ["#F9A8D4", "#FDE68A", "#FCA5A5", "#FBCFE8", "#FDBA74"];
+    return Array.from({ length: 22 }, (_, i) => {
+      // Bias flowers to the sides so the well and path stay clear.
+      const side = rng() < 0.5 ? 0 : 1;
+      const x = side === 0 ? 18 + rng() * 80 : 262 + rng() * 80;
+      return {
+        x,
+        y: 120 + rng() * 330,
+        c: cols[i % cols.length],
+        s: 3 + rng() * 2.5,
+      };
+    });
   }, [isNight]);
+
+  const tufts = useMemo(() => {
+    const rng = mulberry32(777);
+    return Array.from({ length: 12 }, (_, i) => {
+      const side = rng() < 0.5 ? 0 : 1;
+      return {
+        x: side === 0 ? 14 + rng() * 90 : 256 + rng() * 90,
+        y: 140 + rng() * 310,
+        s: 0.8 + rng() * 0.7,
+      };
+    });
+  }, []);
+
+  const pebbles = useMemo(() => {
+    const rng = mulberry32(999);
+    return Array.from({ length: 8 }, () => ({
+      x: 20 + rng() * (SCENE_W - 40),
+      y: 200 + rng() * 250,
+      r: 2.5 + rng() * 3,
+    }));
+  }, []);
 
   const streakLine =
     well.streak >= 2
@@ -215,6 +257,9 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           ? "A new beginning"
           : null;
 
+  const renderedW = sceneW > 0 ? sceneW : 300;
+  const renderedH = sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W));
+
   return (
     <View style={{ marginBottom: 16 }}>
       <View
@@ -222,66 +267,125 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           const w = Math.round(e.nativeEvent.layout.width);
           if (w > 0 && w !== sceneW) setSceneW(w);
         }}
-        style={{ width: "100%", height: sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W)), backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
+        style={{ width: "100%", height: renderedH, backgroundColor: SCENE_BG[timeOfDay], borderRadius: 16, overflow: "hidden", alignSelf: "center" }}
       >
-        <Svg width={sceneW > 0 ? sceneW : 300} height={sceneH > 0 ? sceneH : Math.round(300 * (SCENE_H / SCENE_W))} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
-          {/* grass wash */}
-          <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.6} />
-          {/* dirt clearing around the well */}
-          <Ellipse cx={180} cy={380} rx={120} ry={70} fill={dirt} opacity={0.8} />
+        <Svg width={renderedW} height={renderedH} viewBox={`0 0 ${SCENE_W} ${SCENE_H}`} preserveAspectRatio="xMidYMid slice">
+          {/* grass — layered wash, deeper toward the bottom */}
+          <Rect x={0} y={0} width={SCENE_W} height={SCENE_H} fill={grassWash} opacity={0.7} />
+          <Rect x={0} y={300} width={SCENE_W} height={SCENE_H - 300} fill={grassDeep} opacity={0.45} />
+
+          {/* winding stone path from the bottom edge up to the well */}
+          <Path d={`M ${WELL_CX} ${SCENE_H} C 160 445, 200 432, 186 408`} stroke={stoneEdge} strokeWidth={38} fill="none" strokeLinecap="round" opacity={0.85} />
+          <Path d={`M ${WELL_CX} ${SCENE_H} C 160 445, 200 432, 186 408`} stroke={stone} strokeWidth={30} fill="none" strokeLinecap="round" />
+          <Line x1={172} y1={448} x2={192} y2={444} stroke={stoneEdge} strokeWidth={2} opacity={0.5} />
+          <Line x1={176} y1={428} x2={196} y2={426} stroke={stoneEdge} strokeWidth={2} opacity={0.5} />
+
+          {/* stone patio around the well */}
+          <Ellipse cx={WELL_CX} cy={392} rx={104} ry={46} fill={stone} opacity={0.55} />
+          <Ellipse cx={WELL_CX} cy={392} rx={104} ry={46} fill="none" stroke={stoneEdge} strokeWidth={2.5} opacity={0.5} />
+
+          {/* scattered pebbles */}
+          {pebbles.map((p, i) => (
+            <Ellipse key={i} cx={p.x} cy={p.y} rx={p.r} ry={p.r * 0.7} fill={stoneEdge} opacity={0.35} />
+          ))}
+
+          {/* grass tufts */}
+          {tufts.map((t, i) => (
+            <GrassTuft key={i} x={t.x} y={t.y} s={t.s} color={leaf} color2={leaf2} />
+          ))}
 
           {/* corner trees */}
           {[
-            { x: 40, y: 84, s: 1 },
-            { x: 322, y: 76, s: 0.85 },
-            { x: 52, y: 420, s: 0.9 },
-            { x: 312, y: 428, s: 1 },
+            { x: 42, y: 70, s: 1.1 },
+            { x: 318, y: 62, s: 0.95 },
+            { x: 54, y: 404, s: 1.0 },
+            { x: 308, y: 410, s: 1.1 },
           ].map((t, i) => (
             <G key={i} transform={`translate(${t.x} ${t.y}) scale(${t.s})`}>
-              <Rect x={-4} y={0} width={8} height={18} rx={3} fill={isNight ? "#3E2F22" : "#7C5A2E"} />
-              <Circle cx={0} cy={-14} r={20} fill={leaf} opacity={0.95} />
-              <Circle cx={-12} cy={-6} r={13} fill={leaf2} opacity={0.9} />
-              <Circle cx={12} cy={-6} r={13} fill={leaf2} opacity={0.9} />
+              <Rect x={-4.5} y={0} width={9} height={20} rx={3.5} fill={isNight ? "#3E2F22" : "#6E4F26"} />
+              <Circle cx={0} cy={-16} r={22} fill={leaf} opacity={0.95} />
+              <Circle cx={-13} cy={-7} r={14} fill={leaf2} opacity={0.9} />
+              <Circle cx={13} cy={-7} r={14} fill={leaf2} opacity={0.9} />
+            </G>
+          ))}
+
+          {/* bushes flanking the well */}
+          {[
+            { x: 82, y: 320 },
+            { x: 278, y: 320 },
+          ].map((b, i) => (
+            <G key={i}>
+              <Circle cx={b.x} cy={b.y} r={20} fill={leaf} opacity={0.95} />
+              <Circle cx={b.x - 12} cy={b.y + 6} r={13} fill={leaf2} opacity={0.9} />
+              <Circle cx={b.x + 12} cy={b.y + 6} r={13} fill={leaf2} opacity={0.9} />
             </G>
           ))}
 
           {/* small wildflowers */}
           {flowers.map((f, i) => (
             <G key={i}>
-              <Circle cx={f.x} cy={f.y} r={f.s} fill={f.c} opacity={0.9} />
-              <Circle cx={f.x} cy={f.y} r={f.s * 0.4} fill={isNight ? "#3A3450" : "#FFF7ED"} opacity={0.9} />
+              <Circle cx={f.x} cy={f.y} r={f.s} fill={f.c} opacity={0.95} />
+              <Circle cx={f.x} cy={f.y} r={f.s * 0.4} fill={isNight ? "#3A3450" : "#FFF7ED"} opacity={0.95} />
             </G>
           ))}
+
+          {/* wooden bench (lower left) */}
+          <G>
+            <Rect x={44} y={356} width={56} height={9} rx={4} fill={wood} />
+            <Rect x={48} y={348} width={48} height={8} rx={4} fill={woodDark} opacity={0.55} />
+            <Rect x={50} y={365} width={7} height={16} rx={2.5} fill={woodDark} />
+            <Rect x={87} y={365} width={7} height={16} rx={2.5} fill={woodDark} />
+          </G>
+
+          {/* stone lantern (lower right) */}
+          <G>
+            {isNight && <Circle cx={306} cy={348} r={26} fill="#FBBF24" opacity={0.28} />}
+            <Rect x={302} y={366} width={8} height={18} fill={stoneEdge} opacity={0.9} />
+            <Rect x={296} y={344} width={20} height={24} rx={4} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={300} y={349} width={12} height={14} rx={2} fill={isNight ? "#FDE68A" : "#FEF3C7"} opacity={isNight ? 1 : 0.75} />
+            <Polygon points="292,344 320,344 306,332" fill={stoneEdge} />
+          </G>
 
           {/* moon glow at night */}
           {isNight && <Circle cx={310} cy={52} r={26} fill="#FDE68A" opacity={0.35} />}
 
           {/* ---- the well ---- */}
           {/* posts */}
-          <Rect x={118} y={168} width={13} height={178} rx={4} fill={wood} />
-          <Rect x={229} y={168} width={13} height={178} rx={4} fill={wood} />
+          <Rect x={116} y={150} width={15} height={182} rx={5} fill={wood} />
+          <Rect x={229} y={150} width={15} height={182} rx={5} fill={wood} />
+          <Line x1={120} y1={170} x2={120} y2={310} stroke={woodDark} strokeWidth={2} opacity={0.5} />
+          <Line x1={233} y1={170} x2={233} y2={310} stroke={woodDark} strokeWidth={2} opacity={0.5} />
           {/* roof */}
-          <Polygon points="100,172 260,172 180,104" fill={woodDark} />
-          <Polygon points="112,172 248,172 180,112" fill={wood} opacity={0.85} />
-          <Rect x={176} y={92} width={8} height={16} rx={3} fill={woodDark} />
+          <Polygon points="94,158 266,158 180,84" fill={woodDark} />
+          <Polygon points="108,158 252,158 180,94" fill={wood} opacity={0.9} />
+          <Path d="M 120 150 C 140 132, 160 116, 180 100 C 200 116, 220 132, 240 150" stroke={woodDark} strokeWidth={2.5} fill="none" opacity={0.5} />
+          <Rect x={175} y={72} width={10} height={18} rx={4} fill={woodDark} />
           {/* crossbar */}
-          <Rect x={112} y={186} width={136} height={10} rx={4} fill={woodDark} />
-          {/* stone base */}
-          <Rect x={112} y={336} width={136} height={62} rx={10} fill={stone} />
-          <Ellipse cx={180} cy={398} rx={68} ry={14} fill={stoneEdge} opacity={0.7} />
-          <Ellipse cx={180} cy={336} rx={68} ry={20} fill={stone} stroke={stoneEdge} strokeWidth={3} />
+          <Rect x={106} y={168} width={148} height={12} rx={5} fill={woodDark} />
+          {/* crank handle */}
+          <Circle cx={254} cy={174} r={7} fill={woodDark} />
+          <Line x1={254} y1={174} x2={254} y2={190} stroke={woodDark} strokeWidth={4} strokeLinecap="round" />
+          {/* stone base — individual blocks */}
+          <G>
+            <Rect x={114} y={322} width={44} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={162} y={322} width={44} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={210} y={322} width={36} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={114} y={358} width={36} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={154} y={358} width={44} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Rect x={202} y={358} width={44} height={32} rx={7} fill={stone} stroke={stoneEdge} strokeWidth={2} />
+            <Ellipse cx={WELL_CX} cy={394} rx={70} ry={13} fill={stoneEdge} opacity={0.55} />
+          </G>
           {/* dark water opening */}
-          <Ellipse cx={180} cy={336} rx={46} ry={13} fill={isNight ? "#10131F" : "#1E293B"} />
-          <Ellipse cx={180} cy={334} rx={30} ry={8} fill={water} opacity={isNight ? 0.5 : 0.8} />
-          {/* stone seams */}
-          <Path d="M 130 352 L 130 388 M 180 354 L 180 392 M 230 352 L 230 388" stroke={stoneEdge} strokeWidth={2} opacity={0.6} />
+          <Ellipse cx={WELL_CX} cy={318} rx={50} ry={15} fill={stone} stroke={stoneEdge} strokeWidth={3} />
+          <Ellipse cx={WELL_CX} cy={318} rx={38} ry={11} fill={isNight ? "#10131F" : "#1E293B"} />
+          <Ellipse cx={WELL_CX} cy={316} rx={24} ry={7} fill={water} opacity={isNight ? 0.5 : 0.8} />
         </Svg>
 
-        {/* rope + bucket (animated, above the SVG so it can move) */}
-        <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: SCENE_W, height: SCENE_H }}>
-          <Animated.View style={{ position: "absolute", left: 178.5, top: 196, width: 3, height: ropeHeight, backgroundColor: isNight ? "#6B5B3E" : "#A0824F" }} />
-          <Animated.View style={{ position: "absolute", left: 162, top: Animated.add(bucketY, -13), width: 36, height: 26 }}>
-            <Svg width={36} height={26} viewBox="0 0 36 26">
+        {/* rope + bucket (animated, scaled to measured width so it tracks the crossbar) */}
+        <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, width: renderedW, height: renderedH }}>
+          <Animated.View style={{ position: "absolute", left: (WELL_CX - 1.5) * k, top: CROSSBAR_Y * k, width: 3 * k, height: Animated.multiply(ropeHeight, k), backgroundColor: isNight ? "#6B5B3E" : "#A0824F" }} />
+          <Animated.View style={{ position: "absolute", left: (WELL_CX - 18) * k, top: Animated.add(Animated.multiply(bucketY, k), -13 * k), width: 36 * k, height: 26 * k }}>
+            <Svg width={36 * k} height={26 * k} viewBox="0 0 36 26">
               <Polygon points="4,2 32,2 28,24 8,24" fill={isNight ? "#5B4A32" : "#8B5E34"} />
               <Rect x={4} y={2} width={28} height={4} fill={isNight ? "#463826" : "#6B4423"} />
               <Rect x={7} y={12} width={22} height={3} fill={isNight ? "#463826" : "#6B4423"} opacity={0.8} />
@@ -290,11 +394,11 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
           </Animated.View>
         </Animated.View>
 
-        {/* tap target over the well */}
+        {/* tap target over the well (scaled) */}
         <Pressable
           onPress={startDraw}
           disabled={phase !== "idle" || drawnToday}
-          style={{ position: "absolute", left: 90, top: 90, width: 180, height: 330 }}
+          style={{ position: "absolute", left: 88 * k, top: 70 * k, width: 184 * k, height: 340 * k }}
           accessibilityLabel={drawnToday ? "The well — drawn today" : "Draw water from the well"}
         />
 
@@ -310,9 +414,9 @@ export function TheWell({ well, timeOfDay, pt, onDraw }: TheWellProps) {
         {/* ambient life */}
         {!isNight && (
           <>
-            <Butterfly color="#F9A8D4" seed={1} bounds={{ x0: 40, x1: 300, y0: 150, y1: 330 }} />
-            <Butterfly color="#FDE68A" seed={2} bounds={{ x0: 40, x1: 300, y0: 150, y1: 330 }} />
-            <Butterfly color="#BAE6FD" seed={3} bounds={{ x0: 40, x1: 300, y0: 150, y1: 330 }} />
+            <Butterfly color="#F9A8D4" seed={1} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
+            <Butterfly color="#FDE68A" seed={2} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
+            <Butterfly color="#BAE6FD" seed={3} bounds={{ x0: 40, x1: 300, y0: 120, y1: 360 }} />
           </>
         )}
         {isNight && <Fireflies count={9} seedOffset={11} />}

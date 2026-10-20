@@ -6661,9 +6661,6 @@ export default function HometownScreen() {
           hairColor={forestPawn?.hairColor}
           beardStyle={forestPawn?.beardStyle}
           bodyStyle={forestPawn?.bodyStyle}
-          eyeStyle={forestPawn?.eyeStyle}
-          mouthStyle={forestPawn?.mouthStyle}
-          accessory={forestPawn?.accessory}
           beardLength={forestPawn ? beardGrowthFor(forestPawn) : 0}
           timeOfDay={timeOfDay}
           pt={pt}

@@ -1064,6 +1064,14 @@ export function useEquippedGear(): EquippedGear | null {
  * The Hero for a saved appearance: tunic from the equipped clothes (or an
  * explicitly previewed clothes item), armor + weapon from equipped gear,
  * hair + beard (with live growth) from the appearance itself.
+ *
+ * The face is the sprite's OWN pixels — no HeroEyes/HeroMouth/Accessory
+ * overlays on the character himself. Those smooth vector overlays (added
+ * in 18f920a) made the figure read as a rounded "Roblox" character next
+ * to the chunky sprite; Jonathan's approved hero (creator preview,
+ * 2026-10-20) is the raw pixel composition. The overlays survive only
+ * inside HeroThumbnail option tiles (creator/barbershop pickers), where
+ * they illustrate the stored eye/mouth/accessory choices.
  */
 export function HeroForPawn({
   pawn,
@@ -1093,9 +1101,6 @@ export function HeroForPawn({
       size={size}
       weaponAngle={weaponAngle}
       bodyStyle={pawn.bodyStyle}
-      eyeStyle={pawn.eyeStyle}
-      mouthStyle={pawn.mouthStyle}
-      accessory={pawn.accessory}
     />
   );
 }

@@ -10,6 +10,7 @@
 // computes the hero's combat stats.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { VIOLET_MINIGAME_MULT, hasCachedBadge } from "./badges";
 
 export type MiniGameId =
   | "verse"
@@ -44,6 +45,17 @@ const TRAINING_BONUS_KEY = "prayercircle.minigames.training-bonus.v1";
 
 /** Dark Forest attack/defense multiplier while the training bonus lasts. */
 export const TRAINING_BONUS_MULT = 1.1;
+
+/**
+ * The Violet Badge (boss 8) blesses mini-game payouts with +15%. Every
+ * mini-game completion handler runs its scaled reward through here, so
+ * the perk lands on all eleven games at once.
+ */
+export function scaleMiniGamePayout(coins: number, xp: number): { coins: number; xp: number } {
+  const m = hasCachedBadge("violet") ? VIOLET_MINIGAME_MULT : 1;
+  if (m === 1) return { coins, xp };
+  return { coins: Math.round(coins * m * 100) / 100, xp: Math.round(xp * m) };
+}
 
 function todayString(): string {
   const now = new Date();

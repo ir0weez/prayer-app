@@ -183,15 +183,19 @@ import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
-import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { GardenGame } from "@/components/garden-game";
 import { TideGame } from "@/components/tide-game";
 import type { CollectionUpdate } from "@/lib/collections";
 import {
   loadPrestigeLevel, loadPrestigeState, prestigeMultiplier, totalPrestigeMultiplier,
-  prestigeOffer, performPrestige, cityExists, type PrestigeOffer,
+  prestigeOffer, performPrestige, cityExists, offerBossCleared, recordBossVictory, type PrestigeOffer,
 } from "@/lib/prestige";
+import {
+  BADGE_BY_ID, GILDED_INCOME_MULT, MIST_FOREST_COIN_MULT, BLOODMOON_COIN_MULT,
+  bossGateFor, setCachedBadges, refreshBadgeCache, type BadgeId, type BossDef,
+} from "@/lib/badges";
 import type { PersonalFast } from "@/lib/prayercircle-fasting";
 import { beardGrowthFor, loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { awardCustomXP } from "@/lib/xp-engine";
@@ -3325,6 +3329,12 @@ export default function HometownScreen() {
   const [prestigeOfferState, setPrestigeOfferState] = useState<PrestigeOffer | null>(null);
   const fastsRef = useRef<PersonalFast[]>([]);
   const [beginAgainOpen, setBeginAgainOpen] = useState(false);
+  // Boss badges (permanent) + the Boss Gate state for the current offer.
+  const [ownedBadges, setOwnedBadges] = useState<BadgeId[]>([]);
+  const [bossClearedFastId, setBossClearedFastId] = useState<string | null>(null);
+  const [throneVictories, setThroneVictories] = useState(0);
+  const badgesRef = useRef<BadgeId[]>([]);
+  badgesRef.current = ownedBadges;
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
   /** Gym Training Reps bonus (+10% attack/defense) active for this forest visit. */
   const [forestTraining, setForestTraining] = useState(false);
@@ -3920,7 +3930,12 @@ export default function HometownScreen() {
 
   // Transactional coin delta: functional setState so concurrent transactions
   // (sell, upgrade, collect, hire, purchases) never clobber each other.
-  const addCoins = useCallback((delta: number) => {
+  const addCoins = useCallback((rawDelta: number) => {
+    // The Bloodmoon Badge (boss 5) blesses every positive hometown coin
+    // grant with +10%. This is the one ledger every grant flows through.
+    const delta = rawDelta > 0 && badgesRef.current.includes("bloodmoon")
+      ? rawDelta * BLOODMOON_COIN_MULT
+      : rawDelta;
     if (delta > 0) {
       // The border lighthouse glows brighter whenever Jonathan earns.
       setRewardPulse((p) => p + 1);
@@ -3969,8 +3984,8 @@ export default function HometownScreen() {
   }, []);
 
   const handleUnlockMap = useCallback((id: TownMapId) => {
-    // The City does not exist before the first Crown (unless grandfathered).
-    if (id === "city" && !cityExists(prestigeLevel, unlockedMaps)) {
+    // The City does not exist before the first Crown — no exceptions.
+    if (id === "city" && !cityExists(prestigeLevel)) {
       Alert.alert("The City", "The city appears after your first Crown. Begin again after a fast of 365 days or more to earn one.");
       return;
     }
@@ -4019,6 +4034,8 @@ export default function HometownScreen() {
       setPrestigeLevel(res.crowns);
       setPrestigeDevotion(res.devotionBonus);
       setPrestigeOfferState(null);
+      // Badges stay (permanent); the Boss Gate re-shuts for the next offer.
+      setBossClearedFastId(null);
       setTown(res.town);
       setCoins(res.coins);
       setPurchasedPlots([]);
@@ -4122,7 +4139,15 @@ export default function HometownScreen() {
           setPrestigeLevel(pLevel);
           const pState = await loadPrestigeState();
           setPrestigeDevotion(pState.devotionBonus);
-          pMult = totalPrestigeMultiplier(pLevel, pState.devotionBonus);
+          // Boss badges: permanent perks. The Gilded Badge joins the
+          // accrual chain here — this one pMult feeds BOTH the live
+          // per-minute accrual and the missed-days daily income below.
+          setOwnedBadges(pState.badges);
+          setBossClearedFastId(pState.bossClearedFastId);
+          setThroneVictories(pState.throneVictories);
+          setCachedBadges(pState.badges);
+          const gildedMult = pState.badges.includes("gilded") ? GILDED_INCOME_MULT : 1;
+          pMult = totalPrestigeMultiplier(pLevel, pState.devotionBonus) * gildedMult;
           const fastsArr = fastsRaw ? JSON.parse(fastsRaw) : [];
           if (Array.isArray(fastsArr)) {
             fastsRef.current = fastsArr as PersonalFast[];
@@ -5141,8 +5166,9 @@ export default function HometownScreen() {
   }, [addCoins, queueCelebration]);
 
   const handleGardenGameComplete = useCallback((raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-garden-${Date.now()}`).catch(() => undefined);
     recordPlay("garden").then(setGardenPlaysLeft).catch(() => undefined);
@@ -5160,8 +5186,9 @@ export default function HometownScreen() {
   }, [addCoins, queueCelebration]);
 
   const handleTideGameComplete = useCallback((raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-tide-${Date.now()}`).catch(() => undefined);
     recordPlay("tide").then(setTidePlaysLeft).catch(() => undefined);
@@ -5747,7 +5774,11 @@ export default function HometownScreen() {
   /** Dark Forest victory: coins + XP for the cleared wave, progress saved. */
   const handleForestVictory = useCallback((wave: number) => {
     const demon = demonForWave(wave);
-    if (demon.coins > 0) addCoins(demon.coins);
+    // The Mist Badge (boss 2) blesses Dark Forest coin rewards +15%.
+    const coins = badgesRef.current.includes("mist")
+      ? Math.round(demon.coins * MIST_FOREST_COIN_MULT * 100) / 100
+      : demon.coins;
+    if (coins > 0) addCoins(coins);
     if (demon.xp > 0) {
       awardCustomXP(demon.xp, `dark-forest:${wave}:${Date.now()}`).catch(() => undefined);
     }
@@ -5767,6 +5798,36 @@ export default function HometownScreen() {
       return next;
     });
   }, [addCoins]);
+
+  /**
+   * Boss victory: the badge is earned (permanent), the Boss Gate for the
+   * current offer is cleared, and the boss's purse is paid. A boss fight
+   * never advances the wave ladder.
+   */
+  const handleBossVictory = useCallback((boss: BossDef) => {
+    const coins = badgesRef.current.includes("mist")
+      ? Math.round(boss.coins * MIST_FOREST_COIN_MULT * 100) / 100
+      : boss.coins;
+    if (coins > 0) addCoins(coins);
+    if (boss.xp > 0) {
+      awardCustomXP(boss.xp, `dark-forest-boss:${boss.badgeId}:${Date.now()}`).catch(() => undefined);
+    }
+    recordBossVictory(fastsRef.current, boss.badgeId).then((next) => {
+      setOwnedBadges(next.badges);
+      setBossClearedFastId(next.bossClearedFastId);
+      setThroneVictories(next.throneVictories);
+      setCachedBadges(next.badges);
+      const badge = BADGE_BY_ID[boss.badgeId as BadgeId];
+      const firstTime = !badgesRef.current.includes(boss.badgeId as BadgeId);
+      queueCelebration(
+        "milestone",
+        firstTime ? `${badge.name} earned!` : `${boss.name} falls again!`,
+        firstTime
+          ? `${badge.perk} — yours forever. The Boss Gate stands open: Begin Again awaits.`
+          : `Deepened and defeated once more. The Boss Gate stands open: Begin Again awaits.`
+      );
+    }).catch(() => undefined);
+  }, [addCoins, queueCelebration]);
 
   /** River of Life: a fish on the line — creel +1, daily catch +1. */
   const handleRiverCatch = useCallback((speciesId: string) => {
@@ -5826,6 +5887,16 @@ export default function HometownScreen() {
     if (activeMap !== "forest") return;
     (async () => {
       try {
+        // Badge perks (Gloaming/Ember/Frost/Fen/Throne) shape combat stats.
+        try { await refreshBadgeCache(); } catch {}
+        // Keep the Boss Gate fresh: offer + cleared flag from storage.
+        try {
+          const pState = await loadPrestigeState();
+          setOwnedBadges(pState.badges);
+          setBossClearedFastId(pState.bossClearedFastId);
+          setThroneVictories(pState.throneVictories);
+          setPrestigeOfferState(prestigeOffer(fastsRef.current, pState));
+        } catch {}
         const equipped = await loadEquipped();
         const base = combatStats(equipped);
         // Hospital: the Doctor's Blessing — a checkup's healing buff,
@@ -6133,7 +6204,8 @@ export default function HometownScreen() {
             fellowshipMult(fellowship) *
             remembranceMult(remembrance.people.length) *
             gardenVisitMult(gardenVisits) *
-            totalPrestigeMultiplier(prestigeLevel, prestigeDevotion);
+            totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
+            (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
           if (combined <= 1) return null;
           return (
             <Pressable
@@ -6198,6 +6270,15 @@ export default function HometownScreen() {
                   : "Begin Again"}
           </Text>
         </Pressable>
+        {/* Boss badges — permanent, earned at the Boss Gate */}
+        {ownedBadges.length > 0 ? (
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#1C1917", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginLeft: 8, borderWidth: 1, borderColor: "#57534E" }}>
+            <MaterialIcons name="military-tech" size={14} color="#FCD34D" />
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#FDE68A" }}>
+              {ownedBadges.length}/10 Badges
+            </Text>
+          </View>
+        ) : null}
       </View>
       {/* Limited-time heavenly events */}
       {activeEvents.map((ev) => (
@@ -6244,8 +6325,8 @@ export default function HometownScreen() {
       {/* Map selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
         {TOWN_MAP_IDS.map((id) => {
-          // The City does not exist at prestige 0 (grandfathered unlocks stay).
-          if (id === "city" && !cityExists(prestigeLevel, unlockedMaps)) return null;
+          // The City does not exist at prestige 0 — no exceptions.
+          if (id === "city" && !cityExists(prestigeLevel)) return null;
           const info = MAP_INFO[id];
           const unlocked = unlockedMaps.includes(id);
           const isActive = activeMap === id;
@@ -6442,6 +6523,11 @@ export default function HometownScreen() {
           timeOfDay={timeOfDay}
           pt={pt}
           onVictory={handleForestVictory}
+          bossGate={prestigeOfferState ? {
+            boss: bossGateFor(ownedBadges as string[], throneVictories),
+            cleared: bossClearedFastId === prestigeOfferState.fastId,
+          } : null}
+          onBossVictory={handleBossVictory}
         />
         </SafeBoundary>
         {/* Celebration overlays render on every map, including the forest. */}
@@ -6975,7 +7061,7 @@ export default function HometownScreen() {
             activeMap={activeMap}
             unlockedMaps={unlockedMaps}
             onSelectMap={handleMapSignSelect}
-            hideCity={!cityExists(prestigeLevel, unlockedMaps)}
+            hideCity={!cityExists(prestigeLevel)}
           />
         )}
       </View>
@@ -7789,6 +7875,19 @@ export default function HometownScreen() {
                   </Text>
                 </View>
               ) : null}
+              {/* Gilded Badge — the Gilded Regent's permanent income blessing */}
+              {ownedBadges.includes("gilded") ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="monetization-on" size={20} color="#B45309" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Gilded Badge</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Won from the Gilded Regent in the Dark Forest — building income, forever</Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{Math.round((GILDED_INCOME_MULT - 1) * 100)}%
+                  </Text>
+                </View>
+              ) : null}
               {/* Prayer blessing */}
               {prayedToday > 0 ? (
                 <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
@@ -7867,7 +7966,8 @@ export default function HometownScreen() {
                 fellowshipMult(fellowship) *
                 remembranceMult(remembrance.people.length) *
                 gardenVisitMult(gardenVisits) *
-                totalPrestigeMultiplier(prestigeLevel, prestigeDevotion);
+                totalPrestigeMultiplier(prestigeLevel, prestigeDevotion) *
+                (ownedBadges.includes("gilded") ? GILDED_INCOME_MULT : 1);
               return (
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 4 }}>
                   <Text style={{ fontSize: 15, fontWeight: "800", color: "#92400E" }}>Combined income bonus</Text>
@@ -7923,6 +8023,29 @@ export default function HometownScreen() {
                       And the City appears — an endgame of 15,000–40,000 coin plots and upgrades in the hundreds of thousands. Unlocking it costs 50,000 coins.
                     </Text>
                   ) : null}
+                  {(() => {
+                    const gateBoss = bossGateFor(ownedBadges as string[], throneVictories);
+                    const gateBadge = BADGE_BY_ID[gateBoss.badgeId];
+                    const cleared = bossClearedFastId === prestigeOfferState.fastId;
+                    return cleared ? (
+                      <View style={{ backgroundColor: "#F0FDF4", borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#4ADE80", flexDirection: "row", alignItems: "center" }}>
+                        <MaterialIcons name="check-circle" size={20} color="#166534" />
+                        <Text style={{ fontSize: 13.5, color: "#14532D", flex: 1, marginLeft: 8, lineHeight: 19 }}>
+                          <Text style={{ fontWeight: "800" }}>Boss Gate cleared.</Text> {gateBoss.name} is defeated and the {gateBadge.name} is yours — the way to begin again stands open.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "#F87171" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <MaterialIcons name="lock" size={18} color="#991B1B" />
+                          <Text style={{ fontSize: 13, fontWeight: "900", color: "#991B1B", marginLeft: 6, letterSpacing: 0.6 }}>THE BOSS GATE</Text>
+                        </View>
+                        <Text style={{ fontSize: 13.5, color: "#7F1D1D", lineHeight: 19, marginTop: 6 }}>
+                          Before you can begin again, <Text style={{ fontWeight: "800" }}>{gateBoss.displayName}, {gateBadge.bossTitle}</Text> must fall in the Dark Forest. Enter the forest, face the boss at the gate, and victory earns the <Text style={{ fontWeight: "800" }}>{gateBadge.name}</Text> ({gateBadge.perk}) — yours forever.
+                        </Text>
+                      </View>
+                    );
+                  })()}
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#991B1B", marginTop: 14, letterSpacing: 0.4 }}>WHAT RESETS</Text>
                   {[
                     "Every building in town and the city — plots return to the start",
@@ -7943,6 +8066,7 @@ export default function HometownScreen() {
                     "Your collections book",
                     "The Garden of Remembrance, just as you left it",
                     "Your prayer villagers and everything they carry",
+                    "Your boss badges — prestige can never take them",
                     "Your barbershop styles — including Crown hairstyles and beards",
                     "The Well, Garden, Mission Field, Dark Forest and River of Life",
                     "Your fasts",
@@ -7987,19 +8111,25 @@ export default function HometownScreen() {
                 </>
               )}
             </ScrollView>
-            {prestigeOfferState ? (
-              <Pressable
-                onPress={handlePrestige}
-                style={{ backgroundColor: "#B8912C", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 16, flexDirection: "row", justifyContent: "center" }}
-              >
-                <MaterialIcons name="workspace-premium" size={18} color="#FFFFFF" />
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 6 }}>
-                  {prestigeOfferState.kind === "crown"
-                    ? `Begin Again — Crown ${prestigeLevel + 1}`
-                    : `Begin Again — +${Math.round(prestigeOfferState.bonus * 100)}% forever`}
-                </Text>
-              </Pressable>
-            ) : null}
+            {prestigeOfferState ? (() => {
+              const gateBoss = bossGateFor(ownedBadges as string[], throneVictories);
+              const cleared = bossClearedFastId === prestigeOfferState.fastId;
+              return (
+                <Pressable
+                  onPress={cleared ? handlePrestige : undefined}
+                  style={{ backgroundColor: cleared ? "#B8912C" : "#9CA3AF", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 16, flexDirection: "row", justifyContent: "center" }}
+                >
+                  <MaterialIcons name={cleared ? "workspace-premium" : "lock"} size={18} color="#FFFFFF" />
+                  <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 6 }}>
+                    {cleared
+                      ? prestigeOfferState.kind === "crown"
+                        ? `Begin Again — Crown ${prestigeLevel + 1}`
+                        : `Begin Again — +${Math.round(prestigeOfferState.bonus * 100)}% forever`
+                      : `Defeat ${gateBoss.name} to Begin Again`}
+                  </Text>
+                </Pressable>
+              );
+            })() : null}
             <Pressable
               onPress={() => setBeginAgainOpen(false)}
               style={{ borderRadius: 12, paddingVertical: 11, alignItems: "center", marginTop: 8 }}

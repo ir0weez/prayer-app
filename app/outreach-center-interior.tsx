@@ -29,7 +29,7 @@ import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { PackingGame } from "@/components/packing-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 
 const BG = "#FBF4E8";
 const TEAL = "#2E7D74";
@@ -139,8 +139,9 @@ export default function OutreachCenterInteriorScreen() {
   }, []);
 
   const handlePackingComplete = (raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-packing-${Date.now()}`).catch(() => undefined);
     recordPlay("packing").then(setPackingPlaysLeft).catch(() => undefined);

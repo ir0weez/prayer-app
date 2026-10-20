@@ -49,6 +49,8 @@ import { generateFastSummary } from "@/lib/prayercircle-fasting";
 import { useFastPawn, usePawnName, usePawnPetUnlocked } from "@/lib/fast-pawns";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { PawnPreview } from "@/components/pawn-preview";
+import { loadPrestigeState } from "@/lib/prestige";
+import { BadgeCase } from "@/components/badge-case";
 
 type PersonalProfile = {
   name: string;
@@ -149,6 +151,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<PersonalProfile>(DEFAULT_PROFILE);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [prestigeLevel, setPrestigeLevel] = useState(0);
+  const [ownedBadges, setOwnedBadges] = useState<string[]>([]);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteDate, setNoteDate] = useState("");
@@ -265,6 +268,7 @@ export default function ProfileScreen() {
     AsyncStorage.getItem("prayercircle.hometown.prestige.v1").then(v => {
       if (v) setPrestigeLevel(parseInt(v, 10) || 0);
     }).catch(() => {});
+    loadPrestigeState().then((s) => setOwnedBadges(s.badges as string[])).catch(() => {});
     if (!quarterAutoSet && selectedFast && selectedFast.durationDays >= 80) {
       const days = getFastCalendarDays(selectedFast);
       const todayIdx = days.indexOf(today);
@@ -657,11 +661,23 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Completed Fasts</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}> 
+            <Text style={[styles.statValueText, { color: lastCompletedFast ? colors.primary : colors.muted }]}>
               {lastCompletedFastProgress ? `${lastCompletedFastPercentage}%` : "Collecting Data"}
             </Text>
             <Text style={styles.statLabel}>Last {selectedFast?.type ?? "Fast"}</Text>
           </View>
+        </View>
+
+        {/* Boss badges — won at the Dark Forest's Boss Gate. Permanent. */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+          <Text style={styles.sectionLabel}>BOSS BADGES</Text>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>{ownedBadges.length}/10</Text>
+        </View>
+        <Text style={{ fontSize: 12.5, color: colors.muted, lineHeight: 17, marginBottom: 12 }}>
+          Won from the bosses who guard each Begin Again. Badges are forever — prestige can never take them.
+        </Text>
+        <View style={{ marginBottom: 20 }}>
+          <BadgeCase ownedBadges={ownedBadges} />
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>

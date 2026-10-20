@@ -42,7 +42,7 @@ import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { PopcornGame } from "@/components/popcorn-game";
 import { RhythmGame } from "@/components/rhythm-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 
 const BG = "#141021"; // night theater
 const CARD = "#221B36";
@@ -713,8 +713,9 @@ export default function TheaterInteriorScreen() {
   }, []);
 
   const handlePopcornComplete = (raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-popcorn-${Date.now()}`).catch(() => undefined);
     recordPlay("popcorn").then(setPopcornPlaysLeft).catch(() => undefined);
@@ -722,8 +723,9 @@ export default function TheaterInteriorScreen() {
   };
 
   const handleRhythmComplete = (raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-rhythm-${Date.now()}`).catch(() => undefined);
     recordPlay("rhythm").then(setRhythmPlaysLeft).catch(() => undefined);

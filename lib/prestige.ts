@@ -22,8 +22,13 @@
 // prestige, so the longest fast on record simply becomes the offer.
 //
 // The City does not exist until the first Crown: at 0 Crowns the city map
-// is not rendered at all (unless a save already had it unlocked — existing
-// unlocks are grandfathered, never taken away).
+// is not rendered at all — no exceptions, including saves that unlocked
+// it before this rule (their city building data is kept, just
+// inaccessible until prestige >= 1 and the unlock is paid again).
+//
+// Prestige ALSO requires the Boss Gate: the current boss in the Dark
+// Forest (lib/badges.ts) must be beaten before an offer can be taken.
+// Victory earns a permanent badge and clears the gate for that offer.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { PersonalFast } from "./prayercircle-fasting";
@@ -40,6 +45,7 @@ import {
   type TownState,
 } from "./hometown";
 import { GEAR_EQUIPPED_KEY, GEAR_INVENTORY_KEY, defaultEquipped } from "./gear";
+import { sanitizeBadgeIds, type BadgeId } from "./badges";
 
 export const PRESTIGE_LEVEL_KEY = "prayercircle.hometown.prestige.v1";
 export const PRESTIGE_PROGRESS_KEY = "prayercircle.hometown.prestige-days.v1";
@@ -121,6 +127,12 @@ export type PrestigeState = {
   promptedFastIds: string[];
   /** Total prestiges taken, all tiers. */
   totalPrestiges: number;
+  /** Boss badges earned — PERMANENT, never reset by prestige. */
+  badges: BadgeId[];
+  /** The offer fastId whose Boss Gate has been cleared (null = gate shut). */
+  bossClearedFastId: string | null;
+  /** Times the Throne Usurper has been beaten (drives his Deepened form). */
+  throneVictories: number;
 };
 
 export function emptyPrestigeState(): PrestigeState {
@@ -130,6 +142,9 @@ export function emptyPrestigeState(): PrestigeState {
     consumedFastIds: [],
     promptedFastIds: [],
     totalPrestiges: 0,
+    badges: [],
+    bossClearedFastId: null,
+    throneVictories: 0,
   };
 }
 
@@ -153,6 +168,12 @@ export function parsePrestigeState(value: unknown): PrestigeState {
     totalPrestiges:
       typeof v.totalPrestiges === "number" && v.totalPrestiges > 0
         ? Math.floor(v.totalPrestiges)
+        : 0,
+    badges: sanitizeBadgeIds(v.badges),
+    bossClearedFastId: typeof v.bossClearedFastId === "string" ? v.bossClearedFastId : null,
+    throneVictories:
+      typeof v.throneVictories === "number" && v.throneVictories > 0
+        ? Math.floor(v.throneVictories)
         : 0,
   };
 }
@@ -226,12 +247,45 @@ export function prestigeOffer(fasts: PersonalFast[], state: PrestigeState): Pres
 }
 
 /**
- * Whether the City map exists for this player: it appears after the first
- * Crown — or immediately if the save already had it unlocked
- * (grandfathered: an unlocked city is never taken away).
+ * Whether the City map exists for this player: it appears ONLY after the
+ * first Crown (prestige >= 1) and its 50,000-coin unlock — no exceptions
+ * for saves that unlocked it earlier. Their city building data is NOT
+ * deleted; the map is simply inaccessible until both conditions hold.
  */
-export function cityExists(prestigeLevel: number, unlockedMaps: TownMapId[]): boolean {
-  return prestigeLevel >= 1 || unlockedMaps.includes("city");
+export function cityExists(prestigeLevel: number): boolean {
+  return prestigeLevel >= 1;
+}
+
+// ---- The Boss Gate ----
+
+/** Whether the Boss Gate is cleared for this offer (boss beaten). */
+export function offerBossCleared(state: PrestigeState, offer: PrestigeOffer | null): boolean {
+  return !!offer && state.bossClearedFastId === offer.fastId;
+}
+
+/**
+ * Record a Dark Forest boss victory: the badge is earned (permanently —
+ * prestige never takes badges), the Throne Usurper deepens, and the Boss
+ * Gate for the CURRENT offer (if any) is cleared. Returns the new state.
+ */
+export async function recordBossVictory(
+  fasts: PersonalFast[],
+  badgeId: BadgeId
+): Promise<PrestigeState> {
+  const state = await loadPrestigeState();
+  const badges = state.badges.includes(badgeId)
+    ? state.badges
+    : sanitizeBadgeIds([...state.badges, badgeId]);
+  const offer = prestigeOffer(fasts, state);
+  const next: PrestigeState = {
+    ...state,
+    badges,
+    throneVictories:
+      badgeId === "throne" ? state.throneVictories + 1 : state.throneVictories,
+    bossClearedFastId: offer ? offer.fastId : state.bossClearedFastId,
+  };
+  await savePrestigeState(next);
+  return next;
 }
 
 // ---- Performing a prestige ----
@@ -249,7 +303,9 @@ export type PerformPrestigeResult = {
 
 /**
  * Perform "Begin Again" for the current offer (the longest fast started
- * since the last prestige). Returns null when there is no offer.
+ * since the last prestige). Returns null when there is no offer — OR when
+ * the offer's Boss Gate has not been cleared (the Dark Forest boss must
+ * be beaten first; see recordBossVictory).
  *
  * REWARD (by that fast's length): under 40 days +5% devotion, 40-364 days
  * +25% devotion, 365+ days a Crown (level +1). The fast is consumed — it
@@ -263,12 +319,15 @@ export type PerformPrestigeResult = {
  * Crown and stay.
  * KEPT: lifetime earnings (milestones), prayer streak, XP/level,
  * collections, Garden of Remembrance, prayer villagers, villager data,
- * barbershop styles, the other map unlocks, and fast progress.
+ * barbershop styles, the other map unlocks, fast progress — and BADGES,
+ * which are permanent and never reset.
  */
 export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPrestigeResult | null> {
   const state = await loadPrestigeState();
   const offer = prestigeOffer(fasts, state);
   if (!offer) return null;
+  // The Boss Gate: no prestige until the current boss is beaten.
+  if (!offerBossCleared(state, offer)) return null;
 
   let crowns = await loadPrestigeLevel();
   let devotionBonus = state.devotionBonus;
@@ -284,6 +343,11 @@ export async function performPrestige(fasts: PersonalFast[]): Promise<PerformPre
     consumedFastIds: [...state.consumedFastIds, offer.fastId],
     promptedFastIds: state.promptedFastIds,
     totalPrestiges: state.totalPrestiges + 1,
+    // Badges are permanent — prestige never takes them. The gate re-shuts
+    // for the next offer.
+    badges: state.badges,
+    bossClearedFastId: null,
+    throneVictories: state.throneVictories,
   });
 
   let coins: HometownCoins = { balance: 0, lifetimeEarned: 0 };

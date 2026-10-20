@@ -34,7 +34,7 @@ import { loadPrestigeLevel } from "@/lib/prestige";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { TrimGame } from "@/components/trim-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
@@ -158,8 +158,9 @@ export default function BarbershopScreen() {
   }, []);
 
   const handleTrimGameComplete = (raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) {
       setCoins((prev) => {
         const next = {

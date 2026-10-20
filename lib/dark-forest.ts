@@ -4,7 +4,7 @@
 //
 // The forest is ENDLESS. Every 10 waves you cross into a new zone — a
 // new stretch of wood with its own palette, scenery, and demons. There
-// are 10 zones; past wave 100 the zones cycle again as "The Deepening":
+// are 15 zones; past wave 150 the zones cycle again as "The Deepening":
 // the same woods, darker and harder, forever. Difficulty (demon HP and
 // attack) scales with the wave number and never stops.
 
@@ -23,7 +23,7 @@ export type DemonDef = {
   xp: number;
   /** 0 = lesser, 1 = greater, 2 = nightmare — picks the sprite palette */
   tier: DemonTier;
-  /** Zone index 0-9 this demon belongs to. */
+  /** Zone index 0-14 this demon belongs to. */
   zone: number;
   /** Deepening cycle: 0 = first pass (waves 1-100), 1 = waves 101-200, ... */
   cycle: number;
@@ -41,7 +41,12 @@ export type ForestScenery =
   | "ruins"     // broken stone pillars
   | "crystals"  // glowing violet crystals
   | "pillars"   // broken golden pillars
-  | "spikes";   // obsidian spikes + floating shards
+  | "spikes"    // obsidian spikes + floating shards
+  | "obelisks"  // leaning dead obelisks on a wind-blasted dust plain
+  | "cavern"    // black crystal clusters under a light-cracked cavern roof
+  | "vines"     // thorn arches + vines crowding the path from every side
+  | "lava"      // lava cracks in the ground, volcanic
+  | "bones";    // enormous ribcages + a dragon skull, bone-white
 
 export type ForestZone = {
   index: number;
@@ -55,8 +60,8 @@ export type ForestZone = {
   deadTree: string;
   moon: string;
   moonGlow: string;
-  /** blood = red moon, eclipse = dark disc with corona, ember = low orange sun-moon */
-  moonKind: "moon" | "blood" | "eclipse" | "ember";
+  /** blood = red moon, eclipse = dark disc with corona, ember = low orange sun-moon, none = no moon at all (the Starless Deep) */
+  moonKind: "moon" | "blood" | "eclipse" | "ember" | "none";
   scenery: ForestScenery;
   mist: string;
   mistOpacity: number;
@@ -222,6 +227,81 @@ export const FOREST_ZONES: ForestZone[] = [
       nightmare: ["The Throne of Night", "The Last Eclipse"],
     },
     body: ["#334155", "#1E293B", "#020617"], eye: "#F8FAFC", horn: "#94A3B8",
+  },
+  {
+    index: 10,
+    name: "The Howling Barrens",
+    blurb: "No trees grow here — the wind took them, and it screams through what is left.",
+    sky: "#171208", ground: "#2A2110", groundEdge: "#3D3016",
+    pine: "#4A3A1C", pineTrunk: "#33270F", deadTree: "#5C4820",
+    moon: "#FDE68A", moonGlow: "#D4A017", moonKind: "moon",
+    scenery: "obelisks", mist: "#E7C873", mistOpacity: 0.2, spark: "#D9B36A", snow: false, eyes: "#FBBF24",
+    demons: {
+      lesser: ["Dust Howler", "Gale Imp", "Sand Skitter", "Barrens Nibbler", "Whistle Wisp", "Dry Throat"],
+      greater: ["Wind Reaver", "Obelisk Warden", "Storm Hound", "The Leaning King", "Gale Tyrant"],
+      nightmare: ["The Howling Itself", "Mother of Dust", "The Wind's Confession"],
+    },
+    body: ["#A16207", "#854D0E", "#422006"], eye: "#FEF08A", horn: "#FDE68A",
+  },
+  {
+    index: 11,
+    name: "The Starless Deep",
+    blurb: "A cavern with no sky. The only light is a crack far above, and what glitters below.",
+    sky: "#030308", ground: "#0A0A14", groundEdge: "#131324",
+    pine: "#10101E", pineTrunk: "#0A0A14", deadTree: "#1B1B2C",
+    moon: "#0A0A14", moonGlow: "#E2E8F0", moonKind: "none",
+    scenery: "cavern", mist: "#94A3B8", mistOpacity: 0.1, spark: null, snow: false, eyes: "#E2E8F0",
+    demons: {
+      lesser: ["Deep Skitter", "Starless Imp", "Cavern Moth", "Black Shard", "Echo Nibbler", "Pit Whisper"],
+      greater: ["Crystal Eater", "Deep Herald", "The Unlit Choir", "Cavern Tyrant", "Night Geologist"],
+      nightmare: ["The Absence", "King of No Stars", "The First Dark"],
+    },
+    body: ["#1E293B", "#0F172A", "#000000"], eye: "#E2E8F0", horn: "#CBD5E1",
+  },
+  {
+    index: 12,
+    name: "The Thornwild",
+    blurb: "The thorns grew over the path years ago. They grow over everything, given time.",
+    sky: "#0D140A", ground: "#16220F", groundEdge: "#22331A",
+    pine: "#1C2F16", pineTrunk: "#101C0B", deadTree: "#2A421E",
+    moon: "#BEF264", moonGlow: "#65A30D", moonKind: "moon",
+    scenery: "vines", mist: "#BEF264", mistOpacity: 0.14, spark: "#A3E635", snow: false, eyes: "#FDE047",
+    demons: {
+      lesser: ["Thorn Imp", "Briar Skitter", "Vine Nibbler", "Bramble Wisp", "Green Fang", "Tangle Moth"],
+      greater: ["Thorn Confessor", "Briar Tyrant", "The Wild Gardener", "Root Strangler", "Hedge Wraith"],
+      nightmare: ["The Thornwild Heart", "Mother of Briars", "The Green Devouring"],
+    },
+    body: ["#4D7C0F", "#3F6212", "#1A2E05"], eye: "#FDE047", horn: "#D9F99D",
+  },
+  {
+    index: 13,
+    name: "The Hollow Mountain",
+    blurb: "The mountain is a shell, and something inside it is still burning.",
+    sky: "#140806", ground: "#200D08", groundEdge: "#33150B",
+    pine: "#2A100A", pineTrunk: "#1C0A06", deadTree: "#3D170D",
+    moon: "#FCA5A5", moonGlow: "#DC2626", moonKind: "ember",
+    scenery: "lava", mist: "#FCA5A5", mistOpacity: 0.12, spark: "#9CA3AF", snow: false, eyes: "#FDE047",
+    demons: {
+      lesser: ["Magma Imp", "Cinder Skitter", "Ashfall Moth", "Basalt Nibbler", "Slag Sprite", "Ember Hound Pup"],
+      greater: ["Lava Drinker", "Obsidian Brute", "The Mountain's Throat", "Pyre Shepherd", "Slag Tyrant"],
+      nightmare: ["The Hollow Mountain Wakes", "Heart of the Mountain", "The Burning Root"],
+    },
+    body: ["#B91C1C", "#7F1D1D", "#2A0603"], eye: "#FDE047", horn: "#FDBA74",
+  },
+  {
+    index: 14,
+    name: "The Dragon's Graveyard",
+    blurb: "They came here to die, the great ones. Their bones are the trees now.",
+    sky: "#12100C", ground: "#1E1B14", groundEdge: "#2C2718",
+    pine: "#2E2A1E", pineTrunk: "#1F1C13", deadTree: "#4A4433",
+    moon: "#FEF3C7", moonGlow: "#D6C9A8", moonKind: "moon",
+    scenery: "bones", mist: "#E7DCC3", mistOpacity: 0.15, spark: "#E7DCC3", snow: false, eyes: "#FDE68A",
+    demons: {
+      lesser: ["Bone Nibbler", "Rib Skitter", "Grave Imp", "Marrow Wisp", "Tooth Fairy", "Dust of Wings"],
+      greater: ["Bone Shepherd", "The Ribcage Warden", "Marrow Tyrant", "Skull Confessor", "Wing Eater"],
+      nightmare: ["The Last Dragon's Ghost", "The Graveyard Remembers", "Old Bone, Old Fire"],
+    },
+    body: ["#A89F8D", "#78716C", "#292524"], eye: "#FDE68A", horn: "#F5EFE0",
   },
 ];
 

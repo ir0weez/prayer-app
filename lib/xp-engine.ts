@@ -3,6 +3,7 @@ import { TOWN_STORAGE_KEY, PAWN_HOUSE_STORAGE_KEY } from "./hometown";
 import { getCachedBoosts, refreshGearBoostCache } from "./gear";
 import { getCachedStatBoosts, refreshStatBoostCache, grantStatPointsForLevel } from "./character-stats";
 import { getCachedHouseBonuses } from "./pawn-house";
+import { ASHEN_XP_MULT, hasCachedBadge } from "./badges";
 
 export const XP_STORAGE_KEY = "prayercircle.xp.v1";
 const XP_AWARDS_STORAGE_KEY = "prayercircle.xp-awards.v1";
@@ -214,7 +215,9 @@ export function applyXPAward(state: XpState, action: XpAction): XpAwardResult {
   if (PRAYER_XP_ACTIONS.includes(action)) houseMult += house.prayerXpMult;
   else if (BIBLE_XP_ACTIONS.includes(action)) houseMult += house.bibleXpMult;
   else if (action === "fasting-day") houseMult += house.fastXpMult;
-  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult + statMult + houseMult));
+  // The Ashen Badge (boss 7) blesses every XP grant with +10%.
+  const ashenMult = hasCachedBadge("ashen") ? ASHEN_XP_MULT : 1;
+  const points = Math.round(basePoints * (1 + getCachedBoosts().xpMult + statMult + houseMult) * ashenMult);
   const totalXP = previous.totalXP + points;
   const level = getLevelForXP(totalXP);
   // Crossing a heart milestone immediately grants the new heart.
@@ -298,7 +301,10 @@ export async function awardCustomXP(points: number, idempotencyKey: string, posi
   }
   await refreshGearBoostCache();
   await refreshStatBoostCache();
-  const safePoints = Math.max(0, Math.floor(points * (1 + getCachedBoosts().xpMult)));
+  const safePoints = Math.max(
+    0,
+    Math.floor(points * (1 + getCachedBoosts().xpMult) * (hasCachedBadge("ashen") ? ASHEN_XP_MULT : 1))
+  );
   const previous = current;
   const totalXP = previous.totalXP + safePoints;
   const level = getLevelForXP(totalXP);

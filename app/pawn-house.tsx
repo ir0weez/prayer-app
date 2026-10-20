@@ -37,7 +37,7 @@ import { RoomFurnitureArt, type RoomPieceId } from "@/components/room-furniture-
 import { awardCustomXP } from "@/lib/xp-engine";
 import { GrillGame } from "@/components/grill-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import { PawnPreview } from "@/components/pawn-preview";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -815,8 +815,9 @@ export default function PawnHouseScreen() {
 
   const handleGrillComplete = useCallback(
     (raw: MiniGameReward): MiniGameReward => {
-      const c = scaledCoins(raw.coins);
-      const xp = scaledXP(raw.xp);
+      const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+      const c = _pay.coins;
+      const xp = _pay.xp;
       if (c > 0) addCoins(c);
       if (xp > 0) awardCustomXP(xp, `minigame-grill-${Date.now()}`).catch(() => undefined);
       recordPlay("grill").then(setGrillPlaysLeft).catch(() => undefined);

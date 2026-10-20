@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
-import Svg, { Circle, G, Rect } from "react-native-svg";
+import Svg, { Circle, G, Path, Rect } from "react-native-svg";
 import { beardGrowthFor, type CustomPawn, type PawnBeardStyle, type PawnHairStyle } from "@/lib/pawn";
 import { GEAR_BY_ID, defaultEquipped, loadEquipped, type EquippedGear, type GearItem } from "@/lib/gear";
 
@@ -213,6 +213,169 @@ export function ArmorShapes({ armorId }: { armorId: string }) {
           <Rect x={31} y={9} width={3} height={9} fill="#F6C453" />
         </G>
       );
+    case "powers-aegis":
+      // Crown 4: violet steel, pauldrons grown broad, a crest spike, amethyst heart.
+      return (
+        <G>
+          <Rect x={8} y={23} width={20} height={15} rx={7} fill="#7C6AAE" />
+          <Rect x={8} y={23} width={20} height={5} rx={2.5} fill="#C4B5FD" />
+          <Rect x={37} y={23} width={20} height={15} rx={7} fill="#7C6AAE" />
+          <Rect x={37} y={23} width={20} height={5} rx={2.5} fill="#C4B5FD" />
+          <Rect x={14} y={29} width={37} height={22} rx={4} fill="#6D5E9E" />
+          <Rect x={14} y={29} width={37} height={3.6} fill="#C4B5FD" />
+          <Rect x={14} y={47} width={37} height={4} fill="#4C3F78" />
+          <Rect x={31} y={29} width={3} height={22} fill="#4C3F78" />
+          <Rect x={29.4} y={34} width={6.2} height={6.2} fill="#A855F7" transform="rotate(45 32.5 37.1)" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#7C6AAE" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#C4B5FD" />
+          <Path d="M 29 -4 L 32.5 2 L 36 -4 L 34.4 3.4 L 30.6 3.4 Z" fill="#DDD6FE" />
+          <Rect x={31} y={9} width={3} height={9} fill="#4C3F78" />
+        </G>
+      );
+    case "virtues-aegis":
+      // Crown 5: sea-silver plate, pauldron flares like small wings, wave trim.
+      return (
+        <G>
+          <Path d="M 9 37 L 4 24 L 16 21 L 27 27 L 27 38 Z" fill="#5FA8A0" />
+          <Path d="M 56 37 L 61 24 L 49 21 L 38 27 L 38 38 Z" fill="#5FA8A0" />
+          <Rect x={10} y={25} width={17} height={12} rx={6} fill="#7FC4BB" />
+          <Rect x={10} y={25} width={17} height={4} rx={2} fill="#CCFBF1" />
+          <Rect x={38} y={25} width={17} height={12} rx={6} fill="#7FC4BB" />
+          <Rect x={38} y={25} width={17} height={4} rx={2} fill="#CCFBF1" />
+          <Rect x={15} y={30} width={35} height={21} rx={4} fill="#6DB3AA" />
+          <Path d="M 15 40 Q 24 36 32.5 40 Q 41 44 50 40 L 50 44 Q 41 48 32.5 44 Q 24 40 15 44 Z" fill="#3E7C74" />
+          <Rect x={15} y={47} width={35} height={4} fill="#3E7C74" />
+          <Circle cx={32.5} cy={34.6} r={3} fill="#99F6E4" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#7FC4BB" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#CCFBF1" />
+          <Rect x={31} y={9} width={3} height={9} fill="#3E7C74" />
+        </G>
+      );
+    case "dominions-aegis":
+      // Crown 6: midnight plate, a crowned helm, and the first cape.
+      return (
+        <G>
+          <Rect x={5} y={30} width={8} height={33} rx={3} fill="#1E3A8A" />
+          <Rect x={52} y={30} width={8} height={33} rx={3} fill="#1E3A8A" />
+          <Rect x={9} y={23} width={19} height={14} rx={6} fill="#3D5A99" />
+          <Rect x={9} y={23} width={19} height={4.6} rx={2.3} fill="#93C5FD" />
+          <Rect x={37} y={23} width={19} height={14} rx={6} fill="#3D5A99" />
+          <Rect x={37} y={23} width={19} height={4.6} rx={2.3} fill="#93C5FD" />
+          <Rect x={14} y={29} width={37} height={22} rx={4} fill="#2C4A85" />
+          <Rect x={14} y={29} width={37} height={3.6} fill="#93C5FD" />
+          <Rect x={14} y={47} width={37} height={4} fill="#16294F" />
+          <Rect x={31} y={29} width={3} height={22} fill="#16294F" />
+          <Circle cx={32.5} cy={38} r={3.4} fill="#60A5FA" />
+          <Circle cx={32.5} cy={38} r={1.6} fill="#DBEAFE" />
+          <Rect x={20} y={2} width={25} height={9} rx={4} fill="#3D5A99" />
+          {[22.5, 31, 39.5].map((x) => (
+            <Path key={x} d={`M ${x} 3 L ${x + 1.5} -3.4 L ${x + 3} 3 Z`} fill="#F6C453" />
+          ))}
+          <Rect x={20} y={5.4} width={25} height={2} fill="#F6C453" />
+          <Rect x={31} y={9} width={3} height={9} fill="#16294F" />
+        </G>
+      );
+    case "thrones-aegis":
+      // Crown 7: scarlet + gold, a tall judgment collar, a heavier cape.
+      return (
+        <G>
+          <Rect x={13} y={4} width={39} height={24} rx={8} fill="#8C2B2B" />
+          <Rect x={13} y={4} width={39} height={5} rx={2.5} fill="#F6C453" />
+          <Rect x={4} y={30} width={9} height={35} rx={3} fill="#7F1D1D" />
+          <Rect x={52} y={30} width={9} height={35} rx={3} fill="#7F1D1D" />
+          <Rect x={8} y={23} width={20} height={15} rx={7} fill="#A83A32" />
+          <Rect x={8} y={23} width={20} height={5} rx={2.5} fill="#FCA5A5" />
+          <Rect x={37} y={23} width={20} height={15} rx={7} fill="#A83A32" />
+          <Rect x={37} y={23} width={20} height={5} rx={2.5} fill="#FCA5A5" />
+          <Rect x={14} y={29} width={37} height={22} rx={4} fill="#99302A" />
+          <Rect x={14} y={29} width={37} height={3.6} fill="#F6C453" />
+          <Rect x={14} y={47} width={37} height={4} fill="#5F1712" />
+          <Rect x={31} y={29} width={3} height={22} fill="#5F1712" />
+          <Rect x={29.2} y={33.8} width={6.6} height={6.6} fill="#DC2626" transform="rotate(45 32.5 37.1)" />
+          <Rect x={30.6} y={35.6} width={3.8} height={3.8} fill="#FCA5A5" transform="rotate(45 32.5 37.5)" />
+          <Rect x={21} y={8} width={23} height={8} rx={4} fill="#A83A32" />
+          <Rect x={25} y={9.6} width={15} height={2.2} rx={1.1} fill="#F6C453" />
+        </G>
+      );
+    case "cherubim-aegis":
+      // Crown 8: rose-pearl plate with feathered wings folded over the shoulders.
+      return (
+        <G>
+          {[0, 1, 2].map((i) => (
+            <Path key={`l${i}`} d={`M ${14 - i * 2} ${30 + i * 5} L ${2 - i * 1.4} ${20 + i * 6} L ${12 - i} ${22 + i * 5} Z`} fill={i % 2 ? "#E7A8C4" : "#F9D3E3"} />
+          ))}
+          {[0, 1, 2].map((i) => (
+            <Path key={`r${i}`} d={`M ${51 + i * 2} ${30 + i * 5} L ${63 + i * 1.4} ${20 + i * 6} L ${53 + i} ${22 + i * 5} Z`} fill={i % 2 ? "#E7A8C4" : "#F9D3E3"} />
+          ))}
+          <Rect x={10} y={24} width={18} height={13} rx={6} fill="#DB8FB4" />
+          <Rect x={10} y={24} width={18} height={4.4} rx={2.2} fill="#FCE7F1" />
+          <Rect x={37} y={24} width={18} height={13} rx={6} fill="#DB8FB4" />
+          <Rect x={37} y={24} width={18} height={4.4} rx={2.2} fill="#FCE7F1" />
+          <Rect x={15} y={30} width={35} height={21} rx={4} fill="#D67FA9" />
+          <Rect x={15} y={30} width={35} height={3.4} fill="#FCE7F1" />
+          <Rect x={15} y={47} width={35} height={4} fill="#A34A77" />
+          <Circle cx={32.5} cy={38} r={4} fill="#F9A8D4" />
+          <Circle cx={32.5} cy={38} r={2} fill="#FFF1F7" />
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#DB8FB4" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#FCE7F1" />
+          <Rect x={31} y={9} width={3} height={9} fill="#A34A77" />
+        </G>
+      );
+    case "seraphim-aegis":
+      // Crown 9: burning white-gold, wings upon wings, a halo's ring.
+      return (
+        <G>
+          {[0, 1, 2].map((i) => (
+            <Path key={`l${i}`} d={`M ${13 - i * 2.4} ${27 + i * 6} L ${-1 - i * 1.6} ${15 + i * 7} L ${11 - i} ${19 + i * 6} Z`} fill={i % 2 ? "#FDE9B8" : "#FFF7DD"} />
+          ))}
+          {[0, 1, 2].map((i) => (
+            <Path key={`r${i}`} d={`M ${52 + i * 2.4} ${27 + i * 6} L ${66 + i * 1.6} ${15 + i * 7} L ${54 + i} ${19 + i * 6} Z`} fill={i % 2 ? "#FDE9B8" : "#FFF7DD"} />
+          ))}
+          <Circle cx={32.5} cy={-3.4} r={6.4} fill="none" stroke="#FDE68A" strokeWidth={2} />
+          <Rect x={9} y={23} width={19} height={14} rx={7} fill="#F6D98A" />
+          <Rect x={9} y={23} width={19} height={5} rx={2.5} fill="#FFFFFF" />
+          <Rect x={37} y={23} width={19} height={14} rx={7} fill="#F6D98A" />
+          <Rect x={37} y={23} width={19} height={5} rx={2.5} fill="#FFFFFF" />
+          <Rect x={14} y={29} width={37} height={22} rx={4} fill="#F3D27A" />
+          <Rect x={14} y={29} width={37} height={3.6} fill="#FFFFFF" />
+          <Rect x={14} y={47} width={37} height={4} fill="#D9A93F" />
+          <Circle cx={32.5} cy={38} r={4.6} fill="#FBBF24" />
+          <Circle cx={32.5} cy={38} r={2.4} fill="#FFFBEB" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+            <Rect key={deg} x={31.9} y={31.4} width={1.2} height={3.2} fill="#F59E0B" transform={`rotate(${deg} 32.5 38)`} />
+          ))}
+          <Rect x={20} y={1} width={25} height={10} rx={5} fill="#F6D98A" />
+          <Rect x={24} y={3} width={17} height={2.4} rx={1.2} fill="#FFFFFF" />
+          <Rect x={31} y={9} width={3} height={9} fill="#D9A93F" />
+        </G>
+      );
+    case "dragonbone-plate":
+      // Crown 10: bone-white plates, jagged bone trim, a horned helm.
+      // The pinnacle — nothing about it is smooth.
+      return (
+        <G>
+          <Path d="M 21 6 Q 6 2 4 -8 Q 12 -4 17 1 Q 20 3 21 6 Z" fill="#EDE3CB" />
+          <Path d="M 44 6 Q 59 2 61 -8 Q 53 -4 48 1 Q 45 3 44 6 Z" fill="#EDE3CB" />
+          <Path d="M 21 6 Q 10 4 7 -4" stroke="#CBBFA3" strokeWidth={1.6} fill="none" />
+          <Path d="M 44 6 Q 55 4 58 -4" stroke="#CBBFA3" strokeWidth={1.6} fill="none" />
+          <Rect x={19} y={0} width={27} height={11} rx={4} fill="#F5EFE0" />
+          <Rect x={19} y={7.6} width={27} height={2} fill="#CBBFA3" />
+          <Rect x={30.8} y={9} width={3.4} height={9} fill="#D9CDB0" />
+          <Rect x={7} y={23} width={21} height={15} rx={5} fill="#EFE7D2" />
+          <Rect x={7} y={23} width={21} height={4.6} rx={2.3} fill="#FBF7EA" />
+          <Path d="M 8 38 L 14 33 L 19 38 L 24 33 L 27 38 Z" fill="#D9CDB0" />
+          <Rect x={37} y={23} width={21} height={15} rx={5} fill="#EFE7D2" />
+          <Rect x={37} y={23} width={21} height={4.6} rx={2.3} fill="#FBF7EA" />
+          <Path d="M 38 38 L 43 33 L 48 38 L 53 33 L 57 38 Z" fill="#D9CDB0" />
+          <Rect x={13} y={29} width={39} height={22} rx={4} fill="#F5EFE0" />
+          <Rect x={13} y={29} width={39} height={3.4} fill="#FBF7EA" />
+          <Rect x={13} y={46.6} width={39} height={4.4} fill="#D9CDB0" />
+          <Path d="M 14 51 L 20 46.6 L 26 51 L 32.5 46.6 L 39 51 L 45 46.6 L 51 51 Z" fill="#CBBFA3" />
+          <Rect x={31} y={29} width={3} height={22} fill="#D9CDB0" />
+          <Path d="M 32.5 32 L 36.4 37.4 L 32.5 43.4 L 28.6 37.4 Z" fill="#E3D5B8" stroke="#B7A67F" strokeWidth={1} />
+          <Circle cx={32.5} cy={37.4} r={1.7} fill="#8A6D2F" />
+        </G>
+      );
     default:
       // Unknown armor: plain steel plate, safe fallback.
       return (
@@ -307,6 +470,92 @@ export function WeaponShapes({ weaponId }: { weaponId: string }) {
           <Circle cx={5} cy={53} r={3.4} fill="none" stroke="#FDE68A" strokeWidth={1.4} />
         </G>
       );
+    case "powers-blade":
+      return (
+        <G>
+          <Rect x={2.6} y={0} width={4.8} height={40} fill="#C4B5FD" />
+          <Rect x={3.8} y={2} width={2.4} height={36} fill="#7C6AAE" />
+          <Circle cx={5} cy={18} r={2} fill="#A855F7" />
+          <Rect x={0} y={40} width={10} height={4} fill="#F6C453" />
+          <Rect x={3} y={44} width={4} height={12} fill="#2E1065" />
+          <Rect x={4} y={52} width={2} height={4} fill="#C4B5FD" />
+        </G>
+      );
+    case "virtues-blade":
+      return (
+        <G>
+          <Rect x={2.8} y={0} width={4.4} height={40} fill="#99F6E4" />
+          <Path d="M 4 2 Q 6 10 4 18 Q 2 26 4 34" stroke="#0F766E" strokeWidth={1.6} fill="none" />
+          <Rect x={0} y={40} width={10} height={4} fill="#0F766E" />
+          <Rect x={3} y={44} width={4} height={12} fill="#04211D" />
+          <Circle cx={5} cy={54} r={2.5} fill="#5EEAD4" />
+        </G>
+      );
+    case "dominions-blade":
+      return (
+        <G>
+          <Rect x={2.8} y={0} width={4.4} height={40} fill="#93C5FD" />
+          <Rect x={3.9} y={2} width={2.2} height={36} fill="#1E3A8A" />
+          {[0, 3.5, 6.5].map((dx) => (
+            <Path key={dx} d={`M ${0.6 + dx} 40 L ${2.1 + dx} 35.4 L ${3.6 + dx} 40 Z`} fill="#F6C453" />
+          ))}
+          <Rect x={0} y={40} width={10} height={3.4} fill="#B8912C" />
+          <Rect x={3} y={43.4} width={4} height={12.6} fill="#0B1B3A" />
+          <Circle cx={5} cy={53.6} r={2.4} fill="#60A5FA" />
+        </G>
+      );
+    case "thrones-blade":
+      return (
+        <G>
+          <Rect x={2.6} y={0} width={4.8} height={40} fill="#FCA5A5" />
+          <Rect x={3.8} y={2} width={2.4} height={36} fill="#B91C1C" />
+          <Rect x={-1} y={40} width={12} height={4.4} fill="#F6C453" />
+          <Circle cx={5} cy={42.2} r={1.8} fill="#DC2626" />
+          <Rect x={3} y={44.4} width={4} height={11.6} fill="#450A0A" />
+          <Rect x={4} y={52.6} width={2} height={3.4} fill="#F6C453" />
+        </G>
+      );
+    case "cherubim-blade":
+      return (
+        <G>
+          <Rect x={2.8} y={0} width={4.4} height={40} fill="#FBCFE8" />
+          <Rect x={3.9} y={2} width={2.2} height={36} fill="#F472B6" />
+          <Path d="M 0 40 Q -3.4 34 0.4 31.4 L 2.6 38 Z" fill="#F9D3E3" />
+          <Path d="M 10 40 Q 13.4 34 9.6 31.4 L 7.4 38 Z" fill="#F9D3E3" />
+          <Rect x={0.6} y={40} width={8.8} height={3.6} fill="#DB8FB4" />
+          <Rect x={3} y={43.6} width={4} height={12.4} fill="#500F2E" />
+          <Circle cx={5} cy={54} r={2.5} fill="#F9A8D4" />
+        </G>
+      );
+    case "seraphim-blade":
+      return (
+        <G>
+          <Rect x={2.8} y={0} width={4.4} height={40} fill="#FFFFFF" />
+          <Rect x={3.9} y={2} width={2.2} height={36} fill="#FDE68A" />
+          {[8, 18, 28].map((y) => (
+            <G key={y}>
+              <Path d={`M 2.8 ${y} L -0.6 ${y - 3.4} L 2.8 ${y + 2.6} Z`} fill="#FFF3C4" />
+              <Path d={`M 7.2 ${y} L 10.6 ${y - 3.4} L 7.2 ${y + 2.6} Z`} fill="#FFF3C4" />
+            </G>
+          ))}
+          <Rect x={0} y={40} width={10} height={4} fill="#F59E0B" />
+          <Rect x={3} y={44} width={4} height={12} fill="#78350F" />
+          <Circle cx={5} cy={53.4} r={3.2} fill="none" stroke="#FDE68A" strokeWidth={1.4} />
+        </G>
+      );
+    case "dragonbone-blade":
+      // Bone-white and serrated — a rib of the old dragon, still hungry.
+      return (
+        <G>
+          <Path d="M 3 0 L 7.4 0 L 7.4 8 L 5.6 10 L 7.4 13 L 5.6 15.6 L 7.4 19 L 5.6 21.6 L 7.4 25 L 5.6 27.6 L 7.4 31 L 5.6 33.6 L 7 40 L 3 40 Z" fill="#F5EFE0" />
+          <Rect x={3.6} y={2} width={1.8} height={36} fill="#D9CDB0" />
+          <Path d="M 0.4 40 Q 0 33 3 31.6 L 3.4 40 Z" fill="#EDE3CB" />
+          <Path d="M 9.6 40 Q 10 33 7 31.6 L 6.6 40 Z" fill="#EDE3CB" />
+          <Rect x={0.4} y={40} width={9.2} height={3.4} fill="#CBBFA3" />
+          <Rect x={3} y={43.4} width={4} height={12.6} fill="#4A3F28" />
+          <Path d="M 3.4 56 L 5 51.4 L 6.6 56 Z" fill="#F5EFE0" />
+        </G>
+      );
     case "steel-sword":
     default:
       return (
@@ -328,7 +577,20 @@ export function weaponGlowColor(weaponId: string | null): string | null {
   if (weaponId === "gilded-blade") return "#F6C453";
   if (weaponId === "radiant-blade") return "#BAE6FD";
   if (weaponId === "heavenly-blade") return "#FFFFFF";
+  if (weaponId === "powers-blade") return "#C4B5FD";
+  if (weaponId === "virtues-blade") return "#5EEAD4";
+  if (weaponId === "dominions-blade") return "#93C5FD";
+  if (weaponId === "thrones-blade") return "#FCA5A5";
+  if (weaponId === "cherubim-blade") return "#FBCFE8";
+  if (weaponId === "seraphim-blade") return "#FEF08A";
+  if (weaponId === "dragonbone-blade") return "#F5EFE0";
   return null;
+}
+
+/** Halo color for an armor, or null. Shared by the town hero + the forest. */
+export function armorGlowColor(armorId: string | null): string | null {
+  if (!armorId) return null;
+  return HERO_GLOW_ARMORS[armorId] ?? null;
 }
 
 export function HeroHair({ style, color }: { style: PawnHairStyle; color: string }) {
@@ -503,6 +765,13 @@ const HERO_GLOW_ARMORS: Record<string, string> = {
   "celestial-bulwark": "#FDE68A",
   "gilded-aegis": "#FDE68A",
   "heavenly-aegis": "#FFFFFF",
+  "powers-aegis": "#C4B5FD",
+  "virtues-aegis": "#5EEAD4",
+  "dominions-aegis": "#93C5FD",
+  "thrones-aegis": "#FCA5A5",
+  "cherubim-aegis": "#FBCFE8",
+  "seraphim-aegis": "#FFFFFF",
+  "dragonbone-plate": "#F5EFE0",
 };
 
 export type HeroFigureProps = {

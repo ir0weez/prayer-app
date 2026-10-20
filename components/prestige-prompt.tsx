@@ -15,15 +15,20 @@ import {
   loadPrestigeLevel,
   loadPrestigeState,
   markFastPrompted,
+  offerBossCleared,
   performPrestige,
   prestigeOffer,
   totalPrestigeMultiplier,
   type PrestigeOffer,
 } from "@/lib/prestige";
+import { BADGE_BY_ID, bossGateFor } from "@/lib/badges";
 
 export function PrestigePrompt({ fasts }: { fasts: PersonalFast[] }) {
   const [offer, setOffer] = useState<PrestigeOffer | null>(null);
   const [crowns, setCrowns] = useState(0);
+  const [gateCleared, setGateCleared] = useState(false);
+  const [bossName, setBossName] = useState("");
+  const [badgeName, setBadgeName] = useState("");
   const [visible, setVisible] = useState(false);
   const busyRef = useRef(false);
 
@@ -40,6 +45,10 @@ export function PrestigePrompt({ fasts }: { fasts: PersonalFast[] }) {
         if (!fast || !isFastCompleted(fast)) return; // the prompt belongs to a fast's end
         const level = await loadPrestigeLevel();
         if (!live) return;
+        const boss = bossGateFor(state.badges as string[], state.throneVictories);
+        setBossName(boss.displayName);
+        setBadgeName(BADGE_BY_ID[boss.badgeId].name);
+        setGateCleared(offerBossCleared(state, next));
         setCrowns(level);
         setOffer(next);
         setVisible(true);
@@ -73,6 +82,12 @@ export function PrestigePrompt({ fasts }: { fasts: PersonalFast[] }) {
             ? `Crown ${res.crowns}! Every coin your town earns is now x${totalPrestigeMultiplier(res.crowns, res.devotionBonus)}. The City awaits in your Hometown.`
             : `Your devotion bonus is now +${Math.round(res.devotionBonus * 100)}% on every coin your town earns — forever.`,
         );
+      } else {
+        // The Boss Gate is shut — performPrestige refused.
+        Alert.alert(
+          "The Boss Gate is shut",
+          `${bossName} guards the way in the Dark Forest. Defeat the boss to earn the ${badgeName} and clear the gate — then Begin Again from your Hometown.`
+        );
       }
     } catch {
       busyRef.current = false;
@@ -103,13 +118,30 @@ export function PrestigePrompt({ fasts }: { fasts: PersonalFast[] }) {
             Your town, coin balance and gear would reset. Your prayer streak, XP, collections, Garden of Remembrance
             {crowns > 0 || offer.kind === "crown" ? ", Crowns" : ""} and devotion stay.
           </Text>
+          {gateCleared ? (
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0FDF4", borderRadius: 10, padding: 10, marginTop: 12, borderWidth: 1, borderColor: "#4ADE80" }}>
+              <MaterialIcons name="check-circle" size={18} color="#166534" />
+              <Text style={{ fontSize: 13, color: "#14532D", flex: 1, marginLeft: 8, lineHeight: 18 }}>
+                Boss Gate cleared — {bossName} is defeated and the {badgeName} is yours.
+              </Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF2F2", borderRadius: 10, padding: 10, marginTop: 12, borderWidth: 1, borderColor: "#F87171" }}>
+              <MaterialIcons name="lock" size={18} color="#991B1B" />
+              <Text style={{ fontSize: 13, color: "#7F1D1D", flex: 1, marginLeft: 8, lineHeight: 18 }}>
+                The Boss Gate: {bossName} must fall in the Dark Forest first. Victory earns the {badgeName} — yours forever.
+              </Text>
+            </View>
+          )}
           <Pressable
-            onPress={confirm}
-            style={{ backgroundColor: "#B8912C", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 16, flexDirection: "row", justifyContent: "center" }}
+            onPress={gateCleared ? confirm : undefined}
+            style={{ backgroundColor: gateCleared ? "#B8912C" : "#9CA3AF", borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 16, flexDirection: "row", justifyContent: "center" }}
           >
-            <MaterialIcons name="workspace-premium" size={18} color="#FFFFFF" />
+            <MaterialIcons name={gateCleared ? "workspace-premium" : "lock"} size={18} color="#FFFFFF" />
             <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 15, marginLeft: 6 }}>
-              {offer.kind === "crown" ? `Begin Again — Crown ${crowns + 1}` : `Begin Again — +${Math.round(offer.bonus * 100)}% forever`}
+              {gateCleared
+                ? offer.kind === "crown" ? `Begin Again — Crown ${crowns + 1}` : `Begin Again — +${Math.round(offer.bonus * 100)}% forever`
+                : `Defeat ${bossName} to Begin Again`}
             </Text>
           </Pressable>
           <Pressable onPress={dismiss} style={{ borderRadius: 12, paddingVertical: 11, alignItems: "center", marginTop: 8 }}>

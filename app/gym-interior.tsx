@@ -27,7 +27,7 @@ import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { TrainingGame } from "@/components/training-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, grantTrainingBonus, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, grantTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 
 const BG = "#F5F1EE";
 const BRICK = "#A5553F";
@@ -153,8 +153,9 @@ export default function GymInteriorScreen() {
   }, []);
 
   const handleTrainingComplete = (raw: MiniGameReward): MiniGameReward => {
-    const c = scaledCoins(raw.coins);
-    const xp = scaledXP(raw.xp);
+    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
+    const c = _pay.coins;
+    const xp = _pay.xp;
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-training-${Date.now()}`).catch(() => undefined);
     // A finished session leaves the Hero sharper until midnight.

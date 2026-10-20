@@ -2452,6 +2452,8 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
 const COIN_FLY_MS = 650;
 /** When the awarded coins "land" — balance ticks up and pulses then. */
 const COIN_LAND_MS = 850;
+/** Header pill offers Collect All only once more than this many coins wait. */
+const COLLECT_ALL_MIN = 100;
 
 type CoinBurstData = {
   id: string;
@@ -2910,10 +2912,17 @@ export default function HometownScreen() {
   const map: MapState = town.maps[activeMap];
 
   // The single morphing header pill: total coins/XP waiting to be collected
-  // on the active map. It sits in "Collect" mode while anything is pending
-  // (or while the collect FX plays), otherwise it rests showing the balance.
+  // on the active map. It sits in "Collect" mode while more than
+  // COLLECT_ALL_MIN coins are pending (or while the collect FX plays),
+  // otherwise it rests showing the balance.
   const collectibleTotal = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
-  const pillCollectMode = collectibleTotal > 0 || !!collectFx;
+  // Coins only — XP buildings accumulate XP, not coins, so they don't count
+  // toward the Collect All threshold.
+  const collectibleCoins = map.buildings.reduce(
+    (s, b) => s + (xpIncomeFor(b.type, b.level || 1) > 0 ? 0 : b.accumulated || 0),
+    0
+  );
+  const pillCollectMode = collectibleCoins > COLLECT_ALL_MIN || !!collectFx;
   // Compact number formatting so a huge total can never shove the pill
   // off the screen (the pill also has a maxWidth cap in the header).
   const headerCoinText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(2));
@@ -7205,14 +7214,21 @@ export default function HometownScreen() {
                   </View>
                 ))}
             </ScrollView>
-            <Pressable
-              onPress={() => { setCollectBreakdownOpen(false); handleCollectAll(); }}
-              style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: "center" }}
-            >
-              <Text style={{ fontWeight: "800", fontSize: 15, color: "#FFFFFF" }}>
-                Collect {town.maps[activeMap].buildings.reduce((s, b) => s + (b.accumulated || 0), 0).toFixed(2)}
-              </Text>
-            </Pressable>
+            {/* Collect All only appears once enough coins are waiting —
+                smaller amounts are still collectible per building. */}
+            {town.maps[activeMap].buildings.reduce(
+              (s, b) => s + (xpIncomeFor(b.type, b.level || 1) > 0 ? 0 : b.accumulated || 0),
+              0
+            ) > COLLECT_ALL_MIN && (
+              <Pressable
+                onPress={() => { setCollectBreakdownOpen(false); handleCollectAll(); }}
+                style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: "center" }}
+              >
+                <Text style={{ fontWeight: "800", fontSize: 15, color: "#FFFFFF" }}>
+                  Collect {town.maps[activeMap].buildings.reduce((s, b) => s + (b.accumulated || 0), 0).toFixed(2)}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </Pressable>
       </Modal>

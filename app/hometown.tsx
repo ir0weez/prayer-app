@@ -2602,6 +2602,10 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
+  /** Income bonus breakdown sheet (the collapsed header chips). */
+  const [incomeBreakdownOpen, setIncomeBreakdownOpen] = useState(false);
+  /** Streak detail sheet (tapped from the compact streak chip). */
+  const [streakDetailOpen, setStreakDetailOpen] = useState(false);
   const [collectionSummary, setCollectionSummary] = useState<CollectionState | null>(null);
   /** Active limited-time heavenly events (refreshed on open + every minute). */
   const [activeEvents, setActiveEvents] = useState<HeavenlyEvent[]>([]);
@@ -4979,117 +4983,88 @@ export default function HometownScreen() {
               <Pressable
                 onPress={handleCollectAll}
                 onLongPress={() => setCollectBreakdownOpen(true)}
-                style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row", alignItems: "center" }}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                style={({ pressed }) => ({ backgroundColor: pressed ? "#B8963A" : "#D4AF37", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 })}
               >
-                <MaterialIcons name="monetization-on" size={16} color="#FFFFFF" />
+                <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
                 <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {collectible.toFixed(2)}</Text>
               </Pressable>
               <Pressable
                 onPress={() => setCollectBreakdownOpen(true)}
-                style={{ marginLeft: 4, padding: 4 }}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ marginLeft: 4, padding: 4, minHeight: 44, minWidth: 36, alignItems: "center", justifyContent: "center" }}
               >
                 <MaterialIcons name="info-outline" size={18} color="#92400E" />
               </Pressable>
             </View>
           );
         })()}
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 16 }}>🪙</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3C7", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, minHeight: 44 }}>
+          <MaterialIcons name="monetization-on" size={18} color="#92400E" />
           <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
         </View>
       </View>
 
-      {/* Coin milestone chip */}
-      {(() => {
-        const { current, next } = milestoneFor(coins.lifetimeEarned);
-        if (!current && !next) return null;
-        return (
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#EDE9FE", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start" }}>
-            <Text style={{ fontSize: 14 }}>🏆</Text>
-            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#5B21B6" }}>
-              {current ? `${current.name} +${Math.round((current.mult - 1) * 100)}%` : "No milestone yet"}
-            </Text>
-            {next && (
-              <Text style={{ marginLeft: 6, fontSize: 12, color: "#7C3AED" }}>
-                → {next.name} at {next.threshold.toLocaleString()} lifetime
+      {/* Compact header summary — the income bonuses (milestone, prayer,
+          fellowship, remembrance, garden visits) collapse into ONE chip with
+          the combined bonus; tap it for the full breakdown. Streak and
+          Collections share the same row so the header stays two rows max. */}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        {/* Income bonus summary chip */}
+        {(() => {
+          const combined =
+            milestoneMultiplier(coins.lifetimeEarned) *
+            prayerMult(prayedToday) *
+            fellowshipMult(fellowship) *
+            remembranceMult(remembrance.people.length) *
+            gardenVisitMult(gardenVisits);
+          if (combined <= 1) return null;
+          return (
+            <Pressable
+              onPress={() => setIncomeBreakdownOpen(true)}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, borderWidth: 1, borderColor: "#FDE68A" }}
+            >
+              <MaterialIcons name="trending-up" size={14} color="#92400E" />
+              <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
+                Income bonus +{Math.round((combined - 1) * 100)}%
               </Text>
-            )}
-          </View>
-        );
-      })()}
+              <MaterialIcons name="expand-more" size={14} color="#92400E" style={{ marginLeft: 2 }} />
+            </Pressable>
+          );
+        })()}
 
-      {/* Prayer blessing chip */}
-      {prayedToday > 0 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start" }}>
-          <Text style={{ fontSize: 14 }}>🙏</Text>
-          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
-            {prayedToday} prayed (+{Math.round((prayerMult(prayedToday) - 1) * 100)}% income)
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Fellowship chip — breaking bread blessing (24h) */}
-      {(() => {
-        const fm = fellowshipMult(fellowship);
-        if (fm <= 1) return null;
-        return (
-          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFBEB", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FDE68A" }}>
-            <Text style={{ fontSize: 14 }}>🍞</Text>
-            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#92400E" }}>
-              Fellowship: +{((fm - 1) * 100).toFixed(1)}%{gatheringNow ? (map.buildings.some((b) => b.type === "banquet-table") ? " — the Marriage Supper is served!" : " — breaking bread now!") : ""}
+        {/* Daily visit streak chip (compact) */}
+        {streak.streak > 0 ? (
+          <Pressable
+            onPress={() => setStreakDetailOpen(true)}
+            style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, borderWidth: 1, borderColor: "#FDBA74" }}
+          >
+            <MaterialIcons name="local-fire-department" size={14} color="#EA580C" />
+            <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#9A3412" }}>
+              Day {streak.streak}
             </Text>
-          </View>
-        );
-      })()}
+          </Pressable>
+        ) : null}
 
-      {/* Remembrance chip — loved ones remembered in the garden */}
-      {remembrance.people.length > 0 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FDF6EC", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#E7D8B7" }}>
-          <Text style={{ fontSize: 14 }}>🕯️</Text>
-          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#8A6D1B" }}>
-            {remembrance.people.length} remembered (+{((remembranceMult(remembrance.people.length) - 1) * 100).toFixed(1)}% income)
+        {/* Collections button (compact) */}
+        <Pressable
+          onPress={() => {
+            loadCollections().then(setCollectionSummary).catch(() => undefined);
+            setCollectionsOpen(true);
+          }}
+          style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#EDE9FE", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: "#C4B5FD" }}
+        >
+          <MaterialIcons name="collections-bookmark" size={14} color="#6D28D9" />
+          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#5B21B6" }}>
+            Collections{(() => {
+              if (!collectionSummary) return "";
+              const total = collectionSummary.fish.length + collectionSummary.demons.length + collectionSummary.flowers.length;
+              const max = 10 + 15 + 6;
+              return ` ${total}/${max}`;
+            })()}
           </Text>
-        </View>
-      ) : null}
-
-      {/* Daily visit streak chip */}
-      {streak.streak > 0 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#FDBA74" }}>
-          <MaterialIcons name="local-fire-department" size={14} color="#EA580C" />
-          <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#9A3412" }}>
-            Day {streak.streak} streak{streak.bestStreak > streak.streak ? ` (best ${streak.bestStreak})` : ""}
-          </Text>
-          {(() => {
-            const nm = nextMilestoneFor(streak.streak);
-            if (!nm) return null;
-            return (
-              <Text style={{ marginLeft: 6, fontSize: 12, color: "#C2410C" }}>
-                → {nm.coins}c at day {nm.day}
-              </Text>
-            );
-          })()}
-        </View>
-      ) : null}
-
-      {/* Collections button */}
-      <Pressable
-        onPress={() => {
-          loadCollections().then(setCollectionSummary).catch(() => undefined);
-          setCollectionsOpen(true);
-        }}
-        style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#EDE9FE", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12, alignSelf: "flex-start", borderWidth: 1, borderColor: "#C4B5FD" }}
-      >
-        <MaterialIcons name="collections-bookmark" size={14} color="#6D28D9" />
-        <Text style={{ marginLeft: 6, fontWeight: "700", fontSize: 12, color: "#5B21B6" }}>
-          Collections{(() => {
-            if (!collectionSummary) return "";
-            const total = collectionSummary.fish.length + collectionSummary.demons.length + collectionSummary.flowers.length;
-            const max = 10 + 15 + 6;
-            return ` ${total}/${max}`;
-          })()}
-        </Text>
-      </Pressable>
-
+        </Pressable>
+      </View>
       {/* Limited-time heavenly events */}
       {activeEvents.map((ev) => (
         <View
@@ -6493,6 +6468,158 @@ export default function HometownScreen() {
       </Modal>
       {/* Collections book */}
       <CollectionsBook visible={collectionsOpen} onClose={() => setCollectionsOpen(false)} pt={pt} />
+      {/* Income bonus breakdown — every source behind the summary chip */}
+      <Modal
+        visible={incomeBreakdownOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIncomeBreakdownOpen(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setIncomeBreakdownOpen(false)}
+        >
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 20, width: "100%", maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#92400E" }}>Income Bonuses</Text>
+              <Pressable onPress={() => setIncomeBreakdownOpen(false)} style={{ padding: 4 }}>
+                <MaterialIcons name="close" size={22} color="#6B7280" />
+              </Pressable>
+            </View>
+            <ScrollView>
+              {/* Coin milestone */}
+              {(() => {
+                const { current, next } = milestoneFor(coins.lifetimeEarned);
+                if (!current && !next) return null;
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                    <MaterialIcons name="emoji-events" size={20} color="#7C3AED" />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={{ fontSize: 15, color: "#1F2937" }}>{current ? `${current.name} milestone` : "Coin milestone"}</Text>
+                      {next ? <Text style={{ fontSize: 12, color: "#6B7280" }}>Next: {next.name} at {next.threshold.toLocaleString()} lifetime</Text> : null}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                      {current ? `+${Math.round((current.mult - 1) * 100)}%` : "—"}
+                    </Text>
+                  </View>
+                );
+              })()}
+              {/* Prayer blessing */}
+              {prayedToday > 0 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="volunteer-activism" size={20} color="#92400E" />
+                  <Text style={{ fontSize: 15, color: "#1F2937", flex: 1, marginLeft: 10 }}>{prayedToday} prayed</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{Math.round((prayerMult(prayedToday) - 1) * 100)}%
+                  </Text>
+                </View>
+              ) : null}
+              {/* Fellowship blessing */}
+              {(() => {
+                const fm = fellowshipMult(fellowship);
+                if (fm <= 1) return null;
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                    <MaterialIcons name="dinner-dining" size={20} color="#92400E" />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={{ fontSize: 15, color: "#1F2937" }}>Fellowship</Text>
+                      {gatheringNow ? (
+                        <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                          {map.buildings.some((b) => b.type === "banquet-table") ? "The Marriage Supper is served!" : "Breaking bread now!"}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                      +{((fm - 1) * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                );
+              })()}
+              {/* Remembrance blessing */}
+              {remembrance.people.length > 0 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                  <MaterialIcons name="local-florist" size={20} color="#8A6D1B" />
+                  <Text style={{ fontSize: 15, color: "#1F2937", flex: 1, marginLeft: 10 }}>{remembrance.people.length} remembered</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                    +{((remembranceMult(remembrance.people.length) - 1) * 100).toFixed(1)}%
+                  </Text>
+                </View>
+              ) : null}
+              {/* Garden visits blessing */}
+              {(() => {
+                const gv = gardenVisitMult(gardenVisits);
+                if (gv <= 1) return null;
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+                    <MaterialIcons name="park" size={20} color="#166534" />
+                    <Text style={{ fontSize: 15, color: "#1F2937", flex: 1, marginLeft: 10 }}>Garden visits</Text>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
+                      +{((gv - 1) * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                );
+              })()}
+            </ScrollView>
+            {/* Combined total — the same multiplicative mix the town actually earns */}
+            {(() => {
+              const combined =
+                milestoneMultiplier(coins.lifetimeEarned) *
+                prayerMult(prayedToday) *
+                fellowshipMult(fellowship) *
+                remembranceMult(remembrance.people.length) *
+                gardenVisitMult(gardenVisits);
+              return (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: "#92400E" }}>Combined income bonus</Text>
+                  <Text style={{ fontSize: 17, fontWeight: "800", color: "#D4AF37" }}>+{Math.round((combined - 1) * 100)}%</Text>
+                </View>
+              );
+            })()}
+          </View>
+        </Pressable>
+      </Modal>
+      {/* Streak detail — tapped from the compact streak chip */}
+      <Modal
+        visible={streakDetailOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStreakDetailOpen(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 24 }}
+          onPress={() => setStreakDetailOpen(false)}
+        >
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 20, width: "100%", maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialIcons name="local-fire-department" size={22} color="#EA580C" />
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "#9A3412", marginLeft: 8 }}>Daily Streak</Text>
+              </View>
+              <Pressable onPress={() => setStreakDetailOpen(false)} style={{ padding: 4 }}>
+                <MaterialIcons name="close" size={22} color="#6B7280" />
+              </Pressable>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+              <Text style={{ fontSize: 15, color: "#1F2937", flex: 1 }}>Current streak</Text>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#9A3412" }}>Day {streak.streak}</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
+              <Text style={{ fontSize: 15, color: "#1F2937", flex: 1 }}>Best streak</Text>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#9A3412" }}>Day {streak.bestStreak}</Text>
+            </View>
+            {(() => {
+              const nm = nextMilestoneFor(streak.streak);
+              if (!nm) return null;
+              return (
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 15, color: "#1F2937", flex: 1 }}>Next milestone</Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#9A3412" }}>{nm.coins}c at day {nm.day}</Text>
+                </View>
+              );
+            })()}
+          </View>
+        </Pressable>
+      </Modal>
       {/* Collect breakdown — what's collectible per building */}
       <Modal
         visible={collectBreakdownOpen}

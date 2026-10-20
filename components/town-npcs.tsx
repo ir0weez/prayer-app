@@ -207,8 +207,10 @@ function bfsRoadPath(roadSet: Set<string>, from: Tile, to: Tile): Tile[] | null 
   return null;
 }
 
-/** Build a pixel-space waypoint path from one tile to another, preferring roads. */
-function buildPath(mapState: MapState, fromTile: Tile, toTile: Tile, cellSize: number): Px[] {
+/** Build a pixel-space waypoint path from one tile to another, preferring roads.
+ *  Shared: the villagers walk these waypoints, and so does the Hero
+ *  (components/player-pawn) — same road network, same final approach. */
+export function buildPath(mapState: MapState, fromTile: Tile, toTile: Tile, cellSize: number): Px[] {
   const toPx = (t: Tile): Px => ({ x: (t.x + 0.5) * cellSize, y: (t.y + 0.5) * cellSize - 4 });
   const dest = toPx(toTile);
   const roads = mapState.roads;

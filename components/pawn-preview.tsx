@@ -13,11 +13,14 @@ export function PawnPreview({
   pawn,
   size = 120,
   equippedGear,
+  weaponAngle,
 }: {
   pawn: CustomPawn;
   size?: number;
   equippedGear?: GearItem | null;
+  /** Weapon rotation — the Dark Forest holds the blade at 8° at rest. */
+  weaponAngle?: string;
 }) {
   const clothesItem = equippedGear && equippedGear.type === "clothes" ? equippedGear : null;
-  return <HeroForPawn pawn={pawn} size={size} clothesItem={clothesItem} />;
+  return <HeroForPawn pawn={pawn} size={size} clothesItem={clothesItem} weaponAngle={weaponAngle} />;
 }

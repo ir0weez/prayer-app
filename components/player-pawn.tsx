@@ -1,31 +1,56 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Text } from "react-native";
 import { HeroForPawn } from "@/components/hero-sprite";
-import { CUSTOM_PAWN_STORAGE_KEY, loadCustomPawn, type CustomPawn } from "@/lib/pawn";
+import { buildPath } from "@/components/town-npcs";
+import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
-import { TOWN_GRID_W, TOWN_GRID_H } from "@/lib/hometown";
+import { TOWN_GRID_H, type MapState } from "@/lib/hometown";
 
 const PAWN_SIZE = 34;
+/** Walk speed, px per second. The villagers stroll at ~42; the Hero
+ *  keeps a touch brisker pace so a cross-town road trip stays watchable. */
+const WALK_PX_PER_SEC = 46;
 
 /**
- * The Hero — the player's own character, wandering the hometown during
+ * The Hero — the player's own character, walking the hometown during
  * the day: the 8-bit Dark Forest hero wearing what's equipped, with the
- * saved appearance's hair and beard. At night they're in bed in the
- * Hero's house (rendered there), so this hides after dark.
+ * saved appearance's hair and beard. He travels the way the villagers
+ * do — along the road network (buildPath: nearest road tile, BFS over
+ * the roads, then the final step off-road to the door) — never in a
+ * straight line over the rooftops. Idle, he strolls from road tile to
+ * road tile. At night he's in bed in the Hero's house (rendered there),
+ * so this hides after dark.
  */
-export function PlayerPawnWanderer({ cellSize, destTile }: { cellSize: number; destTile?: { x: number; y: number } | null }) {
+export function PlayerPawnWanderer({
+  cellSize,
+  destTile,
+  mapState,
+}: {
+  cellSize: number;
+  destTile?: { x: number; y: number } | null;
+  mapState: MapState;
+}) {
   const [pawn, setPawn] = useState<CustomPawn | null>(null);
   const [isNight, setIsNight] = useState(getTimeOfDay() === "night");
   // Tile Y for depth sorting — villagers and buildings interleave by Y.
   const [tileY, setTileY] = useState(5);
-  const pos = useRef(new Animated.ValueXY({ x: 5 * cellSize, y: 5 * cellSize })).current;
+  const pos = useRef(new Animated.ValueXY({ x: 5.5 * cellSize, y: 5.5 * cellSize - 4 })).current;
   const bob = useRef(new Animated.Value(0)).current;
-  const targetRef = useRef({ x: 5, y: 5 });
   const mountedRef = useRef(true);
   // When the pawn has a schedule destination (mimicking Jonathan's day),
   // walk there and stay — no wandering until the event ends.
   const destTileRef = useRef(destTile);
   destTileRef.current = destTile;
+  const mapStateRef = useRef(mapState);
+  mapStateRef.current = mapState;
+  // Live pixel position (kept current by the pos listener) so a walk can
+  // be re-pathed mid-stride when the destination changes.
+  const pxRef = useRef({ x: 5.5 * cellSize, y: 5.5 * cellSize - 4 });
+  // Walk bookkeeping: a generation counter invalidates stale segment
+  // callbacks whenever a walk is cancelled or re-pathed.
+  const walkGenRef = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -49,46 +74,145 @@ export function PlayerPawnWanderer({ cellSize, destTile }: { cellSize: number; d
     return () => loop.stop();
   }, [bob]);
 
-  // Day/night check + wandering (or heading to a schedule event)
+  /* ---------------- road-following walk engine ---------------- */
+
+  const stopWalk = () => {
+    walkGenRef.current += 1;
+    animRef.current?.stop();
+    animRef.current = null;
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  };
+
+  /** Pause at the end of a walk, then (if free) stroll to another road tile. */
+  const scheduleIdleRef = useRef(() => {});
+  scheduleIdleRef.current = () => {
+    if (destTileRef.current) return; // at a schedule event: stay put
+    const gen = walkGenRef.current;
+    idleTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current || gen !== walkGenRef.current) return;
+      if (destTileRef.current || getTimeOfDay() === "night") {
+        scheduleIdleRef.current();
+        return;
+      }
+      const roads = mapStateRef.current.roads || [];
+      const curTile = {
+        x: Math.floor(pxRef.current.x / cellSize),
+        y: Math.floor(pxRef.current.y / cellSize),
+      };
+      // Stroll to a road tile within a short walk; fall back to any road.
+      const near = roads.filter(
+        (r) => Math.abs(r.x - curTile.x) + Math.abs(r.y - curTile.y) <= 7
+      );
+      const pool = near.length > 0 ? near : roads;
+      if (pool.length === 0) {
+        scheduleIdleRef.current();
+        return;
+      }
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      if (pick.x === curTile.x && pick.y === curTile.y) {
+        scheduleIdleRef.current();
+        return;
+      }
+      walkToRef.current({ x: pick.x, y: pick.y });
+    }, 1400 + Math.random() * 1600);
+  };
+
+  /** Walk to a tile along the roads, segment by segment (tile-to-tile
+   *  steps, so corners turn crisply instead of gliding diagonally). */
+  const walkToRef = useRef((_dest: { x: number; y: number }) => {});
+  walkToRef.current = (dest) => {
+    stopWalk();
+    const gen = walkGenRef.current;
+    const fromTile = {
+      x: pxRef.current.x / cellSize - 0.5,
+      y: (pxRef.current.y + 4) / cellSize - 0.5,
+    };
+    const pts = buildPath(mapStateRef.current, fromTile, dest, cellSize);
+    let i = 0;
+    const step = () => {
+      if (!mountedRef.current || gen !== walkGenRef.current) return;
+      if (i >= pts.length) {
+        scheduleIdleRef.current();
+        return;
+      }
+      const p = pts[i++];
+      const cur = pxRef.current;
+      const dist = Math.hypot(p.x - cur.x, p.y - cur.y);
+      setTileY(Math.max(0, Math.min(TOWN_GRID_H - 1, Math.floor(p.y / cellSize))));
+      if (dist < 2) {
+        step();
+        return;
+      }
+      const anim = Animated.timing(pos, {
+        toValue: { x: p.x, y: p.y },
+        duration: Math.max(90, (dist / WALK_PX_PER_SEC) * 1000),
+        easing: Easing.linear,
+        useNativeDriver: true,
+      });
+      animRef.current = anim;
+      anim.start(({ finished }) => {
+        if (finished) step();
+      });
+    };
+    step();
+  };
+
+  /* ---------------- position tracking ---------------- */
   useEffect(() => {
-    const tick = () => {
+    const id = pos.addListener((v) => {
+      pxRef.current = { x: v.x, y: v.y };
+    });
+    return () => pos.removeListener(id);
+  }, [pos]);
+
+  /* ---------------- destination + day/night driving ---------------- */
+  // Keyed by tile VALUE, not object identity, so a re-created target
+  // object for the same tile never restarts a walk mid-stride.
+  const destKey = destTile ? `${destTile.x},${destTile.y}` : "";
+  const lastDestKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastDestKeyRef.current === destKey) return;
+    lastDestKeyRef.current = destKey;
+    if (getTimeOfDay() === "night") return;
+    if (destTile) {
+      walkToRef.current(destTile);
+    } else {
+      stopWalk();
+      scheduleIdleRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
       if (!mountedRef.current) return;
       const night = getTimeOfDay() === "night";
       setIsNight((prev) => (prev === night ? prev : night));
-      if (night) return;
-      // Schedule event: walk to the event and stay there.
-      const sched = destTileRef.current;
-      if (sched) {
-        const cur = targetRef.current;
-        if (cur.x !== sched.x || cur.y !== sched.y) {
-          targetRef.current = { x: sched.x, y: sched.y };
-          setTileY(sched.y);
-          Animated.timing(pos, {
-            toValue: { x: (sched.x + 0.5) * cellSize, y: (sched.y + 0.5) * cellSize - 4 },
-            duration: 2800,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }).start();
-        }
-        return;
+      if (night) {
+        stopWalk();
       }
-      // Pick a new random nearby tile every few seconds
-      const cur = targetRef.current;
-      const nx = Math.max(0, Math.min(TOWN_GRID_W - 1, cur.x + Math.floor(Math.random() * 5) - 2));
-      const ny = Math.max(0, Math.min(TOWN_GRID_H - 1, cur.y + Math.floor(Math.random() * 5) - 2));
-      targetRef.current = { x: nx, y: ny };
-      setTileY(ny);
-      Animated.timing(pos, {
-        toValue: { x: (nx + 0.5) * cellSize, y: (ny + 0.5) * cellSize - 4 },
-        duration: 2800,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }).start();
-    };
-    tick();
-    const id = setInterval(tick, 3200);
+    }, 3200);
     return () => clearInterval(id);
-  }, [cellSize, pos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Resume in the morning after the night hid him mid-route.
+  const wasNightRef = useRef(isNight);
+  useEffect(() => {
+    if (wasNightRef.current && !isNight) {
+      if (destTileRef.current) walkToRef.current(destTileRef.current);
+      else scheduleIdleRef.current();
+    }
+    wasNightRef.current = isNight;
+  }, [isNight]);
+
+  useEffect(() => {
+    return () => stopWalk();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!pawn || isNight) return null;
 

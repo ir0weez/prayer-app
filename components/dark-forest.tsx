@@ -444,6 +444,8 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
   const [floats, setFloats] = useState<FloatItem[]>([]);
   const [victoryFired, setVictoryFired] = useState(false);
   const [bossFight, setBossFight] = useState<BossDef | null>(null);
+  /** Select panel: earlier levels hide behind a replay disclosure. */
+  const [showReplay, setShowReplay] = useState(false);
 
   const demon: DemonDef = useMemo(() => demonForWave(wave), [wave]);
   const { zone, cycle } = useMemo(() => zoneForWave(wave), [wave]);
@@ -751,113 +753,11 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
             )}
           </View>
 
-          {/* bottom panel */}
+          {/* bottom panel — combat phases only. The select panels live
+              in normal flow below the scene (see under the scene View), so
+              nothing overlaps the scene or its title and nothing clips. */}
+          {phase !== "select" && (
           <View style={{ position: "absolute", left: 12, right: 12, bottom: 12 }}>
-            {phase === "select" && bossGate && (() => {
-              const badge = BADGE_BY_ID[bossGate.boss.badgeId];
-              return (
-                <View style={{ backgroundColor: bossGate.cleared ? "rgba(8,30,18,0.92)" : "rgba(30,10,14,0.92)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: bossGate.cleared ? "#4ADE80" : badge.primary, marginBottom: 10 }}>
-                  <Text style={{ color: bossGate.cleared ? "#4ADE80" : "#FCA5A5", fontWeight: "900", fontSize: 11, letterSpacing: 1.6, textAlign: "center", marginBottom: 8 }}>
-                    THE BOSS GATE
-                  </Text>
-                  {bossGate.cleared ? (
-                    <Text style={{ color: "#E2E8F0", fontSize: 12.5, textAlign: "center", lineHeight: 18 }}>
-                      {bossGate.boss.name} is defeated and the {badge.name} is yours.{"\n"}
-                      <Text style={{ color: "#4ADE80", fontWeight: "800" }}>Begin Again stands open.</Text>
-                    </Text>
-                  ) : (
-                    <>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                        <BadgeMedallion badge={badge} earned={false} size={56} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 15 }}>
-                            {bossGate.boss.displayName}
-                          </Text>
-                          <Text style={{ color: badge.primary, fontWeight: "700", fontSize: 11.5 }}>
-                            {badge.bossTitle} · guards the {badge.name}
-                          </Text>
-                          <Text style={{ color: "#C7D2FE", fontSize: 11, marginTop: 2 }}>
-                            {badge.perk} · {bossGate.boss.hp.toLocaleString()} HP · {bossGate.boss.attack} ATK
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                        A Begin Again is waiting — but the way is shut until this boss falls. Defeat costs nothing.
-                      </Text>
-                      <Pressable
-                        onPress={startBoss}
-                        style={{ backgroundColor: "#991B1B", borderRadius: 10, paddingVertical: 11, alignItems: "center", marginTop: 8, borderWidth: 1, borderColor: badge.primary }}
-                      >
-                        <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 14, letterSpacing: 1 }}>FACE THE BOSS</Text>
-                      </Pressable>
-                    </>
-                  )}
-                </View>
-              );
-            })()}
-            {phase === "select" && (
-              <View style={{ backgroundColor: "rgba(10,10,25,0.88)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#3A3A5E" }}>
-                <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
-                  Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP — your gear is your strength.
-                </Text>
-                {trainingBonus && (
-                  <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
-                    Training bonus active — +10% attack &amp; defense until midnight.
-                  </Text>
-                )}
-                {(() => {
-                  const cur = zoneForWave(maxWave);
-                  return (
-                    <>
-                      <Text style={{ color: "#E2E8F0", fontWeight: "800", fontSize: 13, textAlign: "center" }}>
-                        {zoneLabel(cur.zone, cur.cycle)}
-                      </Text>
-                      <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginBottom: 8, fontStyle: "italic" }}>
-                        {cur.zone.blurb}
-                      </Text>
-                    </>
-                  );
-                })()}
-                <ScrollView style={{ maxHeight: 196 }} showsVerticalScrollIndicator={false}>
-                  {Array.from({ length: Math.ceil(maxWave / 10) }, (_, g) => g).map((g) => {
-                    const zInfo = zoneForWave(g * 10 + 1);
-                    const levels = Array.from({ length: Math.min(10, maxWave - g * 10) }, (_, i) => g * 10 + i + 1);
-                    return (
-                      <View key={g} style={{ marginBottom: 8 }}>
-                        <Text style={{ color: "#C7D2FE", fontWeight: "800", fontSize: 11, marginBottom: 4 }}>
-                          {zoneLabel(zInfo.zone, zInfo.cycle)}
-                        </Text>
-                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                          {levels.map((w) => {
-                            const d = demonForWave(w);
-                            const cleared = w <= forest.highestWave;
-                            return (
-                              <Pressable
-                                key={w}
-                                onPress={() => startWave(w)}
-                                style={{
-                                  paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-                                  backgroundColor: cleared ? "#1E3A2E" : "#3B2F6B",
-                                  borderWidth: 1, borderColor: cleared ? "#4ADE80" : TIER_COLORS[d.tier],
-                                }}
-                              >
-                                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>
-                                  {cleared ? "✓ " : ""}Level {w}
-                                </Text>
-                                <Text style={{ color: TIER_COLORS[d.tier], fontSize: 10 }}>{d.name}</Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-                <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                  Stronger blades and armor from the Weaponsmith and Armory let you push deeper.
-                </Text>
-              </View>
-            )}
             {phase === "fight" && (
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable
@@ -948,8 +848,146 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
               </View>
             )}
           </View>
+          )}
         </View>
       </Animated.View>
+
+      {phase === "select" && bossGate && (() => {
+        const badge = BADGE_BY_ID[bossGate.boss.badgeId];
+        return (
+          <View style={{ backgroundColor: bossGate.cleared ? "rgba(8,30,18,0.92)" : "rgba(30,10,14,0.92)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: bossGate.cleared ? "#4ADE80" : badge.primary, width: SCENE_W, alignSelf: "center", marginTop: 10 }}>
+            <Text style={{ color: bossGate.cleared ? "#4ADE80" : "#FCA5A5", fontWeight: "900", fontSize: 11, letterSpacing: 1.6, textAlign: "center", marginBottom: 8 }}>
+              THE BOSS GATE
+            </Text>
+            {bossGate.cleared ? (
+              <Text style={{ color: "#E2E8F0", fontSize: 12.5, textAlign: "center", lineHeight: 18 }}>
+                {bossGate.boss.name} is defeated and the {badge.name} is yours.{"\n"}
+                <Text style={{ color: "#4ADE80", fontWeight: "800" }}>Begin Again stands open.</Text>
+              </Text>
+            ) : (
+              <>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <BadgeMedallion badge={badge} earned={false} size={56} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 15 }}>
+                      {bossGate.boss.displayName}
+                    </Text>
+                    <Text style={{ color: badge.primary, fontWeight: "700", fontSize: 11.5 }}>
+                      {badge.bossTitle} · guards the {badge.name}
+                    </Text>
+                    <Text style={{ color: "#C7D2FE", fontSize: 11, marginTop: 2 }}>
+                      {badge.perk} · {bossGate.boss.hp.toLocaleString()} HP · {bossGate.boss.attack} ATK
+                    </Text>
+                  </View>
+                </View>
+                <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+                  A Begin Again is waiting — but the way is shut until this boss falls. Defeat costs nothing.
+                </Text>
+                <Pressable
+                  onPress={startBoss}
+                  style={{ backgroundColor: "#991B1B", borderRadius: 10, paddingVertical: 11, alignItems: "center", marginTop: 8, borderWidth: 1, borderColor: badge.primary }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 14, letterSpacing: 1 }}>FACE THE BOSS</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        );
+      })()}
+      {/* Level select — normal flow under the scene: the current level
+          up front, earlier levels behind one replay disclosure. The card
+          grows with its content and the page scrolls; nothing overlaps. */}
+      {phase === "select" && (
+        <View style={{ width: SCENE_W, alignSelf: "center", marginTop: 10, backgroundColor: "rgba(10,10,25,0.88)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#3A3A5E" }}>
+          <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
+            Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP — your gear is your strength.
+          </Text>
+          {trainingBonus && (
+            <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
+              Training bonus active — +10% attack &amp; defense until midnight.
+            </Text>
+          )}
+          {(() => {
+            const cur = zoneForWave(maxWave);
+            const d = demonForWave(maxWave);
+            const zoneIdx = FOREST_ZONES.indexOf(cur.zone) + 1;
+            return (
+              <>
+                <Text style={{ color: "#E2E8F0", fontWeight: "800", fontSize: 13, textAlign: "center" }}>
+                  {zoneLabel(cur.zone, cur.cycle)}
+                </Text>
+                <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginBottom: 8, fontStyle: "italic" }}>
+                  {cur.zone.blurb}
+                </Text>
+                {/* The current level: the next uncleared demon, one tap. */}
+                <Pressable
+                  onPress={() => startWave(maxWave)}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#3B2F6B", borderRadius: 10, borderWidth: 1, borderColor: TIER_COLORS[d.tier], paddingHorizontal: 14, paddingVertical: 10 }}
+                >
+                  <View>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 16 }}>Level {maxWave}</Text>
+                    <Text style={{ color: TIER_COLORS[d.tier], fontSize: 11.5, fontWeight: "700" }}>{d.name} · {TIER_NAMES[d.tier]}</Text>
+                  </View>
+                  <View style={{ backgroundColor: "#991B1B", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: "#F87171" }}>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 13, letterSpacing: 0.6 }}>FIGHT</Text>
+                  </View>
+                </Pressable>
+                <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8 }}>
+                  {forest.highestWave} {forest.highestWave === 1 ? "level" : "levels"} cleared · Zone {zoneIdx} of {FOREST_ZONES.length}
+                </Text>
+                {/* Replay: every earlier level, behind one disclosure row. */}
+                <Pressable
+                  onPress={() => setShowReplay((s) => !s)}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingVertical: 4 }}
+                >
+                  <Text style={{ color: "#C7D2FE", fontSize: 12, fontWeight: "700" }}>Replay earlier levels</Text>
+                  <Text style={{ color: "#8B8BA8", fontSize: 12, fontWeight: "700" }}>{showReplay ? "Hide" : "Show"}</Text>
+                </Pressable>
+                {showReplay && (
+                  <ScrollView style={{ maxHeight: 196 }} showsVerticalScrollIndicator={false}>
+                    {Array.from({ length: Math.ceil(maxWave / 10) }, (_, g) => g).map((g) => {
+                      const zInfo = zoneForWave(g * 10 + 1);
+                      const levels = Array.from({ length: Math.min(10, maxWave - g * 10) }, (_, i) => g * 10 + i + 1);
+                      return (
+                        <View key={g} style={{ marginBottom: 8 }}>
+                          <Text style={{ color: "#C7D2FE", fontWeight: "800", fontSize: 11, marginBottom: 4 }}>
+                            {zoneLabel(zInfo.zone, zInfo.cycle)}
+                          </Text>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                            {levels.map((w) => {
+                              const d = demonForWave(w);
+                              const cleared = w <= forest.highestWave;
+                              return (
+                                <Pressable
+                                  key={w}
+                                  onPress={() => startWave(w)}
+                                  style={{
+                                    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+                                    backgroundColor: cleared ? "#1E3A2E" : "#3B2F6B",
+                                    borderWidth: 1, borderColor: cleared ? "#4ADE80" : TIER_COLORS[d.tier],
+                                  }}
+                                >
+                                  <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>
+                                    {cleared ? "✓ " : ""}Level {w}
+                                  </Text>
+                                  <Text style={{ color: TIER_COLORS[d.tier], fontSize: 10 }}>{d.name}</Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </>
+            );
+          })()}
+          <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+            Stronger blades and armor from the Weaponsmith and Armory let you push deeper.
+          </Text>
+        </View>
+      )}
 
       {/* verse line under the scene */}
       <Text style={{ marginTop: 10, fontSize: 12, color: pt.subtext, fontStyle: "italic", textAlign: "center", paddingHorizontal: 16 }}>

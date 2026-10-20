@@ -1069,10 +1069,13 @@ export function HeroForPawn({
   pawn,
   size = HERO_BOX_W,
   clothesItem,
+  weaponAngle,
 }: {
   pawn: CustomPawn;
   size?: number;
   clothesItem?: GearItem | null;
+  /** Weapon rotation — the Dark Forest holds the blade at 8° at rest. */
+  weaponAngle?: string;
 }) {
   const equipped = useEquippedGear();
   const clothes = clothesItem ?? (equipped?.clothes ? GEAR_BY_ID[equipped.clothes] : null);
@@ -1088,6 +1091,7 @@ export function HeroForPawn({
       beardStyle={pawn.beardStyle}
       beardLength={beardLength}
       size={size}
+      weaponAngle={weaponAngle}
       bodyStyle={pawn.bodyStyle}
       eyeStyle={pawn.eyeStyle}
       mouthStyle={pawn.mouthStyle}

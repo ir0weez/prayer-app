@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Polygon, Rect } from "react-native-svg";
 import { PawnPreview } from "@/components/pawn-preview";
-import { FastPawnShape } from "@/components/fast-board";
+import { HeroThumbnail } from "@/components/hero-sprite";
 import type { CustomPawn } from "@/lib/pawn";
 
 export type PawnMoodStatus = "completed" | "missed" | "skipped" | undefined;
@@ -241,7 +241,6 @@ function MissedDayScene({
  */
 export function PawnMoodScene({
   status,
-  pawnId,
   color,
   size = 72,
   customPawn,
@@ -276,11 +275,16 @@ export function PawnMoodScene({
   const swayR = sway.interpolate({ inputRange: [0, 1], outputRange: ["-6deg", "6deg"] });
   const breatheS = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
 
+  // The companion is the Hero himself — the same 8-bit figure as the
+  // town and the Dark Forest (HeroFigure via PawnPreview), holding his
+  // blade at the forest's resting angle (swordSwing rests at 8°). With
+  // no saved hero yet, show the plain default Hero — never a board
+  // piece: board tokens are collectibles, not the character.
   const renderPawn = (pawnSize: number) =>
     customPawn ? (
-      <PawnPreview pawn={customPawn} size={pawnSize} />
+      <PawnPreview pawn={customPawn} size={pawnSize} weaponAngle="8deg" />
     ) : (
-      <FastPawnShape id={pawnId || "pebble"} size={pawnSize} color={color} />
+      <HeroThumbnail size={pawnSize} tunicColor={color} hairColor="#6B4423" />
     );
 
   if (status === "missed") {

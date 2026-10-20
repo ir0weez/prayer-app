@@ -6929,7 +6929,7 @@ export default function HometownScreen() {
             <MapBirds width={gridW * cellSize} height={gridH * cellSize} birdCount={4} />
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
-          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} />}
+          {activeMap === "town" && <PlayerPawnWanderer cellSize={cellSize} destTile={scheduleTarget?.tile ?? null} mapState={map} />}
           {/* Surprise visitors — special encounters with "!" badges */}
           {activeMap === "town" && visitors.map((v) => (
             <Pressable

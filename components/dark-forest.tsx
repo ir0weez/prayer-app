@@ -2,13 +2,16 @@
 // Tap STRIKE to attack. Your equipped gear is your power — better blades
 // and armor from the Weaponsmith and Armory let you push deeper.
 // "Pray" heals once per battle. No auto-battle: Jonathan taps.
+// The forest runs on energy (lib/forest-energy): max == your XP level,
+// 1 per wave fight, rekindled at midnight. Boss Gate fights are free.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
 import { demonForWave, demonPalette, zoneForWave, zoneLabel, FOREST_ZONES, type DarkForestState, type DemonDef, type ForestZone } from "@/lib/dark-forest";
 import { ArmorShapes, HeroBeard, HeroHair, PixelSprite, TierGlow, WeaponShapes, armorGlowColor, heroArtForBodyStyle, weaponGlowColor } from "@/components/hero-sprite";
 import { BADGE_BY_ID, type BossDef } from "@/lib/badges";
+import { loadForestEnergy, spendForestEnergy, type ForestEnergy } from "@/lib/forest-energy";
 import { BadgeMedallion } from "@/components/badge-case";
 import type { CombatStats } from "@/lib/gear";
 import type { PawnBeardStyle, PawnBodyStyle, PawnHairStyle } from "@/lib/pawn";
@@ -428,6 +431,149 @@ function HpBar({ hp, maxHp, color }: { hp: number; maxHp: number; color: string 
 }
 
 /* ------------------------------------------------------------------ */
+/* Forest energy flames. One living flame per energy point, drawn as   */
+/* SVG art (never emoji). Lit flames flicker on staggered sine loops;  */
+/* spent ones are a dark wick under a faint smoke curl; the flame a    */
+/* fight just spent plays a snuff animation — it shrinks out while a   */
+/* smoke wisp rises and fades. When max energy outgrows the row cap,   */
+/* the row shows capped slots proportionally plus a "×N" count.        */
+/* ------------------------------------------------------------------ */
+
+type SnuffState = { from: number; to: number; key: number; long: boolean };
+
+function energySlots(max: number, cap: number): number {
+  return Math.max(1, Math.min(Math.max(1, max), cap));
+}
+
+function litForEnergy(energy: number, max: number, cap: number): number {
+  const slots = energySlots(max, cap);
+  if (max <= cap) return Math.max(0, Math.min(slots, Math.floor(energy)));
+  if (max <= 0) return 0;
+  return Math.round((Math.max(0, Math.min(max, energy)) / max) * slots);
+}
+
+/** The flame itself: three nested teardrops (outer, mid, core). */
+function FlameArt() {
+  return (
+    <G>
+      <Path d="M12 1.5 C13.9 6.6 19.5 10.2 19.5 16.6 C19.5 21.6 16.2 25.2 12 25.2 C7.8 25.2 4.5 21.6 4.5 16.6 C4.5 10.2 10.1 6.6 12 1.5 Z" fill="#F97316" />
+      <Path d="M12 7.5 C13.4 11 16.8 13.4 16.8 17.8 C16.8 21 14.7 23.4 12 23.4 C9.3 23.4 7.2 21 7.2 17.8 C7.2 13.4 10.6 11 12 7.5 Z" fill="#FB923C" />
+      <Path d="M12 13.5 C13 16 15 17.6 15 19.8 C15 21.6 13.7 22.8 12 22.8 C10.3 22.8 9 21.6 9 19.8 C9 17.6 11 16 12 13.5 Z" fill="#FDE047" />
+    </G>
+  );
+}
+
+const FlickerFlame = memo(function FlickerFlame({ index, size }: { index: number; size: number }) {
+  const flick = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const dur = 620 + (index % 5) * 110;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flick, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(flick, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    const t = setTimeout(() => loop.start(), (index % 7) * 120);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [flick, index]);
+  const scale = flick.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.1] });
+  const opacity = flick.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
+  return (
+    <Animated.View style={{ transform: [{ scale }], opacity }}>
+      <Svg width={size} height={(size * 28) / 24} viewBox="0 0 24 28">
+        <FlameArt />
+      </Svg>
+    </Animated.View>
+  );
+});
+
+/** A spent flame: nothing left but the wick and yesterday's smoke. */
+function SpentFlame({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={(size * 28) / 24} viewBox="0 0 24 28">
+      <Path d="M12 19 C9.5 15.8 14.8 14.2 12.6 11 C10.9 8.6 12.2 6 14.2 4.4" stroke="#A8A29E" strokeWidth={1.5} strokeLinecap="round" fill="none" opacity={0.4} />
+      <Path d="M11.1 20.5 L12.9 20.5 L12.5 25.5 L11.5 25.5 Z" fill="#44403C" />
+      <Circle cx={12} cy={26} r={1.1} fill="#292524" />
+    </Svg>
+  );
+}
+
+/**
+ * The flame a fight just spent, caught mid-snuff: the flame shrinks
+ * away while a smoke wisp climbs and thins. `long` stretches the trail
+ * — used when the spend emptied the store.
+ */
+function SnuffingFlame({ size, long, onDone }: { size: number; long: boolean; onDone: () => void }) {
+  const flameAnim = useRef(new Animated.Value(0)).current;
+  const smokeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const smokeDur = long ? 1500 : 850;
+    const flame = Animated.timing(flameAnim, { toValue: 1, duration: 300, easing: Easing.in(Easing.sin), useNativeDriver: true });
+    const smoke = Animated.timing(smokeAnim, { toValue: 1, duration: smokeDur, easing: Easing.out(Easing.sin), useNativeDriver: true });
+    Animated.parallel([flame, smoke]).start();
+    const fallback = setTimeout(onDone, smokeDur + 60);
+    return () => { flame.stop(); smoke.stop(); clearTimeout(fallback); };
+  }, [flameAnim, smokeAnim, long, onDone]);
+  const flameScale = flameAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.08] });
+  const flameOpacity = flameAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const smokeOpacity = smokeAnim.interpolate({ inputRange: [0, 0.22, 1], outputRange: [0, 0.85, 0] });
+  const smokeY = smokeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, long ? -22 : -13] });
+  const h = (size * 28) / 24;
+  return (
+    <View style={{ width: size, height: h }}>
+      <View style={{ position: "absolute", left: 0, top: 0 }}>
+        <Svg width={size} height={h} viewBox="0 0 24 28">
+          <Path d="M11.1 20.5 L12.9 20.5 L12.5 25.5 L11.5 25.5 Z" fill="#44403C" />
+        </Svg>
+      </View>
+      <Animated.View style={{ position: "absolute", left: 0, top: 0, transform: [{ translateY: smokeY }], opacity: smokeOpacity }}>
+        <Svg width={size} height={h} viewBox="0 0 24 28">
+          <Path d="M12 24 C8.5 19.5 16 17.5 12.8 12.8 C10.4 9.4 12.4 5.8 15.5 3.6" stroke="#D6D3D1" strokeWidth={2} strokeLinecap="round" fill="none" />
+        </Svg>
+      </Animated.View>
+      <Animated.View style={{ position: "absolute", left: 0, top: 0, transform: [{ scale: flameScale }], opacity: flameOpacity }}>
+        <Svg width={size} height={h} viewBox="0 0 24 28">
+          <FlameArt />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
+
+type EnergyFlamesProps = {
+  energy: number;
+  max: number;
+  /** Max flame slots before the row switches to proportional + "×N". */
+  cap: number;
+  size: number;
+  snuff: SnuffState | null;
+  onSnuffDone: () => void;
+};
+
+const EnergyFlames = memo(function EnergyFlames({ energy, max, cap, size, snuff, onSnuffDone }: EnergyFlamesProps) {
+  const slots = energySlots(max, cap);
+  const lit = litForEnergy(energy, max, cap);
+  const snuffIndex =
+    snuff && litForEnergy(snuff.to, max, cap) < litForEnergy(snuff.from, max, cap)
+      ? litForEnergy(snuff.to, max, cap)
+      : null;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 3, alignItems: "flex-end", justifyContent: "center" }}>
+      {Array.from({ length: slots }, (_, i) => {
+        if (snuff && snuffIndex === i) {
+          return <SnuffingFlame key={`snuff-${snuff.key}`} size={size} long={snuff.long} onDone={onSnuffDone} />;
+        }
+        if (i < lit) return <FlickerFlame key={i} index={i} size={size} />;
+        return <SpentFlame key={i} size={size} />;
+      })}
+      {max > cap && (
+        <Text style={{ color: "#FDBA74", fontWeight: "900", fontSize: Math.round(size * 0.82), marginLeft: 3 }}>×{max}</Text>
+      )}
+    </View>
+  );
+});
+
+/* ------------------------------------------------------------------ */
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -448,6 +594,23 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
   const [bossFight, setBossFight] = useState<BossDef | null>(null);
   /** Select panel: earlier levels hide behind a replay disclosure. */
   const [showReplay, setShowReplay] = useState(false);
+  // Forest energy (lib/forest-energy): max == XP level, 1 per wave
+  // fight, rekindled at midnight. Boss Gate fights never spend it.
+  const [energyState, setEnergyState] = useState<ForestEnergy | null>(null);
+  const [snuff, setSnuff] = useState<SnuffState | null>(null);
+  const clearSnuff = useCallback(() => setSnuff(null), []);
+
+  // (Re)load the store whenever the player is back at the select panel —
+  // picks up midnight rekindles and level-ups between fights.
+  const backAtSelect = phase === "select";
+  useEffect(() => {
+    if (!backAtSelect) return;
+    let live = true;
+    loadForestEnergy().then((e) => { if (live) setEnergyState(e); });
+    return () => { live = false; };
+  }, [backAtSelect]);
+
+  const noEnergy = energyState !== null && energyState.energy <= 0;
 
   const demon: DemonDef = useMemo(() => demonForWave(wave), [wave]);
   const { zone, cycle } = useMemo(() => zoneForWave(wave), [wave]);
@@ -480,7 +643,24 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
   };
   const dropFloat = (id: number) => setFloats((f) => f.filter((x) => x.id !== id));
 
+  /**
+   * Spend 1 energy for a wave fight (win or lose, it's spent on entry).
+   * The local store updates optimistically so the spent flame can play
+   * its snuff animation in the fight HUD; lib/forest-energy persists.
+   * Returns false — and starts nothing — when the store is empty.
+   */
+  const spendEnergyForWave = (): boolean => {
+    if (!energyState || energyState.energy <= 0) return false;
+    const from = energyState.energy;
+    const to = from - 1;
+    setEnergyState({ ...energyState, energy: to });
+    setSnuff({ from, to, key: Date.now(), long: to === 0 });
+    void spendForestEnergy();
+    return true;
+  };
+
   const startWave = (w: number) => {
+    if (!spendEnergyForWave()) return;
     setBossFight(null);
     setWave(w);
     setPlayerHp(stats.maxHp);
@@ -741,6 +921,14 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                   </Text>
                 </View>
                 <HpBar hp={playerHp} maxHp={stats.maxHp} color="#60A5FA" />
+                {energyState && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 5 }}>
+                    <EnergyFlames energy={energyState.energy} max={energyState.max} cap={12} size={11} snuff={snuff} onSnuffDone={clearSnuff} />
+                    <Text style={{ color: "#FDBA74", fontWeight: "700", fontSize: 10 }}>
+                      {energyState.energy}/{energyState.max} energy
+                    </Text>
+                  </View>
+                )}
                 <Text style={{ color: "#8B8BA8", fontWeight: "700", fontSize: 10, marginTop: 4 }}>
                   {bossFight ? `${zoneLabel(sceneZone, 0)} — the Boss Gate` : zoneLabel(zone, cycle)}
                 </Text>
@@ -817,7 +1005,8 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 <View style={{ flexDirection: "row", gap: 10 }}>
                   <Pressable
                     onPress={() => startWave(wave + 1)}
-                    style={{ backgroundColor: "#166534", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 }}
+                    disabled={noEnergy}
+                    style={{ backgroundColor: "#166534", borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, opacity: noEnergy ? 0.45 : 1 }}
                   >
                     <Text style={{ color: "#FFFFFF", fontWeight: "800" }}>Next Level</Text>
                   </Pressable>
@@ -828,6 +1017,11 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                     <Text style={{ color: "#E2E8F0", fontWeight: "800" }}>Rest</Text>
                   </Pressable>
                 </View>
+                {noEnergy && (
+                  <Text style={{ color: "#FCA5A5", fontSize: 11.5, fontWeight: "700", marginTop: 8 }}>
+                    No energy — your strength returns at midnight.
+                  </Text>
+                )}
               </View>
             )}
             {phase === "defeat" && (
@@ -898,6 +1092,17 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
           grows with its content and the page scrolls; nothing overlaps. */}
       {phase === "select" && (
         <View style={{ width: SCENE_W, alignSelf: "center", marginTop: 10, backgroundColor: "rgba(10,10,25,0.88)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#3A3A5E" }}>
+          {energyState && (
+            <View style={{ alignItems: "center", marginBottom: 10 }}>
+              <Text style={{ color: "#FDBA74", fontSize: 10, fontWeight: "900", letterSpacing: 1.6, marginBottom: 5 }}>
+                FOREST ENERGY · {energyState.energy}/{energyState.max}
+              </Text>
+              <EnergyFlames energy={energyState.energy} max={energyState.max} cap={24} size={17} snuff={snuff} onSnuffDone={clearSnuff} />
+              <Text style={{ color: "#8B8BA8", fontSize: 11, marginTop: 5 }}>
+                Rekindles at midnight · Lv {energyState.max} = {energyState.max} energy
+              </Text>
+            </View>
+          )}
           <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
             Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP — your gear is your strength.
           </Text>
@@ -921,7 +1126,8 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 {/* The current level: the next uncleared demon, one tap. */}
                 <Pressable
                   onPress={() => startWave(maxWave)}
-                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#3B2F6B", borderRadius: 10, borderWidth: 1, borderColor: TIER_COLORS[d.tier], paddingHorizontal: 14, paddingVertical: 10 }}
+                  disabled={noEnergy || energyState === null}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#3B2F6B", borderRadius: 10, borderWidth: 1, borderColor: TIER_COLORS[d.tier], paddingHorizontal: 14, paddingVertical: 10, opacity: noEnergy || energyState === null ? 0.45 : 1 }}
                 >
                   <View>
                     <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 16 }}>Level {maxWave}</Text>
@@ -934,6 +1140,11 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                 <Text style={{ color: "#8B8BA8", fontSize: 11, textAlign: "center", marginTop: 8 }}>
                   {forest.highestWave} {forest.highestWave === 1 ? "level" : "levels"} cleared · Zone {zoneIdx} of {FOREST_ZONES.length}
                 </Text>
+                {noEnergy && (
+                  <Text style={{ color: "#FCA5A5", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginTop: 6 }}>
+                    No energy — your strength returns at midnight.
+                  </Text>
+                )}
                 {/* Replay: every earlier level, behind one disclosure row. */}
                 <Pressable
                   onPress={() => setShowReplay((s) => !s)}
@@ -960,10 +1171,12 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                                 <Pressable
                                   key={w}
                                   onPress={() => startWave(w)}
+                                  disabled={noEnergy || energyState === null}
                                   style={{
                                     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
                                     backgroundColor: cleared ? "#1E3A2E" : "#3B2F6B",
                                     borderWidth: 1, borderColor: cleared ? "#4ADE80" : TIER_COLORS[d.tier],
+                                    opacity: noEnergy || energyState === null ? 0.45 : 1,
                                   }}
                                 >
                                   <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>

@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Line } from "react-native-svg";
+import Svg, { Line, Polygon, Rect } from "react-native-svg";
 import {
   BUILDINGS,
   buildingFootprint,
@@ -270,9 +270,10 @@ function TownNPCsImpl({
   /** personId -> forced destination for a Jonathan-assigned work shift. */
   workGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
   /** personId -> work-shift info while the light is on the job (en-route or working). */
-  workMap?: Record<string, { untilMs: number; kind: string }>;
-  /** Called when a work-guided light arrives at its work site. */
-  onWorkArrival?: (personId: string) => void;
+  workMap?: Record<string, { untilMs: number; kind: string; carrying?: boolean }>;
+  /** Called when a work-guided light arrives at its work site. Restock
+   *  routes also report every leg arrival, with the building reached. */
+  onWorkArrival?: (personId: string, buildingId?: string) => void;
   /** personId -> forced destination for a schedule event (Jonathan's pawn
       mimics his day; villagers join people events — meals, movies, ministry). */
   scheduleGuides?: Record<string, { tile: { x: number; y: number }; buildingId: string; type: string }>;
@@ -332,6 +333,9 @@ function TownNPCsImpl({
   // shift (hammer, broom...). Takes precedence over the activity badge.
   const [workBadgeMap, setWorkBadgeMap] = useState<Record<string, string>>({});
   const workBadgeRef = useRef<Record<string, string>>({});
+  // Restock carriers: npc ids currently hauling a box (church -> shop leg).
+  const [carryingIds, setCarryingIds] = useState<Set<string>>(new Set());
+  const carryingRef = useRef<Set<string>>(new Set());
   // Lights clocked in at their work site — they rock side-to-side (busy)
   // instead of the idle bob, so a shift looks like work, not loitering.
   const [workingIds, setWorkingIds] = useState<Set<string>>(new Set());
@@ -586,9 +590,16 @@ function TownNPCsImpl({
         const wguide = workGuidesRef.current?.[String(npc.prayerId || npc.id)];
         const winfo = workMapRef.current?.[String(npc.prayerId || npc.id)];
         if (winfo && wguide && npc.destBuildingId === wguide.buildingId) {
-          npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+          if (winfo.kind === "restock") {
+            // Restock route: only a brief pause to load/unload the box —
+            // the parent advances the route (church <-> shop) on arrival,
+            // and the tick steers the worker to the next leg's guide.
+            npc.waitUntil = now + 900;
+          } else {
+            npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+          }
           try {
-            workArrivalRef.current?.(String(npc.prayerId || npc.id));
+            workArrivalRef.current?.(String(npc.prayerId || npc.id), npc.destBuildingId);
           } catch {}
         }
         // At a schedule event? Stay for the whole thing — the pawn mimics
@@ -670,9 +681,11 @@ function TownNPCsImpl({
       if (npc.state === "walking" && npc.destBuildingId === guide.buildingId) return false;
       // Already on site (was visiting for fun) — clock in immediately.
       if (npc.state === "visiting" && npc.destBuildingId === guide.buildingId) {
-        npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+        if (winfo.kind !== "restock") {
+          npc.waitUntil = Math.max(npc.waitUntil, winfo.untilMs);
+        }
         try {
-          workArrivalRef.current?.(pid);
+          workArrivalRef.current?.(pid, guide.buildingId);
         } catch {}
         return true;
       }
@@ -897,6 +910,29 @@ function TownNPCsImpl({
       if (workChanged) {
         workBadgeRef.current = nextWorkBadge;
         setWorkBadgeMap(nextWorkBadge);
+      }
+      // Sync restock carriers: a restock light on the church -> shop leg
+      // hauls a little box in front of them; the return leg is empty-handed.
+      const nextCarrying = new Set<string>();
+      if (!night) {
+        const wm = workMapRef.current;
+        if (wm) {
+          for (const npc of Object.values(logic)) {
+            const w = wm[String(npc.prayerId || npc.id)];
+            if (w?.carrying) nextCarrying.add(npc.id);
+          }
+        }
+      }
+      const prevCarrying = carryingRef.current;
+      let carryingChanged = nextCarrying.size !== prevCarrying.size;
+      if (!carryingChanged) {
+        for (const id of nextCarrying) {
+          if (!prevCarrying.has(id)) { carryingChanged = true; break; }
+        }
+      }
+      if (carryingChanged) {
+        carryingRef.current = nextCarrying;
+        setCarryingIds(nextCarrying);
       }
       // Sync the working set: lights clocked in AT their work site get the
       // working rock — busy, not loitering. (Guides now cover the whole
@@ -1330,6 +1366,17 @@ function TownNPCsImpl({
                 opacity: 0.92,
               }}
             />
+            {/* restock box — carried in front on the church -> shop leg */}
+            {carryingIds.has(id) && !asleep ? (
+              <View style={{ position: "absolute", bottom: 1, left: 1 }}>
+                <Svg width={14} height={11} viewBox="0 0 14 11">
+                  <Polygon points="1,4 7,1 13,4 7,6.5" fill="#D9A85C" />
+                  <Rect x={1} y={4} width={12} height={7} fill="#B07D3C" />
+                  <Line x1={7} y1={1} x2={7} y2={11} stroke="#8A5A24" strokeWidth={1} />
+                  <Line x1={1} y1={4} x2={13} y2={4} stroke="#8A5A24" strokeWidth={0.75} />
+                </Svg>
+              </View>
+            ) : null}
           </>
         );
         const frameStyle = {

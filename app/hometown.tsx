@@ -86,8 +86,9 @@ import {
   stockCapForLevel,
   stockMultiplierFor,
   stockForBuilding,
-  STOCK_DEPLETION_PER_MIN,
-  STOCK_RESTOCK_PER_MIN,
+  applyStockDrain,
+  applyRestockBox,
+  neediestStockedBuilding,
   RESTAURANT_GATHER_CAPS,
   isGatheringTime,
   totalGatherCapacity,
@@ -242,13 +243,12 @@ import {
   createWorkAssignment,
   tickWorkAssignments,
   markWorkArrived,
+  advanceRestockArrival,
   collectWorkAssignment,
   activeWorkAssignments,
   personHasActiveWork,
   workCountdownText,
-  staffedSupplySites,
   anySupplySiteStaffed,
-  SUPPLY_RADIUS_TILES,
   WORK_KINDS,
   type WorkKind,
   type VillagerWorkAssignment,
@@ -352,46 +352,6 @@ export function presenceMultiplierFor(
   if (count === 1) return 0.4;
   if (count === 2) return 0.7;
   return 1;
-}
-
-/**
- * Stock flow: each staffed farm/garden produces STOCK_RESTOCK_PER_MIN
- * units of stock per minute, flowing to stocked buildings within
- * SUPPLY_RADIUS_TILES (nearest first) until they are full. Mutates the
- * provided stock record; returns true if any stock moved.
- */
-export function restockFromSites(
-  buildings: Array<{ id: string; x: number; y: number; type: string; level?: number }>,
-  sites: Array<{ x: number; y: number }>,
-  stock: Record<string, number>,
-  minutes: number,
-): boolean {
-  if (sites.length === 0 || !Number.isFinite(minutes) || minutes <= 0) return false;
-  let moved = false;
-  for (const site of sites) {
-    let remaining = STOCK_RESTOCK_PER_MIN * minutes;
-    const targets = buildings
-      .filter((tb) => isStockedBuildingType(tb.type))
-      .map((tb) => ({
-        tb,
-        d: Math.max(Math.abs(tb.x - site.x), Math.abs(tb.y - site.y)),
-      }))
-      .filter(({ d }) => d <= SUPPLY_RADIUS_TILES)
-      .sort((a, z) => a.d - z.d);
-    for (const { tb } of targets) {
-      if (remaining <= 0) break;
-      const level = tb.level || 1;
-      const cap = stockCapForLevel(level);
-      const cur = stockForBuilding(stock, tb.id, level);
-      const room = cap - cur;
-      if (room <= 0) continue;
-      const give = Math.min(room, remaining);
-      stock[tb.id] = cur + give;
-      remaining -= give;
-      moved = true;
-    }
-  }
-  return moved;
 }
 
 const TOWNSFOLK = ["🧑", "👩", "🧓", "👴", "👦", "👧", "🧔", "👵"];
@@ -3350,7 +3310,7 @@ export default function HometownScreen() {
   // Villager work assignments — Jonathan sends lights on timed shifts.
   const [workState, setWorkState] = useState<VillagerWorkState | null>(null);
   const workStateRef = useRef<VillagerWorkState | null>(null);
-  /** Last live-tick timestamp — paces farm/garden stock restocking. */
+  /** Last live-tick timestamp — paces the daily stock drain. */
   const lastStockFlowRef = useRef<number>(Date.now());
   const [workPickerFor, setWorkPickerFor] = useState<{ id: string; name: string } | null>(null);
   const [workPickerStep, setWorkPickerStep] = useState<"kind" | "recipient">("kind");
@@ -3559,9 +3519,50 @@ export default function HometownScreen() {
             buildings.find((b) => isRestaurantType(b.type));
           return t ? centerOf(t) : null;
         }
+        case "restock": {
+          // The restock route starts at the church — boxes come from there.
+          // (Town map only: the church route doesn't reach the city, so
+          // city shelves drain without a way to refill them yet.)
+          const church = buildings.find((b) => b.type === "church");
+          return church ? centerOf(church) : null;
+        }
       }
     },
     []
+  );
+
+  /** Guide destination for a specific building id on the town map. */
+  const guideForBuildingId = useCallback(
+    (buildingId: string): { tile: { x: number; y: number }; buildingId: string; type: string } | null => {
+      const buildings = townRef.current?.maps.town?.buildings ?? [];
+      const b = buildings.find((x) => x.id === buildingId);
+      if (!b) return null;
+      const fp = buildingFootprint(b.level || 1, b.type as BuildingType);
+      return {
+        tile: { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 },
+        buildingId: b.id,
+        type: b.type,
+      };
+    },
+    []
+  );
+
+  /**
+   * The current guide for a restock worker: the route is dynamic — church
+   * to pick up a box, then out to the neediest stocked building, then back
+   * to the church. The leg lives on the assignment (advanceRestockArrival
+   * flips it on each arrival); this just resolves the leg to a destination.
+   */
+  const restockGuideFor = useCallback(
+    (a: VillagerWorkAssignment): { tile: { x: number; y: number }; buildingId: string; type: string } | null => {
+      if ((a.restockLeg ?? "to-church") === "to-deliver" && a.restockTargetId) {
+        const target = guideForBuildingId(a.restockTargetId);
+        if (target) return target;
+        // Target sold/demolished mid-route — fall through to the church.
+      }
+      return findWorkTarget("restock");
+    },
+    [findWorkTarget, guideForBuildingId]
   );
 
   /**
@@ -3577,19 +3578,24 @@ export default function HometownScreen() {
     if (!workState) return out;
     for (const a of workState.assignments) {
       if (a.status === "done") continue;
-      const target = findWorkTarget(a.kind);
+      const target = a.kind === "restock" ? restockGuideFor(a) : findWorkTarget(a.kind);
       if (target) out[a.personId] = target;
     }
     return out;
-  }, [workState, findWorkTarget]);
+  }, [workState, findWorkTarget, restockGuideFor]);
 
   /** personId -> shift info while a light is on the job (drives the badge). */
   const workMap = useMemo(() => {
-    const out: Record<string, { untilMs: number; kind: string }> = {};
+    const out: Record<string, { untilMs: number; kind: string; carrying?: boolean }> = {};
     if (!workState) return out;
     for (const a of workState.assignments) {
       if (a.status === "done") continue;
-      out[a.personId] = { untilMs: a.endsAt, kind: a.kind };
+      out[a.personId] = {
+        untilMs: a.endsAt,
+        kind: a.kind,
+        // Restock workers carry a box on the church -> shop leg only.
+        carrying: a.kind === "restock" && (a.restockLeg ?? "to-church") === "to-deliver",
+      };
     }
     return out;
   }, [workState]);
@@ -3624,9 +3630,84 @@ export default function HometownScreen() {
   }, [scheduleActivity, scheduleTarget, activeMap, lightInfos]);
 
   /** A work-guided light arrived at its site — the shift is underway. */
-  const handleWorkArrival = useCallback(async (personId: string) => {
+  const handleWorkArrival = useCallback(async (personId: string, buildingId?: string) => {
     const st = workStateRef.current;
     if (!st) return;
+    const assignment = st.assignments.find(
+      (a) => a.personId === personId && a.status !== "done"
+    );
+    if (assignment?.kind === "restock") {
+      // Restock route arrivals advance the delivery loop (see
+      // advanceRestockArrival): church pickup -> shop delivery -> church...
+      const buildings = townRef.current?.maps.town?.buildings ?? [];
+      const church = buildings.find((b) => b.type === "church");
+      if (!church) return;
+      // Target demolished mid-route: abandon the leg and treat this as a
+      // fresh church arrival, so the worker never waits on a ghost.
+      if (
+        (assignment.restockLeg ?? "to-church") === "to-deliver" &&
+        assignment.restockTargetId &&
+        !buildings.some((b) => b.id === assignment.restockTargetId)
+      ) {
+        const reset: VillagerWorkState = {
+          assignments: st.assignments.map((a) =>
+            a.id === assignment.id
+              ? { ...a, restockLeg: "to-church" as const, restockTargetId: undefined }
+              : a
+          ),
+        };
+        workStateRef.current = reset;
+        setWorkState(reset);
+        await saveVillagerWorkState(reset);
+        return;
+      }
+      const leg = assignment.restockLeg ?? "to-church";
+      // Which building did they just reach? TownNPCs reports it; fall back
+      // to the leg's expected destination.
+      const arrivedId =
+        buildingId ??
+        (leg === "to-deliver" ? assignment.restockTargetId : church.id);
+      // A box is picked up for the neediest shelf in town right now.
+      let nextTargetId: string | null = null;
+      if (leg === "to-church" && arrivedId === church.id) {
+        const target = neediestStockedBuilding(
+          buildings,
+          townRef.current?.stockByBuilding,
+          { x: church.x, y: church.y }
+        );
+        nextTargetId = target?.id ?? null;
+      }
+      const { state: next, event } = advanceRestockArrival(st, {
+        personId,
+        arrivedBuildingId: arrivedId,
+        churchBuildingId: church.id,
+        nextTargetId,
+      });
+      if (event === "delivered" && assignment.restockTargetId) {
+        // The box lands: that building's stock grows by one box (20% of cap).
+        const targetId = assignment.restockTargetId;
+        setTown((prev) => {
+          const b = prev.maps.town.buildings.find((x) => x.id === targetId);
+          if (!b) return prev;
+          const level = b.level || 1;
+          const cap = stockCapForLevel(level);
+          const record = { ...(prev.stockByBuilding ?? {}) };
+          record[targetId] = applyRestockBox(
+            stockForBuilding(record, targetId, level),
+            cap
+          );
+          const nextTown = { ...prev, stockByBuilding: record };
+          saveTown(nextTown);
+          return nextTown;
+        });
+      }
+      if (next !== st) {
+        workStateRef.current = next;
+        setWorkState(next);
+        await saveVillagerWorkState(next);
+      }
+      return;
+    }
     // TownNPCs re-fires this while a worker sits at their site; only the
     // en-route -> working transition is real work (state + save).
     if (!st.assignments.some((a) => a.personId === personId && a.status === "en-route")) return;
@@ -3634,6 +3715,9 @@ export default function HometownScreen() {
     workStateRef.current = next;
     setWorkState(next);
     await saveVillagerWorkState(next);
+    // saveTown is declared later in the component; it's a stable useCallback
+    // and this handler only runs after render, so the closure is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Advance work timers; celebrate newly finished shifts. Idempotent. */
@@ -3967,7 +4051,8 @@ export default function HometownScreen() {
       workStateRef.current = state;
       setWorkState(state);
       await saveVillagerWorkState(state);
-      addCoins(scaledCoins(def.rewardCoins));
+      // Restock shifts also pay the per-box bonus banked along the route.
+      addCoins(scaledCoins(def.rewardCoins + (done.bonusCoins ?? 0)));
       awardCustomXP(scaledXP(def.rewardXP), `villager-work:${done.id}`).catch(() => undefined);
     },
     [addCoins]
@@ -4417,14 +4502,25 @@ export default function HometownScreen() {
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
-        // Stock (time away): stocked buildings burned stock while earning
-        // during the away window; deplete by the same per-minute rate.
+        // Stock (time away): shelves drain steadily by wall clock while
+        // away — the same daily drain as the live tick (a full building
+        // empties across 06:00-24:00), whether or not it was earning.
         const stockRecord: Record<string, number> = { ...(t.stockByBuilding ?? {}) };
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
             const minutesElapsed = Math.floor((Date.now() - lastTick) / 60000);
+            // Daily stock drain (time away): applies to every stocked
+            // building for the whole away window, earning or not.
+            if (minutesElapsed > 0 && isStockedBuildingType(b.type)) {
+              const lvl = b.level || 1;
+              stockRecord[b.id] = applyStockDrain(
+                stockForBuilding(stockRecord, b.id, lvl),
+                stockCapForLevel(lvl),
+                minutesElapsed
+              );
+            }
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
             // Cache per-minute rates for every earning building (even with 0 elapsed,
@@ -4454,20 +4550,16 @@ export default function HometownScreen() {
               const perMinuteXP = rate ? rate.xp : 0;
               // Presence gate (time away): scale by prayed count proxy.
               const presenceMult = presenceMultiplierFor(b, [], prayedCount, false);
-              // Stock (time away): while it was earning, a stocked building
-              // burned stock at the live per-minute rate, capped by the
-              // stock on hand. Full shelves boost income up to +50%; empty
-              // shelves still earn the regular amount.
+              // Stock (time away): the drained stock on hand boosts this
+              // catch-up income — full shelves up to +50%, empty shelves
+              // still earn the regular amount. (The drain itself was
+              // applied above, before this earning pass.)
               let stockMult = 1;
               if (earnsCoins && presenceMult > 0 && isStockedBuildingType(b.type)) {
                 const level = b.level || 1;
                 const cap = stockCapForLevel(level);
                 const before = stockForBuilding(stockRecord, b.id, level);
                 stockMult = stockMultiplierFor(before, cap);
-                stockRecord[b.id] = Math.max(
-                  0,
-                  before - STOCK_DEPLETION_PER_MIN * minutesElapsed
-                );
               }
               const add = earnsCoins
                 ? minutesElapsed * perMinuteCoins * presenceMult * stockMult
@@ -4561,8 +4653,8 @@ export default function HometownScreen() {
   // mount; the next full open re-syncs everything exactly via lastTick.
   useEffect(() => {
     const id = setInterval(() => {
-      // Stock flow clock: whole minutes since the last interval run, used to
-      // pace farm/garden restocking (time away is handled by the catch-up).
+      // Stock drain clock: whole minutes since the last interval run, used
+      // to pace the daily stock drain (time away is handled by the catch-up).
       const tickNow = Date.now();
       const stockFlowMinutes = Math.max(
         0,
@@ -4620,21 +4712,33 @@ export default function HometownScreen() {
         const nextStock: Record<string, number> = { ...(prev.stockByBuilding ?? {}) };
         let changed = false;
         let stockChanged = false;
+        // Daily stock drain (live): shelves empty steadily through the
+        // day — a full building drains to empty across 06:00-24:00
+        // (STOCK_DRAIN_WINDOW_MINUTES). The only way back up is a Restock
+        // villager carrying boxes from the church. NOTE: city stocked
+        // buildings drain too, but the church route runs on the town map,
+        // so city shelves can't be restocked yet (no city depot).
+        if (stockFlowMinutes > 0) {
+          for (const mapId of TOWN_MAP_IDS) {
+            const m = prev.maps[mapId];
+            if (!m) continue;
+            for (const b of m.buildings) {
+              if (!isStockedBuildingType(b.type)) continue;
+              const level = b.level || 1;
+              const before = stockForBuilding(nextStock, b.id, level);
+              const after = applyStockDrain(before, stockCapForLevel(level), stockFlowMinutes);
+              if (after !== before) {
+                nextStock[b.id] = after;
+                stockChanged = true;
+              }
+            }
+          }
+        }
         for (const mapId of TOWN_MAP_IDS) {
           const m = newMaps[mapId];
           if (!m) continue;
           // Live villager positions for presence-gated income.
           const positions = mapId === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
-          // Stock flow (live): staffed farms/gardens on this map restock
-          // stocked buildings within range.
-          const liveSites = workStateRef.current
-            ? staffedSupplySites(workStateRef.current.assignments, m.buildings)
-            : [];
-          if (liveSites.length > 0 && stockFlowMinutes > 0) {
-            if (restockFromSites(m.buildings, liveSites, nextStock, stockFlowMinutes)) {
-              stockChanged = true;
-            }
-          }
           const updatedBuildings = m.buildings.map((b) => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
             const minutesElapsed = Math.floor((now - lastTick) / 60000);
@@ -4650,19 +4754,14 @@ export default function HometownScreen() {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
             changed = true;
-            // Stock: stocked buildings burn stock while earning; the stock
-            // on hand boosts income (full = +50%, empty = regular rate).
+            // Stock: the stock on hand (after the daily drain above)
+            // boosts income — full = +50%, empty = regular rate.
             let stockMult = 1;
             if (isStockedBuildingType(b.type)) {
               const level = b.level || 1;
               const cap = stockCapForLevel(level);
               const before = stockForBuilding(nextStock, b.id, level);
               stockMult = stockMultiplierFor(before, cap);
-              const after = Math.max(0, before - STOCK_DEPLETION_PER_MIN * minutesElapsed);
-              if (after !== before) {
-                nextStock[b.id] = after;
-                stockChanged = true;
-              }
             }
             const add = minutesElapsed * perMin * presenceMult * stockMult;
             return {
@@ -7361,10 +7460,11 @@ export default function HometownScreen() {
                           <Text style={{ fontSize: 13, color: pt.subtext, marginTop: 6 }}>
                             {def.label}
                             {a.kind === "deliver-meal" && a.recipientName ? ` — for ${a.recipientName}` : ""}
+                            {a.kind === "restock" ? ` — ${(a.boxesDelivered ?? 0)} ${(a.boxesDelivered ?? 0) === 1 ? "box" : "boxes"} delivered` : ""}
                           </Text>
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                             <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {def.rewardCoins.toFixed(2)}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {(def.rewardCoins + (a.bonusCoins ?? 0)).toFixed(2)}</Text>
                               <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {def.rewardXP} XP</Text>
                             </View>
                             {done ? (
@@ -7566,8 +7666,8 @@ export default function HometownScreen() {
                         </View>
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
                           {empty
-                            ? "Shelves are empty — staff a nearby farm or garden to restock."
-                            : "Staff a nearby farm or garden to keep the shelves full."}
+                            ? "Shelves are empty — assign a villager to Restock and they'll bring boxes from the church."
+                            : "Assign a villager to Restock to keep the shelves full — they carry boxes from the church."}
                         </Text>
                       </View>
                     );
@@ -7947,14 +8047,15 @@ export default function HometownScreen() {
                   </View>
                 );
               })()}
-              {/* Stock: staffed farms/gardens keep nearby shops stocked;
-                  well-stocked shops earn more (per-building, not global). */}
-              {workState && anySupplySiteStaffed(workState.assignments) ? (
+              {/* Stock: Restock villagers carry boxes from the church to
+                  keep shops stocked; well-stocked shops earn more
+                  (per-building, not global). */}
+              {workState && (anySupplySiteStaffed(workState.assignments) || workState.assignments.some((a) => a.kind === "restock" && a.status !== "done")) ? (
                 <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
                   <MaterialIcons name="inventory" size={20} color="#166534" />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={{ fontSize: 15, color: "#1F2937" }}>Stocked shelves</Text>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Well-stocked shops earn up to +50% — staff a farm or garden to restock</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Well-stocked shops earn up to +50% — assign a villager to Restock; they bring boxes from the church</Text>
                   </View>
                   <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
                     up to +50%

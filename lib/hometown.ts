@@ -684,7 +684,8 @@ export function isFoodBuildingType(type: BuildingType | string): boolean {
   return (FOOD_BUILDING_TYPES as ReadonlySet<string>).has(type);
 }
 
-// ---- Stock: stocked shops hold inventory; staffed farms & gardens restock ----
+// ---- Stock: stocked shops hold inventory; Restock villagers carry boxes
+// from the church to fill the shelves, and shelves drain through the day ----
 
 /**
  * Stock capacities by upgrade level — bigger shops hold more.
@@ -703,12 +704,77 @@ export function stockCapForLevel(level: number): number {
   return STOCK_CAP_BY_LEVEL[lv] ?? STOCK_CAP_BY_LEVEL[3];
 }
 
-/** Units of stock a stocked building burns per minute while it is earning. */
-export const STOCK_DEPLETION_PER_MIN = 0.6;
+/**
+ * The daily drain window: a FULL stocked building empties linearly across
+ * the day, from 06:00 to midnight (18 hours = 1080 minutes). Shelves are
+ * refilled by Restock villagers carrying boxes from the church — nothing
+ * else puts stock back.
+ */
+export const STOCK_DRAIN_WINDOW_MINUTES = 18 * 60;
 
-/** Units of stock one staffed farm/garden produces per minute, shared by
- *  the stocked buildings in range (nearest first). */
-export const STOCK_RESTOCK_PER_MIN = 2;
+/** Units of stock drained from a building with the given cap over `minutes`. */
+export function stockDrainedOver(cap: number, minutes: number): number {
+  if (!Number.isFinite(cap) || !Number.isFinite(minutes) || cap <= 0 || minutes <= 0) return 0;
+  return (cap * minutes) / STOCK_DRAIN_WINDOW_MINUTES;
+}
+
+/** Stock remaining after the daily drain runs for `minutes`. Never below 0. */
+export function applyStockDrain(stock: number, cap: number, minutes: number): number {
+  if (!Number.isFinite(stock)) return 0;
+  return Math.max(0, stock - stockDrainedOver(cap, minutes));
+}
+
+/** One delivered box fills this fraction of a building's stock capacity. */
+export const RESTOCK_BOX_FRACTION = 0.2;
+
+/** Units of stock in one restock box for a building with the given cap
+ *  (20% of cap at every level, so five boxes fill a building from empty). */
+export function restockBoxUnits(cap: number): number {
+  if (!Number.isFinite(cap) || cap <= 0) return 0;
+  return Math.max(1, Math.round(cap * RESTOCK_BOX_FRACTION));
+}
+
+/** Stock after a restock box is delivered — clamped at capacity. */
+export function applyRestockBox(stock: number, cap: number): number {
+  const cur = Number.isFinite(stock) ? Math.max(0, stock) : 0;
+  return Math.min(cap, cur + restockBoxUnits(cap));
+}
+
+/**
+ * The neediest stocked building: the one with the lowest stock ratio
+ * (stock / cap) that still has room for another box. Ties go to the
+ * building nearest `from` (Chebyshev tiles — normally the church, where
+ * the restock route starts each leg), then to the earliest in the list.
+ * Returns null when nothing needs a box.
+ */
+export function neediestStockedBuilding<
+  B extends { id: string; x: number; y: number; type: string; level?: number }
+>(
+  buildings: B[],
+  stockByBuilding: Record<string, number> | undefined,
+  from?: { x: number; y: number }
+): B | null {
+  let best: B | null = null;
+  let bestRatio = Infinity;
+  let bestDist = Infinity;
+  for (const b of buildings) {
+    if (!isStockedBuildingType(b.type)) continue;
+    const level = b.level || 1;
+    const cap = stockCapForLevel(level);
+    const cur = stockForBuilding(stockByBuilding, b.id, level);
+    if (cap - cur < restockBoxUnits(cap)) continue; // no room for a box
+    const ratio = cap > 0 ? cur / cap : 1;
+    const dist = from
+      ? Math.max(Math.abs(b.x - from.x), Math.abs(b.y - from.y))
+      : 0;
+    if (ratio < bestRatio - 1e-9 || (Math.abs(ratio - bestRatio) <= 1e-9 && dist < bestDist)) {
+      best = b;
+      bestRatio = ratio;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
 
 /** Retail building types that hold stock on top of the food set. */
 const STOCKED_RETAIL_TYPES: ReadonlySet<string> = new Set(["shop", "department-store"]);

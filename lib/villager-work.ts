@@ -15,7 +15,8 @@ export type WorkKind =
   | "restaurant-shift"
   | "deliver-meal"
   | "work-farm"
-  | "tend-garden";
+  | "tend-garden"
+  | "restock";
 
 export type WorkStatus = "en-route" | "working" | "done";
 
@@ -26,6 +27,14 @@ export type VillagerWorkAssignment = {
   kind: WorkKind;
   /** For deliver-meal: who the meal is for (flavor only). */
   recipientName?: string;
+  /** Restock route state: which leg of the church <-> shop run is active. */
+  restockLeg?: "to-church" | "to-deliver";
+  /** Restock: building id the carried box is headed to (leg "to-deliver"). */
+  restockTargetId?: string;
+  /** Restock: boxes delivered so far this shift. */
+  boxesDelivered?: number;
+  /** Restock: per-box bonus coins banked into the pending pay. */
+  bonusCoins?: number;
   assignedAt: string; // ISO
   endsAt: number; // epoch ms
   status: WorkStatus;
@@ -117,6 +126,15 @@ export const WORK_KINDS: Record<
     badgeIcon: "grass",
     siteType: "community-garden",
   },
+  restock: {
+    label: "Restock",
+    blurb: "Carry boxes from the church to the town's shops — every box delivered fills the shelves a little more.",
+    durationMs: 60 * 60 * 1000,
+    durationLabel: "1 hour",
+    rewardCoins: 250,
+    rewardXP: 10,
+    badgeIcon: "inventory-2",
+  },
 };
 
 export type VillagerWorkState = {
@@ -183,6 +201,10 @@ export function createWorkAssignment(args: {
     personName: args.personName,
     kind: args.kind,
     recipientName: args.recipientName,
+    // A restock shift starts by heading to the church to pick up a box.
+    ...(args.kind === "restock"
+      ? { restockLeg: "to-church" as const, boxesDelivered: 0, bonusCoins: 0 }
+      : {}),
     assignedAt: new Date(nowMs).toISOString(),
     endsAt: nowMs + def.durationMs,
     status: "en-route",
@@ -225,6 +247,92 @@ export function markWorkArrived(
   };
 }
 
+// ---- Restock route: boxes from the church to the town's shelves ----
+
+/** Bonus coins banked per box delivered, paid out with the shift reward. */
+export const RESTOCK_BOX_BONUS_COINS = 15;
+
+export type RestockArrivalEvent = "picked-up" | "delivered" | "waiting" | null;
+
+/**
+ * Advance a restock worker's route when they arrive at a building. Pure —
+ * the caller applies side effects (stock goes up on "delivered") and saves.
+ *
+ * - Leg "to-church" + arrival at the church: the shift is underway
+ *   (en-route -> working). The caller names the next delivery target (the
+ *   neediest stocked building, see neediestStockedBuilding in
+ *   lib/hometown.ts) — with a target the worker picks up a box and heads
+ *   out ("picked-up"); without one every shelf is full, so they wait at
+ *   the church ("waiting").
+ * - Leg "to-deliver" + arrival at the target building: the box lands
+ *   ("delivered"), the box bonus is banked, and the route loops back to
+ *   the church for the next box.
+ *
+ * Arrivals anywhere else (or repeat fires with nothing to do) return the
+ * SAME state reference with a null/"waiting" event so callers can skip
+ * saving.
+ */
+export function advanceRestockArrival(
+  state: VillagerWorkState,
+  args: {
+    personId: string;
+    arrivedBuildingId: string | undefined;
+    churchBuildingId: string;
+    nextTargetId: string | null;
+  }
+): { state: VillagerWorkState; event: RestockArrivalEvent } {
+  const idx = state.assignments.findIndex(
+    (a) => a.personId === args.personId && a.kind === "restock" && a.status !== "done"
+  );
+  if (idx < 0) return { state, event: null };
+  const a = state.assignments[idx];
+  const leg = a.restockLeg ?? "to-church";
+
+  if (leg === "to-deliver") {
+    if (!a.restockTargetId || args.arrivedBuildingId !== a.restockTargetId) {
+      return { state, event: null };
+    }
+    const delivered: VillagerWorkAssignment = {
+      ...a,
+      status: "working",
+      restockLeg: "to-church",
+      restockTargetId: undefined,
+      boxesDelivered: (a.boxesDelivered ?? 0) + 1,
+      bonusCoins: (a.bonusCoins ?? 0) + RESTOCK_BOX_BONUS_COINS,
+    };
+    const assignments = state.assignments.slice();
+    assignments[idx] = delivered;
+    return { state: { assignments }, event: "delivered" };
+  }
+
+  // Leg "to-church": only a church arrival advances the route.
+  if (args.arrivedBuildingId !== args.churchBuildingId) return { state, event: null };
+  if (args.nextTargetId) {
+    const pickedUp: VillagerWorkAssignment = {
+      ...a,
+      status: "working",
+      restockLeg: "to-deliver",
+      restockTargetId: args.nextTargetId,
+    };
+    const assignments = state.assignments.slice();
+    assignments[idx] = pickedUp;
+    return { state: { assignments }, event: "picked-up" };
+  }
+  if (a.status === "working" && !a.restockTargetId) {
+    // Already waiting at the church with full shelves — nothing changed.
+    return { state, event: "waiting" };
+  }
+  const waiting: VillagerWorkAssignment = {
+    ...a,
+    status: "working",
+    restockLeg: "to-church",
+    restockTargetId: undefined,
+  };
+  const assignments = state.assignments.slice();
+  assignments[idx] = waiting;
+  return { state: { assignments }, event: "waiting" };
+}
+
 /** Remove an assignment after Jonathan collects its reward. Pure. */
 export function collectWorkAssignment(
   state: VillagerWorkState,
@@ -251,6 +359,10 @@ export function workCountdownText(endsAt: number, nowMs: number): string {
 }
 
 // ---- Supply chain: staffed farms & gardens boost nearby food buildings ----
+// NOTE: staffed farm/garden sites no longer feed building STOCK — shelves
+// are filled by Restock villagers carrying boxes from the church (see the
+// restock route above). These helpers remain for the farm/garden crews'
+// presence/supply role.
 
 /** Income multiplier for food buildings within range of a staffed farm/garden. */
 export const SUPPLY_BONUS_MULT = 1.35;

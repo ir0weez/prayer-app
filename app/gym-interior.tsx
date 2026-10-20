@@ -25,6 +25,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { TrainingGame } from "@/components/training-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, grantTrainingBonus, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#F5F1EE";
 const BRICK = "#A5553F";
@@ -142,6 +145,23 @@ function Mat({ color }: { color: string }) {
 export default function GymInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastTrain, setLastTrain] = useState(0);
+  const [trainingPlaysLeft, setTrainingPlaysLeft] = useState<number | null>(null);
+  const [playingTraining, setPlayingTraining] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("training").then(setTrainingPlaysLeft).catch(() => setTrainingPlaysLeft(0));
+  }, []);
+
+  const handleTrainingComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-training-${Date.now()}`).catch(() => undefined);
+    // A finished session leaves the Hero sharper until midnight.
+    grantTrainingBonus().catch(() => undefined);
+    recordPlay("training").then(setTrainingPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   useEffect(() => {
     (async () => {
@@ -274,6 +294,19 @@ export default function GymInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Work out once an hour. Train the body; it carries everything else.
         </Text>
+
+        <PlayCard
+          icon="timer"
+          title="Play: Training Reps"
+          blurb="Stop the sweeping marker in the green — gold is perfect. Twelve reps, and finishing sharpens the Hero in the Dark Forest (+10% attack & defense until midnight)."
+          playsLeft={trainingPlaysLeft}
+          cap={MINI_GAME_CAPS.training}
+          accent={ACCENT}
+          onPlay={() => setPlayingTraining(true)}
+        />
+        {playingTraining && (
+          <TrainingGame accent={ACCENT} onComplete={handleTrainingComplete} onExit={() => setPlayingTraining(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Chalking up…</Text>}
       </ScrollView>

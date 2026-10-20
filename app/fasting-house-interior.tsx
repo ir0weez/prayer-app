@@ -26,6 +26,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { CandleGame } from "@/components/candle-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#F2F3EC";
 const SAGE_DARK = "#565840";
@@ -131,6 +134,21 @@ function GardenWindow() {
 export default function FastingHouseInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastQuiet, setLastQuiet] = useState(0);
+  const [candlePlaysLeft, setCandlePlaysLeft] = useState<number | null>(null);
+  const [playingCandle, setPlayingCandle] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("candle").then(setCandlePlaysLeft).catch(() => setCandlePlaysLeft(0));
+  }, []);
+
+  const handleCandleComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-candle-${Date.now()}`).catch(() => undefined);
+    recordPlay("candle").then(setCandlePlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   useEffect(() => {
     (async () => {
@@ -253,6 +271,19 @@ export default function FastingHouseInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Sit in the quiet once an hour. The table stays bare; the heart doesn't.
         </Text>
+
+        <PlayCard
+          icon="local-fire-department"
+          title="Play: Keep the Candle Lit"
+          blurb="A minute of stillness. Distraction motes drift toward the flame — brush them away and keep the light bright."
+          playsLeft={candlePlaysLeft}
+          cap={MINI_GAME_CAPS.candle}
+          accent={ACCENT}
+          onPlay={() => setPlayingCandle(true)}
+        />
+        {playingCandle && (
+          <CandleGame accent={ACCENT} onComplete={handleCandleComplete} onExit={() => setPlayingCandle(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Lighting the candles…</Text>}
       </ScrollView>

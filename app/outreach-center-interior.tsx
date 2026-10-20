@@ -27,6 +27,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { PackingGame } from "@/components/packing-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#FBF4E8";
 const TEAL = "#2E7D74";
@@ -128,6 +131,21 @@ function ServingCounter({ trays = 2 }: { trays?: number }) {
 export default function OutreachCenterInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastServe, setLastServe] = useState(0);
+  const [packingPlaysLeft, setPackingPlaysLeft] = useState<number | null>(null);
+  const [playingPacking, setPlayingPacking] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("packing").then(setPackingPlaysLeft).catch(() => setPackingPlaysLeft(0));
+  }, []);
+
+  const handlePackingComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-packing-${Date.now()}`).catch(() => undefined);
+    recordPlay("packing").then(setPackingPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   useEffect(() => {
     (async () => {
@@ -251,6 +269,19 @@ export default function OutreachCenterInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Serve once an hour. The counter stays open to everyone.
         </Text>
+
+        <PlayCard
+          icon="inventory"
+          title="Play: Pack the Boxes"
+          blurb="The pantry rush is on — sort each item into its box before the clock runs out. Forty-five seconds."
+          playsLeft={packingPlaysLeft}
+          cap={MINI_GAME_CAPS.packing}
+          accent={ACCENT}
+          onPlay={() => setPlayingPacking(true)}
+        />
+        {playingPacking && (
+          <PackingGame accent={ACCENT} onComplete={handlePackingComplete} onExit={() => setPlayingPacking(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Stocking the shelves…</Text>}
       </ScrollView>

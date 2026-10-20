@@ -26,6 +26,9 @@ import { scaledCoins, scaledXP } from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
+import { VerseGame } from "@/components/verse-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#FAF5EA";
 const WOOD = "#A9713F";
@@ -124,6 +127,21 @@ function Lectern() {
 export default function BibleStudyHallInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastJoin, setLastJoin] = useState(0);
+  const [versePlaysLeft, setVersePlaysLeft] = useState<number | null>(null);
+  const [playingVerse, setPlayingVerse] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("verse").then(setVersePlaysLeft).catch(() => setVersePlaysLeft(0));
+  }, []);
+
+  const handleVerseComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-verse-${Date.now()}`).catch(() => undefined);
+    recordPlay("verse").then(setVersePlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   useEffect(() => {
     (async () => {
@@ -252,6 +270,19 @@ export default function BibleStudyHallInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Join the study once an hour. The circles are always set.
         </Text>
+
+        <PlayCard
+          icon="quiz"
+          title="Play: Complete the Verse"
+          blurb="A verse with one word missing — can you complete it? Eight rounds, and wisdom pays best."
+          playsLeft={versePlaysLeft}
+          cap={MINI_GAME_CAPS.verse}
+          accent={ACCENT}
+          onPlay={() => setPlayingVerse(true)}
+        />
+        {playingVerse && (
+          <VerseGame accent={ACCENT} onComplete={handleVerseComplete} onExit={() => setPlayingVerse(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Setting out the chairs…</Text>}
       </ScrollView>

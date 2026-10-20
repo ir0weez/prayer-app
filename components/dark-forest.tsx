@@ -14,6 +14,9 @@ import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 
 export type DarkForestProps = {
   stats: CombatStats;
+  /** Gym Training Reps bonus is folded into `stats` — this flag only
+   *  drives the "bonus active" note in the panel. */
+  trainingBonus?: boolean;
   forest: DarkForestState;
   /** Tunic color from equipped clothes, so the pawn looks like yours. */
   tunicColor: string;
@@ -326,7 +329,7 @@ type FloatItem = { id: number; text: string; color: string; side: "left" | "righ
 
 let floatId = 0;
 
-export function DarkForest({ stats, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, timeOfDay, pt, onVictory }: DarkForestProps) {
+export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, timeOfDay, pt, onVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -604,9 +607,14 @@ export function DarkForest({ stats, forest, tunicColor, armorId, weaponId, hairS
           <View style={{ position: "absolute", left: 12, right: 12, bottom: 12 }}>
             {phase === "select" && (
               <View style={{ backgroundColor: "rgba(10,10,25,0.88)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#3A3A5E" }}>
-                <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: 8 }}>
+                <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
                   Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP — your gear is your strength.
                 </Text>
+                {trainingBonus && (
+                  <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
+                    Training bonus active — +10% attack &amp; defense until midnight.
+                  </Text>
+                )}
                 {(() => {
                   const cur = zoneForWave(maxWave);
                   return (

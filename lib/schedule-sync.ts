@@ -10,7 +10,11 @@
 //   Bible Study            -> the Bible Study Hall (circles; church if unbuilt)
 //   Fasting                -> the Fasting House (hero alone, quiet)
 //   Outreach / food drives -> the Outreach Center (church if unbuilt)
+//   Check-In / visitation  -> the Outreach Center (church if unbuilt)
+//   Worship / music        -> the Amphitheater (everyone gathers)
+//   Youth / kids ministry  -> the School (classroom; church if unbuilt)
 //   Gym / workout          -> the Gym (hero alone)
+//   Prayer meeting         -> the church (its natural home)
 // Ministry items route by their title first when a natural home exists
 // (a "Garden Prayer" ministry goes to the garden, a "Bible Study"
 // ministry to the hall); otherwise ministries gather at the church.
@@ -42,6 +46,7 @@ export type ScheduleActivityKind =
   | "bible-study"
   | "fasting"
   | "outreach"
+  | "school"
   | "gym"
   | "barbershop"
   | "garden";
@@ -86,6 +91,14 @@ const KIND_MATCHERS: Array<{ kind: ScheduleActivityKind; withVillagers: boolean;
     re: /\b(bbq|barbecue|barbeque|cookout)\b/i,
   },
   {
+    // Check-In ministries and visitation go to the Outreach Center —
+    // and they outrank the hospital matcher below, so a "Hospital
+    // Visitation" is ministry (visiting people), not a check-up.
+    kind: "outreach",
+    withVillagers: true,
+    re: /\b(check[-\s]?in|visitation|shut-?in visits?|home visits?)\b/i,
+  },
+  {
     kind: "hospital",
     withVillagers: false,
     re: /\b(doctor|doctors|dentist|hospital|clinic|check-?up|therapy|physio|urgent care)\b/i,
@@ -112,11 +125,29 @@ const KIND_MATCHERS: Array<{ kind: ScheduleActivityKind; withVillagers: boolean;
   },
   {
     // Outreach has a home of its own now — the Outreach Center (pantry,
-    // serving counter). Generic serving/volunteering still gathers at
-    // the church via the matcher below.
+    // serving counter). Check-In ministries and visitation live there
+    // too — visiting people IS outreach. Generic serving/volunteering
+    // still gathers at the church via the matcher below.
     kind: "outreach",
     withVillagers: true,
-    re: /\b(outreach|food drive|food pantry|food bank|donation drive|care packages?)\b/i,
+    re: /\b(outreach|food drive|food pantry|food bank|donation drive|care packages?|check[-\s]?in|visitation|shut-?in visits?|home visits?)\b/i,
+  },
+  {
+    // Worship is music under open sky — the Amphitheater, everyone
+    // gathered. Checked before the church matcher, which also lists
+    // worship. (Concerts already route here via the movie matcher.)
+    kind: "amphitheater",
+    withVillagers: true,
+    re: /\b(worship|choir|singing|praise|music|music ministry|music practice|band practice)\b/i,
+  },
+  {
+    // Youth and kids ministry belongs at the School. Checked before
+    // the church matcher, which lists "youth group" as small-group
+    // ministry. Falls back to the church in resolveScheduleTarget
+    // while no school building stands on the map.
+    kind: "school",
+    withVillagers: true,
+    re: /\b(youth|kids? ministry|childrens? ministry|kids? church|sunday school|awana|teen ministry|youth group|youth night)\b/i,
   },
   {
     kind: "church",
@@ -288,6 +319,15 @@ export function resolveScheduleTarget(
     case "outreach":
       b =
         buildings.find((x) => x.type === "outreach-center") ??
+        buildings.find((x) => x.type === "church");
+      break;
+    case "school":
+      // The School's buildings: a classroom first, then the library or
+      // chapel; the church hosts the kids until one stands.
+      b =
+        buildings.find((x) => x.type === "classroom") ??
+        buildings.find((x) => x.type === "library") ??
+        buildings.find((x) => x.type === "chapel") ??
         buildings.find((x) => x.type === "church");
       break;
     case "gym":

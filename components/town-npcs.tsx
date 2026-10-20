@@ -65,6 +65,10 @@ const ACTIVITY_ICONS: Record<string, string> = {
   "fasting-house": "self-improvement",
   gym: "fitness-center",
   "outreach-center": "volunteer-activism",
+  /** The School — youth and kids ministry gathers here. */
+  classroom: "school",
+  library: "local-library",
+  chapel: "church",
   /** Schedule sync — the pawn mimics Jonathan's day; villagers join people events. */
   "amphitheater": "theater-comedy",
   "hospital": "local-hospital",

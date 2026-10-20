@@ -2806,12 +2806,18 @@ export default function HometownScreen() {
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
   // Coin-fly FX: bursts of coins fly from collected buildings up to the
-  // balance, which ticks up (and pulses) when they land. The header Collect
-  // All pill flips to a "Collected!" face while the coins are in the air.
+  // header pill, which ticks up (and pulses) when they land. The header
+  // pill is a single morphing pill: it rests on the balance, turns gold
+  // ("Collect X.XX") while coins are waiting, and flips to a green
+  // "Collected!" face while the coins are in the air.
   const { width: windowW } = useWindowDimensions();
   const [bursts, setBursts] = useState<CoinBurstData[]>([]);
   const [collectFx, setCollectFx] = useState<{ coins: number; xp: number } | null>(null);
   const collectFlip = useRef(new Animated.Value(0)).current;
+  // Header pill morph: 0 = resting balance face, 1 = Collect face (coins waiting).
+  const pillMorph = useRef(new Animated.Value(0)).current;
+  // Which face the header pill renders — swaps at the midpoint of the morph.
+  const [pillFace, setPillFace] = useState<"balance" | "collect">("balance");
   const balancePulseAnim = useRef(new Animated.Value(0)).current;
   const balanceRef = useRef<View>(null);
   const balancePosRef = useRef({ x: 0, y: 0 });
@@ -2902,6 +2908,25 @@ export default function HometownScreen() {
 
   // The active map's state (all grid logic operates on this)
   const map: MapState = town.maps[activeMap];
+
+  // The single morphing header pill: total coins/XP waiting to be collected
+  // on the active map. It sits in "Collect" mode while anything is pending
+  // (or while the collect FX plays), otherwise it rests showing the balance.
+  const collectibleTotal = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
+  const pillCollectMode = collectibleTotal > 0 || !!collectFx;
+  // Compact number formatting so a huge total can never shove the pill
+  // off the screen (the pill also has a maxWidth cap in the header).
+  const headerCoinText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(2));
+  useEffect(() => {
+    Animated.timing(pillMorph, {
+      toValue: pillCollectMode ? 1 : 0,
+      duration: 280,
+      easing: Easing.inOut(Easing.sin),
+      useNativeDriver: false,
+    }).start();
+    const t = setTimeout(() => setPillFace(pillCollectMode ? "collect" : "balance"), 140);
+    return () => clearTimeout(t);
+  }, [pillCollectMode, pillMorph]);
 
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
@@ -5361,57 +5386,79 @@ export default function HometownScreen() {
         <Pressable onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12, minHeight: 44, justifyContent: "center" }}>
           <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
         </Pressable>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
+        <Text numberOfLines={1} style={{ fontSize: 22, fontWeight: "800", color: pt.text, flexShrink: 1 }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
-        {(() => {
-          const collectible = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
-          // Stay visible while the collect FX plays (coins in the air).
-          if (collectible <= 0 && !collectFx) return null;
-          const flipBg = collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["#D4AF37", "#16A34A"] });
-          const flipRotate = collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-          const flipScale = collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] });
-          return (
-            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
-              <Pressable
-                onPress={handleCollectAll}
-                onLongPress={() => setCollectBreakdownOpen(true)}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                style={{ borderRadius: 999 }}
+        {/* ONE morphing pill (balance <=> Collect): rests cream showing the coin
+            balance; when coins are waiting it turns gold into "Collect X.XX";
+            tapping runs the flip + coin-fly, the balance ticks up, and it
+            turns back to the balance face. The info button opens the
+            per-building breakdown. */}
+        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, marginLeft: 8 }}>
+          <Animated.View
+            ref={balanceRef}
+            onLayout={measureBalance}
+            style={{ flexShrink: 1, maxWidth: Math.round(windowW * 0.5), transform: [{ scale: balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }) }, { scale: pillMorph.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.93, 1] }) }] }}
+          >
+            <Pressable
+              onPress={pillCollectMode && !collectFx ? handleCollectAll : undefined}
+              onLongPress={() => setCollectBreakdownOpen(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+              style={{ borderRadius: 999 }}
+            >
+              <Animated.View
+                style={{
+                  backgroundColor: pillMorph.interpolate({ inputRange: [0, 1], outputRange: ["#FEF3C7", "#D4AF37"] }),
+                  borderRadius: 999,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  minHeight: 44,
+                  elevation: 2,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  transform: [
+                    { rotateY: collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
+                    { scale: collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] }) },
+                  ],
+                }}
               >
-                <Animated.View style={{ backgroundColor: flipBg, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, transform: [{ rotateY: flipRotate }, { scale: flipScale }] }}>
-                  {collectFx ? (
-                    <>
-                      <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
-                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
-                    </>
+                {/* Green FX overlay: fades in as the pill flips to "Collected!". */}
+                <Animated.View
+                  pointerEvents="none"
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#16A34A", borderRadius: 999, opacity: collectFlip }}
+                />
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                  {pillFace === "collect" ? (
+                    collectFx ? (
+                      <>
+                        <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                        <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
+                        <Text numberOfLines={1} style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {headerCoinText(collectibleTotal)}</Text>
+                      </>
+                    )
                   ) : (
                     <>
-                      <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
-                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {collectible.toFixed(2)}</Text>
+                      <MaterialIcons name="monetization-on" size={18} color="#92400E" />
+                      <Text numberOfLines={1} style={{ marginLeft: 6, fontWeight: "700" }}>{headerCoinText(coins.balance)}</Text>
                     </>
                   )}
-                </Animated.View>
-              </Pressable>
-              <Pressable
-                onPress={() => setCollectBreakdownOpen(true)}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                style={{ marginLeft: 4, padding: 4, minHeight: 44, minWidth: 36, alignItems: "center", justifyContent: "center" }}
-              >
-                <MaterialIcons name="info-outline" size={18} color="#92400E" />
-              </Pressable>
-            </View>
-          );
-        })()}
-        <Animated.View
-          ref={balanceRef}
-          onLayout={measureBalance}
-          style={{ transform: [{ scale: balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }) }] }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3C7", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, minHeight: 44 }}>
-            <MaterialIcons name="monetization-on" size={18} color="#92400E" />
-            <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
-          </View>
-        </Animated.View>
+                </View>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+          <Pressable
+            onPress={() => setCollectBreakdownOpen(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            style={{ marginLeft: 4, padding: 4, minHeight: 44, minWidth: 36, alignItems: "center", justifyContent: "center" }}
+          >
+            <MaterialIcons name="info-outline" size={18} color="#92400E" />
+          </Pressable>
+        </View>
       </View>
 
       {/* Compact header summary — the income bonuses (milestone, prayer,

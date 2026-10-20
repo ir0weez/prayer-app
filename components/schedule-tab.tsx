@@ -2077,6 +2077,119 @@ function SchoolScene() {
   );
 }
 
+/** Water Park: twisting slides, wave pool, splashes, palms. */
+function WaterParkScene() {
+  return (
+    <SceneRoot base="#4FC3F7">
+      <BreatheGlow color="#FFD54F" size={100} left="70%" bottom={58} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "74%", bottom: 72, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD54F" }} />
+      <DriftingCloud top={12} size={44} duration={26000} delay={2000} />
+      <DriftingCloud top={34} size={30} duration={34000} delay={9000} />
+      {/* ground */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -26, height: 70, borderRadius: 36, backgroundColor: "#8ED6F2" }} />
+      {/* slide tower (left) */}
+      <View style={{ position: "absolute", left: "8%", bottom: 30, width: 40, height: 96 }}>
+        <View style={{ position: "absolute", left: 4, bottom: 0, width: 6, height: 96, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 30, bottom: 0, width: 6, height: 96, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 20, width: 32, height: 5, borderRadius: 2.5, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 44, width: 32, height: 5, borderRadius: 2.5, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: 4, bottom: 68, width: 32, height: 5, borderRadius: 2.5, backgroundColor: "#90A4AE" }} />
+        <View style={{ position: "absolute", left: -2, bottom: 90, width: 44, height: 10, borderRadius: 5, backgroundColor: "#546E7A" }} />
+      </View>
+      {/* twisting orange slide */}
+      <View style={{ position: "absolute", left: "16%", bottom: 26, width: 76, height: 70 }}>
+        <View style={{ position: "absolute", left: 0, bottom: 56, width: 40, height: 12, borderRadius: 6, backgroundColor: "#FF6F00", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 30, bottom: 36, width: 40, height: 12, borderRadius: 6, backgroundColor: "#FF8F00", transform: [{ rotate: "12deg" }] }} />
+        <View style={{ position: "absolute", left: 8, bottom: 14, width: 44, height: 12, borderRadius: 6, backgroundColor: "#FF6F00", transform: [{ rotate: "-10deg" }] }} />
+      </View>
+      {/* blue slide (right) */}
+      <View style={{ position: "absolute", left: "62%", bottom: 26, width: 70, height: 84 }}>
+        <View style={{ position: "absolute", left: 52, bottom: 0, width: 6, height: 84, backgroundColor: "#78909C" }} />
+        <View style={{ position: "absolute", left: 40, bottom: 78, width: 30, height: 10, borderRadius: 5, backgroundColor: "#546E7A" }} />
+        <View style={{ position: "absolute", left: 8, bottom: 58, width: 38, height: 12, borderRadius: 6, backgroundColor: "#29B6F6", transform: [{ rotate: "16deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 34, width: 38, height: 12, borderRadius: 6, backgroundColor: "#0288D1", transform: [{ rotate: "-14deg" }] }} />
+        <View style={{ position: "absolute", left: 10, bottom: 12, width: 38, height: 12, borderRadius: 6, backgroundColor: "#29B6F6", transform: [{ rotate: "12deg" }] }} />
+      </View>
+      {/* wave pool */}
+      <View style={{ position: "absolute", left: "30%", right: "6%", bottom: 8, height: 40, borderRadius: 20, backgroundColor: "#0277BD" }} />
+      <GentleSway left="0%" bottom={30} width={360} height={14} arc={8} duration={3000}>
+        <View style={{ position: "absolute", left: -20, right: -20, bottom: 0, height: 14, borderRadius: 7, backgroundColor: "#4FC3F7", opacity: 0.9 }} />
+      </GentleSway>
+      <GentleSway left="0%" bottom={22} width={360} height={10} arc={10} duration={2400} delay={600}>
+        <View style={{ position: "absolute", left: -20, right: -20, bottom: 0, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF", opacity: 0.75 }} />
+      </GentleSway>
+      {/* inner tube bobbing in the pool */}
+      <GentleBob left="52%" bottom={22} width={36} height={36} distance={7} duration={2600}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 10, borderColor: "#FFD54F", backgroundColor: "transparent" }} />
+      </GentleBob>
+      {/* splashes where slides meet the pool */}
+      <RisingDot left="30%" top={56} size={6} color="#FFFFFF" duration={2400} delay={0} maxOpacity={0.8} sway={10} square={false} bordered={false} />
+      <RisingDot left="66%" top={58} size={5} color="#E1F5FE" duration={2800} delay={900} maxOpacity={0.7} sway={12} square={false} bordered={false} />
+      <RisingDot left="44%" top={60} size={7} color="#FFFFFF" duration={3200} delay={1700} maxOpacity={0.75} sway={8} square={false} bordered={false} />
+      {/* palm tree */}
+      <View style={{ position: "absolute", left: "86%", bottom: 30, width: 26, height: 70 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 5, height: 52, backgroundColor: "#6E4E2E", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 52, width: 26, height: 8, borderRadius: 4, backgroundColor: "#3E7A3E", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 56, width: 26, height: 8, borderRadius: 4, backgroundColor: "#4E8A4E", transform: [{ rotate: "14deg" }] }} />
+      </View>
+    </SceneRoot>
+  );
+}
+
+/** Beach: rolling ocean waves, sandy shore, striped umbrella, beach ball. */
+function BeachScene() {
+  return (
+    <SceneRoot base="#7EC8E3">
+      <BreatheGlow color="#FFD54F" size={100} left="66%" bottom={54} min={0.3} max={0.5} duration={5200} />
+      <View style={{ position: "absolute", left: "70%", bottom: 68, width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFD54F" }} />
+      <DriftingCloud top={12} size={44} duration={26000} delay={2000} />
+      <DriftingCloud top={36} size={30} duration={34000} delay={9000} />
+      {/* ocean */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "48%", backgroundColor: "#1565C0" }} />
+      {/* rolling wave bands */}
+      <GentleSway left="0%" bottom={52} width={360} height={22} arc={8} duration={3400}>
+        <View style={{ position: "absolute", left: -20, right: -20, bottom: 0, height: 22, borderRadius: 11, backgroundColor: "#1E88E5", opacity: 0.9 }} />
+      </GentleSway>
+      <GentleSway left="0%" bottom={40} width={360} height={18} arc={10} duration={2700} delay={700}>
+        <View style={{ position: "absolute", left: -20, right: -20, bottom: 0, height: 18, borderRadius: 9, backgroundColor: "#42A5F5", opacity: 0.85 }} />
+      </GentleSway>
+      <GentleSway left="0%" bottom={30} width={360} height={12} arc={12} duration={2200} delay={1300}>
+        <View style={{ position: "absolute", left: -20, right: -20, bottom: 0, height: 12, borderRadius: 6, backgroundColor: "#FFFFFF", opacity: 0.8 }} />
+      </GentleSway>
+      {/* sandy shore */}
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: -26, height: 78, borderRadius: 40, backgroundColor: "#F0D9A8" }} />
+      <View style={{ position: "absolute", left: "-10%", right: "-10%", bottom: 34, height: 16, borderRadius: 8, backgroundColor: "#F7E7C3", opacity: 0.9 }} />
+      {/* beach umbrella */}
+      <View style={{ position: "absolute", left: "12%", bottom: 34, width: 70, height: 92 }}>
+        <View style={{ position: "absolute", left: 32, bottom: 0, width: 5, height: 62, borderRadius: 2.5, backgroundColor: "#8D6E63" }} />
+        <View style={{ position: "absolute", left: 2, bottom: 52, width: 66, height: 34, borderBottomLeftRadius: 33, borderBottomRightRadius: 33, backgroundColor: "#FF7043", overflow: "hidden" }}>
+          <View style={{ position: "absolute", left: 8, top: 0, width: 14, height: 34, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "10deg" }] }} />
+          <View style={{ position: "absolute", left: 44, top: 0, width: 14, height: 34, backgroundColor: "#FFFFFF", opacity: 0.85, transform: [{ rotate: "-10deg" }] }} />
+        </View>
+        <View style={{ position: "absolute", left: 30, bottom: 82, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FFD54F" }} />
+      </View>
+      {/* beach ball */}
+      <GentleBob left="58%" bottom={30} width={36} height={36} distance={9} duration={2800}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFFFFF", overflow: "hidden" }}>
+          <View style={{ position: "absolute", left: -8, top: -10, width: 26, height: 56, backgroundColor: "#E53935", transform: [{ rotate: "24deg" }] }} />
+          <View style={{ position: "absolute", left: 18, top: -10, width: 26, height: 56, backgroundColor: "#1E88E5", transform: [{ rotate: "24deg" }] }} />
+        </View>
+      </GentleBob>
+      {/* palm tree */}
+      <View style={{ position: "absolute", left: "84%", bottom: 34, width: 26, height: 70 }}>
+        <View style={{ position: "absolute", left: 11, bottom: 0, width: 5, height: 52, backgroundColor: "#6E4E2E", transform: [{ rotate: "8deg" }] }} />
+        <View style={{ position: "absolute", left: 0, bottom: 52, width: 26, height: 8, borderRadius: 4, backgroundColor: "#3E7A3E", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 2, bottom: 56, width: 26, height: 8, borderRadius: 4, backgroundColor: "#4E8A4E", transform: [{ rotate: "14deg" }] }} />
+      </View>
+      {/* gulls */}
+      <GentleSway left="38%" bottom={108} width={30} height={10} arc={6} duration={4200}>
+        <View style={{ position: "absolute", left: 0, top: 2, width: 14, height: 4, borderRadius: 2, backgroundColor: "#37474F", transform: [{ rotate: "-18deg" }] }} />
+        <View style={{ position: "absolute", left: 12, top: 2, width: 14, height: 4, borderRadius: 2, backgroundColor: "#37474F", transform: [{ rotate: "18deg" }] }} />
+      </GentleSway>
+    </SceneRoot>
+  );
+}
+
 /** Christmas: pine tree with twinkling lights, presents, falling snow. */
 function ChristmasScene() {
   return (
@@ -7013,6 +7126,8 @@ function KeywordAmbientAnimation({ label, title = "", location = "", notes = "" 
     case "Park": return <ParkScene />;
     case "Party": return <PartyScene />;
     case "School": return <SchoolScene />;
+    case "Water Park": return <WaterParkScene />;
+    case "Beach": return <BeachScene />;
     case "Baby Shower": return <BabyShowerScene />;
     case "Birthday": return <BirthdayScene />;
     case "Christmas": return <ChristmasScene />;
@@ -7317,7 +7432,7 @@ function EventCardInner({
   const colors = useColors();
   const timeOffCardColor = getTimeOffEventColor(event);
   const timeOffTextColor = readableTextColor(timeOffCardColor);
-  const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title);
+  const keyword = event.keyword ? EVENT_KEYWORD_MAP.find((k) => k.label === event.keyword) : detectEventKeyword(event.title, event.location, event.notes);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const liveCursor = event.startTime && liveNow ? getLiveCursorPosition([event], liveNow) : null;

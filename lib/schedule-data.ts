@@ -180,6 +180,8 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["get gas", "gas station", "fill up", "fuel up", "fuel"], label: "Get Gas", emoji: "⛽", icon: "local-gas-station", bgColor: "#6E4A2E", textColor: "#FFF3E0", accentColor: "#FFB74D" },
   { keywords: ["amusement park", "six flags", "knott's", "disneyland", "universal", "theme park"], label: "Amusement Park", emoji: "🎢🎡", icon: "attractions", bgColor: "#5E2E8E", textColor: "#6A1B9A", accentColor: "#E91E63" },
   { keywords: ["park", "playground", "playground with kids"], label: "Park", emoji: "", icon: "park", bgColor: "#3E8E5A", textColor: "#F1F8E9", accentColor: "#FFD54F" },
+  { keywords: ["soak city", "hurricane harbor", "water park"], label: "Water Park", emoji: "", icon: "waves", bgColor: "#00ACC1", textColor: "#E0F7FA", accentColor: "#FFD54F" },
+  { keywords: ["beach"], label: "Beach", emoji: "", icon: "beach-access", bgColor: "#E3B778", textColor: "#4E342E", accentColor: "#0288D1" },
   { keywords: ["new year", "new years", "nye"], label: "New Year", emoji: "🎆", icon: "celebration", bgColor: "#1A237E", textColor: "#FFF9C4", accentColor: "#FFD600" },
   { keywords: ["valentine", "valentines"], label: "Valentine's Day", emoji: "💕", icon: "favorite", bgColor: "#5C1031", textColor: "#F8BBD0", accentColor: "#EC407A" },
   { keywords: ["halloween"], label: "Halloween", emoji: "🎃", icon: "dark-mode", bgColor: "#1A2340", textColor: "#FFCC80", accentColor: "#FF6D00" },

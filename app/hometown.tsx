@@ -2370,6 +2370,13 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
   }
 }
 
+/**
+ * BuildingArt's props are all primitives, so a memoized wrapper lets the
+ * ~40 heavy SVG building trees skip re-rendering whenever the screen
+ * re-renders for unrelated reasons (ticks, modals, collect FX, clocks).
+ */
+const MemoBuildingArt = React.memo(BuildingArt);
+
 /** Animated SVG primitives (for shimmer/glow loops inside Svg). */
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
@@ -2450,8 +2457,6 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
  */
 /** How long one flying coin takes to reach the balance. */
 const COIN_FLY_MS = 650;
-/** When the awarded coins "land" — balance ticks up and pulses then. */
-const COIN_LAND_MS = 850;
 /** Header pill offers Collect All only once more than this many coins wait. */
 const COLLECT_ALL_MIN = 100;
 
@@ -2464,8 +2469,13 @@ type CoinBurstData = {
   kind: "coins" | "xp";
 };
 
-/** One little coin (or XP bolt) flying from a building up to the balance. */
-function CoinFlyer({ sx, sy, dx, dy, delay, kind, onDone }: { sx: number; sy: number; dx: number; dy: number; delay: number; kind: "coins" | "xp"; onDone: () => void }) {
+/**
+ * One little coin (or XP bolt) flying from a building up to the balance.
+ * PURE decoration: it starts on mount, reports to nobody, and the parent
+ * removes the burst on a plain timer. Coins are awarded synchronously in
+ * the collect handlers — a flying coin is never waited on.
+ */
+function CoinFlyer({ sx, sy, dx, dy, delay, kind }: { sx: number; sy: number; dx: number; dy: number; delay: number; kind: "coins" | "xp" }) {
   const t = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(1)).current;
 
@@ -2480,7 +2490,7 @@ function CoinFlyer({ sx, sy, dx, dy, delay, kind, onDone }: { sx: number; sy: nu
         ]),
       ]),
     ]);
-    anim.start(({ finished }) => { if (finished) onDone(); });
+    anim.start();
     return () => anim.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -2522,13 +2532,10 @@ function CoinFlyer({ sx, sy, dx, dy, delay, kind, onDone }: { sx: number; sy: nu
   );
 }
 
-/** A small fan of coins flying together from one collect point. */
-function CoinBurst({ burst, onDone }: { burst: CoinBurstData; onDone: (id: string) => void }) {
+/** A small fan of coins flying together from one collect point. Stateless:
+ *  removal is the parent's job (a plain safety timer in spawnBurst). */
+function CoinBurst({ burst }: { burst: CoinBurstData }) {
   const COUNT = 4;
-  const [landed, setLanded] = useState(0);
-  useEffect(() => {
-    if (landed >= COUNT) onDone(burst.id);
-  }, [landed, burst.id, onDone]);
   return (
     <React.Fragment>
       {Array.from({ length: COUNT }, (_, i) => (
@@ -2540,10 +2547,35 @@ function CoinBurst({ burst, onDone }: { burst: CoinBurstData; onDone: (id: strin
           dy={burst.dy}
           delay={i * 80}
           kind={burst.kind}
-          onDone={() => setLanded((n) => n + 1)}
         />
       ))}
     </React.Fragment>
+  );
+}
+
+/**
+ * Floating "+X.XX" receipt that drifts up from the header pill and fades.
+ * The real balance already updated before this mounts — it is just the
+ * receipt. Plays once on mount; the parent unmounts it on a timer.
+ */
+function CollectDeltaBubble({ label }: { label: string }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.timing(t, { toValue: 1, duration: 1400, easing: Easing.out(Easing.sin), useNativeDriver: true });
+    anim.start();
+    return () => anim.stop();
+  }, [t]);
+  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -26] });
+  const opacity = t.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, 1, 1, 0] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: "absolute", top: -20, right: 6, transform: [{ translateY }], opacity, zIndex: 50 }}
+    >
+      <Text style={{ fontSize: 13, fontWeight: "800", color: "#16A34A", textShadowColor: "rgba(255,255,255,0.9)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
+        {label}
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -2578,6 +2610,18 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
     return () => pulse.stop();
   }, [frenzy]);
 
+  // Safety net for the shrink: a successful collect zeroes the building
+  // and this pill unmounts a frame later, but if a collect ever no-ops,
+  // restore the pill instead of leaving it shrunk/faded and untappable.
+  useEffect(() => {
+    if (!collecting) return;
+    const t = setTimeout(() => {
+      setCollecting(false);
+      collectAnim.setValue(0);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [collecting, collectAnim]);
+
   const rotateY = flipAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -2608,11 +2652,15 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
       onPress={(e) => {
         e.stopPropagation();
         if (collecting) return;
+        const px = e.nativeEvent.pageX;
+        const py = e.nativeEvent.pageY;
         setCollecting(true);
-        // Morph: shrink + fade, then hand off to the real collect (coins fly).
-        Animated.timing(collectAnim, { toValue: 1, duration: 220, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start(({ finished }) => {
-          if (finished) onCollect(e.nativeEvent.pageX, e.nativeEvent.pageY);
-        });
+        // Decorative shrink — fire-and-forget, no completion callback.
+        // The collect itself happens NOW, synchronously, on the next line:
+        // it used to run inside this animation's completion callback, so
+        // an interrupted animation swallowed the tap (and the award).
+        Animated.timing(collectAnim, { toValue: 1, duration: 220, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
+        onCollect(px, py);
       }}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={({ pressed }) => ({
@@ -2703,6 +2751,15 @@ export default function HometownScreen() {
   useEffect(() => {
     const t = setInterval(() => setTimeOfDay(getTimeOfDay()), 5 * 60 * 1000);
     return () => clearInterval(t);
+  }, []);
+  // Ambient life (chimney smoke, night window glow, city traffic, birds)
+  // mounts a beat AFTER first paint. Those are dozens of looping animated
+  // subtrees; keeping them off the first frame lets the map, buildings,
+  // and badges land noticeably sooner. Nothing interactive waits on them.
+  const [ambientReady, setAmbientReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAmbientReady(true), 400);
+    return () => clearTimeout(t);
   }, []);
   const isNight = timeOfDay === "night";
   // City celebrations: load persisted state once (which milestones fired, etc.).
@@ -2811,42 +2868,48 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
-  // Coin-fly FX: bursts of coins fly from collected buildings up to the
-  // header pill, which ticks up (and pulses) when they land. The header
-  // pill is a single morphing pill: it rests on the balance, turns gold
-  // ("Collect X.XX") while coins are waiting, and flips to a green
-  // "Collected!" face while the coins are in the air.
+  // Coin-fly FX — PURELY DECORATIVE. Collecting awards coins/XP
+  // synchronously in the tap handler (buildings zeroed + persisted,
+  // balance updated, XP granted) BEFORE any of this is touched. Bursts,
+  // the pill flip, the balance pulse, and the "+X" receipt only read
+  // state afterwards: no animation completion callback calls setState,
+  // no phase flags gate the money, and an interrupted or unmounted
+  // animation can break nothing. The header pill is a single morphing
+  // pill: it rests on the balance, turns gold ("Collect X.XX") while
+  // coins are waiting, and flips to a green "Collected!" face while
+  // the coins are in the air.
   const { width: windowW } = useWindowDimensions();
   const [bursts, setBursts] = useState<CoinBurstData[]>([]);
-  const [collectFx, setCollectFx] = useState<{ coins: number; xp: number } | null>(null);
   const collectFlip = useRef(new Animated.Value(0)).current;
   // Header pill morph: 0 = resting balance face, 1 = Collect face (coins waiting).
   const pillMorph = useRef(new Animated.Value(0)).current;
   // Which face the header pill renders — swaps at the midpoint of the morph.
   const [pillFace, setPillFace] = useState<"balance" | "collect">("balance");
+  // Decorative "Collected!" face on the pill, shown briefly after Collect All.
+  const [justCollected, setJustCollected] = useState(false);
+  // Floating "+X.XX" receipt by the pill after a collect.
+  const [collectDelta, setCollectDelta] = useState<{ id: number; label: string } | null>(null);
   const balancePulseAnim = useRef(new Animated.Value(0)).current;
   const balanceRef = useRef<View>(null);
   const balancePosRef = useRef({ x: 0, y: 0 });
   const mapGridRef = useRef<View>(null);
   const burstIdRef = useRef(0);
-  const fxTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // FX teardown discipline: every deferred award / animation completion in
-  // the collect sequence checks `mountedRef` before touching state, and the
-  // Collect All run is identified by `fxRunRef` so stale callbacks from an
-  // interrupted run can never fire into a newer one. The morph-back used to
-  // clear collectFx straight from the flip-reverse callback while the face
-  // swap raced it — that chain is now a single guarded completion path.
+  const deltaIdRef = useRef(0);
+  // Timers that exist ONLY to tidy up decoration (retire finished bursts,
+  // clear the receipt). They never move money.
+  const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
-  const fxRunRef = useRef(0);
-  const fxPhaseRef = useRef<{ run: number; landed: boolean; cleared: boolean }>({ run: 0, landed: false, cleared: false });
+  // Kept only so a re-tap can stop the previous flip before restarting it.
   const flipAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   const morphAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => { mountedRef.current = true; }, []);
   useEffect(() => () => {
     mountedRef.current = false;
-    fxTimeoutsRef.current.forEach(clearTimeout);
-    fxTimeoutsRef.current = [];
+    burstTimersRef.current.forEach(clearTimeout);
+    burstTimersRef.current = [];
+    if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
     flipAnimRef.current?.stop();
     morphAnimRef.current?.stop();
   }, []);
@@ -2883,11 +2946,11 @@ export default function HometownScreen() {
     const d = balanceTarget();
     const id = `burst-${burstIdRef.current++}`;
     setBursts((prev) => [...prev.slice(-11), { id, sx, sy, dx: d.x, dy: d.y, kind }]);
-    // Safety net: a burst always leaves the overlay, even if one of its
-    // flyers is interrupted before it can report in.
-    fxTimeoutsRef.current.push(setTimeout(() => {
+    // Bursts are retired on a plain timer — the flyers report to nobody,
+    // so an interrupted flight can never strand a burst on screen.
+    burstTimersRef.current.push(setTimeout(() => {
       if (mountedRef.current) removeBurst(id);
-    }, COIN_FLY_MS + 4 * 80 + 800));
+    }, COIN_FLY_MS + 4 * 80 + 400));
   }, [balanceTarget, removeBurst]);
 
   const pulseBalance = useCallback(() => {
@@ -2895,6 +2958,35 @@ export default function HometownScreen() {
     balancePulseAnim.setValue(0);
     Animated.timing(balancePulseAnim, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.sin), useNativeDriver: true }).start();
   }, [balancePulseAnim]);
+
+  /**
+   * Decorative receipt for a collect that has ALREADY landed: a floating
+   * "+X" by the pill (and, for Collect All, the brief "Collected!" face).
+   * A plain timer tidies it up; nothing depends on it.
+   */
+  const showCollectReceipt = useCallback((label: string, celebrate: boolean) => {
+    const id = ++deltaIdRef.current;
+    if (celebrate) setJustCollected(true);
+    setCollectDelta({ id, label });
+    if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+    deltaTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current || deltaIdRef.current !== id) return;
+      setJustCollected(false);
+      setCollectDelta(null);
+    }, 1500);
+  }, []);
+
+  /** The Collect All pill flip — fire-and-forget, no completion callback. */
+  const flipCollectPill = useCallback(() => {
+    collectFlip.setValue(0);
+    flipAnimRef.current?.stop();
+    const flip = Animated.sequence([
+      Animated.timing(collectFlip, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      Animated.timing(collectFlip, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+    ]);
+    flipAnimRef.current = flip;
+    flip.start();
+  }, [collectFlip]);
 
   /** Measure the map grid's on-screen origin, then run cb with it. */
   const withGridOrigin = useCallback((cb: (gx: number, gy: number) => void) => {
@@ -2953,8 +3045,8 @@ export default function HometownScreen() {
 
   // The single morphing header pill: total coins/XP waiting to be collected
   // on the active map. It sits in "Collect" mode while more than
-  // COLLECT_ALL_MIN coins are pending (or while the collect FX plays),
-  // otherwise it rests showing the balance.
+  // COLLECT_ALL_MIN coins are pending, otherwise it rests showing the
+  // balance.
   const collectibleTotal = map.buildings.reduce((s, b) => s + (b.accumulated || 0), 0);
   // Coins only — XP buildings accumulate XP, not coins, so they don't count
   // toward the Collect All threshold.
@@ -2962,7 +3054,7 @@ export default function HometownScreen() {
     (s, b) => s + (xpIncomeFor(b.type, b.level || 1) > 0 ? 0 : b.accumulated || 0),
     0
   );
-  const pillCollectMode = collectibleCoins > COLLECT_ALL_MIN || !!collectFx;
+  const pillCollectMode = collectibleCoins > COLLECT_ALL_MIN;
   // Compact number formatting so a huge total can never shove the pill
   // off the screen (the pill also has a maxWidth cap in the header).
   const headerCoinText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(2));
@@ -2987,17 +3079,20 @@ export default function HometownScreen() {
       anim.stop();
     };
   }, [pillCollectMode, pillMorph]);
-  // The header pill's outer transform: pulse and morph scales merged into
-  // ONE derived value. Two separate { scale } entries driven by two
-  // different animated values used to sit in the same transform array and
-  // update concurrently during the collect teardown.
-  const pillScale = useMemo(
+  // The header pill's INNER scale: the collect flip's dip multiplied by
+  // the morph's dip. Both source values are JS-driven (they also drive
+  // rotateY / backgroundColor), so this derived graph stays on ONE
+  // driver. The balance pulse scale is native-driven and lives alone on
+  // the pill's OUTER view — the two used to be multiplied together,
+  // which mixed a native-driven node with a JS-driven node in a single
+  // transform graph (a native Animated crash vector on the collect path).
+  const pillInnerScale = useMemo(
     () =>
       Animated.multiply(
-        balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }),
+        collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] }),
         pillMorph.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.93, 1] })
       ),
-    [balancePulseAnim, pillMorph]
+    [collectFlip, pillMorph]
   );
 
   // Prayer lights: everyone prayed for today appears as a golden light.
@@ -3008,6 +3103,20 @@ export default function HometownScreen() {
       name: p.name,
     }));
   }, [prayedPeople]);
+
+  // Lights actually out walking (field-mission lights are away). Memoized
+  // + a stable tap handler so the memoized TownNPCs can skip re-renders
+  // when the screen re-renders for unrelated reasons.
+  const visibleLights = useMemo(
+    () => lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId)),
+    [lightInfos, fieldMissions]
+  );
+  const handleVillagerTap = useCallback((p: { id: string; name: string }) => {
+    const pid = String(p.id);
+    const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
+    if (vm) setVillagerMissionModal(vm);
+    else setPrayerVillagerInfo(p);
+  }, [vmState]);
 
   // Refs for the villager-mission spawn checks (init + live tick).
   const townRef = useRef(town);
@@ -5113,62 +5222,32 @@ export default function HometownScreen() {
       return { ...b, accumulated: 0, lastTick: new Date().toISOString() };
     });
     if (totalCoins <= 0 && totalXP <= 0) return;
-    // Zero the buildings NOW (map pills vanish instantly), the balance ticks
-    // up when the flying coins land ~0.85s later.
+    const coinsAward = Math.round(totalCoins * 100) / 100;
+    // ── STATE FIRST ─────────────────────────────────────────────────────
+    // The award is synchronous and final: buildings zeroed + persisted,
+    // XP granted, balance updated — all before any animation is even
+    // mentioned. Nothing below this line can affect the money, so the
+    // collect cannot be broken (or lost) by the FX layer.
     saveMap({ ...map, buildings: updatedBuildings });
-    const awardNow = () => {
-      if (totalXP > 0) {
-        awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
-      }
-      if (totalCoins > 0) {
-        addCoins(Math.round(totalCoins * 100) / 100);
-      }
-    };
-    // The collect must NEVER crash the app: any failure in the FX layer
-    // falls back to awarding instantly with no animation at all.
+    if (totalXP > 0) {
+      awardCustomXP(totalXP, `collect-all-${now}`).catch(() => undefined);
+    }
+    if (coinsAward > 0) {
+      addCoins(coinsAward);
+    }
+    // ── DECORATION ONLY ─────────────────────────────────────────────────
+    // Fire-and-forget visuals: the pill flips to "Collected!", the
+    // balance pulses, a "+X" receipt floats up, and coins burst from up
+    // to 8 pending buildings. They read state; they never gate, trigger,
+    // or complete any of it. Wrapped so even a throw here costs only
+    // the sparkle.
     try {
-      // One run, one completion path. Every deferred step below checks the
-      // run id + phase flags, so an interrupted flip, a double-fired
-      // callback, or an unmounted screen can never tear the pill down
-      // halfway or set state after the FX is gone.
-      const run = fxRunRef.current + 1;
-      fxRunRef.current = run;
-      fxPhaseRef.current = { run, landed: false, cleared: false };
-      const fxAlive = () =>
-        mountedRef.current && fxPhaseRef.current.run === run;
-
-      const clearFx = () => {
-        if (!fxAlive() || fxPhaseRef.current.cleared) return;
-        fxPhaseRef.current.cleared = true;
-        collectFlip.setValue(0);
-        setCollectFx(null);
-      };
-      const landFx = () => {
-        if (!fxAlive() || fxPhaseRef.current.landed) return;
-        fxPhaseRef.current.landed = true;
-        awardNow();
-        pulseBalance();
-        // Morph back: ONE flip-reverse. Its completion clears the FX —
-        // and only on a genuine finish; a safety timeout covers the case
-        // where the animation is interrupted and never reports back.
-        flipAnimRef.current?.stop();
-        const back = Animated.timing(collectFlip, {
-          toValue: 0,
-          duration: 240,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        });
-        flipAnimRef.current = back;
-        back.start(({ finished }) => {
-          if (finished) clearFx();
-        });
-        fxTimeoutsRef.current.push(setTimeout(clearFx, 700));
-      };
-
+      pulseBalance();
+      flipCollectPill();
+      showCollectReceipt(coinsAward > 0 ? `+${coinsAward.toFixed(2)}` : `+${totalXP} XP`, true);
       measureBalance();
-      // Fan the coins from up to 8 pending buildings toward the balance.
       withGridOrigin((gx, gy) => {
-        if (!fxAlive()) return;
+        if (!mountedRef.current) return;
         pendingBuildings.slice(0, 8).forEach((b) => {
           const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
           spawnBurst(
@@ -5178,22 +5257,8 @@ export default function HometownScreen() {
           );
         });
       });
-      // The header pill turns: flips to the green "Collected!" face while
-      // the coins are in the air, then turns back via landFx/clearFx.
-      setCollectFx({ coins: totalCoins, xp: totalXP });
-      collectFlip.setValue(0);
-      flipAnimRef.current?.stop();
-      const fwd = Animated.timing(collectFlip, {
-        toValue: 1,
-        duration: 320,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: false,
-      });
-      flipAnimRef.current = fwd;
-      fwd.start();
-      fxTimeoutsRef.current.push(setTimeout(landFx, COIN_LAND_MS));
     } catch {
-      awardNow();
+      // Decoration failed — the collect already landed. Nothing to do.
     }
   };
 
@@ -5372,31 +5437,36 @@ export default function HometownScreen() {
     let amount = building.accumulated || 0;
     if (now < frenzyUntilRef.current) amount = Math.round(amount * FRENZY_MULT * 10) / 10;
     const isXP = xpIncomeFor(building.type, building.level || 1) > 0;
-    // Zero the building NOW (its pill has already morphed away); the award
-    // lands in the balance when the coins fly in.
+    // ── STATE FIRST ── zero the building, persist, and award — all
+    // synchronously. (The award used to wait ~0.85s for the flying coins
+    // to "land"; leaving the screen mid-flight lost coins that had
+    // already been zeroed off the building.)
     const updatedBuildings = map.buildings.map(b =>
       b.id === buildingId ? { ...b, accumulated: 0, lastTick: new Date().toISOString() } : b
     );
     saveMap({ ...map, buildings: updatedBuildings });
-    measureBalance();
-    // Coins fly from where the pill was tapped (fall back to the tile pos).
-    if (pageX != null && pageY != null) {
-      spawnBurst(pageX, pageY, isXP ? "xp" : "coins");
+    if (isXP) {
+      awardCustomXP(Math.max(1, Math.floor(amount)), `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
     } else {
-      const fp = buildingFootprint(building.level || 1, building.type, hasFixedFootprint(building));
-      withGridOrigin((gx, gy) => {
-        spawnBurst(gx + (building.x + fp.w / 2) * cellSize, gy + (building.y + fp.h / 2) * cellSize, isXP ? "xp" : "coins");
-      });
+      addCoins(amount);
     }
-    fxTimeoutsRef.current.push(setTimeout(() => {
-      if (!mountedRef.current) return;
-      if (isXP) {
-        awardCustomXP(Math.max(1, Math.floor(amount)), `collect-${buildingId}-${Date.now()}`).catch(() => undefined);
-      } else {
-        addCoins(amount);
-      }
+    // ── DECORATION ONLY ── coins fly from where the pill was tapped
+    // (fall back to the tile pos), the balance pulses, receipt floats.
+    try {
       pulseBalance();
-    }, COIN_LAND_MS));
+      showCollectReceipt(isXP ? `+${Math.max(1, Math.floor(amount))} XP` : `+${amount.toFixed(2)}`, false);
+      measureBalance();
+      if (pageX != null && pageY != null) {
+        spawnBurst(pageX, pageY, isXP ? "xp" : "coins");
+      } else {
+        const fp = buildingFootprint(building.level || 1, building.type, hasFixedFootprint(building));
+        withGridOrigin((gx, gy) => {
+          spawnBurst(gx + (building.x + fp.w / 2) * cellSize, gy + (building.y + fp.h / 2) * cellSize, isXP ? "xp" : "coins");
+        });
+      }
+    } catch {
+      // Decoration failed — the collect already landed. Nothing to do.
+    }
   };
 
   const handlePlaceRoad = () => {
@@ -5411,35 +5481,44 @@ export default function HometownScreen() {
   };
 
   const cellSize = 40;
-  const rows = [];
   // The town and city grids are taller (10x14) so every district gets its
   // own street; other maps stay 10x10.
   const gridSize = mapGridSize(activeMap);
   const gridW = gridSize.w;
   const gridH = gridSize.h;
-  // Beach district cells (sandy lots on the south side)
-  const beachCells = new Set<string>();
-  if (activeMap === "town") {
-    for (const lot of TOWN_LOTS) {
-      if (!lot.beach) continue;
-      for (let yy = lot.y; yy < lot.y + lot.h; yy++)
-        for (let xx = lot.x; xx < lot.x + lot.w; xx++)
-          beachCells.add(`${xx}-${yy}`);
+  // The base grid (340 tappable cells on the town map) is memoized: it
+  // depends only on the map data + selection, so unrelated state changes
+  // (modals, clocks, collect FX) no longer rebuild hundreds of Pressables
+  // on every render. Cell presses route through tilePressRef so the
+  // memoized cells always invoke the LATEST handleTilePress (it reads
+  // plenty of state that is deliberately NOT a memo dep).
+  const tilePressRef = useRef(handleTilePress);
+  tilePressRef.current = handleTilePress;
+  const rows = useMemo(() => {
+    // Beach district cells (sandy lots on the south side)
+    const beachCells = new Set<string>();
+    if (activeMap === "town") {
+      for (const lot of TOWN_LOTS) {
+        if (!lot.beach) continue;
+        for (let yy = lot.y; yy < lot.y + lot.h; yy++)
+          for (let xx = lot.x; xx < lot.x + lot.w; xx++)
+            beachCells.add(`${xx}-${yy}`);
+      }
     }
-  }
-  for (let y = 0; y < gridH; y++) {
-    const cells = [];
-    for (let x = 0; x < gridW; x++) {
-      const b = buildingAt(x, y);
-      const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
-      const isSelected = selectedTile?.x === x && selectedTile?.y === y;
-      const footprint = b ? buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b)) : { w: 1, h: 1 };
-      const onStream = activeMap === "town" && isStreamTile(x, y);
-      const onBridge = activeMap === "town" && isBridgeTile(x, y);
-      cells.push(
+    const out: React.ReactNode[] = [];
+    for (let y = 0; y < gridH; y++) {
+      const cells: React.ReactNode[] = [];
+      for (let x = 0; x < gridW; x++) {
+        const b = buildingAt(x, y);
+        const isOrigin = b ? isBuildingOrigin(b, x, y) : false;
+        const isSelected = selectedTile?.x === x && selectedTile?.y === y;
+        const footprint = b ? buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b)) : { w: 1, h: 1 };
+        const onStream = activeMap === "town" && isStreamTile(x, y);
+        const onBridge = activeMap === "town" && isBridgeTile(x, y);
+        cells.push(
         <Pressable
           key={`${x}-${y}`}
-          onPress={() => handleTilePress(x, y)}
+          onPress={() => tilePressRef.current(x, y)}
           onLongPress={() => {
             const b = buildingAt(x, y);
             if (b) setPopupBuilding(b);
@@ -5471,14 +5550,19 @@ export default function HometownScreen() {
           )}
           {null}
         </Pressable>
+        );
+      }
+      out.push(
+        <View key={y} style={{ flexDirection: "row" }}>
+          {cells}
+        </View>
       );
     }
-    rows.push(
-      <View key={y} style={{ flexDirection: "row" }}>
-        {cells}
-      </View>
-    );
-  }
+    return out;
+    // buildingAt/decorationAt/roadAt read `map` (a dep) from the render
+    // closure, so the memoized cells always match the current map data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMap, map, selectedTile, gridW, gridH, cellSize]);
 
   // Fast-length gate: Hometown only appears on fasts longer than 40 days.
   // (The entry buttons in profile are hidden too; this covers direct opens.)
@@ -5520,10 +5604,10 @@ export default function HometownScreen() {
           <Animated.View
             ref={balanceRef}
             onLayout={measureBalance}
-            style={{ flexShrink: 1, maxWidth: Math.round(windowW * 0.5), transform: [{ scale: pillScale }] }}
+            style={{ flexShrink: 1, maxWidth: Math.round(windowW * 0.5), transform: [{ scale: balancePulseAnim.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.14, 1] }) }] }}
           >
             <Pressable
-              onPress={pillCollectMode && !collectFx ? handleCollectAll : undefined}
+              onPress={pillCollectMode ? handleCollectAll : undefined}
               onLongPress={() => setCollectBreakdownOpen(true)}
               hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
               style={{ borderRadius: 999 }}
@@ -5542,7 +5626,7 @@ export default function HometownScreen() {
                   shadowRadius: 2,
                   transform: [
                     { rotateY: collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
-                    { scale: collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] }) },
+                    { scale: pillInnerScale },
                   ],
                 }}
               >
@@ -5552,18 +5636,16 @@ export default function HometownScreen() {
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#16A34A", borderRadius: 999, opacity: collectFlip }}
                 />
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-                  {pillFace === "collect" ? (
-                    collectFx ? (
-                      <>
-                        <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
-                        <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
-                      </>
-                    ) : (
-                      <>
-                        <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
-                        <Text numberOfLines={1} style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {headerCoinText(collectibleTotal)}</Text>
-                      </>
-                    )
+                  {justCollected ? (
+                    <>
+                      <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
+                    </>
+                  ) : pillFace === "collect" ? (
+                    <>
+                      <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
+                      <Text numberOfLines={1} style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {headerCoinText(collectibleTotal)}</Text>
+                    </>
                   ) : (
                     <>
                       <MaterialIcons name="monetization-on" size={18} color="#92400E" />
@@ -5573,6 +5655,9 @@ export default function HometownScreen() {
                 </View>
               </Animated.View>
             </Pressable>
+            {/* Floating "+X" receipt — the balance above already updated;
+                this is decoration only. */}
+            {collectDelta && <CollectDeltaBubble key={collectDelta.id} label={collectDelta.label} />}
           </Animated.View>
           <Pressable
             onPress={() => setCollectBreakdownOpen(true)}
@@ -5965,13 +6050,14 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <BuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
-                {/* Ambient life: chimney smoke drifting from hearths */}
-                {hasChimney(b.type) && (
+                <MemoBuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
+                {/* Ambient life: chimney smoke drifting from hearths
+                    (deferred past first paint — see ambientReady) */}
+                {ambientReady && hasChimney(b.type) && (
                   <ChimneySmoke risePx={cellSize * 0.9} puffSize={Math.max(8, cellSize * 0.28)} />
                 )}
                 {/* Ambient life: warm window glow at night (8 PM – 6 AM) */}
-                {isNight && hasLitWindows(b.type) && (
+                {ambientReady && isNight && hasLitWindows(b.type) && (
                   <NightWindowGlow
                     buildingId={b.id}
                     width={fp.w * cellSize}
@@ -6110,32 +6196,28 @@ export default function HometownScreen() {
           {/* Townsfolk — prayer lights; those out on field missions (or waiting to be welcomed home) are away.
               bare: entities render directly in the depth layer so villagers walk
               BEHIND tall buildings (zIndex by Y). */}
-          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={lightInfos.filter((l) => !fieldMissions.some((m) => !m.collected && m.personId === l.personId))} onVillagerTap={(p) => {
-            const pid = String(p.id);
-            const vm = (vmState?.missions ?? []).find((x) => x.personId === pid && x.status !== "done");
-            if (vm) setVillagerMissionModal(vm);
-            else setPrayerVillagerInfo(p);
-          }} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
-          {/* City life: plot workers + commuters from town (depth-sorted, bare) */}
+          <TownNPCs mapState={map} cellSize={cellSize} bare positionsRef={townNpcPositionsRef} onBankVisit={handleBankVisit} lights={visibleLights} onVillagerTap={handleVillagerTap} missionWaitingIds={vmWaitingIds} missionGuides={vmGuides} onMissionArrival={handleVmArrival} workGuides={workGuides} workMap={workMap} onWorkArrival={handleWorkArrival} scheduleGuides={scheduleGuides} scheduleMap={scheduleMap} scheduleKind={scheduleActivity?.kind} />
+          {/* City life: commuters from town (depth-sorted, bare). The
+              traffic layer is ambient — it mounts after first paint. */}
+          {activeMap === "city" && ambientReady && (
+            <CityTraffic
+              bare
+              cellSize={cellSize}
+              carCount={Math.min(6, Math.max(0, town.maps.town.buildings.filter((b) => b.type === "house").length))}
+            />
+          )}
           {activeMap === "city" && (
-            <>
-              <CityTraffic
-                bare
-                cellSize={cellSize}
-                carCount={Math.min(6, Math.max(0, town.maps.town.buildings.filter((b) => b.type === "house").length))}
-              />
-              <CityNPCs
-                bare
-                mapState={map}
-                cellSize={cellSize}
-                hometownNpcCount={countHometownNpcs(prayedToday)}
-                onBankVisit={handleBankVisit}
-                positionsRef={cityNpcPositionsRef}
-              />
-            </>
+            <CityNPCs
+              bare
+              mapState={map}
+              cellSize={cellSize}
+              hometownNpcCount={countHometownNpcs(prayedToday)}
+              onBankVisit={handleBankVisit}
+              positionsRef={cityNpcPositionsRef}
+            />
           )}
           {/* Ambient life: birds gliding across the sky in the daytime (town + city) */}
-          {(activeMap === "town" || activeMap === "city") && (
+          {ambientReady && (activeMap === "town" || activeMap === "city") && (
             <MapBirds width={gridW * cellSize} height={gridH * cellSize} birdCount={4} />
           )}
           {/* The player's own pawn, wandering town (depth-sorted with the rest) */}
@@ -6516,7 +6598,7 @@ export default function HometownScreen() {
                 onPress={() => handleBuild(type)}
                 style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, opacity: affordable ? 1 : 0.5 }}
               >
-                <BuildingArt type={type} size={32} />
+                <MemoBuildingArt type={type} size={32} />
                 <View style={{ marginLeft: 10, flex: 1 }}>
                   <Text style={{ fontWeight: "600", color: pt.text }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>
@@ -8030,7 +8112,7 @@ export default function HometownScreen() {
         can cross into the header; never touches anything. */}
     <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 999, elevation: 999 }}>
       {bursts.map((b) => (
-        <CoinBurst key={b.id} burst={b} onDone={removeBurst} />
+        <CoinBurst key={b.id} burst={b} />
       ))}
     </View>
     </View>

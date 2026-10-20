@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Svg, { Line } from "react-native-svg";
@@ -226,7 +226,7 @@ export function countHometownNpcs(prayedCount: number): number {
   return Math.min(Math.max(prayedCount || 0, 0), PRAYER_VILLAGER_CAP);
 }
 
-export function TownNPCs({
+function TownNPCsImpl({
   mapState,
   cellSize,
   onBankVisit,
@@ -1431,7 +1431,7 @@ function randomEdgeTile(): Tile {
   return { x: 7, y: t };
 }
 
-export function CityNPCs({
+function CityNPCsImpl({
   mapState,
   cellSize,
   hometownNpcCount,
@@ -1769,3 +1769,9 @@ export function CityNPCs({
     </View>
   );
 }
+
+/** Memoized: with stable props from the hometown screen (memoized lights,
+ *  useCallback handlers, refs), the villager layers skip re-renders when
+ *  the screen re-renders for unrelated reasons. */
+export const TownNPCs = memo(TownNPCsImpl);
+export const CityNPCs = memo(CityNPCsImpl);

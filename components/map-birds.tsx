@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
 import { getTimeOfDay } from "@/lib/daynight";
 
@@ -130,7 +130,7 @@ function Bird({ spec, width, height }: { spec: BirdSpec; width: number; height: 
   );
 }
 
-export function MapBirds({
+function MapBirdsImpl({
   width,
   height,
   birdCount = 4,
@@ -157,3 +157,7 @@ export function MapBirds({
     </>
   );
 }
+
+/** Memoized: props are primitives/stable, so ambient layers skip re-renders
+ *  when the hometown screen re-renders for unrelated reasons. */
+export const MapBirds = memo(MapBirdsImpl);

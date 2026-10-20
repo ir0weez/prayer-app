@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { View } from "react-native";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ function hashStr(s: string): number {
 
 type WindowPane = { left: number; top: number; w: number; h: number };
 
-export function NightWindowGlow({
+function NightWindowGlowImpl({
   buildingId,
   width,
   height,
@@ -98,3 +98,7 @@ export function NightWindowGlow({
     </View>
   );
 }
+
+/** Memoized: props are primitives/stable, so ambient layers skip re-renders
+ *  when the hometown screen re-renders for unrelated reasons. */
+export const NightWindowGlow = memo(NightWindowGlowImpl);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
 import { getTimeOfDay } from "@/lib/daynight";
 
@@ -147,7 +147,7 @@ function CarBody({ color, dir, headlights }: { color: string; dir: Dir; headligh
   );
 }
 
-export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number; carCount?: number; /** Render entities directly (no container) so the parent can depth-sort them with buildings via zIndex. */ bare?: boolean }) {
+function CityTrafficImpl({ cellSize, carCount = 6, bare }: { cellSize: number; carCount?: number; /** Render entities directly (no container) so the parent can depth-sort them with buildings via zIndex. */ bare?: boolean }) {
   const logicRef = useRef<Record<string, CarLogic>>({});
   const [renderIds, setRenderIds] = useState<string[]>([]);
   const [orients, setOrients] = useState<Record<string, Dir>>({});
@@ -260,3 +260,7 @@ export function CityTraffic({ cellSize, carCount = 6, bare }: { cellSize: number
     </View>
   );
 }
+
+/** Memoized: props are primitives/stable, so ambient layers skip re-renders
+ *  when the hometown screen re-renders for unrelated reasons. */
+export const CityTraffic = memo(CityTrafficImpl);

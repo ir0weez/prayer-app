@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Animated, Easing, View } from "react-native";
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ function Puff({ index, risePx, size }: { index: number; risePx: number; size: nu
   );
 }
 
-export function ChimneySmoke({ risePx = 36, puffSize = 11 }: { risePx?: number; puffSize?: number }) {
+function ChimneySmokeImpl({ risePx = 36, puffSize = 11 }: { risePx?: number; puffSize?: number }) {
   return (
     <View
       pointerEvents="none"
@@ -103,3 +103,7 @@ export function ChimneySmoke({ risePx = 36, puffSize = 11 }: { risePx?: number; 
     </View>
   );
 }
+
+/** Memoized: props are primitives/stable, so ambient layers skip re-renders
+ *  when the hometown screen re-renders for unrelated reasons. */
+export const ChimneySmoke = memo(ChimneySmokeImpl);

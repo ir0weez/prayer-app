@@ -45,10 +45,6 @@ import {
   PRAYER_COIN_BONUSES,
   parsePrayerBonus,
   WORK_SHIFT_KEY,
-  WORK_SHIFT_COOLDOWN_MS,
-  WORK_SHIFT_TAPS_PER_COIN,
-  WORK_SHIFT_MAX_COINS,
-  WORK_SHIFT_DURATION_MS,
   parseWorkShifts,
   canWorkShift,
   FAST_DAY_COIN_KEY,
@@ -187,6 +183,7 @@ import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
+import { TRAINING_BONUS_MULT, loadTrainingBonus } from "@/lib/mini-games";
 import {
   loadPrestigeLevel, loadPrestigeState, prestigeMultiplier, totalPrestigeMultiplier,
   prestigeOffer, performPrestige, cityExists, type PrestigeOffer,
@@ -260,6 +257,7 @@ import {
   type DarkForestState,
 } from "@/lib/dark-forest";
 import { RiverCamp } from "@/components/river";
+import { WorkShiftGame } from "@/components/work-shift-game";
 import { HolidayMapOverlay } from "@/components/holiday-decor";
 import { SeasonMapOverlay } from "@/components/season-decor";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
@@ -3076,12 +3074,11 @@ export default function HometownScreen() {
   // Gratitude coins — tap a prayer light once per hour
   const [lightTaps, setLightTaps] = useState<Record<string, number>>({});
   const [thankedLight, setThankedLight] = useState(false);
-  // Work shifts — rapid-tap mini-game on shops
+  // Work shifts — rapid-tap mini-game on shops. The game itself (countdown,
+  // tap counter, timer) lives in components/work-shift-game.tsx so its
+  // fast re-renders never touch this screen.
   const [workShiftBuilding, setWorkShiftBuilding] = useState<PlacedBuilding | null>(null);
   const [workShifts, setWorkShifts] = useState<Record<string, number>>({});
-  const [shiftTaps, setShiftTaps] = useState(0);
-  const [shiftTimeLeft, setShiftTimeLeft] = useState(0);
-  const shiftTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Lot purchase modal — replaces Alert (Android Alert caps at ~3 buttons, hiding restaurants)
   const [purchaseLot, setPurchaseLot] = useState<TownLot | null>(null);
   const [monumentCount, setMonumentCount] = useState(0);
@@ -3314,6 +3311,8 @@ export default function HometownScreen() {
   const fastsRef = useRef<PersonalFast[]>([]);
   const [beginAgainOpen, setBeginAgainOpen] = useState(false);
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
+  /** Gym Training Reps bonus (+10% attack/defense) active for this forest visit. */
+  const [forestTraining, setForestTraining] = useState(false);
   const [forestTunic, setForestTunic] = useState("#D6C9A8");
   const [forestArmor, setForestArmor] = useState<string | null>(null);
   const [forestWeapon, setForestWeapon] = useState<string | null>(null);
@@ -5778,16 +5777,28 @@ export default function HometownScreen() {
         // consumed when the next battle starts.
         let buff: HospitalBuff | null = null;
         try { buff = await consumeHospitalBuff(); } catch {}
+        let finalStats: CombatStats = base;
         if (buff) {
-          setForestStats({
+          finalStats = {
             attack: Math.round(base.attack * buff.attackMult),
             defense: base.defense,
             maxHp: Math.round(base.maxHp * buff.hpMult),
-          });
+          };
           queueCelebration("prayers", "Doctor's Blessing", `The hospital's care steadies you: +${Math.round((buff.hpMult - 1) * 100)}% max HP${buff.attackMult > 1 ? `, +${Math.round((buff.attackMult - 1) * 100)}% attack` : ""} for this battle.`);
-        } else {
-          setForestStats(base);
         }
+        // Gym: the Training Reps bonus — +10% attack & defense until
+        // midnight (non-stacking; stored as an expiry in lib/mini-games).
+        let trainingActive = false;
+        try { trainingActive = (await loadTrainingBonus()).active; } catch {}
+        if (trainingActive) {
+          finalStats = {
+            ...finalStats,
+            attack: Math.round(finalStats.attack * TRAINING_BONUS_MULT),
+            defense: Math.round(finalStats.defense * TRAINING_BONUS_MULT),
+          };
+        }
+        setForestTraining(trainingActive);
+        setForestStats(finalStats);
         const clothesId = equipped.clothes;
         const item = clothesId ? GEAR_BY_ID[clothesId] : undefined;
         if (item?.visual.bodyColor) setForestTunic(item.visual.bodyColor);
@@ -6364,6 +6375,7 @@ export default function HometownScreen() {
         <SafeBoundary fallbackTitle="The forest is resting">
         <DarkForest
           stats={forestStats}
+          trainingBonus={forestTraining}
           forest={forest}
           tunicColor={forestTunic}
           armorId={forestArmor}
@@ -7441,8 +7453,6 @@ export default function HometownScreen() {
                           }
                           setPopupBuilding(null);
                           setWorkShiftBuilding(b);
-                          setShiftTaps(0);
-                          setShiftTimeLeft(WORK_SHIFT_DURATION_MS / 1000);
                         }}
                         style={{ backgroundColor: ready ? "#10B981" : pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10, opacity: ready ? 1 : 0.6 }}
                       >
@@ -8356,91 +8366,26 @@ export default function HometownScreen() {
         </Pressable>
       </Modal>
 
-      {/* Work shift mini-game — tap fast for 10 seconds to earn coins */}
-      <Modal
+      {/* Work shift mini-game — tap fast for 10 seconds to earn coins.
+          Self-contained (components/work-shift-game.tsx): its countdown
+          and tap counter re-render only the game card, never the town,
+          and the reward is granted once via onComplete. */}
+      <WorkShiftGame
         visible={workShiftBuilding !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
-          setWorkShiftBuilding(null);
+        cardColor={pt.card}
+        textColor={pt.text}
+        subtextColor={pt.subtext}
+        trackColor={pt.bg}
+        onComplete={(earned) => {
+          if (earned > 0 && workShiftBuilding) {
+            addCoins(earned);
+            const updated = { ...workShifts, [workShiftBuilding.id]: Date.now() };
+            setWorkShifts(updated);
+            AsyncStorage.setItem(WORK_SHIFT_KEY, JSON.stringify(updated)).catch(() => undefined);
+          }
         }}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 }}
-          onPress={() => {
-            if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
-            setWorkShiftBuilding(null);
-          }}
-        >
-          <Pressable
-            style={{ backgroundColor: pt.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, alignItems: "center" }}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={{ color: pt.text, fontSize: 20, fontWeight: "800", marginBottom: 4 }}>
-              🔨 Work Shift
-            </Text>
-            <Text style={{ color: pt.subtext, fontSize: 14, marginBottom: 12, textAlign: "center" }}>
-              Tap as fast as you can! {WORK_SHIFT_TAPS_PER_COIN} taps = 1 coin (max {WORK_SHIFT_MAX_COINS})
-            </Text>
-            {/* Timer bar */}
-            <View style={{ width: "100%", height: 8, backgroundColor: pt.bg, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
-              <View
-                style={{
-                  height: 8,
-                  width: `${Math.max(0, (shiftTimeLeft / (WORK_SHIFT_DURATION_MS / 1000)) * 100)}%`,
-                  backgroundColor: shiftTimeLeft > 3 ? "#10B981" : "#DC2626",
-                  borderRadius: 4,
-                }}
-              />
-            </View>
-            <Text style={{ color: pt.text, fontSize: 32, fontWeight: "800", marginBottom: 4 }}>
-              {Math.ceil(shiftTimeLeft)}s
-            </Text>
-            <Text style={{ color: "#B45309", fontSize: 18, fontWeight: "700", marginBottom: 16 }}>
-              {shiftTaps} taps → {Math.min(WORK_SHIFT_MAX_COINS, Math.floor(shiftTaps / WORK_SHIFT_TAPS_PER_COIN))} coins
-            </Text>
-            <Pressable
-              onPress={() => {
-                // Start timer on first tap
-                if (shiftTaps === 0 && !shiftTimerRef.current) {
-                  shiftTimerRef.current = setInterval(() => {
-                    setShiftTimeLeft((prev) => {
-                      const next = prev - 0.1;
-                      if (next <= 0) {
-                        if (shiftTimerRef.current) clearInterval(shiftTimerRef.current);
-                        shiftTimerRef.current = null;
-                        // Shift over — award coins
-                        setShiftTaps((taps) => {
-                          const earned = Math.min(WORK_SHIFT_MAX_COINS, Math.floor(taps / WORK_SHIFT_TAPS_PER_COIN));
-                          if (earned > 0 && workShiftBuilding) {
-                            addCoins(earned);
-                            const updated = { ...workShifts, [workShiftBuilding.id]: Date.now() };
-                            setWorkShifts(updated);
-                            AsyncStorage.setItem(WORK_SHIFT_KEY, JSON.stringify(updated)).catch(() => undefined);
-                            Alert.alert("Shift Complete!", `You earned ${earned} coins!`);
-                          } else {
-                            Alert.alert("Shift Complete", "Tap faster next time!");
-                          }
-                          setWorkShiftBuilding(null);
-                          return 0;
-                        });
-                        return 0;
-                      }
-                      return next;
-                    });
-                  }, 100);
-                }
-                if (shiftTimeLeft > 0) setShiftTaps((t) => t + 1);
-              }}
-              style={{ backgroundColor: "#10B981", borderRadius: 60, width: 120, height: 120, alignItems: "center", justifyContent: "center", marginBottom: 12 }}
-            >
-              <Text style={{ fontSize: 48 }}>👆</Text>
-            </Pressable>
-            <Text style={{ color: pt.subtext, fontSize: 12 }}>Tap the button!</Text>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setWorkShiftBuilding(null)}
+      />
 
       {/* Lighthouse modal — daily blessing + upgrades */}
       <Modal

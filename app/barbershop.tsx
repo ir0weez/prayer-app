@@ -29,8 +29,12 @@ import {
   discountedStylePrice,
   shopLevelFor,
 } from "@/lib/pawn";
-import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY, scaledCoins, scaledXP } from "@/lib/hometown";
 import { loadPrestigeLevel } from "@/lib/prestige";
+import { awardCustomXP } from "@/lib/xp-engine";
+import { TrimGame } from "@/components/trim-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#1E1B4B";
 const CARD = "rgba(255,255,255,0.08)";
@@ -146,6 +150,30 @@ export default function BarbershopScreen() {
   const [loaded, setLoaded] = useState(false);
 
   const [hasShop, setHasShop] = useState(true);
+  const [trimPlaysLeft, setTrimPlaysLeft] = useState<number | null>(null);
+  const [playingTrim, setPlayingTrim] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("trim").then(setTrimPlaysLeft).catch(() => setTrimPlaysLeft(0));
+  }, []);
+
+  const handleTrimGameComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) {
+      setCoins((prev) => {
+        const next = {
+          balance: Math.round((prev.balance + c) * 10) / 10,
+          lifetimeEarned: Math.round((prev.lifetimeEarned + c) * 10) / 10,
+        };
+        AsyncStorage.setItem(COINS_STORAGE_KEY, JSON.stringify(next)).catch(() => undefined);
+        return next;
+      });
+    }
+    if (xp > 0) awardCustomXP(xp, `minigame-trim-${Date.now()}`).catch(() => undefined);
+    recordPlay("trim").then(setTrimPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   const refresh = useCallback(async () => {
     const [p, c, oh, ob, townRaw, disc, lvl, prestige] = await Promise.all([
@@ -610,6 +638,28 @@ export default function BarbershopScreen() {
             <Text style={{ color: LABEL, fontSize: 12, textAlign: "center", marginTop: 4 }}>
               Styles you buy are yours forever.
             </Text>
+          </>
+        )}
+
+        {hasShop && pawn && (
+          <>
+            <PlayCard
+              icon="content-cut"
+              title="Play: The Steady Trim"
+              blurb="Eight passes with the clippers. The guide zone moves every pass — stop dead center for a barber's perfect line."
+              playsLeft={trimPlaysLeft}
+              cap={MINI_GAME_CAPS.trim}
+              accent={ACCENT}
+              onPlay={() => setPlayingTrim(true)}
+            />
+            {playingTrim && (
+              <TrimGame
+                accent={ACCENT}
+                onComplete={handleTrimGameComplete}
+                onExit={() => setPlayingTrim(false)}
+                hairState={hairLabel(hairLength)}
+              />
+            )}
           </>
         )}
       </ScrollView>

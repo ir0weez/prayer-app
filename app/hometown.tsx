@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon, G } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import {
@@ -2388,36 +2389,41 @@ function AmphitheaterGlyph({ size = 24 }: { size?: number }) {
 }
 
 /** Spinning coin with accumulated amount underneath. kind=xp shows XP styling. */
+/**
+ * Material 3 collect chip: a tonal pill with a gently flipping coin icon,
+ * Material label typography, subtle elevation, and a state layer on press.
+ * Coins and XP keep their tonal palettes; frenzy (2x) and FULL stay readable.
+ */
 function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFull = false }: { amount: number; kind?: "coins" | "xp"; onCollect: () => void; frenzy?: boolean; isFull?: boolean }) {
-  const spinAnim = useRef(new Animated.Value(0)).current;
+  const flipAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const spin = Animated.loop(
-      Animated.timing(spinAnim, {
+    const flip = Animated.loop(
+      Animated.timing(flipAnim, {
         toValue: 1,
-        duration: 2000,
+        duration: 2400,
         easing: Easing.linear,
         useNativeDriver: true,
       })
     );
-    spin.start();
-    return () => spin.stop();
+    flip.start();
+    return () => flip.stop();
   }, []);
 
   useEffect(() => {
     if (!frenzy) return;
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     );
     pulse.start();
     return () => pulse.stop();
   }, [frenzy]);
 
-  const rotateY = spinAnim.interpolate({
+  const rotateY = flipAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
@@ -2425,62 +2431,88 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
   const hasAmount = amount > 0;
   const isXP = kind === "xp";
 
+  // Material 3 tonal palettes.
+  const palette = isXP
+    ? { container: "#E8DEF8", onContainer: "#1D192B", icon: "#6750A4" }
+    : hasAmount
+      ? { container: frenzy ? "#FDE047" : "#FFDF9E", onContainer: "#402D00", icon: "#8A6D00" }
+      : { container: "#EDEBE8", onContainer: "#6B6B6B", icon: "#9A9A9A" };
+
   return (
     <Pressable
       onPress={(e) => {
         e.stopPropagation();
         onCollect();
       }}
-      style={{ alignItems: "center", padding: 4, zIndex: 10 }}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      style={({ pressed }) => ({
+        alignItems: "center",
+        zIndex: 10,
+        opacity: pressed ? 0.82 : 1, // pressed state layer
+      })}
     >
       <Animated.View
         style={{
-          transform: [{ rotateY }, { scale: frenzy ? pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) : 1 }],
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: frenzy ? "#FDE047" : hasAmount ? (isXP ? "#C4B5FD" : "#FBBF24") : "#E5E7EB",
+          transform: frenzy ? [{ scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }] : [],
+          flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
-          borderWidth: 2,
-          borderColor: frenzy ? "#CA8A04" : hasAmount ? (isXP ? "#7C3AED" : "#D97706") : "#9CA3AF",
-          shadowColor: frenzy ? "#CA8A04" : "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: frenzy ? 0.6 : 0.2,
-          shadowRadius: frenzy ? 8 : 3,
-          elevation: frenzy ? 8 : 3,
+          backgroundColor: palette.container,
+          borderRadius: 999, // Material pill
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          minHeight: 40,
+          borderWidth: 1,
+          borderColor: "rgba(0,0,0,0.06)",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.22,
+          shadowRadius: 3,
+          elevation: 2,
         }}
       >
-        <Text style={{ fontSize: 20 }}>{isXP ? "⚡" : "🪙"}</Text>
+        {/* Coin medallion with a gentle flip */}
+        <Animated.View
+          style={{
+            transform: [{ rotateY }],
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: isXP ? palette.icon : "#D4AF37",
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 8,
+          }}
+        >
+          <MaterialIcons name={isXP ? "bolt" : "monetization-on"} size={15} color="#FFFFFF" />
+        </Animated.View>
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: "500",
+            letterSpacing: 0.4,
+            color: palette.onContainer,
+          }}
+        >
+          {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(2)}`) : "earning"}
+        </Text>
       </Animated.View>
       {frenzy && (
-        <View style={{ position: "absolute", top: -8, right: -8, backgroundColor: "#CA8A04", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>2x</Text>
+        <View style={{ position: "absolute", top: -9, right: -6, backgroundColor: "#CA8A04", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, elevation: 2 }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>2x</Text>
         </View>
       )}
       {isFull && !frenzy && (
-        <View style={{ position: "absolute", top: -8, right: -8, backgroundColor: "#DC2626", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 10, fontWeight: "800", color: "#FFFFFF" }}>FULL</Text>
+        <View style={{ position: "absolute", top: -9, right: -6, backgroundColor: "#DC2626", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, elevation: 2 }}>
+          <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 0.5, color: "#FFFFFF" }}>FULL</Text>
         </View>
       )}
-      <Text style={{
-        fontSize: 10,
-        fontWeight: "700",
-        color: hasAmount ? (isXP ? "#5B21B6" : "#92400E") : "#9CA3AF",
-        marginTop: 2,
-        backgroundColor: "rgba(255,255,255,0.9)",
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 8,
-      }}>
-        {hasAmount ? (isXP ? `+${Math.floor(amount)} XP` : `+${amount.toFixed(2)}`) : "earning"}
-      </Text>
     </Pressable>
   );
 }
 
 export default function HometownScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [town, setTown] = useState<TownState>(() => emptyTownState());
   const [activeMap, setActiveMap] = useState<TownMapId>("town");
@@ -4949,7 +4981,7 @@ export default function HometownScreen() {
   // (The entry buttons in profile are hidden too; this covers direct opens.)
   if (hometownLocked) {
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: 48, flexGrow: 1, justifyContent: "center", alignItems: "center" }}>
+      <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, flexGrow: 1, justifyContent: "center", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginBottom: 24 }}>
           <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
             <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
@@ -4968,9 +5000,9 @@ export default function HometownScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: 48 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: pt.bg }} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16 }}>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-        <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
+        <Pressable onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12, minHeight: 44, justifyContent: "center" }}>
           <Text style={{ fontSize: 24, color: pt.text }}>←</Text>
         </Pressable>
         <Text style={{ fontSize: 22, fontWeight: "800", color: pt.text }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>

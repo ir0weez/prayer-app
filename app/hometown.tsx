@@ -183,7 +183,11 @@ import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
-import { TRAINING_BONUS_MULT, loadTrainingBonus } from "@/lib/mini-games";
+import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay } from "@/lib/mini-games";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { GardenGame } from "@/components/garden-game";
+import { TideGame } from "@/components/tide-game";
+import type { CollectionUpdate } from "@/lib/collections";
 import {
   loadPrestigeLevel, loadPrestigeState, prestigeMultiplier, totalPrestigeMultiplier,
   prestigeOffer, performPrestige, cityExists, type PrestigeOffer,
@@ -3135,6 +3139,17 @@ export default function HometownScreen() {
   // Gathering places: Community Garden (harvest), Amphitheater (shows),
   // Library (study), Fountain Plaza (rest) — all tappable, all upgradeable.
   const [gardenState, setGardenState] = useState<GardenState>({ plantedAt: null, plantedLevel: 1 });
+  // Mini-games hosted on the town screen itself (the Community Garden and
+  // Mercy's Shore have no interior screens): Garden Tending + Tide Pools.
+  const [gardenPlaysLeft, setGardenPlaysLeft] = useState<number | null>(null);
+  const [playingGarden, setPlayingGarden] = useState(false);
+  const [tidePlaysLeft, setTidePlaysLeft] = useState<number | null>(null);
+  const [playingTide, setPlayingTide] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("garden").then(setGardenPlaysLeft).catch(() => setGardenPlaysLeft(0));
+    playsLeftToday("tide").then(setTidePlaysLeft).catch(() => setTidePlaysLeft(0));
+  }, []);
   const [lastShowAt, setLastShowAt] = useState(0);
   const [lastStudyAt, setLastStudyAt] = useState(0);
   const [lastRestAt, setLastRestAt] = useState(0);
@@ -5113,6 +5128,46 @@ export default function HometownScreen() {
     );
   };
 
+  /** Garden Tending: a bloom opened — record its kind in the book. */
+  const handleGardenBloom = useCallback((kind: number) => {
+    recordFlowerPlanted(kind).then(({ justCompleted }) => {
+      if (justCompleted) {
+        const meta = COLLECTION_SETS.flowers;
+        addCoins(meta.rewardCoins);
+        awardCustomXP(meta.rewardXp, `collection:flowers`).catch(() => undefined);
+        queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+      }
+    }).catch(() => undefined);
+  }, [addCoins, queueCelebration]);
+
+  const handleGardenGameComplete = useCallback((raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-garden-${Date.now()}`).catch(() => undefined);
+    recordPlay("garden").then(setGardenPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  }, [addCoins]);
+
+  /** Tide Pools: a shell was gathered — pay the set reward on completion. */
+  const handleTideShellUpdate = useCallback((update: CollectionUpdate) => {
+    if (update.justCompleted) {
+      const meta = COLLECTION_SETS.shells;
+      addCoins(meta.rewardCoins);
+      awardCustomXP(meta.rewardXp, `collection:shells`).catch(() => undefined);
+      queueCelebration("milestone", "Collection complete: Shore Shells!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+    }
+  }, [addCoins, queueCelebration]);
+
+  const handleTideGameComplete = useCallback((raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-tide-${Date.now()}`).catch(() => undefined);
+    recordPlay("tide").then(setTidePlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  }, [addCoins]);
+
   /** Amphitheater: attend a show (30 min cooldown). */
   /** Library: study session (1 hour cooldown). */
   const handleStudyPress = (b: PlacedBuilding) => {
@@ -6924,6 +6979,37 @@ export default function HometownScreen() {
           />
         )}
       </View>
+      )}
+
+      {/* Town mini-games: the Community Garden and Mercy's Shore live on
+          the map itself, so their Play entries sit right below it. */}
+      {activeMap === "town" && (
+        <>
+          <PlayCard
+            icon="local-florist"
+            title="Play: Garden Tending"
+            blurb="At the Community Garden — water the thirsty, pull the weeds, and coax every plot into bloom. Blooms are gathered into the collections book."
+            playsLeft={gardenPlaysLeft}
+            cap={MINI_GAME_CAPS.garden}
+            accent="#65A30D"
+            onPlay={() => setPlayingGarden(true)}
+          />
+          {playingGarden && (
+            <GardenGame accent="#65A30D" onComplete={handleGardenGameComplete} onExit={() => setPlayingGarden(false)} onBloom={handleGardenBloom} />
+          )}
+          <PlayCard
+            icon="waves"
+            title="Play: Tide Pools"
+            blurb="At Mercy's Shore — shells and starfish surface in the pools at low tide. Gather them for the collections book, and mind the crabs."
+            playsLeft={tidePlaysLeft}
+            cap={MINI_GAME_CAPS.tide}
+            accent="#0284C7"
+            onPlay={() => setPlayingTide(true)}
+          />
+          {playingTide && (
+            <TideGame accent="#0284C7" onComplete={handleTideGameComplete} onExit={() => setPlayingTide(false)} onShellUpdate={handleTideShellUpdate} />
+          )}
+        </>
       )}
 
       {selectedTile && activeMap !== "reserve" && activeMap !== "forest" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && (

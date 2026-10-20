@@ -19,6 +19,9 @@ export type DarkForestProps = {
   /** Gym Training Reps bonus is folded into `stats` — this flag only
    *  drives the "bonus active" note in the panel. */
   trainingBonus?: boolean;
+  /** Size of the training bonus in percent (10, or 20 while the campus
+   *  Gymnasium stands). Only used by the panel note. */
+  trainingBonusPct?: number;
   forest: DarkForestState;
   /** Tunic color from equipped clothes, so the pawn looks like yours. */
   tunicColor: string;
@@ -433,7 +436,7 @@ type FloatItem = { id: number; text: string; color: string; side: "left" | "righ
 
 let floatId = 0;
 
-export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, bossGate = null, onBossVictory }: DarkForestProps) {
+export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, bossGate = null, onBossVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -900,7 +903,7 @@ export function DarkForest({ stats, trainingBonus = false, forest, tunicColor, a
           </Text>
           {trainingBonus && (
             <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>
-              Training bonus active — +10% attack &amp; defense until midnight.
+              Training bonus active — +{trainingBonusPct}% attack &amp; defense until midnight.
             </Text>
           )}
           {(() => {

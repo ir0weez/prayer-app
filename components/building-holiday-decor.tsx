@@ -41,7 +41,10 @@ export type InteriorBuilding =
   // City expansion — decor added in the holiday-decor batch
   | "grand-library" | "opera-house" | "museum" | "clock-tower" | "embassy"
   // City eastside — decor added in the eastside batch
-  | "music-studio" | "art-gallery" | "flower-market" | "coffee-roastery";
+  | "music-studio" | "art-gallery" | "flower-market" | "coffee-roastery"
+  // School Campus — the new quad buildings (season touches below; the
+  // holiday switch falls through to the atmosphere grade/lights/particles)
+  | "music-room" | "science-lab" | "art-studio" | "gymnasium" | "cafeteria" | "school-workshop";
 
 /* ============================ new glyphs ============================ */
 
@@ -3095,6 +3098,38 @@ function SeasonDecor({ building, season }: { building: InteriorBuilding; season:
       summer: null,
       fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#92400E" size={20} /></Placed>,
       winter: <Placed style={{ bottom: 8, right: 12 }}><SteamMug size={28} /></Placed>,
+    },
+    // School Campus — quad-flavored seasonal accents.
+    "music-room": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#C4B5FD" center="#FDE68A" size={20} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#B91C1C" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><MiniTree size={30} /></Placed>,
+    },
+    "science-lab": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#BBF7D0" center="#16A34A" size={20} /></Placed>,
+      summer: <Placed style={{ bottom: 10, right: 14 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={20} /></Placed>,
+      fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#EA580C" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Poinsettia size={22} /></Placed>,
+    },
+    "art-studio": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#F9A8D4" center="#FBBF24" size={22} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><Pumpkin size={24} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><PaintedEgg color="#FBCFE8" size={18} /></Placed>,
+    },
+    gymnasium: {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FDE68A" center="#F59E0B" size={20} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#D97706" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 8, right: 10 }}><Wreath size={28} /></Placed>,
+    },
+    cafeteria: {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FBCFE8" center="#EC4899" size={20} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><Pumpkin size={26} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><CandyApple size={20} /></Placed>,
+    },
+    "school-workshop": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#BBF7D0" center="#16A34A" size={18} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 8, left: 12 }}><HayBale size={30} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><Wreath size={28} /></Placed>,
     },
   };
   return <>{touches[building]?.[season] ?? null}</>;

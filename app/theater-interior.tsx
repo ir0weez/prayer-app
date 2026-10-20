@@ -43,6 +43,11 @@ import { PopcornGame } from "@/components/popcorn-game";
 import { RhythmGame } from "@/components/rhythm-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import {
+  getCachedSchoolPerks,
+  refreshSchoolPerksCache,
+  type SchoolPerks,
+} from "@/lib/school-perks";
 
 const BG = "#141021"; // night theater
 const CARD = "#221B36";
@@ -665,10 +670,13 @@ export default function TheaterInteriorScreen() {
   const [playingPopcorn, setPlayingPopcorn] = useState(false);
   const [rhythmPlaysLeft, setRhythmPlaysLeft] = useState<number | null>(null);
   const [playingRhythm, setPlayingRhythm] = useState(false);
+  const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
   useEffect(() => {
     playsLeftToday("popcorn").then(setPopcornPlaysLeft).catch(() => setPopcornPlaysLeft(0));
     playsLeftToday("rhythm").then(setRhythmPlaysLeft).catch(() => setRhythmPlaysLeft(0));
+    // School Campus perk: the Music Room lifts Rhythm of Worship payouts.
+    refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -724,8 +732,10 @@ export default function TheaterInteriorScreen() {
 
   const handleRhythmComplete = (raw: MiniGameReward): MiniGameReward => {
     const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    const c = _pay.coins;
-    const xp = _pay.xp;
+    // Music Room (campus): Rhythm of Worship payouts +25% while it stands.
+    const rm = getCachedSchoolPerks().rhythmMult;
+    const c = Math.round(_pay.coins * rm * 100) / 100;
+    const xp = Math.round(_pay.xp * rm);
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-rhythm-${Date.now()}`).catch(() => undefined);
     recordPlay("rhythm").then(setRhythmPlaysLeft).catch(() => undefined);
@@ -894,7 +904,7 @@ export default function TheaterInteriorScreen() {
             <PlayCard
               icon="music-note"
               title="Play: Rhythm of Worship"
-              blurb="Golden notes drift down to a 90 BPM heartbeat. Tap each lane as its note crosses the ring — the song is the offering."
+              blurb={`Golden notes drift down to a 90 BPM heartbeat. Tap each lane as its note crosses the ring — the song is the offering.${schoolPerks?.musicRoomBuilt ? " The campus Music Room lifts every payout +25%." : ""}`}
               playsLeft={rhythmPlaysLeft}
               cap={MINI_GAME_CAPS.rhythm}
               accent={GOLD}

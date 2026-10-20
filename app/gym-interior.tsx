@@ -28,6 +28,7 @@ import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { TrainingGame } from "@/components/training-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { MINI_GAME_CAPS, grantTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { loadSchoolPerks, type SchoolPerks } from "@/lib/school-perks";
 
 const BG = "#F5F1EE";
 const BRICK = "#A5553F";
@@ -147,9 +148,12 @@ export default function GymInteriorScreen() {
   const [lastTrain, setLastTrain] = useState(0);
   const [trainingPlaysLeft, setTrainingPlaysLeft] = useState<number | null>(null);
   const [playingTraining, setPlayingTraining] = useState(false);
+  const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
   useEffect(() => {
     playsLeftToday("training").then(setTrainingPlaysLeft).catch(() => setTrainingPlaysLeft(0));
+    // School Campus perk: the campus Gymnasium strengthens the buff to +20%.
+    loadSchoolPerks().then(setSchoolPerks).catch(() => undefined);
   }, []);
 
   const handleTrainingComplete = (raw: MiniGameReward): MiniGameReward => {
@@ -299,7 +303,7 @@ export default function GymInteriorScreen() {
         <PlayCard
           icon="timer"
           title="Play: Training Reps"
-          blurb="Stop the sweeping marker in the green — gold is perfect. Twelve reps, and finishing sharpens the Hero in the Dark Forest (+10% attack & defense until midnight)."
+          blurb={`Stop the sweeping marker in the green — gold is perfect. Twelve reps, and finishing sharpens the Hero in the Dark Forest (+${schoolPerks?.gymnasiumBuilt ? "20" : "10"}% attack & defense until midnight${schoolPerks?.gymnasiumBuilt ? ", thanks to the campus Gymnasium" : ""}).`}
           playsLeft={trainingPlaysLeft}
           cap={MINI_GAME_CAPS.training}
           accent={ACCENT}

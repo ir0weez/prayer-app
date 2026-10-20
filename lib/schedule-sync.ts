@@ -12,7 +12,8 @@
 //   Outreach / food drives -> the Outreach Center (church if unbuilt)
 //   Check-In / visitation  -> the Outreach Center (church if unbuilt)
 //   Worship / music        -> the Amphitheater (everyone gathers)
-//   Youth / kids ministry  -> the School (classroom; church if unbuilt)
+//   Youth / kids ministry  -> the School Campus (Scripture Classroom;
+//                             Music Room for choir/music; church if unbuilt)
 //   Gym / workout          -> the Gym (hero alone)
 //   Prayer meeting         -> the church (its natural home)
 // Ministry items route by their title first when a natural home exists
@@ -280,10 +281,14 @@ function centerTile(b: PlacedBuilding): { x: number; y: number } {
   return { x: b.x + fp.w / 2 - 0.5, y: b.y + fp.h / 2 - 0.5 };
 }
 
-/** Find the map building for a schedule activity. Null = not built yet. */
+/** Find the map building for a schedule activity. Null = not built yet.
+ *  `title` (optional) refines the school destination: choir/music titles go
+ *  to the Music Room and Bible/Sunday-school titles to the Scripture
+ *  Classroom when those campus rooms stand. */
 export function resolveScheduleTarget(
   buildings: PlacedBuilding[],
-  kind: ScheduleActivityKind
+  kind: ScheduleActivityKind,
+  title?: string
 ): ScheduleTarget | null {
   let b: PlacedBuilding | undefined;
   switch (kind) {
@@ -321,15 +326,36 @@ export function resolveScheduleTarget(
         buildings.find((x) => x.type === "outreach-center") ??
         buildings.find((x) => x.type === "church");
       break;
-    case "school":
-      // The School's buildings: a classroom first, then the library or
-      // chapel; the church hosts the kids until one stands.
-      b =
-        buildings.find((x) => x.type === "classroom") ??
-        buildings.find((x) => x.type === "library") ??
-        buildings.find((x) => x.type === "chapel") ??
-        buildings.find((x) => x.type === "church");
+    case "school": {
+      // The School Campus rooms, by title when it speaks: choir and music
+      // go to the Music Room, Bible / Sunday school to the Scripture
+      // Classroom. Otherwise the campus chain: classroom -> library ->
+      // chapel -> music room; the church hosts the kids until one stands.
+      const t = (title ?? "").toLowerCase();
+      const byType = (type: string) => buildings.find((x) => x.type === type);
+      if (/\b(choir|music|singing|sing|band|orchestra|worship team|kids choir)\b/.test(t)) {
+        b =
+          byType("music-room") ??
+          byType("classroom") ??
+          byType("library") ??
+          byType("chapel") ??
+          byType("church");
+      } else if (/\b(bible|sunday school|scripture)\b/.test(t)) {
+        b =
+          byType("classroom") ??
+          byType("chapel") ??
+          byType("library") ??
+          byType("church");
+      } else {
+        b =
+          byType("classroom") ??
+          byType("library") ??
+          byType("chapel") ??
+          byType("music-room") ??
+          byType("church");
+      }
       break;
+    }
     case "gym":
       b = buildings.find((x) => x.type === "gym");
       break;

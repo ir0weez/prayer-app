@@ -15,6 +15,7 @@ import {
   MAP_INFO,
   MAP_UNLOCKED_KEY,
   TOWN_MAP_IDS,
+  dailyIncomeForMap,
   dailyIncomeForTown,
   dailyXPForTown,
   roadMultiplierForBuilding,
@@ -71,6 +72,12 @@ import {
   upgradeCostFor,
   CITY_PLOTS,
   plotAt,
+  SCHOOL_PLOTS,
+  schoolPlotAt,
+  loadBellState,
+  saveBellState,
+  bellBlessingCoins,
+  type SchoolPlot,
   isCityStreet,
   loadPurchasedPlots,
   savePurchasedPlots,
@@ -185,6 +192,12 @@ import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
 import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import {
+  cacheSchoolPerks,
+  getCachedSchoolPerks,
+  loadSchoolPerks,
+  perksForSchoolBuildings,
+} from "@/lib/school-perks";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { GardenGame } from "@/components/garden-game";
 import { TideGame } from "@/components/tide-game";
@@ -591,7 +604,7 @@ function LandmarkArt({ art, size }: { art: TownLandmark["art"]; size: number }) 
   }
 }
 
-function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number }) {
+function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean }) {
   const s = size;
   const lv = level || 1;
   // Shared pseudo-3D bits for tall buildings.
@@ -2618,6 +2631,156 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH 
         ),
       });
     }
+    // ---- School Campus buildings (preset quad plots) ----
+    case "music-room":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          <View style={{ width: s * 0.88, height: s * 0.62, backgroundColor: "#7C3AED", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
+            {/* a music note: head + stem + flag */}
+            <View style={{ position: "absolute", left: s * 0.3, bottom: s * 0.14, width: s * 0.2, height: s * 0.15, borderRadius: s * 0.08, backgroundColor: "#FDE68A" }} />
+            <View style={{ position: "absolute", left: s * 0.47, bottom: s * 0.16, width: s * 0.045, height: s * 0.34, backgroundColor: "#FDE68A" }} />
+            <View style={{ position: "absolute", left: s * 0.47, bottom: s * 0.42, width: s * 0.16, height: s * 0.09, borderTopRightRadius: s * 0.07, backgroundColor: "#FDE68A" }} />
+            {lv >= 2 && <View style={{ position: "absolute", right: s * 0.1, top: s * 0.1, width: s * 0.14, height: s * 0.14, borderRadius: 3, backgroundColor: "#EDE9FE" }} />}
+            {lv >= 3 && <View style={{ position: "absolute", left: s * 0.08, top: s * 0.08, width: s * 0.2, height: s * 0.07, borderRadius: 3, backgroundColor: "#FACC15" }} />}
+          </View>
+          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#4C1D95", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "science-lab":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          {lv >= 3 && (
+            <View style={{ width: s * 0.34, height: s * 0.17, borderTopLeftRadius: s * 0.17, borderTopRightRadius: s * 0.17, backgroundColor: "#99F6E4", borderWidth: 2, borderColor: "#0F766E", marginBottom: -2 }} />
+          )}
+          <View style={{ width: s * 0.88, height: s * 0.56, backgroundColor: "#F0FDFA", borderRadius: 6, borderWidth: 2, borderColor: "#0F766E", alignItems: "center", justifyContent: "center" }}>
+            {/* flask: neck + round belly with liquid */}
+            <View style={{ width: s * 0.09, height: s * 0.14, backgroundColor: "#CCFBF1", borderWidth: 1.6, borderColor: "#0F766E", borderBottomWidth: 0 }} />
+            <View style={{ width: s * 0.3, height: s * 0.3, borderRadius: s * 0.15, backgroundColor: "#CCFBF1", borderWidth: 1.6, borderColor: "#0F766E", alignItems: "center", justifyContent: "flex-end", overflow: "hidden" }}>
+              <View style={{ width: "100%", height: "52%", backgroundColor: "#2DD4BF" }} />
+            </View>
+            {lv >= 2 && <View style={{ position: "absolute", right: s * 0.09, bottom: s * 0.09, width: s * 0.11, height: s * 0.2, borderRadius: 2, backgroundColor: "#F472B6", opacity: 0.8 }} />}
+          </View>
+          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#115E59", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "art-studio":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          <View style={{ width: s * 0.88, height: s * 0.6, backgroundColor: "#FFF1F2", borderRadius: 6, borderWidth: 2, borderColor: "#BE3455", alignItems: "center", justifyContent: "center" }}>
+            {/* painter's palette with color dabs */}
+            <View style={{ width: s * 0.42, height: s * 0.36, borderRadius: s * 0.19, backgroundColor: "#D9A96B", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", position: "absolute", top: s * 0.05 }}>
+                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#DC2626", marginHorizontal: 2 }} />
+                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#2563EB", marginHorizontal: 2 }} />
+              </View>
+              <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.06 }}>
+                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#FACC15", marginHorizontal: 2 }} />
+                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#059669", marginHorizontal: 2 }} />
+              </View>
+            </View>
+            {lv >= 3 && <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.5, height: s * 0.05, borderRadius: 2, backgroundColor: "#FACC15" }} />}
+          </View>
+          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#9F1239", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "gymnasium":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.95)}
+          <View style={{ width: s * 0.96, height: s * 0.64, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center" }}>
+            <View style={{ width: "100%", height: s * 0.1, backgroundColor: "#92400E", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+            {/* hoop: backboard + rim */}
+            <View style={{ marginTop: s * 0.07, width: s * 0.34, height: s * 0.24, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C2410C", borderRadius: 2, alignItems: "center", justifyContent: "flex-end" }}>
+              <View style={{ width: s * 0.16, height: s * 0.05, backgroundColor: "#EA580C", borderRadius: 2, marginBottom: -s * 0.02 }} />
+            </View>
+            <View style={{ flexDirection: "row", marginTop: s * 0.09 }}>
+              <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.9, marginHorizontal: 3 }} />
+              <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.65, marginHorizontal: 3 }} />
+              {lv >= 2 && <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.9, marginHorizontal: 3 }} />}
+            </View>
+            {lv >= 3 && <View style={{ position: "absolute", bottom: s * 0.03, width: s * 0.6, height: s * 0.055, borderRadius: 2, backgroundColor: "#FBBF24" }} />}
+          </View>
+        </View>
+      );
+    case "cafeteria":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          {/* striped awning */}
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.17, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#D97706" }} />)}
+          </View>
+          <View style={{ width: s * 0.86, height: s * 0.52, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#D97706", alignItems: "center", justifyContent: "center" }}>
+            {/* serving tray with lunch */}
+            <View style={{ width: s * 0.44, height: s * 0.2, borderRadius: 4, backgroundColor: "#94A3B8", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row" }}>
+                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#FDE68A", marginHorizontal: 2 }} />
+                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#65A30D", marginHorizontal: 2 }} />
+                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#DC2626", marginHorizontal: 2 }} />
+              </View>
+            </View>
+            {lv >= 2 && <View style={{ position: "absolute", top: s * 0.06, width: s * 0.3, height: s * 0.06, borderRadius: 2, backgroundColor: "#FBBF24" }} />}
+          </View>
+          <View style={{ width: s * 0.92, height: s * 0.09, backgroundColor: "#92400E", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "school-workshop":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          <View style={{ width: s * 0.9, height: s * 0.14, backgroundColor: "#6B4A2F", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+          <View style={{ width: s * 0.86, height: s * 0.5, backgroundColor: "#C89B6A", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
+            {/* saw blade */}
+            <View style={{ width: s * 0.34, height: s * 0.34, borderRadius: s * 0.17, backgroundColor: "#CBD5E1", borderWidth: 2, borderColor: "#78716C", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#78716C" }} />
+            </View>
+            {lv >= 2 && <View style={{ position: "absolute", left: s * 0.07, bottom: s * 0.07, width: s * 0.16, height: s * 0.07, borderRadius: 2, backgroundColor: "#D9A96B" }} />}
+            {lv >= 3 && <View style={{ position: "absolute", right: s * 0.07, bottom: s * 0.07, width: s * 0.16, height: s * 0.07, borderRadius: 2, backgroundColor: "#D9A96B" }} />}
+          </View>
+          <View style={{ width: s * 0.92, height: s * 0.08, backgroundColor: "#6B4A2F", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
+    case "bell-tower": {
+      // The quad landmark. The bell is bronze at rest and gold on the day
+      // it has rung (blessed) — with a warm halo behind it.
+      const bellColor = blessed ? "#FACC15" : "#B45309";
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {blessed && (
+            <View style={{ position: "absolute", bottom: s * 0.3, width: s * 0.95, height: s * 0.95, borderRadius: s * 0.48, backgroundColor: "#FDE68A", opacity: 0.35 }} />
+          )}
+          {groundShadow(s * 0.55)}
+          {/* spire */}
+          <View style={{
+            width: 0, height: 0,
+            borderLeftWidth: s * 0.13, borderRightWidth: s * 0.13,
+            borderBottomWidth: s * 0.2,
+            borderLeftColor: "transparent", borderRightColor: "transparent",
+            borderBottomColor: "#475569",
+          }} />
+          <View style={{ width: s * 0.05, height: s * 0.07, backgroundColor: "#B45309", marginTop: -s * 0.19 }} />
+          {/* tower body */}
+          <View style={{ width: s * 0.4, height: lv >= 2 ? s * 0.58 : s * 0.5, backgroundColor: "#E7E5E4", borderWidth: 2, borderColor: "#A8A29E", borderRadius: 3, alignItems: "center" }}>
+            {/* bell in its arch */}
+            <View style={{ marginTop: s * 0.05, width: s * 0.26, height: s * 0.24, backgroundColor: "#292524", borderTopLeftRadius: s * 0.13, borderTopRightRadius: s * 0.13, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: s * 0.15, height: s * 0.15, borderTopLeftRadius: s * 0.075, borderTopRightRadius: s * 0.075, borderBottomLeftRadius: s * 0.05, borderBottomRightRadius: s * 0.05, backgroundColor: bellColor }} />
+              <View style={{ width: s * 0.045, height: s * 0.045, borderRadius: s * 0.023, backgroundColor: bellColor, marginTop: 1 }} />
+            </View>
+            {lv >= 2 && (
+              <View style={{ marginTop: s * 0.05, width: s * 0.17, height: s * 0.17, borderRadius: s * 0.085, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#78716C", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 2, height: s * 0.055, backgroundColor: "#292524", position: "absolute", top: s * 0.018 }} />
+                <View style={{ width: s * 0.05, height: 2, backgroundColor: "#292524", position: "absolute", right: s * 0.02 }} />
+              </View>
+            )}
+            {lv >= 3 && <View style={{ marginTop: s * 0.04, width: s * 0.12, height: s * 0.14, backgroundColor: "#BFDBFE", borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06 }} />}
+          </View>
+          <View style={{ width: s * 0.5, height: s * 0.06, backgroundColor: "#78716C", borderRadius: 2 }} />
+        </View>
+      );
+    }
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -2993,6 +3156,11 @@ export default function HometownScreen() {
   const insets = useSafeAreaInsets();
   const [coins, setCoins] = useState<HometownCoins>({ balance: 0, lifetimeEarned: 0 });
   const [town, setTown] = useState<TownState>(() => emptyTownState());
+  // School Campus perks cache: kept in step with the town state so the
+  // synchronous grant sites (collections, garden) always read fresh perks.
+  useEffect(() => {
+    cacheSchoolPerks(perksForSchoolBuildings(town.maps.school.buildings));
+  }, [town]);
   const [activeMap, setActiveMap] = useState<TownMapId>("town");
   const [unlockedMaps, setUnlockedMaps] = useState<TownMapId[]>(["town"]);
   // Fast-length gate: Hometown (and the pawn) only appear on fasts longer
@@ -3059,6 +3227,8 @@ export default function HometownScreen() {
   const [prayerVillagerInfo, setPrayerVillagerInfo] = useState<{ id: string; name: string } | null>(null);
   const [missionsVisible, setMissionsVisible] = useState(false);
   const [purchasedPlots, setPurchasedPlots] = useState<string[]>([]);
+  /** Bell Tower: the local date the campus bell last rang (null = never). */
+  const [bellRungDate, setBellRungDate] = useState<string | null>(null);
   const [fellowship, setFellowship] = useState<FellowshipState | null>(null);
   const [gatheringNow, setGatheringNow] = useState(false);
   // Garden of Remembrance: loved ones remembered here, with garden upgrades.
@@ -3296,8 +3466,10 @@ export default function HometownScreen() {
   const badgesRef = useRef<BadgeId[]>([]);
   badgesRef.current = ownedBadges;
   const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
-  /** Gym Training Reps bonus (+10% attack/defense) active for this forest visit. */
+  /** Gym Training Reps bonus active for this forest visit, and its size
+   *  in percent (+10 base; +20 while the campus Gymnasium stands). */
   const [forestTraining, setForestTraining] = useState(false);
+  const [forestTrainingPct, setForestTrainingPct] = useState(10);
   const [forestTunic, setForestTunic] = useState("#D6C9A8");
   const [forestArmor, setForestArmor] = useState<string | null>(null);
   const [forestWeapon, setForestWeapon] = useState<string | null>(null);
@@ -3832,7 +4004,7 @@ export default function HometownScreen() {
         setScheduleTarget(null);
         return;
       }
-      const target = resolveScheduleTarget(town.maps[activeMap].buildings, activity.kind);
+      const target = resolveScheduleTarget(town.maps[activeMap].buildings, activity.kind, activity.title);
       // Haircut day: the pawn actually gets a trim (free — it's his real appointment).
       if (activity.kind === "barbershop" && haircutDoneForRef.current !== activity.title) {
         haircutDoneForRef.current = activity.title;
@@ -4329,6 +4501,8 @@ export default function HometownScreen() {
         try { setRiver(await loadRiverState()); } catch {}
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
         try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
+        // Bell Tower: whether today's campus blessing has already rung.
+        try { setBellRungDate((await loadBellState()).lastRungDate); } catch {}
         setCoins(c);
         try {
           const lastFrenzy = await AsyncStorage.getItem(FRENZY_STORAGE_KEY);
@@ -4897,6 +5071,111 @@ export default function HometownScreen() {
     );
   };
 
+  /** Purchase a campus plot (creates the L1 building). Mirrors the city
+   *  plot flow: one price covers the plot and the building on it. */
+  const handlePurchaseCampusPlot = (plot: SchoolPlot) => {
+    const def = BUILDINGS[plot.buildingType];
+    const price = scaledCoins(plot.cost);
+    // Don't build over legacy free-placed buildings
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        if (buildingAt(plot.x + dx, plot.y + dy)) {
+          Alert.alert("Plot Occupied", "There's already a building on this plot. Move or sell it first.");
+          return;
+        }
+      }
+    }
+    if (coinsRef.current.balance < price) {
+      Alert.alert("Not enough coins", `${plot.name} costs ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      return;
+    }
+    Alert.alert(
+      `${plot.name} — FOR SALE`,
+      `${def.name}\n${def.description}\n\nPurchase this campus plot for ${price.toFixed(2)} coins?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: `Buy for ${price.toFixed(2)}`,
+          onPress: () => {
+            const now = new Date().toISOString();
+            const building: PlacedBuilding = {
+              id: `campus-${plot.id}-${Date.now()}`,
+              type: plot.buildingType,
+              x: plot.x,
+              y: plot.y,
+              level: 1,
+              campusPlotId: plot.id,
+              lastTick: now,
+              accumulated: 0,
+            };
+            saveMap({ ...map, buildings: [...map.buildings, building] });
+            addCoins(-price);
+          },
+        },
+      ]
+    );
+  };
+
+  /** Tap a campus building: enter its interior (upgrades live inside, like
+   *  the school trio always has). The Bell Tower rings instead. */
+  const handleCampusBuildingPress = (b: PlacedBuilding) => {
+    if (b.type === "bell-tower") {
+      handleBellTowerPress();
+      return;
+    }
+    const routes: Partial<Record<BuildingType, string>> = {
+      "classroom": "/classroom-interior",
+      "library": "/library-interior",
+      "chapel": "/chapel-interior",
+      "music-room": "/music-room-interior",
+      "science-lab": "/science-lab-interior",
+      "art-studio": "/art-studio-interior",
+      "gymnasium": "/gymnasium-interior",
+      "cafeteria": "/cafeteria-interior",
+      "school-workshop": "/workshop-interior",
+    };
+    const route = routes[b.type];
+    if (route) {
+      router.push(`${route}?buildingId=${b.id}`);
+      return;
+    }
+    setPopupBuilding(b);
+  };
+
+  /** Bell Tower: one ring a day grants a small blessing to the whole
+   *  campus — 10% of the campus's daily coin income (floor of 10). */
+  const handleBellTowerPress = () => {
+    const today = localDateStr();
+    if (bellRungDate === today) {
+      Alert.alert(
+        "The Bell Tower",
+        "The bell has already rung over the campus today — its blessing is still settling across the quad. Come back tomorrow."
+      );
+      return;
+    }
+    const campusDaily = dailyIncomeForMap(town.maps.school, town);
+    const blessing = bellBlessingCoins(campusDaily);
+    Alert.alert(
+      "The Bell Tower",
+      `Ring the campus bell? Its voice carries over the whole quad.\n\nBlessing: +${blessing.toFixed(2)} coins (10% of the campus's daily income).`,
+      [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Ring the Bell",
+          onPress: () => {
+            setBellRungDate(today);
+            saveBellState({ lastRungDate: today }).catch(() => undefined);
+            addCoins(blessing);
+            Alert.alert(
+              "The Bell Rings",
+              `The bell rolls out over the quad, and the whole campus seems to stand a little taller.\n\n+${blessing.toFixed(2)} coins.`
+            );
+          },
+        },
+      ]
+    );
+  };
+
   /** Tap a purchased plot building: upgrade only (no move/sell). */
   const handlePlotBuildingPress = (b: PlacedBuilding, plot: CityPlot) => {
     const def = BUILDINGS[b.type];
@@ -5294,14 +5573,30 @@ export default function HometownScreen() {
     );
   };
 
+  /** Flower kinds bloomed in the current Garden Tending session (the
+   *  Science Lab's extra-bloom perk reads the run when it completes). */
+  const gardenBloomKindsRef = useRef<number[]>([]);
+
+  /** Art Studio (School Campus): collections completion payouts grow +25%
+   *  while it stands. Applied at every completion grant site below. */
+  const collectionPayout = (meta: { rewardCoins: number; rewardXp: number }) => {
+    const m = getCachedSchoolPerks().collectionsMult;
+    return {
+      coins: Math.round(meta.rewardCoins * m * 100) / 100,
+      xp: Math.round(meta.rewardXp * m),
+    };
+  };
+
   /** Garden Tending: a bloom opened — record its kind in the book. */
   const handleGardenBloom = useCallback((kind: number) => {
+    gardenBloomKindsRef.current.push(kind);
     recordFlowerPlanted(kind).then(({ justCompleted }) => {
       if (justCompleted) {
         const meta = COLLECTION_SETS.flowers;
-        addCoins(meta.rewardCoins);
-        awardCustomXP(meta.rewardXp, `collection:flowers`).catch(() => undefined);
-        queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+        const pay = collectionPayout(meta);
+        addCoins(pay.coins);
+        awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
+        queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
   }, [addCoins, queueCelebration]);
@@ -5313,16 +5608,34 @@ export default function HometownScreen() {
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-garden-${Date.now()}`).catch(() => undefined);
     recordPlay("garden").then(setGardenPlaysLeft).catch(() => undefined);
+    // Science Lab (School Campus): a completed tending session that opened
+    // at least one bloom records ONE extra flower in the book — the lab's
+    // greenhouse notes follow the garden home.
+    const bloomedKinds = gardenBloomKindsRef.current;
+    gardenBloomKindsRef.current = [];
+    if (bloomedKinds.length > 0 && getCachedSchoolPerks().gardenExtraBloom) {
+      const extraKind = bloomedKinds[bloomedKinds.length - 1];
+      recordFlowerPlanted(extraKind).then(({ justCompleted }) => {
+        if (justCompleted) {
+          const meta = COLLECTION_SETS.flowers;
+          const pay = collectionPayout(meta);
+          addCoins(pay.coins);
+          awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
+          queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+        }
+      }).catch(() => undefined);
+    }
     return { coins: c, xp };
-  }, [addCoins]);
+  }, [addCoins, queueCelebration]);
 
   /** Tide Pools: a shell was gathered — pay the set reward on completion. */
   const handleTideShellUpdate = useCallback((update: CollectionUpdate) => {
     if (update.justCompleted) {
       const meta = COLLECTION_SETS.shells;
-      addCoins(meta.rewardCoins);
-      awardCustomXP(meta.rewardXp, `collection:shells`).catch(() => undefined);
-      queueCelebration("milestone", "Collection complete: Shore Shells!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+      const pay = collectionPayout(meta);
+      addCoins(pay.coins);
+      awardCustomXP(pay.xp, `collection:shells`).catch(() => undefined);
+      queueCelebration("milestone", "Collection complete: Shore Shells!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
     }
   }, [addCoins, queueCelebration]);
 
@@ -5606,6 +5919,27 @@ export default function HometownScreen() {
         return;
       }
       // else: legacy building tapped — fall through to normal handling below
+    }
+    // School map: campus plots only — no free placement
+    if (activeMap === "school") {
+      const existing = buildingAt(x, y);
+      // Campus buildings: fixed to their plots (enter interior / ring bell)
+      if (existing?.campusPlotId) {
+        handleCampusBuildingPress(existing);
+        return;
+      }
+      if (!existing) {
+        const plot = schoolPlotAt(x, y);
+        if (plot) {
+          const b = map.buildings.find(bb => bb.campusPlotId === plot.id);
+          if (b) { handleCampusBuildingPress(b); return; }
+          handlePurchaseCampusPlot(plot);
+          return;
+        }
+        // Tapped outside any plot — ignore (campus is plots-only)
+        return;
+      }
+      // else: legacy free-placed building tapped — fall through to normal handling below
     }
     // Town map: neighborhood lots only — no free placement
     if (activeMap === "town") {
@@ -5927,9 +6261,10 @@ export default function HometownScreen() {
     recordDemonDefeat(demon.name).then(({ justCompleted }) => {
       if (justCompleted) {
         const meta = COLLECTION_SETS.demons;
-        addCoins(meta.rewardCoins);
-        awardCustomXP(meta.rewardXp, `collection:demons`).catch(() => undefined);
-        queueCelebration("milestone", "Bestiary complete!", `Every demon catalogued. +${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+        const pay = collectionPayout(meta);
+        addCoins(pay.coins);
+        awardCustomXP(pay.xp, `collection:demons`).catch(() => undefined);
+        queueCelebration("milestone", "Bestiary complete!", `Every demon catalogued. +${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
     setForest(prev => {
@@ -5976,9 +6311,10 @@ export default function HometownScreen() {
     recordFishCatch(speciesId).then(({ justCompleted }) => {
       if (justCompleted) {
         const meta = COLLECTION_SETS.fish;
-        addCoins(meta.rewardCoins);
-        awardCustomXP(meta.rewardXp, `collection:fish`).catch(() => undefined);
-        queueCelebration("milestone", "Collection complete: River Fish!", `+${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+        const pay = collectionPayout(meta);
+        addCoins(pay.coins);
+        awardCustomXP(pay.xp, `collection:fish`).catch(() => undefined);
+        queueCelebration("milestone", "Collection complete: River Fish!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
     setRiver(prev => {
@@ -6053,18 +6389,22 @@ export default function HometownScreen() {
           };
           queueCelebration("prayers", "Doctor's Blessing", `The hospital's care steadies you: +${Math.round((buff.hpMult - 1) * 100)}% max HP${buff.attackMult > 1 ? `, +${Math.round((buff.attackMult - 1) * 100)}% attack` : ""} for this battle.`);
         }
-        // Gym: the Training Reps bonus — +10% attack & defense until
-        // midnight (non-stacking; stored as an expiry in lib/mini-games).
+        // Gym: the Training Reps bonus — attack & defense until midnight
+        // (non-stacking; stored as an expiry in lib/mini-games). The campus
+        // Gymnasium strengthens it: +20% instead of +10% while it stands.
         let trainingActive = false;
+        let trainingMult = TRAINING_BONUS_MULT;
         try { trainingActive = (await loadTrainingBonus()).active; } catch {}
         if (trainingActive) {
+          try { trainingMult = (await loadSchoolPerks()).trainingMult; } catch {}
           finalStats = {
             ...finalStats,
-            attack: Math.round(finalStats.attack * TRAINING_BONUS_MULT),
-            defense: Math.round(finalStats.defense * TRAINING_BONUS_MULT),
+            attack: Math.round(finalStats.attack * trainingMult),
+            defense: Math.round(finalStats.defense * trainingMult),
           };
         }
         setForestTraining(trainingActive);
+        setForestTrainingPct(Math.round((trainingMult - 1) * 100));
         setForestStats(finalStats);
         const clothesId = equipped.clothes;
         const item = clothesId ? GEAR_BY_ID[clothesId] : undefined;
@@ -6569,9 +6909,10 @@ export default function HometownScreen() {
             recordFlowerPlanted(flower).then(({ justCompleted }) => {
               if (justCompleted) {
                 const meta = COLLECTION_SETS.flowers;
-                addCoins(meta.rewardCoins);
-                awardCustomXP(meta.rewardXp, `collection:flowers`).catch(() => undefined);
-                queueCelebration("milestone", "Collection complete: Garden Flowers!", `Every bloom planted. +${meta.rewardCoins} coins, +${meta.rewardXp} XP. Title earned: ${meta.rewardTitle}.`);
+                const pay = collectionPayout(meta);
+                addCoins(pay.coins);
+                awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
+                queueCelebration("milestone", "Collection complete: Garden Flowers!", `Every bloom planted. +${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
               }
             }).catch(() => undefined);
           }}
@@ -6653,6 +6994,7 @@ export default function HometownScreen() {
         <DarkForest
           stats={forestStats}
           trainingBonus={forestTraining}
+          trainingBonusPct={forestTrainingPct}
           forest={forest}
           tunicColor={forestTunic}
           armorId={forestArmor}
@@ -6755,7 +7097,7 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <MemoBuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} />
+                <MemoBuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} />
                 {/* Ambient life: chimney smoke drifting from hearths
                     (deferred past first paint — see ambientReady) */}
                 {ambientReady && hasChimney(b.type) && (
@@ -6836,6 +7178,32 @@ export default function HometownScreen() {
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
               <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{scaledCoins(plot.cost).toFixed(2)}</Text>
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
+            </View>
+          ))}
+          {/* School Campus plots: FOR SALE lots (unpurchased) */}
+          {activeMap === "school" && SCHOOL_PLOTS.filter(p => !map.buildings.some(b => b.campusPlotId === p.id)).map((plot) => (
+            <View
+              key={`campusplot-${plot.id}`}
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: plot.x * cellSize,
+                top: plot.y * cellSize,
+                width: 2 * cellSize,
+                height: 2 * cellSize,
+                borderWidth: 2,
+                borderStyle: "dashed",
+                borderColor: "#0F766E",
+                borderRadius: 8,
+                backgroundColor: "rgba(15, 118, 110, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: Math.round((plot.y + 2) * cellSize),
+              }}
+            >
+              <Text style={{ fontSize: 9, fontWeight: "800", color: "#115E59", letterSpacing: 1 }}>FOR SALE</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#134E4A", marginTop: 2 }}>{scaledCoins(plot.cost).toFixed(2)}</Text>
+              <Text style={{ fontSize: 8, color: "#0F766E", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
           {/* Town neighborhood lots: soft heavenly glow (unpurchased) */}
@@ -7224,7 +7592,7 @@ export default function HometownScreen() {
             playsLeft={gardenPlaysLeft}
             cap={MINI_GAME_CAPS.garden}
             accent="#65A30D"
-            onPlay={() => setPlayingGarden(true)}
+            onPlay={() => { gardenBloomKindsRef.current = []; setPlayingGarden(true); }}
           />
           {playingGarden && (
             <GardenGame accent="#65A30D" onComplete={handleGardenGameComplete} onExit={() => setPlayingGarden(false)} onBloom={handleGardenBloom} />
@@ -7244,7 +7612,7 @@ export default function HometownScreen() {
         </>
       )}
 
-      {selectedTile && activeMap !== "reserve" && activeMap !== "forest" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && (
+      {selectedTile && activeMap !== "reserve" && activeMap !== "forest" && activeMap !== "city" && activeMap !== "town" && activeMap !== "mall" && activeMap !== "well" && activeMap !== "school" && (
         <View style={{ backgroundColor: pt.card, borderRadius: 12, padding: 12, marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 8, color: pt.text }}>
             Build on plot ({selectedTile.x + 1}, {selectedTile.y + 1})

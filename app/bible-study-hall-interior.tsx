@@ -29,6 +29,12 @@ import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { VerseGame } from "@/components/verse-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import {
+  getCachedSchoolPerks,
+  loadSchoolPerks,
+  refreshSchoolPerksCache,
+  type SchoolPerks,
+} from "@/lib/school-perks";
 
 const BG = "#FAF5EA";
 const WOOD = "#A9713F";
@@ -129,15 +135,21 @@ export default function BibleStudyHallInteriorScreen() {
   const [lastJoin, setLastJoin] = useState(0);
   const [versePlaysLeft, setVersePlaysLeft] = useState<number | null>(null);
   const [playingVerse, setPlayingVerse] = useState(false);
+  const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
   useEffect(() => {
     playsLeftToday("verse").then(setVersePlaysLeft).catch(() => setVersePlaysLeft(0));
+    // School Campus perks: the Scripture Classroom lifts Complete the Verse,
+    // the Library deepens Join the Study (lib/school-perks.ts).
+    refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
 
   const handleVerseComplete = (raw: MiniGameReward): MiniGameReward => {
     const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    const c = _pay.coins;
-    const xp = _pay.xp;
+    // Scripture Classroom (campus): verse rewards grow +10/25/40% by level.
+    const vm = getCachedSchoolPerks().verseMult;
+    const c = Math.round(_pay.coins * vm * 100) / 100;
+    const xp = Math.round(_pay.xp * vm);
     if (c > 0) addCoins(c);
     if (xp > 0) awardCustomXP(xp, `minigame-verse-${Date.now()}`).catch(() => undefined);
     recordPlay("verse").then(setVersePlaysLeft).catch(() => undefined);
@@ -167,8 +179,10 @@ export default function BibleStudyHallInteriorScreen() {
       Alert.alert("Still studying", `The circle is mid-passage.\n\nJoin again in about ${formatCooldown(remaining)}.`);
       return;
     }
-    const c = scaledCoins(STUDY_COINS[level] ?? 20);
-    const xp = scaledXP(STUDY_XP[level] ?? 14);
+    // Library (campus): Join the Study rewards +25% while it stands.
+    const perks = await loadSchoolPerks().catch(() => getCachedSchoolPerks());
+    const c = Math.round(scaledCoins(STUDY_COINS[level] ?? 20) * perks.studyMult * 100) / 100;
+    const xp = Math.round(scaledXP(STUDY_XP[level] ?? 14) * perks.studyMult);
     const t = Date.now();
     setLastJoin(t);
     await AsyncStorage.setItem(STUDY_KEY, String(t)).catch(() => undefined);
@@ -270,12 +284,13 @@ export default function BibleStudyHallInteriorScreen() {
         />
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           Join the study once an hour. The circles are always set.
+          {schoolPerks?.libraryBuilt ? "\nThe campus Library deepens every study — Join the Study rewards +25%." : ""}
         </Text>
 
         <PlayCard
           icon="quiz"
           title="Play: Complete the Verse"
-          blurb="A verse with one word missing — can you complete it? Eight rounds, and wisdom pays best."
+          blurb={`A verse with one word missing — can you complete it? Eight rounds, and wisdom pays best.${schoolPerks && schoolPerks.verseMult > 1 ? ` The Scripture Classroom lifts verse rewards +${Math.round((schoolPerks.verseMult - 1) * 100)}%.` : ""}`}
           playsLeft={versePlaysLeft}
           cap={MINI_GAME_CAPS.verse}
           accent={ACCENT}

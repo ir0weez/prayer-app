@@ -109,6 +109,15 @@ export type BuildingType =
   | "library"
   | "classroom"
   | "chapel"
+  // School Campus — preset plots around a central quad (see SCHOOL_PLOTS).
+  // The campus is plots-only, like the town neighborhood and the city.
+  | "music-room"      // choir room: Rhythm of Worship pays +25%
+  | "science-lab"     // lab + greenhouse window: Garden Tending bonus bloom
+  | "art-studio"      // easels + gallery wall: collections payouts +25%
+  | "gymnasium"       // campus gym: Training Reps buff +20% instead of +10%
+  | "cafeteria"       // stocked food building, filled by Serve Lunch inside
+  | "school-workshop" // the campus earner: benches, tools, steady coins
+  | "bell-tower"      // quad landmark: ring once a day for a campus blessing
   // Restaurants (hometown food businesses)
   | "pizza-place"
   | "burger-joint"
@@ -440,9 +449,19 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "arcade":     { name: "Arcade",     icon: "🕹️", cost: 1760, tier: 1, incomePerDay: 100, xpPerDay: 0, maps: [], description: "Tokens and high scores. +100 coins/day." },
   "cinema":     { name: "Cinema",     icon: "🎬", cost: 2200, tier: 1, incomePerDay: 120, xpPerDay: 0, maps: [], description: "Now showing. +120 coins/day." },
   // School — XP earners
-  "library":   { name: "Library",   icon: "📖", cost: 1430, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day." },
-  "classroom": { name: "Classroom", icon: "📝", cost: 1155,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons. +35 XP/day." },
-  "chapel":    { name: "Chapel",    icon: "⛪", cost: 1760, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day." },
+  // School Campus — preset plots around a central quad (see SCHOOL_PLOTS).
+  // The original three (library / classroom / chapel) keep their costs and
+  // XP; the classroom is the Scripture Classroom of the campus design.
+  "library":   { name: "Library",   icon: "📖", cost: 1430, tier: 1, incomePerDay: 0, xpPerDay: 50, maps: ["school"], description: "Quiet study earns wisdom. +50 XP/day. While it stands, Bible Study Hall 'Join the Study' rewards grow +25%." },
+  "classroom": { name: "Scripture Classroom", icon: "📝", cost: 1155,  tier: 1, incomePerDay: 0, xpPerDay: 35, maps: ["school"], description: "Daily lessons in the Word. +35 XP/day. Complete the Verse rewards grow while it stands (+10% / +25% / +40% by level)." },
+  "chapel":    { name: "Chapel",    icon: "⛪", cost: 1760, tier: 1, incomePerDay: 0, xpPerDay: 60, maps: ["school"], description: "A place of prayer. +60 XP/day. School gatherings land here when no classroom stands." },
+  "music-room":      { name: "Music Room", icon: "", cost: 1540, tier: 1, incomePerDay: 30, xpPerDay: 10, maps: ["school"], description: "Keyboards, drums, and a choir riser. +30 coins/day, +10 XP/day. Rhythm of Worship payouts +25% while it stands." },
+  "science-lab":     { name: "Science Lab", icon: "", cost: 1980, tier: 1, incomePerDay: 35, xpPerDay: 15, maps: ["school"], description: "Benches, beakers, and a greenhouse window. +35 coins/day, +15 XP/day. Garden Tending records an extra flower per completed session." },
+  "art-studio":      { name: "Art Studio", icon: "", cost: 1650, tier: 1, incomePerDay: 30, xpPerDay: 10, maps: ["school"], description: "Easels and bright windows. +30 coins/day, +10 XP/day. Collections completion payouts +25% while it stands." },
+  "gymnasium":       { name: "Gymnasium", icon: "", cost: 1870, tier: 1, incomePerDay: 40, xpPerDay: 0, maps: ["school"], description: "A court, hoops, and mats. +40 coins/day. Training Reps strengthens the Hero +20% instead of +10% until midnight." },
+  "cafeteria":       { name: "Cafeteria", icon: "", cost: 1430, tier: 1, incomePerDay: 45, xpPerDay: 0, maps: ["school"], description: "Long tables and a serving line. +45 coins/day. A stocked building — serve lunch inside to fill the shelves; a full day stocked earns +50%." },
+  "school-workshop": { name: "Workshop", icon: "", cost: 2200, tier: 1, incomePerDay: 90, xpPerDay: 0, maps: ["school"], description: "Benches, tools, and sawdust — the campus's steady earner. +90 coins/day." },
+  "bell-tower":      { name: "Bell Tower", icon: "", cost: 2750, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["school"], description: "The campus landmark at the heart of the quad. Ring the bell once a day for a blessing on the whole campus." },
   // Restaurants — hometown food businesses
   "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +30 coins/day." },
   "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +30 coins/day." },
@@ -651,6 +670,172 @@ export function plotAt(x: number, y: number): CityPlot | undefined {
   return CITY_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
 }
 
+// ---- School Campus: preset plots around a central quad ----
+// The school map is a campus: ten fixed 2x2 plots ring a quad with the Bell
+// Tower at its heart. Plots-only (no free placement), bought for a single
+// plot price that includes the L1 building, then upgraded L1–L3 like every
+// other building. Campus paths are seeded infrastructure, like the town's
+// winding path and the city's streets. Plot prices sit in the town-lot band
+// so the whole campus completes inside a long fast, not instantly.
+
+export type SchoolPlot = {
+  id: string;
+  x: number;
+  y: number;
+  buildingType: BuildingType;
+  cost: number; // total purchase price (plot + L1 building, like city plots)
+  name: string;
+};
+
+export const SCHOOL_PLOTS: SchoolPlot[] = [
+  // North row — the classroom wing
+  { id: "plot-school-classroom", x: 0, y: 0, buildingType: "classroom",       cost: 2200, name: "Scripture Green" },
+  { id: "plot-school-library",   x: 2, y: 0, buildingType: "library",         cost: 2600, name: "Library Green" },
+  { id: "plot-school-music",     x: 4, y: 0, buildingType: "music-room",      cost: 2400, name: "Music Green" },
+  { id: "plot-school-science",   x: 6, y: 0, buildingType: "science-lab",     cost: 2900, name: "Science Green" },
+  { id: "plot-school-chapel",    x: 8, y: 0, buildingType: "chapel",          cost: 3000, name: "Chapel Green" },
+  // The quad flanks
+  { id: "plot-school-art",       x: 0, y: 4, buildingType: "art-studio",      cost: 2500, name: "Art Court" },
+  { id: "plot-school-workshop",  x: 8, y: 4, buildingType: "school-workshop", cost: 3300, name: "Workshop Court" },
+  // The heart of the quad
+  { id: "plot-school-bell",      x: 4, y: 4, buildingType: "bell-tower",      cost: 3600, name: "The Quad" },
+  // South row
+  { id: "plot-school-cafeteria", x: 0, y: 8, buildingType: "cafeteria",       cost: 2300, name: "Cafeteria Court" },
+  { id: "plot-school-gym",       x: 8, y: 8, buildingType: "gymnasium",       cost: 2700, name: "Gymnasium Court" },
+];
+
+/** Find the campus plot containing tile (x, y), if any. */
+export function schoolPlotAt(x: number, y: number): SchoolPlot | undefined {
+  return SCHOOL_PLOTS.find((p) => x >= p.x && x < p.x + 2 && y >= p.y && y < p.y + 2);
+}
+
+/**
+ * Campus paths: two avenues (y=2 and y=7) joining the north and south rows,
+ * and the quad ring around the Bell Tower plot, so every plot touches a
+ * path (the road-connectivity income rule finds a network everywhere).
+ */
+export const SCHOOL_CAMPUS_PATHS: Array<{ x: number; y: number }> = (() => {
+  const tiles: Array<{ x: number; y: number }> = [];
+  const add = (x: number, y: number) => {
+    if (!tiles.some((t) => t.x === x && t.y === y)) tiles.push({ x, y });
+  };
+  for (let x = 0; x < 10; x++) { add(x, 2); add(x, 7); }
+  for (let x = 2; x <= 7; x++) { add(x, 3); add(x, 6); }
+  for (let y = 4; y <= 5; y++) { add(2, y); add(7, y); add(3, y); add(6, y); }
+  return tiles;
+})();
+
+/** Campus path roads with stable ids (idempotent seeding). */
+export function schoolPathRoads(): PlacedRoad[] {
+  return SCHOOL_CAMPUS_PATHS.map((s) => ({ id: `school-path-${s.x}-${s.y}`, x: s.x, y: s.y }));
+}
+
+/** True for road tiles that are permanent campus infrastructure. */
+export function isSchoolPath(road: PlacedRoad): boolean {
+  return typeof road.id === "string" && road.id.startsWith("school-path-");
+}
+
+/**
+ * Migrate the school map to the campus layout (idempotent).
+ * - Campus buildings follow their plot; a legacy free-placed building takes
+ *   the first unclaimed plot of its type (the original school trio —
+ *   classroom, library, chapel — each has exactly one plot), keeping its
+ *   level. Extra duplicates stay legacy free-placed.
+ * - Campus paths are seeded; stale path tiles and any road sitting inside
+ *   a plot footprint are dropped.
+ */
+export function ensureSchoolCampus(map: MapState): MapState {
+  const buildings = map.buildings || [];
+  // 1. Buildings: normalize campusPlotId, then assign legacy buildings.
+  const claimed = new Set<string>();
+  const normalized = buildings.map((b) => {
+    if (b.campusPlotId) {
+      const plot = SCHOOL_PLOTS.find((p) => p.id === b.campusPlotId);
+      if (plot) {
+        claimed.add(plot.id);
+        if (b.x === plot.x && b.y === plot.y) return b;
+        return { ...b, x: plot.x, y: plot.y };
+      }
+      return { ...b, campusPlotId: undefined };
+    }
+    return b;
+  });
+  const assigned = normalized.map((b) => {
+    if (b.campusPlotId) return b;
+    const plot = SCHOOL_PLOTS.find((p) => !claimed.has(p.id) && p.buildingType === b.type);
+    if (!plot) return b; // no plot for this type — stays as legacy free-placed
+    claimed.add(plot.id);
+    if (b.x === plot.x && b.y === plot.y) return { ...b, campusPlotId: plot.id };
+    return { ...b, x: plot.x, y: plot.y, campusPlotId: plot.id };
+  });
+
+  // 2. Roads: keep non-path roads outside plot footprints, keep current
+  //    campus path tiles, seed the missing ones (skipping covered tiles).
+  const plotCells = new Set<string>();
+  for (const p of SCHOOL_PLOTS) {
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) plotCells.add(`${p.x + dx}-${p.y + dy}`);
+    }
+  }
+  const occupied = new Set<string>();
+  for (const b of assigned) {
+    const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+    for (let dx = 0; dx < fp.w; dx++) {
+      for (let dy = 0; dy < fp.h; dy++) occupied.add(`${b.x + dx}-${b.y + dy}`);
+    }
+  }
+  const currentPathIds = new Set(schoolPathRoads().map((r) => r.id));
+  const keptRoads = (map.roads || []).filter((r) => {
+    if (plotCells.has(`${r.x}-${r.y}`)) return false;
+    if (isSchoolPath(r)) return currentPathIds.has(r.id);
+    return true;
+  });
+  const keptIds = new Set(keptRoads.map((r) => r.id));
+  const freshPaths = schoolPathRoads().filter(
+    (r) => !keptIds.has(r.id) && !occupied.has(`${r.x}-${r.y}`)
+  );
+  const roads = [...keptRoads, ...freshPaths];
+
+  const buildingsChanged = assigned.some((b, i) => b !== buildings[i]);
+  const roadsChanged = freshPaths.length > 0 || roads.length !== (map.roads || []).length;
+  if (!buildingsChanged && !roadsChanged) return map;
+  return { ...map, buildings: assigned, roads };
+}
+
+// ---- Bell Tower: the daily campus blessing ----
+
+export const BELL_STORAGE_KEY = "prayercircle.school.bell.v1";
+
+export type BellState = { lastRungDate: string | null };
+
+export async function loadBellState(): Promise<BellState> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    const raw = await AsyncStorage.getItem(BELL_STORAGE_KEY);
+    if (!raw) return { lastRungDate: null };
+    const parsed = JSON.parse(raw);
+    return { lastRungDate: typeof parsed?.lastRungDate === "string" ? parsed.lastRungDate : null };
+  } catch { return { lastRungDate: null }; }
+}
+
+export async function saveBellState(state: BellState): Promise<void> {
+  try {
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    await AsyncStorage.setItem(BELL_STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+/**
+ * The bell's blessing, granted on the daily ring: 10% of the campus's
+ * current daily coin income, with a small floor so even a brand-new campus
+ * hears something back. (The campusDailyCoins passed in is already
+ * economy-scaled, like every daily-income figure.)
+ */
+export function bellBlessingCoins(campusDailyCoins: number): number {
+  const tenth = Math.round((campusDailyCoins || 0) * 0.1 * 100) / 100;
+  return Math.max(scaledCoins(10), tenth);
+}
+
 // ---- Restaurant Row: breaking bread ----
 
 /** True for the three Restaurant Row building types. */
@@ -669,6 +854,7 @@ export const FOOD_BUILDING_TYPES: ReadonlySet<BuildingType> = new Set<BuildingTy
   "taco-stand",
   "sushi-bar",
   "diner",
+  "cafeteria",
   "upper-room",
   "manna-house",
   "feast-hall",
@@ -1842,9 +2028,9 @@ export function isTownLotBuilding(b: PlacedBuilding): boolean {
   return typeof b.townLotId === "string" && b.townLotId.length > 0;
 }
 
-/** True if a building has a fixed footprint (city plot or town lot). */
+/** True if a building has a fixed footprint (city plot, town lot, or campus plot). */
 export function hasFixedFootprint(b: PlacedBuilding): boolean {
-  return !!(b.plotId || b.townLotId);
+  return !!(b.plotId || b.townLotId || b.campusPlotId);
 }
 
 /**
@@ -1981,6 +2167,7 @@ export type PlacedBuilding = {
   floors?: number; // bank-tower stories (default 1, max 5)
   plotId?: string; // city plot id — fixed-position plot building (no move/sell)
   townLotId?: string; // town neighborhood lot id — fixed-position lot building (no move/sell)
+  campusPlotId?: string; // school campus plot id — fixed-position campus building (no move/sell)
   workers?: number; // hired townsfolk (0-3), each +10% output
   accumulated?: number;
   lastTick?: string;
@@ -2052,7 +2239,7 @@ export function emptyTownState(): TownState {
       town: emptyMapState(),
       city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
-      school: emptyMapState(),
+      school: ensureSchoolCampus(emptyMapState()),
       well: emptyMapState(),
       reserve: emptyMapState(),
       forest: emptyMapState(),
@@ -2129,7 +2316,7 @@ export function parseTown(value: unknown): TownState {
         town: ensureTownNeighborhood(parseMapState(raw.town)),
         city: ensureCityStreets(parseMapState(raw.city)),
         mall: parseMapState(raw.mall),
-        school: parseMapState(raw.school),
+        school: ensureSchoolCampus(parseMapState(raw.school)),
         well: parseMapState(raw.well),
         reserve: parseMapState(raw.reserve),
         forest: parseMapState(raw.forest),
@@ -2147,7 +2334,7 @@ export function parseTown(value: unknown): TownState {
       town: ensureTownNeighborhood(parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads })),
       city: ensureCityStreets(emptyMapState()),
       mall: emptyMapState(),
-      school: emptyMapState(),
+      school: ensureSchoolCampus(emptyMapState()),
       well: emptyMapState(),
       reserve: emptyMapState(),
       forest: emptyMapState(),

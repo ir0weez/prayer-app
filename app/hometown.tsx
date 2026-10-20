@@ -86,7 +86,12 @@ import {
   buildingStorageCap,
   isBuildingStorageFull,
   isRestaurantType,
-  isFoodBuildingType,
+  isStockedBuildingType,
+  stockCapForLevel,
+  stockMultiplierFor,
+  stockForBuilding,
+  STOCK_DEPLETION_PER_MIN,
+  STOCK_RESTOCK_PER_MIN,
   RESTAURANT_GATHER_CAPS,
   isGatheringTime,
   totalGatherCapacity,
@@ -232,7 +237,6 @@ import {
   workCountdownText,
   staffedSupplySites,
   anySupplySiteStaffed,
-  SUPPLY_BONUS_MULT,
   SUPPLY_RADIUS_TILES,
   WORK_KINDS,
   type WorkKind,
@@ -339,26 +343,43 @@ export function presenceMultiplierFor(
 }
 
 /**
- * Supply-chain bonus multiplier: when a villager is actively working at a
- * farm or community garden, food buildings (restaurants, groceries, bakery,
- * diner, feast halls, coffee roastery) within SUPPLY_RADIUS_TILES of the
- * staffed site earn +35%. Multiplies ON TOP of all other multipliers —
- * food buildings work normally without it; the bonus never gates income.
+ * Stock flow: each staffed farm/garden produces STOCK_RESTOCK_PER_MIN
+ * units of stock per minute, flowing to stocked buildings within
+ * SUPPLY_RADIUS_TILES (nearest first) until they are full. Mutates the
+ * provided stock record; returns true if any stock moved.
  */
-export function supplyMultiplierFor(
-  building: { x: number; y: number; type: string },
+export function restockFromSites(
+  buildings: Array<{ id: string; x: number; y: number; type: string; level?: number }>,
   sites: Array<{ x: number; y: number }>,
-): number {
-  if (sites.length === 0 || !isFoodBuildingType(building.type)) return 1;
-  for (const s of sites) {
-    if (
-      Math.abs(building.x - s.x) <= SUPPLY_RADIUS_TILES &&
-      Math.abs(building.y - s.y) <= SUPPLY_RADIUS_TILES
-    ) {
-      return SUPPLY_BONUS_MULT;
+  stock: Record<string, number>,
+  minutes: number,
+): boolean {
+  if (sites.length === 0 || !Number.isFinite(minutes) || minutes <= 0) return false;
+  let moved = false;
+  for (const site of sites) {
+    let remaining = STOCK_RESTOCK_PER_MIN * minutes;
+    const targets = buildings
+      .filter((tb) => isStockedBuildingType(tb.type))
+      .map((tb) => ({
+        tb,
+        d: Math.max(Math.abs(tb.x - site.x), Math.abs(tb.y - site.y)),
+      }))
+      .filter(({ d }) => d <= SUPPLY_RADIUS_TILES)
+      .sort((a, z) => a.d - z.d);
+    for (const { tb } of targets) {
+      if (remaining <= 0) break;
+      const level = tb.level || 1;
+      const cap = stockCapForLevel(level);
+      const cur = stockForBuilding(stock, tb.id, level);
+      const room = cap - cur;
+      if (room <= 0) continue;
+      const give = Math.min(room, remaining);
+      stock[tb.id] = cur + give;
+      remaining -= give;
+      moved = true;
     }
   }
-  return 1;
+  return moved;
 }
 
 const TOWNSFOLK = ["🧑", "👩", "🧓", "👴", "👦", "👧", "🧔", "👵"];
@@ -2696,6 +2717,8 @@ export default function HometownScreen() {
   // Villager work assignments — Jonathan sends lights on timed shifts.
   const [workState, setWorkState] = useState<VillagerWorkState | null>(null);
   const workStateRef = useRef<VillagerWorkState | null>(null);
+  /** Last live-tick timestamp — paces farm/garden stock restocking. */
+  const lastStockFlowRef = useRef<number>(Date.now());
   const [workPickerFor, setWorkPickerFor] = useState<{ id: string; name: string } | null>(null);
   const [workPickerStep, setWorkPickerStep] = useState<"kind" | "recipient">("kind");
   const [workPickerKind, setWorkPickerKind] = useState<WorkKind | null>(null);
@@ -2706,13 +2729,6 @@ export default function HometownScreen() {
 
   // The active map's state (all grid logic operates on this)
   const map: MapState = town.maps[activeMap];
-
-  // Supply chain (render): staffed farms/gardens on the active map, so food
-  // buildings in range can show the green "supplied" badge.
-  const renderSupplySites = useMemo(
-    () => (workState ? staffedSupplySites(workState.assignments, map.buildings) : []),
-    [workState, map]
-  );
 
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
@@ -3617,14 +3633,9 @@ export default function HometownScreen() {
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
-        // Supply chain (time away): villagers who were on the clock at a farm
-        // or garden during the away window supplied nearby food buildings.
-        // workStateRef is normally set by the work-load effect; fall back to a
-        // direct load so the catch-up accrual sees it too.
-        let awayWorkAssignments: VillagerWorkAssignment[] = workStateRef.current?.assignments ?? [];
-        if (!workStateRef.current) {
-          try { awayWorkAssignments = (await loadVillagerWorkState()).assignments; } catch {}
-        }
+        // Stock (time away): stocked buildings burned stock while earning
+        // during the away window; deplete by the same per-minute rate.
+        const stockRecord: Record<string, number> = { ...(t.stockByBuilding ?? {}) };
         for (const id of TOWN_MAP_IDS) {
           const m = newMaps[id];
           const updatedBuildings = m.buildings.map(b => {
@@ -3659,19 +3670,23 @@ export default function HometownScreen() {
               const perMinuteXP = rate ? rate.xp : 0;
               // Presence gate (time away): scale by prayed count proxy.
               const presenceMult = presenceMultiplierFor(b, [], prayedCount, false);
-              // Supply bonus (time away): a farm/garden shift whose end time
-              // overlapped this building's away window supplies it (+35%).
-              const supplyMult = earnsCoins
-                ? supplyMultiplierFor(
-                    b,
-                    staffedSupplySites(
-                      awayWorkAssignments.filter((a) => a.endsAt > lastTick),
-                      m.buildings
-                    )
-                  )
-                : 1;
+              // Stock (time away): while it was earning, a stocked building
+              // burned stock at the live per-minute rate, capped by the
+              // stock on hand. Full shelves boost income up to +50%; empty
+              // shelves still earn the regular amount.
+              let stockMult = 1;
+              if (earnsCoins && presenceMult > 0 && isStockedBuildingType(b.type)) {
+                const level = b.level || 1;
+                const cap = stockCapForLevel(level);
+                const before = stockForBuilding(stockRecord, b.id, level);
+                stockMult = stockMultiplierFor(before, cap);
+                stockRecord[b.id] = Math.max(
+                  0,
+                  before - STOCK_DEPLETION_PER_MIN * minutesElapsed
+                );
+              }
               const add = earnsCoins
-                ? minutesElapsed * perMinuteCoins * presenceMult * supplyMult
+                ? minutesElapsed * perMinuteCoins * presenceMult * stockMult
                 : minutesElapsed * perMinuteXP * presenceMult;
               // ATM & vault bonuses drip as collectible coins inside the bank
               // interior instead of auto-adding to the building total.
@@ -3694,7 +3709,7 @@ export default function HometownScreen() {
           });
           newMaps[id] = { ...m, buildings: updatedBuildings };
         }
-        t = { ...t, maps: newMaps };
+        t = { ...t, maps: newMaps, stockByBuilding: stockRecord };
         // Accrue ATM/vault drips onto interior furniture (collectible inside)
         try {
           await Promise.all(dripOps.map((op) => accrueBankDrips(op.buildingId, op.minutes, op.basePerHour)));
@@ -3762,6 +3777,14 @@ export default function HometownScreen() {
   // mount; the next full open re-syncs everything exactly via lastTick.
   useEffect(() => {
     const id = setInterval(() => {
+      // Stock flow clock: whole minutes since the last interval run, used to
+      // pace farm/garden restocking (time away is handled by the catch-up).
+      const tickNow = Date.now();
+      const stockFlowMinutes = Math.max(
+        0,
+        Math.floor((tickNow - lastStockFlowRef.current) / 60000),
+      );
+      lastStockFlowRef.current = tickNow;
       // Villager missions arrive through the day — check for newly due slots.
       runVillagerMissionSpawn().catch(() => undefined);
       // Work shifts finish on their timers — mark done, celebrate, refresh countdowns.
@@ -3810,17 +3833,24 @@ export default function HometownScreen() {
       setTown((prev) => {
         const now = Date.now();
         const newMaps = { ...prev.maps };
+        const nextStock: Record<string, number> = { ...(prev.stockByBuilding ?? {}) };
         let changed = false;
+        let stockChanged = false;
         for (const mapId of TOWN_MAP_IDS) {
           const m = newMaps[mapId];
           if (!m) continue;
           // Live villager positions for presence-gated income.
           const positions = mapId === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
-          // Live supply chain: staffed farms/gardens on this map boost nearby
-          // food buildings (+35%, multiplicative with everything else).
+          // Stock flow (live): staffed farms/gardens on this map restock
+          // stocked buildings within range.
           const liveSites = workStateRef.current
             ? staffedSupplySites(workStateRef.current.assignments, m.buildings)
             : [];
+          if (liveSites.length > 0 && stockFlowMinutes > 0) {
+            if (restockFromSites(m.buildings, liveSites, nextStock, stockFlowMinutes)) {
+              stockChanged = true;
+            }
+          }
           const updatedBuildings = m.buildings.map((b) => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
             const minutesElapsed = Math.floor((now - lastTick) / 60000);
@@ -3836,8 +3866,21 @@ export default function HometownScreen() {
               return b.lastTick ? b : { ...b, lastTick: new Date(now).toISOString() };
             }
             changed = true;
-            const supplyMult = supplyMultiplierFor(b, liveSites);
-            const add = minutesElapsed * perMin * presenceMult * supplyMult;
+            // Stock: stocked buildings burn stock while earning; the stock
+            // on hand boosts income (full = +50%, empty = regular rate).
+            let stockMult = 1;
+            if (isStockedBuildingType(b.type)) {
+              const level = b.level || 1;
+              const cap = stockCapForLevel(level);
+              const before = stockForBuilding(nextStock, b.id, level);
+              stockMult = stockMultiplierFor(before, cap);
+              const after = Math.max(0, before - STOCK_DEPLETION_PER_MIN * minutesElapsed);
+              if (after !== before) {
+                nextStock[b.id] = after;
+                stockChanged = true;
+              }
+            }
+            const add = minutesElapsed * perMin * presenceMult * stockMult;
             return {
               ...b,
               accumulated: Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100,
@@ -3846,8 +3889,8 @@ export default function HometownScreen() {
           });
           newMaps[mapId] = { ...m, buildings: updatedBuildings };
         }
-        if (!changed) return prev;
-        const next = { ...prev, maps: newMaps };
+        if (!changed && !stockChanged) return prev;
+        const next = { ...prev, maps: newMaps, stockByBuilding: nextStock };
         saveTown(next);
         return next;
       });
@@ -5761,13 +5804,21 @@ export default function HometownScreen() {
             const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
             const earnsCoins = effectiveIncomeFor(b) > 0;
             const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-            // Supply-chain indicator: small green tag when a staffed farm or
-            // garden boosts this food building (+35%). Distinct from the grey
-            // presence badge — this one means bonus income is flowing.
-            const supplied = supplyMultiplierFor(b, renderSupplySites) > 1;
-            const supplyBadge = supplied ? (
+            // Stock indicator: a quiet pill showing the stocked level of
+            // food/retail buildings. Empty shelves are a gentle hint, not a
+            // warning — the building still earns its regular income.
+            const stockedType = isStockedBuildingType(b.type);
+            const stockCap = stockedType ? stockCapForLevel(b.level || 1) : 0;
+            const stockNow = stockedType
+              ? stockForBuilding(town.stockByBuilding, b.id, b.level || 1)
+              : 0;
+            const stockPct = stockedType && stockCap > 0
+              ? Math.round((stockNow / stockCap) * 100)
+              : 0;
+            const stockEmpty = stockedType && stockNow <= 0;
+            const stockBadge = stockedType ? (
               <View
-                key={`supply-${b.id}`}
+                key={`stock-${b.id}`}
                 pointerEvents="none"
                 style={{
                   position: "absolute",
@@ -5781,20 +5832,33 @@ export default function HometownScreen() {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    backgroundColor: "#DCFCE7",
+                    backgroundColor: stockEmpty ? "#F3F4F6" : stockPct < 50 ? "#FEF3C7" : "#DCFCE7",
                     borderRadius: 10,
                     paddingHorizontal: 6,
                     paddingVertical: 2,
                     borderWidth: 1,
-                    borderColor: "#86EFAC",
+                    borderColor: stockEmpty ? "#E5E7EB" : stockPct < 50 ? "#FCD34D" : "#86EFAC",
                   }}
                 >
-                  <MaterialIcons name="agriculture" size={11} color="#166534" />
-                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#166534", marginLeft: 2 }}>+35%</Text>
+                  <MaterialIcons
+                    name="inventory"
+                    size={11}
+                    color={stockEmpty ? "#6B7280" : stockPct < 50 ? "#92400E" : "#166534"}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 9,
+                      fontWeight: "800",
+                      color: stockEmpty ? "#6B7280" : stockPct < 50 ? "#92400E" : "#166534",
+                      marginLeft: 2,
+                    }}
+                  >
+                    {stockEmpty ? "restock" : `${stockPct}%`}
+                  </Text>
                 </View>
               </View>
             ) : null;
-            if (!earnsCoins && !earnsXP) return supplyBadge;
+            if (!earnsCoins && !earnsXP) return stockBadge;
             // Presence indicator: dimmed person icon when no villagers are nearby
             // (building isn't earning). Only for income buildings with nothing banked.
             const positions = activeMap === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
@@ -5803,10 +5867,10 @@ export default function HometownScreen() {
             // Only show the collectible once something has accumulated
             if (!(b.accumulated && b.accumulated > 0)) {
               // Show quiet indicator for empty earning buildings
-              if (!isQuiet) return supplyBadge;
+              if (!isQuiet) return stockBadge;
               return (
                 <React.Fragment key={`overlay-${b.id}`}>
-                  {supplyBadge}
+                  {stockBadge}
                 <View
                   key={`quiet-${b.id}`}
                   pointerEvents="none"
@@ -5829,7 +5893,7 @@ export default function HometownScreen() {
             }
             return (
               <React.Fragment key={`overlay-${b.id}`}>
-                {supplyBadge}
+                {stockBadge}
               <View
                 key={`coin-${b.id}`}
                 pointerEvents="box-none"
@@ -6378,6 +6442,42 @@ export default function HometownScreen() {
                       </View>
                     );
                   })()}
+                  {isStockedBuildingType(b.type) && (() => {
+                    const cap = stockCapForLevel(level);
+                    const stock = stockForBuilding(town.stockByBuilding, b.id, level);
+                    const ratio = cap > 0 ? Math.min(1, stock / cap) : 0;
+                    const empty = stock <= 0;
+                    return (
+                      <View style={{ marginBottom: 12 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+                          <MaterialIcons name="inventory" size={14} color={pt.subtext} />
+                          <Text style={{ fontSize: 13, color: pt.subtext, fontWeight: "600", marginLeft: 4 }}>
+                            Stock: {Math.round(stock)}/{cap}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: pt.subtext, marginLeft: 6 }}>
+                            {empty
+                              ? "regular income"
+                              : `+${Math.round(ratio * 50)}% income while stocked`}
+                          </Text>
+                        </View>
+                        <View style={{ height: 6, backgroundColor: pt.bg, borderRadius: 3, overflow: "hidden" }}>
+                          <View
+                            style={{
+                              height: 6,
+                              width: `${ratio * 100}%`,
+                              backgroundColor: empty ? "#D1D5DB" : ratio < 0.5 ? "#F59E0B" : "#22C55E",
+                              borderRadius: 3,
+                            }}
+                          />
+                        </View>
+                        <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
+                          {empty
+                            ? "Shelves are empty — staff a nearby farm or garden to restock."
+                            : "Staff a nearby farm or garden to keep the shelves full."}
+                        </Text>
+                      </View>
+                    );
+                  })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
                       🙏 {prayedToday} prayed for today (+{(prayedToday * CHURCH_PRAYER_COINS_PER_HOUR).toFixed(2)} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
@@ -6716,16 +6816,17 @@ export default function HometownScreen() {
                   </View>
                 );
               })()}
-              {/* Supply chain: staffed farm/garden boosts nearby food buildings */}
+              {/* Stock: staffed farms/gardens keep nearby shops stocked;
+                  well-stocked shops earn more (per-building, not global). */}
               {workState && anySupplySiteStaffed(workState.assignments) ? (
                 <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" }}>
-                  <MaterialIcons name="agriculture" size={20} color="#166534" />
+                  <MaterialIcons name="inventory" size={20} color="#166534" />
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Farm supply</Text>
-                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Food buildings near a staffed farm or garden</Text>
+                    <Text style={{ fontSize: 15, color: "#1F2937" }}>Stocked shelves</Text>
+                    <Text style={{ fontSize: 12, color: "#6B7280" }}>Well-stocked shops earn up to +50% — staff a farm or garden to restock</Text>
                   </View>
                   <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E" }}>
-                    +{Math.round((SUPPLY_BONUS_MULT - 1) * 100)}%
+                    up to +50%
                   </Text>
                 </View>
               ) : null}

@@ -655,6 +655,67 @@ export function isFoodBuildingType(type: BuildingType | string): boolean {
   return (FOOD_BUILDING_TYPES as ReadonlySet<string>).has(type);
 }
 
+// ---- Stock: stocked shops hold inventory; staffed farms & gardens restock ----
+
+/**
+ * Stock capacities by upgrade level — bigger shops hold more.
+ * (Levels 4–5 keep growing for the few buildings that reach them.)
+ */
+export const STOCK_CAP_BY_LEVEL: Record<number, number> = {
+  1: 40,
+  2: 90,
+  3: 160,
+  4: 240,
+  5: 330,
+};
+
+export function stockCapForLevel(level: number): number {
+  const lv = Math.max(1, Math.floor(level) || 1);
+  return STOCK_CAP_BY_LEVEL[lv] ?? STOCK_CAP_BY_LEVEL[3];
+}
+
+/** Units of stock a stocked building burns per minute while it is earning. */
+export const STOCK_DEPLETION_PER_MIN = 0.6;
+
+/** Units of stock one staffed farm/garden produces per minute, shared by
+ *  the stocked buildings in range (nearest first). */
+export const STOCK_RESTOCK_PER_MIN = 2;
+
+/** Retail building types that hold stock on top of the food set. */
+const STOCKED_RETAIL_TYPES: ReadonlySet<string> = new Set(["shop", "department-store"]);
+
+/**
+ * Buildings that hold stock: every food type (restaurants, groceries,
+ * bakery, diner, feast halls, coffee roastery) plus general retail.
+ */
+export function isStockedBuildingType(type: BuildingType | string): boolean {
+  return isFoodBuildingType(type) || STOCKED_RETAIL_TYPES.has(type);
+}
+
+/**
+ * Income multiplier from the stock on hand: full shelves = +50%,
+ * empty shelves = the regular 1.0× — stock is a bonus, never a gate.
+ */
+export function stockMultiplierFor(stock: number, cap: number): number {
+  if (!Number.isFinite(stock) || !Number.isFinite(cap) || cap <= 0) return 1;
+  const ratio = Math.min(1, Math.max(0, stock / cap));
+  return 1 + 0.5 * ratio;
+}
+
+/**
+ * Current stock for a building. Untracked buildings (new placements and
+ * older saved games) start at half capacity.
+ */
+export function stockForBuilding(
+  stockByBuilding: Record<string, number> | undefined,
+  buildingId: string,
+  level: number,
+): number {
+  const v = stockByBuilding?.[buildingId];
+  if (typeof v === "number" && Number.isFinite(v)) return Math.max(0, v);
+  return stockCapForLevel(level) / 2;
+}
+
 /** Fixed upgrade costs for restaurants: L1 purchase is the plot cost (300c). */
 export const RESTAURANT_UPGRADE_COSTS: Record<number, number> = { 2: 500, 3: 800 };
 
@@ -1751,6 +1812,9 @@ export type MapState = {
 export type TownState = {
   maps: Record<TownMapId, MapState>;
   lastIncomeDate: string | null;
+  /** Stock on hand per building id (only stocked building types use it).
+   *  Optional so older saved games load cleanly — missing = half cap. */
+  stockByBuilding?: Record<string, number>;
 };
 
 export const TOWN_GRID_SIZE = 10;
@@ -1787,6 +1851,7 @@ export function emptyTownState(): TownState {
       river: emptyMapState(),
     },
     lastIncomeDate: null,
+    stockByBuilding: {},
   };
 }
 

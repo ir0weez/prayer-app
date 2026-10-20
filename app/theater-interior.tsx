@@ -39,6 +39,10 @@ import { PawnPreview } from "@/components/pawn-preview";
 import { GentleBob, SoftPulse, FigureName, WatchingFigure, pickPeople } from "@/components/activity-figures";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
+import { PopcornGame } from "@/components/popcorn-game";
+import { RhythmGame } from "@/components/rhythm-game";
+import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { MINI_GAME_CAPS, playsLeftToday, recordPlay } from "@/lib/mini-games";
 
 const BG = "#141021"; // night theater
 const CARD = "#221B36";
@@ -657,6 +661,15 @@ export default function TheaterInteriorScreen() {
   const [activity, setActivity] = useState<{ title: string; notes?: string } | null>(null);
   const [lastShow, setLastShow] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [popcornPlaysLeft, setPopcornPlaysLeft] = useState<number | null>(null);
+  const [playingPopcorn, setPlayingPopcorn] = useState(false);
+  const [rhythmPlaysLeft, setRhythmPlaysLeft] = useState<number | null>(null);
+  const [playingRhythm, setPlayingRhythm] = useState(false);
+
+  useEffect(() => {
+    playsLeftToday("popcorn").then(setPopcornPlaysLeft).catch(() => setPopcornPlaysLeft(0));
+    playsLeftToday("rhythm").then(setRhythmPlaysLeft).catch(() => setRhythmPlaysLeft(0));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -698,6 +711,24 @@ export default function TheaterInteriorScreen() {
       return next;
     });
   }, []);
+
+  const handlePopcornComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-popcorn-${Date.now()}`).catch(() => undefined);
+    recordPlay("popcorn").then(setPopcornPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
+
+  const handleRhythmComplete = (raw: MiniGameReward): MiniGameReward => {
+    const c = scaledCoins(raw.coins);
+    const xp = scaledXP(raw.xp);
+    if (c > 0) addCoins(c);
+    if (xp > 0) awardCustomXP(xp, `minigame-rhythm-${Date.now()}`).catch(() => undefined);
+    recordPlay("rhythm").then(setRhythmPlaysLeft).catch(() => undefined);
+    return { coins: c, xp };
+  };
 
   const theme: MovieThemeKind = movieThemeForTitle(activity?.title ?? "", activity?.notes);
   const level = Math.min(Math.max(building?.level || 1, 1), 3);
@@ -855,6 +886,38 @@ export default function TheaterInteriorScreen() {
             : level >= 2 ? "A bigger stage, more voices — the whole city seems to lean in."
             : "A simple stage, honest music. The villagers gather close."}
         </Text>
+
+        {building?.type === "amphitheater" ? (
+          <>
+            <PlayCard
+              icon="music-note"
+              title="Play: Rhythm of Worship"
+              blurb="Golden notes drift down to a 90 BPM heartbeat. Tap each lane as its note crosses the ring — the song is the offering."
+              playsLeft={rhythmPlaysLeft}
+              cap={MINI_GAME_CAPS.rhythm}
+              accent={GOLD}
+              onPlay={() => setPlayingRhythm(true)}
+            />
+            {playingRhythm && (
+              <RhythmGame accent={GOLD} onComplete={handleRhythmComplete} onExit={() => setPlayingRhythm(false)} />
+            )}
+          </>
+        ) : (
+          <>
+            <PlayCard
+              icon="local-movies"
+              title="Play: Popcorn Catch"
+              blurb="Kernels rain for 45 seconds — slide the bucket and catch the golden ones. The black ones are burnt; let them fall."
+              playsLeft={popcornPlaysLeft}
+              cap={MINI_GAME_CAPS.popcorn}
+              accent={GOLD}
+              onPlay={() => setPlayingPopcorn(true)}
+            />
+            {playingPopcorn && (
+              <PopcornGame accent={GOLD} onComplete={handlePopcornComplete} onExit={() => setPlayingPopcorn(false)} />
+            )}
+          </>
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Dimming the lights…</Text>}
       </ScrollView>

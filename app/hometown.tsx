@@ -464,13 +464,13 @@ function tallBlock(opts: {
       {opts.extraBottom}
       <View style={{ width: w, height: H * 0.94 }}>
         {/* roof cap */}
-        <View style={{ position: "absolute", top: 0, left: -3, width: w + 6, height: roofH, backgroundColor: roof, borderRadius: 3, zIndex: 2 }}>
+        <View style={{ position: "absolute", top: 0, left: -3, width: w + 6, height: roofH, backgroundColor: roof, borderRadius: 3, zIndex: 2, borderWidth: 1.5, borderColor: side }}>
           <View style={{ height: 2, backgroundColor: "#FFFFFF", opacity: 0.35, borderRadius: 1 }} />
         </View>
         {opts.extraTop}
         <View style={{ flex: 1, flexDirection: "row", paddingTop: roofH + 2 }}>
-          {/* front face */}
-          <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 5, overflow: "hidden", alignItems: "center", paddingTop: opts.topPad ?? H * 0.04 }}>
+          {/* front face — gentle outline so towers read in the storybook style */}
+          <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 5, overflow: "hidden", alignItems: "center", paddingTop: opts.topPad ?? H * 0.04, borderWidth: 2, borderRightWidth: 0, borderColor: side }}>
             {Array.from({ length: rows }).map((_, r) => (
               <View key={r} style={{ flexDirection: "row", marginVertical: gap / 2 }}>
                 {Array.from({ length: cols }).map((_, c) => (
@@ -480,11 +480,217 @@ function tallBlock(opts: {
             ))}
           </View>
           {/* side face — darker, suggests volume */}
-          <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 5 }}>
+          <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 5, borderWidth: 2, borderLeftWidth: 0, borderColor: roof }}>
             <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 2, backgroundColor: "#FFFFFF", opacity: 0.22 }} />
           </View>
         </View>
       </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Storybook building kit — THE canonical map style (Jonathan's pick):
+// small front-facing storybook buildings in the manner of the church, the
+// villager cottage, and Artisans' Row — warm walls with a gentle outline, a
+// pitched roof, an arched door with a knob, framed windows with cross
+// mullions, a hanging sign medallion, and a soft ground shadow. Dressing
+// grows with level so an upgrade is visible from the street:
+//   L1 modest — sign medallion, one window, plain door and roof.
+//   L2 grown  — second window, plant pots by the door, door glass.
+//   L3 grand  — gold trim, flower boxes + pots in bloom, banners, gilded roof.
+// Every flat "blob" / glyph-plaque case in BuildingArt renders through this
+// kit (or hand-composes the same pieces) so a whole map reads in ONE style.
+// ---------------------------------------------------------------------------
+
+const STORY_GOLD = "#C9963C";
+
+function storybook(opts: {
+  s: number; H: number; lv: number;
+  lit: (i: number, j: number) => boolean; LIT: string;
+  wall: string; outline: string; roof: string;
+  w?: number; bodyH?: number;
+  roofStyle?: "gable" | "flat" | "awning";
+  awning?: [string, string];
+  doorColor?: string; doorAt?: "center" | "right"; doorWide?: boolean;
+  glass?: string; warm?: boolean;
+  sign?: React.ReactNode; signBg?: string;
+  display?: React.ReactNode; displayGlass?: string;
+  chimney?: string;
+  banner?: string;
+  upperWin?: boolean;
+  trim?: string;
+  seed?: number;
+  front?: React.ReactNode;
+}) {
+  const { s, H, lv } = opts;
+  const w = opts.w ?? s * 0.88;
+  const bodyH = opts.bodyH ?? H * 0.5;
+  const roofStyle = opts.roofStyle ?? "gable";
+  const trim = opts.trim ?? STORY_GOLD;
+  const seed = opts.seed ?? 0;
+  const bodyLeft = (s - w) / 2;
+  const roofH = roofStyle === "gable" ? w * 0.22 : Math.max(6, H * 0.05);
+  const glassFor = (j: number) => (opts.warm || opts.lit(seed, j) ? opts.LIT : (opts.glass ?? "#BFDBFE"));
+  const doorW = s * (opts.doorWide ? 0.26 : 0.17);
+  const doorH = bodyH * 0.48;
+  const doorAt = opts.doorAt ?? (opts.display ? "right" : "center");
+  const doorCenterBody = doorAt === "right" ? w - s * 0.06 - doorW / 2 : w / 2;
+  const winW = s * 0.15;
+  const winH = bodyH * 0.3;
+  const winTop = bodyH * 0.3;
+  const med = s * 0.19;
+  const awningH = opts.awning ? s * 0.1 : 0;
+
+  const win = (j: number, key: string) => (
+    <View key={key} style={{ width: winW, height: winH, backgroundColor: glassFor(j), borderWidth: 1.6, borderColor: opts.outline, borderTopLeftRadius: winW / 2, borderTopRightRadius: winW / 2, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, overflow: "hidden" }}>
+      <View style={{ position: "absolute", left: winW / 2 - 0.8, top: 0, bottom: 0, width: 1.6, backgroundColor: opts.outline, opacity: 0.55 }} />
+      <View style={{ position: "absolute", top: winH / 2 - 0.8, left: 0, right: 0, height: 1.6, backgroundColor: opts.outline, opacity: 0.55 }} />
+    </View>
+  );
+  const flowerBox = (key: string) => (
+    <View key={key} style={{ width: winW + 4, height: Math.max(4, s * 0.05), backgroundColor: "#2F6B31", borderRadius: 2, borderWidth: 0.8, borderColor: "#1E4620", flexDirection: "row", justifyContent: "space-around", alignItems: "center" }}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={{ width: Math.max(3, s * 0.035), height: Math.max(3, s * 0.035), borderRadius: Math.max(1.5, s * 0.018), backgroundColor: i % 2 ? "#F9A8D4" : "#F472B6" }} />
+      ))}
+    </View>
+  );
+  const pot = (key: string) => (
+    <View key={key} style={{ alignItems: "center" }}>
+      <View style={{ width: s * 0.1, height: s * 0.055, backgroundColor: "#3E8E41", borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, alignItems: "center", justifyContent: "center" }}>
+        {lv >= 3 && <View style={{ width: Math.max(3, s * 0.04), height: Math.max(3, s * 0.04), borderRadius: Math.max(1.5, s * 0.02), backgroundColor: "#F472B6", borderWidth: 0.8, borderColor: "#FDE68A" }} />}
+      </View>
+      <View style={{ width: s * 0.085, height: s * 0.06, backgroundColor: "#B45309", borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderWidth: 1, borderColor: "#7A3606", marginTop: -1 }} />
+    </View>
+  );
+
+  return (
+    <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+      {/* soft ground shadow */}
+      <View style={{ position: "absolute", bottom: 0, width: w * 1.1, height: Math.max(5, s * 0.05), backgroundColor: "#000000", opacity: 0.13, borderRadius: 999 }} />
+      {/* chimney (hearth buildings — the smoke emitter anchors at the box top) */}
+      {opts.chimney && (
+        <View style={{ position: "absolute", bottom: bodyH + roofH * 0.2, right: bodyLeft + w * 0.1, width: s * 0.09, height: H * 0.2, backgroundColor: opts.chimney, borderWidth: 1.5, borderColor: opts.outline, borderRadius: 2, zIndex: 0 }}>
+          <View style={{ position: "absolute", top: -3, left: -2, right: -2, height: 5, backgroundColor: opts.chimney, borderWidth: 1.5, borderColor: opts.outline, borderRadius: 2 }} />
+        </View>
+      )}
+      {/* roof */}
+      {roofStyle === "gable" ? (
+        <Svg width={w + 6} height={roofH} viewBox="0 0 100 22" style={{ marginBottom: -2, zIndex: 1 }}>
+          <Polygon points="3,22 50,3 97,22" fill={opts.roof} stroke={opts.outline} strokeWidth={2.5} />
+          {lv >= 3 && <Polygon points="25,22 50,10 75,22" fill={trim} opacity={0.45} />}
+        </Svg>
+      ) : (
+        <View style={{ width: w + 4, height: roofH, backgroundColor: opts.roof, borderWidth: 2, borderColor: opts.outline, borderRadius: 3, marginBottom: -2, zIndex: 1 }}>
+          <View style={{ height: 2, backgroundColor: "#FFFFFF", opacity: 0.3, borderRadius: 1 }} />
+        </View>
+      )}
+      {/* body */}
+      <View style={{ width: w, height: bodyH, backgroundColor: opts.wall, borderWidth: 2, borderColor: opts.outline, borderBottomLeftRadius: 5, borderBottomRightRadius: 5, zIndex: 1 }}>
+        {/* side shade — a whisper of volume on the right edge */}
+        <View style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: Math.max(4, w * 0.11), backgroundColor: "#000000", opacity: 0.1, borderBottomRightRadius: 5 }} />
+        {/* striped awning over the storefront */}
+        {opts.awning && (
+          <View style={{ position: "absolute", top: 0, left: -2, right: -2, height: awningH, flexDirection: "row", overflow: "hidden", borderWidth: 1.5, borderColor: opts.outline, borderTopLeftRadius: 4, borderTopRightRadius: 4, zIndex: 3 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <View key={i} style={{ flex: 1, backgroundColor: i % 2 ? opts.awning![1] : opts.awning![0] }} />
+            ))}
+          </View>
+        )}
+        {/* L3 gold trim under the eaves */}
+        {lv >= 3 && (
+          <View style={{ position: "absolute", top: awningH + 3, left: 5, right: 5, height: 3, backgroundColor: trim, borderRadius: 2, opacity: 0.85 }} />
+        )}
+        {/* hanging sign medallion — the building's identity */}
+        {opts.sign && (
+          <View style={{
+            position: "absolute", zIndex: 4, alignItems: "center", justifyContent: "center",
+            width: med, height: med, borderRadius: med / 2,
+            backgroundColor: opts.signBg ?? "#FFF8E7",
+            borderWidth: 2, borderColor: lv >= 3 ? trim : opts.outline,
+            ...(opts.upperWin
+              ? { top: s * 0.03, left: s * 0.05 }
+              : { top: -s * 0.02, left: w / 2 - med / 2 }),
+          }}>
+            {opts.sign}
+          </View>
+        )}
+        {/* upper window pair (taller homes / halls) */}
+        {opts.upperWin && (
+          <View style={{ position: "absolute", top: bodyH * 0.1, left: 0, right: 0, flexDirection: "row", justifyContent: "center" }}>
+            {[3, 4].map((j) => (
+              <View key={j} style={{ marginHorizontal: s * 0.05 }}>
+                {win(j, `up${j}`)}
+              </View>
+            ))}
+          </View>
+        )}
+        {/* side windows — one at L1, a pair from L2 */}
+        {!opts.display && (
+          <>
+            <View style={{ position: "absolute", left: s * 0.06, top: winTop }}>{win(0, "wl")}</View>
+            {lv >= 3 && <View style={{ position: "absolute", left: s * 0.06 - 2, top: winTop + winH + 2 }}>{flowerBox("fl")}</View>}
+            {lv >= 2 && (
+              <>
+                <View style={{ position: "absolute", right: s * 0.06, top: winTop }}>{win(1, "wr")}</View>
+                {lv >= 3 && <View style={{ position: "absolute", right: s * 0.06 - 2, top: winTop + winH + 2 }}>{flowerBox("fr")}</View>}
+              </>
+            )}
+          </>
+        )}
+        {/* wide storefront display window */}
+        {opts.display && (
+          <View style={{
+            position: "absolute", top: bodyH * 0.18, height: bodyH * 0.46,
+            left: doorAt === "right" ? s * 0.05 : w / 2 - (w * 0.66) / 2,
+            width: doorAt === "right" ? w * 0.56 : w * 0.66,
+            backgroundColor: opts.displayGlass ?? "#E8F4FA",
+            borderWidth: 2, borderColor: lv >= 3 ? trim : opts.outline,
+            borderRadius: 4, overflow: "hidden", alignItems: "center", justifyContent: "center",
+          }}>
+            <View style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1.6, marginLeft: -0.8, backgroundColor: opts.outline, opacity: 0.35 }} />
+            {opts.display}
+          </View>
+        )}
+        {/* L3 banners flanking the door */}
+        {opts.banner && lv >= 3 && !opts.display && [0, 1].map((i) => (
+          <View key={i} style={{
+            position: "absolute", top: awningH + bodyH * 0.06, height: bodyH * 0.36, width: s * 0.055,
+            left: i === 0 ? doorCenterBody - doorW / 2 - s * 0.075 : doorCenterBody + doorW / 2 + s * 0.02,
+            backgroundColor: opts.banner, borderRadius: 2, borderWidth: 1, borderColor: opts.outline,
+            alignItems: "center", paddingTop: 3,
+          }}>
+            <View style={{ width: s * 0.028, height: 2, backgroundColor: trim, marginVertical: 1.5 }} />
+            <View style={{ width: s * 0.028, height: 2, backgroundColor: trim, marginVertical: 1.5 }} />
+          </View>
+        ))}
+        {/* door — arched, with a knob and (from L2) a little glass pane */}
+        <View style={{
+          position: "absolute", bottom: 0, height: doorH, width: doorW,
+          ...(doorAt === "right" ? { right: s * 0.06 } : { left: w / 2 - doorW / 2 }),
+          backgroundColor: opts.doorColor ?? "#6B4423",
+          borderTopLeftRadius: doorW / 2, borderTopRightRadius: doorW / 2,
+          borderWidth: 1.6, borderBottomWidth: 0, borderColor: lv >= 3 ? trim : opts.outline,
+          alignItems: "center",
+        }}>
+          {lv >= 2 && (
+            <View style={{ marginTop: doorH * 0.12, width: doorW * 0.5, height: doorH * 0.3, backgroundColor: glassFor(9), borderTopLeftRadius: doorW * 0.25, borderTopRightRadius: doorW * 0.25, borderWidth: 1, borderColor: opts.outline }} />
+          )}
+          <View style={{ position: "absolute", right: 3, top: doorH * 0.55, width: 4, height: 4, borderRadius: 2, backgroundColor: "#FBBF24", borderWidth: 0.6, borderColor: "#92400E" }} />
+        </View>
+      </View>
+      {/* L3 stone step under the door */}
+      {lv >= 3 && (
+        <View style={{ position: "absolute", bottom: -1, left: bodyLeft + doorCenterBody - (doorW + s * 0.08) / 2, width: doorW + s * 0.08, height: 4.5, backgroundColor: "#D6CDBB", borderWidth: 1, borderColor: opts.outline, borderRadius: 2 }} />
+      )}
+      {/* L2+ plant pots at the base corners */}
+      {lv >= 2 && !opts.front && (
+        <>
+          <View style={{ position: "absolute", bottom: 0, left: bodyLeft + s * 0.01 }}>{pot("pl")}</View>
+          <View style={{ position: "absolute", bottom: 0, right: bodyLeft + s * 0.01 }}>{pot("pr")}</View>
+        </>
+      )}
+      {opts.front}
     </View>
   );
 }
@@ -625,70 +831,60 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
   const isLit = (i: number, j: number) => ((i * 7 + j * 13 + lv * 5) % 10) < litRatio * 10;
   const LIT = "#FDE68A";
   switch (type) {
-    case "house":
-      // L5 Mansion — grand estate with columns, gate, and fountain
-      if (lv >= 5) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.95, height: s * 0.14, backgroundColor: "#7C2D12", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
-          <View style={{ width: s * 0.98, height: s * 0.5, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#D6A85C" }} />
-          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.42 }}>
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} style={{ width: s * 0.09, height: s * 0.32, backgroundColor: "#FFFFFF", marginHorizontal: s * 0.045, borderRadius: 2, borderWidth: 1, borderColor: "#D6A85C" }} />
+    case "house": {
+      // A home that grows with its level: Cottage → House → Townhouse →
+      // Villa → Mansion, all in the storybook style (pitched roofs, framed
+      // windows, hearth chimney — the smoke emitter lives on this type).
+      const H = artH ?? s;
+      const chimney = "#A8A29E";
+      if (lv >= 5) return storybook({
+        s, H, lv, lit: isLit, LIT, seed: 5,
+        wall: "#FFFBEB", outline: "#92400E", roof: "#7C2D12",
+        w: s * 0.98, bodyH: H * 0.6, upperWin: true, chimney, doorWide: true, doorColor: "#7C2D12",
+        front: (
+          <>
+            {/* porch columns */}
+            {[0.1, 0.32, 0.62, 0.84].map((fx, i) => (
+              <View key={i} style={{ position: "absolute", bottom: 0, left: s * fx, width: s * 0.05, height: H * 0.58, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#D6A85C", borderRadius: 2 }} />
             ))}
+            {/* twin fountains */}
+            {[0, 1].map((i) => (
+              <View key={`f${i}`} style={{ position: "absolute", bottom: 1, left: i ? undefined : s * 0.01, right: i ? s * 0.01 : undefined, width: s * 0.13, height: s * 0.07, backgroundColor: "#60A5FA", borderRadius: s * 0.035, borderWidth: 1, borderColor: "#2563EB" }} />
+            ))}
+          </>
+        ),
+      });
+      if (lv >= 4) return storybook({
+        s, H, lv, lit: isLit, LIT, seed: 4,
+        wall: "#FED7AA", outline: "#9A3412", roof: "#9A3412",
+        w: s * 0.94, bodyH: H * 0.56, upperWin: true, chimney,
+        front: (
+          <View style={{ position: "absolute", bottom: H * 0.3, left: s * 0.13, width: s * 0.74, alignItems: "center" }}>
+            <View style={{ width: "100%", height: s * 0.045, backgroundColor: "#78350F", borderRadius: 2 }} />
+            <View style={{ flexDirection: "row", justifyContent: "space-between", width: "92%" }}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <View key={i} style={{ width: 2.5, height: s * 0.09, backgroundColor: "#78350F" }} />
+              ))}
+            </View>
           </View>
-          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.24 }}>
-            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FDE68A", marginHorizontal: 3, borderRadius: 2 }} />
-            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FDE68A", marginHorizontal: 3, borderRadius: 2 }} />
-          </View>
-          <View style={{ position: "absolute", bottom: s * 0.04, width: s * 0.2, height: s * 0.22, backgroundColor: "#7C2D12", borderRadius: 3 }} />
-          <View style={{ position: "absolute", bottom: s * 0.01, left: s * 0.06, width: s * 0.12, height: s * 0.1, backgroundColor: "#60A5FA", borderRadius: 6 }} />
-          <View style={{ position: "absolute", bottom: s * 0.01, right: s * 0.06, width: s * 0.12, height: s * 0.1, backgroundColor: "#60A5FA", borderRadius: 6 }} />
-        </View>
-      );
-      // L4 Villa — two stories, balcony
-      if (lv >= 4) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.16, backgroundColor: "#9A3412", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
-          <View style={{ width: s * 0.94, height: s * 0.6, backgroundColor: "#FDBA74", borderRadius: 6 }} />
-          <View style={{ position: "absolute", bottom: s * 0.38, width: s * 0.7, height: s * 0.05, backgroundColor: "#78350F", borderRadius: 2 }} />
-          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.44 }}>
-            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", marginHorizontal: 4, borderRadius: 2 }} />
-            <View style={{ width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", marginHorizontal: 4, borderRadius: 2 }} />
-          </View>
-          <View style={{ position: "absolute", bottom: s * 0.18, left: s * 0.18, width: s * 0.13, height: s * 0.13, backgroundColor: "#FFFBEB", borderRadius: 2 }} />
-          <View style={{ position: "absolute", bottom: s * 0.04, width: s * 0.18, height: s * 0.26, backgroundColor: "#78350F", borderRadius: 3 }} />
-        </View>
-      );
-      // L3 Townhouse — tall and narrow, two windows up top
-      if (lv >= 3) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.18, backgroundColor: "#991B1B", borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
-          <View style={{ width: s * 0.9, height: s * 0.55, backgroundColor: "#F59E0B", borderRadius: 6 }} />
-          <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.25 }}>
-            <View style={{ width: s * 0.15, height: s * 0.15, backgroundColor: "#FEF3C7", marginHorizontal: 4, borderRadius: 2 }} />
-            <View style={{ width: s * 0.15, height: s * 0.15, backgroundColor: "#FEF3C7", marginHorizontal: 4, borderRadius: 2 }} />
-          </View>
-          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.18, height: s * 0.28, backgroundColor: "#78350F", borderRadius: 3 }} />
-          <View style={{ position: "absolute", top: s * 0.05, right: s * 0.15, width: s * 0.08, height: s * 0.2, backgroundColor: "#78716C", borderRadius: 2 }} />
-        </View>
-      );
-      // L2 House
-      if (lv >= 2) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.75, height: s * 0.16, backgroundColor: "#B91C1C", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
-          <View style={{ width: s * 0.85, height: s * 0.52, backgroundColor: "#F59E0B", borderRadius: 5 }} />
-          <View style={{ position: "absolute", bottom: s * 0.2, left: s * 0.15, width: s * 0.14, height: s * 0.14, backgroundColor: "#FEF3C7", borderRadius: 2 }} />
-          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.18, height: s * 0.28, backgroundColor: "#78350F", borderRadius: 2 }} />
-        </View>
-      );
-      // L1 Cottage
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.7, height: s * 0.15, backgroundColor: "#DC2626", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
-          <View style={{ width: s * 0.8, height: s * 0.5, backgroundColor: "#F59E0B", borderRadius: 4 }} />
-          <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.2, height: s * 0.3, backgroundColor: "#78350F", borderRadius: 2 }} />
-        </View>
-      );
+        ),
+      });
+      if (lv >= 3) return storybook({
+        s, H, lv, lit: isLit, LIT, seed: 3,
+        wall: "#FDE9C8", outline: "#991B1B", roof: "#991B1B",
+        w: s * 0.9, bodyH: H * 0.56, upperWin: true, chimney,
+      });
+      if (lv >= 2) return storybook({
+        s, H, lv, lit: isLit, LIT, seed: 2,
+        wall: "#FDE9C8", outline: "#B45309", roof: "#B91C1C",
+        w: s * 0.88, bodyH: H * 0.5, chimney,
+      });
+      return storybook({
+        s, H, lv, lit: isLit, LIT, seed: 1,
+        wall: "#FEF3C7", outline: "#B45309", roof: "#DC2626",
+        w: s * 0.84, bodyH: H * 0.46, chimney,
+      });
+    }
     case "villager-cottage":
       // A cozy home for the prayer lights — warm cream walls, terracotta
       // roof, a glowing amber window, and a little chimney. Homes, not businesses.
@@ -716,86 +912,166 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
         </View>
       );
     case "pawn-house":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.75, height: s * 0.15, backgroundColor: "#7C3AED", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
-          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#A78BFA", borderRadius: 4 }} />
-          <View style={{ position: "absolute", bottom: s * 0.08, width: s * 0.25, height: s * 0.25, backgroundColor: "#4C1D95", borderRadius: s * 0.125 }} />
-        </View>
-      );
-    case "farm":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.3, backgroundColor: "#22C55E", borderRadius: 4 }} />
-          <View style={{ width: s * 0.5, height: s * 0.4, backgroundColor: "#DC2626", borderRadius: 4, marginTop: -s * 0.1 }} />
-          <View style={{ width: s * 0.55, height: s * 0.12, backgroundColor: "#78350F", marginTop: -s * 0.42 }} />
-        </View>
-      );
-    case "shop":
-      if (lv >= 3) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.95, height: s * 0.18, backgroundColor: "#B91C1C", borderRadius: 5 }} />
-          <View style={{ flexDirection: "row" }}>
-            {[0,1,2,3].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.08, backgroundColor: "#FCA5A5", marginHorizontal: 1 }} />)}
-          </View>
-          <View style={{ width: s * 0.95, height: s * 0.55, backgroundColor: "#1D4ED8", borderRadius: 6 }} />
-          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-            {[0,1,2].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.22, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />)}
-          </View>
-        </View>
-      );
-      if (lv >= 2) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.92, height: s * 0.16, backgroundColor: "#DC2626", borderRadius: 4 }} />
-          <View style={{ width: s * 0.92, height: s * 0.52, backgroundColor: "#2563EB", borderRadius: 5 }} />
-          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />
-            <View style={{ width: s * 0.2, height: s * 0.24, backgroundColor: "#BFDBFE", marginHorizontal: 3, borderRadius: 2 }} />
-          </View>
-        </View>
-      );
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.15, backgroundColor: "#EF4444", borderRadius: 4 }} />
-          <View style={{ width: s * 0.9, height: s * 0.5, backgroundColor: "#3B82F6", borderRadius: 4 }} />
-          <View style={{ flexDirection: "row", marginTop: s * 0.05 }}>
-            <View style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#BFDBFE", marginHorizontal: 2, borderRadius: 2 }} />
-            <View style={{ width: s * 0.2, height: s * 0.25, backgroundColor: "#BFDBFE", marginHorizontal: 2, borderRadius: 2 }} />
-          </View>
-        </View>
-      );
-    case "bakery":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#F59E0B", borderRadius: 6 }} />
-          <View style={{ width: s * 0.6, height: s * 0.15, backgroundColor: "#92400E", borderRadius: 8, marginBottom: s * 0.1 }} />
-          <View style={{ position: "absolute", top: s * 0.15, width: s * 0.3, height: s * 0.2, backgroundColor: "#FEF3C7", borderRadius: s * 0.1 }} />
-        </View>
-      );
-    case "market": {
-      // Taller market hall — pseudo-3D with side face and ground shadow.
+      // The hero's own house — violet storybook cottage with a gold star
+      // medallion and a hearth chimney (smoke emitter lives on this type).
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 6,
+        wall: "#EDE9FE", outline: "#6D28D9", roof: "#7C3AED",
+        bodyH: (artH ?? s) * 0.5, doorColor: "#4C1D95", chimney: "#A78BFA",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.11} viewBox="0 0 24 24">
+            <Polygon points="12,2.5 15,9 22,9.3 16.6,13.6 18.4,21 12,16.9 5.6,21 7.4,13.6 2,9.3 9,9" fill="#FACC15" stroke="#92400E" strokeWidth={1.2} />
+          </Svg>
+        ),
+      });
+    case "farm": {
+      // Storybook barn — red gable barn with white X-braced doors, a hay
+      // window in the gable, crop rows out front, a silo from L2, and the
+      // farmhouse chimney (the smoke emitter lives on this type).
       const H = artH ?? s;
-      const w = s * 0.95;
-      const sideW = Math.max(5, w * 0.1);
-      const bodyH = H * 0.8;
+      const w = s * 0.8;
+      const bodyH = H * 0.52;
       return (
         <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(w * 1.05)}
-          <View style={{ width: w, height: Math.max(8, H * 0.07), backgroundColor: "#0369A1", borderRadius: 4, zIndex: 2 }} />
-          <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
-            <View style={{ flex: 1, backgroundColor: "#0EA5E9", borderBottomLeftRadius: 6, alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row" }}>
-                {[0, 1, 2].map(i => (
-                  <View key={i} style={{ width: s * 0.17, height: bodyH * 0.42, backgroundColor: "#E0F2FE", marginHorizontal: 3, borderRadius: 2 }} />
+          {groundShadow(s * 0.98)}
+          {/* silo (L2+) */}
+          {lv >= 2 && (
+            <View style={{ position: "absolute", bottom: 0, right: s * 0.01, width: s * 0.16, height: H * 0.68, backgroundColor: "#D6D3D1", borderWidth: 2, borderColor: "#78716C", borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08 }}>
+              <View style={{ height: s * 0.05, backgroundColor: "#A8A29E", borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08 }} />
+              {[0.34, 0.6].map((f) => (
+                <View key={f} style={{ position: "absolute", top: H * 0.68 * f, left: 0, right: 0, height: 2, backgroundColor: "#A8A29E" }} />
+              ))}
+            </View>
+          )}
+          {/* chimney */}
+          <View style={{ position: "absolute", bottom: bodyH + w * 0.22 * 0.2, right: (s - w) / 2 + w * 0.08, width: s * 0.08, height: H * 0.18, backgroundColor: "#A8A29E", borderWidth: 1.5, borderColor: "#6E2718", borderRadius: 2, zIndex: 0 }}>
+            <View style={{ position: "absolute", top: -3, left: -2, right: -2, height: 5, backgroundColor: "#A8A29E", borderWidth: 1.5, borderColor: "#6E2718", borderRadius: 2 }} />
+          </View>
+          {/* gabled roof */}
+          <Svg width={w + 6} height={w * 0.22} viewBox="0 0 100 22" style={{ marginBottom: -2, zIndex: 1 }}>
+            <Polygon points="3,22 50,3 97,22" fill="#78716C" stroke="#6E2718" strokeWidth={2.5} />
+            {lv >= 3 && <Polygon points="25,22 50,10 75,22" fill="#C9963C" opacity={0.45} />}
+          </Svg>
+          {/* barn body */}
+          <View style={{ width: w, height: bodyH, backgroundColor: "#A63D2F", borderWidth: 2, borderColor: "#6E2718", borderBottomLeftRadius: 5, borderBottomRightRadius: 5, zIndex: 1 }}>
+            {sideShade(w, bodyH, 5)}
+            {lv >= 3 && <View style={{ position: "absolute", top: 3, left: 5, right: 5, height: 3, backgroundColor: "#C9963C", borderRadius: 2, opacity: 0.85 }} />}
+            {/* hay window in the gable */}
+            <View style={{ position: "absolute", top: bodyH * 0.08, left: w / 2 - s * 0.07, width: s * 0.14, height: s * 0.12, backgroundColor: "#FDE68A", borderWidth: 1.6, borderColor: "#6E2718", borderRadius: 2, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: s * 0.09, height: 2, backgroundColor: "#B45309" }} />
+              <View style={{ width: s * 0.05, height: 2, backgroundColor: "#B45309", marginTop: 2 }} />
+            </View>
+            {/* X-braced double doors */}
+            <View style={{ position: "absolute", bottom: 0, left: w / 2 - s * 0.17, width: s * 0.34, height: bodyH * 0.52, flexDirection: "row", borderWidth: 2, borderColor: "#F5F0E6", borderBottomWidth: 0 }}>
+              {[0, 1].map((i) => (
+                <View key={i} style={{ flex: 1, backgroundColor: "#8C3226", overflow: "hidden", borderRightWidth: i === 0 ? 2 : 0, borderColor: "#F5F0E6" }}>
+                  <View style={{ position: "absolute", top: "44%", left: -s * 0.055, width: s * 0.28, height: 3, backgroundColor: "#F5F0E6", transform: [{ rotate: "40deg" }] }} />
+                  <View style={{ position: "absolute", top: "44%", left: -s * 0.055, width: s * 0.28, height: 3, backgroundColor: "#F5F0E6", transform: [{ rotate: "-40deg" }] }} />
+                </View>
+              ))}
+            </View>
+          </View>
+          {/* crop rows out front */}
+          <View style={{ position: "absolute", bottom: -2, left: s * 0.02, width: s * 0.62, height: s * 0.15, backgroundColor: "#4D7C0F", borderRadius: 5, borderWidth: 1.5, borderColor: "#365314", overflow: "hidden", zIndex: 2 }}>
+            {[0, 1].map((r) => (
+              <View key={r} style={{ flexDirection: "row", justifyContent: "space-around", marginTop: s * 0.022 }}>
+                {[0, 1, 2, 3].map((c) => (
+                  <View key={c} style={{ width: s * 0.045, height: s * 0.045, borderRadius: s * 0.023, backgroundColor: (r + c) % 2 ? "#65A30D" : "#84CC16" }} />
                 ))}
               </View>
-            </View>
-            <View style={{ width: sideW, backgroundColor: "#0B7AB5", borderBottomRightRadius: 6 }} />
+            ))}
           </View>
-          <View style={{ width: w, height: Math.max(6, H * 0.06), backgroundColor: "#0369A1", borderRadius: 4, marginTop: 2 }} />
         </View>
       );
     }
+    case "shop":
+      // The general store — cream storybook storefront, red gable roof,
+      // striped awning, coin medallion, goods in the display window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 7,
+        wall: "#FEF3C7", outline: "#92400E", roof: "#B91C1C",
+        awning: ["#DC2626", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.11} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={8.5} fill="#FBBF24" stroke="#92400E" strokeWidth={1.8} />
+            <Circle cx={12} cy={12} r={4.5} fill="none" stroke="#92400E" strokeWidth={1.6} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#DC2626", "#F59E0B", "#16A34A"].map((c, i) => (
+              <View key={i} style={{ width: s * 0.09, height: s * (0.07 + i * 0.02), backgroundColor: c, borderRadius: 2, marginHorizontal: 2, borderWidth: 1, borderColor: "rgba(0,0,0,0.2)" }} />
+            ))}
+          </View>
+        ),
+      });
+    case "bakery":
+      // The bakery — warm storybook storefront, brown gable roof, hearth
+      // chimney (smoke emitter lives on this type), loaf medallion, and
+      // fresh loaves glowing in the display window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 8,
+        wall: "#FDEBD0", outline: "#92400E", roof: "#92400E",
+        chimney: "#A8A29E",
+        awning: ["#D97706", "#FFF7ED"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Ellipse cx={12} cy={14} rx={8.5} ry={6} fill="#E8A84C" stroke="#92400E" strokeWidth={1.6} />
+            <Line x1={8} y1={10.5} x2={10.5} y2={13.5} stroke="#92400E" strokeWidth={1.6} strokeLinecap="round" />
+            <Line x1={12} y1={9.8} x2={14.5} y2={12.8} stroke="#92400E" strokeWidth={1.6} strokeLinecap="round" />
+            <Line x1={16} y1={10.5} x2={18} y2={12.8} stroke="#92400E" strokeWidth={1.6} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
+            <View style={{ flexDirection: "row" }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ width: s * 0.11, height: s * 0.07, borderRadius: s * 0.035, backgroundColor: "#F3C96B", marginHorizontal: 2, borderWidth: 1, borderColor: "#B45309" }} />
+              ))}
+            </View>
+            <View style={{ width: s * 0.42, height: 2.5, backgroundColor: "#92400E", borderRadius: 1, marginTop: 3 }} />
+          </View>
+        ),
+      });
+    case "market":
+      // The market hall — wide storybook hall under a teal gable roof, an
+      // open stall front full of produce, crates out front from L2.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 9,
+        wall: "#E0F2FE", outline: "#0369A1", roof: "#0369A1",
+        w: s * 0.96, bodyH: (artH ?? s) * 0.52,
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.11} viewBox="0 0 24 24">
+            <Circle cx={12} cy={13.5} r={7.5} fill="#DC2626" stroke="#7F1D1D" strokeWidth={1.6} />
+            <Path d="M12 6 C12 4, 13.5 2.5, 16 2.5 C16 5, 14.5 6.5, 12 6 Z" fill="#16A34A" stroke="#14532D" strokeWidth={1.2} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
+            {[0, 1].map((r) => (
+              <View key={r} style={{ flexDirection: "row", marginVertical: 1.5 }}>
+                {["#DC2626", "#F59E0B", "#65A30D", "#F97316"].map((c, i) => (
+                  <View key={i} style={{ width: s * 0.055, height: s * 0.055, borderRadius: s * 0.028, backgroundColor: (r + i) % 2 ? c : "#FACC15", marginHorizontal: 2 }} />
+                ))}
+              </View>
+            ))}
+            <View style={{ width: s * 0.44, height: 2.5, backgroundColor: "#0369A1", borderRadius: 1, marginTop: 2 }} />
+          </View>
+        ),
+        front: lv >= 2 ? (
+          <>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ position: "absolute", bottom: 0, left: i ? undefined : s * 0.03, right: i ? s * 0.03 : undefined, width: s * 0.13, height: s * 0.09, backgroundColor: "#C69A63", borderRadius: 2, borderWidth: 1.5, borderColor: "#8A5A2B" }}>
+                <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 1.5 }}>
+                  {[0, 1, 2].map((j) => (
+                    <View key={j} style={{ width: s * 0.032, height: s * 0.032, borderRadius: s * 0.016, backgroundColor: i ? "#F59E0B" : "#DC2626", marginHorizontal: 1 }} />
+                  ))}
+                </View>
+              </View>
+            ))}
+          </>
+        ) : undefined,
+      });
     case "bank": {
       // Classical bank: pediment, tall columns, steps — pseudo-3D with side face and shadow.
       const H = artH ?? s;
@@ -1026,63 +1302,117 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
       );
     }
     case "barbershop":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
-          {/* Building */}
-          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#F3F4F6", borderRadius: 6, borderWidth: 2, borderColor: "#D1D5DB", alignItems: "center", justifyContent: "center" }}>
-            <View style={{ width: s * 0.5, height: s * 0.25, backgroundColor: "#BFDBFE", borderRadius: 4 }} />
+      // The barbershop — white storybook storefront, slate roof, scissors
+      // medallion, and the striped pole standing by the door.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 10,
+        wall: "#F8FAFC", outline: "#64748B", roof: "#475569",
+        awning: ["#3B82F6", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.11} viewBox="0 0 24 24">
+            <Circle cx={7} cy={7} r={2.8} fill="none" stroke="#475569" strokeWidth={2} />
+            <Circle cx={7} cy={17} r={2.8} fill="none" stroke="#475569" strokeWidth={2} />
+            <Line x1={9.2} y1={8.6} x2={20} y2={17.5} stroke="#475569" strokeWidth={2.2} strokeLinecap="round" />
+            <Line x1={9.2} y1={15.4} x2={20} y2={6.5} stroke="#475569" strokeWidth={2.2} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * 0.12, height: s * 0.13, backgroundColor: "#334155", borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, marginHorizontal: 3 }}>
+                <View style={{ width: s * 0.08, height: s * 0.05, backgroundColor: "#FCA5A5", borderRadius: 2, alignSelf: "center", marginTop: 2 }} />
+              </View>
+            ))}
           </View>
-          {/* Barber pole */}
-          <View style={{ position: "absolute", right: s * 0.08, top: s * 0.15, width: s * 0.14, height: s * 0.5, backgroundColor: "#FFFFFF", borderRadius: s * 0.07, borderWidth: 1, borderColor: "#D1D5DB", overflow: "hidden" }}>
-            <View style={{ position: "absolute", top: 0, width: "200%", height: "33%", backgroundColor: "#EF4444", transform: [{ rotate: "-20deg" }], marginLeft: "-50%" }} />
-            <View style={{ position: "absolute", top: "33%", left: 0, right: 0, height: "34%", backgroundColor: "#FFFFFF" }} />
-            <View style={{ position: "absolute", bottom: 0, width: "200%", height: "33%", backgroundColor: "#3B82F6", transform: [{ rotate: "-20deg" }], marginLeft: "-50%" }} />
+        ),
+        front: (
+          <View style={{ position: "absolute", bottom: s * 0.04, right: s * 0.005, width: s * 0.11, height: s * 0.4, backgroundColor: "#FFFFFF", borderRadius: s * 0.055, borderWidth: 1.5, borderColor: "#64748B", overflow: "hidden" }}>
+            <View style={{ position: "absolute", top: -s * 0.03, width: "220%", height: "38%", backgroundColor: "#EF4444", transform: [{ rotate: "-24deg" }], marginLeft: "-60%" }} />
+            <View style={{ position: "absolute", bottom: -s * 0.03, width: "220%", height: "38%", backgroundColor: "#3B82F6", transform: [{ rotate: "-24deg" }], marginLeft: "-60%" }} />
+            <View style={{ position: "absolute", top: -s * 0.05, alignSelf: "center", width: s * 0.07, height: s * 0.05, backgroundColor: "#94A3B8", borderRadius: 2 }} />
           </View>
-        </View>
-      );
+        ),
+      });
     case "clothes-shop":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FDE68A", borderRadius: 6, borderWidth: 2, borderColor: "#D97706", alignItems: "center", justifyContent: "center" }}>
-            {/* Shirt shape */}
-            <View style={{ width: s * 0.4, height: s * 0.34, backgroundColor: "#3B82F6", borderRadius: 4 }} />
-            <View style={{ position: "absolute", top: s * 0.12, left: s * 0.12, width: s * 0.14, height: s * 0.1, backgroundColor: "#3B82F6", transform: [{ rotate: "25deg" }], borderRadius: 3 }} />
-            <View style={{ position: "absolute", top: s * 0.12, right: s * 0.12, width: s * 0.14, height: s * 0.1, backgroundColor: "#3B82F6", transform: [{ rotate: "-25deg" }], borderRadius: 3 }} />
-          </View>
-        </View>
-      );
+      // The clothes shop — butter-yellow storybook storefront with a shirt
+      // medallion and a shirt on display in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 11,
+        wall: "#FEF3C7", outline: "#B45309", roof: "#D97706",
+        awning: ["#F59E0B", "#FFFBEB"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Path d="M9 4 L4 7 L6.5 11 L9 10 L9 20 L15 20 L15 10 L17.5 11 L20 7 L15 4 C15 6, 9 6, 9 4 Z" fill="#3B82F6" stroke="#1E40AF" strokeWidth={1.4} />
+          </Svg>
+        ),
+        display: (
+          <Svg width={s * 0.3} height={s * 0.24} viewBox="0 0 24 24">
+            <Path d="M9 4 L4 7 L6.5 11 L9 10 L9 20 L15 20 L15 10 L17.5 11 L20 7 L15 4 C15 6, 9 6, 9 4 Z" fill="#3B82F6" stroke="#1E40AF" strokeWidth={1.2} />
+            <Line x1={12} y1={2} x2={12} y2={4.5} stroke="#92400E" strokeWidth={1.6} />
+          </Svg>
+        ),
+      });
     case "armory":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#E5E7EB", borderRadius: 6, borderWidth: 2, borderColor: "#6B7280", alignItems: "center", justifyContent: "center" }}>
-            {/* Shield */}
-            <View style={{ width: s * 0.4, height: s * 0.44, backgroundColor: "#9CA3AF", borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06, borderBottomLeftRadius: s * 0.2, borderBottomRightRadius: s * 0.2, alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: s * 0.16, height: s * 0.16, borderRadius: s * 0.08, backgroundColor: "#6B7280" }} />
-            </View>
-          </View>
-        </View>
-      );
+      // The armory — a stone storybook stronghouse: grey walls, dark slate
+      // parapet, a shield medallion over the door.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 12,
+        wall: "#E5E7EB", outline: "#4B5563", roof: "#374151",
+        roofStyle: "flat", doorColor: "#374151",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 24 26">
+            <Path d="M12 2 L20 5 V12 C20 18, 16.5 22, 12 24 C7.5 22, 4 18, 4 12 V5 Z" fill="#9CA3AF" stroke="#4B5563" strokeWidth={1.6} />
+            <Circle cx={12} cy={12} r={3.4} fill="#6B7280" stroke="#374151" strokeWidth={1.2} />
+          </Svg>
+        ),
+        banner: "#374151",
+      });
     case "weaponsmith":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FEE2E2", borderRadius: 6, borderWidth: 2, borderColor: "#B91C1C", alignItems: "center", justifyContent: "center" }}>
-            {/* Crossed swords */}
-            <View style={{ width: s * 0.1, height: s * 0.44, backgroundColor: "#9CA3AF", borderRadius: 3, transform: [{ rotate: "35deg" }] }} />
-            <View style={{ position: "absolute", width: s * 0.1, height: s * 0.44, backgroundColor: "#9CA3AF", borderRadius: 3, transform: [{ rotate: "-35deg" }] }} />
-            <View style={{ position: "absolute", width: s * 0.3, height: s * 0.06, backgroundColor: "#78350F", borderRadius: 3 }} />
-          </View>
-        </View>
-      );
+      // The weaponsmith — a warm forge house in the storybook style: pale
+      // rose walls, deep red gable roof, crossed swords on the medallion,
+      // an anvil in the display window from L2.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 13,
+        wall: "#FDE8E8", outline: "#991B1B", roof: "#7F1D1D",
+        doorColor: "#450A0A",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Line x1={6} y1={4} x2={17} y2={17} stroke="#6B7280" strokeWidth={2.6} strokeLinecap="round" />
+            <Line x1={18} y1={4} x2={7} y2={17} stroke="#6B7280" strokeWidth={2.6} strokeLinecap="round" />
+            <Line x1={4} y1={15} x2={9} y2={20} stroke="#78350F" strokeWidth={2.4} strokeLinecap="round" />
+            <Line x1={20} y1={15} x2={15} y2={20} stroke="#78350F" strokeWidth={2.4} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: lv >= 2 ? (
+          <Svg width={s * 0.3} height={s * 0.2} viewBox="0 0 30 20">
+            <Path d="M4 6 H17 C22 6, 26 4, 28 2 L28 8 C24 10, 20 10, 17 10 L16 14 H9 L8 10 H4 Z" fill="#374151" stroke="#111827" strokeWidth={1.2} />
+            <Rect x={8} y={14} width={10} height={3.4} fill="#111827" />
+          </Svg>
+        ) : undefined,
+      });
     case "toolshop":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#B45309", alignItems: "center", justifyContent: "center" }}>
-            {/* Hammer */}
-            <View style={{ width: s * 0.34, height: s * 0.14, backgroundColor: "#6B7280", borderRadius: 4 }} />
-            <View style={{ position: "absolute", top: s * 0.3, width: s * 0.08, height: s * 0.3, backgroundColor: "#92400E", borderRadius: 3 }} />
+      // The toolshop — a honey-toned storybook workshop with a hammer
+      // medallion and tools hanging in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 14,
+        wall: "#FEF3C7", outline: "#92400E", roof: "#B45309",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Rect x={4} y={4} width={13} height={6} rx={2} fill="#6B7280" stroke="#374151" strokeWidth={1.4} />
+            <Line x1={13} y1={8} x2={18} y2={20} stroke="#92400E" strokeWidth={3} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ alignItems: "center", marginHorizontal: 3 }}>
+                <View style={{ width: s * 0.07, height: s * 0.05, backgroundColor: "#6B7280", borderRadius: 2 }} />
+                <View style={{ width: s * 0.028, height: s * 0.11, backgroundColor: "#92400E", borderRadius: 1.5 }} />
+              </View>
+            ))}
           </View>
-        </View>
-      );
+        ),
+      });
     case "bank-tower": {
       // Stacked stories — one segment per floor, grows taller with floors.
       // Pseudo-3D: side face, roof cap, ground shadow; art extends above its square.
@@ -1139,16 +1469,17 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
         const sideW = Math.max(4, w * 0.12);
         return (
           <View style={{ width: w, height: bh, marginHorizontal: s * 0.02 }}>
-            <View style={{ position: "absolute", top: 0, left: -2, width: w + 4, height: Math.max(5, H * 0.04), backgroundColor: "#713F12", borderRadius: 3, zIndex: 2 }} />
+            <View style={{ position: "absolute", top: 0, left: -2, width: w + 4, height: Math.max(5, H * 0.04), backgroundColor: "#713F12", borderRadius: 3, borderWidth: 1.5, borderColor: "#451A03", zIndex: 2 }} />
             <View style={{ flex: 1, flexDirection: "row", paddingTop: Math.max(5, H * 0.04) + 2 }}>
-              <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 4, overflow: "hidden", alignItems: "center", paddingTop: H * 0.03 }}>
+              <View style={{ flex: 1, backgroundColor: front, borderBottomLeftRadius: 4, borderWidth: 1.5, borderColor: "#451A03", borderTopWidth: 0, borderRightWidth: 0, overflow: "hidden", alignItems: "center", paddingTop: H * 0.03 }}>
                 {[0, 1, 2].map(r => (
                   <View key={r} style={{ flexDirection: "row", marginVertical: s * 0.018 }}>
                     {[0, 1].map(j => <View key={j} style={{ width: s * 0.1, height: s * 0.08, backgroundColor: isLit(r + seed, j) ? LIT : "#713F12", marginHorizontal: 2, borderRadius: 1, opacity: isLit(r + seed, j) ? 1 : 0.6 }} />)}
                   </View>
                 ))}
+                {bh > H * 0.8 && <View style={{ width: s * 0.11, height: s * 0.15, backgroundColor: "#451A03", borderTopLeftRadius: 3, borderTopRightRadius: 3, marginTop: s * 0.015, borderWidth: 1, borderColor: "#713F12" }} />}
               </View>
-              <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 4 }} />
+              <View style={{ width: sideW, backgroundColor: side, borderBottomRightRadius: 4, borderWidth: 1.5, borderColor: "#451A03", borderTopWidth: 0, borderLeftWidth: 0 }} />
             </View>
           </View>
         );
@@ -1174,16 +1505,16 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
           {groundShadow(w * 1.05)}
           {/* awning */}
           <View style={{ flexDirection: "row", zIndex: 2 }}>
-            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.09, backgroundColor: i % 2 ? "#FFFFFF" : "#16A34A" }} />)}
+            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.18, height: s * 0.09, backgroundColor: i % 2 ? "#FFFFFF" : "#16A34A", borderWidth: 1, borderColor: "#0E6B32" }} />)}
           </View>
           <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
-            <View style={{ flex: 1, backgroundColor: "#15803D", borderBottomLeftRadius: 5, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ flex: 1, backgroundColor: "#15803D", borderBottomLeftRadius: 5, borderWidth: 1.5, borderColor: "#14532D", borderTopWidth: 0, borderRightWidth: 0, alignItems: "center", justifyContent: "center" }}>
               <View style={{ flexDirection: "row" }}>
                 {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.18, backgroundColor: isLit(0, i) ? LIT : "#14532D", marginHorizontal: 4, borderRadius: 2, opacity: isLit(0, i) ? 1 : 0.7 }} />)}
               </View>
-              <View style={{ width: s * 0.18, height: s * 0.22, backgroundColor: "#052E16", borderRadius: 3, marginTop: s * 0.04 }} />
+              <View style={{ width: s * 0.18, height: s * 0.22, backgroundColor: "#052E16", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginTop: s * 0.04, borderWidth: 1, borderColor: "#14532D" }} />
             </View>
-            <View style={{ width: sideW, backgroundColor: "#0E6B32", borderBottomRightRadius: 5 }} />
+            <View style={{ width: sideW, backgroundColor: "#0E6B32", borderBottomRightRadius: 5, borderWidth: 1.5, borderColor: "#14532D", borderTopWidth: 0, borderLeftWidth: 0 }} />
           </View>
         </View>
       );
@@ -1204,321 +1535,445 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
             </View>
           </View>
           <View style={{ width: w, height: bodyH, flexDirection: "row" }}>
-            <View style={{ flex: 1, backgroundColor: "#7C2D12", borderBottomLeftRadius: 5, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.05 }}>
+            <View style={{ flex: 1, backgroundColor: "#7C2D12", borderBottomLeftRadius: 5, borderWidth: 1.5, borderColor: "#451A03", borderTopWidth: 0, borderRightWidth: 0, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.05 }}>
               <View style={{ flexDirection: "row" }}>
-                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4 }} />
-                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginLeft: 3 }} />
+                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, borderWidth: 1, borderColor: "#451A03", borderBottomWidth: 0 }} />
+                <View style={{ width: s * 0.28, height: bodyH * 0.55, backgroundColor: "#991B1B", borderTopLeftRadius: 4, borderTopRightRadius: 4, marginLeft: 3, borderWidth: 1, borderColor: "#451A03", borderBottomWidth: 0 }} />
               </View>
             </View>
-            <View style={{ width: sideW, backgroundColor: "#5F220D", borderBottomRightRadius: 5 }} />
+            <View style={{ width: sideW, backgroundColor: "#5F220D", borderBottomRightRadius: 5, borderWidth: 1.5, borderColor: "#451A03", borderTopWidth: 0, borderLeftWidth: 0 }} />
           </View>
         </View>
       );
     }
     case "food-court":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.55, backgroundColor: "#F97316", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: s * 0.32 }}>🍔</Text>
-          </View>
-          <View style={{ width: s * 0.9, height: s * 0.1, backgroundColor: "#9A3412", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-    case "bookstore":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#92400E", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: s * 0.32 }}>📚</Text>
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.1, backgroundColor: "#451A03", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-    case "arcade":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.6, backgroundColor: "#4C1D95", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: s * 0.32 }}>🕹️</Text>
-            <View style={{ flexDirection: "row", marginTop: 2 }}>
-              {["#F0ABFC", "#67E8F9", "#FDE68A"].map((c, i) => <View key={i} style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: c, marginHorizontal: 2 }} />)}
-            </View>
-          </View>
-        </View>
-      );
-    case "cinema":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.14, backgroundColor: "#FBBF24", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: s * 0.09, fontWeight: "800", color: "#78350F" }}>CINEMA</Text>
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.5, backgroundColor: "#1F2937", borderRadius: 5, alignItems: "center", justifyContent: "center" }}>
-            <View style={{ width: s * 0.5, height: s * 0.28, backgroundColor: "#E5E7EB", borderRadius: 3 }} />
-          </View>
-        </View>
-      );
-    case "library":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.6, backgroundColor: "#0F766E", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontSize: s * 0.32 }}>📖</Text>
-          </View>
-          <View style={{ width: s * 0.9, height: s * 0.1, backgroundColor: "#134E4A", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-    case "classroom":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.6, backgroundColor: "#15803D", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            <View style={{ width: s * 0.55, height: s * 0.3, backgroundColor: "#166534", borderRadius: 3, borderWidth: 2, borderColor: "#BBF7D0", alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: s * 0.16, color: "#FFFFFF", fontWeight: "700" }}>A+</Text>
-            </View>
-          </View>
-        </View>
-      );
-    case "pizza-place":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.2, height: s * 0.09, backgroundColor: i % 2 ? "#FFFFFF" : "#DC2626" }} />)}
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#F5D0A9", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            {/* pizza: tan circle, red pepperoni dots */}
-            <View style={{ width: s * 0.4, height: s * 0.4, borderRadius: s * 0.2, backgroundColor: "#FBBF24", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row" }}>
-                {[0, 1].map(i => <View key={i} style={{ width: s * 0.07, height: s * 0.07, borderRadius: s * 0.035, backgroundColor: "#DC2626", margin: 2 }} />)}
+      // The food court — a wide, bright storybook hall: cream walls, orange
+      // gable roof, cloche medallion, and three little stalls in the glass.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 15,
+        wall: "#FFF7ED", outline: "#C2410C", roof: "#EA580C",
+        w: s * 0.95, awning: ["#F97316", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Path d="M4 16 A8 8 0 0 1 20 16 Z" fill="#D6D3D1" stroke="#78716C" strokeWidth={1.6} />
+            <Line x1={2.5} y1={19.5} x2={21.5} y2={19.5} stroke="#78716C" strokeWidth={1.8} strokeLinecap="round" />
+            <Circle cx={12} cy={6.5} r={1.8} fill="#78716C" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#DC2626", "#16A34A", "#2563EB"].map((c, i) => (
+              <View key={i} style={{ alignItems: "center", marginHorizontal: 3 }}>
+                <View style={{ width: s * 0.11, height: s * 0.05, backgroundColor: c, borderTopLeftRadius: s * 0.03, borderTopRightRadius: s * 0.03 }} />
+                <View style={{ width: s * 0.13, height: s * 0.07, backgroundColor: "#D6D3D1", borderRadius: 2, marginTop: 1.5 }} />
               </View>
-            </View>
-          </View>
-        </View>
-      );
-    case "burger-joint":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.62, backgroundColor: "#92400E", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            {/* burger stack */}
-            <View style={{ width: s * 0.44, height: s * 0.14, borderRadius: s * 0.07, backgroundColor: "#FBBF24" }} />
-            <View style={{ width: s * 0.48, height: s * 0.06, backgroundColor: "#65A30D", borderRadius: 3, marginVertical: 1 }} />
-            <View style={{ width: s * 0.46, height: s * 0.08, backgroundColor: "#78350F", borderRadius: 3 }} />
-            <View style={{ width: s * 0.44, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#FBBF24", marginTop: 1 }} />
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.08, backgroundColor: "#451A03", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-    case "taco-stand":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.22, height: s * 0.1, backgroundColor: i % 2 ? "#FDE68A" : "#16A34A" }} />)}
-          </View>
-          <View style={{ width: s * 0.7, height: s * 0.5, backgroundColor: "#FEF3C7", borderRadius: 5, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#D97706" }}>
-            {/* taco: yellow half-disc */}
-            <View style={{ width: s * 0.36, height: s * 0.2, backgroundColor: "#FACC15", borderTopLeftRadius: s * 0.18, borderTopRightRadius: s * 0.18 }} />
-            <View style={{ width: s * 0.28, height: s * 0.06, backgroundColor: "#65A30D", borderRadius: 3, marginTop: -s * 0.03 }} />
-          </View>
-        </View>
-      );
-    case "sushi-bar":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.58, backgroundColor: "#1F2937", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            {/* sushi pieces */}
-            <View style={{ flexDirection: "row" }}>
-              {[0, 1].map(i => (
-                <View key={i} style={{ width: s * 0.22, height: s * 0.16, backgroundColor: "#FFFFFF", borderRadius: 4, marginHorizontal: 3, alignItems: "center", justifyContent: "center" }}>
-                  <View style={{ width: s * 0.16, height: s * 0.07, backgroundColor: "#FB7185", borderRadius: 3 }} />
-                </View>
-              ))}
-            </View>
-            <View style={{ width: s * 0.5, height: s * 0.05, backgroundColor: "#374151", borderRadius: 2, marginTop: s * 0.05 }} />
-          </View>
-        </View>
-      );
-    case "diner":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.12, backgroundColor: "#E5E7EB", borderRadius: 4, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#9CA3AF" }}>
-            <Text style={{ fontSize: s * 0.08, fontWeight: "800", color: "#DC2626" }}>DINER</Text>
-          </View>
-          <View style={{ width: s * 0.85, height: s * 0.52, backgroundColor: "#F8FAFC", borderRadius: 5, borderWidth: 2, borderColor: "#CBD5E1", alignItems: "center", justifyContent: "center" }}>
-            {/* pancake stack */}
-            {[0, 1, 2].map(i => (
-              <View key={i} style={{ width: s * 0.36 - i * s * 0.02, height: s * 0.07, backgroundColor: "#FCD34D", borderRadius: s * 0.035, marginVertical: 1, borderWidth: 1, borderColor: "#D97706" }} />
             ))}
-            <View style={{ width: s * 0.08, height: s * 0.08, backgroundColor: "#FDE68A", borderRadius: 2, marginTop: -s * 0.2 }} />
           </View>
-        </View>
-      );
-    case "upper-room":
-      // The Upper Room — warm communal dining hall.
-      // L1: simple tables + candles. L2: banquet tables + lanterns. L3: grand hall + chandeliers.
-      if (lv >= 3) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {/* Grand hall */}
-          <View style={{ width: s * 0.95, height: s * 0.68, backgroundColor: "#92400E", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
-            {/* Golden chandeliers */}
-            <View style={{ flexDirection: "row", position: "absolute", top: s * 0.06 }}>
-              {[0, 1, 2].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.06 }}>
-                  <View style={{ width: 2, height: s * 0.08, backgroundColor: "#78350F" }} />
-                  <View style={{ width: s * 0.12, height: s * 0.05, backgroundColor: "#FBBF24", borderRadius: 3 }} />
-                  <View style={{ width: s * 0.04, height: s * 0.04, backgroundColor: "#FEF3C7", borderRadius: s * 0.02, marginTop: 1 }} />
-                </View>
-              ))}
-            </View>
-            {/* Long banquet table with glowing centerpiece */}
-            <View style={{ width: s * 0.75, height: s * 0.1, backgroundColor: "#78350F", borderRadius: 4 }} />
-            <View style={{ width: s * 0.1, height: s * 0.1, backgroundColor: "#FDE68A", borderRadius: s * 0.05, marginTop: -s * 0.1, shadowColor: "#FBBF24", shadowOpacity: 0.8, shadowRadius: 8 }} />
-            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
-              {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.1, height: s * 0.1, backgroundColor: isLit(2, i) ? LIT : "#451A03", marginHorizontal: 3, borderRadius: 2 }} />)}
-            </View>
+        ),
+      });
+    case "bookstore":
+      // The bookstore — a snug storybook shop: parchment walls, brown
+      // gable roof, open-book medallion, book spines in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 16,
+        wall: "#F5E6D3", outline: "#78350F", roof: "#92400E",
+        awning: ["#B45309", "#FEF3C7"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.11} viewBox="0 0 30 20">
+            <Path d="M15 4 C11.5 1.8, 6 1.8, 3 3.4 L3 17 C6 15.4, 11.5 15.4, 15 17.6 C18.5 15.4, 24 15.4, 27 17 L27 3.4 C24 1.8, 18.5 1.8, 15 4 Z" fill="#FFFBEB" stroke="#78350F" strokeWidth={1.8} />
+            <Line x1={15} y1={4} x2={15} y2={17.6} stroke="#78350F" strokeWidth={1.4} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#B91C1C", "#1D4ED8", "#166534", "#C9963C", "#7C2D3E"].map((c, i) => (
+              <View key={i} style={{ width: s * 0.05, height: s * (0.1 + (i % 3) * 0.025), backgroundColor: c, marginHorizontal: 1.2, borderRadius: 1.5 }} />
+            ))}
           </View>
-          <View style={{ width: s * 0.98, height: s * 0.08, backgroundColor: "#451A03", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-      if (lv >= 2) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.62, backgroundColor: "#B45309", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.06 }}>
-            {/* Hanging lanterns */}
-            <View style={{ flexDirection: "row", position: "absolute", top: s * 0.08 }}>
-              {[0, 1].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.1 }}>
-                  <View style={{ width: 2, height: s * 0.06, backgroundColor: "#78350F" }} />
-                  <View style={{ width: s * 0.09, height: s * 0.09, backgroundColor: "#F59E0B", borderRadius: s * 0.045 }} />
-                </View>
-              ))}
-            </View>
-            {/* Banquet table */}
-            <View style={{ width: s * 0.68, height: s * 0.09, backgroundColor: "#92400E", borderRadius: 4 }} />
-            <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
-              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.04, height: s * 0.06, backgroundColor: "#FDE68A", marginHorizontal: 6, borderRadius: 2 }} />)}
-            </View>
+        ),
+      });
+    case "arcade":
+      // The arcade — a deep-purple storybook funhouse: flat neon-banded
+      // roof, joystick medallion, and glowing cabinet screens in the glass.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 17,
+        wall: "#5B21B6", outline: "#2E1065", roof: "#4C1D95",
+        roofStyle: "flat", doorColor: "#1E1B4B", trim: "#F0ABFC",
+        glass: "#F0ABFC",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 24 26">
+            <Line x1={12} y1={11} x2={12} y2={19} stroke="#374151" strokeWidth={2.6} strokeLinecap="round" />
+            <Circle cx={12} cy={7} r={4} fill="#EF4444" stroke="#7F1D1D" strokeWidth={1.4} />
+            <Path d="M5 23 L8 19 H16 L19 23 Z" fill="#374151" stroke="#111827" strokeWidth={1.2} />
+          </Svg>
+        ),
+        signBg: "#EDE9FE",
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#F0ABFC", "#67E8F9", "#FDE68A"].map((c, i) => (
+              <View key={i} style={{ width: s * 0.1, height: s * 0.14, backgroundColor: "#1E1B4B", borderRadius: 2, marginHorizontal: 2.5, alignItems: "center", paddingTop: 2.5 }}>
+                <View style={{ width: s * 0.07, height: s * 0.07, backgroundColor: c, borderRadius: 1.5 }} />
+                <View style={{ width: s * 0.05, height: s * 0.025, backgroundColor: c, borderRadius: 1, marginTop: 2.5, opacity: 0.8 }} />
+              </View>
+            ))}
           </View>
-        </View>
-      );
+        ),
+        displayGlass: "#2E1065",
+      });
+    case "cinema": {
+      // The cinema — a storybook picture palace: dark facade with a gentle
+      // outline, a bulb-lit marquee (no words needed), poster cases from
+      // L2, double doors, and a red carpet at L3.
+      const H = artH ?? s;
+      const w = s * 0.9;
+      const bodyH = H * 0.52;
       return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#D97706", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.08 }}>
-            {/* Simple tables with warm candles */}
+        <View style={{ width: s, height: H, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(w * 1.1)}
+          {/* marquee */}
+          <View style={{ width: w * 1.04, height: Math.max(12, H * 0.13), backgroundColor: "#FEF3C7", borderWidth: 2, borderColor: "#B45309", borderRadius: 5, alignItems: "center", justifyContent: "center", marginBottom: -3, zIndex: 2 }}>
             <View style={{ flexDirection: "row" }}>
-              {[0, 1].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.08 }}>
-                  <View style={{ width: s * 0.22, height: s * 0.07, backgroundColor: "#92400E", borderRadius: 3 }} />
-                  <View style={{ width: s * 0.03, height: s * 0.05, backgroundColor: "#FEF3C7", borderRadius: 2, marginTop: -s * 0.1 }} />
-                </View>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={{ width: 5.5, height: 5.5, borderRadius: 3, backgroundColor: isLit(0, i) ? LIT : "#D97706", marginHorizontal: 2.5, borderWidth: 0.8, borderColor: "#92400E" }} />
+              ))}
+            </View>
+            <View style={{ width: w * 0.5, height: 3, backgroundColor: "#DC2626", borderRadius: 2, marginTop: 3 }} />
+          </View>
+          {/* facade */}
+          <View style={{ width: w, height: bodyH, backgroundColor: "#273244", borderWidth: 2, borderColor: "#111827", borderBottomLeftRadius: 5, borderBottomRightRadius: 5, zIndex: 1 }}>
+            {sideShade(w, bodyH, 5)}
+            {lv >= 3 && <View style={{ position: "absolute", top: 3, left: 5, right: 5, height: 3, backgroundColor: "#C9963C", borderRadius: 2, opacity: 0.85 }} />}
+            {/* poster cases (L2+) */}
+            {lv >= 2 && [0, 1].map((i) => (
+              <View key={i} style={{ position: "absolute", top: bodyH * 0.16, left: i ? undefined : s * 0.06, right: i ? s * 0.06 : undefined, width: s * 0.17, height: bodyH * 0.42, backgroundColor: "#F8FAFC", borderWidth: 1.6, borderColor: "#B45309", borderRadius: 3, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: s * 0.11, height: bodyH * 0.2, backgroundColor: i ? "#7C3AED" : "#0EA5E9", borderRadius: 2 }} />
+                <View style={{ width: s * 0.08, height: 2.4, backgroundColor: "#94A3B8", borderRadius: 1, marginTop: 3 }} />
+              </View>
+            ))}
+            {/* glowing screen window (L1 focal point) */}
+            {lv < 2 && (
+              <View style={{ position: "absolute", top: bodyH * 0.14, left: w / 2 - s * 0.16, width: s * 0.32, height: bodyH * 0.34, backgroundColor: "#E5E7EB", borderWidth: 1.6, borderColor: "#B45309", borderRadius: 3 }} />
+            )}
+            {/* double doors */}
+            <View style={{ position: "absolute", bottom: 0, left: w / 2 - s * 0.13, width: s * 0.26, height: bodyH * 0.44, flexDirection: "row", borderWidth: 1.6, borderColor: lv >= 3 ? "#C9963C" : "#111827", borderBottomWidth: 0, borderTopLeftRadius: s * 0.05, borderTopRightRadius: s * 0.05, overflow: "hidden" }}>
+              <View style={{ flex: 1, backgroundColor: "#7F1D1D" }} />
+              <View style={{ width: 2, backgroundColor: "#111827" }} />
+              <View style={{ flex: 1, backgroundColor: "#991B1B" }} />
+            </View>
+          </View>
+          {/* red carpet (L3) */}
+          {lv >= 3 && (
+            <View style={{ position: "absolute", bottom: -1, left: s / 2 - s * 0.11, width: s * 0.22, height: 4.5, backgroundColor: "#B91C1C", borderRadius: 2, borderWidth: 0.8, borderColor: "#7F1D1D" }} />
+          )}
+        </View>
+      );
+    }
+    case "library":
+      // The school library — a tall teal storybook hall: book medallion,
+      // spines in the window, a quiet reading-room calm.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 18,
+        wall: "#D7F0EC", outline: "#0F766E", roof: "#0F766E",
+        bodyH: (artH ?? s) * 0.56, doorColor: "#134E4A",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.11} viewBox="0 0 30 20">
+            <Path d="M15 4 C11.5 1.8, 6 1.8, 3 3.4 L3 17 C6 15.4, 11.5 15.4, 15 17.6 C18.5 15.4, 24 15.4, 27 17 L27 3.4 C24 1.8, 18.5 1.8, 15 4 Z" fill="#FFFBEB" stroke="#0F766E" strokeWidth={1.8} />
+            <Line x1={15} y1={4} x2={15} y2={17.6} stroke="#0F766E" strokeWidth={1.4} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#0F766E", "#B91C1C", "#1D4ED8", "#C9963C", "#166534", "#7C2D3E"].map((c, i) => (
+              <View key={i} style={{ width: s * 0.048, height: s * (0.11 + (i % 3) * 0.02), backgroundColor: c, marginHorizontal: 1.2, borderRadius: 1.5 }} />
+            ))}
+          </View>
+        ),
+      });
+    case "classroom":
+      // The classroom — a green storybook schoolhouse: chalkboard
+      // medallion, desks in the window, and a little flag at L3.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 19,
+        wall: "#E9F7E4", outline: "#15803D", roof: "#16A34A",
+        doorColor: "#14532D",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.11} viewBox="0 0 26 20">
+            <Rect x={2} y={2} width={22} height={16} rx={2} fill="#166534" stroke="#14532D" strokeWidth={1.6} />
+            <Line x1={6} y1={8} x2={13} y2={8} stroke="#F8FAFC" strokeWidth={1.8} strokeLinecap="round" />
+            <Line x1={6} y1={12.5} x2={17} y2={12.5} stroke="#F8FAFC" strokeWidth={1.8} strokeLinecap="round" opacity={0.75} />
+            <Polygon points="19.5,5.5 20.4,7.8 22.8,7.9 20.9,9.3 21.6,11.6 19.5,10.3 17.4,11.6 18.1,9.3 16.2,7.9 18.6,7.8" fill="#FACC15" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ width: s * 0.13, height: s * 0.055, backgroundColor: "#B45309", borderRadius: 2, marginHorizontal: 2.5, borderWidth: 1, borderColor: "#78350F" }}>
+                <View style={{ width: s * 0.07, height: s * 0.045, backgroundColor: "#F8FAFC", borderRadius: 1, alignSelf: "center", marginTop: -s * 0.035 }} />
+              </View>
+            ))}
+          </View>
+        ),
+        front: lv >= 3 ? (
+          <View style={{ position: "absolute", top: s * 0.01, right: s * 0.14, alignItems: "center" }}>
+            <View style={{ width: s * 0.028, height: s * 0.15, backgroundColor: "#78716C" }} />
+            <View style={{ position: "absolute", top: 0, left: s * 0.028, width: s * 0.12, height: s * 0.075, backgroundColor: "#16A34A", borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />
+          </View>
+        ) : undefined,
+      });
+    case "pizza-place":
+      // The pizza place — a storybook party theater (matching its purple
+      // animatronic interior): lavender walls, purple flat roof with a
+      // red-and-white awning, pizza medallion, brick-oven chimney, and red
+      // stage curtains in the window at L3.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 20,
+        wall: "#EDE9FE", outline: "#6D28D9", roof: "#6D28D9",
+        roofStyle: "flat", doorColor: "#4C1D95", chimney: "#B45309",
+        awning: ["#DC2626", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Polygon points="12,21 4,5.5 20,5.5" fill="#FDE68A" stroke="#D97706" strokeWidth={1.6} strokeLinejoin="round" />
+            <Circle cx={10} cy={9.5} r={1.9} fill="#DC2626" />
+            <Circle cx={14.5} cy={12.5} r={1.9} fill="#DC2626" />
+            <Circle cx={9.5} cy={14.5} r={1.6} fill="#16A34A" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}>
+            {lv >= 3 && (
+              <>
+                <View style={{ position: "absolute", top: 0, left: 0, width: s * 0.09, height: s * 0.1, backgroundColor: "#B91C1C", borderBottomRightRadius: s * 0.07 }} />
+                <View style={{ position: "absolute", top: 0, right: 0, width: s * 0.09, height: s * 0.1, backgroundColor: "#B91C1C", borderBottomLeftRadius: s * 0.07 }} />
+              </>
+            )}
+            <Svg width={s * 0.2} height={s * 0.2} viewBox="0 0 24 24">
+              <Circle cx={12} cy={12} r={9} fill="#FBBF24" stroke="#D97706" strokeWidth={1.6} />
+              <Circle cx={9} cy={9} r={1.8} fill="#DC2626" />
+              <Circle cx={15} cy={10.5} r={1.8} fill="#DC2626" />
+              <Circle cx={11} cy={15} r={1.8} fill="#DC2626" />
+            </Svg>
+          </View>
+        ),
+        displayGlass: "#F5F0FF",
+      });
+    case "burger-joint":
+      // The burger joint — cold, clean red-and-white (matching its
+      // interior): bright white walls, red trim and flat roof, red-and-
+      // white awning, crossed-palms medallion, and a brick chimney out
+      // back (the smoke emitter lives on this type).
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 21,
+        wall: "#FFFFFF", outline: "#D22630", roof: "#D22630",
+        roofStyle: "flat", doorColor: "#991B1B", chimney: "#B91C1C", trim: "#D22630",
+        awning: ["#D22630", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.13} height={s * 0.12} viewBox="0 0 26 24">
+            <Line x1={9} y1={22} x2={11} y2={9} stroke="#92400E" strokeWidth={2} strokeLinecap="round" />
+            <Line x1={17} y1={22} x2={15} y2={9} stroke="#92400E" strokeWidth={2} strokeLinecap="round" />
+            <Path d="M11 9 C8 5, 4.5 4.5, 2 6 C4.5 7.5, 8 8.5, 11 9 M11 9 C10 4.5, 7 2.5, 4 2.5 C5.5 5.5, 8 8, 11 9 M11 9 C13 4, 16 2.5, 19 3.5 C17 6.5, 14 8.5, 11 9" fill="none" stroke="#16A34A" strokeWidth={1.7} strokeLinecap="round" />
+            <Path d="M15 9 C15.5 4.5, 18 2, 21 1.5 C20 5, 18 8, 15 9 M15 9 C18 5.5, 21.5 5, 24 6.5 C21.5 8.5, 18 9.5, 15 9" fill="none" stroke="#16A34A" strokeWidth={1.7} strokeLinecap="round" />
+          </Svg>
+        ),
+        signBg: "#FFFFFF",
+        display: (
+          <Svg width={s * 0.26} height={s * 0.2} viewBox="0 0 26 20">
+            <Path d="M4 8 A9 6.5 0 0 1 22 8 Z" fill="#FBBF24" stroke="#D97706" strokeWidth={1.2} />
+            <Rect x={3.5} y={9} width={19} height={2.6} rx={1.3} fill="#65A30D" />
+            <Rect x={4} y={12.2} width={18} height={3} rx={1.5} fill="#78350F" />
+            <Path d="M4.5 15.8 H21.5 L20 18.5 H6 Z" fill="#FBBF24" stroke="#D97706" strokeWidth={1.2} />
+          </Svg>
+        ),
+      });
+    case "taco-stand":
+      // The taco stand — a retro cantina in the storybook style (matching
+      // its purple/teal/pink interior): cream walls, teal gable roof with
+      // a sunset-stripe band, smiling-sun medallion, taco in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 22,
+        wall: "#FEF3C7", outline: "#7C3AED", roof: "#14B8A6",
+        doorColor: "#5B21B6", trim: "#F472B6",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={5.2} fill="#FBBF24" stroke="#D97706" strokeWidth={1.5} />
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+              <Line key={a} x1={12 + 7 * Math.cos((a * Math.PI) / 180)} y1={12 + 7 * Math.sin((a * Math.PI) / 180)} x2={12 + 9.4 * Math.cos((a * Math.PI) / 180)} y2={12 + 9.4 * Math.sin((a * Math.PI) / 180)} stroke="#F472B6" strokeWidth={1.8} strokeLinecap="round" />
+            ))}
+            <Circle cx={10.2} cy={11.2} r={0.9} fill="#92400E" />
+            <Circle cx={13.8} cy={11.2} r={0.9} fill="#92400E" />
+            <Path d="M9.8 14.2 A2.8 2.8 0 0 0 14.2 14.2" fill="none" stroke="#92400E" strokeWidth={1.1} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
+            <Svg width={s * 0.24} height={s * 0.16} viewBox="0 0 26 18">
+              <Path d="M3 15 A10 10 0 0 1 23 15 Z" fill="#FACC15" stroke="#D97706" strokeWidth={1.4} />
+              <Circle cx={8} cy={7.5} r={2} fill="#65A30D" />
+              <Circle cx={13} cy={5.5} r={2} fill="#DC2626" />
+              <Circle cx={18} cy={7.5} r={2} fill="#65A30D" />
+            </Svg>
+            <View style={{ flexDirection: "row", marginTop: 2.5 }}>
+              {["#F472B6", "#FB923C", "#7C3AED"].map((c, i) => (
+                <View key={i} style={{ width: s * 0.09, height: 2.6, backgroundColor: c, borderRadius: 1.3, marginHorizontal: 1.5 }} />
               ))}
             </View>
           </View>
-        </View>
-      );
-    case "manna-house":
-      // Manna House — cozy bakery for breaking bread.
-      if (lv >= 3) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.92, height: s * 0.66, backgroundColor: "#F59E0B", borderRadius: 6, alignItems: "center", paddingTop: s * 0.06 }}>
-            <View style={{ width: s * 0.5, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 5 }}>
-              <Text style={{ fontSize: s * 0.06, fontWeight: "800", color: "#FEF3C7", textAlign: "center", marginTop: s * 0.015 }}>MANNA</Text>
-            </View>
-            {/* Golden chandelier + bread display */}
-            <View style={{ alignItems: "center", marginTop: s * 0.04 }}>
-              <View style={{ width: 2, height: s * 0.06, backgroundColor: "#78350F" }} />
-              <View style={{ width: s * 0.2, height: s * 0.06, backgroundColor: "#FBBF24", borderRadius: 4 }} />
-            </View>
-            <View style={{ flexDirection: "row", marginTop: s * 0.06 }}>
-              {[0, 1, 2].map(i => (
-                <View key={i} style={{ width: s * 0.16, height: s * 0.1, backgroundColor: "#FDE68A", borderRadius: s * 0.05, marginHorizontal: 4, borderWidth: 1, borderColor: "#D97706" }} />
-              ))}
-            </View>
-            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
-              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.12, height: s * 0.12, backgroundColor: isLit(1, i) ? LIT : "#92400E", marginHorizontal: 5, borderRadius: 2 }} />)}
-            </View>
+        ),
+      });
+    case "sushi-bar":
+      // The sushi bar — a calm storybook storefront: white walls, dark
+      // slate roof, sushi medallion, pieces in the window, a navy noren
+      // curtain over the door and paper lanterns at L3.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 23,
+        wall: "#F8FAFC", outline: "#1F2937", roof: "#334155",
+        doorColor: "#111827",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Rect x={4} y={9} width={16} height={9} rx={3} fill="#FFFFFF" stroke="#1F2937" strokeWidth={1.6} />
+            <Rect x={6.5} y={6} width={11} height={5} rx={2.4} fill="#FB7185" stroke="#9F1239" strokeWidth={1.2} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * 0.15, height: s * 0.11, backgroundColor: "#FFFFFF", borderRadius: 3, marginHorizontal: 3, borderWidth: 1.2, borderColor: "#94A3B8", alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: s * 0.1, height: s * 0.045, backgroundColor: i ? "#F59E0B" : "#FB7185", borderRadius: 2 }} />
+              </View>
+            ))}
           </View>
-        </View>
-      );
-      if (lv >= 2) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.88, height: s * 0.6, backgroundColor: "#FBBF24", borderRadius: 6, alignItems: "center", paddingTop: s * 0.08 }}>
-            {/* Hanging lanterns */}
-            <View style={{ flexDirection: "row" }}>
-              {[0, 1].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.12 }}>
-                  <View style={{ width: 2, height: s * 0.05, backgroundColor: "#92400E" }} />
-                  <View style={{ width: s * 0.08, height: s * 0.08, backgroundColor: "#F59E0B", borderRadius: s * 0.04 }} />
-                </View>
-              ))}
-            </View>
-            {/* Bread shelves */}
-            <View style={{ marginTop: s * 0.08 }}>
-              {[0, 1].map(r => (
-                <View key={r} style={{ flexDirection: "row", marginVertical: 3 }}>
-                  {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.14, height: s * 0.08, backgroundColor: "#FEF3C7", borderRadius: s * 0.04, marginHorizontal: 3 }} />)}
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      );
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.85, height: s * 0.55, backgroundColor: "#FCD34D", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            {/* Simple bread + candle */}
-            <View style={{ width: s * 0.3, height: s * 0.16, backgroundColor: "#FEF3C7", borderRadius: s * 0.08, borderWidth: 1, borderColor: "#D97706" }} />
-            <View style={{ width: s * 0.04, height: s * 0.08, backgroundColor: "#FDE68A", borderRadius: 2, marginTop: 6 }} />
-          </View>
-        </View>
-      );
-    case "feast-hall":
-      // Feast Hall — grand banquet building.
-      if (lv >= 3) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.95, height: s * 0.7, backgroundColor: "#7C2D12", borderRadius: 6, alignItems: "center", paddingTop: s * 0.05 }}>
-            {/* Twin golden chandeliers */}
-            <View style={{ flexDirection: "row" }}>
-              {[0, 1].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.14 }}>
-                  <View style={{ width: 2, height: s * 0.07, backgroundColor: "#451A03" }} />
-                  <View style={{ width: s * 0.16, height: s * 0.07, backgroundColor: "#FBBF24", borderRadius: 4 }} />
-                  <View style={{ flexDirection: "row", marginTop: 2 }}>
-                    {[0, 1, 2].map(j => <View key={j} style={{ width: s * 0.03, height: s * 0.03, backgroundColor: "#FEF3C7", borderRadius: s * 0.015, marginHorizontal: 2 }} />)}
+        ),
+        front: (
+          <>
+            {/* noren curtain over the door (L2+) */}
+            {lv >= 2 && (
+              <View style={{ position: "absolute", bottom: (artH ?? s) * 0.17, left: s / 2 - s * 0.125, flexDirection: "row", zIndex: 3 }}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={{ width: s * 0.082, height: s * 0.09, backgroundColor: "#1E3A5F", marginHorizontal: 0.8, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, alignItems: "center", justifyContent: "center" }}>
+                    <View style={{ width: s * 0.035, height: s * 0.035, borderRadius: s * 0.018, backgroundColor: "#F8FAFC" }} />
                   </View>
-                </View>
-              ))}
-            </View>
-            {/* Glowing centerpiece table */}
-            <View style={{ width: s * 0.7, height: s * 0.1, backgroundColor: "#92400E", borderRadius: 4, marginTop: s * 0.06 }} />
-            <View style={{ width: s * 0.14, height: s * 0.14, backgroundColor: "#FDE68A", borderRadius: s * 0.07, marginTop: -s * 0.12, shadowColor: "#FBBF24", shadowOpacity: 0.9, shadowRadius: 10 }} />
-            <View style={{ flexDirection: "row", marginTop: s * 0.08 }}>
-              {[0, 1, 2, 3].map(i => <View key={i} style={{ width: s * 0.11, height: s * 0.14, backgroundColor: isLit(0, i) ? LIT : "#451A03", marginHorizontal: 4, borderRadius: 2 }} />)}
-            </View>
-          </View>
-        </View>
-      );
-      if (lv >= 2) return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.9, height: s * 0.64, backgroundColor: "#9A3412", borderRadius: 6, alignItems: "center", paddingTop: s * 0.08 }}>
+                ))}
+              </View>
+            )}
+            {/* paper lanterns (L3) */}
+            {lv >= 3 && [0, 1].map((i) => (
+              <View key={`l${i}`} style={{ position: "absolute", bottom: (artH ?? s) * 0.42, left: i ? undefined : s * 0.07, right: i ? s * 0.07 : undefined, alignItems: "center", zIndex: 3 }}>
+                <View style={{ width: 2, height: s * 0.05, backgroundColor: "#1F2937" }} />
+                <View style={{ width: s * 0.075, height: s * 0.09, backgroundColor: "#F87171", borderRadius: s * 0.04, borderWidth: 1.2, borderColor: "#991B1B" }} />
+              </View>
+            ))}
+          </>
+        ),
+      });
+    case "diner":
+      // The diner — a long, low storybook diner in warm cream and orange
+      // (matching its classic interior): flat banded roof, coffee-cup
+      // medallion, and a long window band with counter stools inside.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 24,
+        wall: "#FFF7ED", outline: "#9A3412", roof: "#F39C2C",
+        roofStyle: "flat", doorColor: "#7C2D12", doorAt: "right",
+        w: s * 0.96, bodyH: (artH ?? s) * 0.44, trim: "#DC2626",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Path d="M5 10 H17 V15 A5 5 0 0 1 12 20 H10 A5 5 0 0 1 5 15 Z" fill="#FFFFFF" stroke="#9A3412" strokeWidth={1.6} />
+            <Path d="M17 11.5 C19.5 11.5, 19.5 15, 16.8 15" fill="none" stroke="#9A3412" strokeWidth={1.6} />
+            <Path d="M8.5 3.5 C7.5 5, 9.5 6, 8.5 7.5 M12.5 3.5 C11.5 5, 13.5 6, 12.5 7.5" fill="none" stroke="#F39C2C" strokeWidth={1.5} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
             <View style={{ flexDirection: "row" }}>
-              {[0, 1, 2].map(i => (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: s * 0.07 }}>
-                  <View style={{ width: 2, height: s * 0.05, backgroundColor: "#451A03" }} />
-                  <View style={{ width: s * 0.08, height: s * 0.08, backgroundColor: "#FBBF24", borderRadius: s * 0.04 }} />
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={{ alignItems: "center", marginHorizontal: 2.5 }}>
+                  <View style={{ width: s * 0.075, height: s * 0.075, borderRadius: s * 0.038, backgroundColor: "#DC2626", borderWidth: 1, borderColor: "#7F1D1D" }} />
+                  <View style={{ width: 2.4, height: s * 0.05, backgroundColor: "#78716C" }} />
                 </View>
               ))}
             </View>
-            <View style={{ width: s * 0.65, height: s * 0.09, backgroundColor: "#7C2D12", borderRadius: 4, marginTop: s * 0.08 }} />
-            <View style={{ flexDirection: "row", marginTop: s * 0.04 }}>
-              {[0, 1, 2].map(i => <View key={i} style={{ width: s * 0.1, height: s * 0.12, backgroundColor: isLit(2, i) ? LIT : "#451A03", marginHorizontal: 5, borderRadius: 2 }} />)}
-            </View>
+            <View style={{ width: s * 0.42, height: 2.6, backgroundColor: "#9A3412", borderRadius: 1.3, marginTop: 1 }} />
           </View>
-        </View>
-      );
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          <View style={{ width: s * 0.88, height: s * 0.58, backgroundColor: "#C2410C", borderRadius: 6, alignItems: "center", justifyContent: "flex-end", paddingBottom: s * 0.08 }}>
-            <View style={{ width: s * 0.6, height: s * 0.08, backgroundColor: "#7C2D12", borderRadius: 4 }} />
-            <View style={{ flexDirection: "row", marginTop: s * 0.03 }}>
-              {[0, 1].map(i => <View key={i} style={{ width: s * 0.04, height: s * 0.06, backgroundColor: "#FDE68A", marginHorizontal: 8, borderRadius: 2 }} />)}
-            </View>
+        ),
+      });
+    case "upper-room":
+      // The Upper Room — a warm storybook dining hall: cream walls, amber
+      // windows that always glow, a candle medallion, and string lights
+      // over the door at L3.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 25,
+        wall: "#FDE9C8", outline: "#92400E", roof: "#B45309",
+        warm: true, doorColor: "#78350F", banner: "#7C2D3E",
+        sign: (
+          <Svg width={s * 0.1} height={s * 0.12} viewBox="0 0 16 24">
+            <Rect x={6} y={10} width={4} height={11} rx={1.6} fill="#FFF7ED" stroke="#B45309" strokeWidth={1.2} />
+            <Path d="M8 1.5 C10 4.5, 10 7, 8 9.5 C6 7, 6 4.5, 8 1.5 Z" fill="#F59E0B" />
+            <Ellipse cx={8} cy={7.6} rx={1.1} ry={1.9} fill="#FEF3C7" />
+          </Svg>
+        ),
+        front: lv >= 3 ? (
+          <View style={{ position: "absolute", bottom: (artH ?? s) * 0.52, left: 0, right: 0, flexDirection: "row", justifyContent: "center", zIndex: 3 }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FDE68A", marginHorizontal: s * 0.045, borderWidth: 0.8, borderColor: "#F59E0B" }} />
+            ))}
           </View>
-        </View>
-      );
+        ) : undefined,
+      });
+    case "manna-house":
+      // Manna House — a golden storybook bread house: warm walls, amber
+      // roof, wheat medallion, and shelves of loaves in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 26,
+        wall: "#FEF3C7", outline: "#B45309", roof: "#D97706",
+        warm: true, doorColor: "#92400E",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 20 24">
+            <Line x1={10} y1={22} x2={10} y2={7} stroke="#B45309" strokeWidth={1.8} strokeLinecap="round" />
+            {[0, 1, 2].map((i) => (
+              <React.Fragment key={i}>
+                <Ellipse cx={6.4} cy={6 + i * 4.6} rx={2.6} ry={3.6} fill="#E8A84C" stroke="#B45309" strokeWidth={0.9} transform={`rotate(-24 6.4 ${6 + i * 4.6})`} />
+                <Ellipse cx={13.6} cy={6 + i * 4.6} rx={2.6} ry={3.6} fill="#E8A84C" stroke="#B45309" strokeWidth={0.9} transform={`rotate(24 13.6 ${6 + i * 4.6})`} />
+              </React.Fragment>
+            ))}
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
+            {[0, 1].map((r) => (
+              <View key={r} style={{ alignItems: "center", marginVertical: 1.5 }}>
+                <View style={{ flexDirection: "row" }}>
+                  {[0, 1, 2].map((i) => (
+                    <View key={i} style={{ width: s * 0.1, height: s * 0.06, borderRadius: s * 0.03, backgroundColor: "#FDE68A", marginHorizontal: 2, borderWidth: 1, borderColor: "#D97706" }} />
+                  ))}
+                </View>
+                <View style={{ width: s * 0.4, height: 2.2, backgroundColor: "#92400E", borderRadius: 1, marginTop: 2 }} />
+              </View>
+            ))}
+          </View>
+        ),
+      });
+    case "feast-hall":
+      // The Feast Hall — the grandest storybook hall: wide cream facade,
+      // deep red roof, warm glowing windows, a goblet medallion, double
+      // doors, and columns along the front from L2.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 27,
+        wall: "#F3E3BC", outline: "#7C2D12", roof: "#7C2D12",
+        w: s * 0.96, bodyH: (artH ?? s) * 0.56, warm: true,
+        doorColor: "#451A03", doorWide: true, banner: "#7C2D12",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 20 24">
+            <Path d="M4 3 H16 C16 8, 13.8 11, 10 11 C6.2 11, 4 8, 4 3 Z" fill="#E9C767" stroke="#8A6D1C" strokeWidth={1.3} />
+            <Line x1={10} y1={11} x2={10} y2={17} stroke="#8A6D1C" strokeWidth={1.8} />
+            <Line x1={5.5} y1={20} x2={14.5} y2={20} stroke="#8A6D1C" strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+        ),
+        front: lv >= 2 ? (
+          <View style={{ position: "absolute", bottom: 0, left: s * 0.05, right: s * 0.05, flexDirection: "row", justifyContent: "space-between", zIndex: 2 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={{ width: s * 0.055, height: (artH ?? s) * 0.5, backgroundColor: "#FFFBEB", borderWidth: 1.4, borderColor: "#B8A888", borderRadius: 2 }} />
+            ))}
+          </View>
+        ) : undefined,
+      });
     case "banquet-table": {
       // The Marriage Supper — one long table under open sky, candles lit,
       // benches waiting for the whole town. Grander with level.
@@ -2637,116 +3092,149 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
     }
     // ---- School Campus buildings (preset quad plots) ----
     case "music-room":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.9)}
-          <View style={{ width: s * 0.88, height: s * 0.62, backgroundColor: "#7C3AED", borderRadius: 6, alignItems: "center", justifyContent: "center" }}>
-            {/* a music note: head + stem + flag */}
-            <View style={{ position: "absolute", left: s * 0.3, bottom: s * 0.14, width: s * 0.2, height: s * 0.15, borderRadius: s * 0.08, backgroundColor: "#FDE68A" }} />
-            <View style={{ position: "absolute", left: s * 0.47, bottom: s * 0.16, width: s * 0.045, height: s * 0.34, backgroundColor: "#FDE68A" }} />
-            <View style={{ position: "absolute", left: s * 0.47, bottom: s * 0.42, width: s * 0.16, height: s * 0.09, borderTopRightRadius: s * 0.07, backgroundColor: "#FDE68A" }} />
-            {lv >= 2 && <View style={{ position: "absolute", right: s * 0.1, top: s * 0.1, width: s * 0.14, height: s * 0.14, borderRadius: 3, backgroundColor: "#EDE9FE" }} />}
-            {lv >= 3 && <View style={{ position: "absolute", left: s * 0.08, top: s * 0.08, width: s * 0.2, height: s * 0.07, borderRadius: 3, backgroundColor: "#FACC15" }} />}
-          </View>
-          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#4C1D95", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
+      // The Music Room — a lavender storybook hall on the quad: purple
+      // gable roof, a golden note medallion, song in the air.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 28,
+        wall: "#EDE9FE", outline: "#6D28D9", roof: "#7C3AED",
+        doorColor: "#4C1D95",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 24 26">
+            <Path d="M9 19.5 V7 L21 4 V17" fill="none" stroke="#B45309" strokeWidth={2.2} strokeLinecap="round" />
+            <Ellipse cx={6.2} cy={19.5} rx={3.4} ry={2.7} fill="#B45309" />
+            <Ellipse cx={18.2} cy={17} rx={3.4} ry={2.7} fill="#B45309" />
+          </Svg>
+        ),
+        banner: "#7C3AED",
+      });
     case "science-lab":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.9)}
-          {lv >= 3 && (
-            <View style={{ width: s * 0.34, height: s * 0.17, borderTopLeftRadius: s * 0.17, borderTopRightRadius: s * 0.17, backgroundColor: "#99F6E4", borderWidth: 2, borderColor: "#0F766E", marginBottom: -2 }} />
-          )}
-          <View style={{ width: s * 0.88, height: s * 0.56, backgroundColor: "#F0FDFA", borderRadius: 6, borderWidth: 2, borderColor: "#0F766E", alignItems: "center", justifyContent: "center" }}>
-            {/* flask: neck + round belly with liquid */}
-            <View style={{ width: s * 0.09, height: s * 0.14, backgroundColor: "#CCFBF1", borderWidth: 1.6, borderColor: "#0F766E", borderBottomWidth: 0 }} />
-            <View style={{ width: s * 0.3, height: s * 0.3, borderRadius: s * 0.15, backgroundColor: "#CCFBF1", borderWidth: 1.6, borderColor: "#0F766E", alignItems: "center", justifyContent: "flex-end", overflow: "hidden" }}>
-              <View style={{ width: "100%", height: "52%", backgroundColor: "#2DD4BF" }} />
-            </View>
-            {lv >= 2 && <View style={{ position: "absolute", right: s * 0.09, bottom: s * 0.09, width: s * 0.11, height: s * 0.2, borderRadius: 2, backgroundColor: "#F472B6", opacity: 0.8 }} />}
+      // The Science Lab — a bright storybook lab: mint walls, teal trim,
+      // flask medallion, bottles in the window, and a glass greenhouse
+      // dome on the roof at L3.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 29,
+        wall: "#ECFDF5", outline: "#0F766E", roof: "#0F766E",
+        roofStyle: "flat", doorColor: "#134E4A",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 20 24">
+            <Path d="M8.5 3 H11.5 V9 L15.5 17.5 A2.4 2.4 0 0 1 13.4 21 H6.6 A2.4 2.4 0 0 1 4.5 17.5 L8.5 9 Z" fill="#CCFBF1" stroke="#0F766E" strokeWidth={1.5} />
+            <Path d="M6.2 14.5 H13.8 L15.5 17.5 A2.4 2.4 0 0 1 13.4 21 H6.6 A2.4 2.4 0 0 1 4.5 17.5 Z" fill="#2DD4BF" />
+            <Circle cx={10} cy={17.6} r={1.1} fill="#ECFDF5" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {["#C084FC", "#34D399", "#FBBF24"].map((c, i) => (
+              <View key={i} style={{ width: s * 0.07, height: s * (0.09 + i * 0.025), borderRadius: 3, backgroundColor: c, marginHorizontal: 2.5, borderWidth: 1, borderColor: "rgba(0,0,0,0.2)" }} />
+            ))}
           </View>
-          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#115E59", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
+        ),
+        front: lv >= 3 ? (
+          <View style={{ position: "absolute", bottom: (artH ?? s) * 0.53, alignSelf: "center", width: s * 0.34, height: s * 0.15, borderTopLeftRadius: s * 0.17, borderTopRightRadius: s * 0.17, backgroundColor: "#99F6E4", opacity: 0.85, borderWidth: 2, borderColor: "#0F766E", zIndex: 0 }} />
+        ) : undefined,
+      });
     case "art-studio":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.9)}
-          <View style={{ width: s * 0.88, height: s * 0.6, backgroundColor: "#FFF1F2", borderRadius: 6, borderWidth: 2, borderColor: "#BE3455", alignItems: "center", justifyContent: "center" }}>
-            {/* painter's palette with color dabs */}
-            <View style={{ width: s * 0.42, height: s * 0.36, borderRadius: s * 0.19, backgroundColor: "#D9A96B", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row", position: "absolute", top: s * 0.05 }}>
-                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#DC2626", marginHorizontal: 2 }} />
-                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#2563EB", marginHorizontal: 2 }} />
-              </View>
-              <View style={{ flexDirection: "row", position: "absolute", bottom: s * 0.06 }}>
-                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#FACC15", marginHorizontal: 2 }} />
-                <View style={{ width: s * 0.08, height: s * 0.08, borderRadius: s * 0.04, backgroundColor: "#059669", marginHorizontal: 2 }} />
-              </View>
-            </View>
-            {lv >= 3 && <View style={{ position: "absolute", bottom: s * 0.05, width: s * 0.5, height: s * 0.05, borderRadius: 2, backgroundColor: "#FACC15" }} />}
-          </View>
-          <View style={{ width: s * 0.94, height: s * 0.09, backgroundColor: "#9F1239", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
-    case "gymnasium":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.95)}
-          <View style={{ width: s * 0.96, height: s * 0.64, backgroundColor: "#B45309", borderRadius: 5, alignItems: "center" }}>
-            <View style={{ width: "100%", height: s * 0.1, backgroundColor: "#92400E", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
-            {/* hoop: backboard + rim */}
-            <View style={{ marginTop: s * 0.07, width: s * 0.34, height: s * 0.24, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C2410C", borderRadius: 2, alignItems: "center", justifyContent: "flex-end" }}>
-              <View style={{ width: s * 0.16, height: s * 0.05, backgroundColor: "#EA580C", borderRadius: 2, marginBottom: -s * 0.02 }} />
-            </View>
-            <View style={{ flexDirection: "row", marginTop: s * 0.09 }}>
-              <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.9, marginHorizontal: 3 }} />
-              <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.65, marginHorizontal: 3 }} />
-              {lv >= 2 && <View style={{ width: s * 0.15, height: s * 0.15, borderRadius: s * 0.075, backgroundColor: "#FFF7ED", opacity: 0.9, marginHorizontal: 3 }} />}
-            </View>
-            {lv >= 3 && <View style={{ position: "absolute", bottom: s * 0.03, width: s * 0.6, height: s * 0.055, borderRadius: 2, backgroundColor: "#FBBF24" }} />}
-          </View>
-        </View>
-      );
-    case "cafeteria":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.9)}
-          {/* striped awning */}
+      // The Art Studio — a rosy storybook studio: blush walls, wine-red
+      // gable roof, palette medallion, and framed pictures in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 30,
+        wall: "#FFF1F2", outline: "#BE3455", roof: "#9F1239",
+        doorColor: "#881337",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={9} fill="#D9A96B" stroke="#8A5A2B" strokeWidth={1.5} />
+            <Circle cx={8.6} cy={8.6} r={1.9} fill="#DC2626" />
+            <Circle cx={14.8} cy={7.8} r={1.9} fill="#2563EB" />
+            <Circle cx={16.8} cy={13.4} r={1.9} fill="#FACC15" />
+            <Circle cx={9.4} cy={15.6} r={1.9} fill="#059669" />
+          </Svg>
+        ),
+        display: (
           <View style={{ flexDirection: "row" }}>
-            {[0, 1, 2, 3, 4].map(i => <View key={i} style={{ width: s * 0.17, height: s * 0.1, backgroundColor: i % 2 ? "#FFFFFF" : "#D97706" }} />)}
-          </View>
-          <View style={{ width: s * 0.86, height: s * 0.52, backgroundColor: "#FEF3C7", borderRadius: 6, borderWidth: 2, borderColor: "#D97706", alignItems: "center", justifyContent: "center" }}>
-            {/* serving tray with lunch */}
-            <View style={{ width: s * 0.44, height: s * 0.2, borderRadius: 4, backgroundColor: "#94A3B8", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ flexDirection: "row" }}>
-                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#FDE68A", marginHorizontal: 2 }} />
-                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#65A30D", marginHorizontal: 2 }} />
-                <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#DC2626", marginHorizontal: 2 }} />
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * 0.16, height: s * 0.13, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#8A5A2B", marginHorizontal: 3, alignItems: "center", justifyContent: "center" }}>
+                <Svg width={s * 0.12} height={s * 0.09} viewBox="0 0 20 14">
+                  <Polygon points={i ? "2,12 8,5 12,9 15,6 18,12" : "2,12 7,4 11,10 14,7 18,12"} fill={i ? "#7FA8C9" : "#4C9A50"} />
+                  <Circle cx={i ? 5 : 15.5} cy={3.6} r={1.8} fill="#FBBF24" />
+                </Svg>
               </View>
-            </View>
-            {lv >= 2 && <View style={{ position: "absolute", top: s * 0.06, width: s * 0.3, height: s * 0.06, borderRadius: 2, backgroundColor: "#FBBF24" }} />}
+            ))}
           </View>
-          <View style={{ width: s * 0.92, height: s * 0.09, backgroundColor: "#92400E", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
+        ),
+      });
+    case "gymnasium":
+      // The Gymnasium — a sturdy storybook sports hall: warm brick-toned
+      // walls, a parapet band, basketball medallion, and the hoop framed
+      // in the big glass front.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 31,
+        wall: "#FDEBD0", outline: "#92400E", roof: "#92400E",
+        roofStyle: "flat", doorColor: "#451A03",
+        w: s * 0.96, bodyH: (artH ?? s) * 0.56,
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={9} fill="#F97316" stroke="#9A3412" strokeWidth={1.6} />
+            <Path d="M3.5 9.5 H20.5 M3.5 14.5 H20.5 M12 3 C8.5 7.5, 8.5 16.5, 12 21 C15.5 16.5, 15.5 7.5, 12 3" fill="none" stroke="#9A3412" strokeWidth={1.3} />
+          </Svg>
+        ),
+        signBg: "#FFF7ED",
+        display: (
+          <View style={{ width: s * 0.3, height: s * 0.22, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C2410C", borderRadius: 2, alignItems: "center", justifyContent: "flex-end" }}>
+            <View style={{ width: s * 0.15, height: s * 0.16, borderWidth: 1.6, borderColor: "#C2410C", borderRadius: 1 }} />
+            <View style={{ width: s * 0.17, height: s * 0.045, backgroundColor: "#EA580C", borderRadius: 2, marginBottom: -s * 0.02 }} />
+          </View>
+        ),
+        displayGlass: "#FFF7ED",
+      });
+    case "cafeteria":
+      // The Cafeteria — a cheerful storybook lunch hall: cream walls,
+      // amber gable roof with the striped serving awning, tray medallion,
+      // and lunch waiting in the window.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 32,
+        wall: "#FEF3C7", outline: "#B45309", roof: "#B45309",
+        awning: ["#D97706", "#FFFFFF"],
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.11} viewBox="0 0 26 20">
+            <Rect x={3} y={8} width={20} height={9} rx={2.5} fill="#94A3B8" stroke="#64748B" strokeWidth={1.5} />
+            <Circle cx={9} cy={12.5} r={2.2} fill="#FDE68A" />
+            <Circle cx={14.5} cy={12.5} r={2.2} fill="#65A30D" />
+            <Circle cx={19.5} cy={12.5} r={2.2} fill="#DC2626" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: ["#FDE68A", "#FCA5A5", "#BBF7D0"][i], marginHorizontal: 2.5, borderWidth: 1.2, borderColor: "#B45309" }} />
+            ))}
+          </View>
+        ),
+      });
     case "school-workshop":
-      return (
-        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
-          {groundShadow(s * 0.9)}
-          <View style={{ width: s * 0.9, height: s * 0.14, backgroundColor: "#6B4A2F", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
-          <View style={{ width: s * 0.86, height: s * 0.5, backgroundColor: "#C89B6A", borderRadius: 4, alignItems: "center", justifyContent: "center" }}>
-            {/* saw blade */}
-            <View style={{ width: s * 0.34, height: s * 0.34, borderRadius: s * 0.17, backgroundColor: "#CBD5E1", borderWidth: 2, borderColor: "#78716C", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: s * 0.1, height: s * 0.1, borderRadius: s * 0.05, backgroundColor: "#78716C" }} />
-            </View>
-            {lv >= 2 && <View style={{ position: "absolute", left: s * 0.07, bottom: s * 0.07, width: s * 0.16, height: s * 0.07, borderRadius: 2, backgroundColor: "#D9A96B" }} />}
-            {lv >= 3 && <View style={{ position: "absolute", right: s * 0.07, bottom: s * 0.07, width: s * 0.16, height: s * 0.07, borderRadius: 2, backgroundColor: "#D9A96B" }} />}
+      // The School Workshop — a timber storybook workshop: honey wood
+      // walls, dark gable roof, saw-blade medallion, and a log pile by
+      // the wall from L2.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 33,
+        wall: "#E3C08D", outline: "#6B4A2F", roof: "#6B4A2F",
+        doorColor: "#4E3421", doorWide: true,
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Circle cx={12} cy={12} r={8.6} fill="#CBD5E1" stroke="#78716C" strokeWidth={1.8} />
+            <Circle cx={12} cy={12} r={2.6} fill="#78716C" />
+            {[0, 60, 120, 180, 240, 300].map((a) => (
+              <Circle key={a} cx={12 + 5.6 * Math.cos((a * Math.PI) / 180)} cy={12 + 5.6 * Math.sin((a * Math.PI) / 180)} r={1} fill="#78716C" />
+            ))}
+          </Svg>
+        ),
+        front: lv >= 2 ? (
+          <View style={{ position: "absolute", bottom: 0, right: s * 0.02, alignItems: "center", justifyContent: "flex-end" }}>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * (0.2 - i * 0.03), height: s * 0.06, borderRadius: s * 0.03, backgroundColor: "#8A5A2B", borderWidth: 1.4, borderColor: "#5E3D22", marginTop: -s * 0.012 }} />
+            ))}
           </View>
-          <View style={{ width: s * 0.92, height: s * 0.08, backgroundColor: "#6B4A2F", borderRadius: 3, marginTop: 2 }} />
-        </View>
-      );
+        ) : undefined,
+      });
     case "main-office":
       return (
         <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
@@ -2818,6 +3306,119 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
         </View>
       );
     }
+    case "art-gallery":
+      // The Art Gallery — a quiet stone storybook gallery downtown: flat
+      // roof with a skylight, and framed landscapes lining the glass.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 35,
+        wall: "#FAF5EF", outline: "#78716C", roof: "#57534E",
+        roofStyle: "flat", doorColor: "#44403C",
+        sign: (
+          <View style={{ width: s * 0.15, height: s * 0.11, backgroundColor: "#FFFBEB", borderWidth: 2, borderColor: "#8A5A2B", alignItems: "center", justifyContent: "center" }}>
+            <Svg width={s * 0.11} height={s * 0.07} viewBox="0 0 20 14">
+              <Polygon points="2,12 7,4 11,10 14,7 18,12" fill="#4C9A50" />
+              <Circle cx={15.5} cy={3.6} r={1.8} fill="#FBBF24" />
+            </Svg>
+          </View>
+        ),
+        display: (
+          <View style={{ flexDirection: "row" }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={{ width: s * 0.115, height: s * 0.13, backgroundColor: "#FFFBEB", borderWidth: 1.8, borderColor: "#8A5A2B", marginHorizontal: 2, alignItems: "center", justifyContent: "center" }}>
+                <Svg width={s * 0.09} height={s * 0.1} viewBox="0 0 16 16">
+                  <Polygon points={i === 1 ? "2,13 6,5 9,9 11.5,6.5 14,13" : "2,13 5.5,6 9,10 11,8 14,13"} fill={["#7FA8C9", "#4C9A50", "#E8A84C"][i]} />
+                </Svg>
+              </View>
+            ))}
+          </View>
+        ),
+        front: (
+          <View style={{ position: "absolute", bottom: (artH ?? s) * 0.55, left: s / 2 - s * 0.11, width: s * 0.22, height: s * 0.045, backgroundColor: "#BAE6FD", borderWidth: 1.6, borderColor: "#78716C", borderRadius: 2, zIndex: 2 }} />
+        ),
+      });
+    case "coffee-roastery":
+      // The Coffee Roastery — a warm stone storybook works downtown:
+      // brown gable roof with a little roaster chimney, a bean medallion,
+      // and bean sacks in the window from L2.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 37,
+        wall: "#EFEBE4", outline: "#5E3D22", roof: "#6B4423",
+        doorColor: "#3E2723", chimney: "#78716C",
+        sign: (
+          <Svg width={s * 0.11} height={s * 0.12} viewBox="0 0 20 24">
+            <Ellipse cx={10} cy={12} rx={6.8} ry={9} fill="#8A5A2B" stroke="#5E3D22" strokeWidth={1.5} />
+            <Path d="M10 3.5 C6.8 8, 13.2 16, 10 20.5" fill="none" stroke="#5E3D22" strokeWidth={1.6} strokeLinecap="round" />
+          </Svg>
+        ),
+        display: lv >= 2 ? (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {[0, 1].map((i) => (
+              <View key={i} style={{ width: s * 0.15, height: s * 0.12, backgroundColor: "#C69A63", borderTopLeftRadius: s * 0.06, borderTopRightRadius: s * 0.06, borderRadius: 3, marginHorizontal: 3, borderWidth: 1.4, borderColor: "#8A5A2B", alignItems: "center", paddingTop: 2 }}>
+                <Svg width={s * 0.07} height={s * 0.08} viewBox="0 0 20 24">
+                  <Ellipse cx={10} cy={12} rx={6.8} ry={9} fill="#8A5A2B" stroke="#5E3D22" strokeWidth={1.5} />
+                  <Path d="M10 3.5 C6.8 8, 13.2 16, 10 20.5" fill="none" stroke="#5E3D22" strokeWidth={1.6} strokeLinecap="round" />
+                </Svg>
+              </View>
+            ))}
+          </View>
+        ) : undefined,
+      });
+    case "flower-market":
+      // The Flower Market — an open storybook stall downtown: cream walls
+      // under the striped awning, a medallion bloom, and rows of flowers
+      // spilling across the whole front.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 36,
+        wall: "#FFFBEB", outline: "#B45309", roof: "#B45309",
+        awning: ["#EC4899", "#FFFFFF"],
+        w: s * 0.95, bodyH: (artH ?? s) * 0.5,
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            {[0, 72, 144, 216, 288].map((a) => (
+              <Circle key={a} cx={12 + 4.4 * Math.cos((a * Math.PI) / 180)} cy={12 + 4.4 * Math.sin((a * Math.PI) / 180)} r={3.1} fill="#F9A8D4" stroke="#BE185D" strokeWidth={0.8} />
+            ))}
+            <Circle cx={12} cy={12} r={2.8} fill="#FBBF24" stroke="#D97706" strokeWidth={1} />
+          </Svg>
+        ),
+        display: (
+          <View style={{ alignItems: "center" }}>
+            {[0, 1].map((r) => (
+              <View key={r} style={{ flexDirection: "row", marginVertical: 1.2 }}>
+                {["#F472B6", "#FACC15", "#FB923C", "#A78BFA", "#F87171"].map((c, i) => (
+                  <View key={i} style={{ alignItems: "center", marginHorizontal: 2.6 }}>
+                    <View style={{ width: s * 0.05, height: s * 0.05, borderRadius: s * 0.025, backgroundColor: (r + i) % 2 ? c : "#F9A8D4" }} />
+                    <View style={{ width: 1.8, height: s * 0.04, backgroundColor: "#16A34A" }} />
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        ),
+      });
+    case "music-studio":
+      // The Music Studio — an indigo storybook studio downtown: flat
+      // banded roof, sound-wave medallion, and neon equalizer bars
+      // glowing in the dark glass front.
+      return storybook({
+        s, H: artH ?? s, lv, lit: isLit, LIT, seed: 34,
+        wall: "#E0E7FF", outline: "#4338CA", roof: "#3730A3",
+        roofStyle: "flat", doorColor: "#1E1B4B", trim: "#818CF8",
+        sign: (
+          <Svg width={s * 0.12} height={s * 0.12} viewBox="0 0 24 24">
+            <Rect x={4} y={9} width={3.4} height={6} rx={1.6} fill="#4338CA" />
+            <Rect x={10.3} y={5} width={3.4} height={14} rx={1.6} fill="#4338CA" />
+            <Rect x={16.6} y={8} width={3.4} height={8} rx={1.6} fill="#4338CA" />
+          </Svg>
+        ),
+        display: (
+          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+            {[0.5, 0.95, 0.65, 1.15, 0.45, 0.8].map((f, i) => (
+              <View key={i} style={{ width: s * 0.05, height: s * 0.11 * f, backgroundColor: ["#818CF8", "#F0ABFC", "#67E8F9"][i % 3], borderRadius: 2, marginHorizontal: 2 }} />
+            ))}
+          </View>
+        ),
+        displayGlass: "#1E1B4B",
+      });
     default:
       return <View style={{ width: s * 0.7, height: s * 0.7, backgroundColor: "#9CA3AF", borderRadius: 8 }} />;
   }
@@ -2829,6 +3430,71 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
  * re-renders for unrelated reasons (ticks, modals, collect FX, clocks).
  */
 const MemoBuildingArt = React.memo(BuildingArt);
+
+type BuildingArtProps = { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean };
+
+/**
+ * Upgrade transformation: when a building's level (or floor count) rises,
+ * the map art crossfades old → new over ~600ms of sine ease with a soft
+ * golden glow pulse and a gentle scale settle (transform/opacity only,
+ * native driver). Only the upgraded building animates — every other
+ * building renders the plain memoized art with zero wrapper overhead, and
+ * idle renders of the upgraded building go back to plain art the moment
+ * the pulse finishes.
+ */
+const BuildingArtFX = React.memo(function BuildingArtFX(props: BuildingArtProps) {
+  const [fx, setFx] = useState<{ prev: BuildingArtProps } | null>(null);
+  const lastRef = useRef(props);
+  const anim = useRef(new Animated.Value(0)).current;
+
+  // Runs after every render: an increase in level/floors since the last
+  // rendered props means this building just upgraded — capture the old
+  // props so the old art can fade out underneath the new.
+  useEffect(() => {
+    const prev = lastRef.current;
+    const leveled =
+      (props.level || 1) > (prev.level || 1) || (props.floors || 1) > (prev.floors || 1);
+    if (leveled && prev.type === props.type) setFx({ prev });
+    lastRef.current = props;
+  });
+
+  useEffect(() => {
+    if (!fx) return;
+    anim.setValue(0);
+    const a = Animated.timing(anim, {
+      toValue: 1,
+      duration: 620,
+      easing: Easing.inOut(Easing.sin),
+      useNativeDriver: true,
+    });
+    a.start(({ finished }) => {
+      if (finished) setFx(null);
+    });
+    return () => a.stop();
+  }, [fx, anim]);
+
+  if (!fx) return <MemoBuildingArt {...props} />;
+
+  const w = props.size;
+  const h = props.artH ?? props.size;
+  const scale = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.045, 1] });
+  const glowOpacity = anim.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 0.55, 0] });
+  const oldOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  return (
+    <Animated.View style={{ width: w, height: h, transform: [{ scale }] }}>
+      <Animated.View
+        pointerEvents="none"
+        style={{ position: "absolute", left: 0, top: 0, width: w, height: h, borderRadius: 18, backgroundColor: "#FDE68A", opacity: glowOpacity }}
+      />
+      <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, opacity: oldOpacity }}>
+        <MemoBuildingArt {...fx.prev} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={{ opacity: anim }}>
+        <MemoBuildingArt {...props} />
+      </Animated.View>
+    </Animated.View>
+  );
+});
 
 /** Animated SVG primitives (for shimmer/glow loops inside Svg). */
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -7226,7 +7892,7 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <MemoBuildingArt type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} />
+                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} />
                 {/* Ambient life: chimney smoke drifting from hearths
                     (deferred past first paint — see ambientReady) */}
                 {ambientReady && hasChimney(b.type) && (

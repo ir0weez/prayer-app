@@ -9,6 +9,15 @@
 // The Gym game also grants a training bonus: +10% Dark Forest attack
 // and defense until midnight (non-stacking), applied where hometown
 // computes the hero's combat stats.
+//
+// TIMING STANDARD (Jonathan's standing rule for every timing game):
+// capture input on onPressIn (finger DOWN — onPress waits for release
+// and adds 60–120 ms of phantom travel), animate sweeps/gauges on the
+// native driver, and read values back via stopAnimation's callback.
+// No per-frame React state (no setInterval/setState) in a game loop.
+// Reference builds: the Steady Trim (components/trim-game.tsx) and
+// Token Toss (components/token-toss-game.tsx), whose header carries
+// the full note.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VIOLET_MINIGAME_MULT, hasCachedBadge } from "./badges";

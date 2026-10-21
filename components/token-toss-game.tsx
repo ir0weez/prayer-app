@@ -3,8 +3,26 @@
 // ring board. Dead-center power lands in the bullseye; weak tosses fall
 // short, strong ones sail long. Five tokens a play, XP-weighted payout —
 // the arcade pays in experience, with a few coins for the cup.
-// Tick-driven sweep like the other games; the flight itself is one
-// sine-eased Animated value, positions derived, never stacked.
+// The flight is one sine-eased Animated value, positions derived,
+// never stacked.
+//
+// TIMING STANDARD (Jonathan's standing rule — every timing game in
+// this app must meet it; the Steady Trim is the reference build):
+//   1. Capture input on onPressIn (finger DOWN), never onPress.
+//      onPress fires on finger RELEASE — the press-down → release gap
+//      runs 60–120 ms, which at sweep speed is several times the
+//      scoring window: what gets scored is not what the player saw.
+//   2. Run every sweep/gauge on the NATIVE driver (Animated with
+//      useNativeDriver) and read the value back via stopAnimation's
+//      callback — the exact frozen value the marker stopped at.
+//   3. No per-frame React state in the game loop: no setInterval, no
+//      setState per tick. The marker moves on the native side; React
+//      renders on events (a toss, a landing), not on frames.
+// This game originally broke all three (a 40 ms JS interval drove a
+// React state update — a full scene re-render 25×/second — and the
+// toss was taken on release), which is why it felt laggy and slow
+// next to the Steady Trim. Rebuilt to the standard; the sweep curve,
+// ring values, and payout math are byte-for-byte the old ones.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
@@ -14,10 +32,28 @@ import { tokenScoreForPower, tokenTossReward } from "@/lib/mini-games";
 
 const TOKENS_PER_PLAY = 5;
 const SWEEP_MS = 1500; // one full back-and-forth of the power marker
-const TICK_MS = 40;
+const SWEEP_LEG_MS = SWEEP_MS / 2; // each direction of the sweep
 
 type LandedToken = { id: number; dx: number; dy: number; score: number };
 type FlyingToken = { dx: number; dy: number; score: number; travelY: number; shiftX: number };
+
+/** Easing.inOut(Easing.sin), duplicated so a position can be computed
+ *  analytically from the clock — only used as a fallback if the native
+ *  stopAnimation callback somehow never answers (see handleToss).
+ *  Same helper the Steady Trim ships. */
+function inOutSin(t: number): number {
+  return t < 0.5 ? (1 - Math.cos(Math.PI * t)) / 2 : 1 - (1 - Math.cos(Math.PI * (1 - t))) / 2;
+}
+
+/** The sweep's logical position (0..1) at an instant, given when the
+ *  current sweep started: a sine-eased ping-pong, SWEEP_MS per full
+ *  back-and-forth. Identical curve to the original tick-driven sweep,
+ *  (1 − cos(2π·e/SWEEP_MS)) / 2 — verified numerically to ~1e-16. */
+export function tokenTossSweepPositionAt(startMs: number, nowMs: number): number {
+  const t = (((nowMs - startMs) % SWEEP_MS) + SWEEP_MS) % SWEEP_MS;
+  if (t <= SWEEP_LEG_MS) return inOutSin(t / SWEEP_LEG_MS);
+  return 1 - inOutSin((t - SWEEP_LEG_MS) / SWEEP_LEG_MS);
+}
 
 function TokenDisc({ size = 26, dim = false }: { size?: number; dim?: boolean }) {
   return (
@@ -34,16 +70,21 @@ function TokenDisc({ size = 26, dim = false }: { size?: number; dim?: boolean })
 
 export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
   const { sceneW, sceneH, ready, onLayout } = useSceneBox(0.92);
-  const [sweep, setSweep] = useState(0);
   const [landed, setLanded] = useState<LandedToken[]>([]);
   const [flying, setFlying] = useState<FlyingToken | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [granted, setGranted] = useState<MiniGameReward | null>(null);
+  const [gaugeW, setGaugeW] = useState(0);
 
   const landedRef = useRef<LandedToken[]>([]);
   const flyingRef = useRef(false);
+  const samplingRef = useRef(false);
   const completedRef = useRef(false);
-  const sweepStartRef = useRef(Date.now());
+  // When the current sweep (re)started — for the analytic fallback.
+  const sweepStartRef = useRef(0);
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sweep = useRef(new Animated.Value(0)).current;
   const flight = useRef(new Animated.Value(0)).current;
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -64,50 +105,104 @@ export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
     setGranted(onCompleteRef.current(tokenTossReward(score)));
   }, []);
 
-  // The sweeping power marker — sine back-and-forth, paused mid-flight.
+  const stopSweepLoop = useCallback(() => {
+    loopRef.current?.stop();
+    loopRef.current = null;
+  }, []);
+
+  // The sweeping power marker — a native-driver sine ping-pong loop.
+  // No state, no interval: the marker's transform is the animation.
+  const startSweep = useCallback(() => {
+    stopSweepLoop();
+    sweepStartRef.current = Date.now();
+    sweep.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sweep, { toValue: 1, duration: SWEEP_LEG_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(sweep, { toValue: 0, duration: SWEEP_LEG_MS, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loopRef.current = loop;
+    loop.start();
+  }, [stopSweepLoop, sweep]);
+
   useEffect(() => {
     if (!ready || granted) return;
-    const timer = setInterval(() => {
-      if (flyingRef.current || completedRef.current) return;
-      const t = (Date.now() - sweepStartRef.current) / SWEEP_MS;
-      setSweep((1 - Math.cos(t * Math.PI * 2)) / 2);
-    }, TICK_MS);
-    return () => clearInterval(timer);
-  }, [ready, granted]);
-
-  const toss = useCallback(() => {
-    if (!ready || flyingRef.current || completedRef.current || granted) return;
-    if (landedRef.current.length >= TOKENS_PER_PLAY) return;
-    const p = sweep;
-    const score = tokenScoreForPower(p);
-    const d = Math.abs(p - 0.5);
-    // Landing spot: distance from center grows with the miss; weak
-    // tosses (p < 0.5) fall below center, strong ones sail above it.
-    const rFrac = d <= 0.3 ? (d / 0.3) * 0.92 : 1.12;
-    const dy = (p < 0.5 ? 1 : -1) * rFrac * boardR;
-    const dx = (Math.random() - 0.5) * boardR * 0.36;
-    const landingTop = boardCy + dy;
-    flyingRef.current = true;
-    setFlying({ dx, dy, score, travelY: landingTop - launchY, shiftX: dx });
-    flight.setValue(0);
-    Animated.timing(flight, {
-      toValue: 1,
-      duration: 460,
-      easing: Easing.out(Easing.sin),
-      useNativeDriver: true,
-    }).start(() => {
-      const token: LandedToken = { id: landedRef.current.length + 1, dx, dy, score };
-      landedRef.current = [...landedRef.current, token];
-      setLanded(landedRef.current);
-      setLastScore(score);
-      setFlying(null);
-      flyingRef.current = false;
-      sweepStartRef.current = Date.now();
-      if (landedRef.current.length >= TOKENS_PER_PLAY) {
-        setTimeout(finish, 650);
+    startSweep();
+    return () => {
+      stopSweepLoop();
+      if (fallbackRef.current) {
+        clearTimeout(fallbackRef.current);
+        fallbackRef.current = null;
       }
-    });
-  }, [ready, granted, sweep, boardCy, boardR, launchY, flight, finish]);
+    };
+  }, [ready, granted, startSweep, stopSweepLoop]);
+
+  /** Throw one token at power `p` (0..1, sampled at finger-down). */
+  const launch = useCallback(
+    (pRaw: number) => {
+      const p = Math.min(1, Math.max(0, pRaw));
+      const score = tokenScoreForPower(p);
+      const d = Math.abs(p - 0.5);
+      // Landing spot: distance from center grows with the miss; weak
+      // tosses (p < 0.5) fall below center, strong ones sail above it.
+      const rFrac = d <= 0.3 ? (d / 0.3) * 0.92 : 1.12;
+      const dy = (p < 0.5 ? 1 : -1) * rFrac * boardR;
+      const dx = (Math.random() - 0.5) * boardR * 0.36;
+      const landingTop = boardCy + dy;
+      flyingRef.current = true;
+      setFlying({ dx, dy, score, travelY: landingTop - launchY, shiftX: dx });
+      flight.setValue(0);
+      Animated.timing(flight, {
+        toValue: 1,
+        duration: 460,
+        easing: Easing.out(Easing.sin),
+        useNativeDriver: true,
+      }).start(() => {
+        const token: LandedToken = { id: landedRef.current.length + 1, dx, dy, score };
+        landedRef.current = [...landedRef.current, token];
+        setLanded(landedRef.current);
+        setLastScore(score);
+        setFlying(null);
+        flyingRef.current = false;
+        if (landedRef.current.length >= TOKENS_PER_PLAY) {
+          setTimeout(finish, 650);
+        } else {
+          startSweep();
+        }
+      });
+    },
+    [boardCy, boardR, launchY, flight, finish, startSweep]
+  );
+
+  const handleToss = useCallback(() => {
+    if (!ready || flyingRef.current || samplingRef.current || completedRef.current || granted) return;
+    if (landedRef.current.length >= TOKENS_PER_PLAY) return;
+    samplingRef.current = true;
+    // Stop the loop FIRST so the sequence can't roll into its next
+    // leg, then read the frozen power back from the native side: the
+    // callback receives the exact value the marker stopped at, so
+    // what the player saw at finger-down is what gets tossed.
+    stopSweepLoop();
+    let launched = false;
+    const launchOnce = (pos: number) => {
+      if (launched) return;
+      launched = true;
+      samplingRef.current = false;
+      if (fallbackRef.current) {
+        clearTimeout(fallbackRef.current);
+        fallbackRef.current = null;
+      }
+      launch(pos);
+    };
+    // Insurance only: if the native callback never answers, fall back
+    // to the analytic position from the sweep's start clock so a toss
+    // can never soft-lock waiting on a callback.
+    fallbackRef.current = setTimeout(() => {
+      launchOnce(tokenTossSweepPositionAt(sweepStartRef.current, Date.now()));
+    }, 300);
+    sweep.stopAnimation((value) => launchOnce(value));
+  }, [ready, granted, launch, stopSweepLoop, sweep]);
 
   if (granted) {
     return (
@@ -131,7 +226,9 @@ export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
     );
   }
 
-  const markerLeft = sweep * innerW;
+  // Marker CENTER tracks the logical sweep position across the gauge:
+  // base left -2 (half the 4px marker) + translateX of sweep × width.
+  const markerX = sweep.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(0, gaugeW)] });
 
   return (
     <GameCard title="Token Toss" accent={accent} onLayout={onLayout}>
@@ -225,7 +322,13 @@ export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
         </View>
 
         {/* the power gauge */}
-        <View style={{ marginTop: 14 }}>
+        <View
+          style={{ marginTop: 14 }}
+          onLayout={(e) => {
+            const w = Math.round(e.nativeEvent.layout.width);
+            setGaugeW((prev) => (prev === w ? prev : w));
+          }}
+        >
           <View style={{ height: 16, borderRadius: 8, backgroundColor: "#E7E0F2", overflow: "hidden", flexDirection: "row" }}>
             <View style={{ flex: 20, backgroundColor: "#C9BEE0" }} />
             <View style={{ flex: 14, backgroundColor: "#2EC4B6" }} />
@@ -235,8 +338,20 @@ export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
             <View style={{ flex: 14, backgroundColor: "#2EC4B6" }} />
             <View style={{ flex: 20, backgroundColor: "#C9BEE0" }} />
           </View>
-          {ready && (
-            <View pointerEvents="none" style={{ position: "absolute", left: markerLeft - 2, top: -4, width: 4, height: 24, borderRadius: 2, backgroundColor: "#1C1917" }} />
+          {ready && gaugeW > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                left: -2,
+                top: -4,
+                width: 4,
+                height: 24,
+                borderRadius: 2,
+                backgroundColor: "#1C1917",
+                transform: [{ translateX: markerX }],
+              }}
+            />
           )}
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
             <Text style={{ color: "#A08B7A", fontSize: 10, fontWeight: "700" }}>TOO SOFT</Text>
@@ -246,7 +361,7 @@ export function TokenTossGame({ accent, onComplete, onExit }: MiniGameProps) {
         </View>
 
         <Pressable
-          onPress={toss}
+          onPressIn={handleToss}
           disabled={!!flying || tokensLeft <= 0}
           style={{
             marginTop: 12,

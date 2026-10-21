@@ -137,7 +137,13 @@ describe("diner coffee counter", () => {
     const src = readSrc("app/restaurant-interior.tsx");
     expect(src).toContain("recordCoffeePurchase()");
     expect(src).toContain("grantCoffeeEnergy()");
-    expect(src).toContain("DinerCoffeeStation");
+    // Paper rollout batch 1: the drawn DinerCoffeeStation retired —
+    // the decanters now render inside the paper diner room (its
+    // config.id === "diner" kitchen dressing). The purchase flow
+    // itself never moved: it lives in the screen's card, pinned above.
+    const paperRoom = readSrc("components/paper-restaurant-room.tsx");
+    expect(paperRoom).toContain('config.id === "diner"');
+    expect(src).not.toContain("DinerCoffeeStation");
   });
 });
 

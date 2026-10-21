@@ -339,3 +339,39 @@ describe("purchase/upgrade flow source guards", () => {
     expect(shellSrc).toContain("constructionTimeLabel(nextLevel, false)");
   });
 });
+
+describe("construction countdown chip — the 1-second tick rider", () => {
+  const hometownSrc = readFileSync(join(process.cwd(), "app/hometown.tsx"), "utf8");
+  const gateAt = hometownSrc.indexOf("const visibleMapHasConstruction");
+  const block = hometownSrc.slice(gateAt, gateAt + 1500);
+
+  it("the gate: the tick exists only while a building on the visible map is under construction", () => {
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(hometownSrc).toContain(
+      "const visibleMapHasConstruction = map.buildings.some((b) => isUnderConstruction(b, nowMs));"
+    );
+    expect(block).toContain("if (!visibleMapHasConstruction) return;");
+  });
+
+  it("a 1-second interval refreshes nowMs (the chip re-derives from constructionEndsAt)", () => {
+    expect(block).toContain("setInterval(() => {");
+    expect(block).toContain("setNowMs(Date.now());");
+    expect(block).toContain("}, 1000);");
+    // the chip itself — format and source of truth — is unchanged
+    expect(hometownSrc).toContain(
+      "Ready in {formatConstructionRemaining(constructionRemainingMs(b, nowMs))}"
+    );
+  });
+
+  it("each tick settles finished sites through the same settle path and persists", () => {
+    expect(block).toContain("settleTownState(prev, Date.now())");
+    expect(block).toContain("saveTown(next);");
+    // the 30s live tick keeps its own settle + accrual, untouched
+    expect(hometownSrc).toContain("const b = settleBuilding(rawB, now);");
+    expect(hometownSrc).toContain("}, 30000);");
+  });
+
+  it("the interval is cleaned up when the gate closes and on unmount", () => {
+    expect(block).toContain("return () => clearInterval(id);");
+  });
+});

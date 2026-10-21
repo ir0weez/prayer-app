@@ -74,6 +74,7 @@ import {
   formatConstructionRemaining,
   isUnderConstruction,
   settleBuilding,
+  settleTownState,
   plotIncomeMult,
   xpIncomeFor,
   upgradeCostFor,
@@ -5827,6 +5828,33 @@ export default function HometownScreen() {
     }, 30000);
     return () => clearInterval(id);
   }, [runVillagerMissionSpawn, runWorkTick, refreshScheduleVisit]);
+
+  // Construction countdown: the 30s live tick left the site chip's
+  // seconds frozen between steps, so a building site looked stuck
+  // (Jonathan's report). While any building on the VISIBLE map is
+  // under construction, a screen-local 1-second tick refreshes nowMs
+  // — the chip re-derives its remaining time from constructionEndsAt,
+  // still the single source of truth — and settles any finished site
+  // through the same settle path the load pass and the 30s tick use
+  // (settleTownState → settleBuilding, persisted via saveTown), so
+  // the finished building appears the moment its timer passes,
+  // crossfade and all. The interval exists only while a site is on
+  // screen and clears the moment none is: screen-local only, no
+  // background work, per the house rule.
+  const visibleMapHasConstruction = map.buildings.some((b) => isUnderConstruction(b, nowMs));
+  useEffect(() => {
+    if (!visibleMapHasConstruction) return;
+    const id = setInterval(() => {
+      setNowMs(Date.now());
+      setTown((prev) => {
+        const next = settleTownState(prev, Date.now());
+        if (next === prev) return prev;
+        saveTown(next);
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [visibleMapHasConstruction, saveTown]);
 
   const buildingAt = (x: number, y: number): PlacedBuilding | undefined => {
     return map.buildings.find((b) => {

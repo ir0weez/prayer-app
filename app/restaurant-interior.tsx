@@ -39,9 +39,10 @@ import {
   CuisineFloor,
   CuisineCenterpiece,
   DinerCoffeeStation,
-  TacoCantinaCounter,
   type CuisinePalette,
 } from "@/components/cuisine-themes";
+import { PixelTacoRoom } from "@/components/pixel-taco-room";
+import { getTimeOfDay } from "@/lib/daynight";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { ServeGame } from "@/components/serve-game";
 import { PlayCard } from "@/components/mini-game-scene";
@@ -319,201 +320,6 @@ function DiningTable({
   );
 }
 
-// ---------- cantina booth bench (taco-stand tables) ----------
-// A drawn bench behind each row of diners: slatted back in the chair
-// tier's own colors (so it reads as one seat with the chair backs),
-// pink piping, a teal vinyl cushion strip from chairs tier 1, and
-// button tufts at the banquet tier.
-function CantinaBench({ chairsTier, pal }: { chairsTier: number; pal: CuisinePalette }) {
-  const seatColor = chairsTier <= 1 ? pal.wood : chairsTier === 2 ? "#7A3B2E" : "#4E2A1E";
-  return (
-    <View
-      style={{
-        width: 174,
-        height: 44,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        backgroundColor: seatColor,
-        borderWidth: 2,
-        borderColor: pal.woodDark,
-        overflow: "hidden",
-      }}
-    >
-      {[40, 86, 132].map((x) => (
-        <View key={x} style={{ position: "absolute", top: 0, bottom: 0, left: x, width: 2, backgroundColor: pal.woodDark, opacity: 0.5 }} />
-      ))}
-      <View style={{ position: "absolute", top: 2.5, left: 7, right: 7, height: 2.5, borderRadius: 1.25, backgroundColor: pal.accent, opacity: 0.9 }} />
-      {chairsTier >= 3 && (
-        <View style={{ position: "absolute", top: 13, left: 0, right: 0, flexDirection: "row", justifyContent: "space-evenly" }}>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <View key={i} style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: pal.woodDark, opacity: 0.8 }} />
-          ))}
-        </View>
-      )}
-      {chairsTier >= 1 && (
-        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, backgroundColor: "#1F8A80", borderTopWidth: 1.5, borderTopColor: "#14665E" }} />
-      )}
-    </View>
-  );
-}
-
-// ---------- the taco stand's tables: drawn, not bare ovals ----------
-// The style proof for interiors. Same seats, same diners, same slicing
-// as DiningTable — only the drawing changes: booth benches, a tiled rim,
-// and tabletop life that arrives with the tables tier (cups at 1, tacos
-// + salsa + tile edge at 2, serving tray + two-tone fringe at 3).
-function CantinaTable({
-  diners,
-  tablesTier,
-  chairsTier,
-  pawnFirst = false,
-  grand = false,
-  pal = DEFAULT_PAL,
-  cuisine = "",
-}: {
-  diners: PrayedPerson[];
-  tablesTier: number;
-  chairsTier: number;
-  pawnFirst?: boolean;
-  grand?: boolean;
-  pal?: CuisinePalette;
-  cuisine?: string;
-}) {
-  const cloth = pal.cloth[Math.min(tablesTier, 3)] || "";
-  const topColor = cloth || pal.wood;
-  const setting = (key: number, flip: boolean) => (
-    <View key={key} style={{ flexDirection: flip ? "row-reverse" : "row", alignItems: "center" }}>
-      {/* cup with a straw (tables tier 1+) */}
-      {tablesTier >= 1 && (
-        <View style={{ alignItems: "center", marginHorizontal: 2 }}>
-          <View style={{ width: 2.5, height: 8, borderRadius: 1.25, backgroundColor: "#FF7BAC", transform: [{ rotate: "16deg" }], marginBottom: -2, zIndex: 2 }} />
-          <View style={{ width: 8, height: 11, borderRadius: 2, backgroundColor: "#F6EEFC", borderWidth: 1.25, borderColor: "#B9A3D9" }} />
-        </View>
-      )}
-      {/* plate — a taco joins it at tables tier 2 */}
-      <View
-        style={{
-          width: 21,
-          height: 21,
-          borderRadius: 10.5,
-          backgroundColor: "#FFF9F0",
-          borderWidth: 1.25,
-          borderColor: "#D9C9A8",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <View style={{ width: 15, height: 15, borderRadius: 7.5, borderWidth: 1, borderColor: "#E3D3AC", alignItems: "center", justifyContent: "center" }}>
-          {tablesTier >= 2 && (
-            <View style={{ width: 11, height: 6.5, borderTopLeftRadius: 5.5, borderTopRightRadius: 5.5, backgroundColor: "#E8C86A", borderWidth: 1, borderColor: "#A87838" }} />
-          )}
-        </View>
-      </View>
-    </View>
-  );
-  const salsaBowl = (key: number, salsa: string, fleck: string) => (
-    <View key={key} style={{ alignItems: "center", marginHorizontal: 3 }}>
-      <View style={{ width: 14, height: 4.5, borderRadius: 2.25, backgroundColor: salsa, flexDirection: "row", justifyContent: "center" }}>
-        <View style={{ width: 2.5, height: 2.5, borderRadius: 1.25, backgroundColor: fleck, marginTop: 1, marginHorizontal: 1 }} />
-        <View style={{ width: 2.5, height: 2.5, borderRadius: 1.25, backgroundColor: fleck, marginTop: 1, marginHorizontal: 1 }} />
-      </View>
-      <View style={{ width: 12, height: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#5E2A6E", borderWidth: 1, borderColor: "#3A1A45", marginTop: -1 }} />
-    </View>
-  );
-  return (
-    <View style={{ alignItems: "center", marginVertical: 10 }}>
-      {/* north seats, on the booth bench */}
-      <View style={{ position: "relative", minHeight: 54, justifyContent: "flex-end" }}>
-        <View style={{ position: "absolute", left: 0, right: 0, bottom: 1, alignItems: "center" }}>
-          <CantinaBench chairsTier={chairsTier} pal={pal} />
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", minHeight: 52 }}>
-          {pawnFirst && <PawnDiner delay={0} pal={pal} />}
-          {diners.slice(0, pawnFirst ? 1 : 2).map((p, i) => (
-            <SeatedVillager key={p.id} person={p} chairTier={chairsTier} delay={(i + 1) * 180} pal={pal} />
-          ))}
-        </View>
-      </View>
-      {/* the table */}
-      <View style={{ alignItems: "center" }}>
-        <View
-          style={{
-            width: 136,
-            height: 46,
-            borderRadius: 23,
-            backgroundColor: topColor,
-            borderWidth: 3,
-            borderColor: tablesTier > 0 ? "#2EC4B6" : pal.woodDark,
-            justifyContent: "center",
-          }}
-        >
-          {/* top highlight */}
-          <View style={{ position: "absolute", top: 4, left: 16, right: 16, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.15 }} />
-          {/* serving tray under the middle settings (tables tier 3) */}
-          {tablesTier >= 3 && (
-            <View style={{ position: "absolute", alignSelf: "center", width: 62, height: 30, borderRadius: 8, backgroundColor: "#B9C0C9", borderWidth: 1.5, borderColor: "#7A828C" }} />
-          )}
-          {/* place settings + salsa for the table */}
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13 }}>
-            {setting(0, false)}
-            {tablesTier >= 2 ? (
-              <View style={{ flexDirection: "row" }}>
-                {salsaBowl(0, "#C0392B", "#4E8B4A")}
-                {salsaBowl(1, "#4E8B4A", "#C0392B")}
-              </View>
-            ) : (
-              <View />
-            )}
-            {setting(1, true)}
-          </View>
-          {/* cantina tile edge along the front (tables tier 2+) */}
-          {tablesTier >= 2 && (
-            <View style={{ position: "absolute", bottom: 4, left: 0, right: 0, flexDirection: "row", justifyContent: "center" }}>
-              {Array.from({ length: 9 }).map((_, i) => (
-                <View key={i} style={{ width: 5.5, height: 5.5, borderRadius: 1.25, backgroundColor: i % 2 === 0 ? "#2EC4B6" : "#FF7BAC", marginHorizontal: 2.25 }} />
-              ))}
-            </View>
-          )}
-          {/* themed centerpiece at the grand level */}
-          {grand && (
-            <View style={{ position: "absolute", top: -6, left: 0, right: 0, alignItems: "center", zIndex: 3 }}>
-              <CuisineCenterpiece cuisine={cuisine} grand={grand} />
-            </View>
-          )}
-        </View>
-        {/* two-tone fringe under the cloth (tables tier 3) */}
-        {tablesTier >= 3 && (
-          <View style={{ flexDirection: "row", marginTop: -2 }}>
-            {Array.from({ length: 13 }).map((_, i) => (
-              <View key={i} style={{ width: 4.5, height: 9, borderRadius: 2.25, backgroundColor: i % 2 === 0 ? "#FF7BAC" : "#2EC4B6", marginHorizontal: 2.4 }} />
-            ))}
-          </View>
-        )}
-        {/* splayed legs, foot bar, ground shadow */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", width: 64, marginTop: 1 }}>
-          <View style={{ width: 10, height: 22, borderRadius: 2, backgroundColor: pal.woodDark, transform: [{ rotate: "6deg" }] }} />
-          <View style={{ width: 10, height: 22, borderRadius: 2, backgroundColor: pal.woodDark, transform: [{ rotate: "-6deg" }] }} />
-        </View>
-        <View style={{ width: 78, height: 8, borderRadius: 4, backgroundColor: pal.woodDark, marginTop: -2 }} />
-        <View style={{ width: 118, height: 9, borderRadius: 4.5, backgroundColor: "#000000", opacity: 0.15, marginTop: 2 }} />
-      </View>
-      {/* south seats, on their bench */}
-      <View style={{ position: "relative", minHeight: 54, marginTop: -34 }}>
-        <View style={{ position: "absolute", left: 0, right: 0, top: 3, alignItems: "center" }}>
-          <CantinaBench chairsTier={chairsTier} pal={pal} />
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "center", minHeight: 52 }}>
-          {diners.slice(2, 4).map((p, i) => (
-            <View key={p.id} style={{ transform: [{ scaleY: -1 }] }}>
-              <SeatedVillager person={p} chairTier={chairsTier} delay={(i + 2) * 180} pal={pal} />
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
-
 // ---------- banquet seating: named villager at the long table ----------
 // Each diner gets their name above them so Jonathan knows who sits where.
 function BanquetSeated({ person, delay, pal = DEFAULT_PAL }: { person: PrayedPerson; delay: number; pal?: CuisinePalette }) {
@@ -678,10 +484,9 @@ function BanquetTable({ diners, tablesTier, pal = DEFAULT_PAL, cuisine = "" }: {
 // ---------- kitchen counter at the back (style by kitchen tier) ----------
 // Cuisines with their own signature oven/grill skip the generic brick oven.
 function KitchenCounter({ tier, cuisine = "" }: { tier: number; cuisine?: string }) {
-  // The taco stand cooks at its own cantina counter (drawn, tiled) —
-  // its station is the Cantina Kitchen, never the generic home one.
-  if (cuisine === "taco-stand") return <TacoCantinaCounter tier={tier} />;
-  const hasSignatureOven = cuisine === "pizza-place" || cuisine === "manna-house" || cuisine === "taco-stand" || cuisine === "sushi-bar" || cuisine === "diner" || cuisine === "burger-joint";
+  // The taco stand never reaches this counter — its whole room renders
+  // through the pixel kit now (components/pixel-taco-room).
+  const hasSignatureOven = cuisine === "pizza-place" || cuisine === "manna-house" || cuisine === "sushi-bar" || cuisine === "diner" || cuisine === "burger-joint";
   if (tier >= 2 && !hasSignatureOven) {
     // Brick oven (t2) / Chef's Kitchen (t3): arched oven with a warm fire
     return (
@@ -1593,6 +1398,38 @@ export default function RestaurantInteriorScreen() {
           }}
         >
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="restaurant" />
+          {cuisine === "taco-stand" ? (
+            <>
+              {/* the Taco Stand renders 100% pixel now (phase 1 of the
+                  pixel interiors) — room, furniture and people alike */}
+              <PixelTacoRoom
+                tableDiners={tableDiners}
+                tablesTier={tablesTier}
+                chairsTier={chairsTier}
+                kitchenTier={kitchenTier}
+                level={bLevel}
+                gathering={gathering}
+                halloween={getHolidaySeason() === "halloween"}
+                isNight={getTimeOfDay() === "night"}
+              />
+              {gathering && diners.length > 0 && <BreakingBreadFloat />}
+              {diners.length === 0 && (
+                <Text
+                  style={{
+                    color: pal.textDim,
+                    fontSize: 13,
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    marginVertical: 18,
+                    paddingHorizontal: 24,
+                  }}
+                >
+                  The tables are set, but the chairs are empty. Pray for someone today and they'll pull up a chair.
+                </Text>
+              )}
+            </>
+          ) : (
+            <>
           {/* back wall — themed decor */}
           <View style={{ backgroundColor: pal.wall, paddingBottom: 4 }}>
             <CuisineOverhead cuisine={cuisine} level={bLevel} lightsTier={lightsTier} />
@@ -1681,10 +1518,6 @@ export default function RestaurantInteriorScreen() {
                 <BanquetDressing level={bLevel} />
                 <BanquetTable diners={diners} tablesTier={tablesTier} pal={pal} cuisine={cuisine} />
               </>
-            ) : cuisine === "taco-stand" ? (
-              tableDiners.map((group, i) => (
-                <CantinaTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} grand={bLevel >= 3} pal={pal} cuisine={cuisine} />
-              ))
             ) : (
               tableDiners.map((group, i) => (
                 <DiningTable key={i} diners={group} tablesTier={tablesTier} chairsTier={chairsTier} pawnFirst={i === 0} grand={bLevel >= 3} pal={pal} cuisine={cuisine} />
@@ -1710,6 +1543,8 @@ export default function RestaurantInteriorScreen() {
               </Text>
             )}
           </View>
+            </>
+          )}
         </View>
 
         {/* interior bonus banner — the Marriage Supper is a sacred green, not a business:

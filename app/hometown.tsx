@@ -302,7 +302,6 @@ import { TownNPCs, CityNPCs, countHometownNpcs, type LightInfo } from "@/compone
 import { CityTraffic } from "@/components/city-traffic";
 import { ChimneySmoke, hasChimney } from "@/components/chimney-smoke";
 import { MapBirds } from "@/components/map-birds";
-import { NightWindowGlow, hasLitWindows } from "@/components/night-window-glow";
 import {
   getActiveScheduleActivity,
   resolveScheduleTarget,
@@ -814,7 +813,7 @@ function LandmarkArt({ art, size }: { art: TownLandmark["art"]; size: number }) 
   }
 }
 
-function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean }) {
+function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH, blessed = false, night = false }: { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean; night?: boolean }) {
   const s = size;
   const lv = level || 1;
   // Shared pseudo-3D bits for tall buildings.
@@ -828,7 +827,14 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
   // City towers feel more alive as they level up: more lit windows.
   // L1 ~30% lit (quiet), L2 ~60% (busy), L3 ~90% (buzzing).
   const litRatio = lv >= 3 ? 0.9 : lv === 2 ? 0.6 : 0.3;
-  const isLit = (i: number, j: number) => ((i * 7 + j * 13 + lv * 5) % 10) < litRatio * 10;
+  // At night (8 PM – 6 AM) every window that flows through this pattern —
+  // the storybook kit's glass, the tower grids, and the hand-drawn cases
+  // that gate their glass on isLit — glows warm from inside. The night
+  // light lives in the art itself now; there is no overlay. By day the
+  // pattern is exactly what it has always been, so day art is unchanged.
+  const isLit = night
+    ? (_i: number, _j: number) => true
+    : (i: number, j: number) => ((i * 7 + j * 13 + lv * 5) % 10) < litRatio * 10;
   const LIT = "#FDE68A";
   switch (type) {
     case "house": {
@@ -3431,7 +3437,7 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
  */
 const MemoBuildingArt = React.memo(BuildingArt);
 
-type BuildingArtProps = { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean };
+type BuildingArtProps = { type: string; size: number; level?: number; floors?: number; prayedCount?: number; artH?: number; blessed?: boolean; night?: boolean };
 
 /**
  * Upgrade transformation: when a building's level (or floor count) rises,
@@ -7892,19 +7898,11 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} />
+                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} night={isNight} />
                 {/* Ambient life: chimney smoke drifting from hearths
                     (deferred past first paint — see ambientReady) */}
                 {ambientReady && hasChimney(b.type) && (
                   <ChimneySmoke risePx={cellSize * 0.9} puffSize={Math.max(8, cellSize * 0.28)} />
-                )}
-                {/* Ambient life: warm window glow at night (8 PM – 6 AM) */}
-                {ambientReady && isNight && hasLitWindows(b.type) && (
-                  <NightWindowGlow
-                    buildingId={b.id}
-                    width={fp.w * cellSize}
-                    height={fp.h * cellSize + extraPx}
-                  />
                 )}
                 {/* L3 city towers glow with activity */}
                 {(b.level || 1) >= 3 && !!b.plotId && (

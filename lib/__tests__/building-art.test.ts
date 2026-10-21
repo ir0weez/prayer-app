@@ -3,7 +3,7 @@
 // gray default blob, no emoji glyphs stand in for drawn art, and the
 // upgrade transformation (BuildingArtFX) stays wired at the map render.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -48,6 +48,28 @@ describe("building art direction", () => {
     // Used broadly across the redrawn set (house alone calls it per tier).
     const calls = art.match(/storybook\(\{/g) ?? [];
     expect(calls.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it("the fake night-glow overlay is gone — no hash-placed panes or wash", () => {
+    // The old NightWindowGlow floated hash-positioned #FDE68A rectangles
+    // over the facades. It must not exist or be referenced anywhere.
+    expect(existsSync(join(process.cwd(), "components/night-window-glow.tsx"))).toBe(false);
+    expect(hometownSrc).not.toContain("NightWindowGlow");
+    expect(hometownSrc).not.toContain("hasLitWindows");
+    expect(hometownSrc).not.toContain("night-window-glow");
+  });
+
+  it("night light lives in the art: the shared lit pattern turns warm at night", () => {
+    // BuildingArt takes a night flag, fed by the screen's existing
+    // time-of-day state at the map render site.
+    expect(hometownSrc).toContain("night={isNight}");
+    expect(art).toContain("night = false");
+    // At night the shared isLit pattern lights every window that flows
+    // through it (storybook glass, tower grids, hand-drawn isLit cases).
+    expect(art).toContain("const isLit = night");
+    // By day the pattern is byte-for-byte the original hash, so daytime
+    // rendering is unchanged.
+    expect(art).toContain("((i * 7 + j * 13 + lv * 5) % 10) < litRatio * 10");
   });
 
   it("the upgrade transformation wraps the map render in sine ease", () => {

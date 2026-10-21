@@ -14,14 +14,16 @@
 // The room grows with level: L1 a front desk and a plant, L2 filing
 // cabinets and a wall clock join, L3 a conference table for planning the
 // town's work. "File the Paperwork" is the office's own 1-hour action.
+// The desk bell rings (try it). The roster plates are animated — see
+// components/roster-board.tsx for the board's choreography.
 // No emojis — SVG art and MaterialIcons only.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, G, Line, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -59,6 +61,7 @@ import {
   type RosterRow,
 } from "@/lib/villager-roster";
 import { BLOODMOON_COIN_MULT, refreshBadgeCache } from "@/lib/badges";
+import { RosterRowCard } from "@/components/roster-board";
 import { PawnPreview } from "@/components/pawn-preview";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
@@ -81,6 +84,7 @@ const SLATE_DARK = "#1E293B";
 const WOOD = "#A9743F";
 const WOOD_DARK = "#6B4A2F";
 const AMBER = "#B45309";
+const GOLD = "#F59E0B";
 const TEXT_DIM = "#A08B6D";
 
 const STATUS_COLORS: Record<RosterRow["status"], string> = {
@@ -110,13 +114,73 @@ function FrontDesk() {
       <Rect x={128} y={42} width={40} height={20} rx={2} fill="none" stroke={WOOD_DARK} strokeWidth={2} />
       {/* name plate */}
       <Rect x={78} y={16} width={34} height={10} rx={2} fill="#FDE68A" stroke={WOOD_DARK} strokeWidth={1.4} />
-      {/* service bell */}
-      <Ellipse cx={140} cy={24} rx={8} ry={5} fill="#CBD5E1" />
-      <Circle cx={140} cy={19} r={2.4} fill="#94A3B8" />
+      {/* the service bell lives in DeskBell below — it's tappable */}
       {/* paper stack */}
       <Rect x={30} y={18} width={22} height={3.4} fill="#FFFFFF" stroke="#CBD5E1" />
       <Rect x={32} y={21.5} width={22} height={3.4} fill="#F8FAFC" stroke="#CBD5E1" />
     </Svg>
+  );
+}
+
+/** The desk bell, sitting on the counter where FrontDesk leaves a space
+ *  for it. Pure delight, no function: a tap swings it through a decaying
+ *  sine wobble (about 600ms) while a gold ring flashes — the "ding". */
+function DeskBell() {
+  const swing = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+  const ringingRef = useRef(false);
+  const ringIt = () => {
+    if (ringingRef.current) return;
+    ringingRef.current = true;
+    swing.setValue(0);
+    ring.setValue(0);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(swing, { toValue: 14, duration: 90, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+        Animated.timing(swing, { toValue: -10, duration: 140, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(swing, { toValue: 6, duration: 140, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(swing, { toValue: -3, duration: 120, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(swing, { toValue: 0, duration: 130, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+      Animated.timing(ring, { toValue: 1, duration: 480, easing: Easing.out(Easing.sin), useNativeDriver: true }),
+    ]).start(() => {
+      ringingRef.current = false;
+    });
+  };
+  const rotate = swing.interpolate({ inputRange: [-14, 14], outputRange: ["-14deg", "14deg"] });
+  const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.6] });
+  const ringOpacity = ring.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.85, 0] });
+  const bellFlash = ring.interpolate({ inputRange: [0, 0.18, 0.45, 1], outputRange: [1, 1.14, 1, 1] });
+  return (
+    <Pressable
+      onPress={ringIt}
+      hitSlop={10}
+      accessibilityLabel="Ring the desk bell"
+      style={{ position: "absolute", left: 122, top: -3, width: 36, height: 32 }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 1,
+          top: 0,
+          width: 34,
+          height: 30,
+          borderRadius: 17,
+          borderWidth: 2,
+          borderColor: GOLD,
+          opacity: ringOpacity,
+          transform: [{ scale: ringScale }],
+        }}
+      />
+      <Animated.View style={{ transform: [{ rotate }, { scale: bellFlash }] }}>
+        <Svg width={36} height={32} viewBox="0 0 36 32">
+          <Ellipse cx={18} cy={27} rx={11} ry={3.4} fill="#94A3B8" />
+          <Path d="M7 26 C7 16 11 9 18 9 C25 9 29 16 29 26 Z" fill="#CBD5E1" stroke="#94A3B8" strokeWidth={1.4} />
+          <Circle cx={18} cy={7} r={3} fill="#94A3B8" />
+        </Svg>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -281,6 +345,44 @@ export default function MainOfficeInteriorScreen() {
     [roster?.townBuildings]
   );
 
+  // ---- board choreography (presentation only) ----
+  // The roster rows are name plates on an Assignments board. These three
+  // pieces of state drive the animations in components/roster-board.tsx:
+  // an entrance epoch (replays the staggered plate entrance whenever the
+  // board's order changes), ASSIGNED stamps per villager, and a one-shot
+  // celebration when a shift flips working → collectable live.
+  const [entranceEpoch, setEntranceEpoch] = useState(0);
+  const [stamps, setStamps] = useState<Record<string, number>>({});
+  const [celebrations, setCelebrations] = useState<Record<string, number>>({});
+  const prevOrderRef = useRef("");
+  const prevStatusRef = useRef<Map<string, RosterRow["status"]>>(new Map());
+
+  useEffect(() => {
+    const orderKey = rows.map((r) => r.personId).join("|");
+    if (orderKey && orderKey !== prevOrderRef.current) {
+      prevOrderRef.current = orderKey;
+      setEntranceEpoch((e) => e + 1);
+    }
+  }, [rows]);
+
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    const fresh: Record<string, number> = {};
+    for (const row of rows) {
+      if (prev.get(row.personId) === "working" && row.status === "collect") {
+        fresh[row.personId] = Date.now();
+      }
+    }
+    prevStatusRef.current = new Map(rows.map((r) => [r.personId, r.status] as const));
+    if (Object.keys(fresh).length > 0) setCelebrations((c) => ({ ...c, ...fresh }));
+  }, [rows]);
+
+  const openAssign = useCallback((row: RosterRow) => {
+    setAssignFor(row);
+    setAssignStep("kind");
+    setAssignKind(null);
+  }, []);
+
   const remaining = Math.max(0, lastAction + COOLDOWN_MS - Date.now());
   const actionCoins = scaledCoins(ACTION_COINS[level]);
   const actionXp = scaledXP(ACTION_XP[level]);
@@ -342,9 +444,10 @@ export default function MainOfficeInteriorScreen() {
     setAssignFor(null);
     setAssignStep("kind");
     setAssignKind(null);
+    // No success alert: the board itself confirms — the plate pulses,
+    // the status crossfades to the new job, and the ASSIGNED stamp lands.
+    setStamps((s) => ({ ...s, [row.personId]: Date.now() }));
     refreshRoster();
-    const def = WORK_KINDS[kind];
-    Alert.alert("Work assigned", `${row.name} is on the way: ${def.label} (${def.durationLabel}).`);
   };
 
   /** Pay out a finished shift — identical to collecting on the map:
@@ -403,7 +506,10 @@ export default function MainOfficeInteriorScreen() {
                 {clerks[0] && <WorkingFigure person={clerks[0]} delay={200} icon="assignment" iconColor={SLATE} />}
                 {level >= 3 && clerks[1] && <WorkingFigure person={clerks[1]} delay={600} icon="folder-open" iconColor={AMBER} />}
               </View>
-              <FrontDesk />
+              <View style={{ width: 190, height: 74 }}>
+                <FrontDesk />
+                <DeskBell />
+              </View>
             </View>
             {level >= 2 ? <FilingCabinet /> : <OfficePlant size={34} />}
           </View>
@@ -467,76 +573,20 @@ export default function MainOfficeInteriorScreen() {
             </View>
           )}
 
-          {rows.map((row) => (
-            <View
+          {rows.map((row, index) => (
+            <RosterRowCard
               key={row.personId}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "#FFFFFF",
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: row.status === "collect" ? "#F59E0B" : "#E7E5E4",
-                padding: 12,
-                marginTop: 10,
-              }}
-            >
-              {/* initial tile */}
-              <View
-                style={{
-                  width: 42, height: 42, borderRadius: 21,
-                  backgroundColor: row.accentColor ?? "#F59E0B",
-                  alignItems: "center", justifyContent: "center",
-                  borderWidth: 2, borderColor: "#FDE68A",
-                }}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 17 }}>
-                  {row.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={{ color: "#1C1917", fontWeight: "700", fontSize: 15 }} numberOfLines={1}>
-                    {row.name}
-                  </Text>
-                  {row.prayedToday && (
-                    <View
-                      style={{
-                        marginLeft: 7, width: 15, height: 15, borderRadius: 8,
-                        backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <MaterialIcons name="local-fire-department" size={10} color="#FFFFFF" />
-                    </View>
-                  )}
-                </View>
-                <Text style={{ color: STATUS_COLORS[row.status], fontWeight: "700", fontSize: 12.5, marginTop: 2 }}>
-                  {row.statusLabel}
-                </Text>
-                {row.detail && (
-                  <Text style={{ color: TEXT_DIM, fontSize: 11.5, marginTop: 1 }}>{row.detail}</Text>
-                )}
-              </View>
-
-              {row.status === "collect" && (
-                <Pressable
-                  onPress={() => handleCollect(row)}
-                  style={{ backgroundColor: AMBER, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 9, alignItems: "center" }}
-                >
-                  <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Collect</Text>
-                  <Text style={{ color: "#FEF3C7", fontWeight: "700", fontSize: 11 }}>{collectDisplay(row)} coins</Text>
-                </Pressable>
-              )}
-              {canAssignRow(row) && (
-                <Pressable
-                  onPress={() => { setAssignFor(row); setAssignStep("kind"); setAssignKind(null); }}
-                  style={{ backgroundColor: SLATE, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 10 }}
-                >
-                  <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 13 }}>Assign</Text>
-                </Pressable>
-              )}
-            </View>
+              row={row}
+              index={index}
+              entranceEpoch={entranceEpoch}
+              stampKey={stamps[row.personId] ?? 0}
+              celebrateKey={celebrations[row.personId] ?? 0}
+              statusColor={STATUS_COLORS[row.status]}
+              canAssign={canAssignRow(row)}
+              collectAmount={row.status === "collect" ? collectDisplay(row) : null}
+              onAssign={openAssign}
+              onCollect={handleCollect}
+            />
           ))}
         </View>
 

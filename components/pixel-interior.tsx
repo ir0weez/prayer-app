@@ -197,7 +197,7 @@ export function PixelSteam({ px, color = "#F6EEFC" }: { px: number; color?: stri
     return () => loop.stop();
   }, [s]);
   return (
-    <View pointerEvents="none" style={{ flexDirection: "row", justifyContent: "space-between", width: px * 22, height: px * 5 }}>
+    <View pointerEvents="none" style={{ flexDirection: "row", justifyContent: "space-between", width: px * 11, height: px * 5 }}>
       {[0, 1, 2].map((i) => (
         <Animated.View
           key={i}
@@ -219,68 +219,67 @@ export function PixelSteam({ px, color = "#F6EEFC" }: { px: number; color?: stri
 
 /* ------------------------------------------------------------------ */
 /* The seated diner — a villager in profile at a table, facing right.  */
-/* Head + hair per style over one seated body: torso, an arm reaching   */
-/* to the table, thigh, shin, shoe. Palette comes from the person's    */
-/* deterministic look (lib/pixel-interior), so a villager is dressed   */
-/* the same at every table. Chars: K ink, H hair, S skin, C shirt,     */
-/* P pants, B shoe, E eye.                                             */
+/* CHUNKY on purpose (11 x 14, ink-outlined): a hair mass you can tell  */
+/* from a head, a 2-tall eye, a shirt block, an arm reaching to the     */
+/* table, a horizontal thigh, shin and shoe. At v149's fine grid these */
+/* were grey splotches; at this grid they read as PEOPLE. Palette      */
+/* comes from the person's deterministic look (lib/pixel-interior),    */
+/* so a villager is dressed the same at every table. Chars: K ink,     */
+/* H hair, S skin, C shirt, P pants, B shoe, E eye.                    */
 /* ------------------------------------------------------------------ */
-const SEATED_HEADS: Record<DinerLook["hairStyle"], string[]> = {
+const SEATED_ART: Record<DinerLook["hairStyle"], string[]> = {
   short: [
-    "....HHHHH....",
-    "...HHHHHHH...",
-    "...HHHSSSSS..",
-    "...HHSSSSES..",
-    "....SSSSSS...",
+    "..KKKKKK...",
+    ".KHHHHHHK..",
+    ".KHHSSSSK..",
+    ".KHSSSESK..",
+    "..KSSSSK...",
+    "...KSSK....",
+    "..KCCCCK...",
+    ".KCCCCCCK..",
+    ".KCCCCSSPP.",
+    "..KCCCPPPPK",
+    "...KPPPPPK.",
+    ".......PP..",
+    ".......PP..",
+    ".......BBB.",
   ],
   long: [
-    "....HHHHH....",
-    "...HHHHHHH...",
-    "..HHHHSSSSS..",
-    "..HHHSSSES...",
-    "..HHSSSSSS...",
+    "..KKKKKK...",
+    ".KHHHHHHK..",
+    ".KHHSSSSK..",
+    ".KHSSSESK..",
+    ".HHSSSSK...",
+    ".HHKSSK....",
+    ".HHCCCCK...",
+    ".HHCCCCCK..",
+    ".HHCCCSSPP.",
+    "..KCCCPPPPK",
+    "...KPPPPPK.",
+    ".......PP..",
+    ".......PP..",
+    ".......BBB.",
   ],
   bun: [
-    "..HHH........",
-    "...HHHHHHH...",
-    "...HHHSSSSS..",
-    "...HHSSSSES..",
-    "....SSSSSS...",
-  ],
-};
-
-const SEATED_BODY: Record<DinerLook["hairStyle"], string[]> = {
-  short: [
-    "....CCCC.....",
-    "...CCCCCC....",
-    "...CCCCCPPP..",
-    "...CCCSSPPPP.",
-    "..........PP.",
-    "..........PP.",
-    "..........BBB",
-  ],
-  long: [
-    "..HHCCCC.....",
-    "..HHCCCCC....",
-    "..HHCCCCPPP..",
-    "..HHCCSSPPPP.",
-    "..........PP.",
-    "..........PP.",
-    "..........BBB",
-  ],
-  bun: [
-    "....CCCC.....",
-    "...CCCCCC....",
-    "...CCCCCPPP..",
-    "...CCCSSPPPP.",
-    "..........PP.",
-    "..........PP.",
-    "..........BBB",
+    "...KHHK....",
+    ".KHHHHHHK..",
+    ".KHHSSSSK..",
+    ".KHSSSESK..",
+    "..KSSSSK...",
+    "...KSSK....",
+    "..KCCCCK...",
+    ".KCCCCCCK..",
+    ".KCCCCSSPP.",
+    "..KCCCPPPPK",
+    "...KPPPPPK.",
+    ".......PP..",
+    ".......PP..",
+    ".......BBB.",
   ],
 };
 
 export function seatedDinerArt(hairStyle: DinerLook["hairStyle"]): string[] {
-  return [...SEATED_HEADS[hairStyle], ...SEATED_BODY[hairStyle]];
+  return SEATED_ART[hairStyle];
 }
 
 export function PixelSeatedDiner({
@@ -311,10 +310,10 @@ export function PixelSeatedDiner({
         pointerEvents="none"
         style={{
           position: "absolute",
-          top: -px * 1.5,
-          left: px * 2,
-          width: px * 9,
-          height: px * 9,
+          top: px * 1,
+          left: px * 0.5,
+          width: px * 10,
+          height: px * 11,
           backgroundColor: "#FF9A3D",
           opacity: 0.16,
         }}

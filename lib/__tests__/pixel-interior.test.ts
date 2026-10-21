@@ -63,8 +63,41 @@ describe("booth layout — booths hug the walls, floor stays open", () => {
     expect(ls.x + rs.x + DINER_W).toBe(PIXEL_ROOM_COLS);
     expect(ls.flipX).toBe(true); // stool diners face the bench
     expect(rs.flipX).toBe(false);
-    expect(ls.y).toBe(rb.y + 13); // second seat row sits below the first
-    expect(DINER_H).toBe(12);
+    expect(ls.y).toBe(rb.y + 14); // second seat row sits below the first
+    expect(DINER_H).toBe(14);
+  });
+});
+
+describe("chunk — the v149 miniature can never quietly come back", () => {
+  it("the grid stays coarse: ~6pt a unit at phone width, a TALL room", () => {
+    // Jonathan on v149 (~3pt/unit, 120 across): "It's certainly not
+    // the same as the mockup you showed me." These numbers ARE the fix.
+    expect(PIXEL_ROOM_COLS).toBe(60);
+    expect(360 / PIXEL_ROOM_COLS).toBeGreaterThanOrEqual(5.5);
+    expect(roomRows(4)).toBe(130);
+    // the room is a tall Stardew room, not a squished band
+    expect(roomRows(4) / PIXEL_ROOM_COLS).toBeGreaterThan(2);
+    expect(roomRows(2)).toBe(94);
+  });
+
+  it("the diner sprite is chunky and ink-outlined (11 x 14)", () => {
+    expect(DINER_W).toBe(11);
+    expect(DINER_H).toBe(14);
+    const kit = readSrc("components/pixel-interior.tsx");
+    const block = kit.slice(kit.indexOf("const SEATED_ART"), kit.indexOf("export function seatedDinerArt"));
+    const rows = block.match(/"([.KHSECPB]+)"/g) ?? [];
+    expect(rows.length).toBe(42); // 3 hair styles x 14 rows
+    for (const r of rows) expect(r.length).toBe(13); // 11 chars + quotes
+    expect(block).toContain("K"); // the ink outline is in the art
+  });
+
+  it("the sun is the room's crown and the hero stands unboxed", () => {
+    const room = readSrc("components/pixel-taco-room.tsx");
+    expect(room).toContain("p.disc(30, 22, 5, C.gold)"); // the big sun
+    expect(room).toContain("dressing.sombreros");
+    expect(room).toContain("sombrero(p");
+    // v149 boxed the hero in a gold selection frame — gone for good
+    expect(room).not.toContain("borderWidth: 2, borderColor: C.gold");
   });
 });
 
@@ -78,6 +111,7 @@ describe("progression as data — upgrades grow the room structurally", () => {
       cornerPlants: 0,
       barrel: false,
       extraLanterns: 0,
+      sombreros: false,
     });
     const l2 = dressingForLevel(2);
     expect(l2.menuBoards).toBe(true);
@@ -91,6 +125,7 @@ describe("progression as data — upgrades grow the room structurally", () => {
     expect(l3.rug).toBe(true);
     expect(l3.cornerPlants).toBe(2);
     expect(l3.extraLanterns).toBe(2);
+    expect(l3.sombreros).toBe(true);
     // out-of-range levels clamp to the ladder
     expect(dressingForLevel(9)).toEqual(l3);
     expect(dressingForLevel(0)).toEqual(l1);

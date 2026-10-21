@@ -31,35 +31,41 @@ export function pixelPick<T>(hash: number, list: readonly T[]): T {
 /* Room geometry (in pixel units; the renderer scales units -> points) */
 /* ------------------------------------------------------------------ */
 
-/** Every pixel room is this many pixel units wide. */
-export const PIXEL_ROOM_COLS = 120;
+/** Every pixel room is this many pixel units wide. CHUNK IS THE LOOK
+ *  (Jonathan, on v149: "It's certainly not the same as the mockup") —
+ *  the grid is deliberately COARSE: at a typical 360pt room width one
+ *  unit is ~6pt, so faces, plates and furniture read at arm's length.
+ *  Do not raise this without raising every sprite with it: a finer
+ *  grid at the same screen width is exactly the muddy miniature v149
+ *  shipped. Guard tests pin this value. */
+export const PIXEL_ROOM_COLS = 60;
 
 /** Wall + signature + counter stack at the top of the taco room. */
-export const WALL_STACK_ROWS = 34;
+export const WALL_STACK_ROWS = 46;
 /** Open floor begins here (bands of booths live below). */
 export const FLOOR_TOP = WALL_STACK_ROWS + 2;
 /** One band = one booth deep, plus breathing room below it. */
-export const BAND_ROWS = 30;
+export const BAND_ROWS = 36;
 /** Entrance mat + stone border at the room's foot. */
-export const ENTRANCE_ROWS = 7;
+export const ENTRANCE_ROWS = 8;
 
 /** Booth footprint inside a band (local units, authored for the left wall). */
 export const BOOTH = {
-  w: 38,
-  h: 26,
+  w: 23,
+  h: 30,
   /** Bench diner sprite anchor (sprite is DINER_W x DINER_H). */
-  benchX: 3,
+  benchX: 1,
   /** Stool diner sprite anchor. */
-  stoolX: 23,
+  stoolX: 12,
   /** Seat rows for the two seats along the bench (and their stools). */
-  seatY: [1, 14] as const,
+  seatY: [2, 16] as const,
   /** The table block inside the booth. */
-  table: { x: 12, y: 3, w: 16, h: 20 },
+  table: { x: 8, y: 4, w: 11, h: 22 },
 } as const;
 
 /** Seated diner sprite size in pixel units. */
-export const DINER_W = 13;
-export const DINER_H = 12;
+export const DINER_W = 11;
+export const DINER_H = 14;
 
 /** How many side-by-side bands the floor needs for N tables. */
 export function bandCount(tableCount: number): number {
@@ -128,6 +134,8 @@ export type LevelDressing = {
   barrel: boolean;
   /** Hanging lanterns over the floor (in addition to the top one). */
   extraLanterns: number;
+  /** Sombreros hang on the walls (the mockup's dressing) at the top level. */
+  sombreros: boolean;
 };
 
 export function dressingForLevel(level: number): LevelDressing {
@@ -139,6 +147,7 @@ export function dressingForLevel(level: number): LevelDressing {
     cornerPlants: lv >= 3 ? 2 : lv >= 2 ? 1 : 0,
     barrel: lv >= 2,
     extraLanterns: lv >= 3 ? 2 : lv >= 2 ? 1 : 0,
+    sombreros: lv >= 3,
   };
 }
 

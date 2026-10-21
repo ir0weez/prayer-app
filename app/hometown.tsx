@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Path, Circle, Ellipse, Rect, Line, Polygon, G } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -16,8 +16,10 @@ import {
   MAP_UNLOCKED_KEY,
   TOWN_MAP_IDS,
   dailyIncomeForMap,
-  dailyIncomeForTown,
-  dailyXPForTown,
+  accrueAwayIncome,
+  missedDaysIncome,
+  presenceMultiplierFor,
+  grantFlyers,
   roadMultiplierForBuilding,
   barbershopBoostForBuilding,
   shopAdjacencyBonusForBuilding,
@@ -352,53 +354,6 @@ import {
 } from "@/lib/celebrations";
 import { CelebrationOverlay } from "@/components/celebration-overlay";
 import { CoinCacheMarker, WishingFountain, StreetPerformer } from "@/components/city-delights";
-
-function daysBetween(a: string, b: string): number {
-  const da = new Date(a + "T00:00:00Z").getTime();
-  const db = new Date(b + "T00:00:00Z").getTime();
-  if (isNaN(da) || isNaN(db)) return 0;
-  return Math.floor((db - da) / 86400000);
-}
-
-/**
- * Presence-gated income multiplier: a building only earns when villagers
- * are actually there. This drives the prayer loop — pray → villagers appear
- * → villagers visit buildings → buildings earn coins.
- *
- * - Live (app open): counts villagers within 2 tiles of the building.
- *   0 nearby = 0 income, 1 = 40%, 2 = 70%, 3+ = 100%.
- * - Away (on-open accrual): uses prayed count as a proxy — villagers were
- *   "around" during the day. 0 prayed = 0 income, scales up to full at 8+.
- */
-export function presenceMultiplierFor(
-  building: { x: number; y: number },
-  positions: Array<{ x: number; y: number }>,
-  prayedCount: number,
-  isLive: boolean,
-): number {
-  if (!isLive) {
-    // Time away: proxy by prayed count (villagers existed that day).
-    if (prayedCount <= 0) return 0;
-    return Math.min(1, prayedCount / 8);
-  }
-  // Live: count villagers within 2 tiles (Chebyshev distance).
-  const bx = building.x;
-  const by = building.y;
-  let count = 0;
-  for (const p of positions) {
-    const dx = Math.abs(p.x - bx);
-    const dy = Math.abs(p.y - by);
-    // Building footprints are 2x2; check within 2 tiles of the building origin.
-    if (dx <= 3 && dy <= 3) {
-      count++;
-      if (count >= 3) break;
-    }
-  }
-  if (count === 0) return 0;
-  if (count === 1) return 0.4;
-  if (count === 2) return 0.7;
-  return 1;
-}
 
 const TOWNSFOLK = ["🧑", "👩", "🧓", "👴", "👦", "👧", "🧔", "👵"];
 const WORKERS: Record<string, string> = {
@@ -3635,6 +3590,9 @@ type CoinBurstData = {
   dx: number;
   dy: number;
   kind: "coins" | "xp";
+  /** Flyers in this burst's fan. The overlay grants fewer than the
+   *  classic 4 when the global flyer budget (lib grantFlyers) runs low. */
+  count?: number;
 };
 
 /**
@@ -3701,9 +3659,9 @@ function CoinFlyer({ sx, sy, dx, dy, delay, kind }: { sx: number; sy: number; dx
 }
 
 /** A small fan of coins flying together from one collect point. Stateless:
- *  removal is the parent's job (a plain safety timer in spawnBurst). */
+ *  removal is the overlay's job (a plain safety timer in CoinFlyOverlay). */
 function CoinBurst({ burst }: { burst: CoinBurstData }) {
-  const COUNT = 4;
+  const COUNT = burst.count ?? 4;
   return (
     <React.Fragment>
       {Array.from({ length: COUNT }, (_, i) => (
@@ -3720,6 +3678,62 @@ function CoinBurst({ burst }: { burst: CoinBurstData }) {
     </React.Fragment>
   );
 }
+
+export interface CoinFlyOverlayHandle {
+  spawn: (sx: number, sy: number, dx: number, dy: number, kind: "coins" | "xp") => void;
+}
+
+/**
+ * The coin-fly layer, isolated from the town tree (v164). The bursts used
+ * to be state of the giant screen component itself, so every spawn and
+ * every timer-retire re-rendered the whole town — a Collect All over 8
+ * buildings meant ~8 spawn renders + 8 retire renders of one of the
+ * heaviest trees in the app, which is what made the flight crawl. Now
+ * the burst state lives HERE, behind React.memo with an imperative
+ * spawn handle: the screen calls spawn() and nothing above this layer
+ * re-renders. A global budget (lib grantFlyers, MAX_LIVE_FLYERS = 12)
+ * caps simultaneous sprites; bursts past the budget are skipped
+ * invisibly — the payout never waits on a coin. Removal stays a plain
+ * timer, as before.
+ */
+const CoinFlyOverlay = React.memo(
+  React.forwardRef<CoinFlyOverlayHandle, object>(function CoinFlyOverlay(_props, ref) {
+    const [overlayBursts, setOverlayBursts] = useState<CoinBurstData[]>([]);
+    const liveFlyersRef = useRef(0);
+    const overlayBurstIdRef = useRef(0);
+    const overlayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    useEffect(() => () => {
+      overlayTimersRef.current.forEach(clearTimeout);
+      overlayTimersRef.current = [];
+    }, []);
+
+    const spawn = useCallback((sx: number, sy: number, dx: number, dy: number, kind: "coins" | "xp") => {
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
+      const count = grantFlyers(liveFlyersRef.current, 4);
+      if (count <= 0) return; // budget spent — skip the sparkle, the collect already landed
+      liveFlyersRef.current += count;
+      const id = `burst-${overlayBurstIdRef.current++}`;
+      setOverlayBursts((prev) => [...prev, { id, sx, sy, dx, dy, kind, count }]);
+      // Bursts are retired on a plain timer — the flyers report to
+      // nobody, so an interrupted flight can never strand a burst.
+      overlayTimersRef.current.push(setTimeout(() => {
+        liveFlyersRef.current -= count;
+        setOverlayBursts((prev) => prev.filter((b) => b.id !== id));
+      }, COIN_FLY_MS + 4 * 80 + 400));
+    }, []);
+
+    useImperativeHandle(ref, () => ({ spawn }), [spawn]);
+
+    return (
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 999, elevation: 999 }}>
+        {overlayBursts.map((b) => (
+          <CoinBurst key={b.id} burst={b} />
+        ))}
+      </View>
+    );
+  })
+);
 
 /**
  * Floating "+X.XX" receipt that drifts up from the header pill and fades.
@@ -4084,7 +4098,10 @@ export default function HometownScreen() {
   // back — and the pill settles to whatever its normal derived face
   // dictates (the new balance, since the pending total just zeroed).
   const { width: windowW } = useWindowDimensions();
-  const [bursts, setBursts] = useState<CoinBurstData[]>([]);
+  // Coin-fly bursts live in the isolated CoinFlyOverlay (v164) — this
+  // screen only holds a handle to spawn them, never burst state, so a
+  // flight can't re-render the town.
+  const flyOverlayRef = useRef<CoinFlyOverlayHandle | null>(null);
   // Floating "+X.XX" receipt by the pill after a single-building collect.
   const [collectDelta, setCollectDelta] = useState<{ id: number; label: string } | null>(null);
   // Pill label crossfade: 0 = normal face, 1 = collected-amount face.
@@ -4099,18 +4116,15 @@ export default function HometownScreen() {
   const balanceRef = useRef<View>(null);
   const balancePosRef = useRef({ x: 0, y: 0 });
   const mapGridRef = useRef<View>(null);
-  const burstIdRef = useRef(0);
   const deltaIdRef = useRef(0);
-  // Timers that exist ONLY to tidy up decoration (retire finished bursts,
-  // clear the receipt). They never move money.
-  const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Timers that exist ONLY to tidy up decoration (clear the receipt,
+  // settle the collected face). They never move money. (Burst retire
+  // timers moved into CoinFlyOverlay with the burst state, v164.)
   const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; }, []);
   useEffect(() => () => {
     mountedRef.current = false;
-    burstTimersRef.current.forEach(clearTimeout);
-    burstTimersRef.current = [];
     if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
     collectedTimersRef.current.forEach(clearTimeout);
     collectedTimersRef.current = [];
@@ -4139,21 +4153,14 @@ export default function HometownScreen() {
     return { x: Math.max(60, windowW - 90), y: insets.top + 44 };
   }, [windowW, insets.top]);
 
-  const removeBurst = useCallback((id: string) => {
-    setBursts((prev) => prev.filter((b) => b.id !== id));
-  }, []);
-
+  /** Forward a burst to the isolated fly overlay, aimed at the balance.
+   *  No state changes hands in this component — spawning a flight never
+   *  re-renders the town (v164). */
   const spawnBurst = useCallback((sx: number, sy: number, kind: "coins" | "xp") => {
     if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
     const d = balanceTarget();
-    const id = `burst-${burstIdRef.current++}`;
-    setBursts((prev) => [...prev.slice(-11), { id, sx, sy, dx: d.x, dy: d.y, kind }]);
-    // Bursts are retired on a plain timer — the flyers report to nobody,
-    // so an interrupted flight can never strand a burst on screen.
-    burstTimersRef.current.push(setTimeout(() => {
-      if (mountedRef.current) removeBurst(id);
-    }, COIN_FLY_MS + 4 * 80 + 400));
-  }, [balanceTarget, removeBurst]);
+    flyOverlayRef.current?.spawn(sx, sy, d.x, d.y, kind);
+  }, [balanceTarget]);
 
   const pulseBalance = useCallback(() => {
     if (!mountedRef.current) return;
@@ -5257,47 +5264,67 @@ export default function HometownScreen() {
           } catch {}
           await AsyncStorage.setItem("prayercircle.hometown.coin-backfill.v1", "1");
         }
-        // Fast-length gating + economy scaling: Hometown unlocks on 40+ day
-        // fasts; the economy scales with the active fast's length so the
-        // math feels fair (fewer earning days -> smaller numbers, same pace).
-        try {
-          const fastLen = await loadActiveFastLength();
-          if (fastLen > 0) {
-            setEconomyScale(economyScaleForFastLength(fastLen));
-            setHometownLocked(!hometownUnlockedForFastLength(fastLen));
-          }
-        } catch {}
-        // Prestige: load the Crown level + devotion bonus, and the current
-        // offer (the longest fast started since the last prestige). The
-        // combined multiplier joins the accrual chain below.
-        let pMult = 1;
-        try {
-          const pLevel = await loadPrestigeLevel();
-          setPrestigeLevel(pLevel);
-          const pState = await loadPrestigeState();
-          prestigeStateRef.current = pState;
-          setPrestigeDevotion(pState.devotionBonus);
-          // Boss badges: permanent perks. The Gilded Badge joins the
-          // accrual chain here — this one pMult feeds BOTH the live
-          // per-minute accrual and the missed-days daily income below.
-          setOwnedBadges(pState.badges);
-          setBossClearedFastId(pState.bossClearedFastId);
-          setThroneVictories(pState.throneVictories);
-          setCachedBadges(pState.badges);
-          const gildedMult = pState.badges.includes("gilded") ? GILDED_INCOME_MULT : 1;
-          pMult = totalPrestigeMultiplier(pLevel, pState.devotionBonus) * gildedMult;
-          const fastsArr = parseFastsRaw();
-          if (Array.isArray(fastsArr)) {
-            fastsRef.current = fastsArr as PersonalFast[];
-            setPrestigeOfferState(prestigeOffer(fastsRef.current, pState));
-          }
-        } catch {}
         let c = parseCoins(effectiveCoinsRaw ? JSON.parse(effectiveCoinsRaw) : {});
         let t = parseTown(townRaw ? JSON.parse(townRaw) : {});
+        // Fast-length gating, prestige, and the two one-time migration
+        // flags are independent of each other — one parallel round
+        // instead of five serial waits (v164). The block bodies are
+        // unchanged; only the scheduling is. The migration flag VALUES
+        // are consumed by the migration blocks right below, in their
+        // original order.
+        let pMult = 1;
+        const [, prestigeMultOut, mallRefundFlag, houseRefundFlag] = await Promise.all([
+          (async () => {
+            // Fast-length gating + economy scaling: Hometown unlocks on
+            // 40+ day fasts; the economy scales with the active fast's
+            // length so the math feels fair (fewer earning days ->
+            // smaller numbers, same pace).
+            try {
+              const fastLen = await loadActiveFastLength();
+              if (fastLen > 0) {
+                setEconomyScale(economyScaleForFastLength(fastLen));
+                setHometownLocked(!hometownUnlockedForFastLength(fastLen));
+              }
+            } catch {}
+          })(),
+          (async () => {
+            // Prestige: load the Crown level + devotion bonus, and the
+            // current offer (the longest fast started since the last
+            // prestige). The combined multiplier joins the accrual
+            // chain below.
+            try {
+              const pLevel = await loadPrestigeLevel();
+              setPrestigeLevel(pLevel);
+              const pState = await loadPrestigeState();
+              prestigeStateRef.current = pState;
+              setPrestigeDevotion(pState.devotionBonus);
+              // Boss badges: permanent perks. The Gilded Badge joins
+              // the accrual chain here — this one pMult feeds BOTH the
+              // live per-minute accrual and the missed-days daily
+              // income below.
+              setOwnedBadges(pState.badges);
+              setBossClearedFastId(pState.bossClearedFastId);
+              setThroneVictories(pState.throneVictories);
+              setCachedBadges(pState.badges);
+              const gildedMult = pState.badges.includes("gilded") ? GILDED_INCOME_MULT : 1;
+              const mult = totalPrestigeMultiplier(pLevel, pState.devotionBonus) * gildedMult;
+              const fastsArr = parseFastsRaw();
+              if (Array.isArray(fastsArr)) {
+                fastsRef.current = fastsArr as PersonalFast[];
+                setPrestigeOfferState(prestigeOffer(fastsRef.current, pState));
+              }
+              return mult;
+            } catch {}
+            return 1;
+          })(),
+          AsyncStorage.getItem(REMEMBRANCE_MALL_REFUND_KEY).catch(() => null),
+          AsyncStorage.getItem(HOUSE_REMOVAL_REFUND_KEY).catch(() => null),
+        ]);
+        pMult = prestigeMultOut;
         // One-time Mall → Garden of Remembrance migration: refund retired mall
         // buildings at FULL price (base cost + upgrades paid), then clear the map.
         try {
-          const refundDone = await AsyncStorage.getItem(REMEMBRANCE_MALL_REFUND_KEY);
+          const refundDone = mallRefundFlag;
           const mallBuildings = t.maps.mall?.buildings || [];
           if (!refundDone && mallBuildings.length > 0) {
             const refund = mallBuildings.reduce((sum, b) => sum + remembranceRefundFor(b), 0);
@@ -5315,7 +5342,7 @@ export default function HometownScreen() {
         // One-time house removal: houses are gone (prayer lights are the
         // population now). Refund at FULL price, clear them from the town map.
         try {
-          const houseRefundDone = await AsyncStorage.getItem(HOUSE_REMOVAL_REFUND_KEY);
+          const houseRefundDone = houseRefundFlag;
           const townBuildings = t.maps.town?.buildings || [];
           const houses = townBuildings.filter((b) => b.type === "house");
           if (!houseRefundDone && houses.length > 0) {
@@ -5348,94 +5375,131 @@ export default function HometownScreen() {
             Alert.alert("Good news", RESTITUTION_MESSAGE);
           }
         } catch {}
-        // Garden of Remembrance state (loved ones + garden level)
+        // ── CRITICAL FAN-OUT (v164) ─────────────────────────────────
+        // Everything the away-accrual math or the first paint reads,
+        // loaded in ONE parallel round instead of the old serial parade
+        // (~25 one-after-another awaits). Each loader keeps the exact
+        // fallback the serial chain gave it: a failed load applies
+        // nothing, exactly as its try/catch did. What is NOT here —
+        // the Well, Dark Forest, River, gathering-place cooldowns, the
+        // XP level ref, daily missions — paints no number the first
+        // frame shows, so it hydrates after the commit in the DEFERRED
+        // HYDRATION batch at the end of this effect.
+        type Attempt<T> = { ok: true; value: T } | { ok: false };
+        const attempt = async <T,>(fn: () => Promise<T>): Promise<Attempt<T>> => {
+          try { return { ok: true, value: await fn() }; } catch { return { ok: false }; }
+        };
         let remembranceState = emptyRemembrance();
-        try { remembranceState = await loadRemembrance(); setRemembrance(remembranceState); } catch {}
-        // The Well state (daily draw date + streak)
-        try { setWell(await loadWell()); } catch {}
-        // Mission Field state (field missions, pruned of old collected ones)
         let fieldMissionsLoaded: FieldMission[] | null = null;
-        try {
-          const fm = await loadFieldMissions();
+        let prayedCount = 0;
+        let prayedIdSet = new Set<string>();
+        let prayedList: { id: string | number; name: string }[] = [];
+        let fellowshipState: FellowshipState | null = null;
+        let gardenVisitState = emptyGardenVisits();
+        let houseCoinMultPre = 0;
+        const [
+          remembranceR, fieldMissionsR, plotsR, bellR, frenzyR, tapsR, shiftsR,
+          bankR, restR, statR, prayedR, houseR, fellowshipR, lighthouseR, gardenVisitsR,
+        ] = await Promise.all([
+          attempt(() => loadRemembrance()),
+          attempt(() => loadFieldMissions()),
+          attempt(() => loadPurchasedPlots()),
+          attempt(() => loadBellState()),
+          attempt(() => AsyncStorage.getItem(FRENZY_STORAGE_KEY)),
+          attempt(() => AsyncStorage.getItem(LIGHT_TAP_KEY)),
+          attempt(() => AsyncStorage.getItem(WORK_SHIFT_KEY)),
+          // Preload bank interior bonuses for bank/bank-tower buildings.
+          // ATM & vault bonuses drip as collectible coins INSIDE the bank
+          // (tapped in the interior), so they are not part of the auto
+          // hourly add.
+          attempt(async () => {
+            const record: Record<string, Awaited<ReturnType<typeof bankInteriorBonus>>> = {};
+            const bankIds: string[] = [];
+            for (const id of TOWN_MAP_IDS) {
+              for (const b of t.maps[id].buildings) {
+                if (b.type === "bank" || b.type === "bank-tower") bankIds.push(b.id);
+              }
+            }
+            const bonuses = await Promise.all(bankIds.map((bid) => bankInteriorBonus(bid)));
+            bankIds.forEach((bid, i) => { record[bid] = bonuses[i]; });
+            return record;
+          }),
+          // Preload restaurant interior furniture bonuses for enterable
+          // restaurants across all maps. Furniture tiers add % income
+          // multipliers.
+          attempt(async () => {
+            const record: Record<string, number> = {};
+            const restIds: string[] = [];
+            for (const id of TOWN_MAP_IDS) {
+              for (const b of t.maps[id].buildings) {
+                if (isEnterableRestaurant(b.type)) restIds.push(b.id);
+              }
+            }
+            const restBonuses = await Promise.all(restIds.map((bid) => restaurantInteriorBonus(bid)));
+            restIds.forEach((bid, i) => { record[bid] = restBonuses[i].mult; });
+            return record;
+          }),
+          attempt(() => refreshStatBoostCache()),
+          attempt(() => prayedTodayPeople()),
+          attempt(() => refreshHouseBonusCache()),
+          attempt(() => loadFellowship()),
+          attempt(() => loadLighthouse()),
+          attempt(() => loadGardenVisits()),
+        ]);
+        // Apply the fan-out, in the old chain's order. Fallbacks match
+        // the old try/catch behavior one for one.
+        // Garden of Remembrance state (loved ones + garden level)
+        if (remembranceR.ok) {
+          remembranceState = remembranceR.value;
+          setRemembrance(remembranceState);
+        }
+        // Mission Field state (field missions, pruned of old collected ones)
+        if (fieldMissionsR.ok) {
+          const fm = fieldMissionsR.value;
           const pruned = pruneMissions(fm);
           fieldMissionsLoaded = pruned;
           setFieldMissions(pruned);
           if (pruned.length !== fm.length) saveFieldMissions(pruned).catch(() => undefined);
-        } catch {}
-        // Dark Forest progress (highest wave cleared)
-        try { setForest(await loadDarkForestState()); } catch {}
-        // River of Life camp state (level, daily catch, creel)
-        try { setRiver(await loadRiverState()); } catch {}
+        }
         setUnlockedMaps(parseUnlockedMaps(unlockedRaw ? JSON.parse(unlockedRaw) : null));
-        try { setPurchasedPlots(await loadPurchasedPlots()); } catch {}
+        if (plotsR.ok) setPurchasedPlots(plotsR.value);
         // Bell Tower: whether today's campus blessing has already rung.
-        try { setBellRungDate((await loadBellState()).lastRungDate); } catch {}
+        if (bellR.ok) setBellRungDate(bellR.value.lastRungDate);
         setCoins(c);
-        try {
-          const lastFrenzy = await AsyncStorage.getItem(FRENZY_STORAGE_KEY);
+        if (frenzyR.ok) {
+          const lastFrenzy = frenzyR.value;
           lastFrenzyRef.current = lastFrenzy ? parseInt(lastFrenzy, 10) || 0 : 0;
-        } catch {}
+        }
         try { setMonumentCount(Object.keys(parseMonuments(monumentsRaw ? JSON.parse(monumentsRaw) : {})).length); } catch {}
         try { setOwnedItems(parseOwnedItems(ownedRaw ? JSON.parse(ownedRaw) : [])); } catch {}
         // Gratitude coins + work shifts
-        try {
-          const tapsRaw = await AsyncStorage.getItem(LIGHT_TAP_KEY);
-          setLightTaps(parseLightTaps(tapsRaw ? JSON.parse(tapsRaw) : {}));
-        } catch {}
-        try {
-          const shiftsRaw = await AsyncStorage.getItem(WORK_SHIFT_KEY);
-          setWorkShifts(parseWorkShifts(shiftsRaw ? JSON.parse(shiftsRaw) : {}));
-        } catch {}
-
-        // Hourly accumulation per map: coins 0.5/hr, XP at xpPerDay/24 per hr
-        // Preload bank interior bonuses (async) for bank/bank-tower buildings.
-        // ATM & vault bonuses drip as collectible coins INSIDE the bank (tapped
-        // in the interior), so they are not part of the auto hourly add.
-        const interiorBonuses: Record<string, Awaited<ReturnType<typeof bankInteriorBonus>>> = {};
-        try {
-          const bankIds: string[] = [];
-          for (const id of TOWN_MAP_IDS) {
-            for (const b of t.maps[id].buildings) {
-              if (b.type === "bank" || b.type === "bank-tower") bankIds.push(b.id);
-            }
-          }
-          const bonuses = await Promise.all(bankIds.map((bid) => bankInteriorBonus(bid)));
-          bankIds.forEach((bid, i) => { interiorBonuses[bid] = bonuses[i]; });
-        } catch {}
-        // Preload restaurant interior furniture bonuses (async) for enterable
-        // restaurants across all maps. Furniture tiers add % income multipliers.
-        const restInteriorMult: Record<string, number> = {};
-        try {
-          const restIds: string[] = [];
-          for (const id of TOWN_MAP_IDS) {
-            for (const b of t.maps[id].buildings) {
-              if (isEnterableRestaurant(b.type)) restIds.push(b.id);
-            }
-          }
-          const restBonuses = await Promise.all(restIds.map((bid) => restaurantInteriorBonus(bid)));
-          restIds.forEach((bid, i) => { restInteriorMult[bid] = restBonuses[i].mult; });
-        } catch {}
-        // Generate today's missions
-        let missions: Mission[] = [];
-        try { missions = await generateDailyMissions(); } catch {}
-        setMissions(missions);
+        if (tapsR.ok) {
+          try { setLightTaps(parseLightTaps(tapsR.value ? JSON.parse(tapsR.value) : {})); } catch {}
+        }
+        if (shiftsR.ok) {
+          try { setWorkShifts(parseWorkShifts(shiftsR.value ? JSON.parse(shiftsR.value) : {})); } catch {}
+        }
+        if (lighthouseR.ok) setLighthouseState(lighthouseR.value);
+        // Hourly accumulation inputs: bank + restaurant interior bonuses.
+        const interiorBonuses: Record<string, Awaited<ReturnType<typeof bankInteriorBonus>>> = bankR.ok ? bankR.value : {};
+        const restInteriorMult: Record<string, number> = restR.ok ? restR.value : {};
         // Generosity stat boosts coin earnings
         let generosityMult = 0;
-        try { generosityMult = (await refreshStatBoostCache()).coinMult; } catch {}
+        if (statR.ok) generosityMult = statR.value.coinMult;
         const msMult = milestoneMultiplier(c.lifetimeEarned);
         // Prayer contacts prayed for today boost church income (+2/hr each)
         // and send blessed villagers into town (+3% income each).
-        let prayedCount = 0;
-        let prayedIdSet = new Set<string>();
-        let prayedList: { id: string | number; name: string }[] = [];
-        try {
-          const people = await prayedTodayPeople();
+        if (prayedR.ok) {
+          const people = prayedR.value;
           setPrayedPeople(people.slice(0, PRAYER_VILLAGER_CAP));
           prayedCount = people.length;
           prayedIdSet = new Set(people.map((p) => String(p.id)));
           prayedList = people.map((p) => ({ id: p.id, name: p.name }));
-        } catch {}
+        }
         setPrayedToday(prayedCount);
+        if (houseR.ok) houseCoinMultPre = houseR.value.coinMult;
+        if (fellowshipR.ok) fellowshipState = fellowshipR.value;
+        if (gardenVisitsR.ok) gardenVisitState = gardenVisitsR.value;
         // Daily prayer bonus — thresholds for praying for people
         try {
           const bonusRaw = await AsyncStorage.getItem(PRAYER_BONUS_KEY);
@@ -5500,15 +5564,14 @@ export default function HometownScreen() {
           }
         } catch {}
         const prMult = prayerMult(prayedCount);
-        // Pawn house rooms + desirables boost coin income
-        let houseCoinMult = 0;
-        try { houseCoinMult = (await refreshHouseBonusCache()).coinMult; } catch {}
+        // Pawn house rooms + desirables boost coin income (loaded in
+        // the critical fan-out above; refreshHouseBonusCache ran there).
+        const houseCoinMult = houseCoinMultPre;
         // Fellowship: if the gathering is happening now (Mon/Wed/Fri 6-8pm),
-        // breaking bread together sets a 24h income blessing.
+        // breaking bread together sets a 24h income blessing. (The stored
+        // state loaded in the critical fan-out above.)
         const gathering = isGatheringTime();
         setGatheringNow(gathering);
-        let fellowshipState: FellowshipState | null = null;
-        try { fellowshipState = await loadFellowship(); } catch {}
         if (gathering) {
           // The Marriage Supper: when the whole town gathers as one table,
           // the breaking-bread blessing is richer than any restaurant's.
@@ -5533,24 +5596,15 @@ export default function HometownScreen() {
         const fellowshipBonus = fellowshipMult(fellowshipState);
         // Garden of Remembrance: each remembered loved one blesses the town (+0.5%).
         const remembranceBonus = remembranceMult(remembranceState.people.length);
-        try { setLighthouseState(await loadLighthouse()); } catch {}
-        try {
-          const xp = await loadXPState();
-          lastLevelRef.current = getLevelForXP(xp.totalXP);
-        } catch {}
-        // Gathering places: load cooldown/harvest state.
-        try { setGardenState(await loadGarden()); } catch {}
-        try { setLastShowAt(await loadLastShow()); } catch {}
-        try { setLastStudyAt(await loadLastStudy()); } catch {}
-        try { setLastRestAt(await loadLastRest()); } catch {}
-        try { setLastCheckupAt(await loadLastCheckup()); } catch {}
+        // (Lighthouse state applied in the fan-out; the XP level ref and
+        // the gathering-place cooldowns hydrate in the DEFERRED batch —
+        // they paint nothing the first frame shows.)
         // Schedule sync: check for an in-progress event on open.
         refreshScheduleVisit().catch(() => undefined);
         // Garden visits: from time to time, prayer lights visit the Garden
         // of Remembrance to pay their respects (1-2 per hour, daytime only).
-        // Each visit blesses the town: +0.1% income for 24h.
-        let gardenVisitState = emptyGardenVisits();
-        try { gardenVisitState = await loadGardenVisits(); } catch {}
+        // Each visit blesses the town: +0.1% income for 24h. (The stored
+        // state loaded in the critical fan-out above.)
         if (getTimeOfDay() !== "night") {
           const hourKey = gardenVisitHourKey();
           if (!gardenVisitState.slots[hourKey]) {
@@ -5567,32 +5621,12 @@ export default function HometownScreen() {
         }
         setGardenVisits(gardenVisitState);
         const gardenVisitBonus = gardenVisitMult(gardenVisitState);
-        // Paint the town NOW, before the time-away accrual below. The
-        // state committed here is exactly the persisted town — buildings
-        // show their last-saved accumulated totals, never a doubled or
-        // invented number — and the accrual pass keeps working on this
-        // same local `t`, landing the final town via saveTown at the end
-        // of the effect, exactly as before. The awaits inside the accrual
-        // section (villager settle, bank drips) yield to the event loop,
-        // so this commit renders before the synchronous accrual loop runs.
-        setTown(t);
-        const newMaps = { ...t.maps };
-        // ATM/vault drip accruals, applied after the loop (async storage writes)
-        const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
-        // Stock (time away): shelves drain by wall clock while away —
-        // each building's anchor runs it linearly to zero at the
-        // midnight that ends the anchor's day, whether or not it was
-        // earning. Materialize the live level + a fresh anchor here.
-        const awayNow = Date.now();
-        const awayTodayKey = localDateStr(new Date(awayNow));
-        const stockRecord: Record<string, number> = { ...(t.stockByBuilding ?? {}) };
-        const stockAnchors: Record<string, { stock: number; atMs: number }> = { ...(t.stockAnchorsByBuilding ?? {}) };
-        const stockedDates: Record<string, string> = { ...(t.stockedDateByBuilding ?? {}) };
         // Villager single-location: settle where everyone is BEFORE the
         // time-away accrual, so the presence proxy counts, per map, only
         // the villagers actually located on that map (a building's nearby
         // villagers are its own map's). Falls back to the global prayed
         // count if the settle can't run.
+        const awayNow = Date.now();
         let awayPresenceCounts: Record<string, number> | null = null;
         try {
           const [storedLocations, workNow, missionsNow] = await Promise.all([
@@ -5624,123 +5658,117 @@ export default function HometownScreen() {
             await saveVillagerLocations(settledAway.locations);
           }
         } catch {}
-        for (const id of TOWN_MAP_IDS) {
-          const m = newMaps[id];
-          const updatedBuildings = m.buildings.map(b => {
-            const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
-            const minutesElapsed = Math.floor((Date.now() - lastTick) / 60000);
-            // Under construction: closed — no stock drain, no rate
-            // caching, no accrual. Advance lastTick so the finished
-            // building doesn't "earn" for its building time later.
-            if (isUnderConstruction(b, awayNow)) {
-              return { ...b, lastTick: now };
-            }
-            if (isStockedBuildingType(b.type)) {
-              const lvl = b.level || 1;
-              const cur = currentStockForBuilding(stockRecord, stockAnchors, b.id, lvl, awayNow);
-              stockRecord[b.id] = cur;
-              stockAnchors[b.id] = { stock: cur, atMs: awayNow };
-              if (cur >= stockCapForLevel(lvl)) stockedDates[b.id] = awayTodayKey;
-              else if (stockedDates[b.id] && stockedDates[b.id] !== awayTodayKey) delete stockedDates[b.id];
-            }
-            const earnsCoins = effectiveIncomeFor(b) > 0;
-            const earnsXP = xpIncomeFor(b.type, b.level || 1) > 0;
-            // Cache per-minute rates for every earning building (even with 0 elapsed,
-            // e.g. just placed) so the live interval tick can accrue while watching.
-            if ((earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
-              const multiplier = roadMultiplierForBuilding(m, b.id);
-              const shopBoost = barbershopBoostForBuilding(m, b.id);
-              const adjacency = shopAdjacencyBonusForBuilding(m, b.id);
-              const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
-              const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
-              const wMult = workerMult(b);
-              const popMult = populationMult(prayedCount);
-              const basePerHour = 20.0 * multiplier * shopBoost * adjacency * ib.mult * floorMult * plotIncomeMult(b) * gearCoinMult * (1 + generosityMult) * wMult * msMult * pMult * popMult * prMult * fellowshipBonus * remembranceBonus * gardenVisitBonus * (1 + houseCoinMult) * (restInteriorMult[b.id] ?? 1);
-              const churchPerMinute = b.type === "church" && earnsCoins
-                ? (CHURCH_PRAYER_COINS_PER_HOUR * prayedCount) / 60
-                : 0;
-              // Cache BASE rates (without presence). Presence is applied at
-              // accrual time: time-away proxy on open, live positions in tick.
-              perMinuteRateRef.current[b.id] = {
-                coins: earnsCoins ? (basePerHour / 60 + churchPerMinute) * getEconomyScale() : 0,
-                xp: !earnsCoins && earnsXP ? (xpIncomeFor(b.type, b.level || 1) * wMult) / 24 / 60 : 0,
-              };
-            }
-            if (minutesElapsed > 0 && (earnsCoins || earnsXP) && mapHasPopulation(m, t)) {
-              const rate = perMinuteRateRef.current[b.id];
-              const perMinuteCoins = rate ? rate.coins : 0;
-              const perMinuteXP = rate ? rate.xp : 0;
-              // Presence gate (time away): scale by the count of
-              // villagers located on THIS building's map (single-location
-              // truth), falling back to the global prayed count.
-              const presenceMult = presenceMultiplierFor(
-                b,
-                [],
-                awayPresenceCounts ? (awayPresenceCounts[id] ?? 0) : prayedCount,
-                false
-              );
-              // Stock (time away): the stocked switch boosts this catch-up
-              // income — a building stocked today earns ×1.5 whatever its
-              // shelves have drained to; an unstocked one earns the
-              // regular amount. Best effort from the persisted flag.
-              let stockMult = 1;
-              if (earnsCoins && presenceMult > 0 && isStockedBuildingType(b.type)) {
-                stockMult = stockMultiplierFor(isStockedToday(stockedDates, b.id, awayNow));
-              }
-              const add = earnsCoins
-                ? minutesElapsed * perMinuteCoins * presenceMult * stockMult
-                : minutesElapsed * perMinuteXP * presenceMult;
-              // ATM & vault bonuses drip as collectible coins inside the bank
-              // interior instead of auto-adding to the building total.
-              if (earnsCoins && (b.type === "bank" || b.type === "bank-tower")) {
-                const ib = interiorBonuses[b.id] ?? { mult: 1, vaultDrips: [], atmDrips: [] };
-                if (ib.vaultDrips.length > 0 || ib.atmDrips.length > 0) {
-                  // basePerHour needed for vault % — recompute cheaply from cached rate
-                  dripOps.push({ buildingId: b.id, minutes: minutesElapsed, basePerHour: perMinuteCoins * 60 });
-                }
-              }
-              return {
-                ...b,
-                accumulated: earnsCoins
-                  ? Math.round(Math.min(buildingStorageCap(b), (b.accumulated || 0) + add) * 100) / 100
-                  : Math.round(((b.accumulated || 0) + add) * 100) / 100,
-                lastTick: now,
-              };
-            }
-            return b.lastTick ? b : { ...b, lastTick: now };
-          });
-          newMaps[id] = { ...m, buildings: updatedBuildings };
+
+        // ── ACCRUAL + ATOMIC COMMIT (v164) ──────────────────────────
+        // The time-away accrual (lib accrueAwayIncome — the old inline
+        // loop, arithmetic untouched) runs HERE, in the critical path,
+        // and its result is persisted in ONE awaited write of the town
+        // record — accrued amounts, advanced lastTick anchors, and the
+        // folded lastIncomeDate — BEFORE the town first paints. The
+        // state that paints IS the persisted state. Exit before this
+        // write and nothing was applied: the accrual replays next entry
+        // at the correct total. Exit after it and the window can never
+        // accrue twice (the anchors already advanced). This replaces
+        // v161's paint-first arrangement, whose deferred save let a
+        // quick back-out strand the accrual ("nothing to collect —
+        // back out — re-enter — 1,000+ coins").
+        const accrual = accrueAwayIncome(t, {
+          gearCoinMult,
+          generosityMult,
+          houseCoinMult,
+          milestoneMult: msMult,
+          prestigeMult: pMult,
+          prayerMultValue: prMult,
+          prayedCount,
+          fellowshipBonus,
+          remembranceBonus,
+          gardenVisitBonus,
+          interiorBonuses,
+          restInteriorMult,
+          presenceCounts: awayPresenceCounts,
+          economyScale: getEconomyScale(),
+          nowMs: awayNow,
+          nowIso: now,
+        });
+        for (const [buildingId, rate] of Object.entries(accrual.rates)) {
+          perMinuteRateRef.current[buildingId] = rate;
         }
-        t = { ...t, maps: newMaps, stockByBuilding: stockRecord, stockAnchorsByBuilding: stockAnchors, stockedDateByBuilding: stockedDates };
-        // Accrue ATM/vault drips onto interior furniture (collectible inside)
+        t = accrual.town;
+        // Missed-days business income, priced on the accrued town
+        // exactly as the old chain priced it on its post-loop town.
+        const lastDate = t.lastIncomeDate;
+        const missed = missedDaysIncome(t, {
+          today,
+          milestoneMult: msMult,
+          houseCoinMult,
+          fellowshipBonus,
+          prayedCount,
+          remembranceBonus,
+          gardenVisitBonus,
+          prestigeMult: pMult,
+          nowMs: awayNow,
+        });
+        // The old chain folded lastIncomeDate to today UNCONDITIONALLY
+        // at this point (whether or not an award fired — including a
+        // fresh town's null anchor). Same fold here, inside the commit.
+        t = { ...t, lastIncomeDate: today };
         try {
-          await Promise.all(dripOps.map((op) => accrueBankDrips(op.buildingId, op.minutes, op.basePerHour)));
+          await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(t));
+        } catch {}
+        setTown(t);
+        // The missed-days award lands right after the commit — the
+        // same position relative to the town paint the old chain gave
+        // it (its saveCoins followed the town paint there too). The
+        // day count itself can never double-award: lastIncomeDate
+        // already advanced inside the committed record above.
+        if (missed) {
+          const { earnedCoins, earnedXP } = missed;
+          if (earnedCoins > 0) {
+            const nextCoins = {
+              balance: c.balance + earnedCoins,
+              lifetimeEarned: c.lifetimeEarned + earnedCoins,
+            };
+            saveCoins(nextCoins);
+          }
+          if (earnedXP > 0) {
+            await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);
+          }
+          Alert.alert("Town Income", `Your towns earned ${earnedCoins} coins${earnedXP > 0 ? ` and ${earnedXP} XP` : ""} while you were away!`);
+        }
+        // Accrue ATM/vault drips onto interior furniture (collectible
+        // inside) — after the commit, as they landed after the accrual
+        // loop in the old chain; they never touch the town record.
+        try {
+          await Promise.all(accrual.dripOps.map((op) => accrueBankDrips(op.buildingId, op.minutes, op.basePerHour)));
         } catch {}
 
-        // Collect business income for missed days (all maps)
-        const lastDate = t.lastIncomeDate;
-        if (lastDate && lastDate !== today) {
-          const days = daysBetween(lastDate, today);
-          const perDayCoins = dailyIncomeForTown(t, milestoneMultiplier(c.lifetimeEarned), 1 + houseCoinMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, pMult);
-          const perDayXP = dailyXPForTown(t);
-          if (days > 0 && (perDayCoins > 0 || perDayXP > 0)) {
-            const earnedCoins = Math.floor(days * perDayCoins);
-            const earnedXP = Math.round(days * perDayXP);
-            if (earnedCoins > 0) {
-              const nextCoins = {
-                balance: c.balance + earnedCoins,
-                lifetimeEarned: c.lifetimeEarned + earnedCoins,
-              };
-              saveCoins(nextCoins);
-            }
-            if (earnedXP > 0) {
-              await awardCustomXP(earnedXP, `town-missed-${lastDate}-to-${today}`).catch(() => undefined);
-            }
-            Alert.alert("Town Income", `Your towns earned ${earnedCoins} coins${earnedXP > 0 ? ` and ${earnedXP} XP` : ""} while you were away!`);
-          }
-        }
-        t = { ...t, lastIncomeDate: today };
-        saveTown(t);
+        // ── DEFERRED HYDRATION (v164) ───────────────────────────────
+        // Everything that paints no number the first frame shows, in
+        // one parallel round AFTER the commit: the Well, Dark Forest
+        // and River panels, the XP level ref (level-up detection), the
+        // gathering-place cooldowns, and today's missions. Each
+        // applies as it lands, with the same per-loader fallback the
+        // old serial chain had (a failed load applies nothing).
+        // Fire-and-forget — the town is already on screen.
+        void (async () => {
+          await Promise.all([
+            attempt(async () => { setWell(await loadWell()); }),
+            attempt(async () => { setForest(await loadDarkForestState()); }),
+            attempt(async () => { setRiver(await loadRiverState()); }),
+            attempt(async () => {
+              const xp = await loadXPState();
+              lastLevelRef.current = getLevelForXP(xp.totalXP);
+            }),
+            // Gathering places: load cooldown/harvest state.
+            attempt(async () => { setGardenState(await loadGarden()); }),
+            attempt(async () => { setLastShowAt(await loadLastShow()); }),
+            attempt(async () => { setLastStudyAt(await loadLastStudy()); }),
+            attempt(async () => { setLastRestAt(await loadLastRest()); }),
+            attempt(async () => { setLastCheckupAt(await loadLastCheckup()); }),
+            // Generate today's missions
+            attempt(async () => { setMissions(await generateDailyMissions()); }),
+          ]);
+        })();
       } catch {}
     })();
   }, []);
@@ -10464,12 +10492,9 @@ export default function HometownScreen() {
     </ScrollView>
     {/* Coin-fly overlay: coins burst from collected buildings and fly up to
         the balance in the header. Lives outside the ScrollView so the coins
-        can cross into the header; never touches anything. */}
-    <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 999, elevation: 999 }}>
-      {bursts.map((b) => (
-        <CoinBurst key={b.id} burst={b} />
-      ))}
-    </View>
+        can cross into the header; isolated in its own memoized component
+        (v164) so flights never re-render the town; never touches money. */}
+    <CoinFlyOverlay ref={flyOverlayRef} />
     </View>
   );
 }

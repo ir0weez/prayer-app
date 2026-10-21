@@ -39,8 +39,6 @@ import {
   syncPrayerTrayNotifications,
 } from "@/lib/notification-scheduler";
 
-import { boonFor, careStatsFor, loadHeroNeeds, type CareStats } from "@/lib/hero-needs";
-import { loadHouseState } from "@/lib/pawn-house";
 import { PulsingGlow } from "@/components/pulsing-glow";
 import { EntranceAnimation } from "@/components/entrance-animation";
 import { PrayerCompletionAnimation } from "@/components/prayer-completion-animation";
@@ -832,8 +830,6 @@ export default function HomeScreen() {
   const [avatarComposerText, setAvatarComposerText] = useState("");
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
   const [reachedStamps, setReachedStamps] = useState<ReachedStamp[]>([]);
-  /** Morning Care compact read for the profile card (hero-needs). */
-  const [careRead, setCareRead] = useState<{ stats: CareStats; boonActive: boolean } | null>(null);
   const [reachedStampEditor, setReachedStampEditor] = useState<{ personId: string; personName: string; date: string; stampId?: string } | null>(null);
   const [reachedStampNote, setReachedStampNote] = useState("");
 
@@ -976,24 +972,6 @@ export default function HomeScreen() {
           if (stored) setReachedStamps(normalizeReachedStamps(JSON.parse(stored)));
         })
         .catch(() => undefined);
-    }, []),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-      Promise.all([loadHeroNeeds(), loadHouseState()])
-        .then(([needsState, houseState]) => {
-          if (!isActive) return;
-          setCareRead({
-            stats: careStatsFor(needsState, houseState, Date.now()),
-            boonActive: boonFor(needsState, houseState).active,
-          });
-        })
-        .catch(() => undefined);
-      return () => {
-        isActive = false;
-      };
     }, []),
   );
 
@@ -2654,31 +2632,6 @@ export default function HomeScreen() {
           <View style={styles.settingsStatColumn}><Text style={[styles.settingsStatNumber, { color: "#EF4444" }]}>{activeFastProgress?.missed ?? 0}</Text><Text style={styles.settingsStatLabel}>Missed</Text></View>
         </View>
 
-        {/* Morning Care, compact (lib/hero-needs careStatsFor): the
-            hero's four care stats for today, read plainly — plus the
-            Set for the Day marker while the boon is active. */}
-        {careRead && (
-          <View style={{ flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 2 }}>
-            <View style={{ flexDirection: "row", flex: 1, justifyContent: "space-around" }}>
-              {([
-                ["Fed", careRead.stats.fed],
-                ["Washed", careRead.stats.washed],
-                ["Relieved", careRead.stats.relieved],
-                ["Rested", careRead.stats.rested],
-              ] as const).map(([label, value]) => (
-                <View key={label} style={{ alignItems: "center" }}>
-                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800" }}>{value}</Text>
-                  <Text style={{ color: colors.muted, fontSize: 10, marginTop: 1 }}>{label}</Text>
-                </View>
-              ))}
-            </View>
-            {careRead.boonActive && (
-              <View style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 }}>
-                <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>Set for the Day</Text>
-              </View>
-            )}
-          </View>
-        )}
       </View>
 
       <Text style={styles.settingsSectionLabel}>FASTING</Text>

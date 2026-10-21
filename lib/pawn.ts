@@ -474,6 +474,33 @@ export function defaultPawn(): CustomPawn {
   };
 }
 
+/**
+ * Resolve a growth-clock anchor (`lastTrim` / `lastHaircut`) from a
+ * stored pawn record. A stored anchor is honored only when it is a
+ * string that parses to a real date.
+ *
+ * The failure this replaces (Jonathan's missing beard, 2026-10-21):
+ * the ORIGINAL pawn format predates the growth system entirely — it
+ * stored no `lastTrim` at all. Parse used to substitute "now" for a
+ * missing anchor, and because that substitution lived only in the
+ * parsed copy, EVERY load of a legacy record re-anchored the trim
+ * clock to the moment of loading: days-since-trim was always 0, the
+ * stored base length is 0, so growth computed 0 forever and a hero
+ * whose style said "full beard" stood permanently clean-shaven.
+ *
+ * An unreadable anchor now falls back to the hero's creation date —
+ * he has been growing since he was made, and the weekly ramp caps at
+ * full, so a long-time hero wears his style's beard in full. If even
+ * `createdAt` is unreadable, anchor one full growth cycle in the
+ * past: fully grown, never zero. A man who picked a beard style
+ * HAS a beard.
+ */
+function growthAnchorFor(stored: unknown, storedCreatedAt: unknown): string {
+  if (typeof stored === "string" && isFinite(new Date(stored).getTime())) return stored;
+  if (typeof storedCreatedAt === "string" && isFinite(new Date(storedCreatedAt).getTime())) return storedCreatedAt;
+  return new Date(Date.now() - (GROWTH_FULL_DAYS + 1) * 86400000).toISOString();
+}
+
 export function parseCustomPawn(value: unknown): CustomPawn | null {
   if (!value || typeof value !== "object") return null;
   const p = value as Partial<CustomPawn>;
@@ -495,10 +522,10 @@ export function parseCustomPawn(value: unknown): CustomPawn | null {
     bodyStyle: ["pebble", "round", "tall", "stocky"].includes(p.bodyStyle as string) ? (p.bodyStyle as PawnBodyStyle) : "pebble",
     beardStyle: PAWN_BEARD_STYLES.some((b) => b.id === p.beardStyle) ? (p.beardStyle as PawnBeardStyle) : "full",
     beardLength,
-    lastTrim: typeof p.lastTrim === "string" ? p.lastTrim : new Date().toISOString(),
+    lastTrim: growthAnchorFor(p.lastTrim, p.createdAt),
     hairColor: typeof p.hairColor === "string" && PAWN_HAIR_COLORS.some((c) => c.id === p.hairColor) ? p.hairColor : "#111827",
     hairLength: typeof p.hairLength === "number" && isFinite(p.hairLength) ? Math.max(0, Math.min(HAIR_MAX, p.hairLength)) : 0,
-    lastHaircut: typeof p.lastHaircut === "string" ? p.lastHaircut : new Date().toISOString(),
+    lastHaircut: growthAnchorFor(p.lastHaircut, p.createdAt),
     createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
   };
 }
@@ -519,7 +546,11 @@ try {
 export function beardGrowthFor(pawn: CustomPawn): number {
   if (pawn.gender !== "male") return 0;
   const last = new Date(pawn.lastTrim).getTime();
-  if (!isFinite(last)) return Math.max(0, Math.min(BEARD_MAX, pawn.beardLength || 0));
+  // Unreadable anchor (a record parse could not repair): the beard
+  // has had all the time in the world — fully grown, never the old
+  // fallback of the stored base length (0 for every legacy save,
+  // which is what left styled heroes permanently clean-shaven).
+  if (!isFinite(last)) return BEARD_MAX;
   const days = Math.max(0, (Date.now() - last) / 86400000);
   // Rider G: days-since-trim on the weekly ramp (full at day 6).
   return growthValueForDays(days, pawn.beardLength || 0, 1 + cachedGrowthMult);
@@ -533,7 +564,8 @@ export function trimBeard(pawn: CustomPawn): CustomPawn {
 /** Current hair length (0-100), including growth since last haircut. */
 export function hairGrowthFor(pawn: CustomPawn): number {
   const last = new Date(pawn.lastHaircut).getTime();
-  if (!isFinite(last)) return Math.max(0, Math.min(HAIR_MAX, pawn.hairLength || 0));
+  // Same unreadable-anchor rule as the beard: fully grown, never 0.
+  if (!isFinite(last)) return HAIR_MAX;
   const days = Math.max(0, (Date.now() - last) / 86400000);
   // Rider G: hair rides the same days-since-cut weekly ramp as the
   // beard (full at day 6, plateau after) — one cycle, one helper.

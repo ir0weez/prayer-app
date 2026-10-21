@@ -105,14 +105,19 @@ describe("Rider H — care stats on screen", () => {
     expect(pawnHouse).toContain("effectTextFor(roomId, selectedSlotDef.id, selectedTier + 1)");
   });
 
-  it("the fasting profile carries the compact care read + Set for the Day marker", () => {
-    expect(index).toContain("careStatsFor(needsState, houseState, Date.now())");
-    expect(index).toContain("boonFor(needsState, houseState).active");
-    expect(index).toContain('"Fed"');
-    expect(index).toContain('"Washed"');
-    expect(index).toContain('"Relieved"');
-    expect(index).toContain('"Rested"');
-    expect(index).toContain("Set for the Day");
+  // Jonathan's ruling (2026-10-21): the compact care read on the home
+  // tab's settings card was a weird spot for that stat bar — care stats
+  // live at the hero's house (the full bars above), nowhere else. This
+  // pin replaces the old "fasting profile carries the compact care
+  // read" pin, which described the placement he rejected.
+  it("the home tab carries NO care read — care stats live at the house only", () => {
+    expect(index).not.toContain("careStatsFor");
+    expect(index).not.toContain("careRead");
+    expect(index).not.toContain("Morning Care");
+    expect(index).not.toContain("loadHeroNeeds");
+    // …while the house screen keeps the real bars (pinned above too).
+    expect(pawnHouse).toContain("careStatsFor(needs, house, Date.now())");
+    expect(pawnHouse).toContain("Set for the Day");
   });
 
   it("no punishment surface: no red/misery care copy anywhere in the house screen", () => {

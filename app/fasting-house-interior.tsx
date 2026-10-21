@@ -27,8 +27,8 @@ import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { CandleGame } from "@/components/candle-game";
-import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F2F3EC";
 const SAGE_DARK = "#565840";
@@ -134,22 +134,10 @@ function GardenWindow() {
 export default function FastingHouseInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastQuiet, setLastQuiet] = useState(0);
-  const [candlePlaysLeft, setCandlePlaysLeft] = useState<number | null>(null);
-  const [playingCandle, setPlayingCandle] = useState(false);
 
-  useEffect(() => {
-    playsLeftToday("candle").then(setCandlePlaysLeft).catch(() => setCandlePlaysLeft(0));
-  }, []);
-
-  const handleCandleComplete = (raw: MiniGameReward): MiniGameReward => {
-    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    const c = _pay.coins;
-    const xp = _pay.xp;
-    if (c > 0) addCoins(c);
-    if (xp > 0) awardCustomXP(xp, `minigame-candle-${Date.now()}`).catch(() => undefined);
-    recordPlay("candle").then(setCandlePlaysLeft).catch(() => undefined);
-    return { coins: c, xp };
-  };
+  // Keep the Candle Lit — shared host (components/mini-game-host.ts):
+  // the same daily cap and payout pipeline as the campus Chapel.
+  const candle = useMiniGameHost("candle", addCoins);
 
   useEffect(() => {
     (async () => {
@@ -277,13 +265,13 @@ export default function FastingHouseInteriorScreen() {
           icon="local-fire-department"
           title="Play: Keep the Candle Lit"
           blurb="A minute of stillness. Distraction motes drift toward the flame — brush them away and keep the light bright."
-          playsLeft={candlePlaysLeft}
-          cap={MINI_GAME_CAPS.candle}
+          playsLeft={candle.playsLeft}
+          cap={candle.cap}
           accent={ACCENT}
-          onPlay={() => setPlayingCandle(true)}
+          onPlay={() => candle.setPlaying(true)}
         />
-        {playingCandle && (
-          <CandleGame accent={ACCENT} onComplete={handleCandleComplete} onExit={() => setPlayingCandle(false)} />
+        {candle.playing && (
+          <CandleGame accent={ACCENT} onComplete={candle.handleComplete} onExit={() => candle.setPlaying(false)} />
         )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Lighting the candles…</Text>}

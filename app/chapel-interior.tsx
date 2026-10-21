@@ -29,6 +29,9 @@ import {
   pickPeople,
   FigureName,
 } from "@/components/activity-figures";
+import { CandleGame } from "@/components/candle-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#F7F4EE"; // soft candlelight white
 const CARD = "#FFFFFF";
@@ -315,6 +318,11 @@ export default function ChapelInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastCandle, setLastCandle] = useState(0);
 
+  // Keep the Candle Lit, hosted here in the Chapel — shared host
+  // (components/mini-game-host.ts): the same daily cap and payout
+  // pipeline as the town Fasting House.
+  const candle = useMiniGameHost("candle", addCoins);
+
   useEffect(() => {
     (async () => {
       try {
@@ -488,6 +496,19 @@ export default function ChapelInteriorScreen() {
             Be still, and know.
           </Text>
         </View>
+
+        <PlayCard
+          icon="local-fire-department"
+          title="Play: Keep the Candle Lit"
+          blurb="A minute of stillness. Distraction motes drift toward the flame — brush them away and keep the light bright."
+          playsLeft={candle.playsLeft}
+          cap={candle.cap}
+          accent={ACCENT}
+          onPlay={() => candle.setPlaying(true)}
+        />
+        {candle.playing && (
+          <CandleGame accent={ACCENT} onComplete={candle.handleComplete} onExit={() => candle.setPlaying(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Entering quietly…</Text>}
       </ScrollView>

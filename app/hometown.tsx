@@ -83,6 +83,8 @@ import {
   savePurchasedPlots,
   TOWN_LOTS,
   townLotAt,
+  lotPurchaseBlocker,
+  buildingCoveringRect,
   isTownLotBuilding,
   isTownPath,
   hasFixedFootprint,
@@ -5090,6 +5092,12 @@ export default function HometownScreen() {
         {
           text: `Buy for ${price.toFixed(2)}🪙`,
           onPress: () => {
+            // Confirm-time re-check against the exact array appended to:
+            // a purchase must never deduct without placing.
+            if (buildingCoveringRect(map.buildings, plot.x, plot.y, 2, 2)) {
+              Alert.alert("Plot Occupied", "There's already a building on this lot. Move or sell it first.");
+              return;
+            }
             const now = new Date().toISOString();
             const building: PlacedBuilding = {
               id: `plot-${plot.id}-${Date.now()}`,
@@ -5144,6 +5152,12 @@ export default function HometownScreen() {
         {
           text: `Buy for ${price.toFixed(2)}`,
           onPress: () => {
+            // Confirm-time re-check against the exact array appended to:
+            // a purchase must never deduct without placing.
+            if (buildingCoveringRect(map.buildings, plot.x, plot.y, 2, 2)) {
+              Alert.alert("Plot Occupied", "There's already a building on this plot. Move or sell it first.");
+              return;
+            }
             const now = new Date().toISOString();
             const building: PlacedBuilding = {
               id: `campus-${plot.id}-${Date.now()}`,
@@ -5399,38 +5413,75 @@ export default function HometownScreen() {
     setPurchaseLot(lot);
   };
 
+  /** Guards the async lot purchase against double-taps double-charging. */
+  const purchaseInFlightRef = useRef(false);
+
   /** Actually build on a purchased town lot. Lot + building paid together. */
-  const purchaseOnLot = (lot: TownLot, type: BuildingType) => {
+  const purchaseOnLot = async (lot: TownLot, type: BuildingType) => {
     const def = BUILDINGS[type];
-    const lotPrice = scaledCoins(lot.cost);
-    const buildingPrice = scaledCoins(def.cost);
-    const total = lotPrice + buildingPrice;
-    if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
-      Alert.alert("Already built", "You already have a Hero's house!");
-      return;
+    // Atomicity (the Bible Study Hall incident): a lot purchase must
+    // never deduct without placing. Two failure shapes made that happen:
+    // (1) this path appended blindly — city and campus purchases checked
+    // occupancy first, the town path didn't, so a legacy building standing
+    // on the lot swallowed the new one (stacked underneath, unreachable);
+    // (2) the new map was built from the component's in-memory `map`,
+    // which can be stale (e.g. the mount load still settling), while the
+    // coin ledger writes independently — coins gone, placement lost.
+    // So: re-read the town fresh from storage (the pattern the interiors
+    // use), run every guard against THAT, append to THAT, save the whole
+    // town, and only then deduct.
+    if (purchaseInFlightRef.current) return;
+    purchaseInFlightRef.current = true;
+    try {
+      const raw = await AsyncStorage.getItem(TOWN_STORAGE_KEY).catch(() => null);
+      const fresh = parseTown(raw ? JSON.parse(raw) : {});
+      const freshMap = fresh.maps.town;
+      const blocker = lotPurchaseBlocker(freshMap.buildings, lot, type);
+      if (blocker) {
+        Alert.alert("Can't build here", blocker);
+        setPurchaseLot(null);
+        return;
+      }
+      if (type === "pawn-house" && freshMap.buildings.some((b) => b.type === "pawn-house")) {
+        Alert.alert("Already built", "You already have a Hero's house!");
+        return;
+      }
+      if (type === "banquet-table" && freshMap.buildings.some((b) => b.type === "banquet-table")) {
+        Alert.alert("Already built", "The Marriage Supper is already prepared — one table for the whole town.");
+        return;
+      }
+      const lotPrice = scaledCoins(lot.cost);
+      const buildingPrice = scaledCoins(def.cost);
+      const total = lotPrice + buildingPrice;
+      if (coinsRef.current.balance < total) {
+        Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lotPrice.toFixed(2)} + building ${buildingPrice.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
+        return;
+      }
+      const now = new Date().toISOString();
+      const building: PlacedBuilding = {
+        id: `townlot-${lot.id}-${Date.now()}`,
+        type,
+        x: lot.x,
+        y: lot.y,
+        level: 1,
+        townLotId: lot.id,
+        lastTick: now,
+        accumulated: 0,
+      };
+      saveTown({
+        ...fresh,
+        maps: {
+          ...fresh.maps,
+          town: { ...freshMap, buildings: [...freshMap.buildings, building] },
+        },
+      });
+      addCoins(-total);
+      setPurchaseLot(null);
+    } catch {
+      Alert.alert("Purchase failed", "Something went wrong reading your town — no coins were charged.");
+    } finally {
+      purchaseInFlightRef.current = false;
     }
-    if (type === "banquet-table" && map.buildings.some((b) => b.type === "banquet-table")) {
-      Alert.alert("Already built", "The Marriage Supper is already prepared — one table for the whole town.");
-      return;
-    }
-    if (coinsRef.current.balance < total) {
-      Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lotPrice.toFixed(2)} + building ${buildingPrice.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
-      return;
-    }
-    const now = new Date().toISOString();
-    const building: PlacedBuilding = {
-      id: `townlot-${lot.id}-${Date.now()}`,
-      type,
-      x: lot.x,
-      y: lot.y,
-      level: 1,
-      townLotId: lot.id,
-      lastTick: now,
-      accumulated: 0,
-    };
-    saveMap({ ...map, buildings: [...map.buildings, building] });
-    addCoins(-total);
-    setPurchaseLot(null);
   };
 
   /** Lighthouse: receive the daily blessing (+coins × level, verse of light). */
@@ -9341,6 +9392,13 @@ export default function HometownScreen() {
                 { title: "Homes", types: ["villager-cottage"] },
                 { title: "Special", types: ["church", "pawn-house", "farm", "house"] },
               ];
+              // Any available type the fixed groups don't know (the Ministry
+              // Row buildings above all) still gets a row — without this, a
+              // converted lot whose preset is already owned rendered an
+              // empty modal with nothing to tap.
+              const groupedTypes = new Set(groups.flatMap((g) => g.types));
+              const ungrouped = available.filter((t) => !groupedTypes.has(t));
+              if (ungrouped.length > 0) groups.push({ title: "More", types: ungrouped });
               return (
                 <>
                   <Text style={{ fontSize: 18, fontWeight: "800", color: pt.text, textAlign: "center" }}>

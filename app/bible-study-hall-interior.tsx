@@ -27,8 +27,8 @@ import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { VerseGame } from "@/components/verse-game";
-import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import {
   getCachedSchoolPerks,
   loadSchoolPerks,
@@ -133,28 +133,20 @@ function Lectern() {
 export default function BibleStudyHallInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastJoin, setLastJoin] = useState(0);
-  const [versePlaysLeft, setVersePlaysLeft] = useState<number | null>(null);
-  const [playingVerse, setPlayingVerse] = useState(false);
   const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
+  // Complete the Verse — shared host (components/mini-game-host.ts): the
+  // same daily cap and payout pipeline as the Scripture Classroom on
+  // campus, including the classroom's verse multiplier (+10/25/40%).
+  const verse = useMiniGameHost("verse", addCoins, {
+    perkMult: () => getCachedSchoolPerks().verseMult,
+  });
+
   useEffect(() => {
-    playsLeftToday("verse").then(setVersePlaysLeft).catch(() => setVersePlaysLeft(0));
     // School Campus perks: the Scripture Classroom lifts Complete the Verse,
     // the Library deepens Join the Study (lib/school-perks.ts).
     refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
-
-  const handleVerseComplete = (raw: MiniGameReward): MiniGameReward => {
-    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    // Scripture Classroom (campus): verse rewards grow +10/25/40% by level.
-    const vm = getCachedSchoolPerks().verseMult;
-    const c = Math.round(_pay.coins * vm * 100) / 100;
-    const xp = Math.round(_pay.xp * vm);
-    if (c > 0) addCoins(c);
-    if (xp > 0) awardCustomXP(xp, `minigame-verse-${Date.now()}`).catch(() => undefined);
-    recordPlay("verse").then(setVersePlaysLeft).catch(() => undefined);
-    return { coins: c, xp };
-  };
 
   useEffect(() => {
     (async () => {
@@ -291,13 +283,13 @@ export default function BibleStudyHallInteriorScreen() {
           icon="quiz"
           title="Play: Complete the Verse"
           blurb={`A verse with one word missing — can you complete it? Eight rounds, and wisdom pays best.${schoolPerks && schoolPerks.verseMult > 1 ? ` The Scripture Classroom lifts verse rewards +${Math.round((schoolPerks.verseMult - 1) * 100)}%.` : ""}`}
-          playsLeft={versePlaysLeft}
-          cap={MINI_GAME_CAPS.verse}
+          playsLeft={verse.playsLeft}
+          cap={verse.cap}
           accent={ACCENT}
-          onPlay={() => setPlayingVerse(true)}
+          onPlay={() => verse.setPlaying(true)}
         />
-        {playingVerse && (
-          <VerseGame accent={ACCENT} onComplete={handleVerseComplete} onExit={() => setPlayingVerse(false)} />
+        {verse.playing && (
+          <VerseGame accent={ACCENT} onComplete={verse.handleComplete} onExit={() => verse.setPlaying(false)} />
         )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Setting out the chairs…</Text>}

@@ -2026,6 +2026,56 @@ export function townLotAt(x: number, y: number): TownLot | undefined {
   return TOWN_LOTS.find((l) => x >= l.x && x < l.x + l.w && y >= l.y && y < l.y + l.h);
 }
 
+/** True when the building's footprint intersects the given rect. */
+export function buildingCoversRect(
+  b: PlacedBuilding,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): boolean {
+  const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+  return b.x < x + w && b.x + fp.w > x && b.y < y + h && b.y + fp.h > y;
+}
+
+/** First building whose footprint intersects the rect, if any. */
+export function buildingCoveringRect(
+  buildings: PlacedBuilding[],
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): PlacedBuilding | undefined {
+  return buildings.find((b) => buildingCoversRect(b, x, y, w, h));
+}
+
+/**
+ * Why a town-lot purchase must be refused, or null when it may proceed.
+ * The lot purchase is the one path that used to append unconditionally:
+ * if anything already stood on the lot's tiles (a legacy free-placed
+ * building the lot system never stamped), the new building stacked
+ * underneath it — paid for, yet unreachable, because taps resolve to the
+ * first building covering a tile. City and campus purchases always had
+ * this occupancy check; the town path now shares it, and callers run it
+ * against the exact array being appended to, at confirm time, so a
+ * purchase can never deduct without placing.
+ */
+export function lotPurchaseBlocker(
+  buildings: PlacedBuilding[],
+  lot: TownLot,
+  type: BuildingType
+): string | null {
+  if (buildings.some((b) => b.townLotId === lot.id)) {
+    return "This lot is already built. Its building can be upgraded from inside.";
+  }
+  const covering = buildingCoveringRect(buildings, lot.x, lot.y, lot.w, lot.h);
+  if (covering) {
+    const name = BUILDINGS[covering.type]?.name ?? "A building";
+    return `${name} already stands on this lot. Move or sell it first.`;
+  }
+  return null;
+}
+
 /** True if a building sits on a town lot (fixed position, no move/sell). */
 export function isTownLotBuilding(b: PlacedBuilding): boolean {
   return typeof b.townLotId === "string" && b.townLotId.length > 0;
@@ -2106,6 +2156,74 @@ export function ensureTownNeighborhood(map: MapState): MapState {
   });
   const remapChanged = remapped.some((b, i) => b !== rawBuildings[i]);
   if (remapChanged) map = { ...map, buildings: remapped };
+
+  // 0b. Ministry Row conversion, second half: a legacy building of a
+  //     converted type that never got its lot stamp (free-placed before
+  //     the lot system, or left behind when its lot was claimed first
+  //     during the neighborhood migration) is invisible to the remap
+  //     above — yet it still stands in town, does not hide the lot's
+  //     FOR SALE marker, and does not count as owning the new building.
+  //     Buying the lot then stacked the ministry building underneath
+  //     it, where first-match tap resolution made it unreachable:
+  //     paid for, never unlocked. Heal both shapes here:
+  //     - Lot still empty: the first orphan (preferring one that stands
+  //       on the lot) converts and comes home — it becomes the lot's
+  //       building, level kept.
+  //     - Lot already has its building: an orphan overlapping the lot is
+  //       a shadow duplicate. Merge it into the lot building (best level
+  //       and accumulated kept) and clear it away, so the real building
+  //       is the one taps find.
+  {
+    let healed = map.buildings || [];
+    let healedChanged = false;
+    for (const [lotId, remap] of Object.entries(LOT_TYPE_REMAP)) {
+      const lot = TOWN_LOTS.find((l) => l.id === lotId);
+      if (!lot) continue;
+      const lotBuilding = healed.find((b) => b.townLotId === lotId);
+      const orphans = healed.filter(
+        (b) => b.type === remap.from && b.townLotId !== lotId
+      );
+      if (orphans.length === 0) continue;
+      if (!lotBuilding) {
+        const overlapping = orphans.find((b) =>
+          buildingCoversRect(b, lot.x, lot.y, lot.w, lot.h)
+        );
+        const lotCovered = healed.some((b) =>
+          buildingCoversRect(b, lot.x, lot.y, lot.w, lot.h)
+        );
+        const pick = overlapping ?? (!lotCovered ? orphans[0] : undefined);
+        if (!pick) continue;
+        healed = healed.map((b) =>
+          b === pick
+            ? { ...b, type: remap.to, x: lot.x, y: lot.y, townLotId: lotId }
+            : b
+        );
+        healedChanged = true;
+      } else {
+        const shadows = orphans.filter((b) =>
+          buildingCoversRect(b, lot.x, lot.y, lot.w, lot.h)
+        );
+        if (shadows.length === 0) continue;
+        const bestLevel = Math.max(
+          lotBuilding.level || 1,
+          ...shadows.map((s) => s.level || 1)
+        ) as PlacedBuilding["level"];
+        const bestAccumulated = Math.max(
+          lotBuilding.accumulated || 0,
+          ...shadows.map((s) => s.accumulated || 0)
+        );
+        healed = healed
+          .filter((b) => !shadows.includes(b))
+          .map((b) =>
+            b === lotBuilding
+              ? { ...b, level: bestLevel, accumulated: bestAccumulated }
+              : b
+          );
+        healedChanged = true;
+      }
+    }
+    if (healedChanged) map = { ...map, buildings: healed };
+  }
 
   // 1. Roads: drop non-path roads and stale path tiles (no longer in
   //    TOWN_PATH, e.g. after a grid resize), seed the winding path.

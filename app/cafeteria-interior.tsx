@@ -42,6 +42,9 @@ import {
   pickPeople,
   FigureName,
 } from "@/components/activity-figures";
+import { ServeGame } from "@/components/serve-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 const BG = "#FFFBEB";
 const WOOD = "#B0724A";
@@ -168,7 +171,13 @@ async function readStock(buildingId: string, level: number): Promise<{ pct: numb
 }
 
 export default function CafeteriaInteriorScreen() {
-  const { coins, building, people, pawn, loaded, level, buildingName, handleUpgrade } = useInteriorData();
+  const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
+
+  // Serve the Table, hosted here in the Cafeteria — shared host
+  // (components/mini-game-host.ts): the same daily cap and payout
+  // pipeline as the town restaurants, with the school lunch line's own
+  // menu (SERVE_MENUS.cafeteria).
+  const serve = useMiniGameHost("serve", addCoins);
   const [lastServe, setLastServe] = useState(0);
   const [stockPct, setStockPct] = useState(0);
   const [stockedToday, setStockedToday] = useState(false);
@@ -334,6 +343,19 @@ export default function CafeteriaInteriorScreen() {
           level={level}
           onUpgrade={() => handleUpgrade(level + 1 >= 3 ? "Six tables, a salad bar, and room for the whole school." : "More tables and a menu board.")}
         />
+
+        <PlayCard
+          icon="room-service"
+          title="Play: Serve the Table"
+          blurb="Five tables this shift. Serve each order dish by dish, in order — the lunch line's own menu — before patience runs thin. Good service earns good tips."
+          playsLeft={serve.playsLeft}
+          cap={serve.cap}
+          accent={ACCENT}
+          onPlay={() => serve.setPlaying(true)}
+        />
+        {serve.playing && (
+          <ServeGame accent={ACCENT} onComplete={serve.handleComplete} onExit={() => serve.setPlaying(false)} cuisine="cafeteria" />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Warming the trays…</Text>}
       </ScrollView>

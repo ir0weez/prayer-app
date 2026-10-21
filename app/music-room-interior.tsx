@@ -27,6 +27,14 @@ import {
   pickPeople,
   FigureName,
 } from "@/components/activity-figures";
+import { RhythmGame } from "@/components/rhythm-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
+import {
+  getCachedSchoolPerks,
+  refreshSchoolPerksCache,
+  type SchoolPerks,
+} from "@/lib/school-perks";
 
 const BG = "#F5F0FA";
 const WOOD = "#8B5E34";
@@ -130,6 +138,15 @@ function SongBanner() {
 export default function MusicRoomInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastAction, setLastAction] = useState(0);
+  const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
+
+  // Rhythm of Worship, hosted here in the Music Room — shared host
+  // (components/mini-game-host.ts): the same daily cap and payout
+  // pipeline as the town Amphitheater, including this room's own +25%
+  // payout perk while it stands.
+  const rhythm = useMiniGameHost("rhythm", addCoins, {
+    perkMult: () => getCachedSchoolPerks().rhythmMult,
+  });
 
   useEffect(() => {
     (async () => {
@@ -138,6 +155,7 @@ export default function MusicRoomInteriorScreen() {
         setLastAction(raw ? parseInt(raw, 10) || 0 : 0);
       } catch {}
     })();
+    refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
 
   const remaining = Math.max(0, lastAction + COOLDOWN_MS - Date.now());
@@ -232,6 +250,19 @@ export default function MusicRoomInteriorScreen() {
         <Text style={{ color: TEXT_DIM, fontSize: 12, textAlign: "center", marginTop: 8, paddingHorizontal: 32 }}>
           While the Music Room stands, Rhythm of Worship payouts grow +25%.
         </Text>
+
+        <PlayCard
+          icon="music-note"
+          title="Play: Rhythm of Worship"
+          blurb={`Golden notes drift down to a 90 BPM heartbeat. Tap each lane as its note crosses the ring — the song is the offering.${schoolPerks?.musicRoomBuilt ? " This room lifts every payout +25%." : ""}`}
+          playsLeft={rhythm.playsLeft}
+          cap={rhythm.cap}
+          accent={ACCENT}
+          onPlay={() => rhythm.setPlaying(true)}
+        />
+        {rhythm.playing && (
+          <RhythmGame accent={ACCENT} onComplete={rhythm.handleComplete} onExit={() => rhythm.setPlaying(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Tuning the piano…</Text>}
       </ScrollView>

@@ -42,8 +42,8 @@ import {
 } from "@/components/cuisine-themes";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { ServeGame } from "@/components/serve-game";
-import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 
 // ---------- palette: warm candlelit dining room ----------
 // Dark warm wood, amber candlelight, golden accents — an evening meal together.
@@ -1039,13 +1039,6 @@ export default function RestaurantInteriorScreen() {
   const [people, setPeople] = useState<PrayedPerson[]>([]);
   const [interior, setInterior] = useState<RestaurantInteriorState>({ furniture: {} });
   const [loaded, setLoaded] = useState(false);
-  const [servePlaysLeft, setServePlaysLeft] = useState<number | null>(null);
-  const [playingServe, setPlayingServe] = useState(false);
-
-  useEffect(() => {
-    playsLeftToday("serve").then(setServePlaysLeft).catch(() => setServePlaysLeft(0));
-  }, []);
-
   useEffect(() => {
     (async () => {
       try {
@@ -1107,15 +1100,9 @@ export default function RestaurantInteriorScreen() {
     [buildingId, interior, addCoins]
   );
 
-  const handleServeComplete = (raw: MiniGameReward): MiniGameReward => {
-    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    const c = _pay.coins;
-    const xp = _pay.xp;
-    if (c > 0) addCoins(c);
-    if (xp > 0) awardCustomXP(xp, `minigame-serve-${Date.now()}`).catch(() => undefined);
-    recordPlay("serve").then(setServePlaysLeft).catch(() => undefined);
-    return { coins: c, xp };
-  };
+  // Serve the Table — shared host (components/mini-game-host.ts): the
+  // same daily cap and payout pipeline as the campus Cafeteria.
+  const serve = useMiniGameHost("serve", addCoins);
 
   const def = building ? BUILDINGS[building.type] : null;
   const name = def?.name ?? "Restaurant";
@@ -1408,13 +1395,13 @@ export default function RestaurantInteriorScreen() {
           icon="room-service"
           title="Play: Serve the Table"
           blurb="Five tables this shift. Serve each order dish by dish, in order — this kitchen's own menu — before patience runs thin. Good service earns good tips."
-          playsLeft={servePlaysLeft}
-          cap={MINI_GAME_CAPS.serve}
+          playsLeft={serve.playsLeft}
+          cap={serve.cap}
           accent={pal.accent}
-          onPlay={() => setPlayingServe(true)}
+          onPlay={() => serve.setPlaying(true)}
         />
-        {playingServe && (
-          <ServeGame accent={pal.accent} onComplete={handleServeComplete} onExit={() => setPlayingServe(false)} cuisine={cuisine} />
+        {serve.playing && (
+          <ServeGame accent={pal.accent} onComplete={serve.handleComplete} onExit={() => serve.setPlaying(false)} cuisine={cuisine} />
         )}
 
         {!loaded && (

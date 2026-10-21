@@ -28,6 +28,14 @@ import {
   pickPeople,
   FigureName,
 } from "@/components/activity-figures";
+import { VerseGame } from "@/components/verse-game";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
+import {
+  getCachedSchoolPerks,
+  refreshSchoolPerksCache,
+  type SchoolPerks,
+} from "@/lib/school-perks";
 
 const BG = "#EFF6FF"; // bright morning
 const CARD = "#FFFFFF";
@@ -270,6 +278,15 @@ function ScienceCorner() {
 export default function ClassroomInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastLesson, setLastLesson] = useState(0);
+  const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
+
+  // Complete the Verse, hosted here in the Scripture Classroom — shared
+  // host (components/mini-game-host.ts): the same daily cap and payout
+  // pipeline as the Bible Study Hall in town, including this classroom's
+  // own verse multiplier (+10/25/40% by level).
+  const verse = useMiniGameHost("verse", addCoins, {
+    perkMult: () => getCachedSchoolPerks().verseMult,
+  });
 
   useEffect(() => {
     (async () => {
@@ -278,9 +295,8 @@ export default function ClassroomInteriorScreen() {
         setLastLesson(raw ? parseInt(raw, 10) || 0 : 0);
       } catch {}
     })();
+    refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
-
-  void addCoins;
   const remaining = Math.max(0, lastLesson + LESSON_COOLDOWN_MS - Date.now());
   const lessonXp = LESSON_XP[level];
   const deskCount = level >= 3 ? 8 : level >= 2 ? 6 : 4;
@@ -407,6 +423,19 @@ export default function ClassroomInteriorScreen() {
           level={level}
           onUpgrade={() => handleUpgrade("A smart board, a reading corner, room for more learners.")}
         />
+
+        <PlayCard
+          icon="quiz"
+          title="Play: Complete the Verse"
+          blurb={`A verse with one word missing — can you complete it? Eight rounds, and wisdom pays best.${schoolPerks && schoolPerks.verseMult > 1 ? ` This classroom lifts verse rewards +${Math.round((schoolPerks.verseMult - 1) * 100)}%.` : ""}`}
+          playsLeft={verse.playsLeft}
+          cap={verse.cap}
+          accent={ACCENT}
+          onPlay={() => verse.setPlaying(true)}
+        />
+        {verse.playing && (
+          <VerseGame accent={ACCENT} onComplete={verse.handleComplete} onExit={() => verse.setPlaying(false)} />
+        )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Sharpening pencils…</Text>}
       </ScrollView>

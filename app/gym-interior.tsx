@@ -26,8 +26,9 @@ import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import { TrainingGame } from "@/components/training-game";
-import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
-import { MINI_GAME_CAPS, grantTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
+import { PlayCard } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
+import { grantTrainingBonus } from "@/lib/mini-games";
 import { loadSchoolPerks, type SchoolPerks } from "@/lib/school-perks";
 
 const BG = "#F5F1EE";
@@ -146,27 +147,23 @@ function Mat({ color }: { color: string }) {
 export default function GymInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
   const [lastTrain, setLastTrain] = useState(0);
-  const [trainingPlaysLeft, setTrainingPlaysLeft] = useState<number | null>(null);
-  const [playingTraining, setPlayingTraining] = useState(false);
   const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
+  // Training Reps — shared host (components/mini-game-host.ts): the same
+  // daily cap and payout pipeline as the campus Gymnasium. A finished
+  // session leaves the Hero sharper until midnight (the buff's strength —
+  // +20% while the campus Gymnasium stands — is read from the campus
+  // perks where the forest stats are computed).
+  const trainingGame = useMiniGameHost("training", addCoins, {
+    onGranted: () => {
+      grantTrainingBonus().catch(() => undefined);
+    },
+  });
+
   useEffect(() => {
-    playsLeftToday("training").then(setTrainingPlaysLeft).catch(() => setTrainingPlaysLeft(0));
     // School Campus perk: the campus Gymnasium strengthens the buff to +20%.
     loadSchoolPerks().then(setSchoolPerks).catch(() => undefined);
   }, []);
-
-  const handleTrainingComplete = (raw: MiniGameReward): MiniGameReward => {
-    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    const c = _pay.coins;
-    const xp = _pay.xp;
-    if (c > 0) addCoins(c);
-    if (xp > 0) awardCustomXP(xp, `minigame-training-${Date.now()}`).catch(() => undefined);
-    // A finished session leaves the Hero sharper until midnight.
-    grantTrainingBonus().catch(() => undefined);
-    recordPlay("training").then(setTrainingPlaysLeft).catch(() => undefined);
-    return { coins: c, xp };
-  };
 
   useEffect(() => {
     (async () => {
@@ -304,13 +301,13 @@ export default function GymInteriorScreen() {
           icon="timer"
           title="Play: Training Reps"
           blurb={`Stop the sweeping marker in the green — gold is perfect. Twelve reps, and finishing sharpens the Hero in the Dark Forest (+${schoolPerks?.gymnasiumBuilt ? "20" : "10"}% attack & defense until midnight${schoolPerks?.gymnasiumBuilt ? ", thanks to the campus Gymnasium" : ""}).`}
-          playsLeft={trainingPlaysLeft}
-          cap={MINI_GAME_CAPS.training}
+          playsLeft={trainingGame.playsLeft}
+          cap={trainingGame.cap}
           accent={ACCENT}
-          onPlay={() => setPlayingTraining(true)}
+          onPlay={() => trainingGame.setPlaying(true)}
         />
-        {playingTraining && (
-          <TrainingGame accent={ACCENT} onComplete={handleTrainingComplete} onExit={() => setPlayingTraining(false)} />
+        {trainingGame.playing && (
+          <TrainingGame accent={ACCENT} onComplete={trainingGame.handleComplete} onExit={() => trainingGame.setPlaying(false)} />
         )}
 
         {!loaded && <Text style={{ color: TEXT_DIM, textAlign: "center", marginTop: 20 }}>Chalking up…</Text>}

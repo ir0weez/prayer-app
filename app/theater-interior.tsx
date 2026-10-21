@@ -42,6 +42,7 @@ import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { PopcornGame } from "@/components/popcorn-game";
 import { RhythmGame } from "@/components/rhythm-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
+import { useMiniGameHost } from "@/components/mini-game-host";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import {
   getCachedSchoolPerks,
@@ -668,13 +669,10 @@ export default function TheaterInteriorScreen() {
   const [loaded, setLoaded] = useState(false);
   const [popcornPlaysLeft, setPopcornPlaysLeft] = useState<number | null>(null);
   const [playingPopcorn, setPlayingPopcorn] = useState(false);
-  const [rhythmPlaysLeft, setRhythmPlaysLeft] = useState<number | null>(null);
-  const [playingRhythm, setPlayingRhythm] = useState(false);
   const [schoolPerks, setSchoolPerks] = useState<SchoolPerks | null>(null);
 
   useEffect(() => {
     playsLeftToday("popcorn").then(setPopcornPlaysLeft).catch(() => setPopcornPlaysLeft(0));
-    playsLeftToday("rhythm").then(setRhythmPlaysLeft).catch(() => setRhythmPlaysLeft(0));
     // School Campus perk: the Music Room lifts Rhythm of Worship payouts.
     refreshSchoolPerksCache().then(setSchoolPerks).catch(() => undefined);
   }, []);
@@ -730,17 +728,12 @@ export default function TheaterInteriorScreen() {
     return { coins: c, xp };
   };
 
-  const handleRhythmComplete = (raw: MiniGameReward): MiniGameReward => {
-    const _pay = scaleMiniGamePayout(scaledCoins(raw.coins), scaledXP(raw.xp));
-    // Music Room (campus): Rhythm of Worship payouts +25% while it stands.
-    const rm = getCachedSchoolPerks().rhythmMult;
-    const c = Math.round(_pay.coins * rm * 100) / 100;
-    const xp = Math.round(_pay.xp * rm);
-    if (c > 0) addCoins(c);
-    if (xp > 0) awardCustomXP(xp, `minigame-rhythm-${Date.now()}`).catch(() => undefined);
-    recordPlay("rhythm").then(setRhythmPlaysLeft).catch(() => undefined);
-    return { coins: c, xp };
-  };
+  // Rhythm of Worship — shared host (components/mini-game-host.ts): the
+  // same daily cap and payout pipeline as the campus Music Room,
+  // including the Music Room's +25% payout perk while it stands.
+  const rhythm = useMiniGameHost("rhythm", addCoins, {
+    perkMult: () => getCachedSchoolPerks().rhythmMult,
+  });
 
   const theme: MovieThemeKind = movieThemeForTitle(activity?.title ?? "", activity?.notes);
   const level = Math.min(Math.max(building?.level || 1, 1), 3);
@@ -905,13 +898,13 @@ export default function TheaterInteriorScreen() {
               icon="music-note"
               title="Play: Rhythm of Worship"
               blurb={`Golden notes drift down to a 90 BPM heartbeat. Tap each lane as its note crosses the ring — the song is the offering.${schoolPerks?.musicRoomBuilt ? " The campus Music Room lifts every payout +25%." : ""}`}
-              playsLeft={rhythmPlaysLeft}
-              cap={MINI_GAME_CAPS.rhythm}
+              playsLeft={rhythm.playsLeft}
+              cap={rhythm.cap}
               accent={GOLD}
-              onPlay={() => setPlayingRhythm(true)}
+              onPlay={() => rhythm.setPlaying(true)}
             />
-            {playingRhythm && (
-              <RhythmGame accent={GOLD} onComplete={handleRhythmComplete} onExit={() => setPlayingRhythm(false)} />
+            {rhythm.playing && (
+              <RhythmGame accent={GOLD} onComplete={rhythm.handleComplete} onExit={() => rhythm.setPlaying(false)} />
             )}
           </>
         ) : (

@@ -310,6 +310,15 @@ export const SERVE_MENUS: Record<string, ServeDish[]> = {
     { name: "Grapes", icon: "grapes" },
     { name: "Celebration Cake", icon: "cake" },
   ],
+  // The School Cafeteria's own lunch line (Serve the Table on campus).
+  cafeteria: [
+    { name: "Tomato Soup", icon: "soup" },
+    { name: "Grilled Cheese", icon: "bread" },
+    { name: "Garden Salad", icon: "salad" },
+    { name: "Milk Carton", icon: "drink" },
+    { name: "Fruit Cup", icon: "grapes" },
+    { name: "Pudding Cup", icon: "cake" },
+  ],
   generic: [
     { name: "Chef's Burger", icon: "burger" },
     { name: "Fries", icon: "fries" },

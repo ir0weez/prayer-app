@@ -41,7 +41,7 @@ import {
   DinerCoffeeStation,
   type CuisinePalette,
 } from "@/components/cuisine-themes";
-import { PixelTacoRoom } from "@/components/pixel-taco-room";
+import { PaperTacoRoom } from "@/components/paper-taco-room";
 import { getTimeOfDay } from "@/lib/daynight";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { ServeGame } from "@/components/serve-game";
@@ -485,7 +485,7 @@ function BanquetTable({ diners, tablesTier, pal = DEFAULT_PAL, cuisine = "" }: {
 // Cuisines with their own signature oven/grill skip the generic brick oven.
 function KitchenCounter({ tier, cuisine = "" }: { tier: number; cuisine?: string }) {
   // The taco stand never reaches this counter — its whole room renders
-  // through the pixel kit now (components/pixel-taco-room).
+  // through the paper kit now (components/paper-taco-room).
   const hasSignatureOven = cuisine === "pizza-place" || cuisine === "manna-house" || cuisine === "sushi-bar" || cuisine === "diner" || cuisine === "burger-joint";
   if (tier >= 2 && !hasSignatureOven) {
     // Brick oven (t2) / Chef's Kitchen (t3): arched oven with a warm fire
@@ -1400,9 +1400,11 @@ export default function RestaurantInteriorScreen() {
           <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="restaurant" />
           {cuisine === "taco-stand" ? (
             <>
-              {/* the Taco Stand renders 100% pixel now (phase 1 of the
-                  pixel interiors) — room, furniture and people alike */}
-              <PixelTacoRoom
+              {/* the Taco Stand renders as a paper diorama now — the
+                  paper cutout proof for every interior (the pixel room
+                  stays in the repo, shelved) — room, furniture and
+                  people alike, all layered paper */}
+              <PaperTacoRoom
                 tableDiners={tableDiners}
                 tablesTier={tablesTier}
                 chairsTier={chairsTier}

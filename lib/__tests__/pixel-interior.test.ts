@@ -200,9 +200,15 @@ describe("wiring — the taco room renders through the pixel kit", () => {
   const room = readSrc("components/pixel-taco-room.tsx");
   const kit = readSrc("components/pixel-interior.tsx");
 
-  it("the screen's taco branch is the pixel room, atmosphere kept", () => {
+  it("the screen's taco branch renders the PAPER room now — pixel shelved, atmosphere kept", () => {
+    // Pivot (2026-10-21): Jonathan moved interiors to paper cutout
+    // after v149/v151 missed the mockups. The pixel room + kit stay
+    // in the repo untouched (every other test in this file still
+    // guards them); only the screen's branch changed hands. The
+    // paper-interior tests pin the new wiring.
     expect(screen).toContain('cuisine === "taco-stand" ? (');
-    expect(screen).toContain("<PixelTacoRoom");
+    expect(screen).toContain("<PaperTacoRoom");
+    expect(screen).not.toContain("<PixelTacoRoom");
     expect(screen).toContain("<InteriorAtmosphere");
     expect(screen).toContain('halloween={getHolidaySeason() === "halloween"}');
     expect(screen).toContain('isNight={getTimeOfDay() === "night"}');

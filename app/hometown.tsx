@@ -5215,11 +5215,29 @@ export default function HometownScreen() {
           AsyncStorage.getItem("prayercircle.fasts.v1"),
           AsyncStorage.getItem(MAP_UNLOCKED_KEY),
         ]);
+        // fastsRaw is parsed by three blocks below — parse it at most once.
+        // A parse failure is cached and rethrown, so each block's own
+        // try/catch behaves exactly as if it had parsed (and failed) itself.
+        let fastsParsedCache: { ok: true; value: any } | { ok: false; error: unknown } | null = null;
+        const parseFastsRaw = (): any => {
+          if (fastsParsedCache) {
+            if (!fastsParsedCache.ok) throw fastsParsedCache.error;
+            return fastsParsedCache.value;
+          }
+          try {
+            const value = fastsRaw ? JSON.parse(fastsRaw) : [];
+            fastsParsedCache = { ok: true, value };
+            return value;
+          } catch (e) {
+            fastsParsedCache = { ok: false, error: e };
+            throw e;
+          }
+        };
         // One-time backfill: 1 coin per completed fast day before coins existed
         let effectiveCoinsRaw = coinsRaw;
         if (!backfillRaw) {
           try {
-            const fasts = fastsRaw ? JSON.parse(fastsRaw) : [];
+            const fasts = parseFastsRaw();
             let completedCount = 0;
             for (const f of fasts) {
               const statuses = f.dayStatuses || {};
@@ -5268,7 +5286,7 @@ export default function HometownScreen() {
           setCachedBadges(pState.badges);
           const gildedMult = pState.badges.includes("gilded") ? GILDED_INCOME_MULT : 1;
           pMult = totalPrestigeMultiplier(pLevel, pState.devotionBonus) * gildedMult;
-          const fastsArr = fastsRaw ? JSON.parse(fastsRaw) : [];
+          const fastsArr = parseFastsRaw();
           if (Array.isArray(fastsArr)) {
             fastsRef.current = fastsArr as PersonalFast[];
             setPrestigeOfferState(prestigeOffer(fastsRef.current, pState));
@@ -5336,9 +5354,11 @@ export default function HometownScreen() {
         // The Well state (daily draw date + streak)
         try { setWell(await loadWell()); } catch {}
         // Mission Field state (field missions, pruned of old collected ones)
+        let fieldMissionsLoaded: FieldMission[] | null = null;
         try {
           const fm = await loadFieldMissions();
           const pruned = pruneMissions(fm);
+          fieldMissionsLoaded = pruned;
           setFieldMissions(pruned);
           if (pruned.length !== fm.length) saveFieldMissions(pruned).catch(() => undefined);
         } catch {}
@@ -5451,7 +5471,7 @@ export default function HometownScreen() {
         try {
           const countedRaw = await AsyncStorage.getItem(FAST_DAY_COIN_KEY);
           const counted = new Set(parseFastDayCoins(countedRaw ? JSON.parse(countedRaw) : []));
-          const fasts = fastsRaw ? JSON.parse(fastsRaw) : [];
+          const fasts = parseFastsRaw();
           let newGreens = 0;
           for (const f of fasts) {
             const fid = String(f.id || f.name || "fast");
@@ -5547,6 +5567,15 @@ export default function HometownScreen() {
         }
         setGardenVisits(gardenVisitState);
         const gardenVisitBonus = gardenVisitMult(gardenVisitState);
+        // Paint the town NOW, before the time-away accrual below. The
+        // state committed here is exactly the persisted town — buildings
+        // show their last-saved accumulated totals, never a doubled or
+        // invented number — and the accrual pass keeps working on this
+        // same local `t`, landing the final town via saveTown at the end
+        // of the effect, exactly as before. The awaits inside the accrual
+        // section (villager settle, bank drips) yield to the event loop,
+        // so this commit renders before the synchronous accrual loop runs.
+        setTown(t);
         const newMaps = { ...t.maps };
         // ATM/vault drip accruals, applied after the loop (async storage writes)
         const dripOps: { buildingId: string; minutes: number; basePerHour: number }[] = [];
@@ -5569,7 +5598,13 @@ export default function HometownScreen() {
           const [storedLocations, workNow, missionsNow] = await Promise.all([
             loadVillagerLocations(),
             loadVillagerWorkState(),
-            loadFieldMissions().catch(() => [] as FieldMission[]),
+            // Reuse the missions loaded (and pruned) earlier in this same
+            // mount instead of reading storage a second time — the pruned
+            // list is what a fresh read returns once the prune save above
+            // lands. Falls back to a fresh load if that block failed.
+            fieldMissionsLoaded
+              ? Promise.resolve(fieldMissionsLoaded)
+              : loadFieldMissions().catch(() => [] as FieldMission[]),
           ]);
           const settledAway = settleVillagerLocations(storedLocations, {
             people: [...prayedIdSet].map((personId) => ({ personId })),

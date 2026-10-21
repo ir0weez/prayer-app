@@ -2677,121 +2677,253 @@ export async function shopBuildingLevel(type: BuildingType): Promise<number> {
 }
 
 
+// ---- Shared road-network analysis (perf fix, 2026-10-21) ----
+// The road multiplier, barbershop boost, and shop adjacency bonus used to
+// each run their own full scan on EVERY call: the multiplier and boost ran
+// a BFS over the whole road network per building (re-scanning every road
+// for every queue step), and adjacency re-parsed tile keys inside its
+// pairwise loop. The hometown mount effect calls all three for every
+// earning building on every map, and dailyIncomeForTown re-runs them for
+// missed-day income — ~126k primitive checks for ONE building's road call
+// on a modeled town (61 buildings, 616 road tiles), seconds of blocked
+// startup on a phone.
+//
+// Now the three functions share ONE analysis per map data version:
+// parsed road coordinates and tile -> building indexes are built once
+// (memoized on the roads + buildings array identities — any edit creates
+// new arrays and rebuilds), and each building's result is computed at most
+// once per version and cached.
+//
+// BEHAVIOR IS UNCHANGED, quirks included. The historical BFS marks roads
+// reached through its road-to-road shortcut as visited WITHOUT scanning
+// their adjacent buildings, so its result is NOT a clean
+// connected-components count (a building fronting only the far road of a
+// 2-road line is not "connected"). Shipped income numbers embody that
+// traversal, so traverseRoadNetwork replicates it step for step — same
+// discovery order (roads in array order), same marking order, same FIFO
+// queue (an index pointer instead of Array.shift's O(n) copy). Golden
+// tests: lib/hometown-road-network.test.ts.
+
+type RoadAnalysis = {
+  roads: { x: number; y: number }[];
+  /** Tile key -> index into `roads` (first entry wins, as in the old scans). */
+  roadIndexByTile: Map<string, number>;
+  /** Origin tile key -> building indices (ascending, i.e. array order). */
+  buildingIdxByOriginTile: Map<string, number[]>;
+  /** Any footprint tile key -> building indices. Barber detection uses the
+   *  plain footprint (no fixed-plot sizing), exactly as the old code did. */
+  buildingIdxByFootprintTile: Map<string, number[]>;
+  multByBuildingId: Map<string, number>;
+  boostByBuildingId: Map<string, number>;
+  adjacencyByBuildingId: Map<string, number>;
+  tilesByBuildingId: Map<string, { set: Set<string>; list: { x: number; y: number }[] }>;
+  shopPerimeterByBuildingId: Map<string, Set<string>>;
+};
+
+const NO_ROADS: PlacedRoad[] = [];
+const NO_BUILDINGS: PlacedBuilding[] = [];
+/** roads array -> buildings array -> analysis. Weak so old town versions
+ *  are collected once the state moves on. */
+const roadAnalysisCache = new WeakMap<object, WeakMap<object, RoadAnalysis>>();
+let roadAnalysisBuildCount = 0;
+let roadAnalysisTraversalCount = 0;
+
+/**
+ * Diagnostics for tests: how many per-map analyses have been built and how
+ * many per-building traversals have run. A full sweep over one unchanged
+ * map must build the analysis ONCE and traverse at most once per building
+ * per mode — never one BFS per call.
+ */
+export function roadAnalysisDiagnostics(): { builds: number; traversals: number } {
+  return { builds: roadAnalysisBuildCount, traversals: roadAnalysisTraversalCount };
+}
+
+const roadTileKey = (x: number, y: number) => `${x},${y}`;
+
+function buildRoadAnalysis(buildings: PlacedBuilding[], roads: PlacedRoad[]): RoadAnalysis {
+  roadAnalysisBuildCount++;
+  const parsedRoads = roads.map((r) => ({ x: r.x, y: r.y }));
+  const roadIndexByTile = new Map<string, number>();
+  parsedRoads.forEach((r, i) => {
+    const k = roadTileKey(r.x, r.y);
+    if (!roadIndexByTile.has(k)) roadIndexByTile.set(k, i);
+  });
+  const buildingIdxByOriginTile = new Map<string, number[]>();
+  const buildingIdxByFootprintTile = new Map<string, number[]>();
+  buildings.forEach((b, i) => {
+    const ok = roadTileKey(b.x, b.y);
+    const origins = buildingIdxByOriginTile.get(ok);
+    if (origins) origins.push(i); else buildingIdxByOriginTile.set(ok, [i]);
+    const fp = buildingFootprint(b.level || 1, b.type);
+    for (let dx = 0; dx < fp.w; dx++) {
+      for (let dy = 0; dy < fp.h; dy++) {
+        const k = roadTileKey(b.x + dx, b.y + dy);
+        const arr = buildingIdxByFootprintTile.get(k);
+        if (arr) arr.push(i); else buildingIdxByFootprintTile.set(k, [i]);
+      }
+    }
+  });
+  return {
+    roads: parsedRoads,
+    roadIndexByTile,
+    buildingIdxByOriginTile,
+    buildingIdxByFootprintTile,
+    multByBuildingId: new Map(),
+    boostByBuildingId: new Map(),
+    adjacencyByBuildingId: new Map(),
+    tilesByBuildingId: new Map(),
+    shopPerimeterByBuildingId: new Map(),
+  };
+}
+
+function roadAnalysisForMap(map: MapState): RoadAnalysis {
+  const roads = map.roads || NO_ROADS;
+  const buildings = map.buildings || NO_BUILDINGS;
+  let byBuildings = roadAnalysisCache.get(roads);
+  if (!byBuildings) {
+    byBuildings = new WeakMap();
+    roadAnalysisCache.set(roads, byBuildings);
+  }
+  let analysis = byBuildings.get(buildings);
+  if (!analysis) {
+    analysis = buildRoadAnalysis(buildings, roads);
+    byBuildings.set(buildings, analysis);
+  }
+  return analysis;
+}
+
+/**
+ * Indices of roads orthogonally adjacent to (x, y), in ascending array
+ * order — the exact order the historical full-array scan visited them.
+ */
+function adjacentRoadIndices(a: RoadAnalysis, x: number, y: number): number[] {
+  const out: number[] = [];
+  const e = a.roadIndexByTile.get(roadTileKey(x + 1, y));
+  if (e !== undefined) out.push(e);
+  const w = a.roadIndexByTile.get(roadTileKey(x - 1, y));
+  if (w !== undefined) out.push(w);
+  const s = a.roadIndexByTile.get(roadTileKey(x, y + 1));
+  if (s !== undefined) out.push(s);
+  const n = a.roadIndexByTile.get(roadTileKey(x, y - 1));
+  if (n !== undefined) out.push(n);
+  out.sort((p, q) => p - q);
+  return out;
+}
+
+/**
+ * Indices of buildings touching a road tile, in ascending array order:
+ * "origin" = building origin on a neighboring tile (road multiplier scan);
+ * "footprint" = any footprint tile on a neighboring tile (barbershop scan).
+ */
+function buildingIndicesNearRoad(
+  a: RoadAnalysis,
+  road: { x: number; y: number },
+  kind: "origin" | "footprint",
+): number[] {
+  const table = kind === "origin" ? a.buildingIdxByOriginTile : a.buildingIdxByFootprintTile;
+  const found = new Set<number>();
+  const tiles: Array<[number, number]> = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const [dx, dy] of tiles) {
+    const arr = table.get(roadTileKey(road.x + dx, road.y + dy));
+    if (arr) for (const i of arr) found.add(i);
+  }
+  return [...found].sort((p, q) => p - q);
+}
+
+/**
+ * The historical road-network BFS, replicated exactly (see the analysis
+ * note above) but indexed: every step touches only the tiles next to the
+ * current position instead of re-scanning all roads and buildings.
+ * mode "mult": returns the connected-building count multiplier.
+ * mode "barber": returns 1.25 the moment a barbershop is scanned, else 1.
+ */
+function traverseRoadNetwork(
+  a: RoadAnalysis,
+  buildings: PlacedBuilding[],
+  start: PlacedBuilding,
+  mode: "mult" | "barber",
+): number {
+  roadAnalysisTraversalCount++;
+  const roadVisited = new Set<string>();
+  const visitedBuildings = new Set<string>([start.id]);
+  let connectedCount = 1;
+  const queue: { x: number; y: number }[] = [{ x: start.x, y: start.y }];
+  let head = 0;
+
+  while (head < queue.length) {
+    const current = queue[head++];
+    for (const roadIdx of adjacentRoadIndices(a, current.x, current.y)) {
+      const road = a.roads[roadIdx];
+      const roadKey = roadTileKey(road.x, road.y);
+      if (roadVisited.has(roadKey)) continue;
+      roadVisited.add(roadKey);
+      // From this road, find adjacent buildings (scan order = array order).
+      if (mode === "mult") {
+        for (const bIdx of buildingIndicesNearRoad(a, road, "origin")) {
+          const b = buildings[bIdx];
+          if (visitedBuildings.has(b.id)) continue;
+          visitedBuildings.add(b.id);
+          connectedCount++;
+          queue.push({ x: b.x, y: b.y });
+        }
+      } else {
+        for (const bIdx of buildingIndicesNearRoad(a, road, "footprint")) {
+          const b = buildings[bIdx];
+          if (visitedBuildings.has(b.id)) continue;
+          if (b.type === "barbershop") return 1.25;
+          visitedBuildings.add(b.id);
+          queue.push({ x: b.x, y: b.y });
+        }
+      }
+      // Also continue through to other roads (marked WITHOUT a building
+      // scan — the historical shortcut that shapes the results).
+      for (const r2Idx of adjacentRoadIndices(a, road.x, road.y)) {
+        const r2 = a.roads[r2Idx];
+        const r2Key = roadTileKey(r2.x, r2.y);
+        if (roadVisited.has(r2Key)) continue;
+        roadVisited.add(r2Key);
+        queue.push({ x: r2.x, y: r2.y });
+      }
+    }
+  }
+
+  if (mode === "barber") return 1;
+  if (connectedCount <= 1) return 1;
+  return 1 + 0.25 * (connectedCount - 1);
+}
+
 // Roads create a multiplier for connected buildings.
 // Buildings connected via adjacent roads form a network.
 // Multiplier = 1 + 0.25 * (networkSize - 1), so:
 // 1 building (no network) = 1x, 2 connected = 1.25x, 3 = 1.5x, 4 = 1.75x, etc.
 export function roadMultiplierForBuilding(map: MapState, buildingId: string): number {
-  const roads = map.roads || [];
-  const buildings = map.buildings;
-  if (roads.length === 0) return 1;
-
-  // Build adjacency: find all buildings connected via roads
+  const a = roadAnalysisForMap(map);
+  const cached = a.multByBuildingId.get(buildingId);
+  if (cached !== undefined) return cached;
+  const buildings = map.buildings || NO_BUILDINGS;
   const building = buildings.find(b => b.id === buildingId);
-  if (!building) return 1;
-
-  // BFS from this building through roads to find connected buildings
-  const visited = new Set<string>();
-  const roadVisited = new Set<string>();
-  const queue: Array<{x: number, y: number, isBuilding: boolean, id?: string}> = [
-    { x: building.x, y: building.y, isBuilding: true, id: building.id }
-  ];
-  visited.add(building.id);
-
-  const isAdjacent = (x1: number, y1: number, x2: number, y2: number) =>
-    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
-
-  let connectedCount = 1;
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    // Find adjacent roads
-    for (const road of roads) {
-      const roadKey = `${road.x},${road.y}`;
-      if (roadVisited.has(roadKey)) continue;
-      if (isAdjacent(current.x, current.y, road.x, road.y)) {
-        roadVisited.add(roadKey);
-        // From this road, find adjacent buildings
-        for (const b of buildings) {
-          if (visited.has(b.id)) continue;
-          if (isAdjacent(road.x, road.y, b.x, b.y)) {
-            visited.add(b.id);
-            connectedCount++;
-            queue.push({ x: b.x, y: b.y, isBuilding: true, id: b.id });
-          }
-        }
-        // Also continue through to other roads
-        for (const r2 of roads) {
-          const r2Key = `${r2.x},${r2.y}`;
-          if (roadVisited.has(r2Key)) continue;
-          if (isAdjacent(road.x, road.y, r2.x, r2.y)) {
-            roadVisited.add(r2Key);
-            queue.push({ x: r2.x, y: r2.y, isBuilding: false });
-          }
-        }
-      }
-    }
-  }
-
-  if (connectedCount <= 1) return 1;
-  return 1 + 0.25 * (connectedCount - 1);
+  const result = !building || a.roads.length === 0
+    ? 1
+    : traverseRoadNetwork(a, buildings, building, "mult");
+  a.multByBuildingId.set(buildingId, result);
+  return result;
 }
 
 /** Returns 1.25 if the building is connected via roads to a barbershop, else 1. */
 export function barbershopBoostForBuilding(map: MapState, buildingId: string): number {
-  const roads = map.roads || [];
-  const buildings = map.buildings;
-  if (roads.length === 0) return 1;
-
+  const a = roadAnalysisForMap(map);
+  const cached = a.boostByBuildingId.get(buildingId);
+  if (cached !== undefined) return cached;
+  const buildings = map.buildings || NO_BUILDINGS;
   const building = buildings.find(b => b.id === buildingId);
-  if (!building) return 1;
   // Barbershop doesn't boost itself
-  if (building.type === "barbershop") return 1;
-
-  const isAdjacent = (x1: number, y1: number, x2: number, y2: number) =>
-    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
-
-  // BFS through road network looking for a barbershop
-  const visitedBuildings = new Set<string>([building.id]);
-  const roadVisited = new Set<string>();
-  const queue: Array<{ x: number; y: number }> = [{ x: building.x, y: building.y }];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const road of roads) {
-      const roadKey = `${road.x},${road.y}`;
-      if (roadVisited.has(roadKey)) continue;
-      if (isAdjacent(current.x, current.y, road.x, road.y)) {
-        roadVisited.add(roadKey);
-        for (const b of buildings) {
-          if (visitedBuildings.has(b.id)) continue;
-          // Check adjacency to any tile of the building's footprint
-          const fp = buildingFootprint(b.level || 1, b.type);
-          let adjacent = false;
-          for (let dx = 0; dx < fp.w && !adjacent; dx++) {
-            for (let dy = 0; dy < fp.h && !adjacent; dy++) {
-              if (isAdjacent(road.x, road.y, b.x + dx, b.y + dy)) adjacent = true;
-            }
-          }
-          if (adjacent) {
-            if (b.type === "barbershop") return 1.25;
-            visitedBuildings.add(b.id);
-            queue.push({ x: b.x, y: b.y });
-          }
-        }
-        for (const r2 of roads) {
-          const r2Key = `${r2.x},${r2.y}`;
-          if (roadVisited.has(r2Key)) continue;
-          if (isAdjacent(road.x, road.y, r2.x, r2.y)) {
-            roadVisited.add(r2Key);
-            queue.push({ x: r2.x, y: r2.y });
-          }
-        }
-      }
-    }
-  }
-  return 1;
+  const result = !building || building.type === "barbershop" || a.roads.length === 0
+    ? 1
+    : traverseRoadNetwork(a, buildings, building, "barber");
+  a.boostByBuildingId.set(buildingId, result);
+  return result;
 }
+
 
 // Building footprint: level = size (L1=1x1, L2=2x2, L3=3x3).
 // City buildings are big: minimum 2x2 at L1 (L1=2x2, L2=3x3, L3=4x4).
@@ -2831,42 +2963,77 @@ const SHOP_TYPES: BuildingType[] = [
  * Commercial district bonus: income buildings adjacent to shops earn more.
  * +15% per adjacent shop, capped at +60% (4 shops).
  * Footprint-aware: checks all tiles of both buildings for orthogonal adjacency.
+ * (Computed from the shared road analysis' cached tile sets: a building is
+ * adjacent to a shop iff one of its tiles sits in the shop's perimeter set —
+ * the same orthogonal tile-pair test the pairwise scan ran, without
+ * re-parsing tile keys per pair.)
  */
 export function shopAdjacencyBonusForBuilding(map: MapState, buildingId: string): number {
-  const buildings = map.buildings;
+  const a = roadAnalysisForMap(map);
+  const cached = a.adjacencyByBuildingId.get(buildingId);
+  if (cached !== undefined) return cached;
+  const buildings = map.buildings || NO_BUILDINGS;
   const building = buildings.find(b => b.id === buildingId);
-  if (!building) return 1;
+  if (!building) {
+    a.adjacencyByBuildingId.set(buildingId, 1);
+    return 1;
+  }
 
-  const fp = buildingFootprint(building.level || 1, building.type, hasFixedFootprint(building));
-  // Collect all tiles of the target building
-  const myTiles = new Set<string>();
-  for (let dx = 0; dx < fp.w; dx++)
-    for (let dy = 0; dy < fp.h; dy++)
-      myTiles.add(`${building.x + dx},${building.y + dy}`);
-
-  const isOrthogonal = (x1: number, y1: number, x2: number, y2: number) =>
-    (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
-
+  const myTiles = analysisBuildingTiles(a, building).set;
   let shopCount = 0;
   for (const other of buildings) {
     if (other.id === buildingId) continue;
     if (!SHOP_TYPES.includes(other.type)) continue;
-    const ofp = buildingFootprint(other.level || 1, other.type, hasFixedFootprint(other));
+    const perimeter = analysisShopPerimeter(a, other);
     let adjacent = false;
-    for (let dx = 0; dx < ofp.w && !adjacent; dx++) {
-      for (let dy = 0; dy < ofp.h && !adjacent; dy++) {
-        const ox = other.x + dx, oy = other.y + dy;
-        for (const t of myTiles) {
-          const [tx, ty] = t.split(",").map(Number);
-          if (isOrthogonal(ox, oy, tx, ty)) { adjacent = true; break; }
-        }
-      }
+    for (const t of myTiles) {
+      if (perimeter.has(t)) { adjacent = true; break; }
     }
     if (adjacent) shopCount++;
   }
 
-  return 1 + Math.min(shopCount, 4) * 0.15;
+  const result = 1 + Math.min(shopCount, 4) * 0.15;
+  a.adjacencyByBuildingId.set(buildingId, result);
+  return result;
 }
+
+/** A building's footprint tiles (fixed-plot aware), built once per analysis. */
+function analysisBuildingTiles(a: RoadAnalysis, b: PlacedBuilding): { set: Set<string>; list: { x: number; y: number }[] } {
+  let tiles = a.tilesByBuildingId.get(b.id);
+  if (!tiles) {
+    const set = new Set<string>();
+    const list: { x: number; y: number }[] = [];
+    const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+    for (let dx = 0; dx < fp.w; dx++) {
+      for (let dy = 0; dy < fp.h; dy++) {
+        set.add(roadTileKey(b.x + dx, b.y + dy));
+        list.push({ x: b.x + dx, y: b.y + dy });
+      }
+    }
+    tiles = { set, list };
+    a.tilesByBuildingId.set(b.id, tiles);
+  }
+  return tiles;
+}
+
+/** Every tile orthogonally adjacent to a shop's footprint, built once per
+ *  analysis. A target tile in this set is exactly the old pairwise
+ *  isOrthogonal hit between the target's tiles and the shop's tiles. */
+function analysisShopPerimeter(a: RoadAnalysis, shop: PlacedBuilding): Set<string> {
+  let perimeter = a.shopPerimeterByBuildingId.get(shop.id);
+  if (!perimeter) {
+    perimeter = new Set<string>();
+    for (const t of analysisBuildingTiles(a, shop).list) {
+      perimeter.add(roadTileKey(t.x + 1, t.y));
+      perimeter.add(roadTileKey(t.x - 1, t.y));
+      perimeter.add(roadTileKey(t.x, t.y + 1));
+      perimeter.add(roadTileKey(t.x, t.y - 1));
+    }
+    a.shopPerimeterByBuildingId.set(shop.id, perimeter);
+  }
+  return perimeter;
+}
+
 
 // ---- Bank tower floors ----
 // Bank-towers can grow upward: each added floor costs more but multiplies earnings.

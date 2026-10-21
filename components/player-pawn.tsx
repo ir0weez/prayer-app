@@ -251,7 +251,9 @@ export function PlayerPawnWanderer({
       >
         {pawn.name || "You"}
       </Text>
-      {/* the Hero, wearing what's equipped */}
+      {/* the Hero in his normal clothes — armor + weapons are
+          Dark-Forest-only (gear rule), so the wanderer renders the
+          default "world" context */}
       <HeroForPawn pawn={pawn} size={PAWN_SIZE} />
     </Animated.View>
   );

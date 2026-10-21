@@ -191,18 +191,29 @@ describe("diner looks — deterministic per person", () => {
     expect(PAPER_DINER_HAIR_COLORS).toContain(a.hair);
     expect(PAPER_DINER_SHIRTS).toContain(a.shirt);
     expect(PAPER_DINER_PANTS).toContain(a.pants);
-    expect(["short", "long", "bun"]).toContain(a.hairStyle);
+    expect(["short", "long", "bun", "bald"]).toContain(a.hairStyle);
+    // the beard rides in the pawn system's vocabulary (lib/pawn)
+    expect(["none", "full", "goatee", "mustache", "gilded", "radiant", "heavenly"]).toContain(a.beardStyle);
+    expect(a.beardLength).toBeGreaterThanOrEqual(0);
+    expect(a.beardLength).toBeLessThanOrEqual(100);
   });
 
   it("a prayer-light accent color leads as the shirt", () => {
     expect(paperDinerLookFor({ id: "joy", accentColor: "#FFD700" }).shirt).toBe("#FFD700");
   });
 
-  it("matches the shelved pixel kit's look for the same person", () => {
+  it("keeps the shelved pixel kit's COLORS for the same person", () => {
     // The pivot changes the drawing, not the people: same hash, same
     // palettes, so a villager keeps their colors across the styles.
+    // (Hair STYLE may differ — the paper kit's style list grew "bald",
+    // and the paper look carries a beard the pixel look never had.)
     for (const id of ["person-melody", "joy", "villager-7", "person-aaron"]) {
-      expect(paperDinerLookFor({ id })).toEqual(dinerLookFor({ id }));
+      const paper = paperDinerLookFor({ id });
+      const pixel = dinerLookFor({ id });
+      expect(paper.skin).toBe(pixel.skin);
+      expect(paper.hair).toBe(pixel.hair);
+      expect(paper.shirt).toBe(pixel.shirt);
+      expect(paper.pants).toBe(pixel.pants);
     }
   });
 
@@ -214,6 +225,68 @@ describe("diner looks — deterministic per person", () => {
       expect(look.shirt).toBeDefined();
       expect(look.pants).toBeDefined();
       expect(look.hairStyle).toBeDefined();
+      expect(look.beardStyle).toBeDefined();
+      expect(look.beardLength).toBeDefined();
+    }
+  });
+});
+
+describe("diner hair + beards — a crowd must not read as clones (2026-10-21)", () => {
+  // Jonathan's v152 screenshot: every diner read BALD and alike — the
+  // first paper pass left only a hairline crescent of hair, and the
+  // hero stood hairless. These pins keep the appearance data varied
+  // and the renderers honest.
+  const looks = Array.from({ length: 200 }, (_, i) => paperDinerLookFor({ id: `villager-${i}` }));
+
+  it("villagers wear at least three distinct hair styles — bald among them", () => {
+    const styles = new Set(looks.map((l) => l.hairStyle));
+    expect(styles.size).toBeGreaterThanOrEqual(3);
+    expect(styles.has("bald")).toBe(true); // bald is ONE style, worn by some
+    expect(styles.size).toBeLessThanOrEqual(4);
+    // …but most villagers DO wear hair — bald is not the default read
+    expect(looks.filter((l) => l.hairStyle === "bald").length).toBeLessThan(looks.length / 2);
+  });
+
+  it("hair color, skin and shirt all vary across a crowd", () => {
+    expect(new Set(looks.map((l) => l.hair)).size).toBeGreaterThanOrEqual(4);
+    expect(new Set(looks.map((l) => l.skin)).size).toBeGreaterThanOrEqual(4);
+    expect(new Set(looks.map((l) => l.shirt)).size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("some villagers wear a grown beard; clean-shaven stays common", () => {
+    const bearded = looks.filter((l) => l.beardStyle !== "none");
+    expect(bearded.length).toBeGreaterThan(20);
+    expect(bearded.length).toBeLessThan(looks.length / 2);
+    for (const l of bearded) expect(l.beardLength).toBeGreaterThan(0);
+  });
+
+  it("the diner renderer draws hair caps, a bald shine, and beards", () => {
+    const kit = readSrc("components/paper-interior.tsx");
+    // a real cap over the face's top — not the old offset-circle sliver
+    expect(kit).toContain("the hair CAP over the face's top");
+    expect(kit).toContain('look.hairStyle === "bald"');
+    expect(kit).toContain('look.beardStyle === "full"');
+    expect(kit).toContain('look.beardStyle === "goatee"');
+    expect(kit).toContain('look.beardStyle === "mustache"');
+    expect(kit).toContain("look.beardLength");
+  });
+
+  it("the hero figure reads his appearance from the pawn state itself", () => {
+    const kit = readSrc("components/paper-interior.tsx");
+    // live beard growth + equipped style from lib/pawn — NOT the raw
+    // stored beardLength (length at last trim) the first pass used
+    expect(kit).toContain("beardGrowthFor(pawn)");
+    expect(kit).toContain("pawn.beardStyle");
+    expect(kit).toContain("pawn.hairStyle");
+    expect(kit).not.toContain("pawn.beardLength ?? 0");
+    // the barbershop styles render as paper pieces, incl. the ones
+    // Jonathan named: mohawk + bun alongside bald/short/long
+    for (const s of ["mohawk", "bun", "highbun", "ponytail", "braid", "curly", "pompadour", "dreads", "laurel", "coronet", "glorymane"]) {
+      expect(kit).toContain(`"${s}"`);
+    }
+    // beard styles render too, with the prestige families
+    for (const s of ["mustache", "goatee", "gilded", "radiant", "heavenly"]) {
+      expect(kit).toContain(`"${s}"`);
     }
   });
 });

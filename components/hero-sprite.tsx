@@ -1060,10 +1060,19 @@ export function useEquippedGear(): EquippedGear | null {
   return equipped;
 }
 
+/** Where the hero is being shown. Jonathan's ruling (2026-10-21):
+ *  armor and weapons exist ONLY in the Dark Forest — everywhere else
+ *  the hero wears his normal clothes. "world" (the default, and the
+ *  safe default) renders clothes + hair + beard only; "forest" is
+ *  opt-in, passed explicitly by Dark Forest surfaces, and adds the
+ *  equipped armor on the body and the weapon in hand. */
+export type HeroContext = "world" | "forest";
+
 /**
  * The Hero for a saved appearance: tunic from the equipped clothes (or an
- * explicitly previewed clothes item), armor + weapon from equipped gear,
- * hair + beard (with live growth) from the appearance itself.
+ * explicitly previewed clothes item), hair + beard (with live growth)
+ * from the appearance itself — and, ONLY in the forest context, the
+ * equipped armor + weapon on top of the clothes.
  *
  * The face is the sprite's OWN pixels — no HeroEyes/HeroMouth/Accessory
  * overlays on the character himself. Those smooth vector overlays (added
@@ -1078,22 +1087,26 @@ export function HeroForPawn({
   size = HERO_BOX_W,
   clothesItem,
   weaponAngle,
+  context = "world",
 }: {
   pawn: CustomPawn;
   size?: number;
   clothesItem?: GearItem | null;
   /** Weapon rotation — the Dark Forest holds the blade at 8° at rest. */
   weaponAngle?: string;
+  /** Gear context — see HeroContext. Defaults to "world" (clothes). */
+  context?: HeroContext;
 }) {
   const equipped = useEquippedGear();
   const clothes = clothesItem ?? (equipped?.clothes ? GEAR_BY_ID[equipped.clothes] : null);
   const tunicColor = clothes?.visual.bodyColor ?? pawn.bodyColor;
   const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
+  const geared = context === "forest";
   return (
     <HeroFigure
       tunicColor={tunicColor}
-      armorId={equipped?.armor ?? null}
-      weaponId={equipped?.weapon ?? null}
+      armorId={geared ? (equipped?.armor ?? null) : null}
+      weaponId={geared ? (equipped?.weapon ?? null) : null}
       hairStyle={pawn.hairStyle}
       hairColor={pawn.hairColor || "#111827"}
       beardStyle={pawn.beardStyle}

@@ -17,7 +17,7 @@ import Svg, { Circle, Defs, Ellipse, Line, Path, Polygon, RadialGradient, Rect, 
 import { GentleBob } from "@/components/activity-figures";
 import { FIGURE_H, FIGURE_W, paperDinerLookFor, type PaperDinerLook } from "@/lib/paper-interior";
 import type { PrayedPerson } from "@/lib/hometown";
-import type { CustomPawn } from "@/lib/pawn";
+import { beardGrowthFor, type CustomPawn } from "@/lib/pawn";
 
 /** The kit's ink — faces and fine lines, a warm near-black violet. */
 export const PAPER_INK = "#2A1A33";
@@ -267,11 +267,17 @@ export function PaperSteam({ unit, color = "#FFF6EA" }: { unit: number; color?: 
 
 /* ------------------------------------------------------------------ */
 /* The seated diner — a villager in profile at a table, facing right,  */
-/* built from paper shapes: a big round head with a hair crescent, a   */
-/* torso leaning in, an arm reaching to the table, thigh + shin +      */
-/* shoe. People are LARGE in the paper mockup — heads the width of a   */
-/* plate — so the figure spans 12 of the room's 100 units. Look comes  */
-/* from the person's deterministic paper look (lib/paper-interior).    */
+/* built from paper shapes: a big round head with a REAL hair cap     */
+/* (a wavy hairline over the top of the face — the first pass left     */
+/* only a hairline-thin crescent behind the face circle, so every     */
+/* diner read bald on Jonathan's phone), a torso leaning in, an arm   */
+/* reaching to the table, thigh + shin + shoe. People are LARGE in    */
+/* the paper mockup — heads the width of a plate — so the figure      */
+/* spans 12 of the room's 100 units. Look comes from the person's     */
+/* deterministic paper look (lib/paper-interior): hair style (short / */
+/* long / bun / genuinely bald — one style among four, with a shine   */
+/* on the bare head), hair color, and a beard in the pawn system's    */
+/* vocabulary where the look calls for one.                           */
 /* ------------------------------------------------------------------ */
 export function PaperSeatedDiner({
   person,
@@ -287,10 +293,12 @@ export function PaperSeatedDiner({
   const look: PaperDinerLook = paperDinerLookFor(person);
   const w = FIGURE_W * unit;
   const h = FIGURE_H * unit;
+  const bald = look.hairStyle === "bald";
+  const beardG = look.beardStyle === "none" ? 0 : Math.min(Math.max(look.beardLength, 0), 100) / 100;
   const figure = (
     <Svg width={w} height={h} viewBox={`0 0 ${FIGURE_W} ${FIGURE_H}`}>
-      {/* long hair falls behind everything */}
-      {look.hairStyle === "long" && <Rect x={2.6} y={2.4} width={2.3} height={7.4} rx={1.15} fill={look.hair} />}
+      {/* long hair falls behind everything — a wide panel down the back */}
+      {look.hairStyle === "long" && <Rect x={3.1} y={2.2} width={2.5} height={7.8} rx={1.2} fill={look.hair} />}
       {/* thigh, shin, shoe — the seated leg, reaching under the table */}
       <Rect x={5.0} y={10.3} width={5.6} height={1.9} rx={0.95} fill={look.pants} />
       <Rect x={9.3} y={11.4} width={1.5} height={1.9} rx={0.6} fill={look.pants} />
@@ -302,15 +310,31 @@ export function PaperSeatedDiner({
       <Rect x={8.7} y={8.2} width={2.2} height={1.25} rx={0.6} fill={look.skin} />
       {/* neck + head */}
       <Rect x={5.3} y={5.6} width={1.5} height={1.3} fill={look.skin} />
-      {/* hair mass behind the face — offset up/back, the face circle
-          laid over it leaves the crescent that reads as hair */}
-      <Circle cx={5.9} cy={3.0} r={2.95} fill={look.hair} />
-      {look.hairStyle === "bun" && <Circle cx={4.0} cy={0.95} r={1.1} fill={look.hair} />}
+      {/* hair mass behind the face — a full head of hair, not a sliver */}
+      {!bald && <Circle cx={5.9} cy={2.9} r={3.05} fill={look.hair} />}
+      {look.hairStyle === "bun" && <Circle cx={4.05} cy={0.8} r={1.15} fill={look.hair} />}
       <Circle cx={6.4} cy={3.35} r={2.8} fill={look.skin} />
+      {/* the hair CAP over the face's top: an arc band with a wavy
+          hairline, thick enough to read at room scale in any color */}
+      {!bald && (
+        <Path
+          d="M 3.55 3.15 A 2.95 2.95 0 0 1 9.25 3.15 Q 8.25 1.95 7.25 2.6 Q 6.25 3.2 5.25 2.5 Q 4.3 1.9 3.55 3.15 Z"
+          fill={look.hair}
+          stroke="rgba(42,26,51,0.25)"
+          strokeWidth={0.25}
+        />
+      )}
+      {/* bald is a style, not a missing render: a bare head with a shine */}
+      {bald && <Ellipse cx={5.7} cy={1.65} rx={1.15} ry={0.5} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 5.7 1.65)" />}
       {/* face: one kind eye, a small smile, a rosy cheek */}
       <Circle cx={8.45} cy={3.4} r={0.34} fill={PAPER_INK} />
       <Path d="M8.0 4.7 Q8.65 5.15 9.2 4.65" stroke={PAPER_INK} strokeWidth={0.32} fill="none" strokeLinecap="round" />
       <Circle cx={7.8} cy={4.55} r={0.5} fill="#FF7BAC" opacity={0.5} />
+      {/* the beard, where the look calls for one — over the chin/jaw,
+          in the hair color, sized by the grown length */}
+      {look.beardStyle === "full" && <Ellipse cx={7.45} cy={5.95} rx={1.8} ry={0.8 + beardG * 0.55} fill={look.hair} />}
+      {look.beardStyle === "goatee" && <Ellipse cx={8.3} cy={6.05} rx={0.85} ry={0.55 + beardG * 0.55} fill={look.hair} />}
+      {look.beardStyle === "mustache" && <Rect x={8.0} y={4.58} width={1.55} height={0.36 + beardG * 0.18} rx={0.18} fill={look.hair} />}
     </Svg>
   );
   return (
@@ -335,9 +359,17 @@ export function PaperSeatedDiner({
 }
 
 /* ------------------------------------------------------------------ */
-/* The hero, standing — a paper figure dressed in the pawn's own       */
-/* colors (body + hair), so Pebble is recognizably Pebble standing in  */
-/* the open floor. No frame, no ring: just the figure and his shadow.  */
+/* The hero, standing — a paper figure in his normal clothes (the      */
+/* gear rule: armor + weapons exist ONLY in the Dark Forest; this      */
+/* figure never draws them), wearing his ACTUAL saved appearance:      */
+/* the barbershop hair style in his hair color, and his beard style    */
+/* at its live grown length — read from the same pawn state the rest   */
+/* of the app uses (lib/pawn: pawn.hairStyle / pawn.beardStyle /       */
+/* beardGrowthFor), mirroring HeroHair / HeroBeard in hero-sprite.     */
+/* The first paper pass read the raw stored beardLength (length at     */
+/* last trim, usually 0) and drew only a hair sliver — Pebble stood    */
+/* bald and clean-shaven in his own cantina. No frame, no ring: just   */
+/* the figure and his shadow.                                          */
 /* ------------------------------------------------------------------ */
 export const PAPER_HERO_W = 11;
 export const PAPER_HERO_H = 17;
@@ -345,36 +377,174 @@ export const PAPER_HERO_H = 17;
 export function PaperHeroFigure({ pawn, unit }: { pawn: CustomPawn; unit: number }) {
   const skin = "#EFC39A";
   const hair = pawn.hairColor || "#6B4423";
-  const beard = Math.min(Math.max(pawn.beardLength ?? 0, 0), 100);
+  const style = pawn.hairStyle;
+  // Live beard: style from the pawn, length grown since the last trim
+  // (beardGrowthFor already returns 0 for female pawns; the gender
+  // guard mirrors HeroForPawn).
+  const beardLength = pawn.gender === "male" ? beardGrowthFor(pawn) : 0;
+  const beardStyle = pawn.beardStyle;
+  const g = Math.min(Math.max(beardLength, 0), 100) / 100;
+  const hasBeard = beardStyle !== "none" && beardLength > 2;
+  const fullBeard = hasBeard && beardStyle !== "mustache" && beardStyle !== "goatee";
+  const bald = style === "bald";
+  const mohawk = style === "mohawk";
+  const buzz = style === "buzz";
+  // The hair cap: a mass behind the face plus a band over its top —
+  // thick enough to read as hair at room scale, in every style that
+  // wears one.
+  const capBand = !bald && !mohawk && (
+    <Path
+      d={
+        buzz
+          ? "M 2.95 3.35 A 2.62 2.62 0 0 1 8.05 3.35 L 7.62 3.33 A 2.3 2.3 0 0 0 3.38 3.33 Z"
+          : "M 2.95 3.35 A 2.62 2.62 0 0 1 8.05 3.35 L 7.5 3.32 A 2.08 2.08 0 0 0 3.5 3.32 Z"
+      }
+      fill={hair}
+      stroke="rgba(42,26,51,0.25)"
+      strokeWidth={0.25}
+    />
+  );
   return (
     <Svg width={PAPER_HERO_W * unit} height={PAPER_HERO_H * unit} viewBox={`0 0 ${PAPER_HERO_W} ${PAPER_HERO_H}`}>
       {/* ground shadow */}
       <Ellipse cx={5.5} cy={16.3} rx={4.2} ry={0.7} fill={PAPER_SHADOW} />
-      {/* long hair panel behind the body */}
-      {pawn.hairStyle === "long" && <Rect x={2.3} y={2.6} width={2.0} height={6.2} rx={1} fill={hair} />}
+      {/* hair that hangs BEHIND the body: long panels, bob, ponytail,
+          braid, pigtails, dreads, the glory mane */}
+      {(style === "long" || style === "wavy" || style === "lob" || style === "glorymane") && (
+        <>
+          <Rect x={1.95} y={2.4} width={1.9} height={7.6} rx={0.95} fill={hair} />
+          <Rect x={7.15} y={2.4} width={1.9} height={7.6} rx={0.95} fill={hair} />
+          {style === "glorymane" && (
+            <>
+              <Rect x={2.5} y={3.2} width={0.5} height={6.0} fill="#FDE68A" opacity={0.85} />
+              <Rect x={8.0} y={3.2} width={0.5} height={6.0} fill="#FDE68A" opacity={0.85} />
+            </>
+          )}
+        </>
+      )}
+      {style === "bob" && (
+        <>
+          <Rect x={2.35} y={2.4} width={1.45} height={4.6} rx={0.7} fill={hair} />
+          <Rect x={7.2} y={2.4} width={1.45} height={4.6} rx={0.7} fill={hair} />
+        </>
+      )}
+      {style === "ponytail" && (
+        <>
+          <Circle cx={7.9} cy={1.5} r={0.95} fill={hair} />
+          <Rect x={7.55} y={1.6} width={1.6} height={6.8} rx={0.8} fill={hair} />
+        </>
+      )}
+      {style === "braid" &&
+        [0, 1, 2, 3].map((i) => (
+          <Rect key={i} x={7.7 - (i % 2) * 0.5} y={2.0 + i * 1.5} width={1.35} height={1.45} rx={0.6} fill={hair} />
+        ))}
+      {style === "pigtails" && (
+        <>
+          <Rect x={1.55} y={1.9} width={1.5} height={5.6} rx={0.75} fill={hair} />
+          <Rect x={7.95} y={1.9} width={1.5} height={5.6} rx={0.75} fill={hair} />
+        </>
+      )}
+      {style === "dreads" &&
+        [2.2, 3.35, 6.8, 7.95].map((x) => (
+          <Rect key={x} x={x} y={2.5} width={0.85} height={5.4} rx={0.4} fill={hair} />
+        ))}
       {/* legs + shoes */}
       <Rect x={3.3} y={11.5} width={1.9} height={4.3} rx={0.7} fill="#3E4A5C" />
       <Rect x={5.9} y={11.5} width={1.9} height={4.3} rx={0.7} fill="#3E4A5C" />
       <Ellipse cx={4.2} cy={16.05} rx={1.25} ry={0.55} fill="#3A2A1C" />
       <Ellipse cx={6.9} cy={16.05} rx={1.25} ry={0.55} fill="#3A2A1C" />
-      {/* torso + arms */}
+      {/* torso + arms — his clothes, never armor */}
       <Rect x={2.6} y={6.2} width={5.9} height={5.6} rx={1.8} fill={pawn.bodyColor} />
       <Rect x={1.15} y={6.6} width={1.55} height={4.6} rx={0.75} fill={pawn.bodyColor} />
       <Rect x={8.35} y={6.6} width={1.55} height={4.6} rx={0.75} fill={pawn.bodyColor} />
       <Circle cx={1.9} cy={11.5} r={0.8} fill={skin} />
       <Circle cx={9.1} cy={11.5} r={0.8} fill={skin} />
-      {/* neck, hair, head */}
+      {/* neck, hair mass, head */}
       <Rect x={4.8} y={5.2} width={1.5} height={1.2} fill={skin} />
-      <Circle cx={5.3} cy={3.1} r={2.85} fill={hair} />
-      {pawn.hairStyle === "bun" && <Circle cx={3.3} cy={1.0} r={1.05} fill={hair} />}
-      <Circle cx={5.55} cy={3.4} r={2.7} fill={skin} />
-      {/* the beard, at its grown length, over the chin */}
-      {beard >= 25 && <Ellipse cx={5.75} cy={5.55} rx={1.85} ry={0.95 + (beard / 100) * 0.85} fill={hair} />}
+      {!bald && !mohawk && <Circle cx={5.5} cy={3.0} r={buzz ? 2.78 : 2.95} fill={hair} />}
+      <Circle cx={5.5} cy={3.55} r={2.62} fill={skin} />
+      {/* bald is a chosen style: bare head, a little shine */}
+      {bald && <Ellipse cx={4.9} cy={1.8} rx={1.05} ry={0.46} fill="#FFFFFF" opacity={0.38} transform="rotate(-18 4.9 1.8)" />}
+      {capBand}
+      {/* per-style crowns on the cap */}
+      {style === "bun" && <Circle cx={4.9} cy={0.8} r={0.95} fill={hair} />}
+      {style === "highbun" && <Circle cx={5.5} cy={0.55} r={1.05} fill={hair} />}
+      {style === "curly" && (
+        <>
+          <Circle cx={3.75} cy={1.15} r={0.95} fill={hair} />
+          <Circle cx={5.5} cy={0.8} r={1.05} fill={hair} />
+          <Circle cx={7.25} cy={1.15} r={0.95} fill={hair} />
+        </>
+      )}
+      {mohawk && <Rect x={4.8} y={0.1} width={1.4} height={3.6} rx={0.65} fill={hair} />}
+      {style === "pompadour" && <Rect x={3.3} y={0.15} width={4.4} height={1.35} rx={0.65} fill={hair} transform="rotate(-7 5.5 0.8)" />}
+      {style === "sidepart" && <Rect x={4.05} y={0.75} width={0.3} height={1.5} fill={skin} opacity={0.9} transform="rotate(12 4.2 1.5)" />}
+      {style === "laurel" && (
+        <>
+          {[3.3, 4.4, 5.5, 6.6, 7.7].map((x, i) => (
+            <Circle key={x} cx={x} cy={1.35} r={0.42} fill={i % 2 ? "#D4AF37" : "#F6C453"} />
+          ))}
+          <Rect x={2.95} y={1.95} width={5.1} height={0.42} fill="#B8912C" />
+        </>
+      )}
+      {style === "coronet" && (
+        <>
+          <Rect x={2.95} y={0.95} width={5.1} height={0.62} fill="#F6C453" />
+          {[3.6, 5.15, 6.7].map((x) => (
+            <Rect key={x} x={x} y={0.1} width={0.8} height={0.95} rx={0.35} fill="#FDE68A" />
+          ))}
+          {[4.0, 5.55, 7.1].map((x) => (
+            <Circle key={x} cx={x} cy={1.26} r={0.22} fill="#FFFFFF" />
+          ))}
+        </>
+      )}
+      {style === "glorymane" && (
+        <>
+          <Rect x={4.3} y={0.8} width={0.45} height={1.1} fill="#FFFFFF" opacity={0.65} />
+          <Rect x={6.3} y={0.8} width={0.45} height={1.1} fill="#FFFFFF" opacity={0.65} />
+        </>
+      )}
       {/* face */}
-      <Circle cx={4.85} cy={3.5} r={0.3} fill={PAPER_INK} />
-      <Circle cx={6.55} cy={3.5} r={0.3} fill={PAPER_INK} />
-      {beard < 25 && (
-        <Path d="M4.9 4.6 Q5.7 5.25 6.5 4.6" stroke={PAPER_INK} strokeWidth={0.3} fill="none" strokeLinecap="round" />
+      <Circle cx={4.75} cy={3.6} r={0.3} fill={PAPER_INK} />
+      <Circle cx={6.25} cy={3.6} r={0.3} fill={PAPER_INK} />
+      {(!fullBeard || beardLength <= 25) && (
+        <Path d="M4.85 4.75 Q5.5 5.35 6.15 4.75" stroke={PAPER_INK} strokeWidth={0.3} fill="none" strokeLinecap="round" />
+      )}
+      {/* the beard — his style, at its grown length, mirroring
+          HeroBeard: mustache over the lip, goatee on the chin, the
+          full family over the jaw (heavenly wears white + longer,
+          gilded binds a gold band, radiant keeps light at the edges) */}
+      {hasBeard && beardStyle === "mustache" && (
+        <Rect x={4.42} y={4.78} width={2.16} height={0.4 + g * 0.24} rx={0.2} fill={hair} />
+      )}
+      {hasBeard && beardStyle === "goatee" && (
+        <Rect x={4.9} y={5.2} width={1.2} height={0.55 + g * 1.25} rx={0.55} fill={hair} />
+      )}
+      {fullBeard && (
+        <>
+          <Ellipse
+            cx={5.5}
+            cy={5.5 + g * 0.3}
+            rx={1.95}
+            ry={(0.72 + g * 1.0) * (beardStyle === "heavenly" ? 1.45 : 1)}
+            fill={beardStyle === "heavenly" ? "#E8E4DA" : hair}
+          />
+          {beardStyle === "gilded" && (
+            <Rect x={3.95} y={5.5 + g * 0.3 + (0.72 + g * 1.0) - 0.75} width={3.1} height={0.42} rx={0.2} fill="#D4AF37" />
+          )}
+          {beardStyle === "radiant" && (
+            <>
+              <Rect x={4.15} y={5.35} width={0.34} height={(0.72 + g * 1.0) * 1.2} fill="#FDE68A" opacity={0.9} />
+              <Rect x={6.55} y={5.35} width={0.34} height={(0.72 + g * 1.0) * 1.2} fill="#FDE68A" opacity={0.9} />
+            </>
+          )}
+          {beardStyle === "heavenly" && (
+            <>
+              <Rect x={5.32} y={5.3} width={0.36} height={(0.72 + g * 1.0) * 1.45 - 0.5} fill="#FFFFFF" opacity={0.8} />
+              <Rect x={3.95} y={5.5 + g * 0.3 + (0.72 + g * 1.0) * 1.45 - 0.75} width={3.1} height={0.4} rx={0.2} fill="#D4AF37" opacity={0.85} />
+            </>
+          )}
+        </>
       )}
     </Svg>
   );

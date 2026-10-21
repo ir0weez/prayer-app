@@ -276,13 +276,14 @@ export function PawnMoodScene({
   const breatheS = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
 
   // The companion is the Hero himself — the same 8-bit figure as the
-  // town and the Dark Forest (HeroFigure via PawnPreview), holding his
-  // blade at the forest's resting angle (swordSwing rests at 8°). With
-  // no saved hero yet, show the plain default Hero — never a board
-  // piece: board tokens are collectibles, not the character.
+  // town and the Dark Forest (HeroFigure via PawnPreview), in his
+  // normal clothes: armor and weapons exist only in the Dark Forest
+  // (gear rule), so the companion carries no blade here. With no saved
+  // hero yet, show the plain default Hero — never a board piece:
+  // board tokens are collectibles, not the character.
   const renderPawn = (pawnSize: number) =>
     customPawn ? (
-      <PawnPreview pawn={customPawn} size={pawnSize} weaponAngle="8deg" />
+      <PawnPreview pawn={customPawn} size={pawnSize} />
     ) : (
       <HeroThumbnail size={pawnSize} tunicColor={color} hairColor="#6B4423" />
     );

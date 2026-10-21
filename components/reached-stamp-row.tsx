@@ -1,8 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import Svg, { Circle, Ellipse, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 
 import { useColors } from "@/hooks/use-colors";
 import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
@@ -34,13 +34,122 @@ function getMonthLabel(monthKey: string): string {
   return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 
-function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; ink: string; skin?: ReachedStampSkin }) {
-  const variation = getStampVariation(stamp);
+/* ------------------------------------------------------------------ */
+/* Stamp skins — the REAL redesign (2026-10-21). Jonathan caught the  */
+/* first pass twice: Postmark was Classic at 0.3 opacity, Linen was    */
+/* Classic plus two hair-thin lines at 0.2 — indistinguishable at the  */
+/* collection grid's size, which made the skins a lie. Every skin now  */
+/* carries a signature that reads at a glance at 124 units:            */
+/*   classic  — the clean reference: rings, specks, text. Nothing else.*/
+/*   postmark — four bold cancellation waves crossing the FULL stamp   */
+/*              plus a large, legible circular date seal overlapping   */
+/*              the edge, and heavier broken-ink texture.              */
+/*   linen    — a woven crosshatch clipped inside the stamp's shape,   */
+/*              a stitched inner border, a soft cloth halo and a       */
+/*              faint offset ghost of the rings: a stamp ON fabric.    */
+/*   embossed — the whole artwork struck three times: a paper-light    */
+/*              copy offset up-left, a shadow copy offset down-right,  */
+/*              the ink on top — pressed INTO the paper, all shapes.   */
+/*   sticker  — the white die-cut backing (already unmistakable).      */
+/* ------------------------------------------------------------------ */
+
+/** Cancellation waves for the postmark: full-width sweeps, edge to edge. */
+const POSTMARK_WAVE_PATHS = [
+  "M -2 40 Q 20 31 42 40 T 86 40 T 126 40",
+  "M -2 50 Q 20 41 42 50 T 86 50 T 126 50",
+  "M -2 60 Q 20 51 42 60 T 86 60 T 126 60",
+  "M -2 70 Q 20 61 42 70 T 86 70 T 126 70",
+] as const;
+const POSTMARK_WAVE_WIDTHS = [2.3, 1.9, 1.6, 1.3] as const;
+
+/** Linen weave pitch — fine enough to read as fabric at grid size. */
+const LINEN_WEAVE_STEP = 3;
+const LINEN_WEAVE_COORDS: number[] = (() => {
+  const coords: number[] = [];
+  for (let p = 9; p <= 115; p += LINEN_WEAVE_STEP) coords.push(p);
+  return coords;
+})();
+
+/** The stamp's outline rings (outer solid + inner ring). The inner
+ *  ring is the dashed classic ring — or, with `stitch`, the linen
+ *  skin's stitched border: short thread dashes, slightly irregular. */
+function StampRings({ ink, variation, stitch = false }: { ink: string; variation: StampVariation; stitch?: boolean }) {
+  const innerDash = stitch ? "3 2.2" : variation.dash;
+  const innerWidth = stitch ? 1.6 : 1.2;
+  const innerOpacity = stitch ? 0.95 : 0.85;
+  const innerOffset = stitch ? variation.markOffset % 3 : undefined;
+  if (variation.shape === "circle") {
+    return (
+      <>
+        <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+        <Circle cx="62" cy="62" r={variation.radius - 6} fill="none" stroke={ink} strokeWidth={innerWidth} strokeDasharray={innerDash} strokeDashoffset={innerOffset} opacity={innerOpacity} />
+      </>
+    );
+  }
+  if (variation.shape === "oval") {
+    return (
+      <>
+        <Ellipse cx="62" cy="62" rx="56" ry="48" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+        <Ellipse cx="62" cy="62" rx="50" ry="42" fill="none" stroke={ink} strokeWidth={innerWidth} strokeDasharray={innerDash} strokeDashoffset={innerOffset} opacity={innerOpacity} />
+      </>
+    );
+  }
+  return (
+    <>
+      <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
+      <Rect x="14" y="20" width="96" height="84" rx="14" fill="none" stroke={ink} strokeWidth={innerWidth} strokeDasharray={innerDash} strokeDashoffset={innerOffset} opacity={innerOpacity} />
+    </>
+  );
+}
+
+/** The stamp's own artwork in a single color: rings, the uneven-ink
+ *  specks every skin shares, and the name / date / note text. Shared
+ *  by all skins — embossed strikes it three times in three tones. */
+function StampArtwork({ stamp, ink, variation, stitch = false }: { stamp: ReachedStamp; ink: string; variation: StampVariation; stitch?: boolean }) {
   const shortName = stamp.personName.length > 18 ? `${stamp.personName.slice(0, 17)}…` : stamp.personName;
   const shortNote = stamp.note && stamp.note.length > 17 ? `${stamp.note.slice(0, 16)}…` : stamp.note;
   return (
+    <G>
+      <StampRings ink={ink} variation={variation} stitch={stitch} />
+      <Circle cx={24 + variation.markOffset} cy="29" r="1.3" fill={ink} opacity={0.22} />
+      <Circle cx="96" cy={84 + (variation.markOffset % 13)} r="1.1" fill={ink} opacity={0.2} />
+      <Line x1="29" y1="94" x2="40" y2="91" stroke={ink} strokeWidth="1" opacity={0.18} />
+      <Line x1="84" y1="30" x2="96" y2="33" stroke={ink} strokeWidth="1" opacity={0.16} />
+      <SvgText x="62" y="35" textAnchor="middle" fill={ink} fontSize="9" fontWeight="800" letterSpacing="0.4">{shortName.toUpperCase()}</SvgText>
+      <SvgText x="62" y="66" textAnchor="middle" fill={ink} fontSize="13" fontWeight="900">{formatIsoDateForDisplay(stamp.date)}</SvgText>
+      <SvgText x="62" y="84" textAnchor="middle" fill={ink} fontSize="8" fontWeight="700">{shortNote ? shortNote : "REACHED"}</SvgText>
+      <SvgText x="62" y="96" textAnchor="middle" fill={ink} fontSize="7" fontWeight="700" letterSpacing="1.2">PRAYERCIRCLE</SvgText>
+    </G>
+  );
+}
+
+/** The filled outline of the stamp's shape — the linen weave's clip. */
+function StampShapeFill({ variation }: { variation: StampVariation }) {
+  if (variation.shape === "circle") return <Circle cx="62" cy="62" r={variation.radius} fill="#000" />;
+  if (variation.shape === "oval") return <Ellipse cx="62" cy="62" rx="56" ry="48" fill="#000" />;
+  return <Rect x="8" y="14" width="108" height="96" rx="19" fill="#000" />;
+}
+
+/** The stamp's outline as a soft thick stroke — linen's cloth halo. */
+function StampShapeHalo({ ink, variation }: { ink: string; variation: StampVariation }) {
+  if (variation.shape === "circle") return <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={6} opacity={0.1} />;
+  if (variation.shape === "oval") return <Ellipse cx="62" cy="62" rx="56" ry="48" fill="none" stroke={ink} strokeWidth={6} opacity={0.1} />;
+  return <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={6} opacity={0.1} />;
+}
+
+function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; ink: string; skin?: ReachedStampSkin }) {
+  const variation = getStampVariation(stamp);
+  const weaveClipId = useId().replace(/[^a-zA-Z0-9]/g, "");
+  return (
     <View style={[styles.stampWrap, { transform: [{ rotate: `${variation.rotation}deg` }] }]}>
       <Svg width={124} height={124} viewBox="0 0 124 124">
+        {skin === "linen" && (
+          <Defs>
+            <ClipPath id={weaveClipId}>
+              <StampShapeFill variation={variation} />
+            </ClipPath>
+          </Defs>
+        )}
         <G>
           {skin === "sticker" && <>
             {/* White die-cut sticker border behind the stamp */}
@@ -57,52 +166,67 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
               <Rect x="2" y="8" width="120" height="108" rx="24" fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
             </>}
           </>}
-          {variation.shape === "circle" && <>
-            <Circle cx="62" cy="62" r={variation.radius} fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
-            <Circle cx="62" cy="62" r={variation.radius - 6} fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
-          </>}
-          {variation.shape === "oval" && <>
-            <Ellipse cx="62" cy="62" rx="56" ry="48" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
-            <Ellipse cx="62" cy="62" rx="50" ry="42" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
-          </>}
-          {variation.shape === "rounded-rectangle" && <>
-            <Rect x="8" y="14" width="108" height="96" rx="19" fill="none" stroke={ink} strokeWidth={2.2} opacity={0.9} />
-            <Rect x="14" y="20" width="96" height="84" rx="14" fill="none" stroke={ink} strokeWidth={1.2} strokeDasharray={variation.dash} opacity={0.85} />
-          </>}
-          {skin === "postmark" && <>
-            {/* Postal cancellation waves slash diagonally across the stamp. */}
-            <G opacity={0.3} fill="none" stroke={ink} strokeLinecap="round">
-              <Path d="M 12 101 Q 31 91 50 79 T 88 54 T 113 25" strokeWidth="1.4" />
-              <Path d="M 10 108 Q 29 98 48 86 T 86 61 T 111 32" strokeWidth="1.1" />
-              <Path d="M 16 92 Q 35 82 54 70 T 92 45 T 116 17" strokeWidth="0.9" strokeDasharray="3 2" />
-              <Path d="M 20 113 Q 39 103 58 91 T 96 66 T 118 40" strokeWidth="0.8" strokeDasharray="1 3" />
-            </G>
-            {/* Circular postal date seal, kept offset from the person/date text. */}
-            <G opacity={0.42} fill="none" stroke={ink}>
-              <Circle cx="91" cy="40" r="20" strokeWidth="1.5" />
-              <Circle cx="91" cy="40" r="16" strokeWidth="0.8" strokeDasharray="2 2" />
-            </G>
-            <SvgText x="91" y="38" textAnchor="middle" fill={ink} fontSize="5.5" fontWeight="900" letterSpacing="0.5" opacity={0.62}>REACHED</SvgText>
-            <SvgText x="91" y="46" textAnchor="middle" fill={ink} fontSize="5.5" fontWeight="900" opacity={0.62}>{formatIsoDateForDisplay(stamp.date)}</SvgText>
-            {/* Small broken marks imitate uneven, transferred ink. */}
-            <G fill={ink} opacity={0.18}>
-              <Circle cx="18" cy="31" r="1.1" /><Circle cx="23" cy="28" r="0.7" /><Circle cx="106" cy="76" r="1" />
-              <Circle cx="111" cy="72" r="0.6" /><Circle cx="36" cy="105" r="0.7" /><Circle cx="42" cy="101" r="0.5" />
-            </G>
-          </>}
           {skin === "linen" && <>
-            <Line x1="25" y1="40" x2="42" y2="23" stroke={ink} strokeWidth="0.8" opacity={0.2} />
-            <Line x1="82" y1="101" x2="99" y2="84" stroke={ink} strokeWidth="0.8" opacity={0.2} />
+            {/* The cloth the stamp sits on: a soft halo at the edge… */}
+            <StampShapeHalo ink={ink} variation={variation} />
+            {/* …the woven crosshatch itself, clipped to the stamp… */}
+            <G clipPath={`url(#${weaveClipId})`} stroke={ink} strokeWidth={0.55} opacity={0.16}>
+              {LINEN_WEAVE_COORDS.map((p) => (
+                <Line key={`wh${p}`} x1={4} y1={p} x2={120} y2={p} />
+              ))}
+              {LINEN_WEAVE_COORDS.map((p) => (
+                <Line key={`wv${p}`} x1={p} y1={4} x2={p} y2={120} />
+              ))}
+            </G>
+            {/* …and ink printed on fabric sits slightly diffused: a
+                faint ghost of the rings, offset a whisper. */}
+            <G transform="translate(0.6 0.5)" opacity={0.22}>
+              <StampRings ink={ink} variation={variation} stitch />
+            </G>
           </>}
-          {skin === "embossed" && variation.shape === "circle" && <Circle cx="62" cy="62" r={variation.radius - 10} fill="none" stroke={ink} strokeWidth="0.8" opacity={0.35} />}
-          <Circle cx={24 + variation.markOffset} cy="29" r="1.3" fill={ink} opacity={0.22} />
-          <Circle cx="96" cy={84 + (variation.markOffset % 13)} r="1.1" fill={ink} opacity={0.2} />
-          <Line x1="29" y1="94" x2="40" y2="91" stroke={ink} strokeWidth="1" opacity={0.18} />
-          <Line x1="84" y1="30" x2="96" y2="33" stroke={ink} strokeWidth="1" opacity={0.16} />
-          <SvgText x="62" y="35" textAnchor="middle" fill={ink} fontSize="9" fontWeight="800" letterSpacing="0.4">{shortName.toUpperCase()}</SvgText>
-          <SvgText x="62" y="66" textAnchor="middle" fill={ink} fontSize="13" fontWeight="900">{formatIsoDateForDisplay(stamp.date)}</SvgText>
-          <SvgText x="62" y="84" textAnchor="middle" fill={ink} fontSize="8" fontWeight="700">{shortNote ? shortNote : "REACHED"}</SvgText>
-          <SvgText x="62" y="96" textAnchor="middle" fill={ink} fontSize="7" fontWeight="700" letterSpacing="1.2">PRAYERCIRCLE</SvgText>
+          {skin === "embossed" ? (
+            <>
+              {/* True relief: the whole stamp struck into the paper —
+                  a paper-light copy up-left, a shadow copy down-right,
+                  the ink strike on top. Every shape, not just circles. */}
+              <G transform="translate(-1.1 -1.1)" opacity={0.5}>
+                <StampArtwork stamp={stamp} ink="#FFFFFF" variation={variation} />
+              </G>
+              <G transform="translate(1.1 1.1)" opacity={0.4}>
+                <StampArtwork stamp={stamp} ink="#160A26" variation={variation} />
+              </G>
+              <StampArtwork stamp={stamp} ink={ink} variation={variation} />
+            </>
+          ) : (
+            <StampArtwork stamp={stamp} ink={ink} variation={variation} stitch={skin === "linen"} />
+          )}
+          {skin === "postmark" && <>
+            {/* Bold cancellation waves sweep the FULL stamp, edge to
+                edge, over the ink — like the machine actually struck it. */}
+            <G fill="none" stroke={ink} strokeLinecap="round" opacity={0.55}>
+              {POSTMARK_WAVE_PATHS.map((d, i) => (
+                <Path key={d} d={d} strokeWidth={POSTMARK_WAVE_WIDTHS[i]} />
+              ))}
+            </G>
+            {/* The circular date seal, large and legible, overlapping
+                the stamp's edge the way a real postmark lands. */}
+            <G fill="none" stroke={ink} opacity={0.72}>
+              <Circle cx="88" cy="36" r={23} strokeWidth={2} />
+              <Circle cx="88" cy="36" r={18.5} strokeWidth={0.9} strokeDasharray="2 2" />
+            </G>
+            <SvgText x="88" y="34" textAnchor="middle" fill={ink} fontSize="6.5" fontWeight="900" letterSpacing="0.5" opacity={0.78}>REACHED</SvgText>
+            <SvgText x="88" y="43" textAnchor="middle" fill={ink} fontSize="6.5" fontWeight="900" opacity={0.78}>{formatIsoDateForDisplay(stamp.date)}</SvgText>
+            {/* Heavier uneven-ink texture: broken specks + short arcs. */}
+            <G fill={ink} opacity={0.25}>
+              <Circle cx="18" cy="31" r="1.3" /><Circle cx="23" cy="28" r="0.8" /><Circle cx="106" cy="76" r="1.2" />
+              <Circle cx="111" cy="72" r="0.7" /><Circle cx="36" cy="105" r="0.9" /><Circle cx="42" cy="101" r="0.6" />
+              <Circle cx="52" cy="18" r="0.7" /><Circle cx="15" cy="66" r="0.9" /><Circle cx="98" cy="104" r="0.8" />
+            </G>
+            <G fill="none" stroke={ink} strokeLinecap="round" opacity={0.3}>
+              <Path d="M 14 84 A 50 50 0 0 1 22 62" strokeWidth="1.2" />
+              <Path d="M 104 22 A 52 52 0 0 1 112 44" strokeWidth="1" />
+            </G>
+          </>}
         </G>
       </Svg>
     </View>

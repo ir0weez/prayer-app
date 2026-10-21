@@ -1,4 +1,5 @@
 // ---------- paper interior kit: data + layout (no React Native) ----------
+import type { PawnBeardStyle } from "./pawn";
 // The shared brain of the PAPER CUTOUT interiors. Jonathan first picked
 // 8-bit pixel for the interiors, but after two honest builds (v149's
 // muddy miniature, v151's chunk pass) his verdict stood: code-drawn
@@ -262,14 +263,17 @@ export function kitchenPieceScore(d: KitchenDressing): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* Diner looks — deterministic per person (hair / skin / shirt).       */
-/* A villager looks the same at every table, every day. The paper      */
-/* figures are smooth shapes, but the look DATA is the pixel kit's:    */
-/* the same palettes, the same hash, so a person keeps their colors    */
-/* across the style pivot.                                             */
+/* Diner looks — deterministic per person (hair / skin / shirt /       */
+/* beard). A villager looks the same at every table, every day. The    */
+/* paper figures are smooth shapes, but the look DATA is the pixel     */
+/* kit's: the same palettes, the same hash, so a person keeps their    */
+/* colors across the style pivot. Hair styles grew one member in the   */
+/* paper kit — "bald" is a real style some villagers wear, not the     */
+/* absence of hair rendering — and beards ride along in the pawn       */
+/* system's vocabulary (style + grown length, lib/pawn).              */
 /* ------------------------------------------------------------------ */
 
-export type PaperHairStyle = "short" | "long" | "bun";
+export type PaperHairStyle = "short" | "long" | "bun" | "bald";
 
 export type PaperDinerLook = {
   skin: string;
@@ -277,13 +281,24 @@ export type PaperDinerLook = {
   hairStyle: PaperHairStyle;
   shirt: string;
   pants: string;
+  /** Beard, in the pawn system's own vocabulary (lib/pawn): a style
+   *  plus a grown length 0-100. Villagers carry no per-person beard
+   *  record — like their hair, it is part of the deterministic look,
+   *  picked from the same hash so a person wears the same beard at
+   *  every table, every day. "none" is the clean-shaven pick. */
+  beardStyle: PawnBeardStyle;
+  beardLength: number;
 };
 
 export const PAPER_DINER_SKINS = ["#F5D0A9", "#E8B88A", "#C98B5E", "#9C6644", "#7A4A2B", "#F8DCC0"] as const;
 export const PAPER_DINER_HAIR_COLORS = ["#2B2118", "#6B4423", "#A0522D", "#D9A441", "#8A8D91", "#B5461F", "#3E5C50", "#7B2D8B"] as const;
 export const PAPER_DINER_SHIRTS = ["#C9573F", "#3E7D8C", "#5B8C4A", "#D9A441", "#7B5EA7", "#C26D9C", "#4A6FA5", "#8C4A2F"] as const;
 export const PAPER_DINER_PANTS = ["#3E4A5C", "#5C4633", "#4A3E5C", "#33413A"] as const;
-const PAPER_HAIR_STYLES: readonly PaperHairStyle[] = ["short", "long", "bun"];
+const PAPER_HAIR_STYLES: readonly PaperHairStyle[] = ["short", "long", "bun", "bald"];
+/** Weighted toward clean-shaven — a beard is one look among several,
+ *  never the default read of a crowd. */
+const PAPER_DINER_BEARD_STYLES: readonly PawnBeardStyle[] = ["none", "none", "none", "full", "goatee", "mustache"];
+const PAPER_DINER_BEARD_LENGTHS: readonly number[] = [35, 55, 75, 100];
 
 export function paperDinerLookFor(person: { id: string; accentColor?: string }): PaperDinerLook {
   const h = paperHash(person.id || "guest");
@@ -294,5 +309,7 @@ export function paperDinerLookFor(person: { id: string; accentColor?: string }):
     // Their prayer-light color leads when the person carries one.
     shirt: person.accentColor || paperPick(h >> 5, PAPER_DINER_SHIRTS),
     pants: paperPick(h >> 13, PAPER_DINER_PANTS),
+    beardStyle: paperPick(h >> 17, PAPER_DINER_BEARD_STYLES),
+    beardLength: paperPick(h >> 19, PAPER_DINER_BEARD_LENGTHS),
   };
 }

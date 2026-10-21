@@ -47,9 +47,20 @@ const b = (type: BuildingType, x = 0, y = 0, level: 1 | 2 | 3 = 1, extra: Partia
 });
 
 describe("SCHOOL_PLOTS layout", () => {
-  it("has exactly ten plots with unique ids", () => {
-    expect(SCHOOL_PLOTS).toHaveLength(10);
-    expect(new Set(SCHOOL_PLOTS.map((p) => p.id)).size).toBe(10);
+  it("has exactly eleven plots with unique ids", () => {
+    expect(SCHOOL_PLOTS).toHaveLength(11);
+    expect(new Set(SCHOOL_PLOTS.map((p) => p.id)).size).toBe(11);
+  });
+
+  it("puts the Main Office at south-center (4,8)", () => {
+    const office = SCHOOL_PLOTS.find((p) => p.buildingType === "main-office");
+    expect(office).toBeTruthy();
+    expect(office!.id).toBe("plot-school-office");
+    expect(office!.x).toBe(4);
+    expect(office!.y).toBe(8);
+    expect(office!.cost).toBe(2800);
+    expect(schoolPlotAt(4, 8)?.buildingType).toBe("main-office");
+    expect(schoolPlotAt(5, 9)?.buildingType).toBe("main-office");
   });
 
   it("places the Bell Tower at the heart of the quad (4,4)", () => {
@@ -89,7 +100,7 @@ describe("SCHOOL_PLOTS layout", () => {
       expect(p.cost).toBeLessThanOrEqual(4000);
     }
     const total = SCHOOL_PLOTS.reduce((s, p) => s + p.cost, 0);
-    expect(total).toBe(27500);
+    expect(total).toBe(30300);
   });
 });
 

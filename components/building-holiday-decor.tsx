@@ -44,7 +44,7 @@ export type InteriorBuilding =
   | "music-studio" | "art-gallery" | "flower-market" | "coffee-roastery"
   // School Campus — the new quad buildings (season touches below; the
   // holiday switch falls through to the atmosphere grade/lights/particles)
-  | "music-room" | "science-lab" | "art-studio" | "gymnasium" | "cafeteria" | "school-workshop";
+  | "music-room" | "science-lab" | "art-studio" | "gymnasium" | "cafeteria" | "school-workshop" | "main-office";
 
 /* ============================ new glyphs ============================ */
 
@@ -3130,6 +3130,11 @@ function SeasonDecor({ building, season }: { building: InteriorBuilding; season:
       spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#BBF7D0" center="#16A34A" size={18} /></Placed>,
       summer: null, fall: <Placed style={{ bottom: 8, left: 12 }}><HayBale size={30} /></Placed>,
       winter: <Placed style={{ bottom: 10, right: 12 }}><Wreath size={28} /></Placed>,
+    },
+    "main-office": {
+      spring: <Placed style={{ bottom: 10, left: 14 }}><FlowerGlyph petal="#FDE68A" center="#B45309" size={20} /></Placed>,
+      summer: null, fall: <Placed style={{ bottom: 10, left: 12 }}><LeafShape color="#92400E" size={20} /></Placed>,
+      winter: <Placed style={{ bottom: 10, right: 12 }}><MiniTree size={30} /></Placed>,
     },
   };
   return <>{touches[building]?.[season] ?? null}</>;

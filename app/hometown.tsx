@@ -2743,6 +2743,39 @@ function BuildingArt({ type, size, level = 1, floors = 1, prayedCount = 0, artH,
           <View style={{ width: s * 0.92, height: s * 0.08, backgroundColor: "#6B4A2F", borderRadius: 3, marginTop: 2 }} />
         </View>
       );
+    case "main-office":
+      return (
+        <View style={{ width: s, height: s, alignItems: "center", justifyContent: "flex-end" }}>
+          {groundShadow(s * 0.9)}
+          {lv >= 3 && (
+            <View style={{ position: "absolute", top: s * 0.02, right: s * 0.16, alignItems: "center" }}>
+              <View style={{ width: s * 0.03, height: s * 0.16, backgroundColor: "#78716C" }} />
+              <View style={{ position: "absolute", top: 0, left: s * 0.03, width: s * 0.13, height: s * 0.08, backgroundColor: "#B45309", borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />
+            </View>
+          )}
+          {/* roof band */}
+          <View style={{ width: s * 0.92, height: s * 0.11, backgroundColor: "#334155", borderTopLeftRadius: 5, borderTopRightRadius: 5 }} />
+          <View style={{ width: s * 0.88, height: s * 0.56, backgroundColor: "#F5F0E6", borderWidth: 2, borderColor: "#78716C", borderTopWidth: 0, alignItems: "center" }}>
+            {/* sign board */}
+            <View style={{ marginTop: s * 0.05, width: s * 0.52, height: s * 0.11, borderRadius: 3, backgroundColor: lv >= 3 ? "#B45309" : "#475569", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: s * 0.36, height: s * 0.035, borderRadius: 2, backgroundColor: "#FDE68A" }} />
+            </View>
+            {/* windows + door */}
+            <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: s * 0.07 }}>
+              <View style={{ width: s * 0.15, height: s * 0.19, backgroundColor: "#BFDBFE", borderWidth: 1.6, borderColor: "#78716C", borderRadius: 2 }} />
+              <View style={{ width: s * 0.17, height: s * 0.3, backgroundColor: "#44403C", borderTopLeftRadius: s * 0.08, borderTopRightRadius: s * 0.08, marginHorizontal: s * 0.06 }} />
+              <View style={{ width: s * 0.15, height: s * 0.19, backgroundColor: "#BFDBFE", borderWidth: 1.6, borderColor: "#78716C", borderRadius: 2 }} />
+            </View>
+            {lv >= 2 && (
+              <View style={{ flexDirection: "row", position: "absolute", top: s * 0.2 }}>
+                <View style={{ width: s * 0.09, height: s * 0.09, backgroundColor: "#FDE68A", borderWidth: 1.4, borderColor: "#78716C", borderRadius: 2, marginHorizontal: s * 0.19 }} />
+                <View style={{ width: s * 0.09, height: s * 0.09, backgroundColor: "#FDE68A", borderWidth: 1.4, borderColor: "#78716C", borderRadius: 2, marginHorizontal: s * 0.19 }} />
+              </View>
+            )}
+          </View>
+          <View style={{ width: s * 0.94, height: s * 0.08, backgroundColor: "#57534E", borderRadius: 3, marginTop: 2 }} />
+        </View>
+      );
     case "bell-tower": {
       // The quad landmark. The bell is bronze at rest and gold on the day
       // it has rung (blessed) — with a warm halo behind it.
@@ -3921,8 +3954,17 @@ export default function HometownScreen() {
 
   /** Advance work timers; celebrate newly finished shifts. Idempotent. */
   const runWorkTick = useCallback(async () => {
-    const st = workStateRef.current;
+    // Storage is the shared ledger: the Main Office roster writes the same
+    // assignments from inside the office, so re-read before ticking to
+    // fold its changes in (every mutation here saves immediately, so a
+    // fresh read never loses map-side work).
+    const stored = await loadVillagerWorkState().catch(() => null);
+    const st = stored ?? workStateRef.current;
     if (!st) return;
+    if (stored && stored !== workStateRef.current) {
+      workStateRef.current = stored;
+      setWorkState(stored);
+    }
     const now = Date.now();
     const { state, newlyDone } = tickWorkAssignments(st, now);
     if (newlyDone.length > 0) {
@@ -3943,7 +3985,9 @@ export default function HometownScreen() {
   /** Jonathan assigns a light a work shift. */
   const assignVillagerWork = useCallback(
     async (person: { id: string; name: string }, kind: WorkKind, recipientName?: string) => {
-      const st = workStateRef.current;
+      // Fresh read: the Main Office roster may have assigned this light a
+      // shift a moment ago — the guards below must see it.
+      const st = (await loadVillagerWorkState().catch(() => null)) ?? workStateRef.current;
       if (!st) return;
       if (getTimeOfDay() === "night") {
         Alert.alert("Everyone's asleep", "Assign work in the morning — the town is sleeping.");
@@ -4242,7 +4286,10 @@ export default function HometownScreen() {
   /** Collect a finished work shift's reward by hand. */
   const collectWorkReward = useCallback(
     async (assignment: VillagerWorkAssignment) => {
-      const st = workStateRef.current;
+      // Fresh read: the shift may already have been collected at the Main
+      // Office — collectWorkAssignment then finds nothing to pay, exactly
+      // as a double-tap on the map behaves.
+      const st = (await loadVillagerWorkState().catch(() => null)) ?? workStateRef.current;
       if (!st) return;
       const { state, assignment: done } = collectWorkAssignment(st, assignment.id);
       if (!done) return;
@@ -5133,6 +5180,7 @@ export default function HometownScreen() {
       "gymnasium": "/gymnasium-interior",
       "cafeteria": "/cafeteria-interior",
       "school-workshop": "/workshop-interior",
+      "main-office": "/main-office-interior",
     };
     const route = routes[b.type];
     if (route) {

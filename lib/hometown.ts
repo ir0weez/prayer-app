@@ -118,6 +118,7 @@ export type BuildingType =
   | "cafeteria"       // stocked food building, filled by Serve Lunch inside
   | "school-workshop" // the campus earner: benches, tools, steady coins
   | "bell-tower"      // quad landmark: ring once a day for a campus blessing
+  | "main-office"     // campus HQ: the villager roster — assign & collect work in one place
   // Restaurants (hometown food businesses)
   | "pizza-place"
   | "burger-joint"
@@ -462,6 +463,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   "cafeteria":       { name: "Cafeteria", icon: "", cost: 1430, tier: 1, incomePerDay: 45, xpPerDay: 0, maps: ["school"], description: "Long tables and a serving line. +45 coins/day. A stocked building — serve lunch inside to fill the shelves; a full day stocked earns +50%." },
   "school-workshop": { name: "Workshop", icon: "", cost: 2200, tier: 1, incomePerDay: 90, xpPerDay: 0, maps: ["school"], description: "Benches, tools, and sawdust — the campus's steady earner. +90 coins/day." },
   "bell-tower":      { name: "Bell Tower", icon: "", cost: 2750, tier: 1, incomePerDay: 0, xpPerDay: 0, maps: ["school"], description: "The campus landmark at the heart of the quad. Ring the bell once a day for a blessing on the whole campus." },
+  "main-office":     { name: "Main Office", icon: "", cost: 1900, tier: 1, incomePerDay: 25, xpPerDay: 5, maps: ["school"], description: "The campus front desk — and your town hall for the prayer lights. Step inside for the villager roster: see who is idle, working, or ready to collect, and send anyone to work without chasing them across town. +25 coins/day, +5 XP/day." },
   // Restaurants — hometown food businesses
   "pizza-place":  { name: "Pizza Place",  icon: "🍕", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Wood-fired pies. +30 coins/day." },
   "burger-joint": { name: "Burger Joint", icon: "🍔", cost: 880, tier: 1, incomePerDay: 30, xpPerDay: 0, maps: ["town"], description: "Smash burgers & shakes. +30 coins/day." },
@@ -671,8 +673,8 @@ export function plotAt(x: number, y: number): CityPlot | undefined {
 }
 
 // ---- School Campus: preset plots around a central quad ----
-// The school map is a campus: ten fixed 2x2 plots ring a quad with the Bell
-// Tower at its heart. Plots-only (no free placement), bought for a single
+// The school map is a campus: eleven fixed 2x2 plots ring a quad with the
+// Bell Tower at its heart. Plots-only (no free placement), bought for a single
 // plot price that includes the L1 building, then upgraded L1–L3 like every
 // other building. Campus paths are seeded infrastructure, like the town's
 // winding path and the city's streets. Plot prices sit in the town-lot band
@@ -701,6 +703,7 @@ export const SCHOOL_PLOTS: SchoolPlot[] = [
   { id: "plot-school-bell",      x: 4, y: 4, buildingType: "bell-tower",      cost: 3600, name: "The Quad" },
   // South row
   { id: "plot-school-cafeteria", x: 0, y: 8, buildingType: "cafeteria",       cost: 2300, name: "Cafeteria Court" },
+  { id: "plot-school-office",    x: 4, y: 8, buildingType: "main-office",     cost: 2800, name: "Office Court" },
   { id: "plot-school-gym",       x: 8, y: 8, buildingType: "gymnasium",       cost: 2700, name: "Gymnasium Court" },
 ];
 

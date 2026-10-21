@@ -18,6 +18,7 @@ import {
   FOREST_ENERGY_KEY,
   forestEnergyDateStr,
   getCachedForestEnergy,
+  grantForestEnergy,
   loadForestEnergy,
   maxForestEnergy,
   resolveForestEnergy,
@@ -167,5 +168,51 @@ describe("boss gate fights never spend energy", () => {
 
   it("the Boss Gate button still calls startBoss", () => {
     expect(src).toContain("onPress={startBoss}");
+  });
+});
+
+describe("granting bonus energy (diner coffee)", () => {
+  it("pure: resolve adds a same-day bonus on top of the clamped base", () => {
+    const today = forestEnergyDateStr();
+    expect(resolveForestEnergy({ date: today, energy: 15, bonus: 2 }, 15, today)).toEqual({ energy: 17, max: 15 });
+    expect(resolveForestEnergy({ date: today, energy: 99, bonus: 1 }, 15, today)).toEqual({ energy: 16, max: 15 });
+    expect(resolveForestEnergy({ date: today, energy: 3, bonus: 0 }, 15, today)).toEqual({ energy: 3, max: 15 });
+  });
+
+  it("a stale-date bonus dies at midnight with the rest of the store", () => {
+    const today = forestEnergyDateStr();
+    expect(resolveForestEnergy({ date: dateStrDaysAgo(1), energy: 15, bonus: 3 }, 15, today)).toEqual({ energy: 15, max: 15 });
+  });
+
+  it("grant pushes past the cap, persists as base + bonus, and reloads whole", async () => {
+    seedLevel(15);
+    await expect(grantForestEnergy(1)).resolves.toEqual({ energy: 16, max: 15 });
+    expect(getCachedForestEnergy()).toEqual({ energy: 16, max: 15 });
+    const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1 });
+    await expect(loadForestEnergy()).resolves.toEqual({ energy: 16, max: 15 });
+  });
+
+  it("bonus energy is spent like normal energy, bonus first in effect", async () => {
+    seedLevel(15);
+    await grantForestEnergy(2); // 17 total: 15 base + 2 bonus
+    await expect(spendForestEnergy()).resolves.toBe(true);
+    await expect(loadForestEnergy()).resolves.toEqual({ energy: 16, max: 15 });
+    const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 15, bonus: 1 });
+  });
+
+  it("grant tops up a partly spent store", async () => {
+    seedLevel(15);
+    seedEnergy(forestEnergyDateStr(), 3);
+    await expect(grantForestEnergy(1)).resolves.toEqual({ energy: 4, max: 15 });
+    const saved = JSON.parse(store.get(FOREST_ENERGY_KEY)!);
+    expect(saved).toEqual({ date: forestEnergyDateStr(), energy: 4 });
+  });
+
+  it("grant of zero or negative is a no-op", async () => {
+    seedLevel(15);
+    await expect(grantForestEnergy(0)).resolves.toEqual({ energy: 15, max: 15 });
+    await expect(grantForestEnergy(-3)).resolves.toEqual({ energy: 15, max: 15 });
   });
 });

@@ -190,6 +190,7 @@ import {
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
+import { maybeGrantRestitution, RESTITUTION_MESSAGE } from "@/lib/restitution";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
 import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
@@ -4530,6 +4531,17 @@ export default function HometownScreen() {
             await AsyncStorage.setItem(HOUSE_REMOVAL_REFUND_KEY, "1");
           } else if (!houseRefundDone) {
             await AsyncStorage.setItem(HOUSE_REMOVAL_REFUND_KEY, "1");
+          }
+        } catch {}
+        // One-time restitution: the v140 Bible Study Hall purchase bug took
+        // 5,500 coins without placing the hall. The purchase fix heals saves
+        // holding a building trace; this covers saves with no trace left —
+        // no hall owned, established save, once ever (lib/restitution.ts).
+        try {
+          const restored = await maybeGrantRestitution(c, t);
+          if (restored) {
+            c = restored;
+            Alert.alert("Good news", RESTITUTION_MESSAGE);
           }
         } catch {}
         // Garden of Remembrance state (loved ones + garden level)

@@ -1,6 +1,7 @@
 // Mini-games for the Ministry Row interiors: Complete the Verse (Bible
 // Study Hall), Training Reps (Gym), Pack the Boxes (Outreach Center),
-// Keep the Candle Lit (Fasting House). Small, gentle, one-thumb games
+// Keep the Candle Lit (Fasting House). Token Toss (arcade) plays at the
+// Pizza Place once its arcade row is built. Small, gentle, one-thumb games
 // with modest payouts and DAILY CAPS — like the River's catch limit,
 // plays reset at local midnight. Rewards flow through the same scaled
 // coin/XP grants the interior actions use.
@@ -23,7 +24,8 @@ export type MiniGameId =
   | "rhythm"
   | "trim"
   | "tide"
-  | "grill";
+  | "grill"
+  | "arcade";
 
 /** Max plays per day, per game. */
 export const MINI_GAME_CAPS: Record<MiniGameId, number> = {
@@ -38,6 +40,7 @@ export const MINI_GAME_CAPS: Record<MiniGameId, number> = {
   trim: 3,
   tide: 3,
   grill: 3,
+  arcade: 3,
 };
 
 const PLAYS_KEY = "prayercircle.minigames.plays.v1";
@@ -77,7 +80,7 @@ type PlaysState = {
 function emptyPlays(): PlaysState {
   return {
     day: todayString(),
-    counts: { verse: 0, training: 0, packing: 0, candle: 0, popcorn: 0, garden: 0, serve: 0, rhythm: 0, trim: 0, tide: 0, grill: 0 },
+    counts: { verse: 0, training: 0, packing: 0, candle: 0, popcorn: 0, garden: 0, serve: 0, rhythm: 0, trim: 0, tide: 0, grill: 0, arcade: 0 },
   };
 }
 
@@ -332,4 +335,27 @@ export const SERVE_MENUS: Record<string, ServeDish[]> = {
 /** The dish list for a restaurant type, generic menu as the fallback. */
 export function serveMenuFor(cuisine: string): ServeDish[] {
   return SERVE_MENUS[cuisine] ?? SERVE_MENUS.generic;
+}
+
+// ---------------------------------------------------------------------------
+// Token Toss — the Pizza Place arcade game. A power marker sweeps a sine
+// arc; the toss lands by distance from dead center (p = 0.5). XP-weighted
+// payout: the arcade pays in experience, coins are the small change.
+// ---------------------------------------------------------------------------
+
+/** Score for a toss at power p (0..1, 0.5 = dead center). */
+export function tokenScoreForPower(p: number): number {
+  const d = Math.abs(p - 0.5);
+  if (d <= 0.06) return 50; // bullseye
+  if (d <= 0.16) return 25; // middle ring
+  if (d <= 0.3) return 10; // outer ring
+  return 0; // short or long — off the board
+}
+
+/** Raw payout for a finished Token Toss play (score = summed rings). */
+export function tokenTossReward(score: number): { coins: number; xp: number } {
+  return {
+    coins: Math.min(15, Math.round(score * 0.08)),
+    xp: Math.min(40, Math.round(score * 0.32)),
+  };
 }

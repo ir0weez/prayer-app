@@ -18,7 +18,15 @@ export const FOREST_ENERGY_KEY = "prayercircle.forest-energy.v1";
 export type ForestEnergyState = {
   /** Local date ("YYYY-MM-DD") the stored energy belongs to. */
   date: string;
+  /** Base energy (never above the level cap on its own). */
   energy: number;
+  /**
+   * Purchased bonus energy ABOVE the cap (diner coffee). Kept separate
+   * from `energy` so the base store still clamps to the level cap; the
+   * bonus is spent like normal energy and dies at midnight — the daily
+   * refill resets the whole store to the cap as usual.
+   */
+  bonus?: number;
 };
 
 export type ForestEnergy = {
@@ -51,7 +59,10 @@ export function resolveForestEnergy(raw: unknown, level: number, today: string):
   if (raw && typeof raw === "object") {
     const s = raw as Partial<ForestEnergyState>;
     if (s.date === today && typeof s.energy === "number" && Number.isFinite(s.energy)) {
-      return { energy: Math.max(0, Math.min(max, Math.floor(s.energy))), max };
+      const base = Math.max(0, Math.min(max, Math.floor(s.energy)));
+      const bonus =
+        typeof s.bonus === "number" && Number.isFinite(s.bonus) ? Math.max(0, Math.floor(s.bonus)) : 0;
+      return { energy: base + bonus, max };
     }
   }
   return { energy: max, max };
@@ -86,10 +97,17 @@ async function readStoredState(): Promise<unknown> {
   }
 }
 
-async function persistEnergy(energy: number, today: string): Promise<void> {
+async function persistEnergy(state: ForestEnergy, today: string): Promise<void> {
   try {
-    const state: ForestEnergyState = { date: today, energy };
-    await AsyncStorage.setItem(FOREST_ENERGY_KEY, JSON.stringify(state));
+    // Split the total back into base (≤ cap) + bonus (above the cap).
+    // The bonus key is written only when positive, so the common-case
+    // stored shape stays exactly { date, energy }.
+    const bonus = Math.max(0, state.energy - state.max);
+    const stored: ForestEnergyState =
+      bonus > 0
+        ? { date: today, energy: state.energy - bonus, bonus }
+        : { date: today, energy: state.energy };
+    await AsyncStorage.setItem(FOREST_ENERGY_KEY, JSON.stringify(stored));
   } catch {}
 }
 
@@ -103,8 +121,12 @@ export async function loadForestEnergy(): Promise<ForestEnergy> {
   const [xp, raw] = await Promise.all([loadXPState(), readStoredState()]);
   const resolved = resolveForestEnergy(raw, xp.level, today);
   const stored = raw as Partial<ForestEnergyState> | null;
-  if (!stored || stored.date !== today || stored.energy !== resolved.energy) {
-    await persistEnergy(resolved.energy, today);
+  const storedTotal =
+    stored && typeof stored.energy === "number"
+      ? stored.energy + (typeof stored.bonus === "number" ? stored.bonus : 0)
+      : null;
+  if (!stored || stored.date !== today || storedTotal !== resolved.energy) {
+    await persistEnergy(resolved, today);
   }
   setCachedForestEnergy(resolved);
   return resolved;
@@ -120,6 +142,23 @@ export async function spendForestEnergy(): Promise<boolean> {
   const next = spendFromEnergy(current);
   if (!next) return false;
   setCachedForestEnergy(next);
-  await persistEnergy(next.energy, forestEnergyDateStr());
+  await persistEnergy(next, forestEnergyDateStr());
   return true;
+}
+
+/**
+ * Grant bonus energy (diner coffee): +amount on top of today's store,
+ * ALLOWED to exceed the level cap. The excess is stored as `bonus`, so
+ * it survives re-reads of the base store, is spent like normal energy,
+ * and disappears at midnight when the store rekindles to the cap.
+ * Updates the sync cache so the forest panel sees it immediately.
+ */
+export async function grantForestEnergy(amount: number): Promise<ForestEnergy> {
+  const current = await loadForestEnergy();
+  const add = Math.max(0, Math.floor(amount) || 0);
+  if (add <= 0) return current;
+  const next: ForestEnergy = { energy: current.energy + add, max: current.max };
+  setCachedForestEnergy(next);
+  await persistEnergy(next, forestEnergyDateStr());
+  return next;
 }

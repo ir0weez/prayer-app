@@ -4,7 +4,7 @@
 // Animations: sine-ease only, no bounce.
 
 import { useEffect, useRef } from "react";
-import { Animated, Easing, View } from "react-native";
+import { Animated, Easing, Text, View } from "react-native";
 
 export type CuisineId =
   | "pizza-place"
@@ -35,25 +35,31 @@ export type CuisinePalette = {
 
 export const CUISINE_THEMES: Record<CuisineId, CuisinePalette> = {
   "pizza-place": {
-    bg: "#2A1A12", wall: "#4A2E1E", floor: "#8A5A3A", floorLine: "#6E4429",
-    card: "#3D2617", cardBorder: "#6B4A2E", accent: "#E07840",
-    text: "#F7E8D5", textDim: "#C49A72",
-    cloth: ["", "#F5EFE0", "#C0392B", "#7A1F1F"], // red-checkered trattoria
-    wood: "#C0C6CE", woodDark: "#7A828C",
-  },
-  "burger-joint": {
-    bg: "#1A1A22", wall: "#2E2E3A", floor: "#3A3A44", floorLine: "#2A2A32",
-    card: "#26262E", cardBorder: "#4A4A58", accent: "#FF5A7A",
-    text: "#F5F0E8", textDim: "#A8A8B8",
-    cloth: ["", "#F0F0F0", "#FF5A7A", "#2E2E3A"], // chrome diner
+    // Party-palace purple (animatronic pizza theater): deep violet walls,
+    // wild carpet floor, pink-red stage accent.
+    bg: "#22102A", wall: "#3A2150", floor: "#4A2A63", floorLine: "#38204D",
+    card: "#2E1A3E", cardBorder: "#5E4390", accent: "#FF5A7A",
+    text: "#F9F0FF", textDim: "#C3A9DE",
+    cloth: ["", "#F5EFE0", "#C0392B", "#7B2D8B"], // party tables: cream, red, purple
     wood: "#8B5E34", woodDark: "#5E3D22",
   },
+  "burger-joint": {
+    // Cold, bright red-and-white (west-coast burger institution): white
+    // tile everywhere, red trim, dark text on light cards.
+    bg: "#EFEAE2", wall: "#FFFFFF", floor: "#F7F4EE", floorLine: "#D8D2C8",
+    card: "#FFFFFF", cardBorder: "#D22630", accent: "#D22630",
+    text: "#2A2320", textDim: "#6E625A",
+    cloth: ["", "#FFFFFF", "#D22630", "#F3E9D2"], // crisp white, then red
+    wood: "#B02A30", woodDark: "#7A1D22",
+  },
   "taco-stand": {
-    bg: "#2E1E12", wall: "#5E3A24", floor: "#A06838", floorLine: "#7E4E28",
-    card: "#422A18", cardBorder: "#7A5230", accent: "#F2A541",
-    text: "#FBEED8", textDim: "#D4A878",
-    cloth: ["", "#F7EED8", "#E4572E", "#9C4A1A"], // warm fiesta
-    wood: "#4A3A2A", woodDark: "#2E2419",
+    // Retro taco cantina (the beloved 90s one): purple walls, teal + pink
+    // sunset stripes, geometric shapes.
+    bg: "#241433", wall: "#3A2260", floor: "#4A3A6E", floorLine: "#33224F",
+    card: "#2E1B47", cardBorder: "#5E4390", accent: "#FF7BAC",
+    text: "#F6EEFC", textDim: "#B9A3D9",
+    cloth: ["", "#F3E9FF", "#2EC4B6", "#7B2D8B"], // lavender, teal, purple
+    wood: "#6E5136", woodDark: "#46301E",
   },
   "sushi-bar": {
     bg: "#14161C", wall: "#23262E", floor: "#3E3226", floorLine: "#2E2419",
@@ -63,11 +69,13 @@ export const CUISINE_THEMES: Record<CuisineId, CuisinePalette> = {
     wood: "#B8BEC6", woodDark: "#7A828C",
   },
   diner: {
-    bg: "#1E2228", wall: "#343A44", floor: "#4A5058", floorLine: "#383E46",
-    card: "#2A2F36", cardBorder: "#4E565E", accent: "#5AB9EA",
-    text: "#F2F4F6", textDim: "#A8B0B8",
-    cloth: ["", "#F5F5F0", "#5AB9EA", "#2E343C"], // chrome + sky blue
-    wood: "#8B6A48", woodDark: "#5E4A30",
+    // Classic American diner: warm wood browns, orange
+    // booth warmth, golden-yellow accents — always open, always coffee.
+    bg: "#211510", wall: "#46301E", floor: "#5D4128", floorLine: "#46301E",
+    card: "#33241A", cardBorder: "#6E4A2A", accent: "#F39C2C",
+    text: "#FBEED8", textDim: "#C8A878",
+    cloth: ["", "#F7EBD4", "#E67E22", "#8B3A1E"], // cream, orange, deep rust
+    wood: "#8B5E34", woodDark: "#5E3D22",
   },
   "upper-room": {
     bg: "#201A14", wall: "#3E3226", floor: "#6B5E4A", floorLine: "#52463A",
@@ -166,44 +174,53 @@ export function CuisineWallDecor({ cuisine, tier }: { cuisine: string; tier: num
       );
       break;
     case "burger-joint":
-      // retro burger poster + license plate
+      // the crossed palms + a crisp red-and-white burger poster
       art = (
         <>
           {frame(0, (
-            <View style={{ alignItems: "center" }}>
-              <View style={{ width: 34, height: 8, borderRadius: 4, backgroundColor: "#E8A84C" }} />
-              <View style={{ width: 38, height: 6, backgroundColor: "#7A8B3A", marginTop: 1 }} />
-              <View style={{ width: 36, height: 7, borderRadius: 3, backgroundColor: "#8B4A2A", marginTop: 1 }} />
-              <View style={{ width: 34, height: 8, borderRadius: 4, backgroundColor: "#E8A84C", marginTop: 1 }} />
+            <View style={{ width: 52, height: 42, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "flex-end", overflow: "hidden" }}>
+              {/* two palm trunks, crossed */}
+              <View style={{ position: "absolute", bottom: -4, left: 12, width: 5, height: 36, borderRadius: 2.5, backgroundColor: "#8B5E34", transform: [{ rotate: "-24deg" }] }} />
+              <View style={{ position: "absolute", bottom: -4, right: 12, width: 5, height: 36, borderRadius: 2.5, backgroundColor: "#8B5E34", transform: [{ rotate: "24deg" }] }} />
+              {/* fronds */}
+              {[-52, -26, 0, 26, 52].map((deg, i) => (
+                <View key={i} style={{ position: "absolute", top: 3, left: 24, width: 17, height: 6, borderRadius: 3, backgroundColor: "#3E7D3A", transform: [{ rotate: `${deg}deg` }] }} />
+              ))}
+              <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 5, backgroundColor: "#D22630" }} />
             </View>
           ))}
           {frame(1, (
-            <View style={{ width: 48, height: 24, borderRadius: 4, backgroundColor: "#3A6EA5", borderWidth: 2, borderColor: "#F0F0F0", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: 30, height: 6, borderRadius: 3, backgroundColor: "#F0F0F0", opacity: 0.8 }} />
+            <View style={{ width: 50, height: 38, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#D22630", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 30, height: 7, borderRadius: 3.5, backgroundColor: "#E8A84C" }} />
+              <View style={{ width: 34, height: 5, backgroundColor: "#3E7D3A", marginTop: 1 }} />
+              <View style={{ width: 32, height: 6, borderRadius: 3, backgroundColor: "#8B4A2A", marginTop: 1 }} />
+              <View style={{ width: 30, height: 7, borderRadius: 3.5, backgroundColor: "#E8A84C", marginTop: 1 }} />
             </View>
           ))}
         </>
       );
       break;
     case "taco-stand":
-      // Talavera tile + chili ristra
+      // retro sunset medallion + Memphis geometric shapes
       art = (
         <>
           {frame(0, (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", width: 52, height: 40, justifyContent: "center" }}>
-              {["#2E86AB", "#E4572E", "#F2A541", "#2E86AB"].map((c, i) => (
-                <View key={i} style={{ width: 22, height: 18, backgroundColor: c, margin: 1, borderRadius: 2, alignItems: "center", justifyContent: "center" }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#F7EED8", opacity: 0.7 }} />
-                </View>
-              ))}
+            <View style={{ width: 44, height: 40, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden", borderWidth: 2, borderColor: "#FFD23F" }}>
+              <View style={{ height: 8, backgroundColor: "#FF7BAC" }} />
+              <View style={{ height: 8, backgroundColor: "#FF9E4F" }} />
+              <View style={{ height: 8, backgroundColor: "#FFD23F" }} />
+              <View style={{ height: 8, backgroundColor: "#2EC4B6" }} />
+              <View style={{ height: 8, backgroundColor: "#3A2260" }} />
+              <View style={{ position: "absolute", top: 12, left: 13, width: 18, height: 18, borderRadius: 9, backgroundColor: "#FFF3C9", opacity: 0.9 }} />
             </View>
           ))}
           {frame(1, (
-            <View style={{ alignItems: "center" }}>
-              <View style={{ width: 2, height: 16, backgroundColor: "#6B8B3A" }} />
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={{ width: 8, height: 12, borderRadius: 4, backgroundColor: "#C0392B", marginTop: -1, borderWidth: 1, borderColor: "#8B2A1E" }} />
-              ))}
+            <View style={{ width: 50, height: 38, backgroundColor: "#2EC4B6", overflow: "hidden" }}>
+              <View style={{ position: "absolute", top: 5, left: 6, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 12, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FF7BAC" }} />
+              <View style={{ position: "absolute", top: 22, left: 24, width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD23F" }} />
+              <View style={{ position: "absolute", top: 8, right: 6, width: 14, height: 4, borderRadius: 2, backgroundColor: "#3A2260", transform: [{ rotate: "24deg" }] }} />
+              <View style={{ position: "absolute", bottom: 5, left: 8, width: 16, height: 4, borderRadius: 2, backgroundColor: "#F6EEFC", transform: [{ rotate: "-18deg" }] }} />
+              <View style={{ position: "absolute", bottom: 7, right: 9, width: 7, height: 7, backgroundColor: "#FF7BAC", transform: [{ rotate: "45deg" }] }} />
             </View>
           ))}
         </>
@@ -365,11 +382,11 @@ export function CuisineOverhead({ cuisine, level, lightsTier }: { cuisine: strin
       // Italian bistro string lights, warmer with level
       return <BistroLights color={level >= 3 ? "#FFD97A" : "#FFB84D"} count={level >= 3 ? 12 : 8} />;
     case "burger-joint":
-      // neon tube
-      return <NeonTube color="#FF5A7A" label="burgers" />;
+      // red-and-white striped awning, bright and cold
+      return <StripedAwning rich={level >= 3} />;
     case "taco-stand":
-      // papel picado banners
-      return <PapelPicado rich={level >= 3} />;
+      // retro sunset-stripe band with hanging geometric shapes
+      return <RetroSunsetBand rich={level >= 3} />;
     case "sushi-bar":
       // paper lanterns
       return <PaperLanterns count={level >= 3 ? 5 : 3} />;
@@ -410,40 +427,64 @@ function BistroLights({ color, count }: { color: string; count: number }) {
   );
 }
 
-function NeonTube({ color, label }: { color: string; label: string }) {
+function StripedAwning({ rich }: { rich: boolean }) {
   return (
-    <GlowPulse duration={1200}>
-      <View style={{ alignItems: "center", marginVertical: 10 }}>
-        <View style={{ borderWidth: 3, borderColor: color, borderRadius: 14, paddingHorizontal: 22, paddingVertical: 8, backgroundColor: "rgba(255,90,122,0.08)" }}>
-          <View style={{ flexDirection: "row" }}>
-            {label.split("").map((ch, i) => (
-              <View key={i} style={{ width: ch === " " ? 8 : 10, height: 18, marginHorizontal: 1, backgroundColor: ch === " " ? "transparent" : color, opacity: 0.9, borderRadius: 2 }} />
-            ))}
-          </View>
-        </View>
-        <View style={{ width: 120, height: 20, borderRadius: 10, backgroundColor: color, opacity: 0.15, marginTop: -24 }} />
+    <View style={{ alignItems: "center", marginVertical: 8 }}>
+      {/* bright cold light bar above the awning */}
+      <GlowPulse duration={2200}>
+        <View style={{ width: 150, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF", opacity: 0.95 }} />
+      </GlowPulse>
+      <View style={{ flexDirection: "row", marginTop: 5 }}>
+        {Array.from({ length: rich ? 12 : 9 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: 24,
+              height: 20,
+              backgroundColor: i % 2 === 0 ? "#D22630" : "#FFFFFF",
+              borderBottomLeftRadius: 10,
+              borderBottomRightRadius: 10,
+              borderWidth: 1,
+              borderColor: "#D8D2C8",
+              marginHorizontal: 0.5,
+            }}
+          />
+        ))}
       </View>
-    </GlowPulse>
+    </View>
   );
 }
 
-function PapelPicado({ rich }: { rich: boolean }) {
-  const colors = ["#E4572E", "#F2A541", "#2E86AB", "#9C6FB5", "#E86A92"];
-  const rows = rich ? 2 : 1;
+function RetroSunsetBand({ rich }: { rich: boolean }) {
   return (
     <View style={{ alignItems: "center", marginVertical: 6 }}>
-      {Array.from({ length: rows }).map((_, r) => (
-        <View key={r} style={{ marginBottom: r === 0 && rows > 1 ? 4 : 0 }}>
-          <View style={{ position: "absolute", top: 0, left: 20, right: 20, height: 2, backgroundColor: "#5E3D22" }} />
-          <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 2 }}>
-            {Array.from({ length: rich ? 8 : 6 }).map((_, i) => (
-              <View key={i} style={{ width: 26, height: 20, backgroundColor: colors[(i + r * 2) % colors.length], marginHorizontal: 2, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ width: 10, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.35)" }} />
-              </View>
-            ))}
+      {/* the sunset stripes */}
+      <View style={{ width: "92%", borderRadius: 6, overflow: "hidden", borderWidth: 2, borderColor: "#FFD23F" }}>
+        <View style={{ height: 6, backgroundColor: "#FF7BAC" }} />
+        <View style={{ height: 6, backgroundColor: "#FF9E4F" }} />
+        <View style={{ height: 6, backgroundColor: "#FFD23F" }} />
+        <View style={{ height: 6, backgroundColor: "#2EC4B6" }} />
+      </View>
+      {/* hanging Memphis shapes */}
+      <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 1 }}>
+        {(rich
+          ? ["tri", "dot", "bar", "diamond", "tri", "dot", "bar", "diamond"]
+          : ["tri", "dot", "bar", "diamond", "tri", "dot"]
+        ).map((shape, i) => (
+          <View key={i} style={{ alignItems: "center", marginHorizontal: 11 }}>
+            <View style={{ width: 2, height: 9, backgroundColor: "#5E4390" }} />
+            {shape === "tri" ? (
+              <View style={{ width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 10, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: "#FF7BAC" }} />
+            ) : shape === "dot" ? (
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFD23F" }} />
+            ) : shape === "bar" ? (
+              <View style={{ width: 13, height: 4.5, borderRadius: 2, backgroundColor: "#2EC4B6", transform: [{ rotate: i % 2 === 0 ? "22deg" : "-22deg" }] }} />
+            ) : (
+              <View style={{ width: 8.5, height: 8.5, backgroundColor: "#F6EEFC", transform: [{ rotate: "45deg" }] }} />
+            )}
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
@@ -565,9 +606,9 @@ export function CuisineSignature({ cuisine, level, kitchenTier }: { cuisine: str
     case "pizza-place":
       return <PizzaOven level={level} kitchenTier={kitchenTier} />;
     case "burger-joint":
-      return <Jukebox level={level} />;
+      return <BurgerCounter level={level} />;
     case "taco-stand":
-      return <TaqueriaGrill level={level} kitchenTier={kitchenTier} />;
+      return <RetroCantina level={level} kitchenTier={kitchenTier} />;
     case "sushi-bar":
       return <SushiCounter level={level} kitchenTier={kitchenTier} />;
     case "diner":
@@ -621,77 +662,114 @@ function PizzaOven({ level, kitchenTier }: { level: number; kitchenTier: number 
   );
 }
 
-// ---------- burger: chrome jukebox ----------
-function Jukebox({ level }: { level: number }) {
+// ---------- burger: bright white order counter, crossed palms above ----------
+// The west-coast institution look: white tile, red stripe, menu boards,
+// and the two palms that cross over the counter. Evoked, never copied.
+function BurgerCounter({ level }: { level: number }) {
   return (
     <View style={{ alignItems: "center", marginTop: 6 }}>
-      <View style={{ width: 84, height: 110, borderTopLeftRadius: 42, borderTopRightRadius: 42, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, backgroundColor: "#3A3A46", borderWidth: 4, borderColor: "#9AA2AC", alignItems: "center", paddingTop: 10, overflow: "hidden" }}>
-        {/* glowing arch tubes */}
-        <GlowPulse duration={1100}>
-          <View style={{ width: 64, height: 30, borderRadius: 15, borderWidth: 3, borderColor: "#FF5A7A", backgroundColor: "rgba(255,90,122,0.12)" }} />
-        </GlowPulse>
-        {/* song buttons */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 8, width: 64 }}>
-          {["#5AB9EA", "#FFD97A", "#7AE08B", "#FF5A7A", "#9C6FB5", "#F2A541"].map((c, i) => (
-            <View key={i} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: c, margin: 3, borderWidth: 1, borderColor: "#1A1A22" }} />
-          ))}
-        </View>
-        {/* speaker grille */}
-        {level >= 2 && (
-          <View style={{ marginTop: 6, alignItems: "center" }}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={{ width: 52, height: 3, borderRadius: 1.5, backgroundColor: "#5A5A66", marginVertical: 1.5 }} />
+      {/* the crossed palms */}
+      <View style={{ width: 120, height: 52 }}>
+        <View style={{ position: "absolute", bottom: 0, left: 34, width: 6, height: 44, borderRadius: 3, backgroundColor: "#8B5E34", transform: [{ rotate: "-21deg" }] }} />
+        <View style={{ position: "absolute", bottom: 0, right: 34, width: 6, height: 44, borderRadius: 3, backgroundColor: "#8B5E34", transform: [{ rotate: "21deg" }] }} />
+        {[-55, -28, 0, 28, 55].map((deg, i) => (
+          <View key={i} style={{ position: "absolute", top: 2, left: 52, width: 24, height: 8, borderRadius: 4, backgroundColor: "#3E7D3A", transform: [{ rotate: `${deg}deg` }] }} />
+        ))}
+        <View style={{ position: "absolute", top: 10, left: 56, width: 8, height: 8, borderRadius: 4, backgroundColor: "#6E4525" }} />
+      </View>
+      {/* menu boards */}
+      <View style={{ flexDirection: "row", marginTop: 2 }}>
+        {[0, 1, 2].map((b) => (
+          <View key={b} style={{ width: 52, height: 34, borderRadius: 4, backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#D22630", marginHorizontal: 3, padding: 4 }}>
+            <View style={{ height: 5, borderRadius: 2.5, backgroundColor: "#D22630", width: "80%" }} />
+            {[0, 1, 2].map((r) => (
+              <View key={r} style={{ height: 3, borderRadius: 1.5, backgroundColor: "#B9B0A4", marginTop: 3, width: r === 2 ? "55%" : "92%" }} />
             ))}
           </View>
-        )}
-        {level >= 3 && (
-          <GlowPulse duration={800}>
-            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#5AB9EA", marginTop: 4, opacity: 0.9 }} />
-          </GlowPulse>
-        )}
+        ))}
       </View>
-      <View style={{ width: 96, height: 8, borderRadius: 4, backgroundColor: "#5A5A66", marginTop: 2 }} />
+      {/* the counter: white with the red stripe */}
+      <View style={{ width: 168, marginTop: 5, borderRadius: 8, overflow: "hidden", borderWidth: 2, borderColor: "#D8D2C8", backgroundColor: "#FFFFFF" }}>
+        <View style={{ height: 10, backgroundColor: "#F1EDE4" }} />
+        <View style={{ height: 7, backgroundColor: "#D22630" }} />
+        <View style={{ height: 26, backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", justifyContent: "space-evenly" }}>
+          {/* red trays waiting on the counter */}
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ width: 30, height: 7, borderRadius: 2, backgroundColor: "#D22630", opacity: 0.9 }} />
+          ))}
+        </View>
+      </View>
+      {level >= 3 && (
+        <Text style={{ color: "#6E625A", fontSize: 10, marginTop: 4, fontStyle: "italic" }}>Fresh, never frozen — the palms saw to it</Text>
+      )}
     </View>
   );
 }
 
-// ---------- taco: taqueria grill with Talavera tile front ----------
-function TaqueriaGrill({ level, kitchenTier }: { level: number; kitchenTier: number }) {
+// ---------- taco: retro cantina — arch, sun medallion, sunset-stripe grill ----------
+// The beloved 90s cantina: purple arch, a generic sun (no logos), teal and
+// pink stripes, geometric shapes. The grill still cooks underneath.
+function RetroCantina({ level, kitchenTier }: { level: number; kitchenTier: number }) {
   return (
     <View style={{ alignItems: "center", marginTop: 6 }}>
+      {/* cantina arch with the sun medallion */}
+      <View
+        style={{
+          width: 150,
+          height: 74,
+          borderTopLeftRadius: 75,
+          borderTopRightRadius: 75,
+          backgroundColor: "#3A2260",
+          borderWidth: 3,
+          borderColor: "#2EC4B6",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        {/* sunset stripes across the arch */}
+        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+          <View style={{ height: 6, backgroundColor: "#FF7BAC", opacity: 0.85 }} />
+          <View style={{ height: 6, backgroundColor: "#FF9E4F", opacity: 0.85 }} />
+          <View style={{ height: 6, backgroundColor: "#FFD23F", opacity: 0.85 }} />
+        </View>
+        {/* the sun */}
+        <GlowPulse duration={2400}>
+          <View style={{ alignItems: "center", justifyContent: "center", width: 52, height: 52 }}>
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+              <View key={deg} style={{ position: "absolute", width: 5, height: 12, borderRadius: 2.5, backgroundColor: "#FF9E4F", transform: [{ rotate: `${deg}deg` }, { translateY: -24 }] }} />
+            ))}
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFD23F", borderWidth: 2, borderColor: "#FF9E4F", alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row" }}>
+                <View style={{ width: 3.4, height: 3.4, borderRadius: 1.7, backgroundColor: "#7A5410", marginHorizontal: 2.6 }} />
+                <View style={{ width: 3.4, height: 3.4, borderRadius: 1.7, backgroundColor: "#7A5410", marginHorizontal: 2.6 }} />
+              </View>
+              <View style={{ width: 12, height: 6, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, backgroundColor: "#7A5410", marginTop: 2.4, opacity: 0.85 }} />
+            </View>
+          </View>
+        </GlowPulse>
+      </View>
       {/* grill top with heat shimmer */}
-      <View style={{ width: 150, height: 16, borderRadius: 8, backgroundColor: "#2E2E34", borderWidth: 2, borderColor: "#5A5A64" }}>
+      <View style={{ width: 150, height: 16, borderRadius: 8, backgroundColor: "#241433", borderWidth: 2, borderColor: "#5E4390", marginTop: 4 }}>
         <GlowPulse duration={1000}>
           <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 2 }}>
             {[0, 1, 2, 3].map((i) => (
-              <View key={i} style={{ width: 18, height: 6, borderRadius: 3, backgroundColor: "#FF9A3D", marginHorizontal: 6, opacity: 0.8 }} />
+              <View key={i} style={{ width: 18, height: 6, borderRadius: 3, backgroundColor: "#FF9E4F", marginHorizontal: 6, opacity: 0.85 }} />
             ))}
           </View>
         </GlowPulse>
       </View>
-      {/* Talavera tile front */}
-      <View style={{ width: 150, marginTop: 2, borderRadius: 8, overflow: "hidden", borderWidth: 2, borderColor: "#5E3D22" }}>
-        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-          {Array.from({ length: level >= 3 ? 12 : level >= 2 ? 8 : 4 }).map((_, i) => (
-            <View key={i} style={{ width: 37.5 - 1, height: 22, backgroundColor: ["#2E86AB", "#E4572E", "#F2A541", "#F7EED8"][i % 4], borderWidth: 0.5, borderColor: "#5E3D22", alignItems: "center", justifyContent: "center" }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.3)" }} />
-            </View>
+      {/* sunset-stripe grill front (richer with level) */}
+      <View style={{ width: 150, marginTop: 2, borderRadius: 8, overflow: "hidden", borderWidth: 2, borderColor: "#33224F" }}>
+        {["#FF7BAC", "#FF9E4F", "#FFD23F", "#2EC4B6"].slice(0, level >= 3 ? 4 : level >= 2 ? 3 : 2).map((c, i) => (
+          <View key={i} style={{ height: 11, backgroundColor: c, opacity: 0.92 }} />
+        ))}
+        <View style={{ height: 12, backgroundColor: "#3A2260", flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: i % 2 === 0 ? "#FFD23F" : "#2EC4B6", marginHorizontal: 4 }} />
           ))}
         </View>
       </View>
-      {/* hanging chili ristras */}
-      {level >= 2 && (
-        <View style={{ position: "absolute", top: -6, flexDirection: "row" }}>
-          {[0, 1].map((s) => (
-            <View key={s} style={{ alignItems: "center", marginHorizontal: 52 }}>
-              <View style={{ width: 2, height: 14, backgroundColor: "#6B8B3A" }} />
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={{ width: 9, height: 13, borderRadius: 5, backgroundColor: i % 2 === 0 ? "#C0392B" : "#E4572E", marginTop: -2 }} />
-              ))}
-            </View>
-          ))}
-        </View>
-      )}
       {kitchenTier >= 3 && (
         <View style={{ flexDirection: "row", marginTop: 4 }}>
           {[0, 1, 2].map((i) => (
@@ -774,6 +852,64 @@ function PieCase({ level, kitchenTier }: { level: number; kitchenTier: number })
           ))}
         </View>
       )}
+    </View>
+  );
+}
+
+// ---------- diner: the coffee station (always on) ----------
+// Glass decanters on warmers — brown band for regular, orange for decaf —
+// mugs in a row, and a slow curl of steam. The cups sold here (3 a day)
+// grant Dark Forest energy; this is where they come from.
+export function DinerCoffeeStation({ level }: { level: number }) {
+  const steam = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(steam, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(steam, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [steam]);
+  const pot = (key: number, band: string) => (
+    <View key={key} style={{ alignItems: "center", marginHorizontal: 7 }}>
+      {/* steam curl */}
+      <Animated.View
+        style={{
+          width: 5,
+          height: 13,
+          borderRadius: 2.5,
+          backgroundColor: "#F5EFE0",
+          marginBottom: 1,
+          opacity: steam.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.4] }),
+          transform: [{ translateY: steam.interpolate({ inputRange: [0, 1], outputRange: [2, -2] }) }],
+        }}
+      />
+      {/* glass decanter */}
+      <View style={{ width: 24, height: 26, borderTopLeftRadius: 5, borderTopRightRadius: 5, borderBottomLeftRadius: 9, borderBottomRightRadius: 9, backgroundColor: "rgba(214,232,255,0.25)", borderWidth: 1.6, borderColor: "#9AA2AC", overflow: "hidden", alignItems: "center" }}>
+        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 15, backgroundColor: "#3E2415" }} />
+        <View style={{ width: "100%", height: 6, backgroundColor: band, marginTop: 3 }} />
+      </View>
+      {/* handle + warmer plate */}
+      <View style={{ position: "absolute", right: -5, top: 16, width: 7, height: 11, borderRadius: 3.5, borderWidth: 2, borderColor: "#2E2E34" }} />
+      <View style={{ width: 30, height: 4, borderRadius: 2, backgroundColor: "#2E2E34", marginTop: 1.5 }} />
+    </View>
+  );
+  return (
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+        {pot(0, "#6E4525")}
+        {pot(1, "#E67E22")}
+        {level >= 2 && pot(2, "#6E4525")}
+      </View>
+      {/* mugs in a row */}
+      <View style={{ flexDirection: "row", marginTop: 5 }}>
+        {Array.from({ length: level >= 3 ? 5 : 3 }).map((_, i) => (
+          <View key={i} style={{ width: 14, height: 11, borderRadius: 2.5, backgroundColor: "#F7EBD4", borderWidth: 1, borderColor: "#C8A878", marginHorizontal: 3 }} />
+        ))}
+      </View>
+      <Text style={{ color: "#C8A878", fontSize: 10, marginTop: 3, fontStyle: "italic" }}>The coffee station — bottomless, basically</Text>
     </View>
   );
 }
@@ -926,9 +1062,21 @@ function FloralGarland({ level }: { level: number }) {
 export function CuisineFloor({ cuisine, level }: { cuisine: string; level: number }) {
   switch (cuisine) {
     case "burger-joint":
+      // bright white tile with a red accent every fifth — cold and clean
+      return (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {Array.from({ length: 60 }).map((_, i) => {
+              const col = i % 10;
+              const red = col === 4;
+              return <View key={i} style={{ width: "10%", height: 22, backgroundColor: red ? "#D22630" : "#FFFFFF", borderWidth: 0.5, borderColor: "#D8D2C8", opacity: red ? 0.75 : 1 }} />;
+            })}
+          </View>
+        </View>
+      );
     case "diner":
-      // black-and-white checkerboard (diner gets it at L2+)
-      if (cuisine === "diner" && level < 2) return null;
+      // black-and-white checkerboard (L2+)
+      if (level < 2) return null;
       return (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }}>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
@@ -942,22 +1090,27 @@ export function CuisineFloor({ cuisine, level }: { cuisine: string; level: numbe
         </View>
       );
     case "pizza-place":
-      // terracotta tiles
+      // the wild party carpet: deep purple tiles strewn with confetti
       return (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 }}>
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.5 }}>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {Array.from({ length: 40 }).map((_, i) => (
-              <View key={i} style={{ width: "12.5%", height: 30, backgroundColor: i % 2 === 0 ? "#A06838" : "#8A5630", borderWidth: 0.5, borderColor: "#6E4429" }} />
+              <View key={i} style={{ width: "12.5%", height: 30, backgroundColor: i % 2 === 0 ? "#5B3480" : "#4A2A63", borderWidth: 0.5, borderColor: "#38204D", alignItems: "center", justifyContent: "center" }}>
+                {i % 5 === 1 && <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#2EC4B6", opacity: 0.8 }} />}
+                {i % 5 === 3 && <View style={{ width: 8, height: 4, borderRadius: 2, backgroundColor: "#FF5A7A", opacity: 0.8, transform: [{ rotate: "24deg" }] }} />}
+                {i % 7 === 5 && <View style={{ width: 6, height: 6, backgroundColor: "#FFD23F", opacity: 0.8, transform: [{ rotate: "45deg" }] }} />}
+              </View>
             ))}
           </View>
         </View>
       );
     case "taco-stand":
-      // terracotta with colorful center inlay
+      // retro medallion inlay: teal ring, pink ring, on purple tile
       return (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.4, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderColor: "#2E86AB", opacity: 0.5 }} />
-          <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: "#E4572E", opacity: 0.5 }} />
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.45, alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderColor: "#2EC4B6", opacity: 0.55 }} />
+          <View style={{ position: "absolute", width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: "#FF7BAC", opacity: 0.55 }} />
+          <View style={{ position: "absolute", width: 34, height: 34, borderRadius: 17, backgroundColor: "#FFD23F", opacity: 0.4 }} />
         </View>
       );
     case "sushi-bar":

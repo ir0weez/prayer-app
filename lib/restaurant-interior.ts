@@ -5,6 +5,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { BuildingType } from "./hometown";
+import { loadPizzaFeatures, pizzaFeaturesBonusPct } from "./pizza-features";
 
 /** Restaurant building types that have an enterable interior. */
 export const RESTAURANT_INTERIOR_TYPES: BuildingType[] = [
@@ -127,7 +128,10 @@ export async function saveRestaurantInterior(buildingId: string, state: Restaura
   } catch {}
 }
 
-/** Income multiplier from interior furniture: 1 + sum(tier bonus %). */
+/** Income multiplier from interior furniture: 1 + sum(tier bonus %).
+ *  Pizza Place party features (stage/arcade/prize) ride the same hook —
+ *  their tiers add their % here, so a pizza place's income reflects its
+ *  band, cabinets, and prize counter with no second income path. */
 export async function restaurantInteriorBonus(buildingId: string): Promise<{ mult: number }> {
   try {
     const state = await loadRestaurantInterior(buildingId);
@@ -136,6 +140,9 @@ export async function restaurantInteriorBonus(buildingId: string): Promise<{ mul
       const tier = state.furniture[slot.id] || 0;
       if (tier > 0) bonusPct += slot.bonusPct[tier - 1] ?? 0;
     }
+    try {
+      bonusPct += pizzaFeaturesBonusPct(await loadPizzaFeatures(buildingId));
+    } catch {}
     return { mult: 1 + bonusPct / 100 };
   } catch {
     return { mult: 1 };

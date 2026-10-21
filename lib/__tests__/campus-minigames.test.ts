@@ -60,9 +60,10 @@ describe("campus rooms host the shared mini-games", () => {
 });
 
 describe("no new cap counters", () => {
-  it("MINI_GAME_CAPS still holds exactly the eleven town game ids", () => {
+  it("MINI_GAME_CAPS holds exactly the twelve game ids (eleven + arcade)", () => {
     expect(Object.keys(MINI_GAME_CAPS).sort()).toEqual(
       [
+        "arcade",
         "candle",
         "garden",
         "grill",

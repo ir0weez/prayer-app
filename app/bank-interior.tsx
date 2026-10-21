@@ -8,6 +8,8 @@ import {
   BANK_MAX_DESKS,
   BANK_MAX_FLOORS,
   COINS_STORAGE_KEY,
+  CONSTRUCTION_UPGRADE_BEYOND_MS,
+  stampConstruction,
   TOWN_STORAGE_KEY,
   bankCarpetColor,
   bankCarpetCost,
@@ -707,24 +709,40 @@ export default function BankInteriorScreen() {
       Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost.toFixed(2)} coins.`);
       return;
     }
-    try {
-      const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
-      const town = parseTown(townRaw ? JSON.parse(townRaw) : {});
-      let updated: PlacedBuilding | null = null;
-      for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
-        town.maps[mapId].buildings = town.maps[mapId].buildings.map((b) => {
-          if (b.id === building!.id) {
-            updated = { ...b, floors: current + 1 };
-            return updated;
-          }
-          return b;
-        });
-      }
-      await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
-      if (updated) setBuilding(updated);
-      addCoins(-cost);
-    } catch {}
-  }, [building, addCoins]);
+    // A new tower floor is construction like any other build (1 hour at
+    // the beyond-level-3 rate): named before he commits, the bank closes
+    // under scaffolding, and the floor stands when the timer completes.
+    Alert.alert(
+      `Add floor ${current + 1}?`,
+      `${cost.toFixed(2)} coins. Takes 1 hr — the bank closes while it builds and reopens with the new floor.`,
+      [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Start building",
+          onPress: async () => {
+            try {
+              const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+              const town = parseTown(townRaw ? JSON.parse(townRaw) : {});
+              let updated: PlacedBuilding | null = null;
+              for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+                town.maps[mapId].buildings = town.maps[mapId].buildings.map((b) => {
+                  if (b.id === building!.id) {
+                    updated = stampConstruction({ ...b, floors: current + 1 }, Date.now() + CONSTRUCTION_UPGRADE_BEYOND_MS, b.level || 1);
+                    return updated;
+                  }
+                  return b;
+                });
+              }
+              await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
+              if (updated) setBuilding(updated);
+              addCoins(-cost);
+              Alert.alert("Bank Tower", "Construction underway! The bank reopens with its new floor in 1 hour.", [{ text: "Back to the map", onPress: () => router.back() }]);
+            } catch {}
+          },
+        },
+      ]
+    );
+  }, [building, addCoins, router]);
 
   useEffect(() => {
     (async () => {

@@ -67,6 +67,13 @@ import {
   emptyTownState,
   tierForFastDay,
   effectiveIncomeFor,
+  beginConstruction,
+  constructionRemainingMs,
+  constructionTimeLabel,
+  effectiveLevel,
+  formatConstructionRemaining,
+  isUnderConstruction,
+  settleBuilding,
   plotIncomeMult,
   xpIncomeFor,
   upgradeCostFor,
@@ -3503,6 +3510,68 @@ const BuildingArtFX = React.memo(function BuildingArtFX(props: BuildingArtProps)
   );
 });
 
+/**
+ * Construction site cover (Jonathan's design, 2026-10-21): while a
+ * building is being built or upgraded, the map shows THIS instead of the
+ * building — a striped tarp draped over the footprint inside a wooden
+ * scaffold, a crane hook swaying gently overhead (sine, native driver),
+ * and a bobbing warning sign. Drawn with plain Views in the storybook
+ * palette — no emojis, no per-frame JS work.
+ */
+const ConstructionSiteArt = React.memo(function ConstructionSiteArt({ width, height }: { width: number; height: number }) {
+  const sway = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sway, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(sway, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sway]);
+  const hookDx = sway.interpolate({ inputRange: [0, 1], outputRange: [-width * 0.035, width * 0.035] });
+  const signDy = sway.interpolate({ inputRange: [0, 1], outputRange: [0, -2] });
+  const w = width;
+  const h = height;
+  const poleW = Math.max(4, w * 0.045);
+  return (
+    <View pointerEvents="none" style={{ width: w, height: h }}>
+      {/* ground shadow */}
+      <View style={{ position: "absolute", bottom: 0, left: w * 0.04, width: w * 0.92, height: Math.max(5, h * 0.05), backgroundColor: "#000000", opacity: 0.15, borderRadius: 999 }} />
+      {/* striped tarp draped over the footprint */}
+      <View style={{ position: "absolute", bottom: h * 0.04, left: w * 0.07, width: w * 0.86, height: h * 0.6, borderRadius: 7, overflow: "hidden", borderWidth: 2, borderColor: "#B45309" }}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <View key={i} style={{ flex: 1, backgroundColor: i % 2 === 0 ? "#F59E0B" : "#FEF3C7" }} />
+        ))}
+        {/* center seam + hem */}
+        <View style={{ position: "absolute", top: 0, bottom: 0, left: "49%", width: 2, backgroundColor: "#92400E", opacity: 0.35 }} />
+        <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: h * 0.07, backgroundColor: "#D97706", opacity: 0.55 }} />
+      </View>
+      {/* scaffold frame: two poles, top bar + mid bar, one diagonal brace */}
+      <View style={{ position: "absolute", bottom: h * 0.02, left: w * 0.015, width: poleW, height: h * 0.86, backgroundColor: "#92400E", borderRadius: 2 }} />
+      <View style={{ position: "absolute", bottom: h * 0.02, right: w * 0.015, width: poleW, height: h * 0.86, backgroundColor: "#92400E", borderRadius: 2 }} />
+      <View style={{ position: "absolute", top: h * 0.1, left: 0, width: w, height: poleW, backgroundColor: "#92400E", borderRadius: 2 }} />
+      <View style={{ position: "absolute", top: h * 0.42, left: 0, width: w, height: Math.max(3, poleW * 0.7), backgroundColor: "#B45309", borderRadius: 2, opacity: 0.9 }} />
+      <View style={{ position: "absolute", top: h * 0.3, left: w * 0.3, width: w * 0.55, height: Math.max(3, poleW * 0.6), backgroundColor: "#B45309", borderRadius: 2, opacity: 0.75, transform: [{ rotate: "24deg" }] }} />
+      {/* crane jib reaching in from the top-right, hook + crate swaying */}
+      <View style={{ position: "absolute", top: h * 0.02, right: 0, width: w * 0.42, height: poleW, backgroundColor: "#78350F", borderRadius: 2 }} />
+      <Animated.View style={{ position: "absolute", top: h * 0.045, right: w * 0.1, alignItems: "center", transform: [{ translateX: hookDx }] }}>
+        <View style={{ width: 2, height: h * 0.2, backgroundColor: "#57534E" }} />
+        <View style={{ width: Math.max(8, w * 0.09), height: Math.max(6, h * 0.055), backgroundColor: "#78716C", borderRadius: 2 }} />
+        <View style={{ width: Math.max(13, w * 0.15), height: Math.max(10, h * 0.09), backgroundColor: "#B45309", borderRadius: 2, borderWidth: 1.5, borderColor: "#92400E" }} />
+      </Animated.View>
+      {/* bobbing warning sign at the foot of the scaffold */}
+      <Animated.View style={{ position: "absolute", bottom: h * 0.05, left: w * 0.1, transform: [{ translateY: signDy }] }}>
+        <View style={{ width: Math.max(16, w * 0.17), height: Math.max(12, h * 0.11), backgroundColor: "#FBBF24", borderRadius: 3, borderWidth: 2, borderColor: "#92400E", alignItems: "center", justifyContent: "center" }}>
+          <View style={{ width: "62%", height: 2.5, backgroundColor: "#78350F", borderRadius: 1, marginBottom: 2 }} />
+          <View style={{ width: "42%", height: 2.5, backgroundColor: "#78350F", borderRadius: 1 }} />
+        </View>
+      </Animated.View>
+    </View>
+  );
+});
+
 /** Animated SVG primitives (for shimmer/glow loops inside Svg). */
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
@@ -4312,11 +4381,11 @@ export default function HometownScreen() {
     const buildings = townMap?.buildings ?? [];
     const unlocked = unlockedMapsRef.current;
     const availability: VillagerMissionAvailability = {
-      church: buildings.some((b) => b.type === "church"),
-      barbershop: buildings.some((b) => b.type === "barbershop"),
-      restaurant: buildings.some((b) => isRestaurantType(b.type)),
+      church: buildings.some((b) => b.type === "church" && !isUnderConstruction(b, nowMs)),
+      barbershop: buildings.some((b) => b.type === "barbershop" && !isUnderConstruction(b, nowMs)),
+      restaurant: buildings.some((b) => isRestaurantType(b.type) && !isUnderConstruction(b, nowMs)),
       garden: unlocked.includes("mall"),
-      bank: buildings.some((b) => b.type === "bank" || b.type === "bank-tower"),
+      bank: buildings.some((b) => (b.type === "bank" || b.type === "bank-tower") && !isUnderConstruction(b, nowMs)),
       well: true,
     };
     const res = spawnDueVillagerMissions({
@@ -4362,7 +4431,8 @@ export default function HometownScreen() {
   const findWorkTarget = useCallback(
     (kind: WorkKind): { tile: { x: number; y: number }; buildingId: string; type: string } | null => {
       const townState = townRef.current;
-      const buildings = townState?.maps.town?.buildings ?? [];
+      // Closed-for-construction buildings host no shifts.
+      const buildings = (townState?.maps.town?.buildings ?? []).filter((b) => !isUnderConstruction(b));
       const centerOf = (b: { x: number; y: number; level?: number; type: string; id: string }) => {
         const fp = buildingFootprint(b.level || 1, b.type as BuildingType);
         return {
@@ -4590,6 +4660,9 @@ export default function HometownScreen() {
         setTown((prev) => {
           const b = prev.maps.town.buildings.find((x) => x.id === targetId);
           if (!b) return prev;
+          // The target closed for construction mid-route: the box waits —
+          // no stock lands in a building that isn't open.
+          if (isUnderConstruction(b)) return prev;
           const level = b.level || 1;
           const cap = stockCapForLevel(level);
           const nowMs = Date.now();
@@ -5457,6 +5530,12 @@ export default function HometownScreen() {
           const updatedBuildings = m.buildings.map(b => {
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : Date.now();
             const minutesElapsed = Math.floor((Date.now() - lastTick) / 60000);
+            // Under construction: closed — no stock drain, no rate
+            // caching, no accrual. Advance lastTick so the finished
+            // building doesn't "earn" for its building time later.
+            if (isUnderConstruction(b, awayNow)) {
+              return { ...b, lastTick: now };
+            }
             if (isStockedBuildingType(b.type)) {
               const lvl = b.level || 1;
               const cur = currentStockForBuilding(stockRecord, stockAnchors, b.id, lvl, awayNow);
@@ -5671,6 +5750,8 @@ export default function HometownScreen() {
             if (!m) continue;
             for (const b of m.buildings) {
               if (!isStockedBuildingType(b.type)) continue;
+              // Closed for construction: shelves freeze while it builds.
+              if (isUnderConstruction(b, now)) continue;
               const level = b.level || 1;
               const cur = currentStockForBuilding(nextStock, nextAnchors, b.id, level, now);
               const stored = nextStock[b.id];
@@ -5697,10 +5778,20 @@ export default function HometownScreen() {
           if (!m) continue;
           // Live villager positions for presence-gated income.
           const positions = mapId === "city" ? cityNpcPositionsRef.current : townNpcPositionsRef.current;
-          const updatedBuildings = m.buildings.map((b) => {
+          const updatedBuildings = m.buildings.map((rawB) => {
+            // Settle finished construction first: the level flips and
+            // the stamps clear (persisted below via `changed`).
+            const b = settleBuilding(rawB, now);
+            if (b !== rawB) changed = true;
             const lastTick = b.lastTick ? new Date(b.lastTick).getTime() : now;
             const minutesElapsed = Math.floor((now - lastTick) / 60000);
             if (minutesElapsed <= 0) return b;
+            // Under construction: closed — no accrual; advance lastTick
+            // (persisted) so building time never converts into income.
+            if (isUnderConstruction(b, now)) {
+              changed = true;
+              return { ...b, lastTick: new Date(now).toISOString() };
+            }
             const rate = perMinuteRateRef.current[b.id];
             const perMin = rate ? rate.coins + rate.xp : 0;
             if (!rate || perMin <= 0) {
@@ -5777,7 +5868,7 @@ export default function HometownScreen() {
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${price.toFixed(2)} coins?`,
+      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${price.toFixed(2)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -5790,7 +5881,7 @@ export default function HometownScreen() {
               return;
             }
             const now = new Date().toISOString();
-            const building: PlacedBuilding = {
+            const building: PlacedBuilding = beginConstruction({
               id: `plot-${plot.id}-${Date.now()}`,
               type: plot.buildingType,
               x: plot.x,
@@ -5799,7 +5890,7 @@ export default function HometownScreen() {
               plotId: plot.id,
               lastTick: now,
               accumulated: 0,
-            };
+            }, 1, Date.now(), true);
             const nextPlots = [...purchasedPlots, plot.id];
             setPurchasedPlots(nextPlots);
             savePurchasedPlots(nextPlots);
@@ -5837,7 +5928,7 @@ export default function HometownScreen() {
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this campus plot for ${price.toFixed(2)} coins?`,
+      `${def.name}\n${def.description}\n\nPurchase this campus plot for ${price.toFixed(2)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -5850,7 +5941,7 @@ export default function HometownScreen() {
               return;
             }
             const now = new Date().toISOString();
-            const building: PlacedBuilding = {
+            const building: PlacedBuilding = beginConstruction({
               id: `campus-${plot.id}-${Date.now()}`,
               type: plot.buildingType,
               x: plot.x,
@@ -5859,7 +5950,7 @@ export default function HometownScreen() {
               campusPlotId: plot.id,
               lastTick: now,
               accumulated: 0,
-            };
+            }, 1, Date.now(), true);
             saveMap({ ...map, buildings: [...map.buildings, building] });
             addCoins(-price);
           },
@@ -6063,7 +6154,7 @@ export default function HometownScreen() {
       : "";
     Alert.alert(
       `${def.name} (Lv ${level}) — ${plot.name}`,
-      `${def.description}\n\nCurrently earns ${incomeLabelFor(b)}.\n${upgradeBlurb}${capacityBlurb}\n\nPlots can't be moved or sold.`,
+      `${def.description}\n\nCurrently earns ${incomeLabelFor(b)}.\n${upgradeBlurb}${capacityBlurb}\n\n${constructionTimeLabel(nextLevel, false)} — the building closes while it builds and reopens at Lv ${nextLevel}.\n\nPlots can't be moved or sold.`,
       [
         { text: "Cancel", style: "cancel" },
         ...enterActions,
@@ -6074,7 +6165,7 @@ export default function HometownScreen() {
               Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance.toFixed(2)}.`);
               return;
             }
-            const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: nextLevel } : x));
+            const updated = map.buildings.map(x => (x.id === b.id ? beginConstruction(x, nextLevel, Date.now()) : x));
             saveMap({ ...map, buildings: updated });
             addCoins(-cost);
           },
@@ -6149,7 +6240,7 @@ export default function HometownScreen() {
         return;
       }
       const now = new Date().toISOString();
-      const building: PlacedBuilding = {
+      const building: PlacedBuilding = beginConstruction({
         id: `townlot-${lot.id}-${Date.now()}`,
         type,
         x: lot.x,
@@ -6158,7 +6249,7 @@ export default function HometownScreen() {
         townLotId: lot.id,
         lastTick: now,
         accumulated: 0,
-      };
+      }, 1, Date.now(), true);
       saveTown({
         ...fresh,
         maps: {
@@ -6294,7 +6385,7 @@ export default function HometownScreen() {
     const level = Math.min(Math.max(b.level || 1, 1), 3);
     const now = Date.now();
     const upgradeBtn = level < 3 ? [{
-      text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`,
+      text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`,
       onPress: () => {
         const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
         if (coinsRef.current.balance < cost) {
@@ -6302,9 +6393,9 @@ export default function HometownScreen() {
           return;
         }
         addCoins(-cost);
-        const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+        const updated = map.buildings.map(x => (x.id === b.id ? beginConstruction(x, (level + 1) as 2 | 3, Date.now()) : x));
         saveMap({ ...map, buildings: updated });
-        Alert.alert("Community Garden", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "The greenhouse is ready — faster growth, richer harvests." : "More plots, better yields."}`);
+        Alert.alert("Community Garden", `Upgrade underway! The garden closes while the builders work — it reopens at level ${level + 1} in ${level + 1 === 2 ? "30 minutes" : "1 hour"}. ${level + 1 >= 3 ? "The greenhouse is coming — faster growth, richer harvests." : "More plots, better yields."}`);
       },
     }] : [];
     if (!gardenState.plantedAt) {
@@ -6452,11 +6543,11 @@ export default function HometownScreen() {
         return;
       }
       addCoins(-cost);
-      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      const updated = map.buildings.map(x => (x.id === b.id ? beginConstruction(x, (level + 1) as 2 | 3, Date.now()) : x));
       saveMap({ ...map, buildings: updated });
-      Alert.alert("Library", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A grand library — shelf upon shelf of wisdom." : "A quiet reading room grows."}`);
+      Alert.alert("Library", `Upgrade underway! The library closes while the builders work — it reopens at level ${level + 1} in ${level + 1 === 2 ? "30 minutes" : "1 hour"}. ${level + 1 >= 3 ? "A grand library is coming — shelf upon shelf of wisdom." : "A quiet reading room grows."}`);
     };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
     if (remaining > 0) {
       Alert.alert(
         "Library",
@@ -6501,11 +6592,11 @@ export default function HometownScreen() {
         return;
       }
       addCoins(-cost);
-      const updated = map.buildings.map(x => (x.id === b.id ? { ...x, level: (level + 1) as 2 | 3 } : x));
+      const updated = map.buildings.map(x => (x.id === b.id ? beginConstruction(x, (level + 1) as 2 | 3, Date.now()) : x));
       saveMap({ ...map, buildings: updated });
-      Alert.alert("Fountain Plaza", `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "A grand plaza — flowers ring the fountain." : "Benches in the shade, room to breathe."}`);
+      Alert.alert("Fountain Plaza", `Upgrade underway! The plaza closes while the builders work — it reopens at level ${level + 1} in ${level + 1 === 2 ? "30 minutes" : "1 hour"}. ${level + 1 >= 3 ? "A grand plaza is coming — flowers will ring the fountain." : "Benches in the shade, room to breathe."}`);
     };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)})`, onPress: doUpgrade }] : [];
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
     if (remaining > 0) {
       Alert.alert(
         "Fountain Plaza",
@@ -6685,7 +6776,29 @@ export default function HometownScreen() {
     setPopupBuilding(b);
   };
 
+  /** Tap a building under construction: it's a closed site — show what's
+   *  being built and how long is left instead of entering. */
+  const showConstructionStatus = (b: PlacedBuilding) => {
+    const def = BUILDINGS[b.type];
+    const target = b.constructionToLevel ?? 1;
+    const remaining = formatConstructionRemaining(constructionRemainingMs(b, Date.now()));
+    Alert.alert(
+      target <= 1 ? `${def.name} — Under Construction` : `${def.name} — Upgrading to Lv ${target}`,
+      target <= 1
+        ? `The builders are at work — scaffolding up, tarp down. ${def.name} opens in ${remaining}.`
+        : `${def.name} is closed while the builders work. It reopens at Lv ${target} in ${remaining}.`,
+      [{ text: "OK" }]
+    );
+  };
+
   const handleTilePress = (x: number, y: number) => {
+    // Construction sites are closed on every map: any tap on a building
+    // that's still being built/upgraded shows its status, nothing else.
+    const tappedBuilding = buildingAt(x, y);
+    if (tappedBuilding && isUnderConstruction(tappedBuilding, Date.now())) {
+      showConstructionStatus(tappedBuilding);
+      return;
+    }
     // City map: plots only — no free placement
     if (activeMap === "city") {
       const existing = buildingAt(x, y);
@@ -6903,7 +7016,7 @@ export default function HometownScreen() {
       Alert.alert("Already built", "You already have a Hero's house!");
       return;
     }
-    const building: PlacedBuilding = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 };
+    const building: PlacedBuilding = beginConstruction({ id: nextId(), type, x: selectedTile.x, y: selectedTile.y, level: 1 }, 1, Date.now(), true);
     saveMap({ ...map, buildings: [...map.buildings, building] });
     addCoins(-price);
     setSelectedTile(null);
@@ -7879,10 +7992,15 @@ export default function HometownScreen() {
           <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}>
           {/* Buildings overlay - buildings don't capture touches, coins do */}
           {map.buildings.map((b) => {
-            const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
+            // Construction: the site cover replaces the building's art
+            // until the timer completes; the level shown is the EFFECTIVE
+            // one (current while building, target the moment it's done).
+            const building = isUnderConstruction(b, nowMs);
+            const lvl = effectiveLevel(b, nowMs);
+            const fp = buildingFootprint(lvl, b.type, hasFixedFootprint(b));
             const baseSize = Math.min(fp.w, fp.h) * cellSize * 0.85;
             // Pseudo-3D: tall buildings extend their art above their square.
-            const extraPx = tallArtExtraCells(b.type, b.level || 1, b.floors || 1) * cellSize;
+            const extraPx = tallArtExtraCells(b.type, lvl, b.floors || 1) * cellSize;
             return (
               <View
                 key={`bldg-${b.id}`}
@@ -7899,14 +8017,26 @@ export default function HometownScreen() {
                   zIndex: Math.round((b.y + fp.h) * cellSize),
                 }}
               >
-                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={b.level || 1} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} night={isNight} />
+                {building ? (
+                  <>
+                    <ConstructionSiteArt width={fp.w * cellSize * 0.96} height={fp.h * cellSize + extraPx} />
+                    <View style={{ position: "absolute", bottom: 0, alignSelf: "center", flexDirection: "row", alignItems: "center", backgroundColor: "rgba(28,25,23,0.88)", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5 }}>
+                      <MaterialIcons name="construction" size={11} color="#FBBF24" />
+                      <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800", marginLeft: 3 }}>
+                        Ready in {formatConstructionRemaining(constructionRemainingMs(b, nowMs))}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                <>
+                <BuildingArtFX type={b.type} size={baseSize} artH={baseSize + extraPx} level={lvl} floors={b.floors || 1} prayedCount={b.type === "church" ? prayedToday : 0} blessed={b.type === "bell-tower" && bellRungDate === localDateStr()} night={isNight} />
                 {/* Ambient life: chimney smoke drifting from hearths
                     (deferred past first paint — see ambientReady) */}
                 {ambientReady && hasChimney(b.type) && (
                   <ChimneySmoke risePx={cellSize * 0.9} puffSize={Math.max(8, cellSize * 0.28)} />
                 )}
                 {/* L3 city towers glow with activity */}
-                {(b.level || 1) >= 3 && !!b.plotId && (
+                {lvl >= 3 && !!b.plotId && (
                   <View
                     pointerEvents="none"
                     style={{
@@ -7940,10 +8070,12 @@ export default function HometownScreen() {
                     }}
                   />
                 )}
-                {(b.level || 1) > 1 && (
+                {lvl > 1 && (
                   <Text style={{ fontSize: 10, color: "#F59E0B", fontWeight: "700" }}>
-                    {"★".repeat(b.level || 1)}
+                    {"★".repeat(lvl)}
                   </Text>
+                )}
+                </>
                 )}
               </View>
             );
@@ -8505,6 +8637,7 @@ export default function HometownScreen() {
                 <View style={{ marginLeft: 10, flex: 1 }}>
                   <Text style={{ fontWeight: "600", color: pt.text }}>{def.name}</Text>
                   <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>
+                  <Text style={{ fontSize: 11, color: pt.subtext }}>Builds in 1 min</Text>
                 </View>
                 <Text style={{ fontWeight: "700", color: pt.text }}>🪙{def.cost.toFixed(2)}</Text>
               </Pressable>
@@ -8745,7 +8878,7 @@ export default function HometownScreen() {
                   Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${coins.balance.toFixed(2)}.`);
                   return;
                 }
-                const updated = map.buildings.map(x => x.id === b.id ? { ...x, level: nextLevel } : x);
+                const updated = map.buildings.map(x => x.id === b.id ? beginConstruction(x, nextLevel, Date.now()) : x);
                 saveMap({ ...map, buildings: updated });
                 addCoins(-upgradeCost);
                 setPopupBuilding(null);
@@ -8915,7 +9048,7 @@ export default function HometownScreen() {
                         ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost.toFixed(2)}
                       </Text>
                       <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
-                        {incomeLabelFor(preview)}
+                        {incomeLabelFor(preview)} · {constructionTimeLabel(nextLevel, false)} — closes while building
                       </Text>
                     </Pressable>
                   )}
@@ -10038,7 +10171,7 @@ export default function HometownScreen() {
                       {lot.name}
                     </Text>
                     <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
-                      Unlock this plot and open the {def.name}. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
+                      Unlock this plot and open the {def.name}. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. Builds in 1 min once purchased.
                     </Text>
                     <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 14, borderRadius: 12, marginBottom: 12, backgroundColor: pt.bg, borderWidth: 1, borderColor: pt.border }}>
                       {lot.presetType === "banquet-table" ? (
@@ -10104,7 +10237,7 @@ export default function HometownScreen() {
                     {lot.name} — FOR SALE
                   </Text>
                   <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
-                    Purchase this lot for {scaledCoins(lot.cost).toFixed(2)} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded.
+                    Purchase this lot for {scaledCoins(lot.cost).toFixed(2)} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. New buildings take 1 min to build.
                   </Text>
                   <ScrollView style={{ maxHeight: 420 }}>
                     {groups.map((g) => {

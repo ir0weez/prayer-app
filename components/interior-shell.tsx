@@ -13,6 +13,8 @@ import {
   BUILDINGS,
   COINS_STORAGE_KEY,
   TOWN_STORAGE_KEY,
+  beginConstruction,
+  constructionTimeLabel,
   parseCoins,
   parseTown,
   prayedTodayPeople,
@@ -86,29 +88,53 @@ export function useInteriorData(): InteriorData {
   const def = building ? BUILDINGS[building.type as BuildingType] : null;
   const buildingName = def?.name ?? "Building";
 
+  const router = useRouter();
   const handleUpgrade = useCallback((upgradeBlurb: string) => {
     if (level >= 3 || !buildingId) return;
-    const cost = upgradeCostFor(building?.type as BuildingType, (level + 1) as 2 | 3);
+    const nextLevel = (level + 1) as 2 | 3;
+    const cost = upgradeCostFor(building?.type as BuildingType, nextLevel);
     if (coinsRef.current.balance < cost) {
       Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
       return;
     }
-    addCoins(-cost);
-    (async () => {
-      try {
-        const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
-        if (!townRaw) return;
-        const town = parseTown(JSON.parse(townRaw));
-        for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
-          const b = town.maps[mapId].buildings.find((x) => x.id === buildingId);
-          if (b) { b.level = (level + 1) as 2 | 3; break; }
-        }
-        await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
-        setBuilding((prev) => (prev ? { ...prev, level: (level + 1) as 2 | 3 } : prev));
-        Alert.alert(buildingName, `Upgraded to level ${level + 1}! ${upgradeBlurb}`);
-      } catch {}
-    })();
-  }, [level, buildingId, building?.type, buildingName, addCoins]);
+    // Upgrades are built, not instant (Jonathan's construction timers):
+    // the time is named BEFORE he commits, the building then closes under
+    // scaffolding and reopens at the new level when the timer completes.
+    Alert.alert(
+      `Upgrade to level ${nextLevel}?`,
+      `${cost.toFixed(2)} coins. ${constructionTimeLabel(nextLevel, false)} — ${buildingName} closes while it builds and reopens at level ${nextLevel}.\n\n${upgradeBlurb}`,
+      [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Start upgrade",
+          onPress: () => {
+            addCoins(-cost);
+            (async () => {
+              try {
+                const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+                if (!townRaw) return;
+                const town = parseTown(JSON.parse(townRaw));
+                for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+                  const idx = town.maps[mapId].buildings.findIndex((x) => x.id === buildingId);
+                  if (idx >= 0) {
+                    town.maps[mapId].buildings[idx] = beginConstruction(town.maps[mapId].buildings[idx], nextLevel, Date.now());
+                    break;
+                  }
+                }
+                await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
+                setBuilding((prev) => (prev ? beginConstruction(prev, nextLevel, Date.now()) : prev));
+                Alert.alert(
+                  buildingName,
+                  `Upgrade underway! The builders move in — ${buildingName} reopens at level ${nextLevel} in ${nextLevel === 2 ? "30 minutes" : "1 hour"}.`,
+                  [{ text: "Back to the map", onPress: () => router.back() }]
+                );
+              } catch {}
+            })();
+          },
+        },
+      ]
+    );
+  }, [level, buildingId, building?.type, buildingName, addCoins, router]);
 
   return { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade };
 }

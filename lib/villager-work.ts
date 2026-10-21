@@ -403,14 +403,18 @@ export const SUPPLY_RADIUS_TILES = 4;
  */
 export function staffedSupplySites(
   assignments: VillagerWorkAssignment[],
-  buildings: Array<{ x: number; y: number; type: string }>
+  buildings: Array<{ x: number; y: number; type: string; constructionEndsAt?: number }>,
+  nowMs: number = Date.now()
 ): Array<{ x: number; y: number }> {
   const out: Array<{ x: number; y: number }> = [];
   for (const a of assignments) {
     if (a.status !== "working") continue;
     const siteType = WORK_KINDS[a.kind]?.siteType;
     if (!siteType) continue;
-    const b = buildings.find((x) => x.type === siteType);
+    // A site under construction is closed — it supplies nothing until open.
+    const b = buildings.find(
+      (x) => x.type === siteType && !(typeof x.constructionEndsAt === "number" && nowMs < x.constructionEndsAt)
+    );
     if (b) out.push({ x: b.x, y: b.y });
   }
   return out;

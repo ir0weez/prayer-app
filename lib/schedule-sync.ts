@@ -33,6 +33,7 @@ import {
   BUILDINGS,
   buildingFootprint,
   isRestaurantType,
+  isUnderConstruction,
   type BuildingType,
   type PlacedBuilding,
 } from "./hometown";
@@ -286,10 +287,15 @@ function centerTile(b: PlacedBuilding): { x: number; y: number } {
  *  to the Music Room and Bible/Sunday-school titles to the Scripture
  *  Classroom when those campus rooms stand. */
 export function resolveScheduleTarget(
-  buildings: PlacedBuilding[],
+  allBuildings: PlacedBuilding[],
   kind: ScheduleActivityKind,
-  title?: string
+  title?: string,
+  nowMs: number = Date.now()
 ): ScheduleTarget | null {
+  // A building under construction is closed — it hosts no scene. The
+  // fallback chains below then land on the next open host (e.g. the
+  // church), exactly as if the closed building weren't built yet.
+  const buildings = allBuildings.filter((x) => !isUnderConstruction(x, nowMs));
   let b: PlacedBuilding | undefined;
   switch (kind) {
     case "restaurant":

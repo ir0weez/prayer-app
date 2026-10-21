@@ -19,6 +19,8 @@ import {
   prayedTodayPeople,
   scaledCoins,
   scaledXP,
+  beginConstruction,
+  constructionTimeLabel,
   upgradeCostFor,
   type HometownCoins,
   type PlacedBuilding,
@@ -767,26 +769,44 @@ export default function TheaterInteriorScreen() {
 
   const handleUpgrade = () => {
     if (level >= 3 || !buildingId) return;
-    const cost = upgradeCostFor(building?.type as any, (level + 1) as 2 | 3);
+    const nextLevel = (level + 1) as 2 | 3;
+    const cost = upgradeCostFor(building?.type as any, nextLevel);
     if (coinsRef.current.balance < cost) {
       Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
       return;
     }
-    addCoins(-cost);
-    (async () => {
-      try {
-        const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
-        if (!townRaw) return;
-        const town = parseTown(JSON.parse(townRaw));
-        for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
-          const b = town.maps[mapId].buildings.find((x) => x.id === buildingId);
-          if (b) { b.level = (level + 1) as 2 | 3; break; }
-        }
-        await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
-        setBuilding((prev) => (prev ? { ...prev, level: (level + 1) as 2 | 3 } : prev));
-        Alert.alert(name, `Upgraded to level ${level + 1}! ${level + 1 >= 3 ? "The grand stage glows — braziers lit, banners flying." : "A bigger stage, more voices."}`);
-      } catch {}
-    })();
+    // Construction timers: the time is named before he commits; the
+    // theater then closes under scaffolding and reopens at the new level.
+    Alert.alert(
+      `Upgrade to level ${nextLevel}?`,
+      `${cost.toFixed(2)} coins. ${constructionTimeLabel(nextLevel, false)} — the theater closes while it builds and reopens at level ${nextLevel}.\n\n${nextLevel >= 3 ? "The grand stage glows — braziers lit, banners flying." : "A bigger stage, more voices."}`,
+      [
+        { text: "Not yet", style: "cancel" },
+        {
+          text: "Start upgrade",
+          onPress: () => {
+            addCoins(-cost);
+            (async () => {
+              try {
+                const townRaw = await AsyncStorage.getItem(TOWN_STORAGE_KEY);
+                if (!townRaw) return;
+                const town = parseTown(JSON.parse(townRaw));
+                for (const mapId of Object.keys(town.maps) as Array<keyof typeof town.maps>) {
+                  const idx = town.maps[mapId].buildings.findIndex((x) => x.id === buildingId);
+                  if (idx >= 0) {
+                    town.maps[mapId].buildings[idx] = beginConstruction(town.maps[mapId].buildings[idx], nextLevel, Date.now());
+                    break;
+                  }
+                }
+                await AsyncStorage.setItem(TOWN_STORAGE_KEY, JSON.stringify(town));
+                setBuilding((prev) => (prev ? beginConstruction(prev, nextLevel, Date.now()) : prev));
+                Alert.alert(name, `Upgrade underway! The builders move in — the theater reopens at level ${nextLevel} in ${nextLevel === 2 ? "30 minutes" : "1 hour"}.`, [{ text: "Back to the map", onPress: () => router.back() }]);
+              } catch {}
+            })();
+          },
+        },
+      ]
+    );
   };
 
   return (

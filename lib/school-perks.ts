@@ -8,6 +8,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   TOWN_STORAGE_KEY,
+  isUnderConstruction,
   parseTown,
   type PlacedBuilding,
 } from "./hometown";
@@ -47,9 +48,12 @@ export const COLLECTIONS_MULT = 1.25;
 export const TRAINING_MULT_BASE = 1.1;
 export const TRAINING_MULT_GYMNASIUM = 1.2;
 
-/** Pure: derive the campus perks from a list of school-map buildings. */
-export function perksForSchoolBuildings(buildings: PlacedBuilding[]): SchoolPerks {
-  const find = (type: string) => buildings.find((b) => b.type === type);
+/** Pure: derive the campus perks from a list of school-map buildings.
+ *  A campus building under construction is closed — it grants no perk
+ *  until it opens (its level also only counts once it stands finished). */
+export function perksForSchoolBuildings(buildings: PlacedBuilding[], nowMs: number = Date.now()): SchoolPerks {
+  const find = (type: string) =>
+    buildings.find((b) => b.type === type && !isUnderConstruction(b, nowMs));
   const classroom = find("classroom");
   const classroomLevel = classroom
     ? Math.min(Math.max(classroom.level || 1, 1), 3)

@@ -7,6 +7,7 @@ import {
   COINS_STORAGE_KEY,
   parseCoins,
   isRestaurantType,
+  isUnderConstruction,
   type PlacedBuilding,
 } from "./hometown";
 import { getTimeOfDay } from "./daynight";
@@ -177,11 +178,14 @@ export type VillagerMissionAvailability = {
   well: boolean;
 };
 
-/** Find the town building a mission kind points at (null for off-map kinds). */
+/** Find the town building a mission kind points at (null for off-map kinds).
+ *  A building under construction is closed — missions never point at it. */
 export function findVillagerTargetBuilding(
   kind: VillagerMissionKind,
-  buildings: PlacedBuilding[]
+  allBuildings: PlacedBuilding[],
+  nowMs: number = Date.now()
 ): PlacedBuilding | null {
+  const buildings = allBuildings.filter((b) => !isUnderConstruction(b, nowMs));
   switch (kind) {
     case "church":
       return buildings.find((b) => b.type === "church") ?? null;

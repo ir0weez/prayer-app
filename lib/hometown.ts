@@ -954,17 +954,20 @@ export function applyRestockBox(stock: number, cap: number): number {
  * Returns null when nothing needs a box.
  */
 export function neediestStockedBuilding<
-  B extends { id: string; x: number; y: number; type: string; level?: number }
+  B extends { id: string; x: number; y: number; type: string; level?: number } & ConstructionFields
 >(
   buildings: B[],
   stockByBuilding: Record<string, number> | undefined,
-  from?: { x: number; y: number }
+  from?: { x: number; y: number },
+  nowMs: number = Date.now()
 ): B | null {
   let best: B | null = null;
   let bestRatio = Infinity;
   let bestDist = Infinity;
   for (const b of buildings) {
     if (!isStockedBuildingType(b.type)) continue;
+    // Closed for construction — a restock box can't be delivered there.
+    if (isUnderConstruction(b, nowMs)) continue;
     const level = b.level || 1;
     const cap = stockCapForLevel(level);
     const cur = stockForBuilding(stockByBuilding, b.id, level);
@@ -1071,17 +1074,18 @@ export function isGatheringTime(date: Date = new Date()): boolean {
   return (day === 1 || day === 3 || day === 5) && hour >= 18 && hour < 20;
 }
 
-/** Total gathering capacity across all purchased restaurants. */
-export function totalGatherCapacity(buildings: PlacedBuilding[]): number {
+/** Total gathering capacity across all purchased restaurants. A restaurant
+ *  under construction is closed — it hosts no gathering. */
+export function totalGatherCapacity(buildings: PlacedBuilding[], nowMs: number = Date.now()): number {
   return buildings
-    .filter((b) => isRestaurantType(b.type) && b.plotId)
+    .filter((b) => isRestaurantType(b.type) && b.plotId && !isUnderConstruction(b, nowMs))
     .reduce((sum, b) => sum + (RESTAURANT_GATHER_CAPS[b.level || 1] ?? 10), 0);
 }
 
 /** Fellowship rate = the rate of the highest-level restaurant (the flagship). */
-export function fellowshipRate(buildings: PlacedBuilding[]): number {
+export function fellowshipRate(buildings: PlacedBuilding[], nowMs: number = Date.now()): number {
   const levels = buildings
-    .filter((b) => isRestaurantType(b.type) && b.plotId)
+    .filter((b) => isRestaurantType(b.type) && b.plotId && !isUnderConstruction(b, nowMs))
     .map((b) => b.level || 1);
   if (levels.length === 0) return 0;
   const best = Math.max(...levels);
@@ -2325,11 +2329,143 @@ export type PlacedBuilding = {
   workers?: number; // hired townsfolk (0-3), each +10% output
   accumulated?: number;
   lastTick?: string;
+  /** Construction (2026-10-21, Jonathan's design): epoch ms when the
+   *  building currently being built/upgraded finishes. Absent = not under
+   *  construction — every record saved before construction existed has no
+   *  field and is grandfathered as complete. While now < this timestamp
+   *  the building is CLOSED (no income, no scenes, no entry). */
+  constructionEndsAt?: number;
+  /** The level the building reaches when construction completes (1 for a
+   *  brand-new build). `level` itself stays at the CURRENT level until
+   *  completion — see settleBuilding. */
+  constructionToLevel?: number;
   /** NPC bank-visit bonus tracking: count of visit bonuses in the current hour bucket. */
   visitBonusCount?: number;
   /** Hour bucket (YYYY-MM-DDTHH) for visitBonusCount — max 5 visit bonuses per bank per hour. */
   visitBonusHour?: string;
 };
+
+// ---- Construction timers (Jonathan's design, 2026-10-21) ----
+// Nothing in Hometown appears instantly anymore: a NEW building takes
+// 1 minute to build, an upgrade to Level 2 takes 30 minutes, and an
+// upgrade to Level 3 takes 1 hour. His ladder only names levels 1–3;
+// levels beyond 3 (houses run to 5) take 1 hour flat per level.
+// There are NO background timers: the end timestamp lives on the building
+// record and completion is computed lazily wherever state is read
+// (parseTown settles finished work on load; the map settles on its tick).
+
+export const CONSTRUCTION_NEW_MS = 60 * 1000; // 1 minute
+export const CONSTRUCTION_UPGRADE_L2_MS = 30 * 60 * 1000; // 30 minutes
+export const CONSTRUCTION_UPGRADE_L3_MS = 60 * 60 * 1000; // 1 hour
+/** Upgrades beyond level 3: 1 hour flat per level (his ladder names 1–3). */
+export const CONSTRUCTION_UPGRADE_BEYOND_MS = 60 * 60 * 1000;
+
+/** How long construction takes: a brand-new build, or an upgrade TO a level. */
+export function constructionDurationMs(toLevel: number, isNew: boolean): number {
+  if (isNew) return CONSTRUCTION_NEW_MS;
+  if (toLevel <= 2) return CONSTRUCTION_UPGRADE_L2_MS;
+  if (toLevel === 3) return CONSTRUCTION_UPGRADE_L3_MS;
+  return CONSTRUCTION_UPGRADE_BEYOND_MS;
+}
+
+/** Player-facing duration line for purchase/upgrade sheets. */
+export function constructionTimeLabel(toLevel: number, isNew: boolean): string {
+  const ms = constructionDurationMs(toLevel, isNew);
+  if (ms === CONSTRUCTION_NEW_MS) return isNew ? "Builds in 1 min" : "Takes 1 min";
+  if (ms === CONSTRUCTION_UPGRADE_L2_MS) return "Takes 30 min";
+  return "Takes 1 hr";
+}
+
+export type ConstructionFields = {
+  constructionEndsAt?: number;
+  constructionToLevel?: number;
+};
+
+/** True while the building is a closed construction site. Records without
+ *  the field (everything saved before this shipped) are never under
+ *  construction — existing buildings are grandfathered. */
+export function isUnderConstruction(b: ConstructionFields, nowMs: number = Date.now()): boolean {
+  return typeof b.constructionEndsAt === "number" && nowMs < b.constructionEndsAt;
+}
+
+/** True when a construction timestamp exists but has passed — the work is
+ *  done and the record just hasn't been settled yet. */
+export function constructionComplete(b: ConstructionFields, nowMs: number = Date.now()): boolean {
+  return typeof b.constructionEndsAt === "number" && nowMs >= b.constructionEndsAt;
+}
+
+/** Milliseconds left on the clock (0 when not building / already done). */
+export function constructionRemainingMs(b: ConstructionFields, nowMs: number = Date.now()): number {
+  if (typeof b.constructionEndsAt !== "number") return 0;
+  return Math.max(0, b.constructionEndsAt - nowMs);
+}
+
+/** The level a building effectively stands at right now: the target level
+ *  once construction has finished, the current level while it builds (and
+ *  for every building not under construction). */
+export function effectiveLevel(b: PlacedBuilding, nowMs: number = Date.now()): number {
+  if (constructionComplete(b, nowMs)) return b.constructionToLevel ?? b.level ?? 1;
+  return b.level ?? 1;
+}
+
+/** Stamp a construction window directly (end timestamp + level reached). */
+export function stampConstruction(b: PlacedBuilding, endsAt: number, toLevel: number): PlacedBuilding {
+  return { ...b, constructionEndsAt: endsAt, constructionToLevel: toLevel };
+}
+
+/**
+ * Start construction on a building record: stamps the end timestamp and
+ * the target level. `level` is NOT changed — it flips only when the work
+ * completes (settleBuilding). For a brand-new building pass its fresh L1
+ * record with toLevel = 1 and isNew = true.
+ */
+export function beginConstruction(
+  b: PlacedBuilding,
+  toLevel: number,
+  nowMs: number = Date.now(),
+  isNew: boolean = false
+): PlacedBuilding {
+  return stampConstruction(b, nowMs + constructionDurationMs(toLevel, isNew), toLevel);
+}
+
+/** Apply finished construction: level flips to the target, stamps clear.
+ *  Returns the same object when nothing changed (safe in render loops). */
+export function settleBuilding(b: PlacedBuilding, nowMs: number = Date.now()): PlacedBuilding {
+  if (!constructionComplete(b, nowMs)) return b;
+  const { constructionEndsAt: _e, constructionToLevel: _t, ...rest } = b;
+  return { ...rest, level: (b.constructionToLevel ?? b.level ?? 1) as PlacedBuilding["level"] };
+}
+
+/** Settle every building on every map (load-time grandfather/settle pass). */
+export function settleTownState(town: TownState, nowMs: number = Date.now()): TownState {
+  let changed = false;
+  const maps = { ...town.maps };
+  for (const id of TOWN_MAP_IDS) {
+    const m = maps[id];
+    if (!m) continue;
+    let mapChanged = false;
+    const buildings = m.buildings.map((b) => {
+      const s = settleBuilding(b, nowMs);
+      if (s !== b) mapChanged = true;
+      return s;
+    });
+    if (mapChanged) {
+      maps[id] = { ...m, buildings };
+      changed = true;
+    }
+  }
+  return changed ? { ...town, maps } : town;
+}
+
+/** Countdown text for the map chip: "12:34" under an hour, "1:05" above. */
+export function formatConstructionRemaining(ms: number): string {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export type PlacedDecoration = {
   id: string;
@@ -2465,7 +2601,7 @@ export function parseTown(value: unknown): TownState {
   // New multi-map format
   if (t.maps && typeof t.maps === "object") {
     const raw = t.maps as Partial<Record<TownMapId, unknown>>;
-    return {
+    return settleTownState({
       maps: {
         town: ensureTownNeighborhood(parseMapState(raw.town)),
         city: ensureCityStreets(parseMapState(raw.city)),
@@ -2480,10 +2616,10 @@ export function parseTown(value: unknown): TownState {
       stockByBuilding,
       stockAnchorsByBuilding,
       stockedDateByBuilding,
-    };
+    });
   }
   // Old single-map format: migrate everything into the town map
-  return {
+  return settleTownState({
     maps: {
       town: ensureTownNeighborhood(parseMapState({ buildings: t.buildings, decorations: t.decorations, roads: t.roads })),
       city: ensureCityStreets(emptyMapState()),
@@ -2498,7 +2634,7 @@ export function parseTown(value: unknown): TownState {
     stockByBuilding,
     stockAnchorsByBuilding,
     stockedDateByBuilding,
-  };
+  });
 }
 /**
  * Highest level of any placed building of the given type across all maps.
@@ -2800,6 +2936,8 @@ export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult
   if (!mapHasPopulation(map, town)) return 0;
   const popMult = populationMult(prayedCount);
   return map.buildings.reduce((sum, b) => {
+    // A building under construction is closed: it earns nothing.
+    if (isUnderConstruction(b, nowMs)) return sum;
     const base = effectiveIncomeFor(b);
     const floorMult = b.type === "bank-tower" ? bankFloorMultiplier(b.floors || 1) : 1;
     // Stocked switch (best effort from persisted state): the estimate
@@ -2821,16 +2959,19 @@ export function dailyIncomeForMap(map: MapState, town?: TownState, milestoneMult
   }, 0);
 }
 
-export function dailyXPForMap(map: MapState): number {
-  return map.buildings.reduce((sum, b) => sum + xpIncomeFor(b.type, b.level || 1) * workerMult(b), 0);
+export function dailyXPForMap(map: MapState, nowMs: number = Date.now()): number {
+  return map.buildings.reduce(
+    (sum, b) => sum + (isUnderConstruction(b, nowMs) ? 0 : xpIncomeFor(b.type, b.level || 1) * workerMult(b)),
+    0
+  );
 }
 
 export function dailyIncomeForTown(town: TownState, milestoneMult: number = 1, houseMult: number = 1, fellowshipBonus: number = 1, prayedCount: number = 0, remembranceBonus: number = 1, gardenVisitBonus: number = 1, prestigeMult: number = 1, nowMs: number = Date.now()): number {
   return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyIncomeForMap(town.maps[id], town, milestoneMult, fellowshipBonus, prayedCount, remembranceBonus, gardenVisitBonus, prestigeMult, nowMs), 0) * houseMult;
 }
 
-export function dailyXPForTown(town: TownState): number {
-  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyXPForMap(town.maps[id]), 0);
+export function dailyXPForTown(town: TownState, nowMs: number = Date.now()): number {
+  return TOWN_MAP_IDS.reduce((sum, id) => sum + dailyXPForMap(town.maps[id], nowMs), 0);
 }
 
 // ---- Pawn House Interior ----

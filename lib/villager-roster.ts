@@ -15,6 +15,7 @@
 import {
   BUILDINGS,
   isRestaurantType,
+  isUnderConstruction,
   missionCountdown,
   missionStatus,
   scaledCoins,
@@ -41,8 +42,10 @@ export type WorkSite = {
   buildingName: string;
 };
 
-export function workSiteFor(kind: WorkKind, townBuildings: PlacedBuilding[]): WorkSite | null {
-  const first = (pred: (b: PlacedBuilding) => boolean) => townBuildings.find(pred);
+export function workSiteFor(kind: WorkKind, townBuildings: PlacedBuilding[], nowMs: number = Date.now()): WorkSite | null {
+  // A building under construction is closed — no shifts are hosted there.
+  const first = (pred: (b: PlacedBuilding) => boolean) =>
+    townBuildings.find((b) => pred(b) && !isUnderConstruction(b, nowMs));
   let site: PlacedBuilding | undefined;
   switch (kind) {
     case "clean-garden":

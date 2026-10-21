@@ -4,6 +4,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { badgeGearMultipliers, getCachedBadges } from "./badges";
+import { getCachedStatBoosts } from "./character-stats";
 
 export type GearType = "clothes" | "armor" | "weapon" | "tool";
 
@@ -897,7 +898,14 @@ export type CombatStats = {
   defense: number;
   /** max hit points */
   maxHp: number;
+  /** chance each hero strike lands critical (0-1) */
+  critChance: number;
 };
+
+/** Critical chance every hero carries before Zeal (character stats). */
+export const BASE_CRIT_CHANCE = 0.12;
+/** A critical hit deals this multiple of normal strike damage. */
+export const CRIT_DAMAGE_MULT = 1.5;
 
 /**
  * Combat power derived from equipped gear. Bare-handed faith still counts
@@ -917,5 +925,15 @@ export function combatStats(equipped: EquippedGear): CombatStats {
   );
   const hearts =
     (armor?.boost.hearts || 0) + (clothes?.boost.hearts || 0) + (weapon?.boost.hearts || 0);
-  return { attack, defense, maxHp: 100 + Math.round(hearts * 20 * bm.all * bm.maxHp) };
+  // Character combat stats (lib/character-stats: Valor/Resolve/Vigor/Zeal)
+  // add FLAT on top of the badge-multiplied gear — badges empower gear,
+  // the character's own growth is his own, and the Character screen's
+  // "+2 attack per point" stays literally true at every badge count.
+  const sb = getCachedStatBoosts();
+  return {
+    attack: attack + sb.combatAttack,
+    defense: defense + sb.combatDefense,
+    maxHp: 100 + Math.round(hearts * 20 * bm.all * bm.maxHp) + sb.combatHp,
+    critChance: BASE_CRIT_CHANCE + sb.critChance,
+  };
 }

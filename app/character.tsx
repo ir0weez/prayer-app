@@ -152,13 +152,24 @@ export default function CharacterScreen() {
         {/* Stats */}
         {stats &&
           STAT_DEFS.map((def) => (
-            <StatRow
-              key={def.id}
-              statId={def.id}
-              value={stats[def.id]}
-              canAllocate={points > 0}
-              onAllocate={() => handleAllocate(def.id)}
-            />
+            <View key={def.id}>
+              {def.id === "valor" && (
+                <>
+                  <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "800", marginTop: 12, marginBottom: 4 }}>
+                    Combat
+                  </Text>
+                  <Text style={{ color: LABEL, fontSize: 12, marginBottom: 12 }}>
+                    For the Dark Forest. Same points — spend them here and the devotion stats above wait.
+                  </Text>
+                </>
+              )}
+              <StatRow
+                statId={def.id}
+                value={stats[def.id]}
+                canAllocate={points > 0}
+                onAllocate={() => handleAllocate(def.id)}
+              />
+            </View>
           ))}
 
         {/* Perks */}

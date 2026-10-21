@@ -31,7 +31,7 @@
 // Victory earns a permanent badge and clears the gate for that offer.
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { PersonalFast } from "./prayercircle-fasting";
+import { getFastEndDate, type PersonalFast } from "./prayercircle-fasting";
 import {
   CITY_PLOTS_STORAGE_KEY,
   COINS_STORAGE_KEY,
@@ -261,6 +261,44 @@ export function cityExists(prestigeLevel: number): boolean {
 /** Whether the Boss Gate is cleared for this offer (boss beaten). */
 export function offerBossCleared(state: PrestigeState, offer: PrestigeOffer | null): boolean {
   return !!offer && state.bossClearedFastId === offer.fastId;
+}
+
+export type BossGateVisibility = {
+  /** Whether the Boss Gate panel shows in the Dark Forest. */
+  visible: boolean;
+  /**
+   * ISO date (YYYY-MM-DD) the gate opens — the offer fast's final day —
+   * when an offer exists but its time hasn't come. Null when there is no
+   * offer at all (nothing to wait for).
+   */
+  opensOn: string | null;
+};
+
+/**
+ * When the Dark Forest may show the Boss Gate. Jonathan's rule: the boss
+ * stays hidden until the fast reaches its LAST DAY — then the gate shows
+ * for that final day and stays up while the offer is pending (fast ended,
+ * prestige unclaimed), until he prestiges or a longer new fast becomes
+ * the offer. Mid-fast the gate is hidden; opensOn names the date it opens.
+ *
+ * "Last day" uses the fast's own calendar math (getFastEndDate: startDate
+ * + durationDays - 1, the same day the fast itself counts as its final
+ * day), compared as ISO day strings against local today.
+ */
+export function bossGateVisibility(
+  fasts: PersonalFast[],
+  state: PrestigeState,
+  todayIso: string
+): BossGateVisibility {
+  const offer = prestigeOffer(fasts, state);
+  if (!offer) return { visible: false, opensOn: null };
+  const fast = Array.isArray(fasts) ? fasts.find((f) => f.id === offer.fastId) : undefined;
+  if (!fast) return { visible: false, opensOn: null };
+  const endDate = getFastEndDate(fast);
+  // today >= the fast's final day: either the last day itself (the fast
+  // is still running) or any day after (the offer stands pending).
+  if (todayIso >= endDate) return { visible: true, opensOn: endDate };
+  return { visible: false, opensOn: endDate };
 }
 
 /**

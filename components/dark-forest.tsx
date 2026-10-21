@@ -13,7 +13,7 @@ import { ArmorShapes, HeroBeard, HeroHair, PixelSprite, TierGlow, WeaponShapes, 
 import { BADGE_BY_ID, type BossDef } from "@/lib/badges";
 import { loadForestEnergy, spendForestEnergy, type ForestEnergy } from "@/lib/forest-energy";
 import { BadgeMedallion } from "@/components/badge-case";
-import type { CombatStats } from "@/lib/gear";
+import { BASE_CRIT_CHANCE, CRIT_DAMAGE_MULT, type CombatStats } from "@/lib/gear";
 import type { PawnBeardStyle, PawnBodyStyle, PawnHairStyle } from "@/lib/pawn";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 
@@ -47,12 +47,31 @@ export type DarkForestProps = {
   onVictory: (wave: number) => void;
   /** The Boss Gate (prestige): set while a prestige offer is active. */
   bossGate?: { boss: BossDef; cleared: boolean } | null;
+  /**
+   * When the gate is hidden because the offer fast hasn't reached its
+   * last day, the ISO date (YYYY-MM-DD) it opens — the select panel
+   * shows one quiet line in the gate's place. Undefined/null = no offer
+   * is waiting, so nothing renders.
+   */
+  bossGateOpensOn?: string | null;
   /** Fired once when a boss fight is won. Badge + gate handled host-side. */
   onBossVictory?: (boss: BossDef) => void;
 };
 
 const SCENE_W = 360;
 const SCENE_H = 500;
+
+const GATE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Oct 24" from an ISO day string — parsed by hand, never via Date, so
+ *  no timezone can shift the day. Null when the string isn't ISO. */
+function gateOpensLabel(iso: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return null;
+  const month = GATE_MONTHS[Number(m[2]) - 1];
+  if (!month) return null;
+  return `${month} ${Number(m[3])}`;
+}
 
 
 
@@ -401,7 +420,7 @@ function ZoneScenery({ zone }: { zone: ForestZone }) {
 /* Floating damage numbers.                                            */
 /* ------------------------------------------------------------------ */
 
-function FloatText({ text, color, onDone }: { text: string; color: string; onDone: () => void }) {
+function FloatText({ text, color, crit = false, onDone }: { text: string; color: string; crit?: boolean; onDone: () => void }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const t = Animated.timing(anim, { toValue: 1, duration: 850, easing: Easing.out(Easing.quad), useNativeDriver: true });
@@ -410,9 +429,12 @@ function FloatText({ text, color, onDone }: { text: string; color: string; onDon
   }, [anim, onDone]);
   const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -46] });
   const opacity = anim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
+  // A critical hit pulses: the number swells past full size and settles
+  // as it rises — one sine-like swell, no bounce.
+  const scale = anim.interpolate({ inputRange: [0, 0.22, 1], outputRange: crit ? [0.55, 1.22, 1] : [1, 1, 1] });
   return (
-    <Animated.View pointerEvents="none" style={{ position: "absolute", transform: [{ translateY }], opacity }}>
-      <Text style={{ color, fontWeight: "900", fontSize: 20, textShadowColor: "#000", textShadowRadius: 4 }}>{text}</Text>
+    <Animated.View pointerEvents="none" style={{ position: "absolute", transform: [{ translateY }, { scale }], opacity }}>
+      <Text style={{ color, fontWeight: "900", fontSize: crit ? 25 : 20, textShadowColor: "#000", textShadowRadius: 4 }}>{text}</Text>
     </Animated.View>
   );
 }
@@ -578,11 +600,11 @@ const EnergyFlames = memo(function EnergyFlames({ energy, max, cap, size, snuff,
 /* ------------------------------------------------------------------ */
 
 type Phase = "select" | "fight" | "victory" | "defeat";
-type FloatItem = { id: number; text: string; color: string; side: "left" | "right" };
+type FloatItem = { id: number; text: string; color: string; side: "left" | "right"; crit?: boolean };
 
 let floatId = 0;
 
-export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, bossGate = null, onBossVictory }: DarkForestProps) {
+export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10, forest, tunicColor, armorId, weaponId, hairStyle = "short", hairColor = "#111827", beardStyle = "none", beardLength = 0, bodyStyle = "pebble", timeOfDay, pt, onVictory, bossGate = null, bossGateOpensOn = null, onBossVictory }: DarkForestProps) {
   const [phase, setPhase] = useState<Phase>("select");
   const [wave, setWave] = useState(1);
   const [playerHp, setPlayerHp] = useState(stats.maxHp);
@@ -637,9 +659,9 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  const pushFloat = (text: string, color: string, side: "left" | "right") => {
+  const pushFloat = (text: string, color: string, side: "left" | "right", crit = false) => {
     const id = ++floatId;
-    setFloats((f) => [...f.slice(-5), { id, text, color, side }]);
+    setFloats((f) => [...f.slice(-5), { id, text, color, side, crit }]);
   };
   const dropFloat = (id: number) => setFloats((f) => f.filter((x) => x.id !== id));
 
@@ -712,9 +734,11 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
     setBusy(true);
     animateSword();
     flashDemon();
-    const crit = Math.random() < 0.12;
-    const dmg = Math.max(1, Math.round(stats.attack * (0.9 + Math.random() * 0.2) * (crit ? 1.6 : 1)));
-    pushFloat(crit ? `${dmg}!` : `${dmg}`, crit ? "#FDE68A" : "#FFFFFF", "right");
+    // Critical: chance from combat stats (base + Zeal), 150% damage,
+    // announced in gold with a pulse (see FloatText's crit swell).
+    const crit = Math.random() < (stats.critChance ?? BASE_CRIT_CHANCE);
+    const dmg = Math.max(1, Math.round(stats.attack * (0.9 + Math.random() * 0.2) * (crit ? CRIT_DAMAGE_MULT : 1)));
+    pushFloat(crit ? `CRIT ${dmg}!` : `${dmg}`, crit ? "#FDE68A" : "#FFFFFF", "right", crit);
     const newDemonHp = Math.max(0, demonHp - dmg);
     setDemonHp(newDemonHp);
 
@@ -896,7 +920,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
               {/* floating damage numbers */}
               {floats.map((f) => (
                 <View key={f.id} style={{ position: "absolute", left: f.side === "left" ? 70 : 236, top: 236 }}>
-                  <FloatText text={f.text} color={f.color} onDone={() => dropFloat(f.id)} />
+                  <FloatText text={f.text} color={f.color} crit={f.crit} onDone={() => dropFloat(f.id)} />
                 </View>
               ))}
             </>
@@ -1087,6 +1111,20 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
           </View>
         );
       })()}
+      {/* Gate shut until the fast's last day: one quiet line in its
+          place (host passes bossGateOpensOn only when an offer waits). */}
+      {phase === "select" && !bossGate && bossGateOpensOn && (() => {
+        const label = gateOpensLabel(bossGateOpensOn);
+        return (
+          <View style={{ width: SCENE_W, alignSelf: "center", marginTop: 10, paddingHorizontal: 12 }}>
+            <Text style={{ color: "rgba(199,210,254,0.6)", fontSize: 12, textAlign: "center", fontStyle: "italic" }}>
+              {label
+                ? `The Boss Gate opens ${label} — the last day of your fast.`
+                : "The Boss Gate opens on the last day of your fast."}
+            </Text>
+          </View>
+        );
+      })()}
       {/* Level select — normal flow under the scene: the current level
           up front, earlier levels behind one replay disclosure. The card
           grows with its content and the page scrolls; nothing overlaps. */}
@@ -1104,7 +1142,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
             </View>
           )}
           <Text style={{ color: "#C7D2FE", fontSize: 12, textAlign: "center", marginBottom: trainingBonus ? 2 : 8 }}>
-            Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP — your gear is your strength.
+            Attack {stats.attack} · Defense {stats.defense} · {stats.maxHp} HP · {Math.round((stats.critChance ?? BASE_CRIT_CHANCE) * 100)}% crit — your strength for the forest.
           </Text>
           {trainingBonus && (
             <Text style={{ color: "#F2C14E", fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 8 }}>

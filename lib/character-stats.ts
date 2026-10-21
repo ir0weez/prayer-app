@@ -1,8 +1,10 @@
 /**
  * Character stats system — Fallout-style SPECIAL, prayer-themed.
  *
- * 7 stats (Faith, Wisdom, Discipline, Generosity, Endurance, Charisma, Devotion),
- * each 1-10 starting at 1. 1 stat point is earned per XP level-up.
+ * 11 stats: 7 devotion stats (Faith, Wisdom, Discipline, Generosity,
+ * Endurance, Charisma, Devotion) and 4 combat stats (Valor, Resolve,
+ * Vigor, Zeal) that feed the Dark Forest fights. Each 1-10 starting at 1,
+ * all drawing on ONE shared pool: 1 stat point is earned per XP level-up.
  * Stats grant passive boosts; perks unlock at thresholds 5 and 8.
  */
 
@@ -13,7 +15,11 @@ export type StatId =
   | "generosity"
   | "endurance"
   | "charisma"
-  | "devotion";
+  | "devotion"
+  | "valor"
+  | "resolve"
+  | "vigor"
+  | "zeal";
 
 export type CharacterStats = Record<StatId, number>;
 
@@ -25,7 +31,14 @@ export const STAT_IDS: StatId[] = [
   "endurance",
   "charisma",
   "devotion",
+  "valor",
+  "resolve",
+  "vigor",
+  "zeal",
 ];
+
+/** The four combat stats — they shape Dark Forest / Boss Gate fights. */
+export const COMBAT_STAT_IDS: StatId[] = ["valor", "resolve", "vigor", "zeal"];
 
 export const MAX_STAT = 10;
 
@@ -94,6 +107,38 @@ export const STAT_DEFS: StatDef[] = [
     color: "#2DD4BF",
     description: "Set apart, growing daily.",
     effectLabel: "+5% hair & beard growth per point",
+  },
+  {
+    id: "valor",
+    name: "Valor",
+    icon: "military-tech",
+    color: "#F87171",
+    description: "Strength for the fight.",
+    effectLabel: "+2 attack per point",
+  },
+  {
+    id: "resolve",
+    name: "Resolve",
+    icon: "security",
+    color: "#94A3B8",
+    description: "Steadfast under attack.",
+    effectLabel: "+2 defense per point",
+  },
+  {
+    id: "vigor",
+    name: "Vigor",
+    icon: "directions-run",
+    color: "#A3E635",
+    description: "Built to outlast.",
+    effectLabel: "+15 combat HP per point",
+  },
+  {
+    id: "zeal",
+    name: "Zeal",
+    icon: "whatshot",
+    color: "#E879F9",
+    description: "Strikes that break through.",
+    effectLabel: "+1.5% critical chance per point",
   },
 ];
 
@@ -176,6 +221,10 @@ export const DEFAULT_STATS: CharacterStats = {
   endurance: 1,
   charisma: 1,
   devotion: 1,
+  valor: 1,
+  resolve: 1,
+  vigor: 1,
+  zeal: 1,
 };
 
 function normalizeStats(value: unknown): CharacterStats {
@@ -258,6 +307,16 @@ export async function grantStatPointsForLevel(level: number): Promise<number> {
   return next.available;
 }
 
+/**
+ * Points spent above the base 1, summed across ALL stats (devotion and
+ * combat alike) — the shared pool's total outflow. Pure; the pool itself
+ * is enforced by allocateStatPoint's available-points check.
+ */
+export function totalAllocatedPoints(stats: CharacterStats): number {
+  const s = normalizeStats(stats);
+  return STAT_IDS.reduce((sum, id) => sum + Math.max(0, s[id] - 1), 0);
+}
+
 /** Spend one available point on a stat (if below max). Returns success. */
 export async function allocateStatPoint(stat: StatId): Promise<boolean> {
   const [stats, points] = await Promise.all([loadStats(), loadPointsState()]);
@@ -285,6 +344,14 @@ export function isPerkActive(stats: CharacterStats, perkId: string): boolean {
 // Boost computation (cached sync access, same pattern as gear boosts)
 // ---------------------------------------------------------------------------
 
+// Combat stat rates — per POINT of the stat (the base 1 counts, like the
+// label on the Character screen says). lib/gear's combatStats adds these
+// flat on top of the badge-multiplied gear values.
+export const VALOR_ATTACK_PER_POINT = 2;
+export const RESOLVE_DEFENSE_PER_POINT = 2;
+export const VIGOR_HP_PER_POINT = 15;
+export const ZEAL_CRIT_PER_POINT = 0.015;
+
 export type StatBoosts = {
   prayerXpMult: number;
   bibleXpMult: number;
@@ -294,6 +361,14 @@ export type StatBoosts = {
   growthMult: number;
   graceDaysPerMonth: number;
   intercessor: boolean;
+  /** Flat Dark Forest attack from Valor. */
+  combatAttack: number;
+  /** Flat Dark Forest defense from Resolve. */
+  combatDefense: number;
+  /** Flat Dark Forest max HP from Vigor. */
+  combatHp: number;
+  /** Critical-hit chance from Zeal (fraction; gear adds the base chance). */
+  critChance: number;
 };
 
 const ZERO_BOOSTS: StatBoosts = {
@@ -305,6 +380,10 @@ const ZERO_BOOSTS: StatBoosts = {
   growthMult: 0,
   graceDaysPerMonth: 0,
   intercessor: false,
+  combatAttack: 0,
+  combatDefense: 0,
+  combatHp: 0,
+  critChance: 0,
 };
 
 let cachedStatBoosts: StatBoosts = { ...ZERO_BOOSTS };
@@ -326,6 +405,10 @@ export function computeStatBoosts(stats: CharacterStats): StatBoosts {
     growthMult: (s.devotion - 1) * 0.05,
     graceDaysPerMonth: (s.discipline - 1) + (has("unshakeable") ? 2 : 0),
     intercessor: has("intercessor"),
+    combatAttack: s.valor * VALOR_ATTACK_PER_POINT,
+    combatDefense: s.resolve * RESOLVE_DEFENSE_PER_POINT,
+    combatHp: s.vigor * VIGOR_HP_PER_POINT,
+    critChance: s.zeal * ZEAL_CRIT_PER_POINT,
   };
 }
 

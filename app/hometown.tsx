@@ -193,7 +193,7 @@ import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant
 import { maybeGrantRestitution, RESTITUTION_MESSAGE } from "@/lib/restitution";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import { MONUMENT_STORAGE_KEY, MONUMENT_DESIGNS, parseMonuments } from "@/lib/monuments";
-import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, type CombatStats } from "@/lib/gear";
+import { getCachedBoosts, refreshGearBoostCache, combatStats, loadEquipped, GEAR_BY_ID, BASE_CRIT_CHANCE, type CombatStats } from "@/lib/gear";
 import { MINI_GAME_CAPS, TRAINING_BONUS_MULT, loadTrainingBonus, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
 import {
   cacheSchoolPerks,
@@ -207,7 +207,8 @@ import { TideGame } from "@/components/tide-game";
 import type { CollectionUpdate } from "@/lib/collections";
 import {
   loadPrestigeLevel, loadPrestigeState, prestigeMultiplier, totalPrestigeMultiplier,
-  prestigeOffer, performPrestige, cityExists, offerBossCleared, recordBossVictory, type PrestigeOffer,
+  prestigeOffer, performPrestige, cityExists, offerBossCleared, recordBossVictory,
+  bossGateVisibility, emptyPrestigeState, type PrestigeOffer, type PrestigeState,
 } from "@/lib/prestige";
 import {
   BADGE_BY_ID, GILDED_INCOME_MULT, MIST_FOREST_COIN_MULT, BLOODMOON_COIN_MULT,
@@ -3494,6 +3495,9 @@ export default function HometownScreen() {
   const [prestigeDevotion, setPrestigeDevotion] = useState(0);
   const [prestigeOfferState, setPrestigeOfferState] = useState<PrestigeOffer | null>(null);
   const fastsRef = useRef<PersonalFast[]>([]);
+  /** Last-loaded full prestige state — feeds the Boss Gate visibility
+   *  predicate (lib/prestige bossGateVisibility) at render time. */
+  const prestigeStateRef = useRef<PrestigeState>(emptyPrestigeState());
   const [beginAgainOpen, setBeginAgainOpen] = useState(false);
   // Boss badges (permanent) + the Boss Gate state for the current offer.
   const [ownedBadges, setOwnedBadges] = useState<BadgeId[]>([]);
@@ -3501,7 +3505,7 @@ export default function HometownScreen() {
   const [throneVictories, setThroneVictories] = useState(0);
   const badgesRef = useRef<BadgeId[]>([]);
   badgesRef.current = ownedBadges;
-  const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100 });
+  const [forestStats, setForestStats] = useState<CombatStats>({ attack: 5, defense: 0, maxHp: 100, critChance: BASE_CRIT_CHANCE });
   /** Gym Training Reps bonus active for this forest visit, and its size
    *  in percent (+10 base; +20 while the campus Gymnasium stands). */
   const [forestTraining, setForestTraining] = useState(false);
@@ -4368,6 +4372,7 @@ export default function HometownScreen() {
       setPrestigeLevel(res.crowns);
       setPrestigeDevotion(res.devotionBonus);
       setPrestigeOfferState(null);
+      try { prestigeStateRef.current = await loadPrestigeState(); } catch {}
       // Badges stay (permanent); the Boss Gate re-shuts for the next offer.
       setBossClearedFastId(null);
       setTown(res.town);
@@ -4472,6 +4477,7 @@ export default function HometownScreen() {
           const pLevel = await loadPrestigeLevel();
           setPrestigeLevel(pLevel);
           const pState = await loadPrestigeState();
+          prestigeStateRef.current = pState;
           setPrestigeDevotion(pState.devotionBonus);
           // Boss badges: permanent perks. The Gilded Badge joins the
           // accrual chain here — this one pMult feeds BOTH the live
@@ -6400,6 +6406,7 @@ export default function HometownScreen() {
       awardCustomXP(boss.xp, `dark-forest-boss:${boss.badgeId}:${Date.now()}`).catch(() => undefined);
     }
     recordBossVictory(fastsRef.current, boss.badgeId).then((next) => {
+      prestigeStateRef.current = next;
       setOwnedBadges(next.badges);
       setBossClearedFastId(next.bossClearedFastId);
       setThroneVictories(next.throneVictories);
@@ -6477,9 +6484,13 @@ export default function HometownScreen() {
       try {
         // Badge perks (Gloaming/Ember/Frost/Fen/Throne) shape combat stats.
         try { await refreshBadgeCache(); } catch {}
+        // Character combat stats (Valor/Resolve/Vigor/Zeal) feed the
+        // same combatStats composition — refresh their cache too.
+        try { await refreshStatBoostCache(); } catch {}
         // Keep the Boss Gate fresh: offer + cleared flag from storage.
         try {
           const pState = await loadPrestigeState();
+          prestigeStateRef.current = pState;
           setOwnedBadges(pState.badges);
           setBossClearedFastId(pState.bossClearedFastId);
           setThroneVictories(pState.throneVictories);
@@ -6497,6 +6508,7 @@ export default function HometownScreen() {
             attack: Math.round(base.attack * buff.attackMult),
             defense: base.defense,
             maxHp: Math.round(base.maxHp * buff.hpMult),
+            critChance: base.critChance,
           };
           queueCelebration("prayers", "Doctor's Blessing", `The hospital's care steadies you: +${Math.round((buff.hpMult - 1) * 100)}% max HP${buff.attackMult > 1 ? `, +${Math.round((buff.attackMult - 1) * 100)}% attack` : ""} for this battle.`);
         }
@@ -6594,6 +6606,11 @@ export default function HometownScreen() {
     setSelectedTile(null);
   };
 
+  // Boss Gate timing (Jonathan's rule): the gate panel shows only on
+  // the offer fast's last day, and while its offer stands pending after
+  // the fast ends. Mid-fast it hides; the forest shows one quiet line
+  // with the date it opens instead (bossGateOpensOn).
+  const bossGateVis = bossGateVisibility(fastsRef.current, prestigeStateRef.current, getTodayISOString());
   const cellSize = 40;
   // The town and city grids are taller (10x14) so every district gets its
   // own street; other maps stay 10x10.
@@ -7118,10 +7135,11 @@ export default function HometownScreen() {
           timeOfDay={timeOfDay}
           pt={pt}
           onVictory={handleForestVictory}
-          bossGate={prestigeOfferState ? {
+          bossGate={bossGateVis.visible && prestigeOfferState ? {
             boss: bossGateFor(ownedBadges as string[], throneVictories),
             cleared: bossClearedFastId === prestigeOfferState.fastId,
           } : null}
+          bossGateOpensOn={!bossGateVis.visible ? bossGateVis.opensOn : null}
           onBossVictory={handleBossVictory}
         />
         </SafeBoundary>

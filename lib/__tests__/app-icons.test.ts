@@ -121,6 +121,40 @@ describe("launcher wiring names the same unlockables", () => {
     }
   });
 
+  it("every alias resolves to an ADAPTIVE icon, never a bare bitmap drawable (v162)", () => {
+    const plugin = read("plugins/with-app-icons.js");
+    // aliases point at the mipmap resource — adaptive XML on API 26+,
+    // the bitmap below it on older versions
+    expect(plugin).toContain('"android:icon": `@mipmap/app_icon_${name}`');
+    expect(plugin).toContain('existingAlias.$["android:icon"] = `@mipmap/app_icon_${name}`');
+    // no alias may point at a bare @drawable bitmap again — that is
+    // what launchers shrank onto a white backing plate
+    expect(plugin).not.toContain("@drawable/app_icon_");
+    // the adaptive resources are generated per icon: anydpi XML +
+    // foreground PNG in mipmap/ + sampled background colors
+    expect(plugin).toContain('"mipmap-anydpi-v26"');
+    expect(plugin).toContain("adaptiveIconXml(name)");
+    expect(plugin).toContain("<adaptive-icon");
+    expect(plugin).toContain('<background android:drawable="@color/app_icon_${name}_bg"/>');
+    expect(plugin).toContain('<foreground android:drawable="@mipmap/app_icon_${name}"/>');
+    expect(plugin).toContain('<monochrome android:drawable="@mipmap/app_icon_${name}"/>');
+    expect(plugin).toContain("app_icon_colors.xml");
+  });
+
+  it("every unlockable has a sampled adaptive background color in the plugin", () => {
+    const plugin = read("plugins/with-app-icons.js");
+    const block = plugin.slice(
+      plugin.indexOf("const ICON_BACKGROUND_COLORS = {"),
+      plugin.indexOf("};", plugin.indexOf("const ICON_BACKGROUND_COLORS = {")),
+    );
+    for (const id of unlockableIds) {
+      expect(block, id).toContain(`${id}: "#`);
+    }
+    // spot-check two sampled field colors (corner pixels of the PNGs)
+    expect(block).toContain('ember: "#1A122E"');
+    expect(block).toContain('gold: "#231C0F"');
+  });
+
   it("the default launcher assets exist beside the picker icons", () => {
     for (const rel of [
       "assets/images/icon.png",

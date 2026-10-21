@@ -18,6 +18,9 @@ function readSrc(rel: string): string {
 }
 
 const src = readSrc("components/reached-stamp-row.tsx");
+const artSrc = readSrc("components/stamp-design-art.tsx");
+const libSrc = readSrc("lib/reached-stamps.ts");
+const passportBody = src.slice(src.indexOf("function PassportStamp"));
 
 /** The StampArtwork body — the shared artwork every skin builds on. */
 const artworkBody = src.slice(src.indexOf("function StampArtwork"), src.indexOf("function StampShapeFill"));
@@ -125,22 +128,82 @@ describe("stamp skins — every skin has an unmistakable signature", () => {
     expect(src).not.toContain('cx="91" cy="40"');
   });
 
-  it("embossed is true relief: the whole artwork struck three times, offset", () => {
-    expect(src).toContain('skin === "embossed"');
-    // paper-light copy up-left, shadow copy down-right, ink on top
-    expect(src).toContain('transform="translate(-1.1 -1.1)"');
-    expect(src).toContain('transform="translate(1.1 1.1)"');
-    expect(src).toContain('ink="#FFFFFF"');
-    expect(src).toContain('ink="#160A26"');
-    // relief applies to ALL shapes — the old circle-only extra ring
-    // that pretended to be embossing is gone
-    expect(src).not.toContain("variation.radius - 10");
+  it("embossed is RETIRED — no renderer, no lineup entry, no relief copies left", () => {
+    // Retired 2026-10-21: four relief attempts all failed Jonathan's
+    // eye (stacked stamps, then coins). Coin took its unlock slot.
+    expect(src).not.toContain('skin === "embossed"');
+    expect(src).not.toContain('transform="translate(-1.1 -1.1)"');
+    expect(src).not.toContain('transform="translate(1.1 1.1)"');
+    expect(src).not.toContain('ink="#160A26"');
+    expect(libSrc).not.toContain('{ id: "embossed"');
+    expect(libSrc).not.toContain('"embossed" |');
+    expect(libSrc).not.toContain('| "embossed"');
   });
 
-  it("sticker keeps its white die-cut backing", () => {
+  it("the lineup is classic, postmark, linen, sticker, coin — coin at embossed's old level 35", () => {
+    expect(libSrc).toContain('{ id: "classic", name: "Classic", unlockLevel: 1 }');
+    expect(libSrc).toContain('{ id: "postmark", name: "Postmark", unlockLevel: 5 }');
+    expect(libSrc).toContain('{ id: "linen", name: "Linen", unlockLevel: 15 }');
+    expect(libSrc).toContain('{ id: "sticker", name: "Sticker", unlockLevel: 25 }');
+    expect(libSrc).toContain('{ id: "coin", name: "Coin", unlockLevel: 35 }');
+  });
+
+  it("coin is a struck gold coin: radial gold, reeded rim, relief emblem, rim legend on TextPath", () => {
+    expect(src).toContain('skin === "coin"');
+    expect(passportBody).toContain("CoinStampArt");
+    // radial gold disc, light centre-upper falling to a dark edge
+    expect(artSrc).toContain("RadialGradient");
+    expect(artSrc).toContain('stopColor={COIN_GOLD_LIGHT}');
+    expect(artSrc).toContain('stopColor={COIN_GOLD_MID}');
+    expect(artSrc).toContain('stopColor={COIN_GOLD_EDGE}');
+    expect(artSrc).toContain('COIN_GOLD_LIGHT = "#F6D67C"');
+    expect(artSrc).toContain('COIN_GOLD_MID = "#D9A83E"');
+    expect(artSrc).toContain('COIN_GOLD_EDGE = "#A87B1F"');
+    // reeded rim: fine radial ticks in deep gold
+    expect(artSrc).toContain("COIN_REEDS");
+    expect(artSrc).toContain('COIN_GOLD_DEEP = "#8A6414"');
+    // the face emblem struck in relief: shadow down-right, highlight
+    // up-left, main strike on top — gold tones only
+    expect(artSrc).toContain('transform="translate(1 1.1)"');
+    expect(artSrc).toContain('transform="translate(-0.9 -0.9)"');
+    expect(artSrc).toContain('COIN_GOLD_PALE = "#FBE9B7"');
+    expect(artSrc).toContain('COIN_GOLD_MAIN = "#B8860B"');
+    // the rim legend on circular TextPaths — name along the top,
+    // REACHED · year along the bottom
+    expect(artSrc).toContain("TextPath");
+    expect(artSrc).toContain('href={`#${topLegendId}`}');
+    expect(artSrc).toContain('href={`#${bottomLegendId}`}');
+    expect(artSrc).toContain("REACHED · ${year}");
+    expect(artSrc).toContain('startOffset="50%"');
+  });
+
+  it("sticker is a commemorative postage stamp — perforations and a picture, NOT a sticker with a circle on it", () => {
     expect(src).toContain('skin === "sticker"');
-    expect(src).toContain("White die-cut sticker border");
-    expect(src).toContain('fill="#FFFFFF"');
+    expect(passportBody).toContain("PostageStampArt");
+    // the old white die-cut blob behind the passport artwork is gone
+    expect(src).not.toContain("White die-cut sticker border");
+    expect(src).not.toContain("variation.radius + 7");
+    // perforated postage body, generated scalloped outline
+    expect(artSrc).toContain("postagePerforationPath(6, 6, 112, 112, 2.8, 6.2)");
+    expect(artSrc).toContain('fill="#FFFFFF"');
+    expect(artSrc).toContain('stroke="#D8D2C4"');
+    // a framed picture panel, not the passport rings/text artwork
+    expect(artSrc).toContain("StampEmblem");
+    expect(artSrc).not.toContain("StampArtwork");
+    // caption printed in the margin like a real stamp
+    expect(artSrc).toContain("· REACHED`}");
+    expect(artSrc).toContain("· PRAYERCIRCLE`}");
+    // the tiny drawn cross mark in the picture's corner
+    expect(artSrc).toContain('x="100.1"');
+  });
+
+  it("all eight per-person designs are drawn, and both new skins assign them per person", () => {
+    for (const design of ["sunrise-cross", "ichthys", "dove", "anchor", "lighthouse", "loaves-fishes", "empty-tomb", "mustard-tree"]) {
+      expect(artSrc).toContain(`case "${design}"`);
+    }
+    // one shared assignment, used by the postage AND the coin, so a
+    // person's picture and coin face always carry the same emblem
+    expect(artSrc.match(/getStampDesignId\(stamp\.personId, stamp\.personName\)/g)?.length).toBe(2);
   });
 
   it("classic is the clean reference — the shared artwork carries NO skin signatures", () => {
@@ -162,6 +225,7 @@ describe("stamp skins — every skin has an unmistakable signature", () => {
     expect(src.indexOf("LINEN_H_BUNDLES.map")).toBeGreaterThan(src.indexOf('skin === "linen"'));
     expect(src.indexOf("LINEN_SLUBS.map")).toBeGreaterThan(src.indexOf('skin === "linen"'));
     expect(src.indexOf("POSTMARK_WAVE_PATHS.map")).toBeGreaterThan(src.indexOf('skin === "postmark"'));
-    expect(src.indexOf('transform="translate(-1.1 -1.1)"')).toBeGreaterThan(src.indexOf('skin === "embossed" ?'));
+    expect(passportBody.indexOf("CoinStampArt")).toBeGreaterThan(passportBody.indexOf('skin === "coin"'));
+    expect(passportBody.indexOf("PostageStampArt")).toBeGreaterThan(passportBody.indexOf('skin === "sticker"'));
   });
 });

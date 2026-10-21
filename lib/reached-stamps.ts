@@ -6,7 +6,7 @@ export type ReachedStamp = {
   note?: string;
 };
 
-export type ReachedStampSkin = "classic" | "postmark" | "linen" | "embossed" | "sticker";
+export type ReachedStampSkin = "classic" | "postmark" | "linen" | "sticker" | "coin";
 
 export const REACHED_STAMP_SKIN_STORAGE_KEY = "prayercircle.reached-stamp-skin.v1";
 
@@ -15,7 +15,12 @@ export const REACHED_STAMP_SKINS: Array<{ id: ReachedStampSkin; name: string; un
   { id: "postmark", name: "Postmark", unlockLevel: 5 },
   { id: "linen", name: "Linen", unlockLevel: 15 },
   { id: "sticker", name: "Sticker", unlockLevel: 25 },
-  { id: "embossed", name: "Embossed", unlockLevel: 35 },
+  // Coin inherits Embossed's slot (Lv 35) — Embossed was retired
+  // 2026-10-21 after four relief attempts all read as something else
+  // (stacked stamps, then coins). A stored "embossed" selection no
+  // longer matches any skin, so normalizeReachedStampSkin falls back
+  // to "classic" for those users.
+  { id: "coin", name: "Coin", unlockLevel: 35 },
 ];
 
 export function getUnlockedReachedStampSkins(level: number): ReachedStampSkin[] {

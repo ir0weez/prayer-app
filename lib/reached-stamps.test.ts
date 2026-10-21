@@ -34,12 +34,17 @@ describe("reached stamps", () => {
     expect(getUnlockedReachedStampSkins(24)).toEqual(["classic", "postmark", "linen"]);
     expect(getUnlockedReachedStampSkins(25)).toEqual(["classic", "postmark", "linen", "sticker"]);
     expect(getUnlockedReachedStampSkins(34)).toEqual(["classic", "postmark", "linen", "sticker"]);
-    expect(getUnlockedReachedStampSkins(35)).toEqual(["classic", "postmark", "linen", "sticker", "embossed"]);
+    // Coin inherits the retired Embossed skin's slot at level 35.
+    expect(getUnlockedReachedStampSkins(35)).toEqual(["classic", "postmark", "linen", "sticker", "coin"]);
   });
 
   it("falls back to the default skin for invalid persisted values", () => {
     expect(normalizeReachedStampSkin("postmark")).toBe("postmark");
+    expect(normalizeReachedStampSkin("coin")).toBe("coin");
     expect(normalizeReachedStampSkin("unknown")).toBe("classic");
     expect(normalizeReachedStampSkin(null)).toBe("classic");
+    // A selection stored while Embossed existed resolves to classic
+    // now that the skin is retired — nobody is stranded on a dead id.
+    expect(normalizeReachedStampSkin("embossed")).toBe("classic");
   });
 });

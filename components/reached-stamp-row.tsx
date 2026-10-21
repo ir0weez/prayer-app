@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 
+import { CoinStampArt, PostageStampArt } from "@/components/stamp-design-art";
 import { useColors } from "@/hooks/use-colors";
 import { formatIsoDateForDisplay, relationshipColors, type Person } from "@/lib/prayercircle-data";
 import { getUnlockedReachedStampSkins, normalizeReachedStampSkin, REACHED_STAMP_SKIN_STORAGE_KEY, REACHED_STAMP_SKINS, removeReachedStamp, updateReachedStamp, type ReachedStamp, type ReachedStampSkin } from "@/lib/reached-stamps";
@@ -49,10 +50,15 @@ function getMonthLabel(monthKey: string): string {
 /*              clipped inside the stamp's shape, a stitched inner     */
 /*              border, a soft cloth halo and a faint offset ghost     */
 /*              of the rings: a stamp ON fabric.                       */
-/*   embossed — the whole artwork struck three times: a paper-light    */
-/*              copy offset up-left, a shadow copy offset down-right,  */
-/*              the ink on top — pressed INTO the paper, all shapes.   */
-/*   sticker  — the white die-cut backing (already unmistakable).      */
+/*   sticker  — a commemorative POSTAGE stamp (2026-10-21):          */
+/*              perforated white body, a framed Christian picture     */
+/*              assigned per person, name/date printed in the margin. */
+/*   coin     — the stamp struck as a gold coin (2026-10-21): reeded  */
+/*              rim, the person's emblem in relief on the face, name  */
+/*              and REACHED · year curved as the rim legend. It took  */
+/*              Embossed's unlock slot — every relief attempt at an    */
+/*              "embossed" stamp read as something else (stacked       */
+/*              stamps, then coins), so the coin became the skin.     */
 /* ------------------------------------------------------------------ */
 
 /** Cancellation waves for the postmark: full-width sweeps, edge to edge. */
@@ -139,8 +145,8 @@ function StampRings({ ink, variation, stitch = false }: { ink: string; variation
 }
 
 /** The stamp's own artwork in a single color: rings, the uneven-ink
- *  specks every skin shares, and the name / date / note text. Shared
- *  by all skins — embossed strikes it three times in three tones. */
+ *  specks, and the name / date / note text. Shared by classic,
+ *  postmark and linen — postage and coin draw their own art. */
 function StampArtwork({ stamp, ink, variation, stitch = false }: { stamp: ReachedStamp; ink: string; variation: StampVariation; stitch?: boolean }) {
   const shortName = stamp.personName.length > 18 ? `${stamp.personName.slice(0, 17)}…` : stamp.personName;
   const shortNote = stamp.note && stamp.note.length > 17 ? `${stamp.note.slice(0, 16)}…` : stamp.note;
@@ -179,30 +185,21 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
   return (
     <View style={[styles.stampWrap, { transform: [{ rotate: `${variation.rotation}deg` }] }]}>
       <Svg width={124} height={124} viewBox="0 0 124 124">
-        {skin === "linen" && (
-          <Defs>
-            <ClipPath id={weaveClipId}>
-              <StampShapeFill variation={variation} />
-            </ClipPath>
-          </Defs>
-        )}
-        <G>
-          {skin === "sticker" && <>
-            {/* White die-cut sticker border behind the stamp */}
-            {variation.shape === "circle" && <>
-              <Circle cx="62" cy="62" r={variation.radius + 7} fill="#FFFFFF" opacity={0.95} />
-              <Circle cx="62" cy="62" r={variation.radius + 7} fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
-            </>}
-            {variation.shape === "oval" && <>
-              <Ellipse cx="62" cy="62" rx="63" ry="55" fill="#FFFFFF" opacity={0.95} />
-              <Ellipse cx="62" cy="62" rx="63" ry="55" fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
-            </>}
-            {variation.shape === "rounded-rectangle" && <>
-              <Rect x="2" y="8" width="120" height="108" rx="24" fill="#FFFFFF" opacity={0.95} />
-              <Rect x="2" y="8" width="120" height="108" rx="24" fill="none" stroke="#E5E7EB" strokeWidth={1} opacity={0.6} />
-            </>}
-          </>}
-          {skin === "linen" && <>
+        {skin === "coin" ? (
+          <CoinStampArt stamp={stamp} />
+        ) : skin === "sticker" ? (
+          <PostageStampArt stamp={stamp} ink={ink} />
+        ) : (
+          <>
+            {skin === "linen" && (
+              <Defs>
+                <ClipPath id={weaveClipId}>
+                  <StampShapeFill variation={variation} />
+                </ClipPath>
+              </Defs>
+            )}
+            <G>
+              {skin === "linen" && <>
             {/* The cloth the stamp sits on: a soft halo at the edge… */}
             <StampShapeHalo ink={ink} variation={variation} />
             {/* …the plain weave itself, clipped to the stamp: chunky
@@ -231,22 +228,7 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
               <StampRings ink={ink} variation={variation} stitch />
             </G>
           </>}
-          {skin === "embossed" ? (
-            <>
-              {/* True relief: the whole stamp struck into the paper —
-                  a paper-light copy up-left, a shadow copy down-right,
-                  the ink strike on top. Every shape, not just circles. */}
-              <G transform="translate(-1.1 -1.1)" opacity={0.5}>
-                <StampArtwork stamp={stamp} ink="#FFFFFF" variation={variation} />
-              </G>
-              <G transform="translate(1.1 1.1)" opacity={0.4}>
-                <StampArtwork stamp={stamp} ink="#160A26" variation={variation} />
-              </G>
-              <StampArtwork stamp={stamp} ink={ink} variation={variation} />
-            </>
-          ) : (
-            <StampArtwork stamp={stamp} ink={ink} variation={variation} stitch={skin === "linen"} />
-          )}
+          <StampArtwork stamp={stamp} ink={ink} variation={variation} stitch={skin === "linen"} />
           {skin === "postmark" && <>
             {/* Bold cancellation waves sweep the FULL stamp, edge to
                 edge, over the ink — like the machine actually struck it. */}
@@ -274,7 +256,9 @@ function PassportStamp({ stamp, ink, skin = "classic" }: { stamp: ReachedStamp; 
               <Path d="M 104 22 A 52 52 0 0 1 112 44" strokeWidth="1" />
             </G>
           </>}
-        </G>
+            </G>
+          </>
+        )}
       </Svg>
     </View>
   );

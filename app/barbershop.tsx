@@ -4,8 +4,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { PawnPreview } from "@/components/pawn-preview";
-import { HeroThumbnail } from "@/components/hero-sprite";
+import { PaperHeroThumbnail, PawnPreview } from "@/components/pawn-preview";
 import {
   BARBERSHOP_TRIM_COST,
   PAWN_BEARD_STYLES,
@@ -30,7 +29,9 @@ import {
   discountedStylePrice,
   shopLevelFor,
 } from "@/lib/pawn";
-import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY, scaledCoins, scaledXP } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, TOWN_STORAGE_KEY, scaledCoins, scaledXP,
+  formatCoins,
+} from "@/lib/hometown";
 import { loadPrestigeLevel } from "@/lib/prestige";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { TrimGame } from "@/components/trim-game";
@@ -226,7 +227,7 @@ export default function BarbershopScreen() {
   const handleTrim = async () => {
     if (!pawn) return;
     if (coins.balance < BARBERSHOP_TRIM_COST) {
-      Alert.alert("Not enough coins", `A trim costs ${BARBERSHOP_TRIM_COST} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `A trim costs ${BARBERSHOP_TRIM_COST} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     const trimmed = trimBeard(pawn);
@@ -243,7 +244,7 @@ export default function BarbershopScreen() {
   const handleHaircut = async () => {
     if (!pawn) return;
     if (coins.balance < BARBERSHOP_TRIM_COST) {
-      Alert.alert("Not enough coins", `A haircut costs ${BARBERSHOP_TRIM_COST} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `A haircut costs ${BARBERSHOP_TRIM_COST} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     const cut = cutHair(pawn);
@@ -259,7 +260,7 @@ export default function BarbershopScreen() {
 
   const deductCoins = async (cost: number): Promise<boolean> => {
     if (coins.balance < cost) {
-      Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `That costs ${cost} coins. You have ${formatCoins(coins.balance)}.`);
       return false;
     }
     const next: Coins = {
@@ -440,7 +441,7 @@ export default function BarbershopScreen() {
                   <StyleGridItem
                     key={s.id}
                     preview={
-                    <HeroThumbnail
+                    <PaperHeroThumbnail
                       headOnly
                       size={64}
                       tunicColor={pawn.bodyColor}
@@ -583,7 +584,7 @@ export default function BarbershopScreen() {
                   <StyleGridItem
                     key={s.id}
                     preview={
-                    <HeroThumbnail
+                    <PaperHeroThumbnail
                       headOnly
                       size={64}
                       tunicColor={pawn.bodyColor}
@@ -652,7 +653,7 @@ export default function BarbershopScreen() {
                   <StyleGridItem
                     key={s.id}
                     preview={
-                    <HeroThumbnail
+                    <PaperHeroThumbnail
                       headOnly
                       size={64}
                       tunicColor={pawn.bodyColor}

@@ -11,7 +11,9 @@ import { AvatarImage, AvatarPicker } from "@/components/avatar-system";
 import { FastBoard, FastPawnPicker, PawnCompanion, getSpecialSpace, getSpecialSpaceXP, type FastBoardColors } from "@/components/fast-board";
 import { PrestigePrompt } from "@/components/prestige-prompt";
 import { MONUMENT_STORAGE_KEY, parseMonuments, type MonumentDesign } from "@/lib/monuments";
-import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength } from "@/lib/hometown";
+import { COINS_STORAGE_KEY, SHOP_OWNED_KEY, parseCoins, parseOwnedItems, type HometownCoins, HOMETOWN_MIN_FAST_DAYS, hometownUnlockedForFastLength,
+  formatCoins,
+} from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { getTodayISOString } from "@/lib/prayercircle-data";
 import {
@@ -620,7 +622,7 @@ export default function ProfileScreen() {
               <Text style={dynamicStyles.profileSubtitle}>Personal prayers, fasts, and daily streak tracking</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' }}>
                 <Text style={{ fontSize: 13 }}>🪙</Text>
-                <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{coins.balance.toFixed(2)}</Text>
+                <Text style={{ marginLeft: 4, fontWeight: '700', fontSize: 12, color: colors.foreground }}>{formatCoins(coins.balance)}</Text>
               </View>
             </View>
           </View>
@@ -670,7 +672,7 @@ export default function ProfileScreen() {
 
         {/* Boss badges — won at the Dark Forest's Boss Gate. Permanent. */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-          <Text style={styles.sectionLabel}>BOSS BADGES</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>BOSS BADGES</Text>
           <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>{ownedBadges.length}/10</Text>
         </View>
         <Text style={{ fontSize: 12.5, color: colors.muted, lineHeight: 17, marginBottom: 12 }}>
@@ -681,7 +683,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <Text style={styles.sectionLabel}>PREVIOUS FAST</Text>
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>PREVIOUS FAST</Text>
           <Pressable onPress={() => router.push("/fast-collection")} style={{ padding: 6 }}>
             <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>View Collection →</Text>
           </Pressable>
@@ -718,7 +720,7 @@ export default function ProfileScreen() {
         {selectedFast ? (
           <>
             <View style={styles.currentFastHeader}>
-              <Text style={styles.sectionLabel}>CURRENT FAST</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>CURRENT FAST</Text>
               {selectedFastStreak > 0 && (
                 <View style={[styles.currentFastBadge, { backgroundColor: selectedFastType?.color ?? colors.primary }]}>
                   <Text style={styles.currentFastBadgeText}>🔥 {selectedFastStreak}</Text>
@@ -735,7 +737,7 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <Text style={styles.sectionLabel}>FASTING FOCUS</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>FASTING FOCUS</Text>
             <View style={styles.focusWrap}>
               {(selectedFast.focusItems.length ? selectedFast.focusItems : ["Add a focus when you create your next fast"]).map((item) => {
                 const focusStatus = getTodayFocusItemStatus(selectedFast.focusItemDailyStatuses, item, today);
@@ -754,13 +756,13 @@ export default function ProfileScreen() {
               })}
             </View>
 
-            <Text style={styles.sectionLabel}>TODAY</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>TODAY</Text>
             <View style={styles.todayActions}>
               <Pressable onPress={(event) => setFastStatus(today, "completed", { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })} onLongPress={() => chooseStatusForDate(today)} delayLongPress={420} style={({ pressed }) => [styles.todayButton, { backgroundColor: getStatusColor(selectedFast.dayStatuses[today]) }, pressed && styles.pressed]}>
                 <MaterialIcons name={iconName(getStatusIcon(selectedFast.dayStatuses[today]))} size={24} color="#FFFFFF" />
                 <Text style={styles.todayButtonText}>{getFastDayButtonLabel(selectedFast.dayStatuses[today])}</Text>
               </Pressable>
-              <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+              <Pressable onPress={() => handleCancelFastForToday()} style={({ pressed }) => [styles.cancelButton, { backgroundColor: colors.error }, pressed && styles.pressed]}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
             </View>
@@ -770,11 +772,14 @@ export default function ProfileScreen() {
                 setNoteText(selectedFast?.dailyNotes?.[today] || "");
                 setShowNoteInput(true);
               }}
-              style={{ marginTop: 8, padding: 10, backgroundColor: colors.surface, borderRadius: 10, alignItems: "center" }}
+              style={{ marginTop: 8, padding: 12, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
             >
-              <Text style={{ color: colors.primary, fontWeight: "600" }}>
-                {selectedFast?.dailyNotes?.[today] ? "📝 Edit today's note" : "📝 Add a note for today"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <MaterialIcons name="edit-note" size={18} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 14 }}>
+                  {selectedFast?.dailyNotes?.[today] ? "Edit today's note" : "Add a note for today"}
+                </Text>
+              </View>
               {selectedFast?.dailyNotes?.[today] && (
                 <Text style={{ fontSize: 12, color: colors.muted, marginTop: 4, fontStyle: "italic" }}>
                   "{selectedFast.dailyNotes[today]}"
@@ -842,7 +847,7 @@ export default function ProfileScreen() {
             })()}
             {selectedFast && selectedFast.durationDays >= 80 && (
               <>
-              <Text style={[styles.sectionLabel, { marginBottom: 8 }]}>SEASONS — TAP TO SWITCH</Text>
+              <Text style={[styles.sectionLabel, { color: colors.foreground, marginBottom: 8 }]}>SEASONS — TAP TO SWITCH</Text>
               <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                 {[0, 1, 2, 3].map((q) => {
                   const quarterSize = Math.ceil(selectedFast.durationDays / 4);
@@ -873,18 +878,18 @@ export default function ProfileScreen() {
                       onPress={() => setActiveQuarter(q)}
                       style={{
                         flex: 1,
-                        paddingVertical: 10,
-                        borderRadius: 12,
+                        paddingVertical: 12,
+                        borderRadius: 16,
                         alignItems: "center",
                         backgroundColor: isActive ? seasonColors.accent : seasonColors.bg,
                         borderWidth: isActive ? 0 : 1,
                         borderColor: seasonColors.accent,
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: isActive ? "#FFFFFF" : seasonColors.text }}>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: isActive ? "#FFFFFF" : seasonColors.text }}>
                         Q{q + 1}
                       </Text>
-                      <Text style={{ fontSize: 9, color: isActive ? "#FFFFFF" : seasonColors.text, opacity: 0.7 }}>
+                      <Text style={{ fontSize: 10, color: isActive ? "#FFFFFF" : seasonColors.text, opacity: 0.75 }}>
                         {dateLabel}
                       </Text>
                     </Pressable>
@@ -893,7 +898,7 @@ export default function ProfileScreen() {
               </View>
               </>
             )}
-            <Text style={styles.sectionLabel}>BOARD</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>BOARD</Text>
             <View
               ref={fastBoardContainerRef}
               collapsable={false}
@@ -935,25 +940,29 @@ export default function ProfileScreen() {
             {hometownUnlocked ? (
             <Pressable
               onPress={() => router.push("/hometown")}
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 12 }}
+              style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12 }, pressed && styles.pressed]}
             >
-              <Text style={{ fontSize: 24 }}>🏘️</Text>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16 }}>Hometown</Text>
-                <Text style={{ fontSize: 12, color: "#78716C" }}>Build your town with fast coins • 🪙{coins.balance.toFixed(2)}</Text>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary + "1A", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="home" size={22} color={colors.primary} />
               </View>
-              <Text style={{ fontSize: 20 }}>→</Text>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: colors.foreground }}>Hometown</Text>
+                <Text style={{ fontSize: 12, color: colors.muted }}>Build your town with fast coins • 🪙{formatCoins(coins.balance)}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
             </Pressable>
             ) : (
             <View
-              style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F4", borderRadius: 12, padding: 12, marginBottom: 12, opacity: 0.75 }}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12, opacity: 0.6 }}
             >
-              <Text style={{ fontSize: 24 }}>🏘️</Text>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 16, color: "#78716C" }}>Hometown</Text>
-                <Text style={{ fontSize: 12, color: "#A8A29E" }}>Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days</Text>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border + "55", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="home" size={22} color={colors.muted} />
               </View>
-              <MaterialIcons name="lock" size={20} color="#A8A29E" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 16, color: colors.muted }}>Hometown</Text>
+                <Text style={{ fontSize: 12, color: colors.muted }}>Unlocks on fasts longer than {HOMETOWN_MIN_FAST_DAYS} days</Text>
+              </View>
+              <MaterialIcons name="lock" size={20} color={colors.muted} />
             </View>
             )}
             <FastBoard
@@ -1054,7 +1063,7 @@ export default function ProfileScreen() {
 
         {fastHistory.length > 0 ? (
           <>
-            <Text style={styles.sectionLabel}>FAST HISTORY</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>FAST HISTORY</Text>
             <View style={styles.historyTimeline}>
               {fastHistory.map((fast, index) => {
                 const progress = getFastProgress(fast);
@@ -1478,13 +1487,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: "100%",
   },
+  // Material 3 title style for section headers (2026-10-21 restyle):
+  // titleMedium metrics, sentence weight — the heavy 16/900 display
+  // header is retired. Color comes from the active theme at call sites.
   sectionLabel: {
-    marginTop: 20,
+    marginTop: 24,
     marginBottom: 10,
-    color: DEEP_TEXT,
-    fontSize: 16,
-    fontWeight: "900",
-    letterSpacing: 1.2,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
   currentFastHeader: {
     flexDirection: "row",
@@ -1580,8 +1591,8 @@ const styles = StyleSheet.create({
   },
   todayButtonText: {
     color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "700",
   },
   secondaryButton: {
     minHeight: 46,
@@ -1597,19 +1608,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
   },
+  // M3 destructive button: filled with the theme's error role (set at
+  // the call site), full-radius, labelLarge text.
   cancelButton: {
     flex: 1,
     minHeight: 46,
-    borderRadius: 18,
-    backgroundColor: "#EF4444",
+    borderRadius: 23,
     borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   calendarGrid: {
     flexDirection: "row",

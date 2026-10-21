@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Animated, Easing, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -36,11 +36,14 @@ import {
   type BankInteriorState,
   type HometownCoins,
   type PlacedBuilding,
+  formatCoins,
 } from "@/lib/hometown";
 import { completeMission, loadMissions, type Mission } from "@/lib/missions";
 import { CascadeGame } from "@/components/cascade-game";
 import { PlayCard } from "@/components/mini-game-scene";
 import { useMiniGameHost } from "@/components/mini-game-host";
+import { PaperRoomScene } from "@/components/paper-room";
+import { PAPER_ROOMS } from "@/lib/paper-rooms";
 
 let idCounter = 0;
 function nextId() {
@@ -120,308 +123,6 @@ function DeskShape({ connected }: { connected: boolean }) {
 type MoveKind = "desk" | "carpet" | "furniture";
 
 const VISITOR_COLORS = ["#F9A8D4", "#93C5FD", "#86EFAC", "#FDE68A", "#C4B5FD", "#FDBA74"];
-
-// ---------- tiny animated sparkle (crystal twinkle, sine easing, no bounce) ----------
-function Sparkle({ size = 8, delay = 0 }: { size?: number; delay?: number }) {
-  const tw = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    let loop: Animated.CompositeAnimation | null = null;
-    const t = setTimeout(() => {
-      loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(tw, { toValue: 1, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(tw, { toValue: 0, duration: 800 + Math.random() * 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-    }, delay);
-    return () => {
-      clearTimeout(t);
-      loop?.stop();
-    };
-  }, [tw, delay]);
-  const scale = tw.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] });
-  const opacity = tw.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
-  return (
-    <Animated.View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: "#FFF9D6",
-        borderWidth: 1,
-        borderColor: "#F5D97A",
-        transform: [{ scale }],
-        opacity,
-      }}
-    />
-  );
-}
-
-/** Massive two-tier vault-hall chandelier with animated flicker + crystals (L3). */
-function GrandVaultChandelier() {
-  const flick = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flick, { toValue: 1, duration: 1000 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(flick, { toValue: 0, duration: 1000 + Math.random() * 400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [flick]);
-  const glow = flick.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.34] });
-  const candle = (key: number) => (
-    <View key={key} style={{ alignItems: "center" }}>
-      <View style={{ width: 7, height: 10, borderRadius: 3.5, backgroundColor: "#FFB84D" }} />
-      <View style={{ width: 8, height: 13, borderRadius: 3, backgroundColor: "#FFF9F0", borderWidth: 1, borderColor: "#B8860B", marginTop: -2 }} />
-    </View>
-  );
-  return (
-    <View style={{ alignItems: "center", marginBottom: 4 }}>
-      {/* chains */}
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start" }}>
-        <View style={{ width: 2, height: 30, backgroundColor: "#B8860B", transform: [{ rotate: "16deg" }], marginHorizontal: 8 }} />
-        <View style={{ width: 2, height: 36, backgroundColor: "#B8860B" }} />
-        <View style={{ width: 2, height: 30, backgroundColor: "#B8860B", transform: [{ rotate: "-16deg" }], marginHorizontal: 8 }} />
-      </View>
-      {/* upper tier */}
-      <View
-        style={{
-          width: 104,
-          height: 24,
-          borderRadius: 12,
-          backgroundColor: "#C9963C",
-          borderWidth: 2,
-          borderColor: "#8B5E34",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-evenly",
-          paddingHorizontal: 10,
-          zIndex: 2,
-        }}
-      >
-        {[0, 1, 2, 3, 4].map(candle)}
-      </View>
-      {/* crystal strands */}
-      <View style={{ flexDirection: "row", justifyContent: "center", zIndex: 1 }}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <View key={i} style={{ marginHorizontal: 8, marginTop: -2 }}>
-            <Sparkle size={7} delay={i * 220} />
-          </View>
-        ))}
-      </View>
-      {/* lower grand tier */}
-      <View
-        style={{
-          width: 196,
-          height: 30,
-          borderRadius: 15,
-          backgroundColor: "#C9963C",
-          borderWidth: 2,
-          borderColor: "#8B5E34",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-evenly",
-          paddingHorizontal: 12,
-          marginTop: -4,
-          zIndex: 2,
-        }}
-      >
-        {[0, 1, 2, 3, 4, 5, 6, 7].map(candle)}
-      </View>
-      {/* lower crystal fringe */}
-      <View style={{ flexDirection: "row", justifyContent: "center" }}>
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <View key={i} style={{ marginHorizontal: 6, marginTop: -1 }}>
-            <Sparkle size={6} delay={i * 170 + 100} />
-          </View>
-        ))}
-      </View>
-      <Animated.View
-        style={{ width: 240, height: 56, borderRadius: 28, backgroundColor: "#FFB84D", opacity: glow, marginTop: -70 }}
-      />
-    </View>
-  );
-}
-
-/** Fluted marble column with gilded capital + base (L3). */
-function MarbleColumn() {
-  return (
-    <View style={{ alignItems: "center", marginHorizontal: 8 }}>
-      <View style={{ width: 46, height: 10, borderRadius: 3, backgroundColor: "#C9963C" }} />
-      <View style={{ width: 36, height: 7, backgroundColor: "#8B5E34" }} />
-      <View
-        style={{
-          width: 30,
-          height: 108,
-          backgroundColor: "#F5F5F4",
-          borderLeftWidth: 2,
-          borderRightWidth: 2,
-          borderColor: "#D6D3D1",
-        }}
-      >
-        {/* marble veining */}
-        <View style={{ position: "absolute", left: 7, top: 18, width: 2, height: 62, backgroundColor: "#E7E5E4", transform: [{ rotate: "8deg" }] }} />
-        <View style={{ position: "absolute", right: 7, top: 38, width: 2, height: 52, backgroundColor: "#E7E5E4", transform: [{ rotate: "-8deg" }] }} />
-      </View>
-      <View style={{ width: 36, height: 7, backgroundColor: "#8B5E34" }} />
-      <View style={{ width: 48, height: 10, borderRadius: 3, backgroundColor: "#C9963C" }} />
-    </View>
-  );
-}
-
-/** The grand vault door (L3): steel round door with gold rim + spoked wheel. */
-function VaultDoor() {
-  return (
-    <View style={{ alignItems: "center", marginHorizontal: 6 }}>
-      <View
-        style={{
-          width: 100,
-          height: 100,
-          borderRadius: 50,
-          backgroundColor: "#9AA3AF",
-          borderWidth: 6,
-          borderColor: "#C9963C",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <View
-          style={{
-            width: 66,
-            height: 66,
-            borderRadius: 33,
-            backgroundColor: "#6B7280",
-            borderWidth: 3,
-            borderColor: "#4B5563",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {/* spoked wheel */}
-          <View style={{ position: "absolute", width: 58, height: 6, backgroundColor: "#C9963C", borderRadius: 3 }} />
-          <View style={{ position: "absolute", width: 6, height: 58, backgroundColor: "#C9963C", borderRadius: 3 }} />
-          <View style={{ position: "absolute", width: 42, height: 6, backgroundColor: "#C9963C", borderRadius: 3, transform: [{ rotate: "45deg" }] }} />
-          <View style={{ position: "absolute", width: 42, height: 6, backgroundColor: "#C9963C", borderRadius: 3, transform: [{ rotate: "-45deg" }] }} />
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "#C9963C", borderWidth: 2, borderColor: "#8B5E34" }} />
-        </View>
-      </View>
-      <Text style={{ fontSize: 9, color: "#78716C", marginTop: 4, fontWeight: "800", letterSpacing: 3 }}>VAULT</Text>
-    </View>
-  );
-}
-
-/** A gleaming pyramid stack of gold coins (L3). */
-function CoinStack() {
-  const coin = (key: number) => (
-    <View
-      key={key}
-      style={{
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: "#FBBF24",
-        borderWidth: 2,
-        borderColor: "#B45309",
-        marginHorizontal: 1,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text style={{ fontSize: 9, fontWeight: "900", color: "#92400E" }}>¢</Text>
-    </View>
-  );
-  return (
-    <View style={{ alignItems: "center", marginHorizontal: 6 }}>
-      <View style={{ flexDirection: "row" }}>{[0].map(coin)}</View>
-      <View style={{ flexDirection: "row", marginTop: -4 }}>{[1, 2].map(coin)}</View>
-      <View style={{ flexDirection: "row", marginTop: -4 }}>{[3, 4, 5].map(coin)}</View>
-      <View style={{ width: 74, height: 6, borderRadius: 3, backgroundColor: "#8B5E34", marginTop: 2 }} />
-    </View>
-  );
-}
-
-/** Ornate mahogany teller counters with gold trim (L3). */
-function TellerCounter() {
-  return (
-    <View style={{ alignItems: "center", marginTop: 10 }}>
-      {/* counter top */}
-      <View style={{ width: 244, height: 16, borderRadius: 8, backgroundColor: "#6B4A2B", borderWidth: 2, borderColor: "#C9963C" }} />
-      {/* front panels */}
-      <View style={{ flexDirection: "row", marginTop: -2 }}>
-        {[0, 1, 2].map((i) => (
-          <View
-            key={i}
-            style={{
-              width: 78,
-              height: 56,
-              backgroundColor: "#4E3421",
-              borderWidth: 2,
-              borderColor: "#C9963C",
-              marginHorizontal: 2,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <MaterialIcons name="account-balance" size={18} color="#C9963C" />
-            <View style={{ width: 42, height: 3, backgroundColor: "#C9963C", marginTop: 4, borderRadius: 2 }} />
-            <View style={{ width: 30, height: 3, backgroundColor: "#8B5E34", marginTop: 3, borderRadius: 2 }} />
-          </View>
-        ))}
-      </View>
-      {/* base */}
-      <View style={{ width: 254, height: 10, borderRadius: 5, backgroundColor: "#3E2C1A", marginTop: 2 }} />
-      <Text style={{ fontSize: 9, color: "#78716C", marginTop: 4, fontStyle: "italic" }}>Teller counters</Text>
-    </View>
-  );
-}
-
-/** Decorative wall band by bank building level — the room itself gets richer.
- *  L1: plain. L2: wainscoting + wall clock.
- *  L3: grand vault hall — massive flickering chandelier, marble columns,
- *  the great vault door, coin stacks, and ornate teller counters. */
-function BankLevelDecor({ level }: { level: number }) {
-  if (level < 2) return null;
-  if (level >= 3) {
-    return (
-      <View style={{ alignItems: "center", marginBottom: 8 }}>
-        <GrandVaultChandelier />
-        {/* gold molding */}
-        <View style={{ width: "96%", height: 6, borderRadius: 3, backgroundColor: "#C9963C", marginBottom: 8 }} />
-        {/* columns + vault door + coin stacks */}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
-          <CoinStack />
-          <MarbleColumn />
-          <VaultDoor />
-          <MarbleColumn />
-          <CoinStack />
-        </View>
-        <TellerCounter />
-      </View>
-    );
-  }
-  return (
-    <View style={{ alignItems: "center", marginBottom: 8 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", paddingHorizontal: 12 }}>
-        {/* wainscoting strip */}
-        <View style={{ flex: 1, height: 26, backgroundColor: "#6B4A2B", borderRadius: 4, marginRight: 8, borderWidth: 1, borderColor: "#54371F" }}>
-          <View style={{ height: 3, backgroundColor: "#8B5E34", marginTop: 4, marginHorizontal: 6, borderRadius: 2 }} />
-        </View>
-        {/* wall clock */}
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF", borderWidth: 3, borderColor: "#8B5E34", alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: 3, height: 12, backgroundColor: "#1C1917", marginTop: -10 }} />
-          <View style={{ width: 8, height: 3, backgroundColor: "#1C1917", marginLeft: 6, marginTop: -3 }} />
-          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#B8860B", marginTop: -4 }} />
-        </View>
-        <View style={{ flex: 1, height: 26, backgroundColor: "#6B4A2B", borderRadius: 4, marginLeft: 8, borderWidth: 1, borderColor: "#54371F" }}>
-          <View style={{ height: 3, backgroundColor: "#8B5E34", marginTop: 4, marginHorizontal: 6, borderRadius: 2 }} />
-        </View>
-      </View>
-    </View>
-  );
-}
 
 /** Tiny storage fill bar under an ATM/vault tile. Shows FULL when capped. */
 function StorageBar({ pending, cap }: { pending: number; cap: number }) {
@@ -702,6 +403,8 @@ export default function BankInteriorScreen() {
   }, []);
 
   const cascade = useMiniGameHost("cascade", addCoins);
+  const { width: windowWidth } = useWindowDimensions();
+  const sceneWidth = Math.min(windowWidth - 32, 560);
 
   const floorInterior: BankFloorInterior = interior.floors[String(safeFloor)] ?? EMPTY_FLOOR;
 
@@ -711,7 +414,7 @@ export default function BankInteriorScreen() {
     if (current >= BANK_MAX_FLOORS) return;
     const cost = bankFloorCost(current);
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${cost.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `Adding floor ${current + 1} costs ${formatCoins(cost)} coins.`);
       return;
     }
     // A new tower floor is construction like any other build (1 hour at
@@ -719,7 +422,7 @@ export default function BankInteriorScreen() {
     // under scaffolding, and the floor stands when the timer completes.
     Alert.alert(
       `Add floor ${current + 1}?`,
-      `${cost.toFixed(2)} coins. Takes 1 hr — the bank closes while it builds and reopens with the new floor.`,
+      `${formatCoins(cost)} coins. Takes 1 hr — the bank closes while it builds and reopens with the new floor.`,
       [
         { text: "Not yet", style: "cancel" },
         {
@@ -868,7 +571,7 @@ export default function BankInteriorScreen() {
         const pendingAmt = Math.round((existing.pending || 0) * 10) / 10;
         const upgradeCost = storageType ? storageUpgradeCostFor(storageType, storageLvl) : null;
         const storageLine = storageType
-          ? `\n🪙 Storage: ${pendingAmt.toFixed(2)}/${cap.toFixed(2)}${pendingAmt >= cap ? " FULL" : ""}`
+          ? `\n🪙 Storage: ${formatCoins(pendingAmt)}/${formatCoins(cap)}${pendingAmt >= cap ? " FULL" : ""}`
           : "";
         const upgradeLine = storageType && upgradeCost != null
           ? `\nUpgrade storage → ${storageCapFor(storageType, storageLvl + 1)} cap (🪙${upgradeCost})`
@@ -999,7 +702,7 @@ export default function BankInteriorScreen() {
       return;
     }
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `You need ${formatCoins(cost)} coins.`);
       return;
     }
     const item: BankInteriorItem = { id: nextId(), kind, x: selectedTile.x, y: selectedTile.y, cost };
@@ -1022,7 +725,7 @@ export default function BankInteriorScreen() {
       return;
     }
     if (coinsRef.current.balance < def.cost) {
-      Alert.alert("Not enough coins", `You need ${def.cost.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `You need ${formatCoins(def.cost)} coins.`);
       return;
     }
     const item: BankFurnitureItem = { id: nextId(), type, x: selectedTile.x, y: selectedTile.y, cost: def.cost };
@@ -1165,7 +868,7 @@ export default function BankInteriorScreen() {
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
-          <Text style={{ marginLeft: 6, fontWeight: "700", color: "#1C1917" }}>{coins.balance.toFixed(2)}</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700", color: "#1C1917" }}>{formatCoins(coins.balance)}</Text>
         </View>
       </View>
 
@@ -1209,7 +912,7 @@ export default function BankInteriorScreen() {
                 style={{ backgroundColor: canAfford ? "#FDE68A" : "#4B5563", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: canAfford ? 1 : 0.6 }}
               >
                 <Text style={{ fontWeight: "800", color: canAfford ? "#1E3A8A" : "#D1D5DB", fontSize: 13 }}>
-                  +Floor 🪙{cost.toFixed(2)}
+                  +Floor 🪙{formatCoins(cost)}
                 </Text>
               </Pressable>
             )}
@@ -1255,8 +958,14 @@ export default function BankInteriorScreen() {
           Floor {safeFloor} · {themeName}
         </Text>
       </View>
-      {/* the room itself gets richer with the building's level */}
-      <BankLevelDecor level={Math.min(Math.max(building?.level || 1, 1), 3)} />
+      {/* the room itself gets richer with the building's level — the paper bank:
+          vault door, teller counter and coin stacks climb with the level.
+          (No marginHorizontal wrapper: this ScrollView already pads 16,
+          so sceneWidth = window - 32 lands at the same inset as the
+          other interiors.) */}
+      <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <PaperRoomScene config={PAPER_ROOMS["bank"]} level={Math.min(Math.max(building?.level || 1, 1), 3)} width={sceneWidth} />
+      </View>
       <View style={{ alignItems: "center", marginBottom: 16 }}>
         <View style={{ position: "relative", width: w * cellSize, height: h * cellSize }}>
           {rows}
@@ -1328,7 +1037,7 @@ export default function BankInteriorScreen() {
               </Text>
               <Text style={{ color: "#78716C", fontSize: 12 }}>+{deskBonusPct}% each when connected</Text>
             </View>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{deskCost.toFixed(2)}</Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{formatCoins(deskCost)}</Text>
           </Pressable>
           <Pressable
             onPress={() => handlePlace("carpet")}
@@ -1345,7 +1054,7 @@ export default function BankInteriorScreen() {
               <Text style={{ fontWeight: "600", color: "#1C1917" }}>{carpetName}</Text>
               <Text style={{ color: "#78716C", fontSize: 12 }}>Connects desks · sells back full price</Text>
             </View>
-            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{carpetCost.toFixed(2)}</Text>
+            <Text style={{ fontWeight: "700", color: "#1C1917" }}>🪙{formatCoins(carpetCost)}</Text>
           </Pressable>
 
           <Text style={{ fontWeight: "700", marginTop: 8, marginBottom: 4, color: "#1C1917" }}>Furniture</Text>
@@ -1382,7 +1091,7 @@ export default function BankInteriorScreen() {
                       {count}/{def.max}
                     </Text>
                     <Text style={{ fontWeight: "700", fontSize: 12, color: "#1C1917", marginTop: 2 }}>
-                      🪙{def.cost.toFixed(2)}
+                      🪙{formatCoins(def.cost)}
                     </Text>
                   </Pressable>
                 );

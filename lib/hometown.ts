@@ -10,6 +10,19 @@ export type HometownCoins = {
   lifetimeEarned: number;
 };
 
+/**
+ * The ONE way a coin amount is rendered (Jonathan, 2026-10-21): WHOLE
+ * coins, no cents anywhere — "18702.00" reads "18,702". This reverses
+ * the old cents-everywhere rule, which never landed uniformly (some
+ * surfaces showed decimals, others didn't, so it "didn't work").
+ * Display-side only: balances and payouts keep their full precision
+ * internally; the render rounds half up and adds thousands separators.
+ */
+export function formatCoins(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  return Math.round(n).toLocaleString("en-US");
+}
+
 export function parseCoins(value: unknown): HometownCoins {
   if (!value || typeof value !== "object") return { balance: 0, lifetimeEarned: 0 };
   const c = value as Partial<HometownCoins>;

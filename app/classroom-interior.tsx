@@ -7,27 +7,20 @@
 // MaterialIcons only.
 
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
-import { MaterialIcons } from "@expo/vector-icons";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
-import { PawnPreview } from "@/components/pawn-preview";
-import { InteriorAtmosphere } from "@/components/interior-atmosphere";
-import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
   InteriorBanner,
   InteriorActions,
 } from "@/components/interior-shell";
-import {
-  SoftPulse,
-  SeatedFigure,
-  pickPeople,
-  FigureName,
-} from "@/components/activity-figures";
+import { pickPeople } from "@/components/activity-figures";
+import { PaperRoomScene } from "@/components/paper-room";
+import { PAPER_ROOMS } from "@/lib/paper-rooms";
+
 import { VerseGame } from "@/components/verse-game";
 import { PlayCard } from "@/components/mini-game-scene";
 import { useMiniGameHost } from "@/components/mini-game-host";
@@ -49,231 +42,6 @@ const TEXT_DIM = "#6B8CA8";
 const LESSON_KEY = "prayercircle.interior.classroom.lesson.v1";
 const LESSON_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const LESSON_XP: Record<1 | 2 | 3, number> = { 1: 10, 2: 18, 3: 30 };
-
-/** The board at the front — plain chalkboard, or glowing smart board at L3. */
-function Board({ level }: { level: number }) {
-  if (level >= 3) {
-    return (
-      <View style={{ alignItems: "center" }}>
-        <Svg width={220} height={110} viewBox="0 0 220 110">
-          <Rect x={0} y={0} width={220} height={110} rx={8} fill="#1E3A5F" />
-          <Rect x={6} y={6} width={208} height={98} rx={5} fill="#E0F2FE" />
-        </Svg>
-        <View style={{ position: "absolute", top: 6, alignItems: "center" }}>
-          <SoftPulse duration={2000}>
-            <Svg width={208} height={98} viewBox="0 0 208 98">
-              {/* lesson slide: sun + hills + big letter */}
-              <Circle cx={170} cy={26} r={14} fill="#FBBF24" />
-              <Rect x={10} y={62} width={188} height={30} fill="#86EFAC" opacity={0.8} />
-              <Rect x={30} y={30} width={60} height={40} rx={4} fill={ACCENT} opacity={0.85} />
-              <Rect x={100} y={40} width={70} height={6} rx={3} fill="#1E3A5F" opacity={0.5} />
-              <Rect x={100} y={52} width={50} height={6} rx={3} fill="#1E3A5F" opacity={0.35} />
-            </Svg>
-          </SoftPulse>
-        </View>
-        <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 4 }}>Smart board</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={200} height={104} viewBox="0 0 200 104">
-        <Rect x={0} y={0} width={200} height={104} rx={8} fill={WOOD_DARK} />
-        <Rect x={8} y={8} width={184} height={88} rx={4} fill="#3E5C4B" />
-        {/* chalk lesson lines */}
-        <Rect x={22} y={22} width={120} height={5} rx={2.5} fill="#F8FAFC" opacity={0.85} />
-        <Rect x={22} y={34} width={90} height={5} rx={2.5} fill="#F8FAFC" opacity={0.6} />
-        <Rect x={22} y={46} width={104} height={5} rx={2.5} fill="#F8FAFC" opacity={0.6} />
-        <Rect x={140} y={58} width={36} height={28} rx={4} fill="none" stroke="#F8FAFC" strokeWidth={2.5} opacity={0.8} />
-        <Circle cx={44} cy={72} r={10} fill="none" stroke="#F8FAFC" strokeWidth={2.5} opacity={0.8} />
-      </Svg>
-      <View style={{ width: 180, height: 6, borderRadius: 3, backgroundColor: WOOD, marginTop: -4 }} />
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Chalkboard</Text>
-    </View>
-  );
-}
-
-/** A wall map (L2+). */
-function WallMap() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={64} height={76} viewBox="0 0 64 76">
-        <Rect x={4} y={8} width={56} height={60} rx={4} fill="#F5E9C8" stroke={WOOD_DARK} strokeWidth={2.5} />
-        <Rect x={4} y={0} width={56} height={8} rx={4} fill={WOOD_DARK} />
-        <Rect x={12} y={16} width={22} height={14} rx={6} fill="#7FB069" />
-        <Rect x={36} y={24} width={14} height={18} rx={6} fill="#7FB069" />
-        <Rect x={16} y={38} width={12} height={20} rx={6} fill="#7FB069" />
-        <Rect x={40} y={48} width={12} height={10} rx={5} fill="#7FB069" />
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Map</Text>
-    </View>
-  );
-}
-
-/** A small classroom bookshelf (L2+). */
-function ClassShelf() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={52} height={70} viewBox="0 0 52 70">
-        <Rect x={0} y={0} width={52} height={70} rx={5} fill={WOOD} />
-        <Rect x={5} y={5} width={42} height={60} fill="#6B4A2F" />
-        {[0, 1, 2].map((r) => (
-          <G key={r}>
-            {[0, 1, 2, 3, 4].map((b) => (
-              <Rect
-                key={b}
-                x={8 + b * 8}
-                y={10 + r * 20}
-                width={6}
-                height={14 - ((r + b) % 3)}
-                rx={1}
-                fill={["#2563EB", "#DC2626", "#059669", "#F59E0B", "#7C3AED"][(r + b) % 5]}
-              />
-            ))}
-            <Rect x={7} y={24 + r * 20} width={38} height={2.5} fill={WOOD} />
-          </G>
-        ))}
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 3 }}>Shelf</Text>
-    </View>
-  );
-}
-
-/** A student desk. */
-function Desk({ seed = 0 }: { seed?: number }) {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={74} height={46} viewBox="0 0 74 46">
-        <Rect x={0} y={6} width={74} height={12} rx={5} fill={WOOD} />
-        <Rect x={0} y={6} width={74} height={5} rx={2.5} fill="#D9A96B" />
-        <Rect x={8} y={18} width={7} height={26} rx={3} fill={WOOD_DARK} />
-        <Rect x={59} y={18} width={7} height={26} rx={3} fill={WOOD_DARK} />
-        {/* pencil and paper on the desk */}
-        <Rect x={20} y={8} width={18} height={8} rx={1.5} fill="#FFFFFF" stroke="#CBD5E1" strokeWidth={1} />
-        <Rect x={46} y={9} width={12} height={3} rx={1.5} fill="#F59E0B" transform={`rotate(${-12 + seed * 4} 52 10)`} />
-      </Svg>
-    </View>
-  );
-}
-
-/** A reading corner with rug and cushions (L3). */
-function ReadingCorner() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={120} height={54} viewBox="0 0 120 54">
-        <Circle cx={60} cy={30} r={24} fill="#BFDBFE" />
-        <Circle cx={60} cy={30} r={17} fill="#DBEAFE" />
-        <Rect x={26} y={38} width={20} height={10} rx={5} fill={ACCENT} opacity={0.8} />
-        <Rect x={74} y={38} width={20} height={10} rx={5} fill="#7C3AED" opacity={0.8} />
-        {/* little book pile */}
-        <Rect x={52} y={8} width={16} height={5} rx={2} fill="#DC2626" />
-        <Rect x={54} y={13} width={13} height={5} rx={2} fill="#059669" />
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Reading corner</Text>
-    </View>
-  );
-}
-
-/** A potted plant (L3). */
-function Plant() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={40} height={62} viewBox="0 0 40 62">
-        <Circle cx={20} cy={16} r={13} fill="#4D7C4D" />
-        <Circle cx={14} cy={12} r={8} fill="#5B8A5B" />
-        <Circle cx={26} cy={12} r={8} fill="#5B8A5B" />
-        <Rect x={17} y={28} width={6} height={12} fill="#6B4A2F" />
-        <Rect x={10} y={38} width={20} height={22} rx={4} fill="#B0724A" />
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Plant</Text>
-    </View>
-  );
-}
-
-/** Academy pennant flags strung across the room — L3 only. */
-function BannerFlags() {
-  return (
-    <View style={{ alignItems: "center", marginTop: 8 }}>
-      <Svg width={330} height={34} viewBox="0 0 330 34">
-        <Line x1={0} y1={4} x2={330} y2={4} stroke="#8B5E34" strokeWidth={2.5} />
-        {[30, 70, 110, 150, 190, 230, 270, 300].map((x, i) => (
-          <G key={x}>
-            <Line x1={x} y1={4} x2={x} y2={10} stroke="#8B5E34" strokeWidth={1.5} />
-            <Path d={`M${x - 9} 10 L${x + 9} 10 L${x} 26 Z`} fill={["#2563EB", "#7C3AED", "#059669", "#F59E0B"][i % 4]} />
-          </G>
-        ))}
-      </Svg>
-    </View>
-  );
-}
-
-/** A hanging pendant light — L3 only. */
-function PendantLight({ delay = 0 }: { delay?: number }) {
-  return (
-    <View style={{ alignItems: "center", marginHorizontal: 12 }}>
-      <View style={{ width: 3, height: 16, backgroundColor: "#8B5E34" }} />
-      <SoftPulse duration={1900 + delay}>
-        <Svg width={44} height={26} viewBox="0 0 44 26">
-          <Path d="M22 2 L38 18 L6 18 Z" fill={ACCENT} />
-          <Ellipse cx={22} cy={20} rx={12} ry={4} fill="#FDE68A" opacity={0.85} />
-        </Svg>
-      </SoftPulse>
-    </View>
-  );
-}
-
-/** A "Wall of Honor" trophy shelf — L3 only. */
-function WallOfHonor() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={112} height={78} viewBox="0 0 112 78">
-        <Rect x={0} y={0} width={112} height={78} rx={6} fill={WOOD} />
-        <Rect x={6} y={6} width={100} height={66} fill={WOOD_DARK} />
-        {/* top row: medals */}
-        {[24, 44, 64, 84].map((x, i) => (
-          <G key={x}>
-            <Rect x={x - 1.5} y={12} width={3} height={12} fill={["#DC2626", "#2563EB", "#059669", "#F59E0B"][i]} />
-            <Circle cx={x} cy={30} r={8} fill="#FACC15" stroke="#B45309" strokeWidth={2} />
-          </G>
-        ))}
-        <Rect x={10} y={44} width={92} height={3} fill={WOOD} />
-        {/* bottom row: trophies */}
-        {[34, 62, 90].map((x) => (
-          <G key={x}>
-            <Rect x={x - 5} y={63} width={10} height={5} rx={2} fill="#B45309" />
-            <Rect x={x - 1.5} y={53} width={3} height={10} fill="#B45309" />
-            <Circle cx={x} cy={50} r={6} fill="#FACC15" stroke="#B45309" strokeWidth={1.5} />
-          </G>
-        ))}
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Wall of Honor</Text>
-    </View>
-  );
-}
-
-/** A little science station with a microscope — L3 only. */
-function ScienceCorner() {
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Svg width={78} height={74} viewBox="0 0 78 74">
-        <Rect x={4} y={50} width={70} height={8} rx={4} fill={WOOD} />
-        <Rect x={12} y={58} width={6} height={14} fill={WOOD_DARK} />
-        <Rect x={60} y={58} width={6} height={14} fill={WOOD_DARK} />
-        {/* microscope */}
-        <Rect x={14} y={40} width={14} height={4} rx={2} fill="#1E3A5F" />
-        <Rect x={20} y={20} width={4} height={22} fill="#1E3A5F" />
-        <Rect x={13} y={13} width={18} height={9} rx={3} fill="#3B82F6" />
-        {/* flask */}
-        <Rect x={44} y={32} width={12} height={18} rx={2} fill="#BFDBFE" stroke="#1E3A5F" strokeWidth={1.5} />
-        <Rect x={44} y={40} width={12} height={10} fill="#60A5FA" />
-        {/* beaker */}
-        <Rect x={60} y={36} width={10} height={14} rx={2} fill="#E0F2FE" stroke="#1E3A5F" strokeWidth={1.2} />
-        <Rect x={60} y={42} width={10} height={8} fill="#F472B6" opacity={0.8} />
-      </Svg>
-      <Text style={{ fontSize: 9, color: TEXT_DIM, marginTop: 2 }}>Science corner</Text>
-    </View>
-  );
-}
 
 export default function ClassroomInteriorScreen() {
   const { coins, building, people, pawn, loaded, level, buildingName, addCoins, handleUpgrade } = useInteriorData();
@@ -302,12 +70,14 @@ export default function ClassroomInteriorScreen() {
   const deskCount = level >= 3 ? 8 : level >= 2 ? 6 : 4;
   const learners = pickPeople(people, `classroom|${building?.id ?? "cls"}`, deskCount);
 
+  const { width: windowWidth } = useWindowDimensions();
+  const sceneWidth = Math.min(windowWidth - 32, 560);
   const levelBlurb =
     level >= 3
-      ? "A premier academy — glowing smart board, pennant flags, a Wall of Honor, a science corner, and plants everywhere."
+      ? "A premier academy — rows of desks, pendant lights, and plants in the corners."
       : level >= 2
-        ? "A growing classroom — a wall map, a bookshelf, more desks."
-        : "A simple classroom — a few desks and a chalkboard.";
+        ? "A growing classroom — more desks and a rug underfoot."
+        : "A simple classroom — a few desks, ready for the lesson.";
 
   const handleLesson = async () => {
     if (remaining > 0) {
@@ -334,89 +104,16 @@ export default function ClassroomInteriorScreen() {
           accent="#BFDBFE"
         />
 
-        {/* classroom scene — richer with level */}
-        <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#BFDBFE", overflow: "hidden", backgroundColor: "#F8FBFF" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="classroom" />
-          {/* front of the room */}
-          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 10 }}>
-            {level >= 2 && <WallMap />}
-            <View style={{ marginHorizontal: level >= 2 ? 10 : 0 }}>
-              <Board level={level} />
-            </View>
-            {level >= 2 && <ClassShelf />}
-          </View>
-
-          {/* academy pennants + pendant lights at L3 */}
-          {level >= 3 && <BannerFlags />}
-          {level >= 3 && (
-            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start", paddingTop: 6 }}>
-              <PendantLight />
-              <PendantLight delay={450} />
-              <PendantLight delay={900} />
-            </View>
-          )}
-
-          {/* desks with learners */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", paddingTop: 12, paddingHorizontal: 6 }}>
-            {Array.from({ length: deskCount }).map((_, i) => {
-              const learner = learners[i];
-              return (
-                <View key={i} style={{ alignItems: "center", marginHorizontal: 4, marginBottom: 6 }}>
-                  {learner && (
-                    <View style={{ marginBottom: -6 }}>
-                      <SeatedFigure person={learner} delay={i * 160} chairColor="#8B5E34" chairBorder="#5E3D22" backH={26} backW={38} />
-                    </View>
-                  )}
-                  <Desk seed={i} />
-                </View>
-              );
-            })}
-            {learners.length === 0 && !pawn && (
-              <Text style={{ color: TEXT_DIM, fontSize: 12, fontStyle: "italic", marginVertical: 8 }}>
-                The desks are empty — class hasn't started.
-              </Text>
-            )}
-          </View>
-
-          {/* the pawn at a desk */}
-          {pawn && (
-            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 4 }}>
-              <View style={{ alignItems: "center", marginHorizontal: 8 }}>
-                <FigureName name={pawn.name} color={ACCENT_DARK} />
-                <PawnPreview pawn={pawn} size={50} />
-              </View>
-              <Desk seed={7} />
-              <Text style={{ fontSize: 10, color: TEXT_DIM, marginLeft: 6, marginBottom: 12 }}>Front row</Text>
-            </View>
-          )}
-
-          {/* L3 extras: Wall of Honor, science corner, plants */}
-          {level >= 3 && (
-            <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "flex-end", paddingHorizontal: 14, marginTop: 10 }}>
-              <Plant />
-              <WallOfHonor />
-              <ScienceCorner />
-              <Plant />
-            </View>
-          )}
-          {level >= 3 && (
-            <View style={{ alignItems: "center", paddingBottom: 6, marginTop: 8 }}>
-              <ReadingCorner />
-            </View>
-          )}
-
-          {/* floor */}
-          <View style={{ height: level >= 3 ? 32 : 26, backgroundColor: "#DCE9F7" }}>
-            <View style={{ height: 3, backgroundColor: level >= 3 ? ACCENT : "#C8D9EF" }} />
-            {level >= 3 && (
-              <View style={{ alignItems: "center", marginTop: 6 }}>
-                <View style={{ width: "70%", height: 12, borderRadius: 6, backgroundColor: "#BFDBFE", borderWidth: 2, borderColor: ACCENT }} />
-              </View>
-            )}
-          </View>
+        <View style={{ marginHorizontal: 16 }}>
+          <PaperRoomScene config={PAPER_ROOMS["classroom"]} level={level} cast={learners.map((person) => ({ person, pose: "seated" as const }))} pawn={pawn} pawnPose="seated" width={sceneWidth} />
         </View>
+        {learners.length === 0 && !pawn && (
+          <Text style={{ color: TEXT_DIM, fontSize: 12, fontStyle: "italic", textAlign: "center", marginTop: 8, marginBottom: 4 }}>
+            The desks are empty — class hasn't started.
+          </Text>
+        )}
 
-        <InteriorActions
+                <InteriorActions
           primaryLabel={remaining > 0 ? `Next lesson in ${formatCooldown(remaining)}` : "Join the Lesson"}
           onPrimary={handleLesson}
           primaryColor={ACCENT}

@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import { PawnPreview } from "@/components/pawn-preview";
-import { HeroThumbnail } from "@/components/hero-sprite";
+import { PaperHeroThumbnail, PawnPreview } from "@/components/pawn-preview";
 import {
   PAWN_ACCESSORIES,
   PAWN_BODY_COLORS,
@@ -122,7 +121,7 @@ export default function PawnCreatorScreen() {
                   borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF",
                 }}
               >
-                <HeroThumbnail
+                <PaperHeroThumbnail
                   size={52}
                   tunicColor={draft.bodyColor}
                   hairStyle={draft.hairStyle}
@@ -186,7 +185,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("eyeStyle", opt.id as PawnEyeStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <HeroThumbnail
+                <PaperHeroThumbnail
                   headOnly
                   size={52}
                   tunicColor={draft.bodyColor}
@@ -213,7 +212,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("mouthStyle", opt.id as PawnMouthStyle)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <HeroThumbnail
+                <PaperHeroThumbnail
                   headOnly
                   size={52}
                   tunicColor={draft.bodyColor}
@@ -240,7 +239,7 @@ export default function PawnCreatorScreen() {
                 onPress={() => set("accessory", opt.id as PawnAccessory)}
                 style={{ width: 76, alignItems: "center", backgroundColor: CARD, borderRadius: 12, paddingVertical: 8, borderWidth: selected ? 2 : 0, borderColor: "#FFFFFF" }}
               >
-                <HeroThumbnail
+                <PaperHeroThumbnail
                   headOnly
                   size={52}
                   tunicColor={draft.bodyColor}

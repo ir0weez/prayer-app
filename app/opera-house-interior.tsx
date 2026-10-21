@@ -20,7 +20,9 @@ import {
 import { GentleBob, SingingFigure, SoftPulse, WatchingFigure, FigureName, pickPeople } from "@/components/activity-figures";
 import { PawnPreview } from "@/components/pawn-preview";
 import { formatCooldown } from "@/lib/gathering-places";
-import { scaledCoins, scaledXP } from "@/lib/hometown";
+import { scaledCoins, scaledXP,
+  formatCoins,
+} from "@/lib/hometown";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
@@ -170,7 +172,7 @@ export default function OperaHouseInteriorScreen() {
     await AsyncStorage.setItem(OPERA_KEY, String(t)).catch(() => undefined);
     addCoins(c);
     awardCustomXP(xp, `operahouse-attend-${t}`).catch(() => undefined);
-    Alert.alert("Bravo!", `The final aria soars — the hall erupts in applause.\n\n+${c.toFixed(2)} coins, +${xp} XP.`);
+    Alert.alert("Bravo!", `The final aria soars — the hall erupts in applause.\n\n+${formatCoins(c)} coins, +${xp} XP.`);
   };
 
   return (

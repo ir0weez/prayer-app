@@ -8,8 +8,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Polygon, Rect } from "react-native-svg";
-import { PawnPreview } from "@/components/pawn-preview";
-import { HeroThumbnail } from "@/components/hero-sprite";
+import { PaperHeroFigure } from "@/components/paper-interior";
 import type { CustomPawn } from "@/lib/pawn";
 
 export type PawnMoodStatus = "completed" | "missed" | "skipped" | undefined;
@@ -275,18 +274,38 @@ export function PawnMoodScene({
   const swayR = sway.interpolate({ inputRange: [0, 1], outputRange: ["-6deg", "6deg"] });
   const breatheS = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
 
-  // The companion is the Hero himself — the same 8-bit figure as the
-  // town and the Dark Forest (HeroFigure via PawnPreview), in his
-  // normal clothes: armor and weapons exist only in the Dark Forest
-  // (gear rule), so the companion carries no blade here. With no saved
-  // hero yet, show the plain default Hero — never a board piece:
-  // board tokens are collectibles, not the character.
-  const renderPawn = (pawnSize: number) =>
-    customPawn ? (
-      <PawnPreview pawn={customPawn} size={pawnSize} />
-    ) : (
-      <HeroThumbnail size={pawnSize} tunicColor={color} hairColor="#6B4423" />
-    );
+  // The companion is the Hero himself as a PAPER figure — the same
+  // renderer as the town and every interior (Jonathan's rider,
+  // 2026-10-21). Two fixes ride on that choice: the paper figure has
+  // no weapon or armor slot at all, so nothing can ever stand planted
+  // beside him outside the Dark Forest (the world rule), and his hair
+  // renders from his equipped style/color as a real rounded cap —
+  // not the pixel renderer's flat rectangle slab. With no saved hero
+  // yet, a plain default hero in the pawn's color stands in — never a
+  // board piece: board tokens are collectibles, not the character.
+  const moodPawn: CustomPawn =
+    customPawn ??
+    ({
+      id: "mood-default",
+      name: "Hero",
+      bodyColor: color,
+      eyeStyle: "round",
+      mouthStyle: "smile",
+      accessory: "none",
+      gender: "male",
+      hairStyle: "short",
+      bodyStyle: "pebble",
+      beardLength: 0,
+      lastTrim: "2026-01-01T00:00:00.000Z",
+      beardStyle: "none",
+      hairColor: "#6B4423",
+      hairLength: 0,
+      lastHaircut: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    } as CustomPawn);
+  const renderPawn = (pawnSize: number) => (
+    <PaperHeroFigure pawn={moodPawn} unit={pawnSize / 9} />
+  );
 
   if (status === "missed") {
     return (

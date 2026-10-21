@@ -12,7 +12,9 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect } from "react-native-svg";
-import { REMEMBRANCE_FLOWERS, REMEMBRANCE_UPGRADE_COSTS, MEMORY_CANDLE_COST, candleLit, type RememberedPerson, type RemembranceState } from "@/lib/hometown";
+import { REMEMBRANCE_FLOWERS, REMEMBRANCE_UPGRADE_COSTS, MEMORY_CANDLE_COST, candleLit, type RememberedPerson, type RemembranceState,
+  formatCoins,
+} from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 import { PaperStandingVillager } from "@/components/paper-interior";
 import { paperMapLookFor } from "@/lib/paper-town";
@@ -927,7 +929,7 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
           <Pressable
             onPress={() => {
               if (coins < upgradeCost) {
-                Alert.alert("Not enough coins", `Upgrading to the ${levelNames[nextLevel]} costs ${upgradeCost.toFixed(2)} coins.`);
+                Alert.alert("Not enough coins", `Upgrading to the ${levelNames[nextLevel]} costs ${formatCoins(upgradeCost)} coins.`);
                 return;
               }
               Alert.alert(
@@ -937,14 +939,14 @@ export function GardenOfRemembrance(props: GardenOfRemembranceProps) {
                   : "Glowing flowers, a marble wall with gold names, and a fountain centerpiece. Fireflies dance at night.",
                 [
                   { text: "Not yet", style: "cancel" },
-                  { text: `Upgrade · 🪙${upgradeCost.toFixed(2)}`, onPress: onUpgrade },
+                  { text: `Upgrade · 🪙${formatCoins(upgradeCost)}`, onPress: onUpgrade },
                 ]
               );
             }}
             style={{ borderRadius: 12, padding: 13, alignItems: "center", marginTop: 8, borderWidth: 1.5, borderColor: "#D4AF37", backgroundColor: "rgba(212,175,55,0.08)" }}
           >
             <Text style={{ color: "#8A6D1B", fontWeight: "800", fontSize: 14 }}>
-              ✨ Upgrade to {levelNames[nextLevel]} · 🪙{upgradeCost.toFixed(2)}
+              ✨ Upgrade to {levelNames[nextLevel]} · 🪙{formatCoins(upgradeCost)}
             </Text>
           </Pressable>
         ) : (

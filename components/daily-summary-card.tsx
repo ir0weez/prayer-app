@@ -1,4 +1,5 @@
 import { Animated, View, Text, Pressable, ScrollView, Modal } from "react-native";
+import { formatCoins } from "@/lib/hometown";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -259,7 +260,7 @@ export function DailySummaryCard({
             <MaterialIcons name="favorite" size={16} color={colors.foreground} /> {remainingPrayers} prayer{remainingPrayers !== 1 ? "s" : ""}
           </Text>
           , <Text style={{ fontWeight: "700" }}>
-            <MaterialIcons name="account-balance-wallet" size={16} color={colors.foreground} /> ${budgetAmount.toFixed(2)}
+            <MaterialIcons name="account-balance-wallet" size={16} color={colors.foreground} /> ${formatCoins(budgetAmount)}
           </Text> to budget,{' '}
           <Text style={{ fontWeight: "700" }}>
             <MaterialIcons name="people" size={16} color={colors.foreground} /> {peopleToReach} people

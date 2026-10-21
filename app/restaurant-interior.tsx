@@ -18,6 +18,7 @@ import {
   type HometownCoins,
   type PlacedBuilding,
   type PrayedPerson,
+  formatCoins,
 } from "@/lib/hometown";
 import {
   RESTAURANT_SLOTS,
@@ -176,7 +177,7 @@ function FurnitureRow({
           }}
         >
           <Text style={{ color: canAfford ? "#241811" : pal.textDim, fontWeight: "800", fontSize: 12 }}>
-            {tier === 0 ? "Buy" : "Upgrade"} 🪙{nextCost.toFixed(2)}
+            {tier === 0 ? "Buy" : "Upgrade"} 🪙{formatCoins(nextCost)}
           </Text>
         </Pressable>
       )}
@@ -372,7 +373,7 @@ export default function RestaurantInteriorScreen() {
       if (tier >= 3) return;
       const cost = slot.costs[tier];
       if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
         return;
       }
       const next = { furniture: { ...interior.furniture, [slot.id]: tier + 1 } };
@@ -390,7 +391,7 @@ export default function RestaurantInteriorScreen() {
       if (tier >= 3) return;
       const cost = def.costs[tier];
       if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        Alert.alert("Not enough coins", `You need ${cost} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
         return;
       }
       const next = { features: { ...pizza.features, [def.id]: tier + 1 } };
@@ -405,7 +406,7 @@ export default function RestaurantInteriorScreen() {
   const handleBuyCoffee = useCallback(async () => {
     if (coffeeLeft === null || coffeeLeft <= 0) return;
     if (coinsRef.current.balance < COFFEE_PRICE) {
-      Alert.alert("Not enough coins", `A coffee is ${COFFEE_PRICE} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `A coffee is ${COFFEE_PRICE} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
       return;
     }
     const left = await recordCoffeePurchase();
@@ -499,7 +500,7 @@ export default function RestaurantInteriorScreen() {
         >
           <Text style={{ fontSize: 15 }}>🪙</Text>
           <Text style={{ marginLeft: 5, fontWeight: "700", color: pal.text }}>
-            {coins.balance.toFixed(2)}
+            {formatCoins(coins.balance)}
           </Text>
         </View>
       </View>

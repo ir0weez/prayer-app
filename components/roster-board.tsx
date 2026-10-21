@@ -19,6 +19,7 @@
 // with a field-level comparison so the board never re-renders per frame.
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { formatCoins } from "@/lib/hometown";
 import {
   Animated,
   Easing,
@@ -253,7 +254,7 @@ export const RosterRowCard = memo(function RosterRowCard(props: RosterRowCardPro
     const target = parseFloat(propsRef.current.collectAmount ?? "0") || 0;
     coinAnims.forEach((v) => v.setValue(0));
     countVal.setValue(0);
-    const listenerId = countVal.addListener(({ value }) => setDisplayAmount(value.toFixed(2)));
+    const listenerId = countVal.addListener(({ value }) => setDisplayAmount(formatCoins(value)));
     const dots = coinAnims.map((v, i) =>
       Animated.timing(v, {
         toValue: 1,

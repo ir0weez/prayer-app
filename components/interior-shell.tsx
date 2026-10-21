@@ -23,6 +23,7 @@ import {
   type HometownCoins,
   type PlacedBuilding,
   type PrayedPerson,
+  formatCoins,
 } from "@/lib/hometown";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 
@@ -94,7 +95,7 @@ export function useInteriorData(): InteriorData {
     const nextLevel = (level + 1) as 2 | 3;
     const cost = upgradeCostFor(building?.type as BuildingType, nextLevel);
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `You need ${formatCoins(cost)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
       return;
     }
     // Upgrades are built, not instant (Jonathan's construction timers):
@@ -102,7 +103,7 @@ export function useInteriorData(): InteriorData {
     // scaffolding and reopens at the new level when the timer completes.
     Alert.alert(
       `Upgrade to level ${nextLevel}?`,
-      `${cost.toFixed(2)} coins. ${constructionTimeLabel(nextLevel, false)} — ${buildingName} closes while it builds and reopens at level ${nextLevel}.\n\n${upgradeBlurb}`,
+      `${formatCoins(cost)} coins. ${constructionTimeLabel(nextLevel, false)} — ${buildingName} closes while it builds and reopens at level ${nextLevel}.\n\n${upgradeBlurb}`,
       [
         { text: "Not yet", style: "cancel" },
         {
@@ -166,7 +167,7 @@ export function InteriorHeader({
       <View style={{ flex: 1 }} />
       <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: "#E5E7EB" }}>
         <MaterialIcons name="monetization-on" size={15} color="#B45309" />
-        <Text style={{ marginLeft: 5, fontWeight: "700", color: textColor }}>{coins.balance.toFixed(2)}</Text>
+        <Text style={{ marginLeft: 5, fontWeight: "700", color: textColor }}>{formatCoins(coins.balance)}</Text>
       </View>
     </View>
   );

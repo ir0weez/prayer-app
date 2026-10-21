@@ -16,6 +16,7 @@ import {
   missionStatus,
   type FieldMission,
   type MissionDurationId,
+  formatCoins,
 } from "@/lib/hometown";
 import type { PageTheme, TimeOfDay } from "@/lib/daynight";
 import { PaperFigureGlyph } from "@/components/paper-interior";
@@ -462,7 +463,7 @@ export function MissionField(props: MissionFieldProps) {
                   </Text>
                   <Text style={{ fontSize: 12, color: safePt.subtext, marginTop: 2 }}>{d.blurb}</Text>
                   <Text style={{ fontSize: 12, color: safePt.subtext, marginTop: 2 }}>
-                    Blessing: {d.coinsMin.toFixed(2)}–{d.coinsMax.toFixed(2)} coins{d.xp > 0 ? ` + ${d.xp} XP` : ""}
+                    Blessing: {formatCoins(d.coinsMin)}–{formatCoins(d.coinsMax)} coins{d.xp > 0 ? ` + ${d.xp} XP` : ""}
                     {d.verseChance > 0 ? " · may carry a verse" : ""}
                   </Text>
                 </Pressable>
@@ -526,7 +527,7 @@ export function MissionField(props: MissionFieldProps) {
               }}
             >
               <Text style={{ fontWeight: "800", fontSize: 16, color: "#92400E" }}>
-                +{typeof collectMission?.coins === "number" ? collectMission.coins.toFixed(2) : "0.00"} coins{collectMission && typeof collectMission.xp === "number" && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
+                +{typeof collectMission?.coins === "number" ? formatCoins(collectMission.coins) : "0.00"} coins{collectMission && typeof collectMission.xp === "number" && collectMission.xp > 0 ? ` · +${collectMission.xp} XP` : ""}
               </Text>
               {collectMission?.verse && typeof collectMission.verse.text === "string" && (
                 <Text style={{ fontSize: 12, color: "#B45309", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>

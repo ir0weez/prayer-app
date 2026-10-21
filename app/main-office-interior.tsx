@@ -19,11 +19,10 @@
 // No emojis — SVG art and MaterialIcons only.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Animated, Easing, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import { formatCooldown } from "@/lib/gathering-places";
 import { awardCustomXP } from "@/lib/xp-engine";
 import { getTimeOfDay } from "@/lib/daynight";
@@ -40,6 +39,7 @@ import {
   type FieldMission,
   type PlacedBuilding,
   type PrayedPerson,
+  formatCoins,
 } from "@/lib/hometown";
 import {
   settleAndSaveVillagerLocations,
@@ -73,21 +73,16 @@ import {
 } from "@/lib/villager-roster";
 import { refreshBadgeCache } from "@/lib/badges";
 import { RosterRowCard } from "@/components/roster-board";
-import { PawnPreview } from "@/components/pawn-preview";
-import { InteriorAtmosphere } from "@/components/interior-atmosphere";
-import { getHolidaySeason, getSeason } from "@/lib/seasons";
 import {
   useInteriorData,
   InteriorHeader,
   InteriorBanner,
   InteriorActions,
 } from "@/components/interior-shell";
-import {
-  SoftPulse,
-  WorkingFigure,
-  pickPeople,
-  FigureName,
-} from "@/components/activity-figures";
+import { pickPeople } from "@/components/activity-figures";
+import { PaperRoomScene } from "@/components/paper-room";
+import { PAPER_ROOMS } from "@/lib/paper-rooms";
+
 
 const BG = "#F7F4EE";
 const SLATE = "#334155";
@@ -107,160 +102,13 @@ const STATUS_COLORS: Record<RosterRow["status"], string> = {
   sleeping: "#78716C",
 };
 
-/** Coin totals with thousands separators, always to the cent. */
-const formatCoinTotal = (n: number) =>
-  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Coin totals render WHOLE (no cents — Jonathan, 2026-10-21). */
+const formatCoinTotal = formatCoins;
 
 const PAPERWORK_KEY = "prayercircle.interior.main-office.paperwork.v1";
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const ACTION_COINS: Record<1 | 2 | 3, number> = { 1: 14, 2: 26, 3: 44 };
 const ACTION_XP: Record<1 | 2 | 3, number> = { 1: 7, 2: 13, 3: 20 };
-
-/** The front desk: counter, name plate, service bell, a stack of papers. */
-function FrontDesk() {
-  return (
-    <Svg width={190} height={74} viewBox="0 0 190 74">
-      {/* counter top */}
-      <Rect x={4} y={26} width={182} height={8} rx={3} fill={WOOD_DARK} />
-      {/* counter front with panels */}
-      <Rect x={10} y={34} width={170} height={36} rx={3} fill={WOOD} />
-      <Rect x={22} y={42} width={40} height={20} rx={2} fill="none" stroke={WOOD_DARK} strokeWidth={2} />
-      <Rect x={75} y={42} width={40} height={20} rx={2} fill="none" stroke={WOOD_DARK} strokeWidth={2} />
-      <Rect x={128} y={42} width={40} height={20} rx={2} fill="none" stroke={WOOD_DARK} strokeWidth={2} />
-      {/* name plate */}
-      <Rect x={78} y={16} width={34} height={10} rx={2} fill="#FDE68A" stroke={WOOD_DARK} strokeWidth={1.4} />
-      {/* the service bell lives in DeskBell below — it's tappable */}
-      {/* paper stack */}
-      <Rect x={30} y={18} width={22} height={3.4} fill="#FFFFFF" stroke="#CBD5E1" />
-      <Rect x={32} y={21.5} width={22} height={3.4} fill="#F8FAFC" stroke="#CBD5E1" />
-    </Svg>
-  );
-}
-
-/** The desk bell, sitting on the counter where FrontDesk leaves a space
- *  for it. Pure delight, no function: a tap swings it through a decaying
- *  sine wobble (about 600ms) while a gold ring flashes — the "ding". */
-function DeskBell() {
-  const swing = useRef(new Animated.Value(0)).current;
-  const ring = useRef(new Animated.Value(0)).current;
-  const ringingRef = useRef(false);
-  const ringIt = () => {
-    if (ringingRef.current) return;
-    ringingRef.current = true;
-    swing.setValue(0);
-    ring.setValue(0);
-    Animated.parallel([
-      Animated.sequence([
-        Animated.timing(swing, { toValue: 14, duration: 90, easing: Easing.out(Easing.sin), useNativeDriver: true }),
-        Animated.timing(swing, { toValue: -10, duration: 140, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(swing, { toValue: 6, duration: 140, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(swing, { toValue: -3, duration: 120, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(swing, { toValue: 0, duration: 130, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-      Animated.timing(ring, { toValue: 1, duration: 480, easing: Easing.out(Easing.sin), useNativeDriver: true }),
-    ]).start(() => {
-      ringingRef.current = false;
-    });
-  };
-  const rotate = swing.interpolate({ inputRange: [-14, 14], outputRange: ["-14deg", "14deg"] });
-  const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.6] });
-  const ringOpacity = ring.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.85, 0] });
-  const bellFlash = ring.interpolate({ inputRange: [0, 0.18, 0.45, 1], outputRange: [1, 1.14, 1, 1] });
-  return (
-    <Pressable
-      onPress={ringIt}
-      hitSlop={10}
-      accessibilityLabel="Ring the desk bell"
-      style={{ position: "absolute", left: 122, top: -3, width: 36, height: 32 }}
-    >
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: 1,
-          top: 0,
-          width: 34,
-          height: 30,
-          borderRadius: 17,
-          borderWidth: 2,
-          borderColor: GOLD,
-          opacity: ringOpacity,
-          transform: [{ scale: ringScale }],
-        }}
-      />
-      <Animated.View style={{ transform: [{ rotate }, { scale: bellFlash }] }}>
-        <Svg width={36} height={32} viewBox="0 0 36 32">
-          <Ellipse cx={18} cy={27} rx={11} ry={3.4} fill="#94A3B8" />
-          <Path d="M7 26 C7 16 11 9 18 9 C25 9 29 16 29 26 Z" fill="#CBD5E1" stroke="#94A3B8" strokeWidth={1.4} />
-          <Circle cx={18} cy={7} r={3} fill="#94A3B8" />
-        </Svg>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-/** A filing cabinet (L2+): three drawers with label plates. */
-function FilingCabinet() {
-  return (
-    <Svg width={52} height={84} viewBox="0 0 52 84">
-      <Rect x={3} y={3} width={46} height={78} rx={3} fill="#94A3B8" />
-      {[0, 1, 2].map((i) => (
-        <G key={i}>
-          <Rect x={8} y={9 + i * 24} width={36} height={19} rx={2} fill="#CBD5E1" />
-          <Rect x={17} y={12 + i * 24} width={18} height={5} rx={1.4} fill="#F8FAFC" />
-          <Rect x={21} y={21 + i * 24} width={10} height={3.4} rx={1.7} fill="#64748B" />
-        </G>
-      ))}
-    </Svg>
-  );
-}
-
-/** A potted plant for the office corners. */
-function OfficePlant({ size = 40 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size * 1.25} viewBox="0 0 40 50">
-      <Ellipse cx={20} cy={14} rx={5} ry={11} fill="#16A34A" />
-      <Ellipse cx={9} cy={20} rx={4.4} ry={9} fill="#22C55E" transform="rotate(-24 9 20)" />
-      <Ellipse cx={31} cy={20} rx={4.4} ry={9} fill="#15803D" transform="rotate(24 31 20)" />
-      <Rect x={11} y={30} width={18} height={15} rx={2.4} fill="#B45309" />
-      <Rect x={9} y={28} width={22} height={4.4} rx={2} fill="#92400E" />
-    </Svg>
-  );
-}
-
-/** A wall clock (L2+). */
-function WallClock() {
-  return (
-    <Svg width={44} height={44} viewBox="0 0 44 44">
-      <Circle cx={22} cy={22} r={19} fill="#FFFFFF" stroke={SLATE} strokeWidth={2.6} />
-      <Line x1={22} y1={22} x2={22} y2={11} stroke={SLATE_DARK} strokeWidth={2.4} />
-      <Line x1={22} y1={22} x2={30} y2={26} stroke={AMBER} strokeWidth={2.4} />
-      <Circle cx={22} cy={22} r={2.4} fill={SLATE_DARK} />
-    </Svg>
-  );
-}
-
-/** The conference table (L3): a long table with stools and open ledgers. */
-function ConferenceTable() {
-  return (
-    <Svg width={196} height={62} viewBox="0 0 196 62">
-      {[22, 76, 120, 166].map((x) => (
-        <Rect key={x} x={x - 11} y={2} width={22} height={10} rx={3} fill="#78716C" />
-      ))}
-      <Rect x={6} y={14} width={184} height={26} rx={6} fill={WOOD} />
-      <Rect x={6} y={14} width={184} height={7} rx={3.5} fill={WOOD_DARK} opacity={0.55} />
-      {/* open ledgers on the table */}
-      <Rect x={34} y={22} width={26} height={12} rx={1.6} fill="#FFFFFF" stroke="#CBD5E1" />
-      <Line x1={47} y1={22} x2={47} y2={34} stroke="#CBD5E1" strokeWidth={1.4} />
-      <Rect x={132} y={22} width={26} height={12} rx={1.6} fill="#FEF3C7" stroke="#CBD5E1" />
-      <Rect x={16} y={44} width={8} height={14} fill={WOOD_DARK} />
-      <Rect x={172} y={44} width={8} height={14} fill={WOOD_DARK} />
-      {[22, 76, 120, 166].map((x) => (
-        <Rect key={`b-${x}`} x={x - 11} y={48} width={22} height={10} rx={3} fill="#78716C" />
-      ))}
-    </Svg>
-  );
-}
 
 /** Collect All: one wide button under the roster summary that pays every
  *  finished shift at once. The flourish is a single moment — a few coin
@@ -549,12 +397,16 @@ export default function MainOfficeInteriorScreen() {
   const actionXp = scaledXP(ACTION_XP[level]);
   const clerks = pickPeople(shellPeople, `main-office|${building?.id ?? "office"}|clerks`, level >= 3 ? 2 : 1);
 
+  const { width: windowWidth } = useWindowDimensions();
+  const sceneWidth = Math.min(windowWidth - 32, 560);
+  const officeCast = clerks.map((person) => ({ person, pose: "stand" as const }));
+
   const levelBlurb =
     level >= 3
-      ? "Filing cabinets stand full, and the conference table is where the town's work gets planned."
+      ? "Desks stand in a neat row, and this desk is where the town's work gets planned."
       : level >= 2
-        ? "Filing cabinets line the wall now — every shift, request, and blessing on record."
-        : "A front desk, a bell, and a plant doing its best.";
+        ? "More desks line the wall now — every shift, request, and blessing on record."
+        : "A front desk, a tidy counter, and work waiting to be filed.";
 
   const handlePaperwork = async () => {
     if (remaining > 0) {
@@ -566,7 +418,7 @@ export default function MainOfficeInteriorScreen() {
     await AsyncStorage.setItem(PAPERWORK_KEY, String(t)).catch(() => undefined);
     addCoins(actionCoins);
     await awardCustomXP(actionXp, `main-office-paperwork-${t}`).catch(() => undefined);
-    Alert.alert("Paperwork Filed", `Every form stamped, every record straight.\n\n+${actionCoins.toFixed(2)} coins, +${actionXp} XP.`);
+    Alert.alert("Paperwork Filed", `Every form stamped, every record straight.\n\n+${formatCoins(actionCoins)} coins, +${actionXp} XP.`);
   };
 
   /** Send a villager to work — the same guards and the same assignment
@@ -685,7 +537,7 @@ export default function MainOfficeInteriorScreen() {
   };
 
   const collectDisplay = (row: RosterRow) =>
-    collectPayoutCoins(row.collectCoins ?? 0, bloodmoon).toFixed(2);
+    formatCoins(collectPayoutCoins(row.collectCoins ?? 0, bloodmoon));
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -701,54 +553,11 @@ export default function MainOfficeInteriorScreen() {
         />
 
         {/* ---- the office room ---- */}
-        <View style={{ marginHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "#E2E8F0", overflow: "hidden", backgroundColor: "#FFFDF8" }}>
-          <InteriorAtmosphere holiday={getHolidaySeason()} season={getSeason()} building="main-office" />
-
-          {level >= 2 && (
-            <View style={{ alignItems: "center", marginTop: 10 }}>
-              <WallClock />
-            </View>
-          )}
-
-          {/* cabinets + clerks behind the desk */}
-          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end", marginTop: 8, paddingHorizontal: 10 }}>
-            {level >= 2 && <FilingCabinet />}
-            <View style={{ flex: 1, alignItems: "center" }}>
-              <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-end" }}>
-                {clerks[0] && <WorkingFigure person={clerks[0]} delay={200} icon="assignment" iconColor={SLATE} />}
-                {level >= 3 && clerks[1] && <WorkingFigure person={clerks[1]} delay={600} icon="folder-open" iconColor={AMBER} />}
-              </View>
-              <View style={{ width: 190, height: 74 }}>
-                <FrontDesk />
-                <DeskBell />
-              </View>
-            </View>
-            {level >= 2 ? <FilingCabinet /> : <OfficePlant size={34} />}
-          </View>
-
-          {level >= 3 && (
-            <View style={{ alignItems: "center", marginTop: 4 }}>
-              <ConferenceTable />
-            </View>
-          )}
-
-          {/* the hero at the front desk */}
-          {pawn && (
-            <View style={{ alignItems: "center", marginTop: 6 }}>
-              <SoftPulse duration={2250}>
-                <FigureName name={pawn.name} color={SLATE_DARK} />
-              </SoftPulse>
-              <PawnPreview pawn={pawn} size={48} />
-            </View>
-          )}
-
-          {/* office floor */}
-          <View style={{ height: 20, backgroundColor: "#E7E5E4", marginTop: 10 }}>
-            <View style={{ height: 3, backgroundColor: SLATE }} />
-          </View>
+        <View style={{ marginHorizontal: 16 }}>
+          <PaperRoomScene config={PAPER_ROOMS["main-office"]} level={level} cast={officeCast} pawn={pawn} pawnPose="stand" width={sceneWidth} />
         </View>
 
-        <InteriorActions
+                <InteriorActions
           primaryLabel={remaining > 0 ? `Next paperwork in ${formatCooldown(remaining)}` : "File the Paperwork"}
           onPrimary={handlePaperwork}
           primaryColor={SLATE}
@@ -871,7 +680,7 @@ export default function MainOfficeInteriorScreen() {
                       <Text style={{ color: "#1C1917", fontWeight: "700", fontSize: 15 }}>{job.label}</Text>
                       <Text style={{ color: "#78716C", fontSize: 12, marginTop: 2 }}>{job.blurb}</Text>
                       <Text style={{ color: AMBER, fontSize: 12, fontWeight: "700", marginTop: 4 }}>
-                        {job.durationLabel} · {scaledCoins(job.rewardCoins).toFixed(2)} coins · {job.rewardXP} XP
+                        {job.durationLabel} · {formatCoins(scaledCoins(job.rewardCoins))} coins · {job.rewardXP} XP
                         {job.available && job.siteName ? ` · at ${job.siteName}` : ""}
                       </Text>
                       {!job.available && job.reason && (

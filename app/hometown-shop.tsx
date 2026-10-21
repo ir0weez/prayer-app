@@ -10,6 +10,7 @@ import {
   parseOwnedItems,
   type HometownCoins,
   type ShopItem,
+  formatCoins,
 } from "@/lib/hometown";
 import { FastPawnShape } from "@/components/fast-board";
 
@@ -49,7 +50,7 @@ export default function HometownShopScreen() {
       return;
     }
     if (coins.balance < item.cost) {
-      Alert.alert("Not enough coins", `You need ${item.cost.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `You need ${formatCoins(item.cost)} coins.`);
       return;
     }
     Alert.alert(
@@ -84,7 +85,7 @@ export default function HometownShopScreen() {
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ fontSize: 16 }}>🪙</Text>
-          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{formatCoins(coins.balance)}</Text>
         </View>
       </View>
 
@@ -129,7 +130,7 @@ export default function HometownShopScreen() {
                   </View>
                   {!isOwned && !locked && (
                     <Text style={{ fontWeight: "700", color: affordable ? "#000" : "#999" }}>
-                      🪙{item.cost.toFixed(2)}
+                      🪙{formatCoins(item.cost)}
                     </Text>
                   )}
                 </Pressable>

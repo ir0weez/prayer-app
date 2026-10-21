@@ -11,6 +11,7 @@ import {
   type HometownCoins,
   scaledCoins,
   scaledXP,
+  formatCoins,
 } from "@/lib/hometown";
 import {
   HOUSE_ROOMS,
@@ -40,11 +41,13 @@ import { HearthGame } from "@/components/hearth-game";
 import { PlayCard, type MiniGameReward } from "@/components/mini-game-scene";
 import { useMiniGameHost } from "@/components/mini-game-host";
 import { MINI_GAME_CAPS, playsLeftToday, recordPlay, scaleMiniGamePayout } from "@/lib/mini-games";
-import { PawnPreview } from "@/components/pawn-preview";
+import { PaperHeroFigure, PaperSeatedDiner, PaperStandingVillager } from "@/components/paper-interior";
+import { PaperSwimFigure } from "@/components/paper-room";
+import { paperDinerLookFor } from "@/lib/paper-interior";
 import { loadCustomPawn, type CustomPawn } from "@/lib/pawn";
 import { getTimeOfDay } from "@/lib/daynight";
 import { prayedTodayPeople, type PrayedPerson } from "@/lib/hometown";
-import { SeatedFigure, StandingFigure, SwimmingFigure, WorkingFigure, pickPeople } from "@/components/activity-figures";
+import { pickPeople } from "@/components/activity-figures";
 import { InteriorAtmosphere } from "@/components/interior-atmosphere";
 import { getHolidaySeason, getSeason } from "@/lib/seasons";
 
@@ -135,7 +138,7 @@ function PawnInRoom({
         </View>
       )}
       <View style={{ opacity: sleeping ? 0.92 : 1, transform: sleeping ? [{ rotate: "-8deg" }] : [] }}>
-        <PawnPreview pawn={pawn} size={size} />
+        <PaperHeroFigure pawn={pawn} unit={size / 11} />
       </View>
     </View>
   );
@@ -171,27 +174,27 @@ function VillagersInBackyard({
     <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
       {swimmers.map((p, i) => (
         <View key={p.id} style={at(0.20 + i * 0.15, 0.56)}>
-          <SwimmingFigure person={p} delay={i * 400} />
+          <PaperSwimFigure person={p} unit={4.4} />
         </View>
       ))}
       {grillers.slice(0, 1).map((p) => (
         <View key={p.id} style={at(0.80, 0.56)}>
-          <WorkingFigure person={p} delay={200} icon="outdoor-grill" iconColor="#F59E0B" />
+          <PaperStandingVillager look={paperDinerLookFor(p)} width={40} />
         </View>
       ))}
       {grillers.slice(1).map((p) => (
         <View key={p.id} style={at(0.58, 0.70)}>
-          <StandingFigure person={p} delay={600} icon="restaurant" iconColor="#F59E0B" />
+          <PaperStandingVillager look={paperDinerLookFor(p)} width={40} />
         </View>
       ))}
       {loungers.slice(0, 2).map((p, i) => (
         <View key={p.id} style={at(0.40 + i * 0.20, 0.82)}>
-          <SeatedFigure person={p} delay={i * 300} chairColor="#92400E" chairBorder="#7C2D12" />
+          <PaperSeatedDiner person={p} unit={4.4} delay={i * 300} />
         </View>
       ))}
       {loungers.slice(2).map((p) => (
         <View key={p.id} style={at(0.50, 0.92)}>
-          <StandingFigure person={p} delay={900} icon="local-drink" iconColor="#38BDF8" />
+          <PaperStandingVillager look={paperDinerLookFor(p)} width={40} />
         </View>
       ))}
     </View>
@@ -881,7 +884,7 @@ export default function PawnHouseScreen() {
 
   const spend = (cost: number, label: string): boolean => {
     if (coinsRef.current.balance < cost) {
-      Alert.alert("Not enough coins", `${label} costs ${cost.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `${label} costs ${formatCoins(cost)} coins.`);
       return false;
     }
     addCoins(-cost);
@@ -907,7 +910,7 @@ export default function PawnHouseScreen() {
       save({ ...house, rooms: { ...house.rooms, [roomId]: { ...room, theme: t.id } } });
       return;
     }
-    Alert.alert(t.name, `Unlock this color theme for ${scaledCoins(t.cost).toFixed(2)} coins?`, [
+    Alert.alert(t.name, `Unlock this color theme for ${formatCoins(scaledCoins(t.cost))} coins?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Unlock",
@@ -933,7 +936,7 @@ export default function PawnHouseScreen() {
     if (tier >= 3) return;
     const cost = scaledCoins(slot.costs[tier]);
     const label = tier === 0 ? slot.tierNames[0] : `Upgrade to ${slot.tierNames[tier]}`;
-    Alert.alert(slot.name, `${label} — ${cost.toFixed(2)} coins?`, [
+    Alert.alert(slot.name, `${label} — ${formatCoins(cost)} coins?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: tier === 0 ? "Buy" : "Upgrade",
@@ -1223,7 +1226,7 @@ export default function PawnHouseScreen() {
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 }}>
           <MaterialIcons name="monetization-on" size={16} color="#B8860B" />
-          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{coins.balance.toFixed(2)}</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "700" }}>{formatCoins(coins.balance)}</Text>
         </View>
       </View>
 
@@ -1331,7 +1334,7 @@ export default function PawnHouseScreen() {
                     {!owned && <MaterialIcons name="lock" size={16} color="#78716C" />}
                   </View>
                   <Text numberOfLines={1} style={{ fontSize: 10, color: "#78716C", marginTop: 4 }}>
-                    {owned ? t.name : `${scaledCoins(t.cost).toFixed(2)}c`}
+                    {owned ? t.name : `${formatCoins(scaledCoins(t.cost))}c`}
                   </Text>
                 </Pressable>
               );

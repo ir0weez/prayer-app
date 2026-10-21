@@ -196,6 +196,7 @@ import {
   type TownLandmark,
   isStreamTile,
   isBridgeTile,
+  formatCoins,
 } from "@/lib/hometown";
 import { refreshHouseBonusCache } from "@/lib/pawn-house";
 import { isEnterableRestaurant, restaurantInteriorBonus } from "@/lib/restaurant-interior";
@@ -3795,7 +3796,7 @@ function SpinningCoin({ amount, kind = "coins", onCollect, frenzy = false, isFul
   const amountLabel = hasAmount
     ? isXP
       ? amount >= 1000 ? `+${(amount / 1000).toFixed(1)}K XP` : `+${Math.floor(amount)} XP`
-      : amount >= 1000 ? `+${(amount / 1000).toFixed(1)}K` : `+${amount.toFixed(2)}`
+      : `+${formatCoins(amount)}`
     : "earning";
 
   // Material 3 tonal palettes.
@@ -4057,26 +4058,24 @@ export default function HometownScreen() {
   /** Collections book modal. */
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [collectBreakdownOpen, setCollectBreakdownOpen] = useState(false);
-  // Coin-fly FX — PURELY DECORATIVE. Collecting awards coins/XP
-  // synchronously in the tap handler (buildings zeroed + persisted,
-  // balance updated, XP granted) BEFORE any of this is touched. Bursts,
-  // the pill flip, the balance pulse, and the "+X" receipt only read
-  // state afterwards: no animation completion callback calls setState,
-  // no phase flags gate the money, and an interrupted or unmounted
-  // animation can break nothing. The header pill is a single morphing
-  // pill: it rests on the balance, turns gold ("Collect X.XX") while
-  // coins are waiting, and flips to a green "Collected!" face while
-  // the coins are in the air.
+  // Coin-fly FX — PURELY DECORATIVE, and only for single-building
+  // collects now. Collecting awards coins/XP synchronously in the tap
+  // handler (buildings zeroed + persisted, balance updated, XP
+  // granted) BEFORE any of this is touched. Bursts, the balance pulse,
+  // and the "+X" receipt only read state afterwards: no animation
+  // completion callback calls setState, no phase flags gate the money,
+  // and an interrupted or unmounted animation can break nothing.
+  //
+  // The header Collect All pill itself NO LONGER ANIMATES (Jonathan,
+  // 2026-10-21: the 360° spin + JS-driven face morph read as slow and
+  // laggy on his phone). Like the Pray Today claim line, its label is
+  // a direct state swap: gold "Collect X.XX" while coins wait, and the
+  // moment a collect lands the pending total is zero, so the same
+  // render shows the cream balance face with the new balance — one
+  // tap, one render, nothing rolling in between.
   const { width: windowW } = useWindowDimensions();
   const [bursts, setBursts] = useState<CoinBurstData[]>([]);
-  const collectFlip = useRef(new Animated.Value(0)).current;
-  // Header pill morph: 0 = resting balance face, 1 = Collect face (coins waiting).
-  const pillMorph = useRef(new Animated.Value(0)).current;
-  // Which face the header pill renders — swaps at the midpoint of the morph.
-  const [pillFace, setPillFace] = useState<"balance" | "collect">("balance");
-  // Decorative "Collected!" face on the pill, shown briefly after Collect All.
-  const [justCollected, setJustCollected] = useState(false);
-  // Floating "+X.XX" receipt by the pill after a collect.
+  // Floating "+X.XX" receipt by the pill after a single-building collect.
   const [collectDelta, setCollectDelta] = useState<{ id: number; label: string } | null>(null);
   const balancePulseAnim = useRef(new Animated.Value(0)).current;
   const balanceRef = useRef<View>(null);
@@ -4089,18 +4088,12 @@ export default function HometownScreen() {
   const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
-  // Kept only so a re-tap can stop the previous flip before restarting it.
-  const flipAnimRef = useRef<Animated.CompositeAnimation | null>(null);
-  const morphAnimRef = useRef<Animated.CompositeAnimation | null>(null);
-
   useEffect(() => { mountedRef.current = true; }, []);
   useEffect(() => () => {
     mountedRef.current = false;
     burstTimersRef.current.forEach(clearTimeout);
     burstTimersRef.current = [];
     if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
-    flipAnimRef.current?.stop();
-    morphAnimRef.current?.stop();
   }, []);
 
   const measureBalance = useCallback(() => {
@@ -4149,33 +4142,20 @@ export default function HometownScreen() {
   }, [balancePulseAnim]);
 
   /**
-   * Decorative receipt for a collect that has ALREADY landed: a floating
-   * "+X" by the pill (and, for Collect All, the brief "Collected!" face).
-   * A plain timer tidies it up; nothing depends on it.
+   * Decorative receipt for a single-building collect that has ALREADY
+   * landed: a floating "+X" by the pill. A plain timer tidies it up;
+   * nothing depends on it. (Collect All no longer calls this — the
+   * pill's own label swap IS its receipt.)
    */
-  const showCollectReceipt = useCallback((label: string, celebrate: boolean) => {
+  const showCollectReceipt = useCallback((label: string) => {
     const id = ++deltaIdRef.current;
-    if (celebrate) setJustCollected(true);
     setCollectDelta({ id, label });
     if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
     deltaTimerRef.current = setTimeout(() => {
       if (!mountedRef.current || deltaIdRef.current !== id) return;
-      setJustCollected(false);
       setCollectDelta(null);
     }, 1500);
   }, []);
-
-  /** The Collect All pill flip — fire-and-forget, no completion callback. */
-  const flipCollectPill = useCallback(() => {
-    collectFlip.setValue(0);
-    flipAnimRef.current?.stop();
-    const flip = Animated.sequence([
-      Animated.timing(collectFlip, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      Animated.timing(collectFlip, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-    ]);
-    flipAnimRef.current = flip;
-    flip.start();
-  }, [collectFlip]);
 
   /** Measure the map grid's on-screen origin, then run cb with it. */
   const withGridOrigin = useCallback((cb: (gx: number, gy: number) => void) => {
@@ -4268,43 +4248,12 @@ export default function HometownScreen() {
   const pillCollectMode = collectibleCoins > COLLECT_ALL_MIN;
   // Compact number formatting so a huge total can never shove the pill
   // off the screen (the pill also has a maxWidth cap in the header).
-  const headerCoinText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(2));
-  useEffect(() => {
-    // Stop any in-flight morph first: two JS-driver timings writing the
-    // same value (plus the face swap) racing each other is exactly the
-    // morph-back churn this effect exists to order.
-    morphAnimRef.current?.stop();
-    const anim = Animated.timing(pillMorph, {
-      toValue: pillCollectMode ? 1 : 0,
-      duration: 280,
-      easing: Easing.inOut(Easing.sin),
-      useNativeDriver: false,
-    });
-    morphAnimRef.current = anim;
-    anim.start();
-    const t = setTimeout(() => {
-      if (mountedRef.current) setPillFace(pillCollectMode ? "collect" : "balance");
-    }, 140);
-    return () => {
-      clearTimeout(t);
-      anim.stop();
-    };
-  }, [pillCollectMode, pillMorph]);
-  // The header pill's INNER scale: the collect flip's dip multiplied by
-  // the morph's dip. Both source values are JS-driven (they also drive
-  // rotateY / backgroundColor), so this derived graph stays on ONE
-  // driver. The balance pulse scale is native-driven and lives alone on
-  // the pill's OUTER view — the two used to be multiplied together,
-  // which mixed a native-driven node with a JS-driven node in a single
-  // transform graph (a native Animated crash vector on the collect path).
-  const pillInnerScale = useMemo(
-    () =>
-      Animated.multiply(
-        collectFlip.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] }),
-        pillMorph.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.93, 1] })
-      ),
-    [collectFlip, pillMorph]
-  );
+  // Coin amounts render WHOLE everywhere (Jonathan, 2026-10-21) — the
+  // pill included: full numbers with separators, no K shorthand, no cents.
+  const headerCoinText = (n: number) => formatCoins(n);
+  // The pill face is DERIVED, never animated: pillCollectMode picks
+  // the face in the same render the state changes — the direct label
+  // swap Jonathan asked for (see the FX note above).
 
   // Prayer lights: everyone prayed for today appears as a golden light.
   // Gone by midnight — each day brings a new set.
@@ -5114,10 +5063,10 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < price) {
-      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${price.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `Unlocking ${info.name} costs ${formatCoins(price)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
       return;
     }
-    Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${price.toFixed(2)} coins.`, [
+    Alert.alert(`Unlock ${info.name}?`, `${info.description}\n\nCost: ${formatCoins(price)} coins.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Unlock",
@@ -5440,7 +5389,7 @@ export default function HometownScreen() {
               setFireworksKey((k) => k + 1);
               Alert.alert(
                 "🙏 Prayer Bonus!",
-                `You prayed for ${prayedCount} people today! +${bonusCoins.toFixed(2)} coins.`
+                `You prayed for ${prayedCount} people today! +${formatCoins(bonusCoins)} coins.`
               );
             }
           }
@@ -5978,16 +5927,16 @@ export default function HometownScreen() {
       }
     }
     if (coinsRef.current.balance < price) {
-      Alert.alert("Not enough coins", `${plot.name} costs ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `${plot.name} costs ${formatCoins(price)} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${price.toFixed(2)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
+      `${def.name}\n${def.description}\n\nPurchase this downtown plot for ${formatCoins(price)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: `Buy for ${price.toFixed(2)}🪙`,
+          text: `Buy for ${formatCoins(price)}🪙`,
           onPress: () => {
             // Confirm-time re-check against the exact array appended to:
             // a purchase must never deduct without placing.
@@ -6038,16 +5987,16 @@ export default function HometownScreen() {
       }
     }
     if (coinsRef.current.balance < price) {
-      Alert.alert("Not enough coins", `${plot.name} costs ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `${plot.name} costs ${formatCoins(price)} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     Alert.alert(
       `${plot.name} — FOR SALE`,
-      `${def.name}\n${def.description}\n\nPurchase this campus plot for ${price.toFixed(2)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
+      `${def.name}\n${def.description}\n\nPurchase this campus plot for ${formatCoins(price)} coins?\n\nBuilds in 1 min — the site opens when construction finishes.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: `Buy for ${price.toFixed(2)}`,
+          text: `Buy for ${formatCoins(price)}`,
           onPress: () => {
             // Confirm-time re-check against the exact array appended to:
             // a purchase must never deduct without placing.
@@ -6116,7 +6065,7 @@ export default function HometownScreen() {
     const blessing = bellBlessingCoins(campusDaily);
     Alert.alert(
       "The Bell Tower",
-      `Ring the campus bell? Its voice carries over the whole quad.\n\nBlessing: +${blessing.toFixed(2)} coins (10% of the campus's daily income).`,
+      `Ring the campus bell? Its voice carries over the whole quad.\n\nBlessing: +${formatCoins(blessing)} coins (10% of the campus's daily income).`,
       [
         { text: "Not yet", style: "cancel" },
         {
@@ -6127,7 +6076,7 @@ export default function HometownScreen() {
             addCoins(blessing);
             Alert.alert(
               "The Bell Rings",
-              `The bell rolls out over the quad, and the whole campus seems to stand a little taller.\n\n+${blessing.toFixed(2)} coins.`
+              `The bell rolls out over the quad, and the whole campus seems to stand a little taller.\n\n+${formatCoins(blessing)} coins.`
             );
           },
         },
@@ -6277,7 +6226,7 @@ export default function HometownScreen() {
           text: `Upgrade 🪙${cost}`,
           onPress: () => {
             if (coinsRef.current.balance < cost) {
-              Alert.alert("Not enough coins", `You need ${cost} coins. You have ${coins.balance.toFixed(2)}.`);
+              Alert.alert("Not enough coins", `You need ${cost} coins. You have ${formatCoins(coins.balance)}.`);
               return;
             }
             const updated = map.buildings.map(x => (x.id === b.id ? beginConstruction(x, nextLevel, Date.now()) : x));
@@ -6351,7 +6300,7 @@ export default function HometownScreen() {
       const buildingPrice = scaledCoins(def.cost);
       const total = lotPrice + buildingPrice;
       if (coinsRef.current.balance < total) {
-        Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${total.toFixed(2)} coins (lot ${lotPrice.toFixed(2)} + building ${buildingPrice.toFixed(2)}). You have ${coins.balance.toFixed(2)}.`);
+        Alert.alert("Not enough coins", `${def.name} on ${lot.name} costs ${formatCoins(total)} coins (lot ${formatCoins(lotPrice)} + building ${formatCoins(buildingPrice)}). You have ${formatCoins(coins.balance)}.`);
         return;
       }
       const now = new Date().toISOString();
@@ -6393,7 +6342,7 @@ export default function HometownScreen() {
     setLighthouseModalVisible(false);
     Alert.alert(
       "The Lighthouse",
-      `Its beam sweeps over the water, steady and sure — guiding everyone home. +${reward.toFixed(2)} coins.\n\n"${lighthouseVerseForDate().text}"\n— ${lighthouseVerseForDate().ref}`
+      `Its beam sweeps over the water, steady and sure — guiding everyone home. +${formatCoins(reward)} coins.\n\n"${lighthouseVerseForDate().text}"\n— ${lighthouseVerseForDate().ref}`
     );
   };
 
@@ -6407,7 +6356,7 @@ export default function HometownScreen() {
     const reward = cacheReward();
     persistCelebrations({ ...celeb, cacheClaimed: { ...celeb.cacheClaimed, [spotId]: todayStr() } });
     addCoins(reward);
-    Alert.alert("Hidden Cache!", `Tucked between the cobblestones — +${reward.toFixed(2)} coins.`);
+    Alert.alert("Hidden Cache!", `Tucked between the cobblestones — +${formatCoins(reward)} coins.`);
   };
 
   /** Wishing fountain: toss a coin for a random blessing. Hourly. */
@@ -6419,7 +6368,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < FOUNTAIN_TOSS_COST) {
-      Alert.alert("Not enough coins", `Tossing a coin costs ${FOUNTAIN_TOSS_COST.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `Tossing a coin costs ${formatCoins(FOUNTAIN_TOSS_COST)} coins.`);
       return;
     }
     Alert.alert("Wishing Fountain", "Toss a coin into the fountain and make a wish?", [
@@ -6432,7 +6381,7 @@ export default function HometownScreen() {
           const blessing = fountainBlessing();
           if (blessing.kind === "coins") {
             addCoins(blessing.coins);
-            Alert.alert("A Blessing!", `The fountain shimmers — +${blessing.coins.toFixed(2)} coins ripple back to you.`);
+            Alert.alert("A Blessing!", `The fountain shimmers — +${formatCoins(blessing.coins)} coins ripple back to you.`);
           } else if (blessing.kind === "xp") {
             awardCustomXP(blessing.xp, `wishing-fountain:${Date.now()}`).catch(() => undefined);
             Alert.alert("A Blessing!", `The water glows — +${blessing.xp} XP flows into you.`);
@@ -6453,13 +6402,13 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < PERFORMER_TIP_COST) {
-      Alert.alert("Not enough coins", `A tip costs ${PERFORMER_TIP_COST.toFixed(2)} coins.`);
+      Alert.alert("Not enough coins", `A tip costs ${formatCoins(PERFORMER_TIP_COST)} coins.`);
       return;
     }
     Alert.alert("Street Performer", "A little musician with a guitar on the corner. Tip them and they'll play a tune?", [
       { text: "Not now", style: "cancel" },
       {
-        text: `Tip ${PERFORMER_TIP_COST.toFixed(2)} coins`,
+        text: `Tip ${formatCoins(PERFORMER_TIP_COST)} coins`,
         onPress: () => {
           addCoins(-PERFORMER_TIP_COST);
           persistCelebrations({ ...celebrationsRef.current, performerLastTipMs: Date.now() });
@@ -6478,7 +6427,7 @@ export default function HometownScreen() {
     if (level >= LIGHTHOUSE_MAX_LEVEL) return;
     const cost = scaledCoins(LIGHTHOUSE_UPGRADE_COSTS[level] ?? 0);
     if (coins.balance < cost) {
-      Alert.alert("Not enough coins", `Upgrading the lighthouse costs ${cost.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `Upgrading the lighthouse costs ${formatCoins(cost)} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     addCoins(-cost);
@@ -6500,11 +6449,11 @@ export default function HometownScreen() {
     const level = Math.min(Math.max(b.level || 1, 1), 3);
     const now = Date.now();
     const upgradeBtn = level < 3 ? [{
-      text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`,
+      text: `Upgrade to Lv ${level + 1} (🪙${formatCoins(upgradeCostFor(b.type, (level + 1) as 2 | 3))}) · ${constructionTimeLabel(level + 1, false)}`,
       onPress: () => {
         const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
         if (coinsRef.current.balance < cost) {
-          Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+          Alert.alert("Not enough coins", `You need ${formatCoins(cost)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
           return;
         }
         addCoins(-cost);
@@ -6552,7 +6501,7 @@ export default function HometownScreen() {
     const reward = { coins: scaledCoins(_rw.coins), xp: scaledXP(_rw.xp) };
     Alert.alert(
       "Community Garden",
-      `Baskets full and everyone smiling — harvest time!\n\n+${reward.coins.toFixed(2)} coins, +${reward.xp} XP.`,
+      `Baskets full and everyone smiling — harvest time!\n\n+${formatCoins(reward.coins)} coins, +${reward.xp} XP.`,
       [
         ...upgradeBtn,
         {
@@ -6592,7 +6541,7 @@ export default function HometownScreen() {
         const pay = collectionPayout(meta);
         addCoins(pay.coins);
         awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
-        queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+        queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
   }, [addCoins, queueCelebration]);
@@ -6617,7 +6566,7 @@ export default function HometownScreen() {
           const pay = collectionPayout(meta);
           addCoins(pay.coins);
           awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
-          queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+          queueCelebration("milestone", "Collection complete: Garden Flowers!", `+${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
         }
       }).catch(() => undefined);
     }
@@ -6631,7 +6580,7 @@ export default function HometownScreen() {
       const pay = collectionPayout(meta);
       addCoins(pay.coins);
       awardCustomXP(pay.xp, `collection:shells`).catch(() => undefined);
-      queueCelebration("milestone", "Collection complete: Shore Shells!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+      queueCelebration("milestone", "Collection complete: Shore Shells!", `+${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
     }
   }, [addCoins, queueCelebration]);
 
@@ -6654,7 +6603,7 @@ export default function HometownScreen() {
     const doUpgrade = () => {
       const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
       if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        Alert.alert("Not enough coins", `You need ${formatCoins(cost)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
         return;
       }
       addCoins(-cost);
@@ -6662,7 +6611,7 @@ export default function HometownScreen() {
       saveMap({ ...map, buildings: updated });
       Alert.alert("Library", `Upgrade underway! The library closes while the builders work — it reopens at level ${level + 1} in ${level + 1 === 2 ? "30 minutes" : "1 hour"}. ${level + 1 >= 3 ? "A grand library is coming — shelf upon shelf of wisdom." : "A quiet reading room grows."}`);
     };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${formatCoins(upgradeCostFor(b.type, (level + 1) as 2 | 3))}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
     if (remaining > 0) {
       Alert.alert(
         "Library",
@@ -6703,7 +6652,7 @@ export default function HometownScreen() {
     const doUpgrade = () => {
       const cost = upgradeCostFor(b.type, (level + 1) as 2 | 3);
       if (coinsRef.current.balance < cost) {
-        Alert.alert("Not enough coins", `You need ${cost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+        Alert.alert("Not enough coins", `You need ${formatCoins(cost)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
         return;
       }
       addCoins(-cost);
@@ -6711,7 +6660,7 @@ export default function HometownScreen() {
       saveMap({ ...map, buildings: updated });
       Alert.alert("Fountain Plaza", `Upgrade underway! The plaza closes while the builders work — it reopens at level ${level + 1} in ${level + 1 === 2 ? "30 minutes" : "1 hour"}. ${level + 1 >= 3 ? "A grand plaza is coming — flowers will ring the fountain." : "Benches in the shade, room to breathe."}`);
     };
-    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${upgradeCostFor(b.type, (level + 1) as 2 | 3).toFixed(2)}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
+    const upgradeBtn = level < 3 ? [{ text: `Upgrade to Lv ${level + 1} (🪙${formatCoins(upgradeCostFor(b.type, (level + 1) as 2 | 3))}) · ${constructionTimeLabel(level + 1, false)}`, onPress: doUpgrade }] : [];
     if (remaining > 0) {
       Alert.alert(
         "Fountain Plaza",
@@ -6729,7 +6678,7 @@ export default function HometownScreen() {
         : "A simple fountain, cool water. You rest a while.";
     Alert.alert(
       "Fountain Plaza",
-      `${levelBlurb}\n\n+${coins.toFixed(2)} coins, +${xp} XP — refreshed.`,
+      `${levelBlurb}\n\n+${formatCoins(coins)} coins, +${xp} XP — refreshed.`,
       [
         ...upgradeBtn,
         {
@@ -7124,7 +7073,7 @@ export default function HometownScreen() {
       return;
     }
     if (coinsRef.current.balance < price) {
-      Alert.alert("Not enough coins", `You need ${price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `You need ${formatCoins(price)} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     if (type === "pawn-house" && map.buildings.some((b) => b.type === "pawn-house")) {
@@ -7161,7 +7110,6 @@ export default function HometownScreen() {
     const now = Date.now();
     let totalCoins = 0;
     let totalXP = 0;
-    const pendingBuildings = map.buildings.filter((b) => (b.accumulated || 0) > 0);
     const updatedBuildings = map.buildings.map((b) => {
       const acc = b.accumulated || 0;
       if (acc <= 0) return b;
@@ -7188,31 +7136,11 @@ export default function HometownScreen() {
     if (coinsAward > 0) {
       addCoins(coinsAward);
     }
-    // ── DECORATION ONLY ─────────────────────────────────────────────────
-    // Fire-and-forget visuals: the pill flips to "Collected!", the
-    // balance pulses, a "+X" receipt floats up, and coins burst from up
-    // to 8 pending buildings. They read state; they never gate, trigger,
-    // or complete any of it. Wrapped so even a throw here costs only
-    // the sparkle.
-    try {
-      pulseBalance();
-      flipCollectPill();
-      showCollectReceipt(coinsAward > 0 ? `+${coinsAward.toFixed(2)}` : `+${totalXP} XP`, true);
-      measureBalance();
-      withGridOrigin((gx, gy) => {
-        if (!mountedRef.current) return;
-        pendingBuildings.slice(0, 8).forEach((b) => {
-          const fp = buildingFootprint(b.level || 1, b.type, hasFixedFootprint(b));
-          spawnBurst(
-            gx + (b.x + fp.w / 2) * cellSize,
-            gy + (b.y + fp.h / 2) * cellSize,
-            xpIncomeFor(b.type, b.level || 1) > 0 ? "xp" : "coins"
-          );
-        });
-      });
-    } catch {
-      // Decoration failed — the collect already landed. Nothing to do.
-    }
+    // ── NO DECORATION ────────────────────────────────────────────────
+    // The collect IS the feedback: the pending total just zeroed, so
+    // the header pill's derived face swaps straight from "Collect
+    // X.XX" to the new balance in this same render (Jonathan's ask —
+    // no spin, no count-up, no coin-fly on the Collect All path).
   };
 
   /** Send a prayer light out on a mission. */
@@ -7282,7 +7210,7 @@ export default function HometownScreen() {
         const pay = collectionPayout(meta);
         addCoins(pay.coins);
         awardCustomXP(pay.xp, `collection:demons`).catch(() => undefined);
-        queueCelebration("milestone", "Bestiary complete!", `Every demon catalogued. +${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+        queueCelebration("milestone", "Bestiary complete!", `Every demon catalogued. +${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
     setForest(prev => {
@@ -7333,7 +7261,7 @@ export default function HometownScreen() {
         const pay = collectionPayout(meta);
         addCoins(pay.coins);
         awardCustomXP(pay.xp, `collection:fish`).catch(() => undefined);
-        queueCelebration("milestone", "Collection complete: River Fish!", `+${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+        queueCelebration("milestone", "Collection complete: River Fish!", `+${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
       }
     }).catch(() => undefined);
     setRiver(prev => {
@@ -7358,7 +7286,7 @@ export default function HometownScreen() {
     saveRiverState(next).catch(() => undefined);
     setFireworksKey((k) => k + 1);
     if (moonBonus) {
-      queueCelebration("milestone", "Harvest Moon blessing!", `The moon doubles your catch: +${coins.toFixed(2)} coins.`);
+      queueCelebration("milestone", "Harvest Moon blessing!", `The moon doubles your catch: +${formatCoins(coins)} coins.`);
     }
   }, [addCoins]);
 
@@ -7368,7 +7296,7 @@ export default function HometownScreen() {
     const info = RIVER_LEVELS[r.level];
     if (info.upgradeCost <= 0) return;
     if (coinsRef.current.balance < info.upgradeCost) {
-      Alert.alert("Not enough coins", `Upgrading the camp costs ${info.upgradeCost.toFixed(2)} coins. You have ${coinsRef.current.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `Upgrading the camp costs ${formatCoins(info.upgradeCost)} coins. You have ${formatCoins(coinsRef.current.balance)}.`);
       return;
     }
     addCoins(-info.upgradeCost);
@@ -7481,7 +7409,7 @@ export default function HometownScreen() {
     // (fall back to the tile pos), the balance pulses, receipt floats.
     try {
       pulseBalance();
-      showCollectReceipt(isXP ? `+${Math.max(1, Math.floor(amount))} XP` : `+${amount.toFixed(2)}`, false);
+      showCollectReceipt(isXP ? `+${Math.max(1, Math.floor(amount))} XP` : `+${formatCoins(amount)}`);
       measureBalance();
       if (pageX != null && pageY != null) {
         spawnBurst(pageX, pageY, isXP ? "xp" : "coins");
@@ -7631,11 +7559,12 @@ export default function HometownScreen() {
         </Pressable>
         <Text numberOfLines={1} style={{ fontSize: 22, fontWeight: "800", color: pt.text, flexShrink: 1 }}>{MAP_INFO[activeMap].icon} {MAP_INFO[activeMap].name}</Text>
         <View style={{ flex: 1 }} />
-        {/* ONE morphing pill (balance <=> Collect): rests cream showing the coin
-            balance; when coins are waiting it turns gold into "Collect X.XX";
-            tapping runs the flip + coin-fly, the balance ticks up, and it
-            turns back to the balance face. The info button opens the
-            per-building breakdown. */}
+        {/* ONE pill, two faces, NO animation between them: it rests cream
+            showing the coin balance; when coins are waiting it is gold
+            "Collect X.XX"; a Collect All tap lands the money and the
+            pill is simply the balance face again in the same render —
+            a direct label swap, like the Pray Today claim line. The
+            info button opens the per-building breakdown. */}
         <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, marginLeft: 8 }}>
           <Animated.View
             ref={balanceRef}
@@ -7648,9 +7577,9 @@ export default function HometownScreen() {
               hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
               style={{ borderRadius: 999 }}
             >
-              <Animated.View
+              <View
                 style={{
-                  backgroundColor: pillMorph.interpolate({ inputRange: [0, 1], outputRange: ["#FEF3C7", "#D4AF37"] }),
+                  backgroundColor: pillCollectMode ? "#D4AF37" : "#FEF3C7",
                   borderRadius: 999,
                   paddingHorizontal: 14,
                   paddingVertical: 10,
@@ -7660,24 +7589,10 @@ export default function HometownScreen() {
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.2,
                   shadowRadius: 2,
-                  transform: [
-                    { rotateY: collectFlip.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
-                    { scale: pillInnerScale },
-                  ],
                 }}
               >
-                {/* Green FX overlay: fades in as the pill flips to "Collected!". */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#16A34A", borderRadius: 999, opacity: collectFlip }}
-                />
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-                  {justCollected ? (
-                    <>
-                      <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
-                      <Text style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collected!</Text>
-                    </>
-                  ) : pillFace === "collect" ? (
+                  {pillCollectMode ? (
                     <>
                       <MaterialIcons name="monetization-on" size={18} color="#FFFFFF" />
                       <Text numberOfLines={1} style={{ fontWeight: "800", fontSize: 13, color: "#FFFFFF", marginLeft: 4 }}>Collect {headerCoinText(collectibleTotal)}</Text>
@@ -7689,7 +7604,7 @@ export default function HometownScreen() {
                     </>
                   )}
                 </View>
-              </Animated.View>
+              </View>
             </Pressable>
             {/* Floating "+X" receipt — the balance above already updated;
                 this is decoration only. */}
@@ -7848,7 +7763,7 @@ export default function HometownScreen() {
             ? `${info.icon} ${info.name}`
             : unlocked
               ? `${info.icon} ${info.name}`
-              : `${info.icon} ${info.name} 🔒 ${mapUnlockCost(id).toFixed(2)}🪙`;
+              : `${info.icon} ${info.name} 🔒 ${formatCoins(mapUnlockCost(id))}🪙`;
           return (
             <Pressable
               key={id}
@@ -7945,7 +7860,7 @@ export default function HometownScreen() {
                 const pay = collectionPayout(meta);
                 addCoins(pay.coins);
                 awardCustomXP(pay.xp, `collection:flowers`).catch(() => undefined);
-                queueCelebration("milestone", "Collection complete: Garden Flowers!", `Every bloom planted. +${pay.coins.toFixed(2)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
+                queueCelebration("milestone", "Collection complete: Garden Flowers!", `Every bloom planted. +${formatCoins(pay.coins)} coins, +${pay.xp} XP. Title earned: ${meta.rewardTitle}.`);
               }
             }).catch(() => undefined);
           }}
@@ -7973,7 +7888,7 @@ export default function HometownScreen() {
             const person = remembrance.people.find((p) => p.id === id);
             if (!person || candleLit(person)) return;
             if (coinsRef.current.balance < MEMORY_CANDLE_COST) {
-              Alert.alert("Not enough coins", `Lighting a candle costs ${MEMORY_CANDLE_COST.toFixed(2)} coins.`);
+              Alert.alert("Not enough coins", `Lighting a candle costs ${formatCoins(MEMORY_CANDLE_COST)} coins.`);
               return;
             }
             addCoins(-MEMORY_CANDLE_COST);
@@ -8222,7 +8137,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#6B7280", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{scaledCoins(plot.cost).toFixed(2)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#374151", marginTop: 2 }}>🪙{formatCoins(scaledCoins(plot.cost))}</Text>
               <Text style={{ fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -8248,7 +8163,7 @@ export default function HometownScreen() {
               }}
             >
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#115E59", letterSpacing: 1 }}>FOR SALE</Text>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#134E4A", marginTop: 2 }}>{scaledCoins(plot.cost).toFixed(2)}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#134E4A", marginTop: 2 }}>{formatCoins(scaledCoins(plot.cost))}</Text>
               <Text style={{ fontSize: 8, color: "#0F766E", marginTop: 2 }}>{BUILDINGS[plot.buildingType].name}</Text>
             </View>
           ))}
@@ -8286,12 +8201,12 @@ export default function HometownScreen() {
                   {lot.allowedTypes.includes("villager-cottage") ? (
                     <CottageGlyph size={16} />
                   ) : null}
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{scaledCoins(lot.cost).toFixed(2)}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#92400E" }}>🪙{formatCoins(scaledCoins(lot.cost))}</Text>
                 </View>
               ) : (
                 <>
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#B45309", letterSpacing: 1 }}>{"FOR SALE"}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{scaledCoins(lot.cost).toFixed(2)}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#92400E", marginTop: 2 }}>🪙{formatCoins(scaledCoins(lot.cost))}</Text>
                   <Text style={{ fontSize: 8, color: "#B45309", marginTop: 2, textAlign: "center" }} numberOfLines={1}>{lot.name}</Text>
                   {lot.presetType && !map.buildings.some((b) => b.type === lot.presetType) && (
                     lot.presetType === "banquet-table" ? (
@@ -8759,7 +8674,7 @@ export default function HometownScreen() {
                   <Text style={{ fontSize: 12, color: pt.subtext }}>{def.description}</Text>
                   <Text style={{ fontSize: 11, color: pt.subtext }}>Builds in 1 min</Text>
                 </View>
-                <Text style={{ fontWeight: "700", color: pt.text }}>🪙{def.cost.toFixed(2)}</Text>
+                <Text style={{ fontWeight: "700", color: pt.text }}>🪙{formatCoins(def.cost)}</Text>
               </Pressable>
             );
           })}
@@ -8814,7 +8729,7 @@ export default function HometownScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                     <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
                       {m.rewardCoins > 0 && (
-                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {scaledCoins(m.rewardCoins).toFixed(2)}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(scaledCoins(m.rewardCoins))}</Text>
                       )}
                       {m.rewardXP > 0 && (
                         <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {m.rewardXP} XP</Text>
@@ -8922,7 +8837,7 @@ export default function HometownScreen() {
                           </Text>
                           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
                             <View style={{ flex: 1, flexDirection: "row", gap: 8 }}>
-                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {(def.rewardCoins + (a.bonusCoins ?? 0)).toFixed(2)}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: "700", color: "#B45309" }}>🪙 {formatCoins(def.rewardCoins + (a.bonusCoins ?? 0))}</Text>
                               <Text style={{ fontSize: 13, fontWeight: "700", color: "#7C3AED" }}>⚡ {def.rewardXP} XP</Text>
                             </View>
                             {done ? (
@@ -8995,7 +8910,7 @@ export default function HometownScreen() {
 
               const doUpgrade = () => {
                 if (coinsRef.current.balance < upgradeCost) {
-                  Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${coins.balance.toFixed(2)}.`);
+                  Alert.alert("Not enough coins", `You need ${upgradeCost} coins. You have ${formatCoins(coins.balance)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x => x.id === b.id ? beginConstruction(x, nextLevel, Date.now()) : x);
@@ -9037,7 +8952,7 @@ export default function HometownScreen() {
                   return;
                 }
                 if (coinsRef.current.balance < scaledCoins(WORKER_HIRE_COST)) {
-                  Alert.alert("Not enough coins", `Hiring costs ${scaledCoins(WORKER_HIRE_COST).toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+                  Alert.alert("Not enough coins", `Hiring costs ${formatCoins(scaledCoins(WORKER_HIRE_COST))} coins. You have ${formatCoins(coins.balance)}.`);
                   return;
                 }
                 const updated = map.buildings.map(x =>
@@ -9068,7 +8983,7 @@ export default function HometownScreen() {
                       <View style={{ marginBottom: 12 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
                           <Text style={{ fontSize: 13, color: pt.subtext, fontWeight: "600" }}>
-                            Storage: {stored.toFixed(2)}/{cap.toFixed(2)}
+                            Storage: {formatCoins(stored)}/{formatCoins(cap)}
                           </Text>
                           {isFull && (
                             <View style={{ marginLeft: 8, backgroundColor: "#DC2626", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
@@ -9138,7 +9053,7 @@ export default function HometownScreen() {
                   })()}
                   {b.type === "church" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
-                      🙏 {prayedToday} prayed for today (+{(prayedToday * CHURCH_PRAYER_COINS_PER_HOUR).toFixed(2)} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
+                      🙏 {prayedToday} prayed for today (+{formatCoins((prayedToday * CHURCH_PRAYER_COINS_PER_HOUR))} coins/hour){!isMax ? ` — upgrade to ${churchNameFor(nextLevel)}` : " — a warm Community Church, full of light!"}
                     </Text>
                   ) : b.type === "house" ? (
                     <Text style={{ fontSize: 14, color: pt.subtext, marginBottom: 16 }}>
@@ -9165,7 +9080,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: "#7C5CFF", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 16 }}>
-                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{upgradeCost.toFixed(2)}
+                        ⬆️ Upgrade to {b.type === "house" ? houseNameFor(nextLevel) : b.type === "church" ? churchNameFor(nextLevel) : `Lv ${nextLevel}`} 🪙{formatCoins(upgradeCost)}
                       </Text>
                       <Text style={{ color: "#E9E4FF", fontSize: 12, marginTop: 2 }}>
                         {incomeLabelFor(preview)} · {constructionTimeLabel(nextLevel, false)} — closes while building
@@ -9178,7 +9093,7 @@ export default function HometownScreen() {
                       style={{ backgroundColor: pt.bg, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                     >
                       <Text style={{ color: pt.text, fontWeight: "700", fontSize: 16 }}>
-                        👷 Hire Worker 🪙{scaledCoins(WORKER_HIRE_COST).toFixed(2)} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
+                        👷 Hire Worker 🪙{formatCoins(scaledCoins(WORKER_HIRE_COST))} ({workerCount}/{MAX_WORKERS_PER_BUILDING})
                       </Text>
                     </Pressable>
                   )}
@@ -9268,7 +9183,7 @@ export default function HometownScreen() {
                         <Pressable
                           onPress={async () => {
                             if (coins.balance < merchantDeal.price) {
-                              Alert.alert("Not enough coins", `This costs ${merchantDeal.price.toFixed(2)} coins. You have ${coins.balance.toFixed(2)}.`);
+                              Alert.alert("Not enough coins", `This costs ${formatCoins(merchantDeal.price)} coins. You have ${formatCoins(coins.balance)}.`);
                               return;
                             }
                             addCoins(-merchantDeal.price);
@@ -9290,7 +9205,7 @@ export default function HometownScreen() {
                           style={{ backgroundColor: "#7C3AED", borderRadius: 12, paddingVertical: 12, alignItems: "center", marginBottom: 8 }}
                         >
                           <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>
-                            Buy for {merchantDeal.price.toFixed(2)} coins
+                            Buy for {formatCoins(merchantDeal.price)} coins
                           </Text>
                         </Pressable>
                       </>
@@ -9777,7 +9692,7 @@ export default function HometownScreen() {
                     <Text style={{ fontSize: 15, color: "#1F2937", flex: 1 }}>{BUILDINGS[b.type]?.name || b.type}</Text>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <MaterialIcons name="monetization-on" size={16} color="#D4AF37" />
-                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E", marginLeft: 4 }}>{(b.accumulated || 0).toFixed(2)}</Text>
+                      <Text style={{ fontSize: 15, fontWeight: "700", color: "#92400E", marginLeft: 4 }}>{formatCoins((b.accumulated || 0))}</Text>
                     </View>
                   </View>
                 ))}
@@ -9793,7 +9708,7 @@ export default function HometownScreen() {
                 style={{ backgroundColor: "#D4AF37", borderRadius: 12, paddingVertical: 12, marginTop: 16, alignItems: "center" }}
               >
                 <Text style={{ fontWeight: "800", fontSize: 15, color: "#FFFFFF" }}>
-                  Collect {town.maps[activeMap].buildings.reduce((s, b) => s + (b.accumulated || 0), 0).toFixed(2)}
+                  Collect {formatCoins(town.maps[activeMap].buildings.reduce((s, b) => s + (b.accumulated || 0), 0))}
                 </Text>
               </Pressable>
             )}
@@ -9873,7 +9788,7 @@ export default function HometownScreen() {
                   onPress={doThank}
                   style={{ marginTop: 12, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, backgroundColor: "#10B981" }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>💛 Say Thanks (+{LIGHT_TAP_COINS.toFixed(2)} coins)</Text>
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>💛 Say Thanks (+{formatCoins(LIGHT_TAP_COINS)} coins)</Text>
                 </Pressable>
               ) : (
                 <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 12, fontStyle: "italic", textAlign: "center" }}>
@@ -10057,7 +9972,7 @@ export default function HometownScreen() {
                         <Text style={{ color: pt.text, fontWeight: "700", fontSize: 15 }}>{def.label}</Text>
                         <Text style={{ color: pt.subtext, fontSize: 12, marginTop: 2 }}>{def.blurb}</Text>
                         <Text style={{ color: "#B45309", fontSize: 12, fontWeight: "700", marginTop: 4 }}>
-                          {def.durationLabel}  ·  🪙{def.rewardCoins.toFixed(2)}  ·  ⚡{def.rewardXP} XP
+                          {def.durationLabel}  ·  🪙{formatCoins(def.rewardCoins)}  ·  ⚡{def.rewardXP} XP
                           {!available ? "  ·  not built yet" : ""}
                         </Text>
                       </View>
@@ -10227,7 +10142,7 @@ export default function HometownScreen() {
                     }]}
                   >
                     <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 16 }}>
-                      {blessed ? "Blessed today — come back tomorrow" : `Receive its blessing (+${reward.toFixed(2)} coins)`}
+                      {blessed ? "Blessed today — come back tomorrow" : `Receive its blessing (+${formatCoins(reward)} coins)`}
                     </Text>
                   </Pressable>
                   {!maxed && (
@@ -10247,7 +10162,7 @@ export default function HometownScreen() {
                       }]}
                     >
                       <Text style={{ color: "#1E40AF", fontWeight: "800", fontSize: 15 }}>
-                        Upgrade to level {level + 1} ({upgradeCost.toFixed(2)} coins)
+                        Upgrade to level {level + 1} ({formatCoins(upgradeCost)} coins)
                       </Text>
                     </Pressable>
                   )}
@@ -10311,7 +10226,7 @@ export default function HometownScreen() {
                           {def.description}
                         </Text>
                         <Text style={{ fontSize: 12, color: pt.subtext, marginTop: 4 }}>
-                          Plot 🪙{scaledCoins(lot.cost).toFixed(2)} + building 🪙{scaledCoins(def.cost).toFixed(2)}
+                          Plot 🪙{formatCoins(scaledCoins(lot.cost))} + building 🪙{formatCoins(scaledCoins(def.cost))}
                         </Text>
                       </View>
                     </View>
@@ -10320,7 +10235,7 @@ export default function HometownScreen() {
                       style={({ pressed }) => [{ borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: affordable ? "#D4AF37" : pt.border, opacity: pressed ? 0.85 : 1 }]}
                     >
                       <Text style={{ color: affordable ? "#FFFFFF" : pt.subtext, fontWeight: "800", fontSize: 16 }}>
-                        Unlock for 🪙{total.toFixed(2)}
+                        Unlock for 🪙{formatCoins(total)}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -10357,7 +10272,7 @@ export default function HometownScreen() {
                     {lot.name} — FOR SALE
                   </Text>
                   <Text style={{ fontSize: 13, color: pt.subtext, textAlign: "center", marginTop: 6, marginBottom: 12 }}>
-                    Purchase this lot for {scaledCoins(lot.cost).toFixed(2)} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. New buildings take 1 min to build.
+                    Purchase this lot for {formatCoins(scaledCoins(lot.cost))} coins and choose what to build. Lot buildings have a fixed home here — they can't be moved or sold, only upgraded. New buildings take 1 min to build.
                   </Text>
                   <ScrollView style={{ maxHeight: 420 }}>
                     {groups.map((g) => {
@@ -10404,7 +10319,7 @@ export default function HometownScreen() {
                                   </Text>
                                 </View>
                                 <Text style={{ fontSize: 15, fontWeight: "800", color: affordable ? "#B8860B" : "#EF4444" }}>
-                                  🪙{total.toFixed(2)}
+                                  🪙{formatCoins(total)}
                                 </Text>
                               </Pressable>
                             );

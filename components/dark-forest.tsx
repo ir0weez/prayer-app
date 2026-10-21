@@ -6,6 +6,7 @@
 // 1 per wave fight, rekindled at midnight. Boss Gate fights are free.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatCoins } from "@/lib/hometown";
 import { Animated, Easing, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
 import { demonForWave, demonPalette, zoneForWave, zoneLabel, FOREST_ZONES, type DarkForestState, type DemonDef, type ForestZone } from "@/lib/dark-forest";
@@ -1005,7 +1006,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
                   {bossBadge.perk} — yours forever. Prestige cannot take it.
                 </Text>
                 <Text style={{ color: "#E2E8F0", fontSize: 13, marginBottom: 10 }}>
-                  +{bossFight.coins.toFixed(2)} coins · +{bossFight.xp} XP · the Boss Gate stands open
+                  +{formatCoins(bossFight.coins)} coins · +{bossFight.xp} XP · the Boss Gate stands open
                 </Text>
                 <Pressable
                   onPress={leaveBoss}
@@ -1019,7 +1020,7 @@ export function DarkForest({ stats, trainingBonus = false, trainingBonusPct = 10
               <View style={{ backgroundColor: "rgba(10,25,15,0.92)", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#4ADE80", alignItems: "center" }}>
                 <Text style={{ color: "#4ADE80", fontWeight: "900", fontSize: 18, marginBottom: 4 }}>Victory!</Text>
                 <Text style={{ color: "#E2E8F0", fontSize: 13, marginBottom: 10 }}>
-                  {demon.name} is banished. +{demon.coins.toFixed(2)} coins · +{demon.xp} XP
+                  {demon.name} is banished. +{formatCoins(demon.coins)} coins · +{demon.xp} XP
                 </Text>
                 {wave % 10 === 0 && (
                   <Text style={{ color: "#C7D2FE", fontSize: 12, marginBottom: 10, fontStyle: "italic", textAlign: "center" }}>

@@ -27,7 +27,9 @@ import {
 } from "@/lib/gear";
 import { getLevelForXP, loadXPState } from "@/lib/xp-engine";
 import { loadPrestigeLevel } from "@/lib/prestige";
-import { COINS_STORAGE_KEY } from "@/lib/hometown";
+import { COINS_STORAGE_KEY,
+  formatCoins,
+} from "@/lib/hometown";
 import { FASTS_STORAGE_KEY } from "@/lib/prayercircle-storage";
 import { getActiveFast, getCurrentFastDay, type PersonalFast } from "@/lib/prayercircle-fasting";
 
@@ -144,7 +146,7 @@ export default function GearShopScreen() {
       return;
     }
     if (coins.balance < item.cost) {
-      Alert.alert("Not enough coins", `${item.name} costs ${item.cost} coins. You have ${coins.balance.toFixed(2)}.`);
+      Alert.alert("Not enough coins", `${item.name} costs ${item.cost} coins. You have ${formatCoins(coins.balance)}.`);
       return;
     }
     const nextInv = [...inventory, item.id];
@@ -194,7 +196,7 @@ export default function GearShopScreen() {
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
             <Text style={{ fontSize: 16 }}>🪙</Text>
-            <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{coins.balance.toFixed(2)}</Text>
+            <Text style={{ color: "#FFFFFF", fontWeight: "700", marginLeft: 4 }}>{formatCoins(coins.balance)}</Text>
           </View>
         </View>
         <Text style={{ color: LABEL, fontSize: 13, marginTop: 4, marginBottom: 16 }}>

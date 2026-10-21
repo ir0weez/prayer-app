@@ -4,6 +4,7 @@
 // full riverside retreat with cabins and lanterns.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatCoins } from "@/lib/hometown";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Rect, Text as SvgText } from "react-native-svg";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -429,7 +430,7 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, vil
 
   const firePos = { x: 186, y: 468 };
 
-  const sellCoins = (river.creel * info.coinPerFish).toFixed(2);
+  const sellCoins = formatCoins((river.creel * info.coinPerFish));
   const nextInfo = level < 3 ? RIVER_LEVELS[(level + 1) as RiverLevel] : null;
 
   const wavePath = (y: number, w: number, amp: number) => {
@@ -1006,7 +1007,7 @@ export function RiverCamp({ river, timeOfDay, pt, tunicColor, villagerNames, vil
             >
               <MaterialIcons name="upgrade" size={18} color="#FFFFFF" />
               <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15, marginLeft: 8 }}>
-                Upgrade camp — {info.upgradeCost.toFixed(2)} coins
+                Upgrade camp — {formatCoins(info.upgradeCost)} coins
               </Text>
             </Pressable>
           </View>

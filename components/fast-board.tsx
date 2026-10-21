@@ -738,7 +738,6 @@ export function PawnCompanion({
     encouraging: ["Yesterday's gone. Today's fresh.", "You got this. Start again.", "Every day is a new beginning."],
     building: ["Raising a testimony! 🪨", "Stone by stone...", "Abraham would be proud!"],
   };
-  const moodEmoji = { celebrating: "🎉", happy: "😊", content: "😌", sleepy: "😴", encouraging: "💪", building: "🔨" }[mood];
   const moodLabel = { celebrating: "Celebrating", happy: "Happy", content: "Content", sleepy: "Sleepy", encouraging: "Cheering you on", building: "Building" }[mood];
   const msgs = messages[mood];
   // Mood-tinted card background
@@ -757,39 +756,36 @@ export function PawnCompanion({
       <View
         style={{
           backgroundColor: colors.surface,
-          borderRadius: 12,
-          paddingHorizontal: 10,
-          paddingVertical: 4,
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          paddingVertical: 6,
           borderWidth: 1,
           borderColor: colors.border,
           marginBottom: 8,
         }}
       >
-        <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted }}>
-          {moodEmoji} {moodLabel}
+        <Text style={{ fontSize: 12, fontWeight: "600", letterSpacing: 0.2, color: colors.foreground }}>
+          {moodLabel}
         </Text>
       </View>
       {/* Thought bubble with tail */}
       <Pressable
         onPress={() => setBubbleIndex((i) => (i + 1) % msgs.length)}
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: colors.surface,
           borderRadius: 16,
+          borderWidth: 1,
+          borderColor: colors.border,
           paddingHorizontal: 14,
           paddingVertical: 10,
           marginBottom: 4,
           maxWidth: 280,
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 2,
         }}
       >
-        <Text style={{ color: "#1F2937", fontSize: 14, textAlign: "center", fontWeight: "600" }}>
+        <Text style={{ color: colors.foreground, fontSize: 14, textAlign: "center", fontWeight: "600" }}>
           {msgs[bubbleIndex]}
         </Text>
-        <Text style={{ color: "#9CA3AF", fontSize: 10, textAlign: "center", marginTop: 4 }}>tap for more</Text>
+        <Text style={{ color: colors.muted, fontSize: 10, textAlign: "center", marginTop: 4 }}>tap for more</Text>
       </Pressable>
       {/* Bubble tail */}
       <View
@@ -801,7 +797,7 @@ export function PawnCompanion({
           borderTopWidth: 10,
           borderLeftColor: "transparent",
           borderRightColor: "transparent",
-          borderTopColor: "#FFFFFF",
+          borderTopColor: colors.surface,
           marginBottom: 6,
         }}
       />
@@ -856,10 +852,10 @@ export function FastStreakPill({ dayNum, colors }: { dayNum: number; colors: Fas
     <View
       style={{
         alignSelf: "flex-start",
-        borderRadius: 20,
+        borderRadius: 8,
         paddingHorizontal: 12,
-        paddingVertical: 4,
-        backgroundColor: colors.border + "55",
+        paddingVertical: 6,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         marginTop: 6,
@@ -1430,20 +1426,20 @@ export function FastBoard({
     <View>
       <FastStreakPill dayNum={currentDayNum} colors={colors} />
       {/* Special spaces legend */}
-      <View style={{ flexDirection: "row", gap: 12, marginTop: 8, marginBottom: 4, flexWrap: "wrap" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 4, flexWrap: "wrap" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#F59E0B", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>✦</Text>
           </View>
           <Text style={{ color: colors.muted, fontSize: 11 }}>Grace +25</Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>!</Text>
           </View>
           <Text style={{ color: colors.muted, fontSize: 11 }}>Wilderness +50</Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#7C5CFF", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#FFFFFF", fontSize: 9, fontWeight: "800" }}>?</Text>
           </View>

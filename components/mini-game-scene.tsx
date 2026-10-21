@@ -5,6 +5,7 @@
 // by the interiors, and the results panel every game ends on.
 
 import { useState } from "react";
+import { formatCoins } from "@/lib/hometown";
 import { LayoutChangeEvent, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -119,7 +120,7 @@ export function GameResults({
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <MaterialIcons name="monetization-on" size={17} color="#B45309" />
             <Text style={{ marginLeft: 5, fontWeight: "800", fontSize: 15, color: "#92400E" }}>
-              +{granted.coins.toFixed(2)}
+              +{formatCoins(granted.coins)}
             </Text>
           </View>
         )}
